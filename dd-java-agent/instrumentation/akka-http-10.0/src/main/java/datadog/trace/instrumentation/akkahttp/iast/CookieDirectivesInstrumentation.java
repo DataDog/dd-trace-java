@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Directive;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintCookieFunction;
@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
  * all the cookies, see {@link CookieHeaderInstrumentation}.
  */
 @AutoService(Instrumenter.class)
-public class CookieDirectivesInstrumentation extends InstrumenterGroup.Iast
+public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public CookieDirectivesInstrumentation() {
     super("akka-http");

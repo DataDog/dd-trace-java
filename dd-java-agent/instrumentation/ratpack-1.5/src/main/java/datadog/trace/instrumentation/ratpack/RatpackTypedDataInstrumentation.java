@@ -5,14 +5,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class RatpackTypedDataInstrumentation extends InstrumenterGroup.AppSec
+public class RatpackTypedDataInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public RatpackTypedDataInstrumentation() {
     super("ratpack-request-body");

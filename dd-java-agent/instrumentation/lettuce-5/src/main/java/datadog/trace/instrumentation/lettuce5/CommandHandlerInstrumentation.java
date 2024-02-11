@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
  * io.lettuce.core.protocol.AsyncCommand} during decoding.
  */
 @AutoService(Instrumenter.class)
-public class CommandHandlerInstrumentation extends InstrumenterGroup.Profiling
+public class CommandHandlerInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForSingleType {
 
   public CommandHandlerInstrumentation() {

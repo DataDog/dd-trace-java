@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import akka.stream.stage.GraphStageLogic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -24,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** See https://github.com/akka/akka-http/issues/4304 */
 @AutoService(Instrumenter.class)
-public class Bug4304Instrumentation extends InstrumenterGroup.AppSec
+public class Bug4304Instrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
   public Bug4304Instrumentation() {
     super("akka-http");

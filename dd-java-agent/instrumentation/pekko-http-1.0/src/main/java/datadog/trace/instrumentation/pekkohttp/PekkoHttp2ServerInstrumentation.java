@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.model.HttpResponse;
@@ -19,7 +19,7 @@ import scala.concurrent.Future;
  * {@code bindAndHandleAsync}.
  */
 @AutoService(Instrumenter.class)
-public final class PekkoHttp2ServerInstrumentation extends InstrumenterGroup.Tracing
+public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public PekkoHttp2ServerInstrumentation() {
     super("pekko-http2", "pekko-http", "pekko-http-server");

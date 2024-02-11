@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.tooling.InstrumenterGroup
+import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.api.Config
 import datadog.trace.api.config.IastConfig
 import datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListener
@@ -14,7 +14,7 @@ class IastInstrumentationTest extends AgentTestRunner {
 
     when:
     final enabled = instrumentation.isEnabled()
-    final applicable = instrumentation.isApplicable(enabledSystems as Set<InstrumenterGroup.TargetSystem>)
+    final applicable = instrumentation.isApplicable(enabledSystems as Set<InstrumenterModule.TargetSystem>)
 
     then:
     enabled
@@ -23,9 +23,9 @@ class IastInstrumentationTest extends AgentTestRunner {
     where:
     enabledSystems                                                               | expected
     []                                                                           | false
-    [InstrumenterGroup.TargetSystem.APPSEC]                                      | false
-    [InstrumenterGroup.TargetSystem.IAST]                                        | true
-    [InstrumenterGroup.TargetSystem.IAST, InstrumenterGroup.TargetSystem.APPSEC] | true
+    [InstrumenterModule.TargetSystem.APPSEC]                                       | false
+    [InstrumenterModule.TargetSystem.IAST]                                         | true
+    [InstrumenterModule.TargetSystem.IAST, InstrumenterModule.TargetSystem.APPSEC] | true
   }
 
   void 'test Iast Instrumentation type matching'() {

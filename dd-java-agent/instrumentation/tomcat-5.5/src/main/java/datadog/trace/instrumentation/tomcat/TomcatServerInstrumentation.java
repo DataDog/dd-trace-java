@@ -14,7 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
@@ -32,7 +32,7 @@ import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
 @AutoService(Instrumenter.class)
-public final class TomcatServerInstrumentation extends InstrumenterGroup.Tracing
+public final class TomcatServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public TomcatServerInstrumentation() {

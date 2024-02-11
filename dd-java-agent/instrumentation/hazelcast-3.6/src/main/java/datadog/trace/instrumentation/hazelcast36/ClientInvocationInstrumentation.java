@@ -12,12 +12,12 @@ import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.ClientNonSmartInvocationServiceImpl;
 import com.hazelcast.spi.discovery.DiscoveryStrategy;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ClientInvocationInstrumentation extends InstrumenterGroup.Tracing
+public class ClientInvocationInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public ClientInvocationInstrumentation() {

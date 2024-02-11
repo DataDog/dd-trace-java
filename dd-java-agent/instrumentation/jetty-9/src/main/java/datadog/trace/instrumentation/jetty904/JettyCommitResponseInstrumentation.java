@@ -6,11 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(Instrumenter.class)
-public final class JettyCommitResponseInstrumentation extends InstrumenterGroup.AppSec
+public final class JettyCommitResponseInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 
   public JettyCommitResponseInstrumentation() {

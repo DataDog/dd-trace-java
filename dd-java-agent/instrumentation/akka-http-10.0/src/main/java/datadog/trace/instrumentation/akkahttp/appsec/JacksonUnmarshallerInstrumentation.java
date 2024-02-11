@@ -10,12 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.http.javadsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class JacksonUnmarshallerInstrumentation extends InstrumenterGroup.AppSec
+public class JacksonUnmarshallerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 
   public JacksonUnmarshallerInstrumentation() {

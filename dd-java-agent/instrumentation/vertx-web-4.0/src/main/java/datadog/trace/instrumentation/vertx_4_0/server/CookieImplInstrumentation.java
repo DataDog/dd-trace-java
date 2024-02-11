@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -18,7 +18,7 @@ import io.vertx.core.http.Cookie;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CookieImplInstrumentation extends InstrumenterGroup.Iast
+public class CookieImplInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   private final String className = CookieImplInstrumentation.class.getName();

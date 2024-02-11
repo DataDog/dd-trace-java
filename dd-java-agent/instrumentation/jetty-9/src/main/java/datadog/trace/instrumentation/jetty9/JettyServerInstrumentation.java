@@ -17,7 +17,7 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
@@ -46,7 +46,7 @@ import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
 @AutoService(Instrumenter.class)
-public final class JettyServerInstrumentation extends InstrumenterGroup.Tracing
+public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider, Instrumenter.HasTypeAdvice {
 
   private boolean appSecNotFullyDisabled;

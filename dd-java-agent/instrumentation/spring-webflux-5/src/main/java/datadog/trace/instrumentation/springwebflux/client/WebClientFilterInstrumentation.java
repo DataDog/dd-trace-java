@@ -7,10 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public class WebClientFilterInstrumentation extends InstrumenterGroup.Tracing
+public class WebClientFilterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public WebClientFilterInstrumentation() {

@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.shutdown.ShutdownHelper;
 import net.bytebuddy.asm.Advice;
 
@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
  * before the shutdown hooks are called.<br>
  */
 @AutoService(Instrumenter.class)
-public class ShutdownInstrumentation extends InstrumenterGroup.Tracing
+public class ShutdownInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public ShutdownInstrumentation() {

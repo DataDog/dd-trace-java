@@ -4,12 +4,12 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class QueuedThreadPoolInstrumentation extends InstrumenterGroup.Tracing
+public class QueuedThreadPoolInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public QueuedThreadPoolInstrumentation() {
     super("jetty-concurrent");
