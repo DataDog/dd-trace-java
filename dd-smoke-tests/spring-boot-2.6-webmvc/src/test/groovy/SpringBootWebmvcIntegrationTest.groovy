@@ -14,7 +14,7 @@ class SpringBootWebmvcIntegrationTest extends AbstractServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
-      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()}:includeResource,DDAgentWriter",
+      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()}:includeResource:includeService,DDAgentWriter",
       "-jar",
       springBootShadowJar,
       "--server.port=${httpPort}"
@@ -31,8 +31,8 @@ class SpringBootWebmvcIntegrationTest extends AbstractServerSmokeTest {
   @Override
   protected Set<String> expectedTraces() {
     return [
-      "\\[servlet\\.request:GET /fruits\\[spring\\.handler:FruitController\\.listFruits\\[repository\\.operation:FruitRepository\\.findAll\\[h2\\.query:.*",
-      "\\[servlet\\.request:GET /fruits/\\{name}\\[spring\\.handler:FruitController\\.findOneFruit\\[repository\\.operation:FruitRepository\\.findByName\\[h2\\.query:.*"
+      "\\[$SERVICE_NAME:servlet\\.request:GET /fruits\\[$SERVICE_NAME:spring\\.handler:FruitController\\.listFruits\\[$SERVICE_NAME:repository\\.operation:FruitRepository\\.findAll\\[h2:h2\\.query:.*",
+      "\\[$SERVICE_NAME:servlet\\.request:GET /fruits/\\{name}\\[$SERVICE_NAME:spring\\.handler:FruitController\\.findOneFruit\\[$SERVICE_NAME:repository\\.operation:FruitRepository\\.findByName\\[h2:h2\\.query:.*"
     ]
   }
 
