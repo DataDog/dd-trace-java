@@ -175,7 +175,7 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
   }
 
   @Override
-  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String className) {
+  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
@@ -184,7 +184,7 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
         new AgentBuilder.Transformer.ForAdvice(customMapping)
             .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
             .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-            .advice(not(ignoredMethods).and(matcher), className));
+            .advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
   @Override

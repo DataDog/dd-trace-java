@@ -174,13 +174,13 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
   }
 
   @Override
-  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String className) {
+  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
     adviceBuilder =
         adviceBuilder.transform(
             new AgentBuilder.Transformer.ForAdvice()
                 .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                 .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-                .advice(not(ignoreMatcher).and(matcher), className));
+                .advice(not(ignoreMatcher).and(matcher), adviceClass));
   }
 
   @Override

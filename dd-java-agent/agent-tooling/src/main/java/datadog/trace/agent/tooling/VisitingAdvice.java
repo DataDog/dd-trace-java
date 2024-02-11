@@ -6,6 +6,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.utility.JavaModule;
 
+/** {@link AsmVisitorWrapper} type advice. */
 final class VisitingAdvice implements Instrumenter.TransformingAdvice {
   private final AsmVisitorWrapper visitor;
 
