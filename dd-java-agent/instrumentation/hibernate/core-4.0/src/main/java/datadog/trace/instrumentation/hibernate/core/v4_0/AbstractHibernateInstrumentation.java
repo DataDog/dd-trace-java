@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.hibernate.core.v4_0;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
-public abstract class AbstractHibernateInstrumentation extends InstrumenterGroup.Tracing
+public abstract class AbstractHibernateInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";

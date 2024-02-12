@@ -12,7 +12,7 @@ import akka.http.scaladsl.server.directives.MarshallingDirectives$;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -27,7 +27,7 @@ import net.bytebuddy.asm.Advice;
  * @see UnmarshallerInstrumentation unconditionally taints marshaller output if its input is tainted
  */
 @AutoService(Instrumenter.class)
-public class MarshallingDirectivesInstrumentation extends InstrumenterGroup.Iast
+public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 
   public MarshallingDirectivesInstrumentation() {

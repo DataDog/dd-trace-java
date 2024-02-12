@@ -6,10 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public class HeaderParamInjectorInstrumentation extends InstrumenterGroup.Iast
+public class HeaderParamInjectorInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public HeaderParamInjectorInstrumentation() {

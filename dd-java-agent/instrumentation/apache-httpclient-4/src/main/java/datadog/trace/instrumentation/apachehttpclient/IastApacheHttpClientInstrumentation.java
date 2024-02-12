@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import net.bytebuddy.asm.Advice;
@@ -20,7 +20,7 @@ import org.apache.http.HttpRequest;
 import org.apache.http.client.methods.HttpUriRequest;
 
 @AutoService(Instrumenter.class)
-public class IastApacheHttpClientInstrumentation extends InstrumenterGroup.Iast
+public class IastApacheHttpClientInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.CanShortcutTypeMatching {
 
   public IastApacheHttpClientInstrumentation() {

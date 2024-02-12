@@ -6,13 +6,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.util.HashMap;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class MySQLConnectionImplInstrumentation extends InstrumenterGroup.Tracing
+public class MySQLConnectionImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public MySQLConnectionImplInstrumentation() {
     super("vertx", "vertx-sql-client");

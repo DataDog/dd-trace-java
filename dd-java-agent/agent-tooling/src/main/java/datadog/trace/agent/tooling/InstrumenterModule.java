@@ -25,11 +25,11 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class InstrumenterGroup implements Instrumenter {
+public abstract class InstrumenterModule implements Instrumenter {
 
   /**
    * Since several systems share the same instrumentation infrastructure in order to enable only the
-   * applicable {@link Instrumenter instrumenters} on startup each {@linkplain InstrumenterGroup}
+   * applicable {@link Instrumenter instrumenters} on startup each {@linkplain InstrumenterModule}
    * must declare its target system. The systems currently supported include:
    *
    * <ul>
@@ -50,7 +50,7 @@ public abstract class InstrumenterGroup implements Instrumenter {
     USM
   }
 
-  private static final Logger log = LoggerFactory.getLogger(InstrumenterGroup.class);
+  private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
 
   private final int instrumentationId;
   private final List<String> instrumentationNames;
@@ -59,7 +59,7 @@ public abstract class InstrumenterGroup implements Instrumenter {
 
   protected final String packageName = Strings.getPackageName(getClass().getName());
 
-  public InstrumenterGroup(final String instrumentationName, final String... additionalNames) {
+  public InstrumenterModule(final String instrumentationName, final String... additionalNames) {
     instrumentationId = Instrumenters.currentInstrumentationId();
     instrumentationNames = new ArrayList<>(1 + additionalNames.length);
     instrumentationNames.add(instrumentationName);
@@ -165,11 +165,11 @@ public abstract class InstrumenterGroup implements Instrumenter {
   }
 
   /**
-   * Indicates the applicability of an {@linkplain InstrumenterGroup} to the given system.<br>
+   * Indicates the applicability of an {@linkplain InstrumenterModule} to the given system.<br>
    *
    * @param enabledSystems a set of all the enabled target systems
    * @return {@literal true} if the set of enabled systems contains all the ones required by this
-   *     particular {@linkplain InstrumenterGroup}
+   *     particular {@linkplain InstrumenterModule}
    */
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
     return false;
@@ -181,7 +181,7 @@ public abstract class InstrumenterGroup implements Instrumenter {
   }
 
   /** Parent class for all tracing related instrumentations */
-  public abstract static class Tracing extends InstrumenterGroup implements HasMethodAdvice {
+  public abstract static class Tracing extends InstrumenterModule implements HasMethodAdvice {
     public Tracing(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -193,7 +193,7 @@ public abstract class InstrumenterGroup implements Instrumenter {
   }
 
   /** Parent class for all profiling related instrumentations */
-  public abstract static class Profiling extends InstrumenterGroup implements HasMethodAdvice {
+  public abstract static class Profiling extends InstrumenterModule implements HasMethodAdvice {
     public Profiling(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -212,7 +212,7 @@ public abstract class InstrumenterGroup implements Instrumenter {
   }
 
   /** Parent class for all AppSec related instrumentations */
-  public abstract static class AppSec extends InstrumenterGroup implements HasMethodAdvice {
+  public abstract static class AppSec extends InstrumenterModule implements HasMethodAdvice {
     public AppSec(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -225,7 +225,7 @@ public abstract class InstrumenterGroup implements Instrumenter {
 
   /** Parent class for all IAST related instrumentations */
   @SuppressForbidden
-  public abstract static class Iast extends InstrumenterGroup
+  public abstract static class Iast extends InstrumenterModule
       implements HasMethodAdvice, WithPostProcessor {
     public Iast(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -270,7 +270,7 @@ public abstract class InstrumenterGroup implements Instrumenter {
   }
 
   /** Parent class for all USM related instrumentations */
-  public abstract static class Usm extends InstrumenterGroup implements HasMethodAdvice {
+  public abstract static class Usm extends InstrumenterModule implements HasMethodAdvice {
     public Usm(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
@@ -282,7 +282,7 @@ public abstract class InstrumenterGroup implements Instrumenter {
   }
 
   /** Parent class for all CI related instrumentations */
-  public abstract static class CiVisibility extends InstrumenterGroup implements HasMethodAdvice {
+  public abstract static class CiVisibility extends InstrumenterModule implements HasMethodAdvice {
     public CiVisibility(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }

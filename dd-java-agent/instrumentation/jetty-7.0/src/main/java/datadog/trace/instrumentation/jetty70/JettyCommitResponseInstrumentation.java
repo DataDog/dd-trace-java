@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -21,7 +21,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
 @AutoService(Instrumenter.class)
-public final class JettyCommitResponseInstrumentation extends InstrumenterGroup.AppSec
+public final class JettyCommitResponseInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 
   public JettyCommitResponseInstrumentation() {

@@ -9,7 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -21,7 +21,7 @@ import scala.collection.immutable.List;
 
 /** @see play.api.routing.sird.PathExtractor */
 @AutoService(Instrumenter.class)
-public class SirdPathExtractorInstrumentation extends InstrumenterGroup.AppSec
+public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public SirdPathExtractorInstrumentation() {
     super("play");

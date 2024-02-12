@@ -18,7 +18,7 @@ import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -38,7 +38,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Akka version.
  */
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinTaskInstrumentation extends InstrumenterGroup.Tracing
+public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   public AkkaForkJoinTaskInstrumentation() {

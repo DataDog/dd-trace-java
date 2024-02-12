@@ -10,7 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
@@ -24,7 +24,7 @@ import scala.collection.Iterator;
 
 /** Propagates taint from a {@link Uri} to query strings fetched from it. */
 @AutoService(Instrumenter.class)
-public class UriInstrumentation extends InstrumenterGroup.Iast
+public class UriInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public UriInstrumentation() {
     super("pekko-http");
