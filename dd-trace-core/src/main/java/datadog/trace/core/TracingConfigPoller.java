@@ -91,6 +91,25 @@ final class TracingConfigPoller {
               Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
 
       if (null != overrides && null != overrides.libConfig) {
+        ServiceTarget serviceTarget = overrides.serviceTarget;
+        if (serviceTarget != null) {
+          String targetService = serviceTarget.service;
+          String thisService = Config.get().getServiceName();
+          if (targetService != null && !targetService.equalsIgnoreCase(thisService)) {
+            log.debug(
+                "Skipping config for service {}. Current service is {}",
+                targetService,
+                thisService);
+            throw new IllegalArgumentException("service mismatch");
+          }
+          String targetEnv = serviceTarget.env;
+          String thisEnv = Config.get().getEnv();
+          if (targetEnv != null && !targetEnv.equalsIgnoreCase(thisEnv)) {
+            log.debug("Skipping config for env {}. Current env is {}", targetEnv, thisEnv);
+            throw new IllegalArgumentException("env mismatch");
+          }
+        }
+
         receivedOverrides = true;
         applyConfigOverrides(overrides.libConfig);
         if (log.isDebugEnabled()) {
@@ -178,8 +197,19 @@ final class TracingConfigPoller {
   }
 
   static final class ConfigOverrides {
+    @Json(name = "service_target")
+    public ServiceTarget serviceTarget;
+
     @Json(name = "lib_config")
     public LibConfig libConfig;
+  }
+
+  static final class ServiceTarget {
+    @Json(name = "service")
+    public String service;
+
+    @Json(name = "env")
+    public String env;
   }
 
   static final class LibConfig {

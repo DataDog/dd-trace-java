@@ -545,6 +545,134 @@ class CoreTracerTest extends DDCoreSpecification {
     null      | "test"
     "some"    | "some"
   }
+
+  def "reject configuration when target service+env mismatch"() {
+    setup:
+    injectSysConfig(SERVICE_NAME, service)
+    injectSysConfig(ENV, env)
+
+    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
+    def poller = Mock(ConfigurationPoller)
+    def sco = new SharedCommunicationObjects(
+      okHttpClient: Mock(OkHttpClient),
+      monitoring: Mock(Monitoring),
+      agentUrl: HttpUrl.get('https://example.com'),
+      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
+      configurationPoller: poller
+      )
+
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().serviceMapping == [:]
+
+    when:
+    updater.accept(key, """
+      {
+        "service_target": {
+          "service": "${targetService}",
+          "env": "${targetEnv}"
+        },
+        "lib_config":
+        {
+          "tracing_service_mapping":
+          [{
+             "from_key": "foobar",
+             "to_name": "bar"
+          }]
+        }
+      }
+      """.getBytes(StandardCharsets.UTF_8), null)
+    updater.commit()
+
+    then: "configuration should not be applied"
+    tracer.captureTraceConfig().serviceMapping == [:]
+    and:
+    thrown(IllegalArgumentException)
+
+    cleanup:
+    tracer?.close()
+
+    where:
+    service   | env    | targetService | targetEnv
+    "service" | "env"  | "service_1"   | "env"
+    "service" | "env"  | "service"     | "env_1"
+    "service" | "env"  | "service_2"   | "env_2"
+  }
+
+  def "accept configuration when target service+env match case-insensitive"() {
+    setup:
+    injectSysConfig(SERVICE_NAME, service)
+    injectSysConfig(ENV, env)
+
+    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
+    def poller = Mock(ConfigurationPoller)
+    def sco = new SharedCommunicationObjects(
+      okHttpClient: Mock(OkHttpClient),
+      monitoring: Mock(Monitoring),
+      agentUrl: HttpUrl.get('https://example.com'),
+      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
+      configurationPoller: poller
+      )
+
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().serviceMapping == [:]
+
+    when:
+    updater.accept(key, """
+      {
+        "service_target": {
+          "service": "${targetService}",
+          "env": "${targetEnv}"
+        },
+        "lib_config":
+        {
+          "tracing_service_mapping":
+          [{
+             "from_key": "foobar",
+             "to_name": "bar"
+          }]
+        }
+      }
+      """.getBytes(StandardCharsets.UTF_8), null)
+    updater.commit()
+
+    then: "configuration should be applied"
+    tracer.captureTraceConfig().serviceMapping == ["foobar":"bar"]
+
+    cleanup:
+    tracer?.close()
+
+    where:
+    service   | env   | targetService | targetEnv
+    "service" | "env" | "service"     | "env"
+    "service" | "env" | "SERVICE"     | "env"
+    "service" | "env" | "service"     | "ENV"
+    "service" | "env" | "SERVICE"     | "ENV"
+    "SERVICE" | "ENV" | "service"     | "env"
+  }
 }
 
 class ControllableSampler implements Sampler, PrioritySampler {
