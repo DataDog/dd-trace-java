@@ -164,10 +164,12 @@ final class TracingConfigPoller {
     if (null != input && !input.isEmpty()) {
       resultMap = new HashMap<>();
       for (String s : input) {
-        String[] keyValue = s.split(":");
-        if (keyValue.length == 2) {
-          String key = keyValue[0].trim();
-          String value = keyValue[1].trim();
+        int colonIndex = s.indexOf(":");
+        if (colonIndex > -1
+            && colonIndex
+                < s.length() - 1) { // ensure there's a colon that's not at the start or end
+          String key = s.substring(0, colonIndex).trim();
+          String value = s.substring(colonIndex + 1).trim();
           resultMap.put(key, value);
         }
       }

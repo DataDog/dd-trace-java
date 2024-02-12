@@ -421,6 +421,112 @@ class CoreTracerTest extends DDCoreSpecification {
     cleanup:
     tracer?.close()
   }
+  def "verify configuration polling with custom tags"() {
+    setup:
+    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
+    def poller = Mock(ConfigurationPoller)
+    def sco = new SharedCommunicationObjects(
+      okHttpClient: Mock(OkHttpClient),
+      monitoring: Mock(Monitoring),
+      agentUrl: HttpUrl.get('https://example.com'),
+      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
+      configurationPoller: poller
+      )
+
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().requestHeaderTags == [:]
+    tracer.captureTraceConfig().responseHeaderTags == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
+
+    when:
+    updater.accept(key, '''
+      {
+        "lib_config":
+        {
+          "tracing_service_mapping":
+          [{
+             "from_key": "foobar",
+             "to_name": "bar"
+          }, {
+             "from_key": "snafu",
+             "to_name": "foo"
+          }]
+          ,
+          "tracing_header_tags":
+          [{
+             "header": "Cookie",
+             "tag_name": ""
+          }, {
+             "header": "Referer",
+             "tag_name": "http.referer"
+          }, {
+             "header": "  Some.Header  ",
+             "tag_name": ""
+          }, {
+             "header": "C!!!ont_____ent----tYp!/!e",
+             "tag_name": ""
+          }, {
+             "header": "this.header",
+             "tag_name": "whatever.the.user.wants.this.header"
+          }]
+          ,
+          "tracing_sampling_rate": 0.5
+          ,
+          "tracing_tags": ["a:b", "c:d", "e:f"]
+        }
+      }
+      '''.getBytes(StandardCharsets.UTF_8), null)
+    updater.commit()
+
+    then:
+    tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
+    tracer.captureTraceConfig().requestHeaderTags == [
+      'cookie':'http.request.headers.cookie',
+      'referer':'http.referer',
+      'some.header':'http.request.headers.some_header',
+      'c!!!ont_____ent----typ!/!e':'http.request.headers.c___ont_____ent----typ_/_e',
+      'this.header':'whatever.the.user.wants.this.header'
+    ]
+    tracer.captureTraceConfig().responseHeaderTags == [
+      'cookie':'http.response.headers.cookie',
+      'referer':'http.referer',
+      'some.header':'http.response.headers.some_header',
+      'c!!!ont_____ent----typ!/!e':'http.response.headers.c___ont_____ent----typ_/_e',
+      'this.header':'whatever.the.user.wants.this.header'
+    ]
+    tracer.captureTraceConfig().traceSampleRate == 0.5
+    tracer.captureTraceConfig().tracingTags.get("a") == "b"
+    tracer.captureTraceConfig().getMergedSpanTags().get("a") == "b"
+    tracer.captureTraceConfig().tracingTags.get("c") == "d"
+    tracer.captureTraceConfig().getMergedSpanTags().get("c") == "d"
+    tracer.captureTraceConfig().tracingTags.get("e") == "f"
+    tracer.captureTraceConfig().getMergedSpanTags().get("e") == "f"
+    when:
+    updater.remove(key, null)
+    updater.commit()
+
+    then:
+    tracer.captureTraceConfig().serviceMapping == [:]
+    tracer.captureTraceConfig().requestHeaderTags == [:]
+    tracer.captureTraceConfig().responseHeaderTags == [:]
+    tracer.captureTraceConfig().traceSampleRate == null
+
+    cleanup:
+    tracer?.close()
+  }
 }
 
 class ControllableSampler implements Sampler, PrioritySampler {
