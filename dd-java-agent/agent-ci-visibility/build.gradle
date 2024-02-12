@@ -91,6 +91,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.utils.ProcessHierarchyUtils",
   "datadog.trace.civisibility.utils.ShellCommandExecutor",
   "datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser",
+  "datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException",
   "datadog.trace.civisibility.utils.SpanUtils"
 ]
 
