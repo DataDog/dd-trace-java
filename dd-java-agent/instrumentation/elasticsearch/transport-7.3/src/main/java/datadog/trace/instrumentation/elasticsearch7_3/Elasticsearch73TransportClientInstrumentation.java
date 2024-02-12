@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -23,7 +24,7 @@ import org.elasticsearch.action.ActionType;
 
 /** This class is identical to version 6's instrumentation, except Action is now ActionType. */
 @AutoService(Instrumenter.class)
-public class Elasticsearch73TransportClientInstrumentation extends Instrumenter.Tracing
+public class Elasticsearch73TransportClientInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public Elasticsearch73TransportClientInstrumentation() {

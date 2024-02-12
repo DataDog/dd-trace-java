@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
 import com.datadog.debugger.exception.ExceptionProbeManager;
@@ -9,6 +10,7 @@ import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
+import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -61,13 +63,17 @@ public class DebuggerAgent {
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     DebuggerSink debuggerSink = new DebuggerSink(config, probeStatusSink);
     debuggerSink.start();
+    // TODO filtering out thirdparty code
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(emptyList());
+    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
             DebuggerAgent::createTransformer,
             config,
             debuggerSink,
-            classesToRetransformFinder);
+            classesToRetransformFinder,
+            exceptionProbeManager);
     sink = debuggerSink;
     StatsdMetricForwarder statsdMetricForwarder =
         new StatsdMetricForwarder(config, probeStatusSink);
@@ -79,7 +85,8 @@ public class DebuggerAgent {
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerExceptionEnabled()) {
       DebuggerContext.initExceptionDebugger(
-          new DefaultExceptionDebugger(new ExceptionProbeManager()));
+          new DefaultExceptionDebugger(
+              exceptionProbeManager, configurationUpdater, classNameFiltering));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(

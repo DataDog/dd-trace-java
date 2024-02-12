@@ -48,6 +48,7 @@ import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.Where;
+import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -58,7 +59,6 @@ import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
@@ -67,7 +67,6 @@ import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LocalVariableNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
@@ -85,20 +84,17 @@ public class MetricInstrumentor extends Instrumentor {
 
   public MetricInstrumentor(
       MetricProbe metricProbe,
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
+      MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
       List<ProbeId> probeIds) {
-    super(metricProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
+    super(metricProbe, methodInfo, diagnostics, probeIds);
     this.metricProbe = metricProbe;
   }
 
   @Override
   public InstrumentationResult.Status instrument() {
-    if (isLineProbe) {
-      fillLineMap();
-      return addLineMetric(lineMap);
+    if (definition.isLineProbe()) {
+      return addLineMetric(classFileLines);
     }
     switch (definition.getEvaluateAt()) {
       case ENTRY:
@@ -344,22 +340,23 @@ public class MetricInstrumentor extends Instrumentor {
     return null;
   }
 
-  private InstrumentationResult.Status addLineMetric(LineMap lineMap) {
+  private InstrumentationResult.Status addLineMetric(ClassFileLines classFileLines) {
     Where.SourceLine[] targetLines = metricProbe.getWhere().getSourceLines();
     if (targetLines == null) {
       reportError("Missing line(s) in probe definition.");
       return InstrumentationResult.Status.ERROR;
     }
-    if (lineMap.isEmpty()) {
+    if (classFileLines.isEmpty()) {
       reportError("Missing line debug information.");
       return InstrumentationResult.Status.ERROR;
     }
     for (Where.SourceLine sourceLine : targetLines) {
       int from = sourceLine.getFrom();
       int till = sourceLine.getTill();
-      LabelNode beforeLabel = lineMap.getLineLabel(from);
+      LabelNode beforeLabel = classFileLines.getLineLabel(from);
       // single line N capture translates to line range (N, N+1)
-      LabelNode afterLabel = lineMap.getLineLabel(till + (sourceLine.isSingleLine() ? 1 : 0));
+      LabelNode afterLabel =
+          classFileLines.getLineLabel(till + (sourceLine.isSingleLine() ? 1 : 0));
       if (beforeLabel == null && afterLabel == null) {
         reportError(
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);

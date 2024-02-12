@@ -2,11 +2,12 @@ package datadog.trace.instrumentation.netty40.buffer;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 
 @AutoService(Instrumenter.class)
-public class ByteBufInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+public class ByteBufInstrumentation extends InstrumenterGroup.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   private final String className = ByteBufInstrumentation.class.getName();
 

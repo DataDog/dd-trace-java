@@ -50,9 +50,11 @@ public class TelemetryService {
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
       TelemetryClient agentClient,
       TelemetryClient intakeClient,
+      boolean useIntakeClientByDefault,
       boolean debug) {
     TelemetryRouter telemetryRouter =
-        new TelemetryRouter(ddAgentFeaturesDiscovery, agentClient, intakeClient);
+        new TelemetryRouter(
+            ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault);
     return new TelemetryService(telemetryRouter, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
@@ -106,7 +108,6 @@ public class TelemetryService {
   }
 
   public boolean addDistributionSeries(DistributionSeries series) {
-    // TODO doesn't seem to be used
     return this.distributionSeries.offer(series);
   }
 

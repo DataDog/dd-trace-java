@@ -30,6 +30,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.ClassFileLines;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.Limits;
@@ -68,23 +69,20 @@ public class CapturedContextInstrumentor extends Instrumentor {
 
   public CapturedContextInstrumentor(
       ProbeDefinition definition,
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
+      MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
       List<ProbeId> probeIds,
       boolean captureSnapshot,
       Limits limits) {
-    super(definition, classLoader, classNode, methodNode, diagnostics, probeIds);
+    super(definition, methodInfo, diagnostics, probeIds);
     this.captureSnapshot = captureSnapshot;
     this.limits = limits;
   }
 
   @Override
   public InstrumentationResult.Status instrument() {
-    if (isLineProbe) {
-      fillLineMap();
-      if (!addLineCaptures(lineMap)) {
+    if (definition.isLineProbe()) {
+      if (!addLineCaptures(classFileLines)) {
         return InstrumentationResult.Status.ERROR;
       }
       installFinallyBlocks();
@@ -98,13 +96,13 @@ public class CapturedContextInstrumentor extends Instrumentor {
     return InstrumentationResult.Status.INSTALLED;
   }
 
-  private boolean addLineCaptures(LineMap lineMap) {
+  private boolean addLineCaptures(ClassFileLines classFileLines) {
     Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
     if (targetLines == null) {
       reportError("Missing line(s) in probe definition.");
       return false;
     }
-    if (lineMap.isEmpty()) {
+    if (classFileLines.isEmpty()) {
       reportError("Missing line debug information.");
       return false;
     }
@@ -114,9 +112,9 @@ public class CapturedContextInstrumentor extends Instrumentor {
 
       boolean isSingleLine = from == till;
 
-      LabelNode beforeLabel = lineMap.getLineLabel(from);
+      LabelNode beforeLabel = classFileLines.getLineLabel(from);
       // single line N capture translates to line range (N, N+1)
-      LabelNode afterLabel = lineMap.getLineLabel(till + (isSingleLine ? 1 : 0));
+      LabelNode afterLabel = classFileLines.getLineLabel(till + (isSingleLine ? 1 : 0));
       if (beforeLabel == null && afterLabel == null) {
         reportError("No line info for " + (isSingleLine ? "line " : "range ") + sourceLine + ".");
       }

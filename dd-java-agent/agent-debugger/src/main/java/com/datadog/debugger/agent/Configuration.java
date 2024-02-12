@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -261,6 +262,16 @@ public class Configuration {
         return this;
       }
       for (LogProbe probe : probes) {
+        add(probe);
+      }
+      return this;
+    }
+
+    public Builder addExceptionProbes(Collection<ExceptionProbe> probes) {
+      if (probes == null) {
+        return this;
+      }
+      for (ExceptionProbe probe : probes) {
         add(probe);
       }
       return this;

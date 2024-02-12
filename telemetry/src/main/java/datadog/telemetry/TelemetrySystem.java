@@ -16,7 +16,6 @@ import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,13 +75,13 @@ public class TelemetrySystem {
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
 
     TelemetryClient agentClient = TelemetryClient.buildAgentClient(sco.okHttpClient, sco.agentUrl);
-    TelemetryClient intakeClient =
-        TelemetryClient.buildIntakeClient(
-            config.getSite(),
-            TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
-            config.getApiKey());
+    TelemetryClient intakeClient = TelemetryClient.buildIntakeClient(config);
+
+    boolean useIntakeClientByDefault =
+        config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled();
     TelemetryService telemetryService =
-        TelemetryService.build(ddAgentFeaturesDiscovery, agentClient, intakeClient, debug);
+        TelemetryService.build(
+            ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
 
     boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
     TELEMETRY_THREAD =

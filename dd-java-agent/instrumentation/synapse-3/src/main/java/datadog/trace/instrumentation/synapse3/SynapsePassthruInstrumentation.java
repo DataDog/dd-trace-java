@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Iterator;
 import java.util.Locale;
@@ -16,7 +17,7 @@ import org.apache.axis2.context.MessageContext;
 
 /** Helps propagate parent spans over 'passthru' mechanism to synapse-client instrumentation. */
 @AutoService(Instrumenter.class)
-public final class SynapsePassthruInstrumentation extends Instrumenter.Tracing
+public final class SynapsePassthruInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
 
   public SynapsePassthruInstrumentation() {

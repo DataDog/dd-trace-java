@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -21,7 +22,7 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
-import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.TestSnapshotListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
@@ -52,8 +53,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 public class DebuggerTransformerTest {
@@ -70,27 +69,6 @@ public class DebuggerTransformerTest {
     NONE,
     UNHANDLED,
     HANDLED
-  }
-
-  static class TestSnapshotListener extends DebuggerSink {
-    boolean skipped;
-    DebuggerContext.SkipCause cause;
-    List<Snapshot> snapshots = new ArrayList<>();
-
-    public TestSnapshotListener(Config config, ProbeStatusSink probeStatusSink) {
-      super(config, probeStatusSink);
-    }
-
-    @Override
-    public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
-      skipped = true;
-      this.cause = cause;
-    }
-
-    @Override
-    public void addSnapshot(Snapshot snapshot) {
-      snapshots.add(snapshot);
-    }
   }
 
   static final String VAR_NAME = "var";
@@ -400,10 +378,9 @@ public class DebuggerTransformerTest {
               return InstrumentationResult.Status.INSTALLED;
             })
         .when(mock)
-        .instrument(any(), any(), any(), anyList(), anyList());
+        .instrument(any(), anyList(), anyList());
     when(mock.getProbeId()).thenReturn(new ProbeId(id, 0));
-    Where where =
-        new Where().typeName(ArrayList.class.getName()).methodName("add").signature("(Object)");
+    Where where = Where.from(ArrayList.class.getName(), "add", "(Object)");
     when(mock.getWhere()).thenReturn(where);
     return (T) mock;
   }
@@ -425,13 +402,12 @@ public class DebuggerTransformerTest {
 
     @Override
     public InstrumentationResult.Status instrument(
-        ClassLoader classLoader,
-        ClassNode classNode,
-        MethodNode methodNode,
-        List<DiagnosticMessage> diagnostics,
-        List<ProbeId> probeIds) {
-      methodNode.instructions.insert(
-          new VarInsnNode(Opcodes.ASTORE, methodNode.localVariables.size()));
+        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      methodInfo
+          .getMethodNode()
+          .instructions
+          .insert(
+              new VarInsnNode(Opcodes.ASTORE, methodInfo.getMethodNode().localVariables.size()));
       return InstrumentationResult.Status.INSTALLED;
     }
 

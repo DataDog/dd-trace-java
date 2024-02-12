@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty_client.CallbackWrapper;
@@ -18,7 +19,7 @@ import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
 @AutoService(Instrumenter.class)
-public class JettyAddListenerInstrumentation extends Instrumenter.Tracing
+public class JettyAddListenerInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForSingleType {
   public JettyAddListenerInstrumentation() {
     super("jetty-client");

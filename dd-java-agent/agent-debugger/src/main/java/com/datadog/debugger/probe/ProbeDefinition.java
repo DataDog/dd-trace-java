@@ -3,6 +3,7 @@ package com.datadog.debugger.probe;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -19,8 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 
 /** Generic class storing common probe definition */
 public abstract class ProbeDefinition implements ProbeImplementation {
@@ -126,11 +125,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   }
 
   public abstract InstrumentationResult.Status instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds);
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds);
 
   @Override
   public ProbeLocation getLocation() {
@@ -164,6 +159,11 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   @Override
   public CapturedContext.Status createStatus() {
     return null;
+  }
+
+  public boolean isLineProbe() {
+    Where.SourceLine[] sourceLines = where.getSourceLines();
+    return sourceLines != null && sourceLines.length > 0;
   }
 
   public abstract static class Builder<T extends Builder> {

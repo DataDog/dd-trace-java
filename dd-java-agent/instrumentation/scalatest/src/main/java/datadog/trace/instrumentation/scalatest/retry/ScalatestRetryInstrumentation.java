@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
@@ -24,7 +25,7 @@ import org.scalatest.Suite;
 import org.scalatest.SuperEngine;
 
 @AutoService(Instrumenter.class)
-public class ScalatestRetryInstrumentation extends Instrumenter.CiVisibility
+public class ScalatestRetryInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   private final String parentPackageName = Strings.getPackageName(ScalatestUtils.class.getName());

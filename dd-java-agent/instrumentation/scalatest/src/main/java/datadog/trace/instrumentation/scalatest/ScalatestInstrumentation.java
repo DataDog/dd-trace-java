@@ -6,12 +6,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.scalatest.events.Event;
 
 @AutoService(Instrumenter.class)
-public class ScalatestInstrumentation extends Instrumenter.CiVisibility
+public class ScalatestInstrumentation extends InstrumenterGroup.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public ScalatestInstrumentation() {

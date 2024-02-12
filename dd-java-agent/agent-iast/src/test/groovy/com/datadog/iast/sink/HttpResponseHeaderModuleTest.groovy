@@ -48,7 +48,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     final onReport = { Vulnerability vul ->
       savedVul.put(vul.type, vul)
     }
-    final cookie = Cookie.named('user-id').build()
+    final cookie = Cookie.named('user-id').value('123').build()
 
     when:
     module.onCookie(cookie)
@@ -97,6 +97,7 @@ class HttpResponseHeaderModuleTest extends IastModuleImplTestBase {
     "X-Content-Type-Options"    | "nosniff"         | 2
     "Content-Type"              | "text/html"       | 2
     "Strict-Transport-Security" | "invalid max age" | 2
+    "Authorization"             | "Basic token"     | 2
   }
 
   void 'exercise IastRequestController'(){

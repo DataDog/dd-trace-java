@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterGroup;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -24,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument {@link Runnable} */
 @AutoService(Instrumenter.class)
-public final class RunnableInstrumentation extends Instrumenter.Tracing
+public final class RunnableInstrumentation extends InstrumenterGroup.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public RunnableInstrumentation() {
