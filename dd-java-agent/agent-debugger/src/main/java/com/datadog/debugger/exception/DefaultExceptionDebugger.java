@@ -1,6 +1,6 @@
 package com.datadog.debugger.exception;
 
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.ConfigurationAcceptor.Source.EXCEPTION;
+import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.EXCEPTION;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.util.ClassNameFiltering;

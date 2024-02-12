@@ -1,6 +1,6 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.ConfigurationAcceptor.Source.REMOTE_CONFIG;
+import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -34,15 +34,6 @@ public class DebuggerProductChangesListener implements ProductListener {
   public static final int MAX_ALLOWED_SPAN_DECORATION_PROBES = 100;
   private static final Logger LOGGER =
       LoggerFactory.getLogger(DebuggerProductChangesListener.class);
-
-  public interface ConfigurationAcceptor {
-    enum Source {
-      REMOTE_CONFIG,
-      EXCEPTION
-    }
-
-    void accept(Source source, Collection<? extends ProbeDefinition> definitions);
-  }
 
   static class Adapter {
     static final JsonAdapter<Configuration> CONFIGURATION_JSON_ADAPTER =

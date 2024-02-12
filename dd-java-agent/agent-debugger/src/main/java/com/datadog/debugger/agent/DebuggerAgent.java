@@ -1,6 +1,6 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.ConfigurationAcceptor.Source.REMOTE_CONFIG;
+import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static java.util.Collections.emptyList;
 

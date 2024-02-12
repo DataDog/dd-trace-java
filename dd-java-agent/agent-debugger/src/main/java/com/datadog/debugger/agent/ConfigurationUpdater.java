@@ -30,8 +30,7 @@ import org.slf4j.LoggerFactory;
  * Handles configuration updates if required by installing a new ClassFileTransformer and triggering
  * re-transformation of required classes
  */
-public class ConfigurationUpdater
-    implements DebuggerContext.ProbeResolver, DebuggerProductChangesListener.ConfigurationAcceptor {
+public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, ConfigurationAcceptor {
 
   public interface TransformerSupplier {
     DebuggerTransformer supply(

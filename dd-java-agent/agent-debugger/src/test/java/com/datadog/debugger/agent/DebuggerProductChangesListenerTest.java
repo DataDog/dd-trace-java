@@ -42,7 +42,7 @@ public class DebuggerProductChangesListenerTest {
   final ConfigurationChangesListener.PollingHinterNoop pollingHinter =
       new ConfigurationChangesListener.PollingHinterNoop();
 
-  class SimpleAcceptor implements DebuggerProductChangesListener.ConfigurationAcceptor {
+  class SimpleAcceptor implements ConfigurationAcceptor {
     private Collection<? extends ProbeDefinition> definitions;
 
     @Override
