@@ -2,9 +2,10 @@ package datadog.trace.api.naming.v0;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.NamingSchema;
+import datadog.trace.util.ExtraServicesProvider;
 import javax.annotation.Nonnull;
 
-public class MessagingNamingV0 implements NamingSchema.ForMessaging {
+class MessagingNamingV0 implements NamingSchema.ForMessaging {
   private final boolean allowInferredServices;
 
   public MessagingNamingV0(final boolean allowInferredServices) {
@@ -41,7 +42,12 @@ public class MessagingNamingV0 implements NamingSchema.ForMessaging {
   @Override
   public String inboundService(@Nonnull final String messagingSystem, boolean useLegacyTracing) {
     if (allowInferredServices) {
-      return useLegacyTracing ? messagingSystem : Config.get().getServiceName();
+      if (useLegacyTracing) {
+        ExtraServicesProvider.get().maybeAddExtraService(messagingSystem);
+        return messagingSystem;
+      } else {
+        return Config.get().getServiceName();
+      }
     } else {
       return null;
     }
@@ -50,6 +56,7 @@ public class MessagingNamingV0 implements NamingSchema.ForMessaging {
   @Override
   @Nonnull
   public String timeInQueueService(@Nonnull final String messagingSystem) {
+    ExtraServicesProvider.get().maybeAddExtraService(messagingSystem);
     return messagingSystem;
   }
 
