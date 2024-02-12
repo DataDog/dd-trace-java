@@ -147,6 +147,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return setServiceMapping(serviceMapping.entrySet());
     }
 
+    @SuppressWarnings("deprecation")
     public Builder setHeaderTags(Map<String, String> headerTags) {
       if (Config.get().getRequestHeaderTags().equals(headerTags)
           && !Config.get().getResponseHeaderTags().equals(headerTags)) {
@@ -280,6 +281,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     ConfigCollector.get().putAll(update, ConfigOrigin.REMOTE);
   }
 
+  @SuppressWarnings("SameParameterValue")
   private static void maybePut(Map<String, Object> update, String key, Object value) {
     if (null != value) {
       update.put(key, value);
