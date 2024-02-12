@@ -185,6 +185,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TELEMETRY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -768,6 +769,7 @@ public class Config {
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final int ciVisibilityFlakyRetryCount;
   private final String ciVisibilityModuleName;
+  private final boolean ciVisibilityTelemetryEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1749,6 +1751,7 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
+    ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -2969,6 +2972,10 @@ public class Config {
 
   public String getCiVisibilityModuleName() {
     return ciVisibilityModuleName;
+  }
+
+  public boolean isCiVisibilityTelemetryEnabled() {
+    return ciVisibilityTelemetryEnabled;
   }
 
   public String getAppSecRulesFile() {
