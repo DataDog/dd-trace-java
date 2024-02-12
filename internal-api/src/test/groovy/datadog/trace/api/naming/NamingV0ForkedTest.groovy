@@ -27,71 +27,62 @@ class NamingV0ForkedTest extends DDSpecification {
 
   void "Naming schema calls ExtraServicesProvider if provides a service name"() {
     setup:
+    final extraServiceProvider = Mock(ExtraServicesProvider)
+    ExtraServicesProvider.INSTANCE = extraServiceProvider
     final schema = SpanNaming.instance().namingSchema()
-    ExtraServicesProvider.get().clear()
 
     when:
-    schema.messaging().inboundService("inboundService", true)
+    schema.messaging().inboundService("anything", true)
 
     then:
-    checkExtraServices("inboundService") == true
+    1 * extraServiceProvider.maybeAddExtraService("anything")
 
     when:
-    schema.messaging().inboundService("inboundService", false)
+    schema.messaging().inboundService("anything", false)
 
     then:
-    checkExtraServices("inboundService") == false
+    0 * extraServiceProvider.maybeAddExtraService(_)
 
     when:
-    schema.cache().service("cacheService")
+    schema.cache().service("anything")
 
     then:
-    checkExtraServices("cacheService") == true
+    1 * extraServiceProvider.maybeAddExtraService("anything")
 
     when:
     schema.cache().service("hazelcast")
 
     then:
-    checkExtraServices("hazelcast-sdk") == true
+    1 * extraServiceProvider.maybeAddExtraService("hazelcast-sdk")
 
     when:
     schema.cloud().serviceForRequest("any", null)
 
     then:
-    checkExtraServices("java-aws-sdk") == true
+    1 * extraServiceProvider.maybeAddExtraService("java-aws-sdk")
 
     when:
     schema.cloud().serviceForRequest("any", "sns")
 
     then:
-    checkExtraServices("sns") == true
+    1 * extraServiceProvider.maybeAddExtraService("sns")
 
     when:
     schema.cloud().serviceForRequest("any", "sqs")
 
     then:
-    checkExtraServices("sqs") == true
+    1 * extraServiceProvider.maybeAddExtraService("sqs")
 
     when:
     schema.cloud().serviceForRequest("any", "test")
 
     then:
-    checkExtraServices("java-aws-sdk") == true
+    1 * extraServiceProvider.maybeAddExtraService("java-aws-sdk")
 
     when:
-    schema.database().service("databaseService")
+    schema.database().service("anything")
 
     then:
-    checkExtraServices("databaseService") == true
-  }
-
-  private boolean checkExtraServices(String serviceName) {
-    final extraServices = ExtraServicesProvider.get().getExtraServices()
-    if(extraServices == null){
-      return false
-    }
-    final result = ExtraServicesProvider.get().getExtraServices().contains(serviceName)
-    ExtraServicesProvider.get().clear()
-    return result
+    1 * extraServiceProvider.maybeAddExtraService("anything")
   }
 }

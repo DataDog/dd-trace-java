@@ -15,7 +15,8 @@ public class ExtraServicesProvider {
 
   private static final int MAX_EXTRA_SERVICE = 64;
 
-  private static final ExtraServicesProvider INSTANCE = new ExtraServicesProvider();
+  // This is not final to allow mocking it on tests
+  private static ExtraServicesProvider INSTANCE = new ExtraServicesProvider();
 
   public static ExtraServicesProvider get() {
     return INSTANCE;
