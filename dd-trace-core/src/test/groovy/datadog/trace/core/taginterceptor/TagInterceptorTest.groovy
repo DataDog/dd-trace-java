@@ -1,5 +1,8 @@
 package datadog.trace.core.taginterceptor
 
+import datadog.trace.core.DDSpanContext
+import datadog.trace.util.ExtraServicesProvider
+
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
@@ -673,5 +676,41 @@ class TagInterceptorTest extends DDCoreSpecification {
     cleanup:
     span.finish()
     tracer.close()
+  }
+
+  void "when interceptServiceName extraServiceProvider is called"(){
+    setup:
+    final extraServiceProvider = Mock(ExtraServicesProvider)
+    ExtraServicesProvider.INSTANCE = extraServiceProvider
+    final ruleFlags = Mock(RuleFlags)
+    ruleFlags.isEnabled(_) >> true
+    final interceptor = new TagInterceptor(true, "my-service", Collections.singleton(DDTags.SERVICE_NAME), ruleFlags)
+
+    when:
+    interceptor.interceptServiceName(null, Mock(DDSpanContext), "some-service")
+
+    then:
+    1 * extraServiceProvider.maybeAddExtraService("some-service")
+  }
+
+  void "when interceptServletContext extraServiceProvider is called"(){
+    setup:
+    final extraServiceProvider = Mock(ExtraServicesProvider)
+    ExtraServicesProvider.INSTANCE = extraServiceProvider
+    final ruleFlags = Mock(RuleFlags)
+    ruleFlags.isEnabled(_) >> true
+    final interceptor = new TagInterceptor(true, "my-service", Collections.singleton("servlet.context"), ruleFlags)
+
+    when:
+    interceptor.interceptServletContext(Mock(DDSpanContext), value)
+
+    then:
+    1 * extraServiceProvider.maybeAddExtraService(expected)
+
+    where:
+    value | expected
+    "/"   | "root-servlet"
+    "/test"   | "test"
+    "test"   | "test"
   }
 }

@@ -31,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.util.ExtraServicesProvider;
 import java.net.URI;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -217,7 +218,9 @@ public class TagInterceptor {
   private boolean interceptServiceName(
       RuleFlags.Feature feature, DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(feature)) {
-      span.setServiceName(String.valueOf(value));
+      String serviceName = String.valueOf(value);
+      span.setServiceName(serviceName);
+      ExtraServicesProvider.get().maybeAddExtraService(serviceName);
       return true;
     }
     return false;
@@ -253,15 +256,20 @@ public class TagInterceptor {
     }
     String contextName = String.valueOf(value).trim();
     if (!contextName.isEmpty()) {
+      String serviceName = null;
       if (contextName.equals("/")) {
-        span.setServiceName(Config.get().getRootContextServiceName());
+        serviceName = Config.get().getRootContextServiceName();
+        span.setServiceName(serviceName);
       } else if (contextName.charAt(0) == '/') {
         if (contextName.length() > 1) {
-          span.setServiceName(contextName.substring(1));
+          serviceName = contextName.substring(1);
+          span.setServiceName(serviceName);
         }
       } else {
-        span.setServiceName(contextName);
+        serviceName = contextName;
+        span.setServiceName(serviceName);
       }
+      ExtraServicesProvider.get().maybeAddExtraService(serviceName);
     }
     return false;
   }
