@@ -47,7 +47,7 @@ public final class InstrumenterState {
   }
 
   /** Registers an instrumentation's details. */
-  public static void registerInstrumentation(InstrumenterGroup instrumenter) {
+  public static void registerInstrumentation(InstrumenterModule instrumenter) {
     int instrumentationId = instrumenter.instrumentationId();
     if (instrumentationId >= instrumentationNames.length) {
       // note: setMaxInstrumentationId pre-sizes array to avoid repeated allocations here

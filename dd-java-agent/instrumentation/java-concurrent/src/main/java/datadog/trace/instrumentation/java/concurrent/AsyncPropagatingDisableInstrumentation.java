@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * during this period.
  */
 @AutoService(Instrumenter.class)
-public final class AsyncPropagatingDisableInstrumentation extends InstrumenterGroup.Tracing
+public final class AsyncPropagatingDisableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   public AsyncPropagatingDisableInstrumentation() {

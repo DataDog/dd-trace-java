@@ -421,6 +421,7 @@ class CoreTracerTest extends DDCoreSpecification {
     cleanup:
     tracer?.close()
   }
+
   def "verify configuration polling with custom tags"() {
     setup:
     def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
@@ -526,6 +527,23 @@ class CoreTracerTest extends DDCoreSpecification {
 
     cleanup:
     tracer?.close()
+  }
+
+  def "test local root service name override"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).serviceName("test").build()
+    tracer.updatePreferredServiceName(preferred)
+    when:
+    def span = tracer.startSpan("", "test")
+    span.finish()
+    then:
+    span.serviceName == expected
+    cleanup:
+    tracer?.close()
+    where:
+    preferred | expected
+    null      | "test"
+    "some"    | "some"
   }
 }
 

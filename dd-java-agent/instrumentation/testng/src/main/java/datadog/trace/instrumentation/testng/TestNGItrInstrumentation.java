@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -18,7 +18,7 @@ import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 
 @AutoService(Instrumenter.class)
-public class TestNGItrInstrumentation extends InstrumenterGroup.CiVisibility
+public class TestNGItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
   public TestNGItrInstrumentation() {
     super("testng", "testng-itr");

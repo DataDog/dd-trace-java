@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -23,7 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class IastServletContextInstrumentation extends InstrumenterGroup.Iast
+public final class IastServletContextInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   private static final String TYPE = "javax.servlet.ServletContext";

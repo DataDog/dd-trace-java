@@ -10,7 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.netty.channel.Channel;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelInstrumentation extends InstrumenterGroup.Tracing
+public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public NettyChannelInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);

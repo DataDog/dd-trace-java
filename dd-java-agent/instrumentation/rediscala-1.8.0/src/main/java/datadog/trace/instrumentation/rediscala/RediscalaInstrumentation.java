@@ -14,7 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import akka.actor.ActorRef;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -31,7 +31,7 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 @AutoService(Instrumenter.class)
-public final class RediscalaInstrumentation extends InstrumenterGroup.Tracing
+public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public RediscalaInstrumentation() {

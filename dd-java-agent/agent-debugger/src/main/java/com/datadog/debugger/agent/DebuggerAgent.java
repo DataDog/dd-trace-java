@@ -1,10 +1,10 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
-import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.symbol.SymDBEnablement;
@@ -65,15 +65,13 @@ public class DebuggerAgent {
     debuggerSink.start();
     // TODO filtering out thirdparty code
     ClassNameFiltering classNameFiltering = new ClassNameFiltering(emptyList());
-    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
             DebuggerAgent::createTransformer,
             config,
             debuggerSink,
-            classesToRetransformFinder,
-            exceptionProbeManager);
+            classesToRetransformFinder);
     sink = debuggerSink;
     StatsdMetricForwarder statsdMetricForwarder =
         new StatsdMetricForwarder(config, probeStatusSink);
@@ -85,8 +83,7 @@ public class DebuggerAgent {
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerExceptionEnabled()) {
       DebuggerContext.initExceptionDebugger(
-          new DefaultExceptionDebugger(
-              exceptionProbeManager, configurationUpdater, classNameFiltering));
+          new DefaultExceptionDebugger(configurationUpdater, classNameFiltering));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
@@ -160,7 +157,7 @@ public class DebuggerAgent {
           DebuggerProductChangesListener.Adapter.deserializeConfiguration(
               outputStream.toByteArray());
       LOGGER.debug("Probe definitions loaded from file {}", probeFilePath);
-      configurationUpdater.accept(configuration);
+      configurationUpdater.accept(REMOTE_CONFIG, configuration.getDefinitions());
     } catch (IOException ex) {
       LOGGER.error("Unable to load config file {}: {}", probeFilePath, ex);
     }

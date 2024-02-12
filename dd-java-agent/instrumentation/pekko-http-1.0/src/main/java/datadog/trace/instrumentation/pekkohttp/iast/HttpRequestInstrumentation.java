@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
@@ -31,7 +31,7 @@ import scala.collection.immutable.Seq;
  * @see MakeTaintableInstrumentation makes {@link HttpRequest} taintable
  */
 @AutoService(Instrumenter.class)
-public class HttpRequestInstrumentation extends InstrumenterGroup.Iast
+public class HttpRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public HttpRequestInstrumentation() {
     super("pekko-http");

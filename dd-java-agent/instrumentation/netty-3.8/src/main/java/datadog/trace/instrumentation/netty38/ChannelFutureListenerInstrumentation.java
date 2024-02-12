@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -26,7 +26,7 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 
 @AutoService(Instrumenter.class)
-public class ChannelFutureListenerInstrumentation extends InstrumenterGroup.Tracing
+public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public ChannelFutureListenerInstrumentation() {

@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -18,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class Vertx39HttpServertResponseInstrumentation extends InstrumenterGroup.Iast
+public class Vertx39HttpServertResponseInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public Vertx39HttpServertResponseInstrumentation() {
     super("vertx", "vertx-3.9", "response");

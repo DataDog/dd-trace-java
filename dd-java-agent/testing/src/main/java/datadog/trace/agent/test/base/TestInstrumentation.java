@@ -1,11 +1,11 @@
 package datadog.trace.agent.test.base;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Set;
 
 /** Skeleton single-class test instrumentation. */
-public abstract class TestInstrumentation extends InstrumenterGroup
+public abstract class TestInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public TestInstrumentation() {

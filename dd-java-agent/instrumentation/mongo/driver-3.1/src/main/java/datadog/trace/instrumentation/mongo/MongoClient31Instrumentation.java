@@ -12,7 +12,7 @@ import com.google.auto.service.AutoService;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.event.CommandListener;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
 import java.util.List;
@@ -24,7 +24,7 @@ import org.bson.BsonDocument;
 import org.bson.ByteBuf;
 
 @AutoService(Instrumenter.class)
-public final class MongoClient31Instrumentation extends InstrumenterGroup.Tracing
+public final class MongoClient31Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.WithTypeStructure {
 
   public MongoClient31Instrumentation() {

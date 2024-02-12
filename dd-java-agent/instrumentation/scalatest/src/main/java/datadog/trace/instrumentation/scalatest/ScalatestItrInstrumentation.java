@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -21,7 +21,7 @@ import org.scalatest.Tracker;
 import scala.Tuple2;
 
 @AutoService(Instrumenter.class)
-public class ScalatestItrInstrumentation extends InstrumenterGroup.CiVisibility
+public class ScalatestItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
 
   public ScalatestItrInstrumentation() {

@@ -13,7 +13,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -25,7 +25,7 @@ import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ParsePostDataInstrumentation extends InstrumenterGroup.AppSec
+public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
   public ParsePostDataInstrumentation() {
     super("liberty");

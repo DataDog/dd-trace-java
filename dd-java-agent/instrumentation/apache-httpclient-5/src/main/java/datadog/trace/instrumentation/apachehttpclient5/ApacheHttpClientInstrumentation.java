@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -20,7 +20,7 @@ import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.protocol.HttpContext;
 
 @AutoService(Instrumenter.class)
-public class ApacheHttpClientInstrumentation extends InstrumenterGroup.Tracing
+public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   public ApacheHttpClientInstrumentation() {

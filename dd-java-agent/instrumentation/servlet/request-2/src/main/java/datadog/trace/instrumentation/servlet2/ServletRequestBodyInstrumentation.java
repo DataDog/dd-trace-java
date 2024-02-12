@@ -16,7 +16,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -41,7 +41,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * "request-3" module. Any changes to the behaviour here should also be reflected in "request-3".
  */
 @AutoService(Instrumenter.class)
-public class ServletRequestBodyInstrumentation extends InstrumenterGroup.AppSec
+public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy {
   public ServletRequestBodyInstrumentation() {
     super("servlet-request-body");
