@@ -13,5 +13,7 @@ public class RemoteConfigConfig {
   public static final String REMOTE_CONFIG_TARGETS_KEY_ID = "rc.targets.key.id";
   public static final String REMOTE_CONFIG_TARGETS_KEY = "rc.targets.key";
 
+  public static final String REMOTE_CONFIG_MAX_EXTRA_SERVICES = "remote_config.max_extra_services";
+
   private RemoteConfigConfig() {}
 }

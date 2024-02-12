@@ -13,7 +13,7 @@ public class ExtraServicesProvider {
 
   private static final Logger log = LoggerFactory.getLogger(ExtraServicesProvider.class);
 
-  private static final int MAX_EXTRA_SERVICE = 64;
+  private static final int MAX_EXTRA_SERVICE = Config.get().getRemoteConfigMaxExtraServices();
 
   // This is not final to allow mocking it on tests
   private static ExtraServicesProvider INSTANCE = new ExtraServicesProvider();
