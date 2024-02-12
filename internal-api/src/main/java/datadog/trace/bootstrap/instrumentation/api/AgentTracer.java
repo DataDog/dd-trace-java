@@ -293,7 +293,6 @@ public class AgentTracer {
 
     TraceConfig captureTraceConfig();
 
-    @Override
     ProfilingContextIntegration getProfilingContext();
 
     AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins);
