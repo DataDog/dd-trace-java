@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatchers;
 
@@ -14,7 +14,7 @@ import net.bytebuddy.matcher.ElementMatchers;
  * overridden and the base one skipped
  */
 @AutoService(Instrumenter.class)
-public class SpringServletInitializerInstrumentation extends InstrumenterGroup.Tracing
+public class SpringServletInitializerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public SpringServletInitializerInstrumentation() {
     super("spring-boot");
