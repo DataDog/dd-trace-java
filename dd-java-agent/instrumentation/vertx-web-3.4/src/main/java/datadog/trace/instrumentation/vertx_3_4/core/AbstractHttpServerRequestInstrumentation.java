@@ -10,7 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -20,7 +20,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class AbstractHttpServerRequestInstrumentation extends InstrumenterGroup.Iast
+public abstract class AbstractHttpServerRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   private final String className = AbstractHttpServerRequestInstrumentation.class.getName();

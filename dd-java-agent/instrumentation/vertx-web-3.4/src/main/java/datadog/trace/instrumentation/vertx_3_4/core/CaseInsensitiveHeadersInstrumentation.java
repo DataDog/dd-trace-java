@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.IastContext;
@@ -27,7 +27,7 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CaseInsensitiveHeadersInstrumentation extends InstrumenterGroup.Iast
+public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   private final String className = CaseInsensitiveHeadersInstrumentation.class.getName();

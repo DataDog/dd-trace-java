@@ -5,7 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.invoke.MethodHandle;
@@ -25,7 +25,7 @@ import scala.util.Try;
  * that context and propagate it forward, which is quite unexpected and not very relevant.
  */
 @AutoService(Instrumenter.class)
-public class FutureObjectInstrumentation extends InstrumenterGroup.Tracing
+public class FutureObjectInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public FutureObjectInstrumentation() {

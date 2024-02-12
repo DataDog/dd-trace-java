@@ -45,35 +45,35 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
   }
 
   @Override
-  protected void buildInstrumentation(InstrumenterGroup group, Instrumenter member) {
+  protected void buildInstrumentation(InstrumenterModule module, Instrumenter member) {
 
-    ignoreMatcher = group.methodIgnoreMatcher();
+    ignoreMatcher = module.methodIgnoreMatcher();
     adviceBuilder =
         agentBuilder
-            .type(typeMatcher(group, member))
+            .type(typeMatcher(module, member))
             .and(NOT_DECORATOR_MATCHER)
-            .and(new MuzzleMatcher(group))
+            .and(new MuzzleMatcher(module))
             .transform(defaultTransformers());
 
-    String[] helperClassNames = group.helperClassNames();
-    if (group.injectHelperDependencies()) {
+    String[] helperClassNames = module.helperClassNames();
+    if (module.injectHelperDependencies()) {
       helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
     }
     if (helperClassNames.length > 0) {
       adviceBuilder =
           adviceBuilder.transform(
-              new HelperTransformer(group.getClass().getSimpleName(), helperClassNames));
+              new HelperTransformer(module.getClass().getSimpleName(), helperClassNames));
     }
 
-    Map<String, String> contextStore = group.contextStore();
+    Map<String, String> contextStore = module.contextStore();
     if (!contextStore.isEmpty()) {
       // rewrite context store access to call FieldBackedContextStores with assigned store-id
       adviceBuilder =
           adviceBuilder.transform(
               new VisitingTransformer(
-                  new FieldBackedContextRequestRewriter(contextStore, group.name())));
+                  new FieldBackedContextRequestRewriter(contextStore, module.name())));
 
-      registerContextStoreInjection(group, member, contextStore);
+      registerContextStoreInjection(module, member, contextStore);
     }
 
     agentBuilder = registerAdvice(member);
@@ -89,7 +89,7 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
     return adviceBuilder;
   }
 
-  private AgentBuilder.RawMatcher typeMatcher(InstrumenterGroup group, Instrumenter member) {
+  private AgentBuilder.RawMatcher typeMatcher(InstrumenterModule module, Instrumenter member) {
     ElementMatcher<? super TypeDescription> typeMatcher;
     String hierarchyHint = null;
 
@@ -136,7 +136,7 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
               typeMatcher, ((Instrumenter.WithTypeStructure) member).structureMatcher());
     }
 
-    ElementMatcher<ClassLoader> classLoaderMatcher = group.classLoaderMatcher();
+    ElementMatcher<ClassLoader> classLoaderMatcher = module.classLoaderMatcher();
 
     if (null != hierarchyHint) {
       // use hint to limit expensive type matching to class-loaders with marker type
@@ -152,9 +152,9 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
         typeMatcher,
         classLoaderMatcher,
         "Instrumentation matcher unexpected exception - instrumentation.names="
-            + group.names()
+            + module.names()
             + " instrumentation.class="
-            + group.getClass().getName());
+            + module.getClass().getName());
   }
 
   @Override

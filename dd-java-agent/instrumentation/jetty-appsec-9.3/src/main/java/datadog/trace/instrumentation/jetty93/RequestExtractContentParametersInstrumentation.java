@@ -9,7 +9,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -24,7 +24,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(Instrumenter.class)
-public class RequestExtractContentParametersInstrumentation extends InstrumenterGroup.AppSec
+public class RequestExtractContentParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   private static final String MULTI_MAP_INTERNAL_NAME = "Lorg/eclipse/jetty/util/MultiMap;";
 

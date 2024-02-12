@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instruments runnables from the slick framework, which are excluded elsewhere. */
 @AutoService(Instrumenter.class)
-public final class SlickRunnableInstrumentation extends InstrumenterGroup.Tracing
+public final class SlickRunnableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public SlickRunnableInstrumentation() {
     super("slick");

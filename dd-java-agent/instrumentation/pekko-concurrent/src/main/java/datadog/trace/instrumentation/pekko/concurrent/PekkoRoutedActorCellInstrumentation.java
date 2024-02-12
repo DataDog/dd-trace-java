@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
@@ -18,7 +18,7 @@ import org.apache.pekko.dispatch.Envelope;
 import org.apache.pekko.routing.RoutedActorCell;
 
 @AutoService(Instrumenter.class)
-public class PekkoRoutedActorCellInstrumentation extends InstrumenterGroup.Tracing
+public class PekkoRoutedActorCellInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public PekkoRoutedActorCellInstrumentation() {

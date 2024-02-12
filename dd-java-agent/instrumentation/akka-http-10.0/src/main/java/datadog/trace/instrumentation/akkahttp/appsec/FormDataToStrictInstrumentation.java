@@ -11,13 +11,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.stream.Materializer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.duration.FiniteDuration;
 
 /** @see akka.http.scaladsl.model.Multipart.FormData#toStrict(FiniteDuration, Materializer) */
 @AutoService(Instrumenter.class)
-public class FormDataToStrictInstrumentation extends InstrumenterGroup.AppSec
+public class FormDataToStrictInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, ScalaListCollectorMuzzleReferences {
   public FormDataToStrictInstrumentation() {
     super("akka-http");

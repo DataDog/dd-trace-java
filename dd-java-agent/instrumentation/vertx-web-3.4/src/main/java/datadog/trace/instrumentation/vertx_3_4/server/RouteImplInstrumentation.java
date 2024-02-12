@@ -10,14 +10,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class RouteImplInstrumentation extends InstrumenterGroup
+public class RouteImplInstrumentation extends InstrumenterModule
     implements Instrumenter.ForKnownTypes,
         Instrumenter.HasMethodAdvice,
         Instrumenter.WithPostProcessor {

@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -16,7 +16,7 @@ import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.codehaus.plexus.PlexusContainer;
 
 @AutoService(Instrumenter.class)
-public class MavenInstrumentation extends InstrumenterGroup.CiVisibility
+public class MavenInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public MavenInstrumentation() {
