@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 public class ModuleExecutionSettings {
 
@@ -14,6 +15,7 @@ public class ModuleExecutionSettings {
           false,
           false,
           Collections.emptyMap(),
+          null,
           Collections.emptyMap(),
           Collections.emptyList(),
           Collections.emptyList());
@@ -22,6 +24,7 @@ public class ModuleExecutionSettings {
   private final boolean itrEnabled;
   private final boolean flakyTestRetriesEnabled;
   private final Map<String, String> systemProperties;
+  private final String itrCorrelationId;
   private final Map<String, Collection<TestIdentifier>> skippableTestsByModule;
   private final Collection<TestIdentifier> flakyTests;
   private final List<String> coverageEnabledPackages;
@@ -31,6 +34,7 @@ public class ModuleExecutionSettings {
       boolean itrEnabled,
       boolean flakyTestRetriesEnabled,
       Map<String, String> systemProperties,
+      String itrCorrelationId,
       Map<String, Collection<TestIdentifier>> skippableTestsByModule,
       Collection<TestIdentifier> flakyTests,
       List<String> coverageEnabledPackages) {
@@ -38,6 +42,7 @@ public class ModuleExecutionSettings {
     this.itrEnabled = itrEnabled;
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.systemProperties = systemProperties;
+    this.itrCorrelationId = itrCorrelationId;
     this.skippableTestsByModule = skippableTestsByModule;
     this.flakyTests = flakyTests;
     this.coverageEnabledPackages = coverageEnabledPackages;
@@ -57,6 +62,11 @@ public class ModuleExecutionSettings {
 
   public Map<String, String> getSystemProperties() {
     return systemProperties;
+  }
+
+  @Nullable
+  public String getItrCorrelationId() {
+    return itrCorrelationId;
   }
 
   public Map<String, Collection<TestIdentifier>> getSkippableTestsByModule() {
@@ -88,6 +98,7 @@ public class ModuleExecutionSettings {
     return codeCoverageEnabled == that.codeCoverageEnabled
         && itrEnabled == that.itrEnabled
         && Objects.equals(systemProperties, that.systemProperties)
+        && Objects.equals(itrCorrelationId, that.itrCorrelationId)
         && Objects.equals(skippableTestsByModule, that.skippableTestsByModule)
         && Objects.equals(flakyTests, that.flakyTests)
         && Objects.equals(coverageEnabledPackages, that.coverageEnabledPackages);
@@ -99,6 +110,7 @@ public class ModuleExecutionSettings {
         codeCoverageEnabled,
         itrEnabled,
         systemProperties,
+        itrCorrelationId,
         skippableTestsByModule,
         flakyTests,
         coverageEnabledPackages);

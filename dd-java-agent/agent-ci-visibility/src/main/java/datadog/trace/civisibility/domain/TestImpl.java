@@ -50,6 +50,7 @@ public class TestImpl implements DDTest {
       String moduleName,
       String testSuiteName,
       String testName,
+      @Nullable String itrCorrelationId,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
       @Nullable Method testMethod,
@@ -109,6 +110,10 @@ public class TestImpl implements DDTest {
     if (config.isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(
           span, testClass, testMethod, sourcePathResolver, methodLinesResolver, codeowners);
+    }
+
+    if (itrCorrelationId != null) {
+      span.setTag(Tags.ITR_CORRELATION_ID, itrCorrelationId);
     }
 
     testDecorator.afterStart(span);

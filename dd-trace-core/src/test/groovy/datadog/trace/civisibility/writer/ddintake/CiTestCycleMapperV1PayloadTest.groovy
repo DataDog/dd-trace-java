@@ -5,6 +5,7 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
@@ -44,8 +45,10 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   def "test traces written correctly with bufferSize=#bufferSize, traceCount=#traceCount, lowCardinality=#lowCardinality"() {
     setup:
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
+
+    def metricCollector = Stub(CiVisibilityMetricCollector)
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
-    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
+    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(metricCollector, wellKnownTags, false)
     PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier))
     when:

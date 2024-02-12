@@ -44,6 +44,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final long parentProcessSessionId;
   private final long parentProcessModuleId;
   private final String moduleName;
+  private final String itrCorrelationId;
   private final SignalClient.Factory signalClientFactory;
   private final CoverageDataSupplier coverageDataSupplier;
   private final Config config;
@@ -84,6 +85,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
     this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+    this.itrCorrelationId = executionSettings.getItrCorrelationId();
     this.skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
     this.flakyTests = new HashSet<>(executionSettings.getFlakyTests(moduleName));
   }
@@ -154,6 +156,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         parentProcessModuleId,
         moduleName,
         testSuiteName,
+        itrCorrelationId,
         testClass,
         startTime,
         parallelized,

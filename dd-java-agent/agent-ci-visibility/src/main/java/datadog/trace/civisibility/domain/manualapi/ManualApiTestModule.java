@@ -63,6 +63,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         span.getSpanId(),
         moduleName,
         testSuiteName,
+        null,
         testClass,
         startTime,
         parallelized,

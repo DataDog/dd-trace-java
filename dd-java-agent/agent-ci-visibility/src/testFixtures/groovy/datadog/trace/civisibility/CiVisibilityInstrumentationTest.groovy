@@ -93,6 +93,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       itrEnabled,
       flakyRetryEnabled,
       properties,
+      itrEnabled ? "itrCorrelationId" : null,
       Collections.singletonMap(dummyModule, skippableTests),
       flakyTests,
       Collections.emptyList())

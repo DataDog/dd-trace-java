@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 public class HeadlessTestModule extends AbstractTestModule implements TestFrameworkModule {
 
   private final LongAdder testsSkipped = new LongAdder();
+  private final String itrCorrelationId;
   private final Collection<TestIdentifier> skippableTests;
   private final Collection<TestIdentifier> flakyTests;
   private final boolean codeCoverageEnabled;
@@ -74,6 +75,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
 
     codeCoverageEnabled = moduleExecutionSettings.isCodeCoverageEnabled();
     itrEnabled = moduleExecutionSettings.isItrEnabled();
+    itrCorrelationId = moduleExecutionSettings.getItrCorrelationId();
     skippableTests = new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));
     flakyTests = new HashSet<>(moduleExecutionSettings.getFlakyTests(moduleName));
   }
@@ -134,6 +136,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         span.getSpanId(),
         moduleName,
         testSuiteName,
+        itrCorrelationId,
         testClass,
         startTime,
         parallelized,
