@@ -1,6 +1,6 @@
 package com.datadog.debugger.exception;
 
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.ConfigurationAcceptor.Source.REMOTE_CONFIG;
+import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;

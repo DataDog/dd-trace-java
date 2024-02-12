@@ -1,6 +1,6 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.ConfigurationAcceptor.Source.REMOTE_CONFIG;
+import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
