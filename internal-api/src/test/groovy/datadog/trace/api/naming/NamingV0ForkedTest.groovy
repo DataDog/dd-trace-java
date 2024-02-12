@@ -27,65 +27,71 @@ class NamingV0ForkedTest extends DDSpecification {
 
   void "Naming schema calls ExtraServicesProvider if provides a service name"() {
     setup:
-    final extraServiceProvider = Mock(ExtraServicesProvider)
-    ExtraServicesProvider.get() >> extraServiceProvider
-    final ddService = "testService"
-    injectSysConfig(TracerConfig.TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, "false")
-    injectSysConfig(GeneralConfig.SERVICE_NAME, ddService)
     final schema = SpanNaming.instance().namingSchema()
+    ExtraServicesProvider.get().clear()
 
     when:
-    schema.messaging().inboundService("anything", true)
+    schema.messaging().inboundService("inboundService", true)
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService("anything")
+    checkExtraServices("inboundService") == true
 
     when:
-    schema.messaging().inboundService("anything", false)
+    schema.messaging().inboundService("inboundService", false)
 
     then:
-    0 * extraServiceProvider.maybeAddExtraService(_)
+    checkExtraServices("inboundService") == false
 
     when:
-    schema.cache().service("anything")
+    schema.cache().service("cacheService")
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService("anything")
+    checkExtraServices("cacheService") == true
 
     when:
     schema.cache().service("hazelcast")
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService("hazelcast-sdk")
+    checkExtraServices("hazelcast-sdk") == true
 
     when:
     schema.cloud().serviceForRequest("any", null)
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService("java-aws-sdk")
+    checkExtraServices("java-aws-sdk") == true
 
     when:
     schema.cloud().serviceForRequest("any", "sns")
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService("sns")
+    checkExtraServices("sns") == true
 
     when:
     schema.cloud().serviceForRequest("any", "sqs")
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService("sqs")
+    checkExtraServices("sqs") == true
 
     when:
     schema.cloud().serviceForRequest("any", "test")
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService("java-aws-sdk")
+    checkExtraServices("java-aws-sdk") == true
 
     when:
-    schema.database().service("anything")
+    schema.database().service("databaseService")
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService("anything")
+    checkExtraServices("databaseService") == true
+  }
+
+  private boolean checkExtraServices(String serviceName) {
+    final extraServices = ExtraServicesProvider.get().getExtraServices()
+    if(extraServices == null){
+      return false
+    }
+    final result = ExtraServicesProvider.get().getExtraServices().contains(serviceName)
+    ExtraServicesProvider.get().clear()
+    return result
   }
 }
