@@ -1,6 +1,11 @@
 package datadog.trace.civisibility.git.tree;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.Command;
+import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.civisibility.utils.IOUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
@@ -26,6 +31,7 @@ public class GitClient {
 
   private static final String DD_TEMP_DIRECTORY_PREFIX = "dd-ci-vis-";
 
+  private final CiVisibilityMetricCollector metricCollector;
   private final String repoRoot;
   private final String latestCommitsSince;
   private final int latestCommitsLimit;
@@ -34,6 +40,7 @@ public class GitClient {
   /**
    * Creates a new git client
    *
+   * @param metricCollector Telemetry metrics collector
    * @param repoRoot Absolute path to Git repository root
    * @param latestCommitsSince How far into the past the client should be looking when fetching Git
    *     data, e.g. {@code "1 month ago"} or {@code "2 years ago"}
@@ -41,8 +48,13 @@ public class GitClient {
    *     fetching commit data
    * @param timeoutMillis Timeout in milliseconds that is applied to executed Git commands
    */
-  public GitClient(
-      String repoRoot, String latestCommitsSince, int latestCommitsLimit, long timeoutMillis) {
+  GitClient(
+      CiVisibilityMetricCollector metricCollector,
+      String repoRoot,
+      String latestCommitsSince,
+      int latestCommitsLimit,
+      long timeoutMillis) {
+    this.metricCollector = metricCollector;
     this.repoRoot = repoRoot;
     this.latestCommitsSince = latestCommitsSince;
     this.latestCommitsLimit = latestCommitsLimit;
@@ -59,11 +71,15 @@ public class GitClient {
    *     finish
    */
   public boolean isShallow() throws IOException, TimeoutException, InterruptedException {
-    String output =
-        commandExecutor
-            .executeCommand(IOUtils::readFully, "git", "rev-parse", "--is-shallow-repository")
-            .trim();
-    return Boolean.parseBoolean(output);
+    return executeCommand(
+        Command.CHECK_SHALLOW,
+        () -> {
+          String output =
+              commandExecutor
+                  .executeCommand(IOUtils::readFully, "git", "rev-parse", "--is-shallow-repository")
+                  .trim();
+          return Boolean.parseBoolean(output);
+        });
   }
 
   /**
@@ -80,9 +96,12 @@ public class GitClient {
    *     finish
    */
   public String getUpstreamBranchSha() throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "rev-parse", "@{upstream}")
-        .trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "rev-parse", "@{upstream}")
+                .trim());
   }
 
   /**
@@ -98,42 +117,48 @@ public class GitClient {
    */
   public void unshallow(@Nullable String remoteCommitReference)
       throws IOException, TimeoutException, InterruptedException {
-    String remote =
-        commandExecutor
-            .executeCommand(
-                IOUtils::readFully,
-                "git",
-                "config",
-                "--default",
-                "origin",
-                "--get",
-                "clone.defaultRemoteName")
-            .trim();
+    executeCommand(
+        Command.UNSHALLOW,
+        () -> {
+          String remote =
+              commandExecutor
+                  .executeCommand(
+                      IOUtils::readFully,
+                      "git",
+                      "config",
+                      "--default",
+                      "origin",
+                      "--get",
+                      "clone.defaultRemoteName")
+                  .trim();
 
-    // refetch data from the server for the given period of time
-    if (remoteCommitReference != null) {
-      String headSha = getSha(remoteCommitReference);
-      commandExecutor.executeCommand(
-          ShellCommandExecutor.OutputParser.IGNORE,
-          "git",
-          "fetch",
-          String.format("--shallow-since=='%s'", latestCommitsSince),
-          "--update-shallow",
-          "--filter=blob:none",
-          "--recurse-submodules=no",
-          remote,
-          headSha);
-    } else {
-      commandExecutor.executeCommand(
-          ShellCommandExecutor.OutputParser.IGNORE,
-          "git",
-          "fetch",
-          String.format("--shallow-since=='%s'", latestCommitsSince),
-          "--update-shallow",
-          "--filter=blob:none",
-          "--recurse-submodules=no",
-          remote);
-    }
+          // refetch data from the server for the given period of time
+          if (remoteCommitReference != null) {
+            String headSha = getSha(remoteCommitReference);
+            commandExecutor.executeCommand(
+                ShellCommandExecutor.OutputParser.IGNORE,
+                "git",
+                "fetch",
+                String.format("--shallow-since=='%s'", latestCommitsSince),
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                remote,
+                headSha);
+          } else {
+            commandExecutor.executeCommand(
+                ShellCommandExecutor.OutputParser.IGNORE,
+                "git",
+                "fetch",
+                String.format("--shallow-since=='%s'", latestCommitsSince),
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                remote);
+          }
+
+          return (Void) null;
+        });
   }
 
   /**
@@ -146,9 +171,12 @@ public class GitClient {
    *     finish
    */
   public @NonNull String getGitFolder() throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "rev-parse", "--absolute-git-dir")
-        .trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "rev-parse", "--absolute-git-dir")
+                .trim());
   }
 
   /**
@@ -163,10 +191,13 @@ public class GitClient {
    */
   public String getRemoteUrl(String remoteName)
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(
-            IOUtils::readFully, "git", "config", "--get", "remote." + remoteName + ".url")
-        .trim();
+    return executeCommand(
+        Command.GET_REPOSITORY,
+        () ->
+            commandExecutor
+                .executeCommand(
+                    IOUtils::readFully, "git", "config", "--get", "remote." + remoteName + ".url")
+                .trim());
   }
 
   /**
@@ -180,9 +211,12 @@ public class GitClient {
    */
   public @NonNull String getCurrentBranch()
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "branch", "--show-current")
-        .trim();
+    return executeCommand(
+        Command.GET_BRANCH,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "branch", "--show-current")
+                .trim());
   }
 
   /**
@@ -197,14 +231,18 @@ public class GitClient {
    */
   public @NonNull List<String> getTags(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    try {
-      return commandExecutor.executeCommand(
-          IOUtils::readLines, "git", "describe", "--tags", "--exact-match", commit);
-    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      // if provided commit is not tagged,
-      // command will fail because "--exact-match" is specified
-      return Collections.emptyList();
-    }
+    return executeCommand(
+        Command.OTHER,
+        () -> {
+          try {
+            return commandExecutor.executeCommand(
+                IOUtils::readLines, "git", "describe", "--tags", "--exact-match", commit);
+          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+            // if provided commit is not tagged,
+            // command will fail because "--exact-match" is specified
+            return Collections.emptyList();
+          }
+        });
   }
 
   /**
@@ -219,7 +257,12 @@ public class GitClient {
    */
   public @NonNull String getSha(String reference)
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor.executeCommand(IOUtils::readFully, "git", "rev-parse", reference).trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "rev-parse", reference)
+                .trim());
   }
 
   /**
@@ -234,9 +277,12 @@ public class GitClient {
    */
   public @NonNull String getFullMessage(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%B", commit)
-        .trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%B", commit)
+                .trim());
   }
 
   /**
@@ -251,9 +297,12 @@ public class GitClient {
    */
   public @NonNull String getAuthorName(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%an", commit)
-        .trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%an", commit)
+                .trim());
   }
 
   /**
@@ -268,9 +317,12 @@ public class GitClient {
    */
   public @NonNull String getAuthorEmail(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%ae", commit)
-        .trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%ae", commit)
+                .trim());
   }
 
   /**
@@ -285,9 +337,12 @@ public class GitClient {
    */
   public @NonNull String getAuthorDate(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%aI", commit)
-        .trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%aI", commit)
+                .trim());
   }
 
   /**
@@ -302,9 +357,12 @@ public class GitClient {
    */
   public @NonNull String getCommitterName(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%cn", commit)
-        .trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%cn", commit)
+                .trim());
   }
 
   /**
@@ -319,9 +377,12 @@ public class GitClient {
    */
   public @NonNull String getCommitterEmail(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%ce", commit)
-        .trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%ce", commit)
+                .trim());
   }
 
   /**
@@ -336,9 +397,12 @@ public class GitClient {
    */
   public @NonNull String getCommitterDate(String commit)
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor
-        .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%cI", commit)
-        .trim();
+    return executeCommand(
+        Command.OTHER,
+        () ->
+            commandExecutor
+                .executeCommand(IOUtils::readFully, "git", "log", "-n", "1", "--format=%cI", commit)
+                .trim());
   }
 
   /**
@@ -353,14 +417,17 @@ public class GitClient {
    */
   public List<String> getLatestCommits()
       throws IOException, TimeoutException, InterruptedException {
-    return commandExecutor.executeCommand(
-        IOUtils::readLines,
-        "git",
-        "log",
-        "--format=%H",
-        "-n",
-        String.valueOf(latestCommitsLimit),
-        String.format("--since='%s'", latestCommitsSince));
+    return executeCommand(
+        Command.GET_LOCAL_COMMITS,
+        () ->
+            commandExecutor.executeCommand(
+                IOUtils::readLines,
+                "git",
+                "log",
+                "--format=%H",
+                "-n",
+                String.valueOf(latestCommitsLimit),
+                String.format("--since='%s'", latestCommitsSince)));
   }
 
   /**
@@ -378,23 +445,27 @@ public class GitClient {
   public List<String> getObjects(
       Collection<String> commitsToSkip, Collection<String> commitsToInclude)
       throws IOException, TimeoutException, InterruptedException {
-    String[] command = new String[6 + commitsToSkip.size() + commitsToInclude.size()];
-    command[0] = "git";
-    command[1] = "rev-list";
-    command[2] = "--objects";
-    command[3] = "--no-object-names";
-    command[4] = "--filter=blob:none";
-    command[5] = String.format("--since='%s'", latestCommitsSince);
+    return executeCommand(
+        Command.GET_OBJECTS,
+        () -> {
+          String[] command = new String[6 + commitsToSkip.size() + commitsToInclude.size()];
+          command[0] = "git";
+          command[1] = "rev-list";
+          command[2] = "--objects";
+          command[3] = "--no-object-names";
+          command[4] = "--filter=blob:none";
+          command[5] = String.format("--since='%s'", latestCommitsSince);
 
-    int count = 6;
-    for (String commitToSkip : commitsToSkip) {
-      command[count++] = "^" + commitToSkip;
-    }
-    for (String commitToInclude : commitsToInclude) {
-      command[count++] = commitToInclude;
-    }
+          int count = 6;
+          for (String commitToSkip : commitsToSkip) {
+            command[count++] = "^" + commitToSkip;
+          }
+          for (String commitToInclude : commitsToInclude) {
+            command[count++] = commitToInclude;
+          }
 
-    return commandExecutor.executeCommand(IOUtils::readLines, command);
+          return commandExecutor.executeCommand(IOUtils::readLines, command);
+        });
   }
 
   /**
@@ -410,21 +481,25 @@ public class GitClient {
    */
   public Path createPackFiles(List<String> objectHashes)
       throws IOException, TimeoutException, InterruptedException {
-    byte[] input = Strings.join("\n", objectHashes).getBytes(Charset.defaultCharset());
+    return executeCommand(
+        Command.PACK_OBJECTS,
+        () -> {
+          byte[] input = Strings.join("\n", objectHashes).getBytes(Charset.defaultCharset());
 
-    Path tempDirectory = createTempDirectory();
-    String basename = Strings.random(8);
-    String path = tempDirectory.toString() + File.separator + basename;
+          Path tempDirectory = createTempDirectory();
+          String basename = Strings.random(8);
+          String path = tempDirectory.toString() + File.separator + basename;
 
-    commandExecutor.executeCommand(
-        ShellCommandExecutor.OutputParser.IGNORE,
-        input,
-        "git",
-        "pack-objects",
-        "--compression=9",
-        "--max-pack-size=3m",
-        path);
-    return tempDirectory;
+          commandExecutor.executeCommand(
+              ShellCommandExecutor.OutputParser.IGNORE,
+              input,
+              "git",
+              "pack-objects",
+              "--compression=9",
+              "--max-pack-size=3m",
+              path);
+          return tempDirectory;
+        });
   }
 
   private Path createTempDirectory() throws IOException {
@@ -450,16 +525,53 @@ public class GitClient {
     return "GitClient{" + repoRoot + "}";
   }
 
+  private interface GitCommand<T> {
+    T execute() throws IOException, TimeoutException, InterruptedException;
+  }
+
+  private <T> T executeCommand(Command commandType, GitCommand<T> command)
+      throws IOException, TimeoutException, InterruptedException {
+    long startTime = System.currentTimeMillis();
+    try {
+      return command.execute();
+
+    } catch (IOException | TimeoutException | InterruptedException e) {
+      metricCollector.add(
+          CiVisibilityCountMetric.GIT_COMMAND_ERRORS, 1, commandType, getExitCode(e));
+      throw e;
+
+    } finally {
+      metricCollector.add(CiVisibilityCountMetric.GIT_COMMAND, 1, commandType);
+      metricCollector.add(
+          CiVisibilityDistributionMetric.GIT_COMMAND_MS,
+          (int) (System.currentTimeMillis() - startTime),
+          commandType);
+    }
+  }
+
+  private static ExitCode getExitCode(Exception e) {
+    if (e instanceof ShellCommandExecutor.ShellCommandFailedException) {
+      ShellCommandExecutor.ShellCommandFailedException scfe =
+          (ShellCommandExecutor.ShellCommandFailedException) e;
+      return ExitCode.from(scfe.getExitCode());
+
+    } else {
+      return ExitCode.CODE_UNKNOWN;
+    }
+  }
+
   public static class Factory {
     private final Config config;
+    private final CiVisibilityMetricCollector metricCollector;
 
-    public Factory(Config config) {
+    public Factory(Config config, CiVisibilityMetricCollector metricCollector) {
       this.config = config;
+      this.metricCollector = metricCollector;
     }
 
     public GitClient create(String repoRoot) {
       long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
-      return new GitClient(repoRoot, "1 month ago", 1000, commandTimeoutMillis);
+      return new GitClient(metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);
     }
   }
 }

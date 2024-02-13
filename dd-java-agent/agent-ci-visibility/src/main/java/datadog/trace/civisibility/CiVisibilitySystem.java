@@ -10,6 +10,8 @@ import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.instrumentation.CoverageClassTransformer;
@@ -19,6 +21,7 @@ import datadog.trace.civisibility.decorator.TestDecoratorImpl;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.ipc.SignalServer;
+import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
 import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
@@ -53,7 +56,14 @@ public class CiVisibilitySystem {
 
     sco.createRemaining(config);
 
-    CiVisibilityServices services = new CiVisibilityServices(config, sco, GitInfoProvider.INSTANCE);
+    CiVisibilityMetricCollector metricCollector =
+        config.isCiVisibilityTelemetryEnabled()
+            ? new CiVisibilityMetricCollectorImpl()
+            : NoOpMetricCollector.INSTANCE;
+    InstrumentationBridge.registerMetricCollector(metricCollector);
+
+    CiVisibilityServices services =
+        new CiVisibilityServices(config, metricCollector, sco, GitInfoProvider.INSTANCE);
 
     InstrumentationBridge.registerBuildEventsHandlerFactory(buildEventsHandlerFactory(services));
     CIVisibility.registerSessionFactory(apiSessionFactory(services));
