@@ -9,11 +9,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Locale;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing
+public class ZuulProxyRequestHelperInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ZuulProxyRequestHelperInstrumentation() {
     super("spring-cloud-zuul");

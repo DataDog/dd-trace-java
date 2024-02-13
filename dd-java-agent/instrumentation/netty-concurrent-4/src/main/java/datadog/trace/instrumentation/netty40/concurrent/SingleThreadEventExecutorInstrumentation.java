@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -22,7 +23,7 @@ import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class SingleThreadEventExecutorInstrumentation extends Instrumenter.Profiling
+public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForKnownTypes {
   public SingleThreadEventExecutorInstrumentation() {
     super("netty-concurrent", "netty-event-executor");

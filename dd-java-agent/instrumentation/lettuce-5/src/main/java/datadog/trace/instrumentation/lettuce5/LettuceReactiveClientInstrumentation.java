@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,7 +49,7 @@ import java.util.Map;
  * reactivating each time they are subscribed.
  */
 @AutoService(Instrumenter.class)
-public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing
+public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 
   public LettuceReactiveClientInstrumentation() {

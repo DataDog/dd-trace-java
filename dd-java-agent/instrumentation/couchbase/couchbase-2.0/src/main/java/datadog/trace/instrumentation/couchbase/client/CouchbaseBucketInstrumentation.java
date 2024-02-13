@@ -8,13 +8,14 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import rx.Observable;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseBucketInstrumentation extends Instrumenter.Tracing
+public class CouchbaseBucketInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 
   public CouchbaseBucketInstrumentation() {

@@ -9,11 +9,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.request.RemoteConnection;
 
 @AutoService(Instrumenter.class)
-public class SaveRawRemoteConnectionInstrumentation extends Instrumenter.Tracing
+public class SaveRawRemoteConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SaveRawRemoteConnectionInstrumentation() {
     super("play");

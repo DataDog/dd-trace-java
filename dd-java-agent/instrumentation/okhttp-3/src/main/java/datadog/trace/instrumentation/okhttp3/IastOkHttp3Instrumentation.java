@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import net.bytebuddy.asm.Advice;
@@ -13,7 +14,7 @@ import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 
 @AutoService(Instrumenter.class)
-public class IastOkHttp3Instrumentation extends Instrumenter.Iast
+public class IastOkHttp3Instrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public IastOkHttp3Instrumentation() {

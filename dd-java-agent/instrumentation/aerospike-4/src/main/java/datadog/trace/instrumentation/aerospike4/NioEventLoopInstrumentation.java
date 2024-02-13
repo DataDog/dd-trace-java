@@ -9,12 +9,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class NioEventLoopInstrumentation extends Instrumenter.Tracing
+public final class NioEventLoopInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public NioEventLoopInstrumentation() {
     super("aerospike", "java_concurrent");

@@ -9,6 +9,7 @@ import akka.dispatch.Envelope;
 import akka.routing.RoutedActorCell;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
@@ -17,7 +18,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing
+public class AkkaRoutedActorCellInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public AkkaRoutedActorCellInstrumentation() {

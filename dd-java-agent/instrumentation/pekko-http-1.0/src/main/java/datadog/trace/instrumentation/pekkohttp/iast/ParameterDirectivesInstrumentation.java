@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.pekkohttp.iast.helpers.TaintMapFunction;
@@ -28,7 +29,7 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  * @see org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives
  */
 @AutoService(Instrumenter.class)
-public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
+public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   private static final String TRAIT_NAME =
       "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives";

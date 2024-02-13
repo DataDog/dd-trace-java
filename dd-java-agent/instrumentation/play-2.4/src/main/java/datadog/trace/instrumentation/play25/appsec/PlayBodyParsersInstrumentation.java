@@ -9,11 +9,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 /** @see play.api.mvc.BodyParsers.parse$#tolerantText(long) */
 @AutoService(Instrumenter.class)
-public class PlayBodyParsersInstrumentation extends Instrumenter.AppSec
+public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 
   public PlayBodyParsersInstrumentation() {

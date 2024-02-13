@@ -9,11 +9,12 @@ import com.google.auto.service.AutoService;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
 
 @AutoService(Instrumenter.class)
-public class ArmeriaJettyInstrumentation extends Instrumenter.Tracing
+public class ArmeriaJettyInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ArmeriaJettyInstrumentation() {
     super("armeria-jetty", "armeria");

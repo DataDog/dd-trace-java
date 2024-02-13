@@ -15,7 +15,7 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
       throws IOException, ServletException {
     String authorization = ((HttpServletRequest) request).getHeader("Authorization");
-    if (authorization != null) {
+    if (authorization != null && !authorization.startsWith("Basic ")) {
       if (authorization.contains("Bearer ")) {
         authorization = authorization.replace("Bearer ", "").trim();
       }

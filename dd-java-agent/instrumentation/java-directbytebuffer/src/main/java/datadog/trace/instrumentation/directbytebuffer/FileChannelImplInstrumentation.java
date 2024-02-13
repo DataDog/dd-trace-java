@@ -9,11 +9,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(Instrumenter.class)
-public final class FileChannelImplInstrumentation extends Instrumenter.Profiling
+public final class FileChannelImplInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public FileChannelImplInstrumentation() {

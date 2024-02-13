@@ -5,11 +5,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class ProcessImplInstrumentation extends Instrumenter.Tracing
+public class ProcessImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.ForBootstrap {
 
   public ProcessImplInstrumentation() {

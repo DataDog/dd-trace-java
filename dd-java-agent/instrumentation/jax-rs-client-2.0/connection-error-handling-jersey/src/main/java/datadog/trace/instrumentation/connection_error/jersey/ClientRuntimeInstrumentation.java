@@ -8,12 +8,13 @@ import static org.glassfish.jersey.client.WrappingResponseCallback.handleProcess
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import javax.ws.rs.ProcessingException;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.jersey.client.ClientRequest;
 
 @AutoService(Instrumenter.class)
-public class ClientRuntimeInstrumentation extends Instrumenter.Tracing
+public class ClientRuntimeInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ClientRuntimeInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");

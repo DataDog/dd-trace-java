@@ -2,10 +2,11 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class IBMResourceLevelInstrumentation extends Instrumenter.Tracing
+public class IBMResourceLevelInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public IBMResourceLevelInstrumentation() {
     super(IBMResourceLevelInstrumentation.class.getName());

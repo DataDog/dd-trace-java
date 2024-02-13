@@ -11,7 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -23,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JakartaHttpServletResponseInstrumentation extends Instrumenter.Iast
+public final class JakartaHttpServletResponseInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public JakartaHttpServletResponseInstrumentation() {
     super("servlet", "servlet-5", "servlet-response");
@@ -69,8 +71,10 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
         if (mod != null) {
           mod.onCookie(
               Cookie.named(cookie.getName())
+                  .value(cookie.getValue())
                   .secure(cookie.getSecure())
                   .httpOnly(cookie.isHttpOnly())
+                  .maxAge(cookie.getMaxAge())
                   .build());
         }
       }
@@ -106,6 +110,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
 
   public static class EncodeURLAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void onExit(@Advice.Argument(0) final String url, @Advice.Return String encoded) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {

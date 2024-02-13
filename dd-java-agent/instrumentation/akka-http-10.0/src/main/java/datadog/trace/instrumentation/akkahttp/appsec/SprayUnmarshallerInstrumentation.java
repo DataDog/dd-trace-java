@@ -7,12 +7,13 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
 // TODO: move to separate module and have better support
 @AutoService(Instrumenter.class)
-public class SprayUnmarshallerInstrumentation extends Instrumenter.AppSec
+public class SprayUnmarshallerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 
   private static final String TRAIT_NAME =

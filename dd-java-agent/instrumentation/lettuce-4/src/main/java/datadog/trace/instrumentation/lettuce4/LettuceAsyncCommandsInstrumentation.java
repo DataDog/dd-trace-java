@@ -6,11 +6,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Collections;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class LettuceAsyncCommandsInstrumentation extends Instrumenter.Tracing
+public class LettuceAsyncCommandsInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public LettuceAsyncCommandsInstrumentation() {

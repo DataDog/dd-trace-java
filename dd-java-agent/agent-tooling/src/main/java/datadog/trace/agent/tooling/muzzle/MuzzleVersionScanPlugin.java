@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.Instrumenters;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
@@ -36,8 +37,8 @@ public class MuzzleVersionScanPlugin {
       final boolean assertPass,
       final String muzzleDirective)
       throws Exception {
-    List<Instrumenter.Default> toBeTested = toBeTested(instrumentationLoader, muzzleDirective);
-    for (Instrumenter.Default instrumenter : toBeTested) {
+    List<InstrumenterModule> toBeTested = toBeTested(instrumentationLoader, muzzleDirective);
+    for (InstrumenterModule instrumenter : toBeTested) {
 
       // verify muzzle result matches expectation
       final ReferenceMatcher muzzle = instrumenter.getInstrumentationMuzzle();
@@ -70,7 +71,7 @@ public class MuzzleVersionScanPlugin {
     }
 
     if (assertPass) {
-      for (Instrumenter.Default instrumenter : toBeTested) {
+      for (InstrumenterModule instrumenter : toBeTested) {
         try {
           // verify helper injector works
           final String[] helperClassNames = instrumenter.helperClassNames();
@@ -90,33 +91,24 @@ public class MuzzleVersionScanPlugin {
   }
 
   // build instrumenters while single-threaded to match installer assumptions
-  private static synchronized List<Instrumenter.Default> toBeTested(
-      ClassLoader instrumentationLoader, String muzzleDirective) throws Exception {
-    List<Instrumenter.Default> toBeTested = new ArrayList<>();
+  private static synchronized List<InstrumenterModule> toBeTested(
+      ClassLoader instrumentationLoader, String muzzleDirective) {
+    List<InstrumenterModule> toBeTested = new ArrayList<>();
     for (Instrumenter instrumenter : Instrumenters.load(instrumentationLoader)) {
-      if (instrumenter.getClass().getName().endsWith("TraceConfigInstrumentation")) {
-        // special handling to test TraceConfigInstrumentation's inner instrumenter
-        instrumenter =
-            (Instrumenter)
-                instrumentationLoader
-                    .loadClass(instrumenter.getClass().getName() + "$TracerClassInstrumentation")
-                    .getDeclaredConstructor()
-                    .newInstance();
-      }
-      // only default Instrumenters use muzzle. Skip custom instrumenters.
-      if (instrumenter instanceof Instrumenter.Default) {
-        String directiveToTest = ((Instrumenter.Default) instrumenter).muzzleDirective();
+      // only InstrumenterModules use muzzle. Skip custom instrumenters.
+      if (instrumenter instanceof InstrumenterModule) {
+        String directiveToTest = ((InstrumenterModule) instrumenter).muzzleDirective();
         if (null == directiveToTest || directiveToTest.equals(muzzleDirective)) {
           // pre-build class-loader matcher while single-threaded
-          ((Instrumenter.Default) instrumenter).classLoaderMatcher();
-          toBeTested.add((Instrumenter.Default) instrumenter);
+          ((InstrumenterModule) instrumenter).classLoaderMatcher();
+          toBeTested.add((InstrumenterModule) instrumenter);
         } // instrumenter wants to validate against a different named directive
       }
     }
     return toBeTested;
   }
 
-  private static Map<String, byte[]> createHelperMap(final Instrumenter.Default instrumenter)
+  private static Map<String, byte[]> createHelperMap(final InstrumenterModule instrumenter)
       throws IOException {
     String[] helperClasses = instrumenter.helperClassNames();
     final Map<String, byte[]> helperMap = new LinkedHashMap<>(helperClasses.length);
@@ -148,9 +140,9 @@ public class MuzzleVersionScanPlugin {
 
   public static void printMuzzleReferences(final ClassLoader instrumentationLoader) {
     for (final Instrumenter instrumenter : Instrumenters.load(instrumentationLoader)) {
-      if (instrumenter instanceof Instrumenter.Default) {
+      if (instrumenter instanceof InstrumenterModule) {
         final ReferenceMatcher muzzle =
-            ((Instrumenter.Default) instrumenter).getInstrumentationMuzzle();
+            ((InstrumenterModule) instrumenter).getInstrumentationMuzzle();
         System.out.println(instrumenter.getClass().getName());
         for (final Reference ref : muzzle.getReferences()) {
           System.out.println(prettyPrint("  ", ref));
@@ -165,9 +157,9 @@ public class MuzzleVersionScanPlugin {
   }
 
   public static Set<String> listInstrumentationNames(
-      final ClassLoader instrumentationLoader, String directive) throws Exception {
+      final ClassLoader instrumentationLoader, String directive) {
     final Set<String> ret = new HashSet<>();
-    for (final Instrumenter.Default instrumenter : toBeTested(instrumentationLoader, directive)) {
+    for (final InstrumenterModule instrumenter : toBeTested(instrumentationLoader, directive)) {
       ret.add(instrumenter.name());
     }
     return ret;

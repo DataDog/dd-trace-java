@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -38,8 +39,8 @@ import net.bytebuddy.pool.TypePool;
 import org.eclipse.jetty.server.Request;
 
 @AutoService(Instrumenter.class)
-public class RequestGetPartsInstrumentation extends Instrumenter.AppSec
-    implements Instrumenter.ForSingleType {
+public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
   public RequestGetPartsInstrumentation() {
     super("jetty");
   }

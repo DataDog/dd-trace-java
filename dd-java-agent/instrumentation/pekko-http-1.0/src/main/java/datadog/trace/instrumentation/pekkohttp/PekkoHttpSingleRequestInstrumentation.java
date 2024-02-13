@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -22,7 +23,7 @@ import org.apache.pekko.http.scaladsl.model.HttpResponse;
 import scala.concurrent.Future;
 
 @AutoService(Instrumenter.class)
-public final class PekkoHttpSingleRequestInstrumentation extends Instrumenter.Tracing
+public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public PekkoHttpSingleRequestInstrumentation() {
     super("pekko-http", "pekko-http-client");

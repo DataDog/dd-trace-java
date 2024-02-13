@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
 import play.api.libs.json.JsValue;
@@ -21,7 +22,7 @@ import scala.xml.NodeSeq;
 
 /** @see play.api.mvc.PlayBodyParsers$class#tolerantFormUrlEncoded(PlayBodyParsers, int) */
 @AutoService(Instrumenter.class)
-public class PlayBodyParsersInstrumentation extends Instrumenter.AppSec
+public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
   private static final String TRAIT_NAME = "play.api.mvc.PlayBodyParsers";
 

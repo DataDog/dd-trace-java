@@ -6,13 +6,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class HandlerRegistryBuilderInstrumentation extends Instrumenter.Tracing
+public class HandlerRegistryBuilderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public HandlerRegistryBuilderInstrumentation() {
     super("armeria-grpc-server", "armeria-grpc", "armeria", "grpc-server", "grpc");

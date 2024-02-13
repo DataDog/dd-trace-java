@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -17,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 // exception handling mechanism implemented in
 // HttpServerRequestInstrumentation/BlockingExceptionHandler
 @AutoService(Instrumenter.class)
-public class VertxHandlerInstrumentation extends Instrumenter.AppSec
+public class VertxHandlerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public VertxHandlerInstrumentation() {
     super("vertx", "vertx-4.0");

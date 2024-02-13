@@ -130,7 +130,7 @@ class TelemetryRouterSpecification extends Specification {
     500        | _
   }
 
-  def 'use Intake client from the start if configured to do so'() {
+  def 'when configured to prefer Intake: use Intake client from the start'() {
     Request request
 
     setup:
@@ -145,6 +145,56 @@ class TelemetryRouterSpecification extends Specification {
     1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(200) }
     request.url() == intakeUrl
     request.header(apiKeyHeader) == apiKey
+  }
+
+  def 'when configured to prefer Intake: do not switch to Agent if Intake request succeeds, even if Agent supports telemetry proxy'() {
+    Request request
+
+    setup:
+    def telemetryRouter = new TelemetryRouter(ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, true)
+
+    when:
+    telemetryRouter.sendRequest(dummyRequest())
+
+    then:
+    1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(200) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
+
+    when:
+    telemetryRouter.sendRequest(dummyRequest())
+
+    then:
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(200) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
+  }
+
+  def 'when configured to prefer Intake: switch to Agent if Intake request fails'() {
+    Request request
+
+    setup:
+    def telemetryRouter = new TelemetryRouter(ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, true)
+
+    when:
+    telemetryRouter.sendRequest(dummyRequest())
+
+    then:
+    1 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    1 * ddAgentFeaturesDiscovery.supportsTelemetryProxy() >> true
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(403) }
+    request.url() == intakeUrl
+    request.header(apiKeyHeader) == apiKey
+
+    when:
+    telemetryRouter.sendRequest(dummyRequest())
+
+    then:
+    1 * okHttpClient.newCall(_) >> { args -> request = args[0]; mockResponse(200) }
+    request.url() == agentTelemetryUrl
+    request.header(apiKeyHeader) == null
   }
 
   def 'do not switch to Intake when Agent stops supporting telemetry proxy but accepts telemetry requests'() {

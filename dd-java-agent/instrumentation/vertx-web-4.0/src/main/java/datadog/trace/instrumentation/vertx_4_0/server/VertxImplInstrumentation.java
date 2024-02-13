@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -14,7 +15,7 @@ import io.vertx.core.Handler;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class VertxImplInstrumentation extends Instrumenter.AppSec
+public class VertxImplInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public VertxImplInstrumentation() {
     super("vertx", "vertx-4.0");

@@ -8,12 +8,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.util.HashMap;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class SqlConnectionBaseInstrumentation extends Instrumenter.Tracing
+public class SqlConnectionBaseInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SqlConnectionBaseInstrumentation() {
     super("vertx", "vertx-sql-client");

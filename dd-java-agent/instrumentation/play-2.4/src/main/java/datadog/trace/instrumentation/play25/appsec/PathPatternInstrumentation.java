@@ -9,11 +9,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 /** @see play.core.routing.PathPattern#apply(String) */
 @AutoService(Instrumenter.class)
-public class PathPatternInstrumentation extends Instrumenter.AppSec
+public class PathPatternInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public PathPatternInstrumentation() {
     super("play");

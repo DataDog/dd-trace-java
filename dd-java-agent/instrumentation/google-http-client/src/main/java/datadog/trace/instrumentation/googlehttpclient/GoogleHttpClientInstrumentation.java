@@ -15,12 +15,13 @@ import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing
+public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public GoogleHttpClientInstrumentation() {
     super("google-http-client");

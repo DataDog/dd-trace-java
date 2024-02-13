@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -18,8 +19,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestResponseBody
 import org.springframework.web.servlet.view.AbstractUrlBasedView;
 
 @AutoService(Instrumenter.class)
-public final class HandlerMethodReturnValueHandlerCompositeInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+public final class HandlerMethodReturnValueHandlerCompositeInstrumentation
+    extends InstrumenterModule.Iast implements Instrumenter.ForSingleType {
 
   public HandlerMethodReturnValueHandlerCompositeInstrumentation() {
     super("spring-web");

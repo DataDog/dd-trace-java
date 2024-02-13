@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -14,7 +15,8 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CookieInstrumentation extends Instrumenter.Iast implements Instrumenter.ForKnownTypes {
+public class CookieInstrumentation extends InstrumenterModule.Iast
+    implements Instrumenter.ForKnownTypes {
 
   public CookieInstrumentation() {
     super("jersey");

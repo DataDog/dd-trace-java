@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -18,7 +19,7 @@ import org.datanucleus.api.jdo.JDOQuery;
 import org.datanucleus.store.query.Query;
 
 @AutoService(Instrumenter.class)
-public class JDOQueryInstrumentation extends Instrumenter.Tracing
+public class JDOQueryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public JDOQueryInstrumentation() {

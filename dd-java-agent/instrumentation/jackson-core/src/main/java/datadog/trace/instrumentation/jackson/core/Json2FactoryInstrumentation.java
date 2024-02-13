@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -16,7 +17,7 @@ import java.net.URL;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class Json2FactoryInstrumentation extends Instrumenter.Iast
+public class Json2FactoryInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public Json2FactoryInstrumentation() {

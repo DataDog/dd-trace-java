@@ -10,12 +10,13 @@ import com.ibm.ws.webcontainer.srt.SRTServletRequest;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedResponse;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class RequestFinishInstrumentation extends Instrumenter.Tracing
+public class RequestFinishInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public RequestFinishInstrumentation() {

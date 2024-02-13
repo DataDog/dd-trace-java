@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.HashMap;
@@ -24,7 +25,7 @@ import org.apache.kafka.clients.consumer.internals.RequestFuture;
 import org.apache.kafka.common.TopicPartition;
 
 @AutoService(Instrumenter.class)
-public final class ConsumerCoordinatorInstrumentation extends Instrumenter.Tracing
+public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public ConsumerCoordinatorInstrumentation() {

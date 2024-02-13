@@ -7,11 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class TerminalSubscriberInstrumentation extends Instrumenter.Tracing
+public class TerminalSubscriberInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public TerminalSubscriberInstrumentation() {
     super("reactor-core");

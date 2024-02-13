@@ -6,12 +6,13 @@ import com.google.auto.service.AutoService;
 import com.squareup.okhttp.Interceptor;
 import com.squareup.okhttp.OkHttpClient;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class IastOkHttp2Instrumentation extends Instrumenter.Iast
+public class IastOkHttp2Instrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public IastOkHttp2Instrumentation() {

@@ -8,10 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 /** Obtain template and matrix variables for RequestMappingInfoHandlerMapping. */
 @AutoService(Instrumenter.class)
-public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Iast
+public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public TemplateAndMatrixVariablesInstrumentation() {
     super("spring-webflux");

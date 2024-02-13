@@ -55,11 +55,10 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
   }
 
   @Override
-  protected void buildInstrumentation(Instrumenter.Default instrumenter) {
-    InstrumenterState.registerInstrumentation(instrumenter);
+  protected void buildInstrumentation(InstrumenterModule module, Instrumenter member) {
 
-    int id = instrumenter.instrumentationId();
-    if (transformers[id] != null) {
+    int id = module.instrumentationId();
+    if (module != member) {
       // this is an additional "dd.trace.methods" instrumenter configured at runtime
       // (a separate instance is created for each class listed in "dd.trace.methods")
       // allocate a distinct id for matching purposes to avoid mixing trace methods
@@ -69,79 +68,78 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
       }
     }
 
-    buildInstrumentationMatcher(instrumenter, id);
-    buildInstrumentationAdvice(instrumenter, id);
+    buildInstrumentationMatcher(module, member, id);
+    buildInstrumentationAdvice(module, member, id);
   }
 
-  private void buildInstrumentationMatcher(Instrumenter.Default instrumenter, int id) {
+  private void buildInstrumentationMatcher(InstrumenterModule module, Instrumenter member, int id) {
 
-    if (instrumenter instanceof Instrumenter.ForSingleType
-        || instrumenter instanceof Instrumenter.ForKnownTypes) {
+    if (member instanceof Instrumenter.ForSingleType
+        || member instanceof Instrumenter.ForKnownTypes) {
       knownTypesMask.set(id);
-    } else if (instrumenter instanceof Instrumenter.ForTypeHierarchy) {
-      matchers.add(
-          new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) instrumenter));
-    } else if (instrumenter instanceof Instrumenter.ForCallSite) {
-      matchers.add(
-          new MatchRecorder.ForType(id, ((Instrumenter.ForCallSite) instrumenter).callerType()));
+    } else if (member instanceof Instrumenter.ForTypeHierarchy) {
+      matchers.add(new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) member));
+    } else if (member instanceof Instrumenter.ForCallSite) {
+      matchers.add(new MatchRecorder.ForType(id, ((Instrumenter.ForCallSite) member).callerType()));
     }
 
-    if (instrumenter instanceof Instrumenter.ForConfiguredTypes) {
+    if (member instanceof Instrumenter.ForConfiguredTypes) {
       Collection<String> names =
-          ((Instrumenter.ForConfiguredTypes) instrumenter).configuredMatchingTypes();
+          ((Instrumenter.ForConfiguredTypes) member).configuredMatchingTypes();
       if (null != names && !names.isEmpty()) {
         matchers.add(new MatchRecorder.ForType(id, namedOneOf(names)));
       }
     }
 
-    if (instrumenter instanceof Instrumenter.CanShortcutTypeMatching
-        && !((Instrumenter.CanShortcutTypeMatching) instrumenter).onlyMatchKnownTypes()) {
-      matchers.add(
-          new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) instrumenter));
+    if (member instanceof Instrumenter.CanShortcutTypeMatching
+        && !((Instrumenter.CanShortcutTypeMatching) member).onlyMatchKnownTypes()) {
+      matchers.add(new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) member));
     }
 
-    ElementMatcher<ClassLoader> classLoaderMatcher = instrumenter.classLoaderMatcher();
+    ElementMatcher<ClassLoader> classLoaderMatcher = module.classLoaderMatcher();
     if (classLoaderMatcher != ANY_CLASS_LOADER) {
       matchers.add(new MatchRecorder.NarrowLocation(id, classLoaderMatcher));
     }
 
-    if (instrumenter instanceof Instrumenter.WithTypeStructure) {
+    if (member instanceof Instrumenter.WithTypeStructure) {
       matchers.add(
           new MatchRecorder.NarrowType(
-              id, ((Instrumenter.WithTypeStructure) instrumenter).structureMatcher()));
+              id, ((Instrumenter.WithTypeStructure) member).structureMatcher()));
     }
 
-    matchers.add(new MatchRecorder.NarrowLocation(id, new MuzzleCheck(instrumenter)));
+    matchers.add(new MatchRecorder.NarrowLocation(id, new MuzzleCheck(module)));
   }
 
-  private void buildInstrumentationAdvice(Instrumenter.Default instrumenter, int id) {
+  private void buildInstrumentationAdvice(InstrumenterModule module, Instrumenter member, int id) {
 
     postProcessor =
-        instrumenter instanceof WithPostProcessor
-            ? ((WithPostProcessor) instrumenter).postProcessor()
-            : null;
+        member instanceof WithPostProcessor ? ((WithPostProcessor) member).postProcessor() : null;
 
-    String[] helperClassNames = instrumenter.helperClassNames();
-    if (instrumenter.injectHelperDependencies()) {
+    String[] helperClassNames = module.helperClassNames();
+    if (module.injectHelperDependencies()) {
       helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
     }
     if (helperClassNames.length > 0) {
-      advice.add(new HelperTransformer(instrumenter.getClass().getSimpleName(), helperClassNames));
+      advice.add(new HelperTransformer(module.getClass().getSimpleName(), helperClassNames));
     }
 
-    Map<String, String> contextStore = instrumenter.contextStore();
+    Map<String, String> contextStore = module.contextStore();
     if (!contextStore.isEmpty()) {
       // rewrite context store access to call FieldBackedContextStores with assigned store-id
       advice.add(
           new VisitingTransformer(
-              new FieldBackedContextRequestRewriter(contextStore, instrumenter.name())));
+              new FieldBackedContextRequestRewriter(contextStore, module.name())));
 
-      registerContextStoreInjection(instrumenter, contextStore);
+      registerContextStoreInjection(module, member, contextStore);
     }
 
-    ignoredMethods = instrumenter.methodIgnoreMatcher();
-    instrumenter.typeAdvice(this);
-    instrumenter.methodAdvice(this);
+    ignoredMethods = module.methodIgnoreMatcher();
+    if (member instanceof Instrumenter.HasTypeAdvice) {
+      ((Instrumenter.HasTypeAdvice) member).typeAdvice(this);
+    }
+    if (member instanceof Instrumenter.HasMethodAdvice) {
+      ((Instrumenter.HasMethodAdvice) member).methodAdvice(this);
+    }
     transformers[id] = new AdviceStack(advice);
 
     advice.clear();
@@ -160,8 +158,12 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
     matchers.add(new MatchRecorder.ForType(id, named(instrumenter.instrumentedType())));
 
     ignoredMethods = isSynthetic();
-    ((Instrumenter.HasAdvice) instrumenter).typeAdvice(this);
-    ((Instrumenter.HasAdvice) instrumenter).methodAdvice(this);
+    if (instrumenter instanceof Instrumenter.HasTypeAdvice) {
+      ((Instrumenter.HasTypeAdvice) instrumenter).typeAdvice(this);
+    }
+    if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
+      ((Instrumenter.HasMethodAdvice) instrumenter).methodAdvice(this);
+    }
     transformers[id] = new AdviceStack(advice);
 
     advice.clear();

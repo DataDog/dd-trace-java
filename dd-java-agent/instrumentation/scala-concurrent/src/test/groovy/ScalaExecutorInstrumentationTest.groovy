@@ -34,7 +34,7 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
   @Shared
   def scalaInvokeForkJoinTask = { e, c -> e.invoke((ForkJoinTask) c) }
 
-  def "#poolImpl '#name' propagates"() {
+  def "#poolName '#name' propagates"() {
     setup:
     def pool = poolImpl
     def m = method
@@ -79,9 +79,11 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
     "submit Callable"      | submitCallable           | new ForkJoinPool()
     "submit ForkJoinTask"  | scalaSubmitForkJoinTask  | new ForkJoinPool()
     "invoke ForkJoinTask"  | scalaInvokeForkJoinTask  | new ForkJoinPool()
+
+    poolName = poolImpl.class.simpleName
   }
 
-  def "#poolImpl '#name' reports after canceled jobs"() {
+  def "#poolName '#name' reports after canceled jobs"() {
     setup:
     def pool = poolImpl
     def m = method
@@ -132,5 +134,6 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
     name              | method         | poolImpl
     "submit Runnable" | submitRunnable | new ForkJoinPool()
     "submit Callable" | submitCallable | new ForkJoinPool()
+    poolName = poolImpl.class.simpleName
   }
 }

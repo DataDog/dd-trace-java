@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -20,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.common.serialization.Deserializer;
 
 @AutoService(Instrumenter.class)
-public class KafkaDeserializerInstrumentation extends Instrumenter.Iast
+public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   private static final String DESERIALIZER_CLASS =

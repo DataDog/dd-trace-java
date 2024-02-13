@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
@@ -18,7 +19,7 @@ import java.sql.Statement;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tracing
+public abstract class AbstractConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap {
   public AbstractConnectionInstrumentation(String instrumentationName, String... additionalNames) {
     super(instrumentationName, additionalNames);

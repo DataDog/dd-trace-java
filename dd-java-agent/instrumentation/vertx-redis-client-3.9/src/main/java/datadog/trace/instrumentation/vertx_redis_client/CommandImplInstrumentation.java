@@ -7,11 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class CommandImplInstrumentation extends Instrumenter.Tracing
+public class CommandImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public CommandImplInstrumentation() {
     super("vertx", "vertx-redis-client");

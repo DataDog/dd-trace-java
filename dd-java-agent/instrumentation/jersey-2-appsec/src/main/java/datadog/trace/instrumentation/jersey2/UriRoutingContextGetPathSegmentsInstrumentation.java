@@ -7,12 +7,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContextSlot;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
 
 @AutoService(Instrumenter.class)
-public class UriRoutingContextGetPathSegmentsInstrumentation extends Instrumenter.AppSec
+public class UriRoutingContextGetPathSegmentsInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public UriRoutingContextGetPathSegmentsInstrumentation() {
     super("jersey");

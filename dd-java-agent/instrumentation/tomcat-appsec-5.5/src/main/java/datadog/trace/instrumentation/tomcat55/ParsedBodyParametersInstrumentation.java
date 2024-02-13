@@ -11,6 +11,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -26,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
 
 @AutoService(Instrumenter.class)
-public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
+public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 
   public ParsedBodyParametersInstrumentation() {

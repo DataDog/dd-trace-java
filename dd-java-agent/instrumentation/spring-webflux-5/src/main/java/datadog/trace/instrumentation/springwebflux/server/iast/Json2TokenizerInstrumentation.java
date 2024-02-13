@@ -8,10 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 /** @see org.springframework.http.codec.json.Jackson2Tokenizer */
 @AutoService(Instrumenter.class)
-public class Json2TokenizerInstrumentation extends Instrumenter.Iast
+public class Json2TokenizerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public Json2TokenizerInstrumentation() {
     super("spring-webflux");

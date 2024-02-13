@@ -7,11 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing
+public class HystrixThreadPoolInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public HystrixThreadPoolInstrumentation() {

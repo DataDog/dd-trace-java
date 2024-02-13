@@ -10,6 +10,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -23,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 import org.jboss.resteasy.spi.HttpRequest;
 
 @AutoService(Instrumenter.class)
-public class MethodExpressionInstrumentation extends Instrumenter.AppSec
+public class MethodExpressionInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 
   public MethodExpressionInstrumentation() {

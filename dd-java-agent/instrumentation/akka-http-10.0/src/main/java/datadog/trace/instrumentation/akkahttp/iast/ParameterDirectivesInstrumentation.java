@@ -13,6 +13,7 @@ import akka.http.scaladsl.server.directives.ParameterDirectives;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintMapFunction;
@@ -28,7 +29,7 @@ import net.bytebuddy.asm.Advice;
  * @see akka.http.scaladsl.server.directives.ParameterDirectives
  */
 @AutoService(Instrumenter.class)
-public class ParameterDirectivesInstrumentation extends Instrumenter.Iast
+public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   private static final String TRAIT_NAME =
       "akka.http.scaladsl.server.directives.ParameterDirectives";

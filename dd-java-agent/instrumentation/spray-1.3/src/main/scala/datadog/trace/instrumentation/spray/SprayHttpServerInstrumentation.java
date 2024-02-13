@@ -5,9 +5,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public final class SprayHttpServerInstrumentation extends Instrumenter.Tracing
+public final class SprayHttpServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SprayHttpServerInstrumentation() {
     super("spray-http", "spray-http-server");

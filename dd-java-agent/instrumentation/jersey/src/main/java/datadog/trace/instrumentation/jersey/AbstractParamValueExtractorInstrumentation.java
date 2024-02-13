@@ -6,13 +6,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class AbstractParamValueExtractorInstrumentation extends Instrumenter.Iast
+public class AbstractParamValueExtractorInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public AbstractParamValueExtractorInstrumentation() {

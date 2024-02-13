@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -23,7 +24,7 @@ import net.bytebuddy.asm.Advice;
  * org.apache.pekko.dispatch.ForkJoinTask, because of its error handling.
  */
 @AutoService(Instrumenter.class)
-public final class PekkoForkJoinExecutorTaskInstrumentation extends Instrumenter.Tracing
+public final class PekkoForkJoinExecutorTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public PekkoForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "pekko_concurrent");

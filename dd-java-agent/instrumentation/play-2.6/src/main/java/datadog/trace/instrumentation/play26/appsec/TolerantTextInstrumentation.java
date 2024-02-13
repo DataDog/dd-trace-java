@@ -9,6 +9,7 @@ import akka.util.ByteString;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.instrumentation.play26.MuzzleReferences;
 import net.bytebuddy.asm.Advice;
@@ -16,7 +17,7 @@ import play.mvc.Http;
 
 /** @see play.mvc.BodyParser.TolerantText#parse(Http.RequestHeader, ByteString) */
 @AutoService(Instrumenter.class)
-public class TolerantTextInstrumentation extends Instrumenter.AppSec
+public class TolerantTextInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public TolerantTextInstrumentation() {
     super("play");

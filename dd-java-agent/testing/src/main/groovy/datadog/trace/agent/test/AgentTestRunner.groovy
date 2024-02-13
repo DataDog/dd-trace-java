@@ -222,6 +222,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     @Override
+    String getPreferredServiceName() {
+      return null
+    }
+
+    @Override
     List<? extends SamplingRule.SpanSamplingRule> getSpanSamplingRules() {
       return null
     }

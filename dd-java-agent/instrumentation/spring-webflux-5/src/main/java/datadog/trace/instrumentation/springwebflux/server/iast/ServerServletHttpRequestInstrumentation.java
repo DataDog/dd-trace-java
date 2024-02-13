@@ -7,13 +7,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ServerServletHttpRequestInstrumentation extends Instrumenter.Iast
+public class ServerServletHttpRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public ServerServletHttpRequestInstrumentation() {

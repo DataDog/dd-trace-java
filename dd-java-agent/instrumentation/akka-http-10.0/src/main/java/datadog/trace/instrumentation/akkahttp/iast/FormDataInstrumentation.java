@@ -11,6 +11,7 @@ import akka.http.scaladsl.model.FormData;
 import akka.http.scaladsl.model.Uri;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 /**
  * Propagate taint from {@link FormData} to {@link Uri.Query}. <code>FormData</code> gets tainted
@@ -18,7 +19,7 @@ import datadog.trace.agent.tooling.Instrumenter;
  * {@link UnmarshallerInstrumentation}.
  */
 @AutoService(Instrumenter.class)
-public class FormDataInstrumentation extends Instrumenter.Iast
+public class FormDataInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public FormDataInstrumentation() {
     super("akka-http");

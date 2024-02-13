@@ -6,10 +6,11 @@ import com.google.auto.service.AutoService;
 import com.squareup.okhttp.Interceptor;
 import com.squareup.okhttp.OkHttpClient;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class OkHttp2Instrumentation extends Instrumenter.Tracing
+public class OkHttp2Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public OkHttp2Instrumentation() {
     super("okhttp", "okhttp-2");

@@ -11,11 +11,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class Servlet5RequestBodyInstrumentation extends Instrumenter.AppSec
+public class Servlet5RequestBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy {
   public Servlet5RequestBodyInstrumentation() {
     super("servlet-request-body");
