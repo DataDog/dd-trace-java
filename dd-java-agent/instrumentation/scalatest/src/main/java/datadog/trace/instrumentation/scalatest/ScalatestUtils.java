@@ -48,11 +48,8 @@ public abstract class ScalatestUtils {
       return CLASS_LOADER.loadClass(className.get());
     } catch (Exception e) {
       log.debug("Could not load class {}", className, e);
+      log.warn("Could not load a Scalatest class");
       return null;
     }
-  }
-
-  public static void test(Object invokeWithFixture) {
-    System.out.println("tdest"); // FIXME remove - scala.Function1
   }
 }

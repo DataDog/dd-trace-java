@@ -54,7 +54,8 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
       return new GitInfo(remoteUrl, branch, tag, commitInfo);
 
     } catch (Exception e) {
-      LOGGER.debug("Error while getting Git data from " + repositoryPath, e);
+      LOGGER.debug("Error while getting Git data from {}", repositoryPath, e);
+      LOGGER.warn("Error while getting Git data by executing shell commands");
       return GitInfo.NOOP;
     }
   }
