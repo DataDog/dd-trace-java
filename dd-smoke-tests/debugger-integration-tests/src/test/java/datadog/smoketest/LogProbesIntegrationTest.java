@@ -72,7 +72,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
           assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
           assertNull(snapshot.getCaptures().getEntry().getLocals());
-          assertNull(snapshot.getCaptures().getEntry().getThrowable());
+          assertNull(snapshot.getCaptures().getEntry().getCapturedThrowable());
           assertNull(snapshot.getCaptures().getEntry().getFields());
           assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
           assertCaptureReturnValue(
@@ -81,7 +81,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               "42, foobar, 3.42, {key1=val1, key2=val2, key3=val3}, var1,var2,var3");
           assertNotNull(snapshot.getCaptures().getReturn().getLocals());
           assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size()); // @return
-          assertNull(snapshot.getCaptures().getReturn().getThrowable());
+          assertNull(snapshot.getCaptures().getReturn().getCapturedThrowable());
           assertNull(snapshot.getCaptures().getReturn().getFields());
           snapshotReceived.set(true);
         });
@@ -366,7 +366,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     JsonSnapshotSerializer.IntakeRequest intakeRequest = adapter.fromJson(bodyStr).get(0);
     Snapshot snapshot = intakeRequest.getDebugger().getSnapshot();
     assertEquals("123356536", snapshot.getProbe().getId());
-    CapturedContext.CapturedThrowable throwable = snapshot.getCaptures().getReturn().getThrowable();
+    CapturedContext.CapturedThrowable throwable =
+        snapshot.getCaptures().getReturn().getCapturedThrowable();
     assertEquals("oops uncaught!", throwable.getMessage());
     assertTrue(throwable.getStacktrace().size() > 0);
     assertEquals(

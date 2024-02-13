@@ -272,7 +272,7 @@ public class CapturedContext implements ValueReferenceResolver {
     return locals;
   }
 
-  public CapturedThrowable getThrowable() {
+  public CapturedThrowable getCapturedThrowable() {
     return throwable;
   }
 

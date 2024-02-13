@@ -2341,7 +2341,7 @@ public class CapturedSnapshotTest {
 
   private void assertCaptureThrowable(
       CapturedContext context, String typeName, String message, String methodName, int lineNumber) {
-    CapturedContext.CapturedThrowable throwable = context.getThrowable();
+    CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
     assertCaptureThrowable(throwable, typeName, message, methodName, lineNumber);
   }
 

@@ -82,8 +82,10 @@ public class DebuggerAgent {
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerExceptionEnabled()) {
-      DebuggerContext.initExceptionDebugger(
-          new DefaultExceptionDebugger(configurationUpdater, classNameFiltering));
+      DefaultExceptionDebugger defaultExceptionDebugger =
+          new DefaultExceptionDebugger(configurationUpdater, classNameFiltering);
+      DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
+      configurationUpdater.setRetransformListener(defaultExceptionDebugger);
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
