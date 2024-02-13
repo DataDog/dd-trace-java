@@ -7,6 +7,7 @@ import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
 import datadog.telemetry.log.LogPeriodicAction;
+import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
@@ -50,6 +51,9 @@ public class TelemetrySystem {
       actions.add(new WafMetricPeriodicAction());
       if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
         actions.add(new IastMetricPeriodicAction());
+      }
+      if (Config.get().isCiVisibilityEnabled() && Config.get().isCiVisibilityTelemetryEnabled()) {
+        actions.add(new CiVisibilityMetricPeriodicAction());
       }
     }
     if (null != dependencyService) {
