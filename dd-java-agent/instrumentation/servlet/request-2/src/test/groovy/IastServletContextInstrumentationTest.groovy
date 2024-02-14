@@ -10,14 +10,14 @@ class IastServletContextInstrumentationTest extends AgentTestRunner{
     injectSysConfig("dd.iast.enabled", "true")
   }
 
-  void 'test'() {
+  void 'test ApplicationModule onRealPath'() {
     given:
     final module = Mock(ApplicationModule)
     InstrumentationBridge.registerIastModule(module)
-    final dispatcher = new RequestDispatcherUtils()
+    final utils = new RequestDispatcher2Utils()
 
     when:
-    dispatcher.getRealPath("/")
+    utils.getRealPath("/")
 
     then:
     1 *  module.onRealPath(_)
