@@ -12,7 +12,6 @@ class ExtraServiceProviderNamingV0ForkedTest extends DDSpecification {
     final extraServiceProvider = Mock(ExtraServicesProvider)
     ExtraServicesProvider.INSTANCE = extraServiceProvider
     def ddService = "testService"
-    injectSysConfig(TracerConfig.TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, "false")
     injectSysConfig(GeneralConfig.SERVICE_NAME, ddService)
     final schema = SpanNaming.instance().namingSchema()
 
