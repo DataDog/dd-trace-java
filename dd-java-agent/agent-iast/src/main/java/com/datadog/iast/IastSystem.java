@@ -21,6 +21,7 @@ import com.datadog.iast.sink.NoHttpOnlyCookieModuleImpl;
 import com.datadog.iast.sink.NoSameSiteCookieModuleImpl;
 import com.datadog.iast.sink.PathTraversalModuleImpl;
 import com.datadog.iast.sink.ReflectionInjectionModuleImpl;
+import com.datadog.iast.sink.SessionRewritingModuleImpl;
 import com.datadog.iast.sink.SqlInjectionModuleImpl;
 import com.datadog.iast.sink.SsrfModuleImpl;
 import com.datadog.iast.sink.StacktraceLeakModuleImpl;
@@ -141,7 +142,8 @@ public class IastSystem {
             ApplicationModuleImpl.class,
             HardcodedSecretModuleImpl.class,
             InsecureAuthProtocolModuleImpl.class,
-            ReflectionInjectionModuleImpl.class);
+            ReflectionInjectionModuleImpl.class,
+            SessionRewritingModuleImpl.class);
     if (iast != FULLY_ENABLED) {
       modules = modules.filter(IastSystem::isOptOut);
     }
