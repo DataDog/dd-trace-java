@@ -14,7 +14,7 @@ _Actions:_
 
 _Recovery:_ Download artifacts and upload them manually to the release.
 
-_Note:_ This process was disabled when JARs were pushed directly from GitLab back to the GitHub release without relaying through maven central. 
+_Note:_ This process was disabled when JARs were pushed directly from GitLab back to the GitHub release without relaying through maven central.
 
 ### add-milestone-to-pull-requests [🔗](add-milestone-to-pull-requests.yaml)
 
