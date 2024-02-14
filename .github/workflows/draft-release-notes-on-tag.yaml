@@ -136,7 +136,7 @@ jobs:
 
             var changelog = ''
             if ('${{github.event.ref}}'.match(/rc/i)) {
-              changelog += ':warning:  This is a RELEASE CANDIDATE and is NOT intended for use in production.\n'
+              changelog += ':warning:  This is a RELEASE CANDIDATE and is NOT intended for use in production. Please contact Datadog support regarding any problems in this RC.\n'
             }
             if (prByComponents.size > 0) {
               changelog += '# Components\n\n';
