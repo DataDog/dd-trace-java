@@ -3391,7 +3391,6 @@ public class Config {
   }
 
   public Map<String, String> getSpanTags() {
-    // Do not include runtimeId into span tags: we only want that added to the root span
     final Map<String, String> result = newHashMap(spanTags.size());
     result.putAll(spanTags);
     return Collections.unmodifiableMap(result);

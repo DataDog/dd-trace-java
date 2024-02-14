@@ -447,86 +447,31 @@ class CoreTracerTest extends DDCoreSpecification {
       updater = it[1] // capture config updater for further testing
     }
     and:
-    tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().requestHeaderTags == [:]
-    tracer.captureTraceConfig().responseHeaderTags == [:]
-    tracer.captureTraceConfig().traceSampleRate == null
+    tracer.captureTraceConfig().tracingTags == [:]
 
     when:
-    updater.accept(key, '''
-      {
-        "lib_config":
-        {
-          "tracing_service_mapping":
-          [{
-             "from_key": "foobar",
-             "to_name": "bar"
-          }, {
-             "from_key": "snafu",
-             "to_name": "foo"
-          }]
-          ,
-          "tracing_header_tags":
-          [{
-             "header": "Cookie",
-             "tag_name": ""
-          }, {
-             "header": "Referer",
-             "tag_name": "http.referer"
-          }, {
-             "header": "  Some.Header  ",
-             "tag_name": ""
-          }, {
-             "header": "C!!!ont_____ent----tYp!/!e",
-             "tag_name": ""
-          }, {
-             "header": "this.header",
-             "tag_name": "whatever.the.user.wants.this.header"
-          }]
-          ,
-          "tracing_sampling_rate": 0.5
-          ,
-          "tracing_tags": ["a:b", "c:d", "e:f"]
-        }
-      }
-      '''.getBytes(StandardCharsets.UTF_8), null)
+    updater.accept(key, value.getBytes(StandardCharsets.UTF_8), null)
     updater.commit()
 
     then:
-    tracer.captureTraceConfig().serviceMapping == ['foobar':'bar', 'snafu':'foo']
-    tracer.captureTraceConfig().requestHeaderTags == [
-      'cookie':'http.request.headers.cookie',
-      'referer':'http.referer',
-      'some.header':'http.request.headers.some_header',
-      'c!!!ont_____ent----typ!/!e':'http.request.headers.c___ont_____ent----typ_/_e',
-      'this.header':'whatever.the.user.wants.this.header'
-    ]
-    tracer.captureTraceConfig().responseHeaderTags == [
-      'cookie':'http.response.headers.cookie',
-      'referer':'http.referer',
-      'some.header':'http.response.headers.some_header',
-      'c!!!ont_____ent----typ!/!e':'http.response.headers.c___ont_____ent----typ_/_e',
-      'this.header':'whatever.the.user.wants.this.header'
-    ]
-    tracer.captureTraceConfig().traceSampleRate == 0.5
-    tracer.captureTraceConfig().tracingTags.get("a") == "b"
-    tracer.captureTraceConfig().getMergedSpanTags().get("a") == "b"
-    tracer.captureTraceConfig().tracingTags.get("c") == "d"
-    tracer.captureTraceConfig().getMergedSpanTags().get("c") == "d"
-    tracer.captureTraceConfig().tracingTags.get("e") == "f"
-    tracer.captureTraceConfig().getMergedSpanTags().get("e") == "f"
+    tracer.captureTraceConfig().tracingTags == expectedValue
     when:
     updater.remove(key, null)
     updater.commit()
 
     then:
-    tracer.captureTraceConfig().serviceMapping == [:]
-    tracer.captureTraceConfig().requestHeaderTags == [:]
-    tracer.captureTraceConfig().responseHeaderTags == [:]
-    tracer.captureTraceConfig().traceSampleRate == null
+    tracer.captureTraceConfig().tracingTags == [:]
 
     cleanup:
     tracer?.close()
+
+    where:
+    value | expectedValue
+    """{"lib_config":{"tracing_tags": ["a:b", "c:d", "e:f"]}}""" | ["a":"b", "c":"d", "e":"f"]
+    """{"lib_config":{"tracing_tags": ["", "c:d", ""]}}""" | [ "c":"d"]
+    """{"lib_config":{"tracing_tags": [":b", "c:", "e:f"]}}""" | ["e":"f"]
+    """{"lib_config":{"tracing_tags": [":", "c:", "e:f"]}}""" | ["e":"f"]
+    """{"lib_config":{"tracing_tags": [":", "c:", ""]}}""" | [:]
   }
 
   def "test local root service name override"() {

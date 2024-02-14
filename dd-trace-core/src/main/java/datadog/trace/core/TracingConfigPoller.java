@@ -180,19 +180,22 @@ final class TracingConfigPoller {
 
   private Map<String, String> parseTagListToMap(List<String> input) {
     Map<String, String> resultMap = Collections.emptyMap();
-    if (null != input && !input.isEmpty()) {
-      resultMap = new HashMap<>();
-      for (String s : input) {
-        int colonIndex = s.indexOf(":");
-        if (colonIndex > -1
-            && colonIndex
-                < s.length() - 1) { // ensure there's a colon that's not at the start or end
-          String key = s.substring(0, colonIndex).trim();
-          String value = s.substring(colonIndex + 1).trim();
+    if (null == input || input.isEmpty()) {
+      return resultMap;
+    }
+    resultMap = new HashMap<>(input.size());
+    for (String s : input) {
+      int colonIndex = s.indexOf(":");
+      if (colonIndex > -1
+          && colonIndex < s.length() - 1) { // ensure there's a colon that's not at the start or end
+        String key = s.substring(0, colonIndex);
+        String value = s.substring(colonIndex + 1);
+        if (!key.isEmpty() && !value.isEmpty()) {
           resultMap.put(key, value);
         }
       }
     }
+
     return resultMap;
   }
 
