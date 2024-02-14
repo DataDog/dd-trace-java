@@ -4,7 +4,7 @@ This lists and describes the repository GitHub actions.
 
 ## Release Management
 
-### add-assets-to-release [🔗](add-assets-to-release.yaml)
+### add-assets-to-release(DISABLED) [🔗](add-assets-to-release.yaml)
 
 _Trigger:_ When a release is published.
 
@@ -13,6 +13,8 @@ _Actions:_
 * Download `dd-java-agent`, `dd-trace-api` and `dd-trace-ot` artifacts from Sonatype (aka _Maven Central_ and upload them to the release (`dd-java-agent` will also be uploaded without version number).
 
 _Recovery:_ Download artifacts and upload them manually to the release.
+
+_Note:_ This process was disabled when JARs were pushed directly from GitLab back to the GitHub release without relaying through maven central. 
 
 ### add-milestone-to-pull-requests [🔗](add-milestone-to-pull-requests.yaml)
 
