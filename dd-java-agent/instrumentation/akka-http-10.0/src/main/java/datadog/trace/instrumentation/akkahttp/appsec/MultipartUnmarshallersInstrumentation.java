@@ -8,12 +8,12 @@ import akka.http.scaladsl.unmarshalling.MultipartUnmarshallers;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
 /** @see MultipartUnmarshallers */
 @AutoService(Instrumenter.class)
-public class MultipartUnmarshallersInstrumentation extends InstrumenterGroup.AppSec
+public class MultipartUnmarshallersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 
   private static final String TRAIT_NAME =

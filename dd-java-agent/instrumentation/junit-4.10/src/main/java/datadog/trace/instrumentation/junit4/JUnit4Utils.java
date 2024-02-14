@@ -19,8 +19,12 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class JUnit4Utils {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(JUnit4Utils.class);
 
   private static final String SYNCHRONIZED_LISTENER =
       "org.junit.runner.notification.SynchronizedRunListener";
@@ -127,6 +131,8 @@ public abstract class JUnit4Utils {
     try {
       return testClass.getMethod(methodName);
     } catch (NoSuchMethodException e) {
+      LOGGER.debug("Could not get method named {} in class {}", methodName, testClass, e);
+      LOGGER.warn("Could not get test method", e);
       return null;
     }
   }

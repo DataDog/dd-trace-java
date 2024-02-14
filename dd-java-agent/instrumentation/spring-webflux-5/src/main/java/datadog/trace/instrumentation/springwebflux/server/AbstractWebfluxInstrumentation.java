@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
-public abstract class AbstractWebfluxInstrumentation extends InstrumenterGroup.Tracing {
+public abstract class AbstractWebfluxInstrumentation extends InstrumenterModule.Tracing {
 
   public AbstractWebfluxInstrumentation(final String... additionalNames) {
     super("spring-webflux", additionalNames);

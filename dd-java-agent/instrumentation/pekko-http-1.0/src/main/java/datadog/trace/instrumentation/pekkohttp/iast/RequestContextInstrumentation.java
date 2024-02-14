@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -20,7 +20,7 @@ import org.apache.pekko.http.scaladsl.server.RequestContext;
 
 /** Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}. */
 @AutoService(Instrumenter.class)
-public class RequestContextInstrumentation extends InstrumenterGroup.Iast
+public class RequestContextInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public RequestContextInstrumentation() {
     super("pekko-http");

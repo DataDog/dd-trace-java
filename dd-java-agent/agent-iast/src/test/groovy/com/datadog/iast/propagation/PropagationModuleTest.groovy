@@ -14,6 +14,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import org.junit.Assume
 import spock.lang.Shared
 
+import java.lang.ref.Reference
+
 import static com.datadog.iast.taint.Ranges.highestPriorityRange
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
@@ -437,23 +439,43 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     stringBuilder((0..maxValueLength * 2).join('')) | true  // we create a copy
   }
 
-  void 'test that source names should not make a strong reference over the value'() {
+  void 'test that source names/values should not make a strong reference over the value'() {
     when:
-    module.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, (CharSequence) name)
+    module.taint(value, SourceTypes.REQUEST_PARAMETER_NAME, name)
 
     then:
-    final tainted = ctx.getTaintedObjects().get(name)
-    final taintedName = tainted.ranges[0].source.name
-    if (reference) {
-      assert taintedName.is(name): 'We should create a reference to the original value'
+    final tainted = ctx.getTaintedObjects().get(value)
+    final source = tainted.ranges.first().source
+    final sourceName = source.@name
+    final sourceValue = source.@value
+
+    assert sourceName !== value: 'Source name should never be a strong reference to the original value'
+    assert sourceValue !== value: 'Source value should never be a strong reference to the original value'
+    switch (value.class) {
+      case String:
+        assert sourceValue instanceof Reference
+        assert (sourceValue as Reference).get() === value
+        break
+      case CharSequence:
+        assert sourceValue instanceof String
+        assert sourceValue == value.toString()
+        break
+      default:
+        assert sourceValue == null
+        break
+    }
+    if (name === value) {
+      assert sourceName === sourceValue
     } else {
-      assert !taintedName.is(name): 'We should create a copy of the original value'
+      assert sourceName !== sourceValue
+      assert sourceName === name
     }
 
     where:
-    name                  | reference
-    string('name')        | true // a reference to the string is created
-    stringBuilder('name') | false // we create a copy
+    name           | value
+    string('name') | name
+    string('name') | stringBuilder('name')
+    string('name') | date()
   }
 
   private List<Tuple<Object>> taintIfSuite() {

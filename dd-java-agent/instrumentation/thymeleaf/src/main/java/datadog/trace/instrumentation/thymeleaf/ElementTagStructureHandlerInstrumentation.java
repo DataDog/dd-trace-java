@@ -7,11 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class ElementTagStructureHandlerInstrumentation extends InstrumenterGroup.Iast
+public class ElementTagStructureHandlerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public ElementTagStructureHandlerInstrumentation() {
     super("thymeleaf");

@@ -34,12 +34,12 @@ abstract class AbstractTransformerBuilder
       new HashMap<>();
 
   public final void applyInstrumentation(Instrumenter instrumenter) {
-    if (instrumenter instanceof InstrumenterGroup) {
-      InstrumenterGroup group = (InstrumenterGroup) instrumenter;
-      if (group.isEnabled()) {
-        InstrumenterState.registerInstrumentation(group);
-        for (Instrumenter member : group.typeInstrumentations()) {
-          buildInstrumentation(group, member);
+    if (instrumenter instanceof InstrumenterModule) {
+      InstrumenterModule module = (InstrumenterModule) instrumenter;
+      if (module.isEnabled()) {
+        InstrumenterState.registerInstrumentation(module);
+        for (Instrumenter member : module.typeInstrumentations()) {
+          buildInstrumentation(module, member);
         }
       }
     } else if (instrumenter instanceof Instrumenter.ForSingleType) {
@@ -51,7 +51,7 @@ abstract class AbstractTransformerBuilder
 
   public abstract ClassFileTransformer installOn(Instrumentation instrumentation);
 
-  protected abstract void buildInstrumentation(InstrumenterGroup group, Instrumenter member);
+  protected abstract void buildInstrumentation(InstrumenterModule module, Instrumenter member);
 
   protected abstract void buildSingleAdvice(Instrumenter.ForSingleType instrumenter);
 
@@ -93,7 +93,7 @@ abstract class AbstractTransformerBuilder
 
   /** Tracks which class-loader matchers are associated with each store request. */
   protected final void registerContextStoreInjection(
-      InstrumenterGroup group, Instrumenter member, Map<String, String> contextStore) {
+      InstrumenterModule module, Instrumenter member, Map<String, String> contextStore) {
     ElementMatcher<ClassLoader> activation;
 
     if (member instanceof Instrumenter.ForBootstrap) {
@@ -109,7 +109,7 @@ abstract class AbstractTransformerBuilder
       activation = ANY_CLASS_LOADER;
     }
 
-    activation = requireBoth(activation, group.classLoaderMatcher());
+    activation = requireBoth(activation, module.classLoaderMatcher());
 
     for (Map.Entry<String, String> storeEntry : contextStore.entrySet()) {
       ElementMatcher<ClassLoader> oldActivation = contextStoreInjection.get(storeEntry);

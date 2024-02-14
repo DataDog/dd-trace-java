@@ -10,6 +10,7 @@ import com.datadog.debugger.sink.Snapshot;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -62,6 +63,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @Test
   @DisplayName("testDisableEnableProbesUsingDenyList")
   @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @Disabled("Not supported for config coming from RemoteConfig")
   void testDisableEnableProbesUsingDenyList() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();
@@ -93,6 +95,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @Test
   @DisplayName("testDisableEnableProbesUsingAllowList")
   @DisabledIf(value = "datadog.trace.api.Platform#isJ9", disabledReason = "Flaky on J9 JVMs")
+  @Disabled("Not supported for config coming from RemoteConfig")
   void testDisableEnableProbesUsingAllowList() throws Exception {
     LogProbe logProbe =
         LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, FULL_METHOD_NAME).build();

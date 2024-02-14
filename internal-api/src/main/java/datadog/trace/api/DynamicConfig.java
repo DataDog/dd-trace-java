@@ -107,6 +107,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     Double traceSampleRate;
 
+    String preferredServiceName;
+
     Builder() {}
 
     Builder(Snapshot snapshot) {
@@ -121,6 +123,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.baggageMapping = snapshot.baggageMapping;
 
       this.traceSampleRate = snapshot.traceSampleRate;
+      this.preferredServiceName = snapshot.preferredServiceName;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
@@ -189,6 +192,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setTraceSamplingRules(List<? extends TraceSamplingRule> traceSamplingRules) {
       this.traceSamplingRules = traceSamplingRules;
+      return this;
+    }
+
+    public Builder setPreferredServiceName(String preferredServiceName) {
+      this.preferredServiceName = preferredServiceName;
       return this;
     }
 
@@ -289,6 +297,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     final Double traceSampleRate;
 
+    final String preferredServiceName;
+
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
       this.runtimeMetricsEnabled = builder.runtimeMetricsEnabled;
@@ -304,6 +314,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.spanSamplingRules = builder.spanSamplingRules;
       this.traceSamplingRules = builder.traceSamplingRules;
+      this.preferredServiceName = builder.preferredServiceName;
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
@@ -351,6 +362,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     @Override
+    public String getPreferredServiceName() {
+      return preferredServiceName;
+    }
+
+    @Override
     public List<? extends SpanSamplingRule> getSpanSamplingRules() {
       return spanSamplingRules;
     }
@@ -385,6 +401,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
           + traceSamplingRules
           + ", traceSampleRate="
           + traceSampleRate
+          + ", preferredServiceName="
+          + preferredServiceName
           + '}';
     }
   }

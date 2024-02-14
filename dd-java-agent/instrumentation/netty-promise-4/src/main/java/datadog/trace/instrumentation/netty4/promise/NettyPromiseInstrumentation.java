@@ -5,13 +5,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class NettyPromiseInstrumentation extends InstrumenterGroup.Tracing
+public class NettyPromiseInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public NettyPromiseInstrumentation() {

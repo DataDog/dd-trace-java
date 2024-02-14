@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import org.springframework.core.MethodParameter;
 import org.springframework.web.reactive.BindingContext;
 import org.springframework.web.reactive.result.method.annotation.RequestHeaderMapMethodArgumentResolver;
@@ -18,7 +18,7 @@ import org.springframework.web.server.ServerWebExchange;
  *     ServerWebExchange)
  */
 @AutoService(Instrumenter.class)
-public class RequestHeaderMapResolverInstrumentation extends InstrumenterGroup.Iast
+public class RequestHeaderMapResolverInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public RequestHeaderMapResolverInstrumentation() {
     super("spring-webflux");

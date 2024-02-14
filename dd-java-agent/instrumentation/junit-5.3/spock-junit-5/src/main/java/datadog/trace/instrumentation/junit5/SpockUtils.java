@@ -13,11 +13,15 @@ import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.MethodSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spockframework.runtime.SpockNode;
 import org.spockframework.runtime.model.FeatureMetadata;
 import org.spockframework.runtime.model.SpecElementInfo;
 
 public class SpockUtils {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SpockUtils.class);
 
   private static final datadog.trace.util.MethodHandles METHOD_HANDLES =
       new datadog.trace.util.MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
@@ -50,7 +54,7 @@ public class SpockUtils {
       return junitPlatformTestTags;
 
     } catch (Throwable throwable) {
-      // ignore
+      LOGGER.warn("Could not get tags from a spock node", throwable);
       return Collections.emptyList();
     }
   }
@@ -79,7 +83,7 @@ public class SpockUtils {
       }
 
     } catch (Throwable e) {
-      // ignore
+      LOGGER.warn("Could not get test method from method source", e);
     }
     return null;
   }

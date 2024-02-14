@@ -4,12 +4,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 
 /** Provides instrumentation of {@linkplain Exception} and {@linkplain Error} constructors. */
 @AutoService(Instrumenter.class)
-public final class ThrowableInstrumentation extends InstrumenterGroup.Profiling
+public final class ThrowableInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
 
   public ThrowableInstrumentation() {

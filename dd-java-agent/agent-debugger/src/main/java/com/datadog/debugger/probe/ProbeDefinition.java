@@ -161,6 +161,11 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     return null;
   }
 
+  public boolean isLineProbe() {
+    Where.SourceLine[] sourceLines = where.getSourceLines();
+    return sourceLines != null && sourceLines.length > 0;
+  }
+
   public abstract static class Builder<T extends Builder> {
     protected String language = LANGUAGE;
     protected ProbeId probeId;

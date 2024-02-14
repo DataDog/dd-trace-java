@@ -18,6 +18,8 @@ import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * !!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!! Do not use or refer to any classes from {@code
@@ -27,6 +29,8 @@ import org.junit.platform.engine.support.descriptor.MethodSource;
  * <p>Should you have to do something with those classes, do it in a dedicated utility class
  */
 public abstract class JUnitPlatformUtils {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(JUnitPlatformUtils.class);
 
   private JUnitPlatformUtils() {}
 
@@ -72,6 +76,8 @@ public abstract class JUnitPlatformUtils {
               testClass, methodName, methodSource.getMethodParameterTypes())
           .orElse(null);
     } catch (JUnitException e) {
+      LOGGER.debug("Could not find method {} in class {}", methodName, testClass, e);
+      LOGGER.warn("Could not find test method");
       return null;
     }
   }

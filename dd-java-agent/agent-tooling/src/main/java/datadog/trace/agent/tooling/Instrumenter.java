@@ -16,7 +16,7 @@ import net.bytebuddy.utility.JavaModule;
 /**
  * Built-in bytebuddy-based instrumentation for the datadog javaagent.
  *
- * <p>It is strongly recommended to extend {@link InstrumenterGroup} rather than implement this
+ * <p>It is strongly recommended to extend {@link InstrumenterModule} rather than implement this
  * interface directly.
  */
 public interface Instrumenter {
