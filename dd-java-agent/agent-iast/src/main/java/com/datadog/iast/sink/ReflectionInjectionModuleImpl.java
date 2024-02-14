@@ -68,7 +68,7 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
     }
     final TaintedObjects to = ctx.getTaintedObjects();
     final TaintedObject taintedObject = to.get(name);
-    if (null == taintedObject) {
+    if (taintedObject == null) {
       return;
     }
     final Range[] ranges =
