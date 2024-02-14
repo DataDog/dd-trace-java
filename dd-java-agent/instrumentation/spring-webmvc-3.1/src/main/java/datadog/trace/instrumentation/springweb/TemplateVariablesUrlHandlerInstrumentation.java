@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -34,7 +34,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Obtain template and matrix variables for AbstractUrlHandlerMapping */
 @AutoService(Instrumenter.class)
-public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterGroup
+public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType,
         Instrumenter.HasMethodAdvice,
         Instrumenter.WithPostProcessor {

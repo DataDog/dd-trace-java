@@ -12,7 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -26,7 +26,7 @@ import org.codehaus.jackson.JsonToken;
 
 /** TODO: keep a stack like structure pointing to the whole path */
 @AutoService(Instrumenter.class)
-public class Json1ParserInstrumentation extends InstrumenterGroup.Iast
+public class Json1ParserInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   static final String JSON_PARSER = "org.codehaus.jackson.JsonParser";

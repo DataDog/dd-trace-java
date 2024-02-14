@@ -15,7 +15,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -291,17 +291,20 @@ public class PropagationModuleImpl implements PropagationModule {
    */
   private static Source newSource(
       final byte origin, @Nullable final CharSequence name, @Nullable final Object value) {
-    return new Source(origin, sourceString(name), sourceString(value));
+    final Object sourceValue = sourceString(value, true);
+    final Object sourceName = name == value ? sourceValue : sourceString(name, false);
+    return new Source(origin, sourceName, sourceValue);
   }
 
   /**
-   * This method will prevent the code from creating a strong reference to what should remain soft
+   * This method will prevent the code from creating a strong reference to what should remain weakly
    * reachable
    */
   @Nullable
-  private static Object sourceString(@Nullable final Object target) {
+  private static Object sourceString(@Nullable final Object target, final boolean value) {
     if (target instanceof String) {
-      return new SoftReference<>(target);
+      // use a weak reference for the value and a strong one for the name
+      return value ? new WeakReference<>(target) : target;
     } else if (target instanceof CharSequence) {
       // char-sequences can mutate so we have to keep a snapshot
       CharSequence charSequence = (CharSequence) target;

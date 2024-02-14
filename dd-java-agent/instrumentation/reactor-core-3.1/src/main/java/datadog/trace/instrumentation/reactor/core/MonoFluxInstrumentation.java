@@ -4,12 +4,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class MonoFluxInstrumentation extends InstrumenterGroup.Tracing
+public class MonoFluxInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public MonoFluxInstrumentation() {
     super("reactor-core");

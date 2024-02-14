@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.AgentClassLoading;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.osgi.framework.BundleReference;
 
 @AutoService(Instrumenter.class)
-public final class BundleReferenceInstrumentation extends InstrumenterGroup.Tracing
+public final class BundleReferenceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public BundleReferenceInstrumentation() {
     super("classloading", "osgi");

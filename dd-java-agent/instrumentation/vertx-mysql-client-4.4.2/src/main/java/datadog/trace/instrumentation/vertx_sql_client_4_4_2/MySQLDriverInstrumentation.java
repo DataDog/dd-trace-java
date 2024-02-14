@@ -8,12 +8,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class MySQLDriverInstrumentation extends InstrumenterGroup.Tracing
+public class MySQLDriverInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public MySQLDriverInstrumentation() {

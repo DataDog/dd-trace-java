@@ -213,6 +213,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         "spark.available_executor_time", computeCurrentAvailableExecutorTime(time));
 
     applicationSpan.finish(time * 1000);
+
+    // write traces synchronously:
+    // as soon as the application finishes, the JVM starts to shut down
+    tracer.flush();
   }
 
   private AgentSpan getOrCreateStreamingBatchSpan(

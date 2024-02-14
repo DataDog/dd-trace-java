@@ -6,13 +6,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 
 @AutoService(Instrumenter.class)
-public class OkHttp3Instrumentation extends InstrumenterGroup.Tracing
+public class OkHttp3Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public OkHttp3Instrumentation() {

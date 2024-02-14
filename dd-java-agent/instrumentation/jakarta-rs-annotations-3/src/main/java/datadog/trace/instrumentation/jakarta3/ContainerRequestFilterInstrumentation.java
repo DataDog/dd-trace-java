@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
 import net.bytebuddy.asm.Advice;
@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * DefaultRequestContextInstrumentation</code>
  */
 @AutoService(Instrumenter.class)
-public class ContainerRequestFilterInstrumentation extends InstrumenterGroup.Tracing
+public class ContainerRequestFilterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public ContainerRequestFilterInstrumentation() {

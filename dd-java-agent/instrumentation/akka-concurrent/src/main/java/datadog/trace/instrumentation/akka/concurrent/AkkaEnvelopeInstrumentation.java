@@ -7,14 +7,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import akka.dispatch.Envelope;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class AkkaEnvelopeInstrumentation extends InstrumenterGroup.Tracing
+public class AkkaEnvelopeInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public AkkaEnvelopeInstrumentation() {

@@ -2,6 +2,7 @@ package datadog.trace.civisibility;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.communication.BackendApi;
@@ -42,6 +43,7 @@ public class CiVisibilityServices {
   private static final String GIT_FOLDER_NAME = ".git";
 
   final Config config;
+  final CiVisibilityMetricCollector metricCollector;
   final BackendApi backendApi;
   final JvmInfoFactory jvmInfoFactory;
   final CIProviderInfoFactory ciProviderInfoFactory;
@@ -53,16 +55,20 @@ public class CiVisibilityServices {
   @Nullable final SignalClient.Factory signalClientFactory;
 
   CiVisibilityServices(
-      Config config, SharedCommunicationObjects sco, GitInfoProvider gitInfoProvider) {
+      Config config,
+      CiVisibilityMetricCollector metricCollector,
+      SharedCommunicationObjects sco,
+      GitInfoProvider gitInfoProvider) {
     this.config = config;
+    this.metricCollector = metricCollector;
     this.backendApi = new BackendApiFactory(config, sco).createBackendApi();
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
-    this.gitClientFactory = new GitClient.Factory(config);
+    this.gitClientFactory = new GitClient.Factory(config, metricCollector);
     this.ciProviderInfoFactory = new CIProviderInfoFactory(config);
     this.methodLinesResolver =
         new BestEffortMethodLinesResolver(
             new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
-    this.coverageProbeStoreFactory = buildTestProbesFactory(config);
+    this.coverageProbeStoreFactory = buildTestProbesFactory(config, metricCollector);
 
     this.gitInfoProvider = gitInfoProvider;
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
@@ -90,14 +96,15 @@ public class CiVisibilityServices {
     }
   }
 
-  private static CoverageProbeStoreFactory buildTestProbesFactory(Config config) {
+  private static CoverageProbeStoreFactory buildTestProbesFactory(
+      Config config, CiVisibilityMetricCollector metricCollector) {
     if (!config.isCiVisibilityCodeCoverageEnabled()) {
       return new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory();
     }
     if (!config.isCiVisibilityCoverageSegmentsEnabled()) {
-      return new SegmentlessTestProbes.SegmentlessTestProbesFactory();
+      return new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector);
     }
-    return new TestProbes.TestProbesFactory();
+    return new TestProbes.TestProbesFactory(metricCollector);
   }
 
   CiVisibilityRepoServices repoServices(Path path) {

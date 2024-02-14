@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git.tree
 
+import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.civisibility.git.GitObject
 import datadog.trace.civisibility.git.pack.V2PackGitInfoExtractor
 import datadog.trace.civisibility.utils.IOUtils
@@ -312,6 +313,7 @@ class GitClientTest extends Specification {
   }
 
   private givenGitClient() {
-    new GitClient(tempDir.toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
+    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
+    new GitClient(metricCollector, tempDir.toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
   }
 }

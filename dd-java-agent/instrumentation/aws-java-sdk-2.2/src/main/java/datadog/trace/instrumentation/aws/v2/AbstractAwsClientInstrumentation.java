@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.aws.v2;
 
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
-public abstract class AbstractAwsClientInstrumentation extends InstrumenterGroup.Tracing {
+public abstract class AbstractAwsClientInstrumentation extends InstrumenterModule.Tracing {
   private static final String INSTRUMENTATION_NAME = "aws-sdk";
 
   public AbstractAwsClientInstrumentation() {

@@ -10,7 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -20,7 +20,7 @@ import net.bytebuddy.asm.Advice;
 
 /** Propagation is way easier in io.vertx.core.buffer.impl.BufferImpl than in io.netty.Buffer */
 @AutoService(Instrumenter.class)
-public class BufferInstrumentation extends InstrumenterGroup.Iast
+public class BufferInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   private final String className = BufferInstrumentation.class.getName();

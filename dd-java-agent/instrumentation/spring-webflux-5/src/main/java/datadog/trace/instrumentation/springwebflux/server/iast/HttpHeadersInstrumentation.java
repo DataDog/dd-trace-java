@@ -6,11 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 /** @see org.springframework.http.HttpHeaders */
 @AutoService(Instrumenter.class)
-public class HttpHeadersInstrumentation extends InstrumenterGroup.Iast
+public class HttpHeadersInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public HttpHeadersInstrumentation() {
     super("spring-webflux");
