@@ -68,7 +68,7 @@ public class CiVisibilityServices {
     this.methodLinesResolver =
         new BestEffortMethodLinesResolver(
             new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
-    this.coverageProbeStoreFactory = buildTestProbesFactory(config);
+    this.coverageProbeStoreFactory = buildTestProbesFactory(config, metricCollector);
 
     this.gitInfoProvider = gitInfoProvider;
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
@@ -96,14 +96,15 @@ public class CiVisibilityServices {
     }
   }
 
-  private static CoverageProbeStoreFactory buildTestProbesFactory(Config config) {
+  private static CoverageProbeStoreFactory buildTestProbesFactory(
+      Config config, CiVisibilityMetricCollector metricCollector) {
     if (!config.isCiVisibilityCodeCoverageEnabled()) {
       return new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory();
     }
     if (!config.isCiVisibilityCoverageSegmentsEnabled()) {
-      return new SegmentlessTestProbes.SegmentlessTestProbesFactory();
+      return new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector);
     }
-    return new TestProbes.TestProbesFactory();
+    return new TestProbes.TestProbesFactory(metricCollector);
   }
 
   CiVisibilityRepoServices repoServices(Path path) {
