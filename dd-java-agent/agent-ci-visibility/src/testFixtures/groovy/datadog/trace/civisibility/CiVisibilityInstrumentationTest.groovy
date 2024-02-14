@@ -24,6 +24,7 @@ import datadog.trace.civisibility.ipc.SignalServer
 import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
+import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
 import datadog.trace.common.writer.RemoteMapper
@@ -60,6 +61,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def rootPath = currentPath.parent
     dummyModule = rootPath.relativize(currentPath)
 
+    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
+
     def sourcePathResolver = Stub(SourcePathResolver)
     sourcePathResolver.getSourcePath(_ as Class) >> DUMMY_SOURCE_PATH
     sourcePathResolver.getResourcePath(_ as String) >> {
@@ -87,7 +90,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       Collections.emptyList())
     }
 
-    def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory()
+    def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector)
     DDTestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
