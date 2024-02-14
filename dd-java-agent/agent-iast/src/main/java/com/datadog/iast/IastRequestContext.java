@@ -33,6 +33,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   @Nullable private volatile String xForwardedProto;
   @Nullable private volatile String contentType;
   @Nullable private volatile String authorization;
+  @Nullable private volatile String referrer;
 
   /**
    * Use {@link IastRequestContext#IastRequestContext(TaintedObjects)} instead as we require more
@@ -97,6 +98,15 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
 
   public void setAuthorization(final String authorization) {
     this.authorization = authorization;
+  }
+
+  @Nullable
+  public String getReferrer() {
+    return referrer;
+  }
+
+  public void setReferrer(final String referrer) {
+    this.referrer = referrer;
   }
 
   public OverheadContext getOverheadContext() {

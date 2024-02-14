@@ -34,6 +34,12 @@ public enum HttpHeader {
       ctx.setAuthorization(value);
     }
   },
+  REFERRER("Referrer") {
+    @Override
+    public void addToContext(final IastRequestContext ctx, final String value) {
+      ctx.setReferrer(value);
+    }
+  },
   COOKIE("Cookie"),
   SET_COOKIE("Set-Cookie"),
   SET_COOKIE2("Set-Cookie2"),

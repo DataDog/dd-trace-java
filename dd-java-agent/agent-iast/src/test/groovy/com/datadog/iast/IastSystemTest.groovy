@@ -68,6 +68,7 @@ class IastSystemTest extends DDSpecification {
     1 * iastContext.getxContentTypeOptions() >> 'nosniff'
     1 * iastContext.getStrictTransportSecurity() >> 'max-age=35660'
     1 * iastContext.getAuthorization()
+    1 * iastContext.getReferrer()
     0 * _
     noExceptionThrown()
   }
