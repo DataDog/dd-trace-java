@@ -22,7 +22,7 @@ public class ExtraServicesProvider {
     return INSTANCE;
   }
 
-  private final ConcurrentHashMap<String, String> extraServices = new ConcurrentHashMap<>();;
+  private final ConcurrentHashMap<String, String> extraServices = new ConcurrentHashMap<>((int)(MAX_EXTRA_SERVICE / 0.75) + 1);
 
   volatile boolean limitReachedLogged = false;
 
