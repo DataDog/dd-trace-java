@@ -1,7 +1,6 @@
 package datadog.trace.api.naming
 
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.config.TracerConfig
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.ExtraServicesProvider
 
