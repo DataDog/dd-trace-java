@@ -45,16 +45,18 @@ final class TracingConfigPoller {
 
   public void start(Config config, SharedCommunicationObjects sco) {
     this.startupLogsEnabled = config.isStartupLogsEnabled();
-    ConfigurationPoller ConfigPoller = sco.configurationPoller(config);
+    ConfigurationPoller configPoller = sco.configurationPoller(config);
     // TODO: Add CAPABILITY_APM_TRACING_TRACING_ENABLED flag when tracing_enabled is implemented for
     // Remote config
-    ConfigPoller.addCapabilities(
-        CAPABILITY_APM_TRACING_SAMPLE_RATE
-            | CAPABILITY_APM_LOGS_INJECTION
-            | CAPABILITY_APM_HTTP_HEADER_TAGS
-            | CAPABILITY_APM_CUSTOM_TAGS
-            | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED);
-    stopPolling = new Updater().register(config, ConfigPoller);
+    if (configPoller != null) {
+      configPoller.addCapabilities(
+          CAPABILITY_APM_TRACING_SAMPLE_RATE
+              | CAPABILITY_APM_LOGS_INJECTION
+              | CAPABILITY_APM_HTTP_HEADER_TAGS
+              | CAPABILITY_APM_CUSTOM_TAGS
+              | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED);
+    }
+    stopPolling = new Updater().register(config, configPoller);
   }
 
   public void stop() {
