@@ -67,9 +67,9 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
     if (testFramework != null) {
       testSuite.setTag(Tags.TEST_FRAMEWORK, testFramework);
-    }
-    if (testFrameworkVersion != null) {
-      testSuite.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+      if (testFrameworkVersion != null) {
+        testSuite.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+      }
     }
     if (categories != null && !categories.isEmpty()) {
       testSuite.setTag(
@@ -154,9 +154,9 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
     if (testFramework != null) {
       test.setTag(Tags.TEST_FRAMEWORK, testFramework);
-    }
-    if (testFrameworkVersion != null) {
-      test.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+      if (testFrameworkVersion != null) {
+        test.setTag(Tags.TEST_FRAMEWORK_VERSION, testFrameworkVersion);
+      }
     }
     if (testParameters != null) {
       test.setTag(Tags.TEST_PARAMETERS, testParameters);
