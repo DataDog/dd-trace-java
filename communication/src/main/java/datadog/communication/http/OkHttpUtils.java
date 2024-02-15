@@ -117,13 +117,21 @@ public final class OkHttpUtils {
       final long timeoutMillis) {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
+    try {
+      builder.eventListenerFactory(
+          call -> {
+            Request request = call.request();
+            CustomListener listener = request.tag(CustomListener.class);
+            return listener != null ? listener : EventListener.NONE;
+          });
+    } catch (NoSuchMethodError e) {
+      // A workaround for OKHTTP instrumentation tests
+      // where the version of OKHTTP conflicts with the one used in this module.
+      // This should never happen in "real life" as OKHTTP classes
+      // used by the tracer core are relocated to a different package
+    }
+
     builder
-        .eventListenerFactory(
-            call -> {
-              Request request = call.request();
-              CustomListener listener = request.tag(CustomListener.class);
-              return listener != null ? listener : EventListener.NONE;
-            })
         .connectTimeout(timeoutMillis, MILLISECONDS)
         .writeTimeout(timeoutMillis, MILLISECONDS)
         .readTimeout(timeoutMillis, MILLISECONDS)
