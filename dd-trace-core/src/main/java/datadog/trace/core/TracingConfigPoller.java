@@ -156,7 +156,7 @@ final class TracingConfigPoller {
     } else {
       GlobalLogLevelSwitcher.get().restore();
     }
-
+    maybeOverride(builder::setTracingEnabled, libConfig.tracingEnabled);
     maybeOverride(builder::setRuntimeMetricsEnabled, libConfig.runtimeMetricsEnabled);
     maybeOverride(builder::setLogsInjectionEnabled, libConfig.logsInjectionEnabled);
     maybeOverride(builder::setDataStreamsEnabled, libConfig.dataStreamsEnabled);
@@ -218,6 +218,9 @@ final class TracingConfigPoller {
   }
 
   static final class LibConfig {
+    @Json(name = "tracing_enabled")
+    public Boolean tracingEnabled;
+
     @Json(name = "tracing_debug")
     public Boolean debugEnabled;
 
