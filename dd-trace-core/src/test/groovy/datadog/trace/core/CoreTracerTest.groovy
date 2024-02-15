@@ -455,6 +455,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().tracingTags == expectedValue
+    tracer.captureTraceConfig().getMergedSpanTags() == expectedValue
     when:
     updater.remove(key, null)
     updater.commit()
@@ -472,6 +473,7 @@ class CoreTracerTest extends DDCoreSpecification {
     """{"lib_config":{"tracing_tags": [":b", "c:", "e:f"]}}""" | ["e":"f"]
     """{"lib_config":{"tracing_tags": [":", "c:", "e:f"]}}""" | ["e":"f"]
     """{"lib_config":{"tracing_tags": [":", "c:", ""]}}""" | [:]
+    """{"lib_config":{"tracing_tags": []}}""" | [:]
   }
 
   def "test local root service name override"() {
