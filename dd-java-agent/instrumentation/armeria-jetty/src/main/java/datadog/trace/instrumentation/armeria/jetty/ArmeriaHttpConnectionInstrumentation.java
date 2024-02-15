@@ -6,13 +6,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.server.HttpChannel;
 
 @AutoService(Instrumenter.class)
-public class ArmeriaHttpConnectionInstrumentation extends InstrumenterGroup.Tracing
+public class ArmeriaHttpConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ArmeriaHttpConnectionInstrumentation() {
     super("armeria-jetty", "armeria");

@@ -109,7 +109,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   // Used only for tests
-  DebuggerTransformer(Config config, Configuration configuration) {
+  public DebuggerTransformer(Config config, Configuration configuration) {
     this(
         config,
         configuration,

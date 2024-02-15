@@ -2,6 +2,7 @@ package com.datadog.debugger.exception;
 
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.Where;
+import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Collection;
 import java.util.Map;
@@ -13,16 +14,21 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ExceptionProbeManager {
   private final Set<String> fingerprints = ConcurrentHashMap.newKeySet();
   private final Map<String, ExceptionProbe> probes = new ConcurrentHashMap<>();
+  private final ClassNameFiltering classNameFiltering;
 
-  public ExceptionProbeManager() {}
+  public ExceptionProbeManager(ClassNameFiltering classNameFiltering) {
+    this.classNameFiltering = classNameFiltering;
+  }
 
   public void createProbesForException(String fingerprint, StackTraceElement[] stackTraceElements) {
     fingerprints.add(fingerprint);
-    // TODO instrument each frame, filtering out thirdparty code
     for (StackTraceElement stackTraceElement : stackTraceElements) {
       if (stackTraceElement.isNativeMethod() || stackTraceElement.getLineNumber() < 0) {
         // Skip native methods and lines without line numbers
         // TODO log?
+        continue;
+      }
+      if (classNameFiltering.apply(stackTraceElement.getClassName())) {
         continue;
       }
       ExceptionProbe probe =
@@ -30,13 +36,18 @@ public class ExceptionProbeManager {
               fingerprint,
               stackTraceElement.getClassName(),
               stackTraceElement.getMethodName(),
-              stackTraceElement.getLineNumber());
+              stackTraceElement.getLineNumber(),
+              classNameFiltering);
       probes.put(probe.getId(), probe);
     }
   }
 
-  private ExceptionProbe createMethodProbe(
-      String fingerprint, String className, String methodName, int lineNumber) {
+  private static ExceptionProbe createMethodProbe(
+      String fingerprint,
+      String className,
+      String methodName,
+      int lineNumber,
+      ClassNameFiltering classNameFiltering) {
     String probeId = UUID.randomUUID().toString();
     return new ExceptionProbe(
         new ProbeId(probeId, 0),
@@ -44,7 +55,8 @@ public class ExceptionProbeManager {
         null,
         null,
         null,
-        fingerprint);
+        fingerprint,
+        classNameFiltering);
   }
 
   public boolean isAlreadyInstrumented(String fingerprint) {

@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.instrumentation.opentelemetry14.context.propagation.OtelContextPropagators;
 import datadog.trace.instrumentation.opentelemetry14.trace.OtelTracerProvider;
@@ -20,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class OpenTelemetryInstrumentation extends InstrumenterGroup.Tracing
+public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
   public static final String ROOT_PACKAGE_NAME =
       Strings.getPackageName(OpenTelemetryInstrumentation.class.getName());

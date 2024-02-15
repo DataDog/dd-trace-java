@@ -296,6 +296,13 @@ public class AgentTracer {
     ProfilingContextIntegration getProfilingContext();
 
     AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins);
+
+    /**
+     * Sets the new service name to be used as a default
+     *
+     * @param serviceName
+     */
+    void updatePreferredServiceName(String serviceName);
   }
 
   public interface SpanBuilder {
@@ -533,6 +540,11 @@ public class AgentTracer {
     @Override
     public AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins) {
       return NoopAgentHistogram.INSTANCE;
+    }
+
+    @Override
+    public void updatePreferredServiceName(String serviceName) {
+      // no ops
     }
   }
 
@@ -1257,6 +1269,11 @@ public class AgentTracer {
 
     @Override
     public Double getTraceSampleRate() {
+      return null;
+    }
+
+    @Override
+    public String getPreferredServiceName() {
       return null;
     }
 

@@ -5,7 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
@@ -23,7 +23,7 @@ import org.junit.runner.notification.RunNotifier;
 import scala.concurrent.Future;
 
 @AutoService(Instrumenter.class)
-public class MUnitRetryInstrumentation extends InstrumenterGroup.CiVisibility
+public class MUnitRetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
   private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());

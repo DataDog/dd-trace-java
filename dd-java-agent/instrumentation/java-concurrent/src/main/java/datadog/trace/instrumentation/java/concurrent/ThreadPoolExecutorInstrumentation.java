@@ -15,7 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -58,7 +58,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * }</pre>
  */
 @AutoService(Instrumenter.class)
-public final class ThreadPoolExecutorInstrumentation extends InstrumenterGroup.Tracing
+public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   private static final String TPE = "java.util.concurrent.ThreadPoolExecutor";

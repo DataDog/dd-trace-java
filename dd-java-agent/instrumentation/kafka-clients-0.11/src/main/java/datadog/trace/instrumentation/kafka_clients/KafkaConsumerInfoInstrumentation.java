@@ -10,7 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
@@ -29,7 +29,7 @@ import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
  * and cluster ID, in the context store for later use.
  */
 @AutoService(Instrumenter.class)
-public final class KafkaConsumerInfoInstrumentation extends InstrumenterGroup.Tracing
+public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public KafkaConsumerInfoInstrumentation() {

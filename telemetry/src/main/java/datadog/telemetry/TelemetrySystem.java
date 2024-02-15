@@ -7,6 +7,7 @@ import datadog.telemetry.dependency.DependencyPeriodicAction;
 import datadog.telemetry.dependency.DependencyService;
 import datadog.telemetry.integration.IntegrationPeriodicAction;
 import datadog.telemetry.log.LogPeriodicAction;
+import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
@@ -16,7 +17,6 @@ import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +52,9 @@ public class TelemetrySystem {
       if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
         actions.add(new IastMetricPeriodicAction());
       }
+      if (Config.get().isCiVisibilityEnabled() && Config.get().isCiVisibilityTelemetryEnabled()) {
+        actions.add(new CiVisibilityMetricPeriodicAction());
+      }
     }
     if (null != dependencyService) {
       actions.add(new DependencyPeriodicAction(dependencyService));
@@ -76,11 +79,7 @@ public class TelemetrySystem {
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
 
     TelemetryClient agentClient = TelemetryClient.buildAgentClient(sco.okHttpClient, sco.agentUrl);
-    TelemetryClient intakeClient =
-        TelemetryClient.buildIntakeClient(
-            config.getSite(),
-            TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
-            config.getApiKey());
+    TelemetryClient intakeClient = TelemetryClient.buildIntakeClient(config);
 
     boolean useIntakeClientByDefault =
         config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled();

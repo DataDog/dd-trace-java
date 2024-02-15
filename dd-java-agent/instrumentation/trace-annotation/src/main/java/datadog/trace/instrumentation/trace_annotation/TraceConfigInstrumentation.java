@@ -17,7 +17,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * super class.
  */
 @AutoService(Instrumenter.class)
-public class TraceConfigInstrumentation extends InstrumenterGroup {
+public class TraceConfigInstrumentation extends InstrumenterModule {
   private final Map<String, Set<String>> classMethodsToTrace;
 
   public TraceConfigInstrumentation() {

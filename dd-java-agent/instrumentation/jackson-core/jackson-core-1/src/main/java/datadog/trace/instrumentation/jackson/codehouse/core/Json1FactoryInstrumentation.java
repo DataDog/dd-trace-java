@@ -5,7 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 
 @AutoService(Instrumenter.class)
-public class Json1FactoryInstrumentation extends InstrumenterGroup.Iast
+public class Json1FactoryInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public Json1FactoryInstrumentation() {

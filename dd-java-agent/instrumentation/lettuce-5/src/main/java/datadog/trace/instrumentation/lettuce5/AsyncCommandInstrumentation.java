@@ -12,7 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
@@ -28,7 +28,7 @@ import net.bytebuddy.asm.Advice;
  * loop.
  */
 @AutoService(Instrumenter.class)
-public class AsyncCommandInstrumentation extends InstrumenterGroup.Profiling
+public class AsyncCommandInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForSingleType {
   public AsyncCommandInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-async");

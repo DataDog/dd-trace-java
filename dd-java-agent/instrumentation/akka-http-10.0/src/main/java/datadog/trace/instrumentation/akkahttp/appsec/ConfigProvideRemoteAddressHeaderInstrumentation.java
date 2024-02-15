@@ -8,11 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class ConfigProvideRemoteAddressHeaderInstrumentation extends InstrumenterGroup.AppSec
+public class ConfigProvideRemoteAddressHeaderInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public ConfigProvideRemoteAddressHeaderInstrumentation() {
     super("akka-http");

@@ -7,12 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class FormUrlEncodedInstrumentation extends InstrumenterGroup.AppSec
+public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public FormUrlEncodedInstrumentation() {
     super("play");

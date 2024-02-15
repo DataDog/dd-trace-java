@@ -8,7 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.StoredBodyFactories;
 import datadog.trace.api.http.StoredCharBody;
@@ -23,7 +23,7 @@ import org.glassfish.grizzly.http.io.InputBuffer;
 import org.glassfish.grizzly.http.io.NIOReader;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyCharBodyInstrumentation extends InstrumenterGroup.AppSec
+public class GrizzlyCharBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public GrizzlyCharBodyInstrumentation() {
     super("grizzly");

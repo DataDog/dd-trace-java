@@ -35,7 +35,7 @@ public class SpanInstrumentor extends Instrumentor {
 
   @Override
   public InstrumentationResult.Status instrument() {
-    if (isLineProbe) {
+    if (definition.isLineProbe()) {
       return addRangeSpan(classFileLines);
     }
     spanVar = newVar(DEBUGGER_SPAN_TYPE);
@@ -147,7 +147,7 @@ public class SpanInstrumentor extends Instrumentor {
 
   private String buildResourceName() {
     String resourceName = stripPackagePath(classNode.name) + "." + methodNode.name;
-    if (isLineProbe) {
+    if (definition.isLineProbe()) {
       Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
       if (targetLines == null || targetLines.length == 0) {
         return resourceName;

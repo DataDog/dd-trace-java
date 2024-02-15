@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.instrumentation.play26.MuzzleReferences;
 import net.bytebuddy.asm.Advice;
@@ -17,7 +17,7 @@ import play.mvc.Http;
 
 /** @see play.mvc.BodyParser.DelegatingBodyParser */
 @AutoService(Instrumenter.class)
-public class DelegatingBodyParserInstrumentation extends InstrumenterGroup.AppSec
+public class DelegatingBodyParserInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public DelegatingBodyParserInstrumentation() {
     super("play");

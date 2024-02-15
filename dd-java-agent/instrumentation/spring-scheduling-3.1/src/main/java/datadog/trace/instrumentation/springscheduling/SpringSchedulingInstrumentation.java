@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -16,7 +16,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.scheduling.TaskScheduler;
 
 @AutoService(Instrumenter.class)
-public final class SpringSchedulingInstrumentation extends InstrumenterGroup.Tracing
+public final class SpringSchedulingInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public SpringSchedulingInstrumentation() {

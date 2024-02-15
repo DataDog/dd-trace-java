@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -17,7 +17,7 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 import org.spockframework.runtime.SpockEngine;
 
 @AutoService(Instrumenter.class)
-public class JUnit5SpockInstrumentation extends InstrumenterGroup.CiVisibility
+public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public JUnit5SpockInstrumentation() {
