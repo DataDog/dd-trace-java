@@ -59,6 +59,8 @@ public class ClassInjectingTransformer implements AgentBuilder.Transformer, AsmV
           null,
           "java/lang/Object",
           null);
+      String markerName = ClassInjectingTestInstrumentation.class.getName() + "$ToBeMatched";
+      cw.visitAnnotation("L" + markerName.replace(".", "/") + ";", true).visitEnd();
       byte[] bytes = cw.toByteArray();
       defineMethod.invoke(classLoader, binaryName.replace("/", "."), bytes, 0, bytes.length, null);
     } catch (Throwable e) {
