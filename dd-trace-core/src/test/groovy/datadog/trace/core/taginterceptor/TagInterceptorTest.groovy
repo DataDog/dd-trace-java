@@ -1,7 +1,7 @@
 package datadog.trace.core.taginterceptor
 
 import datadog.trace.core.DDSpanContext
-import datadog.trace.util.ExtraServicesProvider
+import datadog.trace.api.remoteconfig.ServiceNameCollector
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
@@ -680,8 +680,8 @@ class TagInterceptorTest extends DDCoreSpecification {
 
   void "when interceptServiceName extraServiceProvider is called"(){
     setup:
-    final extraServiceProvider = Mock(ExtraServicesProvider)
-    ExtraServicesProvider.INSTANCE = extraServiceProvider
+    final extraServiceProvider = Mock(ServiceNameCollector)
+    ServiceNameCollector.INSTANCE = extraServiceProvider
     final ruleFlags = Mock(RuleFlags)
     ruleFlags.isEnabled(_) >> true
     final interceptor = new TagInterceptor(true, "my-service", Collections.singleton(DDTags.SERVICE_NAME), ruleFlags)
@@ -690,13 +690,13 @@ class TagInterceptorTest extends DDCoreSpecification {
     interceptor.interceptServiceName(null, Mock(DDSpanContext), "some-service")
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService("some-service")
+    1 * extraServiceProvider.addService("some-service")
   }
 
   void "when interceptServletContext extraServiceProvider is called"(){
     setup:
-    final extraServiceProvider = Mock(ExtraServicesProvider)
-    ExtraServicesProvider.INSTANCE = extraServiceProvider
+    final extraServiceProvider = Mock(ServiceNameCollector)
+    ServiceNameCollector.INSTANCE = extraServiceProvider
     final ruleFlags = Mock(RuleFlags)
     ruleFlags.isEnabled(_) >> true
     final interceptor = new TagInterceptor(true, "my-service", Collections.singleton("servlet.context"), ruleFlags)
@@ -705,7 +705,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     interceptor.interceptServletContext(Mock(DDSpanContext), value)
 
     then:
-    1 * extraServiceProvider.maybeAddExtraService(expected)
+    1 * extraServiceProvider.addService(expected)
 
     where:
     value | expected

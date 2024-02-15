@@ -23,6 +23,7 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.normalize.HttpResourceNames;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -31,7 +32,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.util.ExtraServicesProvider;
 import java.net.URI;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -220,7 +220,7 @@ public class TagInterceptor {
     if (ruleFlags.isEnabled(feature)) {
       String serviceName = String.valueOf(value);
       span.setServiceName(serviceName);
-      ExtraServicesProvider.get().maybeAddExtraService(serviceName);
+      ServiceNameCollector.get().addService(serviceName);
       return true;
     }
     return false;
@@ -269,7 +269,7 @@ public class TagInterceptor {
         serviceName = contextName;
         span.setServiceName(serviceName);
       }
-      ExtraServicesProvider.get().maybeAddExtraService(serviceName);
+      ServiceNameCollector.get().addService(serviceName);
     }
     return false;
   }

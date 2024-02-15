@@ -4,7 +4,7 @@ import datadog.remoteconfig.tuf.RemoteConfigRequest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.api.Config
-import datadog.trace.util.ExtraServicesProvider
+import datadog.trace.api.remoteconfig.ServiceNameCollector
 
 class PollerRequestFactoryTest extends DDSpecification {
 
@@ -23,7 +23,7 @@ class PollerRequestFactoryTest extends DDSpecification {
     PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null)
 
     when:
-    RemoteConfigRequest request = factory.buildRemoteConfigRequest( Collections.singletonList("ASM"), null, null, 0, ExtraServicesProvider.get())
+    RemoteConfigRequest request = factory.buildRemoteConfigRequest( Collections.singletonList("ASM"), null, null, 0, ServiceNameCollector.get())
 
     then:
     request.client.tracerInfo.serviceName == "service_name"
@@ -41,8 +41,8 @@ class PollerRequestFactoryTest extends DDSpecification {
     System.setProperty("dd.tags", "version:1.0.0-SNAPSHOT")
     rebuildConfig()
     final extraService = 'fakeExtraService'
-    ExtraServicesProvider extraServicesProvider = new ExtraServicesProvider()
-    extraServicesProvider.maybeAddExtraService(extraService)
+    ServiceNameCollector extraServicesProvider = new ServiceNameCollector()
+    extraServicesProvider.addService(extraService)
     PollerRequestFactory factory = new PollerRequestFactory(Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null)
 
     when:

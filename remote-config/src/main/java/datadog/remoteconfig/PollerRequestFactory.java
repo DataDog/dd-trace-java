@@ -7,8 +7,8 @@ import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
 import datadog.trace.api.Config;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.ExtraServicesProvider;
 import datadog.trace.util.TagsHelper;
 import java.util.Arrays;
 import java.util.Collection;
@@ -113,11 +113,7 @@ public class PollerRequestFactory {
       long capabilities) {
     RemoteConfigRequest rcRequest =
         buildRemoteConfigRequest(
-            productNames,
-            clientState,
-            cachedTargetFiles,
-            capabilities,
-            ExtraServicesProvider.get());
+            productNames, clientState, cachedTargetFiles, capabilities, ServiceNameCollector.get());
     return moshi.adapter(RemoteConfigRequest.class).toJson(rcRequest);
   }
 
@@ -127,14 +123,14 @@ public class PollerRequestFactory {
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
       long capabilities,
-      ExtraServicesProvider extraServicesProvider) {
+      ServiceNameCollector serviceNameCollector) {
     return RemoteConfigRequest.newRequest(
         this.clientId,
         this.runtimeId,
         this.tracerVersion,
         productNames,
         this.serviceName,
-        extraServicesProvider.getExtraServices(),
+        serviceNameCollector.getServices(),
         this.env,
         this.ddVersion,
         buildRequestTags(),

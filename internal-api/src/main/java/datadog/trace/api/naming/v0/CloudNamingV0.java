@@ -1,7 +1,7 @@
 package datadog.trace.api.naming.v0;
 
 import datadog.trace.api.naming.NamingSchema;
-import datadog.trace.util.ExtraServicesProvider;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -32,17 +32,17 @@ public class CloudNamingV0 implements NamingSchema.ForCloud {
 
     // we only manage aws. Future switch for other cloud providers will be needed in the future
     if (cloudService == null) {
-      ExtraServicesProvider.get().maybeAddExtraService(JAVA_AWS_SDK);
+      ServiceNameCollector.get().addService(JAVA_AWS_SDK);
       return JAVA_AWS_SDK;
     }
 
     switch (cloudService) {
       case "sns":
       case "sqs":
-        ExtraServicesProvider.get().maybeAddExtraService(cloudService);
+        ServiceNameCollector.get().addService(cloudService);
         return cloudService;
       default:
-        ExtraServicesProvider.get().maybeAddExtraService(JAVA_AWS_SDK);
+        ServiceNameCollector.get().addService(JAVA_AWS_SDK);
         return JAVA_AWS_SDK;
     }
   }

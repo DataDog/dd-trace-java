@@ -1,7 +1,7 @@
 package datadog.trace.api.naming.v0;
 
 import datadog.trace.api.naming.NamingSchema;
-import datadog.trace.util.ExtraServicesProvider;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import javax.annotation.Nonnull;
 
 public class CacheNamingV0 implements NamingSchema.ForCache {
@@ -39,7 +39,7 @@ public class CacheNamingV0 implements NamingSchema.ForCache {
     if ("hazelcast".equals(cacheSystem)) {
       service = "hazelcast-sdk";
     }
-    ExtraServicesProvider.get().maybeAddExtraService(service);
+    ServiceNameCollector.get().addService(service);
     return service;
   }
 }

@@ -1,4 +1,4 @@
-package datadog.trace.util;
+package datadog.trace.api.remoteconfig;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
@@ -11,33 +11,33 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExtraServicesProvider {
+public class ServiceNameCollector {
 
-  private static final Logger log = LoggerFactory.getLogger(ExtraServicesProvider.class);
+  private static final Logger log = LoggerFactory.getLogger(ServiceNameCollector.class);
 
   private static final int MAX_EXTRA_SERVICE = Config.get().getRemoteConfigMaxExtraServices();
 
   // This is not final to allow mocking it on tests
-  private static ExtraServicesProvider INSTANCE = new ExtraServicesProvider();
+  private static ServiceNameCollector INSTANCE = new ServiceNameCollector();
 
-  public static ExtraServicesProvider get() {
+  public static ServiceNameCollector get() {
     return INSTANCE;
   }
 
-  private final ConcurrentHashMap<String, String> extraServices =
+  private final ConcurrentHashMap<String, String> services =
       new ConcurrentHashMap<>(MAX_EXTRA_SERVICE);
 
   volatile boolean limitReachedLogged = false;
 
-  ExtraServicesProvider() {
+  ServiceNameCollector() {
     // singleton
   }
 
-  public void maybeAddExtraService(final String serviceName) {
+  public void addService(final String serviceName) {
     if (serviceName == null || serviceName.isEmpty()) {
       return;
     }
-    if (extraServices.size() >= MAX_EXTRA_SERVICE) {
+    if (services.size() >= MAX_EXTRA_SERVICE) {
       if (!limitReachedLogged) {
         log.debug(
             SEND_TELEMETRY,
@@ -49,16 +49,16 @@ public class ExtraServicesProvider {
       return;
     }
     if (!Config.get().getServiceName().equalsIgnoreCase(serviceName)) {
-      extraServices.put(serviceName.toLowerCase(Locale.ROOT), serviceName);
+      services.put(serviceName.toLowerCase(Locale.ROOT), serviceName);
     }
   }
 
   @Nullable
-  public List<String> getExtraServices() {
-    return extraServices.isEmpty() ? null : new ArrayList<>(extraServices.values());
+  public List<String> getServices() {
+    return services.isEmpty() ? null : new ArrayList<>(services.values());
   }
 
   public void clear() {
-    extraServices.clear();
+    services.clear();
   }
 }
