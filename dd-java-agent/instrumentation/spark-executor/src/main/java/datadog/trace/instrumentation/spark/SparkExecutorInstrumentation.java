@@ -68,12 +68,15 @@ public class SparkExecutorInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      AgentSpan span = scope.span();
-      DECORATE.onTaskEnd(span, taskRunner);
-      DECORATE.beforeFinish(scope);
+      final AgentSpan span = scope.span();
 
-      scope.close();
-      span.finish();
+      try {
+        DECORATE.onTaskEnd(span, taskRunner);
+        DECORATE.beforeFinish(scope);
+      } finally {
+        scope.close();
+        span.finish();
+      }
     }
   }
 }
