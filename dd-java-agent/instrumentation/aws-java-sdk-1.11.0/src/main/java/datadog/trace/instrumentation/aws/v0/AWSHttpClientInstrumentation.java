@@ -11,7 +11,7 @@ import com.amazonaws.Request;
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
  * {@link RequestHandler2#afterError} is not called.
  */
 @AutoService(Instrumenter.class)
-public class AWSHttpClientInstrumentation extends InstrumenterGroup.Tracing
+public class AWSHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public AWSHttpClientInstrumentation() {

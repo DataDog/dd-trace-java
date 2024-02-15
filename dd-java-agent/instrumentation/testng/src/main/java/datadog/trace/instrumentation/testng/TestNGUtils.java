@@ -11,6 +11,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.IClass;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
@@ -24,6 +26,8 @@ import org.testng.internal.ITestResultNotifier;
 import org.testng.xml.XmlTest;
 
 public abstract class TestNGUtils {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(TestNGUtils.class);
 
   private static final datadog.trace.util.MethodHandles METHOD_HANDLES =
       new datadog.trace.util.MethodHandles(TestNG.class.getClassLoader());
@@ -161,6 +165,7 @@ public abstract class TestNGUtils {
       return parallel != null
           && ("methods".equals(parallel.toString()) || "tests".equals(parallel.toString()));
     } catch (Throwable e) {
+      LOGGER.warn("Error while checking if a test class is paralellized");
       return false;
     }
   }

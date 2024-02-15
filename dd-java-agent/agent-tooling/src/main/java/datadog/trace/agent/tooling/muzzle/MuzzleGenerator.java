@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,7 +26,7 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 
-/** Generates a 'Muzzle' side-class for each {@link InstrumenterGroup}. */
+/** Generates a 'Muzzle' side-class for each {@link InstrumenterModule}. */
 public class MuzzleGenerator implements AsmVisitorWrapper {
   private final File targetDir;
 
@@ -46,7 +46,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
   @Override
   public ClassVisitor wrap(
-      final TypeDescription groupDefinition,
+      final TypeDescription moduleDefinition,
       final ClassVisitor classVisitor,
       final Implementation.Context implementationContext,
       final TypePool typePool,
@@ -55,23 +55,23 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       final int writerFlags,
       final int readerFlags) {
 
-    InstrumenterGroup group;
+    InstrumenterModule module;
     try {
-      group =
-          (InstrumenterGroup)
+      module =
+          (InstrumenterModule)
               Thread.currentThread()
                   .getContextClassLoader()
-                  .loadClass(groupDefinition.getName())
+                  .loadClass(moduleDefinition.getName())
                   .getConstructor()
                   .newInstance();
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
 
-    File muzzleClass = new File(targetDir, groupDefinition.getInternalName() + "$Muzzle.class");
+    File muzzleClass = new File(targetDir, moduleDefinition.getInternalName() + "$Muzzle.class");
     try {
       muzzleClass.getParentFile().mkdirs();
-      Files.write(muzzleClass.toPath(), generateMuzzleClass(group));
+      Files.write(muzzleClass.toPath(), generateMuzzleClass(module));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -102,12 +102,12 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /** This code is generated in a separate side-class. */
-  private static byte[] generateMuzzleClass(InstrumenterGroup group) {
+  private static byte[] generateMuzzleClass(InstrumenterModule module) {
 
-    Set<String> ignoredClassNames = new HashSet<>(Arrays.asList(group.muzzleIgnoredClassNames()));
+    Set<String> ignoredClassNames = new HashSet<>(Arrays.asList(module.muzzleIgnoredClassNames()));
 
     List<Reference> references = new ArrayList<>();
-    for (Instrumenter instrumenter : group.typeInstrumentations()) {
+    for (Instrumenter instrumenter : module.typeInstrumentations()) {
       if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
         for (Reference reference :
             generateReferences((Instrumenter.HasMethodAdvice) instrumenter)) {
@@ -118,7 +118,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
         }
       }
     }
-    Reference[] additionalReferences = group.additionalMuzzleReferences();
+    Reference[] additionalReferences = module.additionalMuzzleReferences();
     if (null != additionalReferences) {
       Collections.addAll(references, additionalReferences);
     }
@@ -127,7 +127,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     cw.visit(
         Opcodes.V1_8,
         Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
-        Type.getInternalName(group.getClass()) + "$Muzzle",
+        Type.getInternalName(module.getClass()) + "$Muzzle",
         null,
         "java/lang/Object",
         null);

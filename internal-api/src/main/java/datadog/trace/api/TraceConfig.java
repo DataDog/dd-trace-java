@@ -25,6 +25,13 @@ public interface TraceConfig {
   Double getTraceSampleRate();
 
   /**
+   * The preferred service name to be used for tracing.
+   *
+   * @return null if not set (will use tracing default one)
+   */
+  String getPreferredServiceName();
+
+  /**
    * Get the tracer sampler Span Sampling Rules.
    *
    * @return The tracer sampler Span Sampling Rules, or an empty collection if no rule is defined.

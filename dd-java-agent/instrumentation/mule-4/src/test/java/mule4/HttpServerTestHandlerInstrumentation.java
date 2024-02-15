@@ -5,7 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 /**
  * Test instrumentation to make the {@code testHandle} method in {@code HttpServerTestHandler} call
@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterGroup;
  * the test code in {@code HttpServerTest}.
  */
 @AutoService(Instrumenter.class)
-public class HttpServerTestHandlerInstrumentation extends InstrumenterGroup.Tracing
+public class HttpServerTestHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public HttpServerTestHandlerInstrumentation() {

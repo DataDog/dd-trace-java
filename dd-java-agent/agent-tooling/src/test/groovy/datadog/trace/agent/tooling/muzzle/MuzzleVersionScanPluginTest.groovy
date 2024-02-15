@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.muzzle
 
 import datadog.trace.agent.tooling.Instrumenter
-import datadog.trace.agent.tooling.InstrumenterGroup
+import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.matcher.ElementMatcher
 
@@ -22,7 +22,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
 
   def "test assertInstrumentationMuzzled advice"() {
     setup:
-    def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterGroup,
+    def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterModule,
       Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
@@ -48,7 +48,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
 
   def "verify advice match failure"() {
     setup:
-    def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterGroup,
+    def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterModule,
       Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
@@ -71,7 +71,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
 
   def "test assertInstrumentationMuzzled helpers"() {
     setup:
-    def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterGroup, BaseInst,
+    def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterModule, BaseInst,
       Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
     helpers.each { instrumentationLoader.addClass(it) }
     def testApplicationLoader = new AddableClassLoader()
@@ -92,7 +92,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
 
   def "test nested helpers failure"() {
     setup:
-    def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterGroup, BaseInst,
+    def instrumentationLoader = new ServiceEnabledClassLoader(Instrumenter, InstrumenterModule, BaseInst,
       Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator, inst, muzzle)
     helpers.each { instrumentationLoader.addClass(it) }
     def testApplicationLoader = new AddableClassLoader()

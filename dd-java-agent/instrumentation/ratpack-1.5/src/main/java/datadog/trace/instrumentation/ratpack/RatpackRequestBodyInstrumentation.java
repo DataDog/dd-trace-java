@@ -5,12 +5,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import ratpack.server.internal.RequestBody;
 
 /** @see RequestBody#readStream() the instrumented method */
 @AutoService(Instrumenter.class)
-public class RatpackRequestBodyInstrumentation extends InstrumenterGroup.AppSec
+public class RatpackRequestBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public RatpackRequestBodyInstrumentation() {
     super("ratpack-request-body");

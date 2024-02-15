@@ -13,15 +13,13 @@ class DefaultExceptionDebuggerTest {
   @Test
   public void test() {
     ClassNameFiltering classNameFiltering = new ClassNameFiltering(emptyList());
-    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     ConfigurationUpdater configurationUpdater = mock(ConfigurationUpdater.class);
     DefaultExceptionDebugger exceptionDebugger =
-        new DefaultExceptionDebugger(
-            exceptionProbeManager, configurationUpdater, classNameFiltering);
+        new DefaultExceptionDebugger(configurationUpdater, classNameFiltering);
     RuntimeException exception = new RuntimeException("test");
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     exceptionDebugger.handleException(exception);
     exceptionDebugger.handleException(exception);
-    assertTrue(exceptionProbeManager.isAlreadyInstrumented(fingerprint));
+    assertTrue(exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint));
   }
 }

@@ -5,7 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.Config;
@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 import org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutorService;
 
 @AutoService(Instrumenter.class)
-public class JUnit5RetryInstrumentation extends InstrumenterGroup.CiVisibility
+public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
   private final String parentPackageName =

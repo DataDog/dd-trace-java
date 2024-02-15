@@ -230,6 +230,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return Histograms.newHistogram(relativeAccuracy, maxNumBins);
   }
 
+  @Override
+  public void updatePreferredServiceName(String serviceName) {
+    dynamicConfig.current().setPreferredServiceName(serviceName).apply();
+  }
+
   PropagationTags.Factory getPropagationTagsFactory() {
     return propagationTagsFactory;
   }
@@ -1533,7 +1538,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
       }
       if (serviceName == null) {
-        serviceName = CoreTracer.this.serviceName;
+        serviceName = captureTraceConfig().getPreferredServiceName();
+        if (serviceName == null) {
+          // it could be on the initial snapshot but may be overridden to null and service name
+          // cannot be null
+          serviceName = CoreTracer.this.serviceName;
+        }
       }
 
       final CharSequence operationName =

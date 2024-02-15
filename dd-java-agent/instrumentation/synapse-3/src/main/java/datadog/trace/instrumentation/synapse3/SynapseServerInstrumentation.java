@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -19,7 +19,7 @@ import org.apache.http.HttpRequest;
 import org.apache.http.nio.NHttpServerConnection;
 
 @AutoService(Instrumenter.class)
-public final class SynapseServerInstrumentation extends InstrumenterGroup.Tracing
+public final class SynapseServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public SynapseServerInstrumentation() {

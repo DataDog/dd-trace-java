@@ -5,7 +5,7 @@ import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterGroup;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;
 
 /**
@@ -14,7 +14,7 @@ import java.util.Map;
  * Event} via its {@code EventContext}.
  */
 @AutoService(Instrumenter.class)
-public final class PrivilegedEventInstrumentation extends InstrumenterGroup.Tracing
+public final class PrivilegedEventInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public PrivilegedEventInstrumentation() {
