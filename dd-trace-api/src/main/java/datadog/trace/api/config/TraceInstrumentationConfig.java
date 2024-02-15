@@ -120,6 +120,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String RESOLVER_CACHE_CONFIG = "resolver.cache.config";
   public static final String RESOLVER_CACHE_DIR = "resolver.cache.dir";
+  public static final String RESOLVER_SIMPLE_METHOD_GRAPH = "resolver.simple.method.graph";
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
   public static final String RESOLVER_USE_URL_CACHES = "resolver.use.url.caches";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";

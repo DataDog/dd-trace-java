@@ -1,17 +1,32 @@
 package locator;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.TestInstrumentation;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ClassInjectingTestInstrumentation extends TestInstrumentation {
+public class ClassInjectingTestInstrumentation extends TestInstrumentation
+    implements Instrumenter.WithTypeStructure {
+
   @Override
   public String instrumentedType() {
     return getClass().getName() + "$ToBeInstrumented";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    // additional constraint which requires loading the InjectedInterface to match
+    return hasInterface(declaresAnnotation(named(getClass().getName() + "$ToBeMatched")));
   }
 
   @Override
@@ -26,6 +41,9 @@ public class ClassInjectingTestInstrumentation extends TestInstrumentation {
       message = message + ":instrumented";
     }
   }
+
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface ToBeMatched {}
 
   public static final class ToBeInstrumented {
     private final String message;
