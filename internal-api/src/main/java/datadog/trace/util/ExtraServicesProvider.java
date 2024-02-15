@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import datadog.trace.api.Config;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +40,7 @@ public class ExtraServicesProvider {
     if (extraServices.size() >= MAX_EXTRA_SERVICE) {
       if (!limitReachedLogged) {
         log.debug(
+            SEND_TELEMETRY,
             "extra service limit({}) reached: service {} can't be added",
             MAX_EXTRA_SERVICE,
             serviceName);
