@@ -4,6 +4,7 @@ import com.squareup.moshi.Moshi
 import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.civisibility.communication.BackendApi
 import datadog.trace.civisibility.communication.EvpProxyApi
 import datadog.trace.test.util.MultipartRequestParser
@@ -90,10 +91,11 @@ class GitDataApiTest extends Specification {
 
   def "test commits search"() {
     given:
+    def metricCollector = Stub(CiVisibilityMetricCollector)
     def evpProxy = givenEvpProxy()
 
     when:
-    def gitDataApi = new GitDataApi(evpProxy)
+    def gitDataApi = new GitDataApi(evpProxy, metricCollector)
     def commits = new ArrayList<>(gitDataApi.searchCommits("gitRemoteUrl", ["sha1", "sha2"]))
 
     then:
@@ -102,11 +104,12 @@ class GitDataApiTest extends Specification {
 
   def "test pack file upload"() {
     given:
+    def metricCollector = Stub(CiVisibilityMetricCollector)
     def evpProxy = givenEvpProxy()
     def packFile = givenPackFile()
 
     when:
-    def gitDataApi = new GitDataApi(evpProxy)
+    def gitDataApi = new GitDataApi(evpProxy, metricCollector)
     gitDataApi.uploadPackFile("gitRemoteUrl", "sha1", packFile)
 
     then:

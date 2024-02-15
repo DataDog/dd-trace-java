@@ -6,6 +6,7 @@ import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.civisibility.config.Configurations
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.civisibility.communication.BackendApi
 import datadog.trace.civisibility.communication.EvpProxyApi
 import datadog.trace.civisibility.communication.IntakeApi
@@ -143,9 +144,10 @@ class ConfigurationApiImplTest extends Specification {
   def "test settings request: #displayName"() {
     given:
     def tracerEnvironment = givenTracerEnvironment()
+    def metricCollector = Stub(CiVisibilityMetricCollector)
 
     when:
-    def configurationApi = new ConfigurationApiImpl(api, () -> "1234")
+    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
     def settings = configurationApi.getSettings(tracerEnvironment)
 
     then:
@@ -165,9 +167,10 @@ class ConfigurationApiImplTest extends Specification {
   def "test skippable tests request: #displayName"() {
     given:
     def tracerEnvironment = givenTracerEnvironment()
+    def metricCollector = Stub(CiVisibilityMetricCollector)
 
     when:
-    def configurationApi = new ConfigurationApiImpl(api, () -> "1234")
+    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
     def skippableTests = configurationApi.getSkippableTests(tracerEnvironment)
 
     then:

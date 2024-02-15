@@ -3,7 +3,12 @@ package datadog.trace.civisibility.git.tree;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.communication.http.OkHttpUtils;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.civisibility.communication.BackendApi;
+import datadog.trace.civisibility.communication.TelemetryListener;
 import datadog.trace.civisibility.utils.IOUtils;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,12 +34,14 @@ public class GitDataApi {
   private static final String UPLOAD_PACKFILES_URI = "git/repository/packfile";
 
   private final BackendApi backendApi;
+  private final CiVisibilityMetricCollector metricCollector;
   private final JsonAdapter<SearchCommitsRequest> searchCommitsRequestAdapter;
   private final JsonAdapter<SearchCommitsResponse> searchCommitsResponseAdapter;
   private final JsonAdapter<PushedSha> pushedShaAdapter;
 
-  public GitDataApi(BackendApi backendApi) {
+  public GitDataApi(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
     this.backendApi = backendApi;
+    this.metricCollector = metricCollector;
 
     Moshi moshi = new Moshi.Builder().build();
     searchCommitsRequestAdapter = moshi.adapter(SearchCommitsRequest.class);
@@ -58,11 +65,20 @@ public class GitDataApi {
 
     String json = searchCommitsRequestAdapter.toJson(searchCommitsRequest);
     RequestBody requestBody = RequestBody.create(JSON, json);
+
+    OkHttpUtils.CustomListener telemetryListener =
+        new TelemetryListener.Builder(metricCollector)
+            .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_SEARCH_COMMITS)
+            .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_SEARCH_COMMITS_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.GIT_REQUESTS_SEARCH_COMMITS_MS)
+            .build();
+
     SearchCommitsResponse response =
         backendApi.post(
             SEARCH_COMMITS_URI,
             requestBody,
-            is -> searchCommitsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))));
+            is -> searchCommitsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))),
+            telemetryListener);
 
     return response.data.stream().map(Commit::getId).collect(Collectors.toSet());
   }
@@ -94,7 +110,16 @@ public class GitDataApi {
             .addFormDataPart("packfile", packFileNameWithoutRandomPrefix, packFileBody)
             .build();
 
-    String response = backendApi.post(UPLOAD_PACKFILES_URI, requestBody, IOUtils::readFully);
+    OkHttpUtils.CustomListener telemetryListener =
+        new TelemetryListener.Builder(metricCollector)
+            .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_OBJECTS_PACK)
+            .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_OBJECTS_PACK_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_MS)
+            .requestBytes(CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_BYTES)
+            .build();
+
+    String response =
+        backendApi.post(UPLOAD_PACKFILES_URI, requestBody, IOUtils::readFully, telemetryListener);
     LOGGER.debug("Uploading pack file {} returned response {}", packFile, response);
   }
 
