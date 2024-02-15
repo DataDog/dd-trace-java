@@ -1273,6 +1273,11 @@ public class AgentTracer {
     }
 
     @Override
+    public Map<String, String> getTracingTags() {
+      return Collections.emptyMap();
+    }
+
+    @Override
     public String getPreferredServiceName() {
       return null;
     }

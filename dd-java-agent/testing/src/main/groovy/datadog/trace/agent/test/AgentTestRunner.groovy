@@ -220,7 +220,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     Double getTraceSampleRate() {
       return null
     }
-
+    @Override
+    Map<String,String> getTracingTags(){
+      return null
+    }
     @Override
     String getPreferredServiceName() {
       return null

@@ -553,6 +553,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setTraceSampleRate(config.getTraceSampleRate())
             .setSpanSamplingRules(spanSamplingRules.getRules())
             .setTraceSamplingRules(traceSamplingRules.getRules())
+            .setTracingTags(config.getGlobalTags())
             .apply();
 
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
@@ -731,6 +732,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         .setHeaderTags(config.getRequestHeaderTags())
         .setBaggageMapping(config.getBaggageMapping())
         .setTraceSampleRate(config.getTraceSampleRate())
+        .setTracingTags(config.getGlobalTags())
         .apply();
   }
 
@@ -1594,7 +1596,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
-      context.setAllTags(defaultSpanTags);
+      context.setAllTags(captureTraceConfig().getMergedSpanTags());
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
@@ -1633,6 +1635,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       } else {
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this);
       }
+    }
+
+    public Map<String, String> getMergedSpanTags() {
+      // Do not include runtimeId into span tags: we only want that added to the root span
+      if (getTracingTags().isEmpty()) {
+        return CoreTracer.this.initialConfig.getMergedSpanTags();
+      }
+      int size = getTracingTags().size() + CoreTracer.this.initialConfig.getSpanTags().size();
+      final Map<String, String> result = new HashMap<>(size + 1, 1f);
+      result.putAll(getTracingTags());
+      result.putAll(CoreTracer.this.initialConfig.getSpanTags());
+      return Collections.unmodifiableMap(result);
     }
   }
 }
