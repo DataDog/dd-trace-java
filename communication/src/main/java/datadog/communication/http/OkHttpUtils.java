@@ -23,6 +23,7 @@ import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
+import okhttp3.EventListener;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -100,6 +101,8 @@ public final class OkHttpUtils {
         timeoutMillis);
   }
 
+  public abstract static class CustomListener extends EventListener {}
+
   private static OkHttpClient buildHttpClient(
       final String unixDomainSocketPath,
       final String namedPipe,
@@ -113,6 +116,20 @@ public final class OkHttpUtils {
       final String proxyPassword,
       final long timeoutMillis) {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
+
+    try {
+      builder.eventListenerFactory(
+          call -> {
+            Request request = call.request();
+            CustomListener listener = request.tag(CustomListener.class);
+            return listener != null ? listener : EventListener.NONE;
+          });
+    } catch (NoSuchMethodError e) {
+      // A workaround for OKHTTP instrumentation tests
+      // where the version of OKHTTP conflicts with the one used in this module.
+      // This should never happen in "real life" as OKHTTP classes
+      // used by the tracer core are relocated to a different package
+    }
 
     builder
         .connectTimeout(timeoutMillis, MILLISECONDS)

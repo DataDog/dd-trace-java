@@ -15,6 +15,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import okhttp3.ConnectionPool;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -49,6 +50,8 @@ public class LambdaHandler {
   private static final String END_INVOCATION = "/lambda/end-invocation";
 
   private static final Long REQUEST_TIMEOUT_IN_S = 1L;
+  private static final int MAX_IDLE_CONNECTIONS = 5;
+  private static final Long KEEP_ALIVE_DURATION = 300L;
 
   private static OkHttpClient HTTP_CLIENT =
       new OkHttpClient.Builder()
@@ -57,6 +60,7 @@ public class LambdaHandler {
           .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
           .readTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
           .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
+          .connectionPool(new ConnectionPool(MAX_IDLE_CONNECTIONS, KEEP_ALIVE_DURATION, SECONDS))
           .build();
 
   private static final MediaType jsonMediaType = MediaType.parse("application/json");
