@@ -22,11 +22,6 @@ import javax.annotation.Nullable;
 public class ReflectionInjectionModuleImpl extends SinkModuleBase
     implements ReflectionInjectionModule {
 
-  private final MethodStringEvidenceBuilder METHOD_STRING_EVIDENCE_BUILDER =
-      new MethodStringEvidenceBuilder();
-  private final FieldStringEvidenceBuilder FIELD_STRING_EVIDENCE_BUILDER =
-      new FieldStringEvidenceBuilder();
-
   public ReflectionInjectionModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
@@ -45,20 +40,20 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
 
   @Override
   public void onMethodName(
-      @Nonnull Class clazz, @Nonnull String methodName, @Nullable Class... parameterTypes) {
-    checkReflectionInjection(clazz, methodName, METHOD_STRING_EVIDENCE_BUILDER, parameterTypes);
+      @Nonnull Class<?> clazz, @Nonnull String methodName, @Nullable Class<?>... parameterTypes) {
+    checkReflectionInjection(ReflectionInjectionModuleImpl::methodEvidence, clazz, methodName, parameterTypes);
   }
 
   @Override
-  public void onFieldName(@Nonnull Class clazz, @Nonnull String fieldName) {
-    checkReflectionInjection(clazz, fieldName, FIELD_STRING_EVIDENCE_BUILDER, null);
+  public void onFieldName(@Nonnull Class<?> clazz, @Nonnull String fieldName) {
+    checkReflectionInjection(ReflectionInjectionModuleImpl::fieldEvidence, clazz, fieldName);
   }
 
   private void checkReflectionInjection(
-      @Nonnull Class clazz,
-      @Nonnull String name,
       StringEvidenceBuilder stringEvidenceBuilder,
-      @Nullable Class... parameterTypes) {
+      @Nonnull Class<?> clazz,
+      @Nonnull String name,
+      @Nullable Class<?>... parameterTypes) {
     if (!canBeTainted(name)) {
       return;
     }
@@ -91,34 +86,27 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
     report(span, VulnerabilityType.REFLECTION_INJECTION, result);
   }
 
+  private static String fieldEvidence(
+      @Nonnull Class<?> clazz, @Nonnull String name, @Nullable Class<?>... parameterTypes) {
+    return clazz.getName() + "#" + name;
+  }
+
+  private static String methodEvidence(
+      @Nonnull Class<?> clazz, @Nonnull String name, @Nullable Class<?>... parameterTypes) {
+    return clazz.getName() + "#" + name + "(" + getParameterTypesString(parameterTypes) + ")";
+  }
+
+  @Nonnull
+  private static String getParameterTypesString(@Nullable Class<?>... parameterTypes) {
+    if (parameterTypes == null || parameterTypes.length == 0) {
+      return "";
+    }
+    return Arrays.stream(parameterTypes)
+        .map(clazz -> clazz == null ? "UNKNOWN" : clazz.getName())
+        .collect(Collectors.joining(", "));
+  }
+
   private interface StringEvidenceBuilder {
-    String build(@Nonnull Class clazz, @Nonnull String name, @Nullable Class... parameterTypes);
-  }
-
-  private class MethodStringEvidenceBuilder implements StringEvidenceBuilder {
-
-    @Override
-    public String build(
-        @Nonnull Class clazz, @Nonnull String name, @Nullable Class... parameterTypes) {
-      return clazz.getName() + "#" + name + "(" + getParameterTypesString(parameterTypes) + ")";
-    }
-
-    @Nonnull
-    private String getParameterTypesString(@Nullable Class<?>... parameterTypes) {
-      if (parameterTypes == null || parameterTypes.length == 0) {
-        return "";
-      }
-      return Arrays.stream(parameterTypes)
-          .map(clazz -> clazz == null ? "UNKNOWN" : clazz.getName())
-          .collect(Collectors.joining(", "));
-    }
-  }
-
-  private class FieldStringEvidenceBuilder implements StringEvidenceBuilder {
-    @Override
-    public String build(
-        @Nonnull Class clazz, @Nonnull String name, @Nullable Class... parameterTypes) {
-      return clazz.getName() + "#" + name;
-    }
+    String build(@Nonnull Class<?> clazz, @Nonnull String name, @Nullable Class<?>... parameterTypes);
   }
 }
