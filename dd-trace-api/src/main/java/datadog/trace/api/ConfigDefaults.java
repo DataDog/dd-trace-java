@@ -155,7 +155,7 @@ public final class ConfigDefaults {
       "5c4ece41241a1bb513f6e3e5df74ab7d5183dfffbd71bfd43127920d880569fd";
   static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY =
       "e3f1f98c9da02a93bb547f448b472d727e14b22455235796fe49863856252508";
-
+  static final int DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES = 64;
   static final boolean DEFAULT_DEBUGGER_ENABLED = false;
   static final int DEFAULT_DEBUGGER_UPLOAD_TIMEOUT = 30; // seconds
   static final int DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL = 0; // ms, 0 = dynamic

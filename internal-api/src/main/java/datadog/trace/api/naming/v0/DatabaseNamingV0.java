@@ -1,6 +1,7 @@
 package datadog.trace.api.naming.v0;
 
 import datadog.trace.api.naming.NamingSchema;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import javax.annotation.Nonnull;
 
 public class DatabaseNamingV0 implements NamingSchema.ForDatabase {
@@ -29,6 +30,7 @@ public class DatabaseNamingV0 implements NamingSchema.ForDatabase {
   @Override
   public String service(@Nonnull String databaseType) {
     if (allowInferredServices) {
+      ServiceNameCollector.get().addService(databaseType);
       return databaseType;
     }
     return null;
