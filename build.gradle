@@ -1,6 +1,7 @@
 buildscript {
   dependencies {
     classpath "pl.allegro.tech.build:axion-release-plugin:1.14.4"
+    classpath "com.dropbox.affectedmoduledetector:affectedmoduledetector:0.2.2"
   }
 
   configurations.all {
@@ -24,6 +25,8 @@ plugins {
   id "me.champeau.jmh" version "0.7.0" apply false
   id 'org.gradle.playframework' version '0.13' apply false
   id 'info.solidsoft.pitest' version '1.9.11'  apply false
+
+  id 'com.dropbox.affectedmoduledetector' version '0.2.2'
 }
 
 description = 'dd-trace-java'
@@ -160,15 +163,35 @@ allprojects { project ->
   }
 }
 
+affectedModuleDetector {
+  baseDir = "${project.rootDir}"
+  pathsAffectingAllModules = [".circleci/", "buildSrc/"]
+  specifiedBranch = project.hasProperty("baseBranch") ? project.property("baseBranch") : "origin/master"
+  compareFrom = "SpecifiedBranchCommit"
+  excludedModules = []
+  includeUncommitted = true
+}
+
+subprojects { subproject ->
+  subproject.tasks.withType(Test) { testTask ->
+    com.dropbox.affectedmoduledetector.AffectedModuleDetector.configureTaskGuard(testTask)
+  }
+}
 
 def testAggregate(String baseTaskName, includePrefixes, excludePrefixes) {
+
   def createRootTask = { rootTaskName, subProjTaskName ->
-    tasks.register(rootTaskName) { aggTest ->
+    tasks.register(rootTaskName) { aggTask ->
       subprojects { subproject ->
         if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
+          def affected = com.dropbox.affectedmoduledetector.AffectedModuleDetector.isProjectAffected(subproject)
           def testTask = subproject.tasks.findByName(subProjTaskName)
           if (testTask != null) {
-            aggTest.dependsOn(testTask)
+            if (affected) {
+              aggTask.dependsOn(testTask)
+            } else {
+              logger.info("Skipped based on git changes: ${subproject.path}")
+            }
           }
         }
       }
