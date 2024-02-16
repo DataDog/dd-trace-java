@@ -98,7 +98,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
 
   @Override
   public void onXss(@Nonnull CharSequence s, @Nullable String file, int line) {
-    if (!canBeTainted(s) || file == null || file.isEmpty()) {
+    if (!canBeTainted(s) || !canBeTainted(file)) {
       return;
     }
     final IastContext ctx = IastContext.Provider.get();
