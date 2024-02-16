@@ -1,11 +1,12 @@
 package com.datadog.iast.taint;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.Contract;
 
-/** Utilitiles to work with {@link TaintedObject} */
+/** Utilities to work with {@link TaintedObject} */
 public final class Tainteds {
 
   private Tainteds() {}
@@ -16,11 +17,17 @@ public final class Tainteds {
   }
 
   @Contract("null -> false")
-  public static <E extends CharSequence> boolean canBeTainted(@Nullable final E[] e) {
+  public static boolean canBeTainted(@Nullable final String s) {
+    return s != null && !s.isEmpty();
+  }
+
+  @SuppressWarnings("RedundantLengthCheck")
+  @Contract("null -> false")
+  public static boolean canBeTainted(@Nullable final String[] e) {
     if (e == null || e.length == 0) {
       return false;
     }
-    for (final E item : e) {
+    for (final String item : e) {
       if (canBeTainted(item)) {
         return true;
       }
@@ -29,13 +36,23 @@ public final class Tainteds {
   }
 
   @Contract("null -> false")
-  public static <E extends CharSequence> boolean canBeTainted(@Nullable final Collection<E> e) {
+  public static boolean canBeTainted(@Nullable final Collection<String> e) {
     if (e == null || e.isEmpty()) {
       return false;
     }
-    for (final E item : e) {
-      if (canBeTainted(item)) {
-        return true;
+    if (e instanceof ArrayList) {
+      // indexed optimization for ArrayList to prevent the iterator allocation
+      final ArrayList<String> list = (ArrayList<String>) e;
+      for (int i = list.size() - 1; i >= 0; i--) {
+        if (canBeTainted(list.get(i))) {
+          return true;
+        }
+      }
+    } else {
+      for (final String item : e) {
+        if (canBeTainted(item)) {
+          return true;
+        }
       }
     }
     return false;
