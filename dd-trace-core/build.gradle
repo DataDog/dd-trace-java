@@ -10,6 +10,7 @@ apply from: "$rootDir/gradle/version.gradle"
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.6
 excludedClassesCoverage += [
+  'datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor',
   'datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2.PayloadV2',
   'datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery',
   'datadog.trace.common.writer.ListWriter',
