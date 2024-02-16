@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpServerExchange;
@@ -18,8 +19,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpRequestParserInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.Tracing.ForTypeHierarchy {
+public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
+    implements InstrumenterModule.Tracing.ForTypeHierarchy {
   public HttpRequestParserInstrumentation() {
     super("undertow", "undertow-2.2", "undertow-request-parse");
   }
@@ -49,8 +50,8 @@ public class HttpRequestParserInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("handle"))
             .and(takesArgument(2, named("io.undertow.server.HttpServerExchange"))),

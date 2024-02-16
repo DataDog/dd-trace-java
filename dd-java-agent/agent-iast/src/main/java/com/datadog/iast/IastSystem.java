@@ -1,17 +1,25 @@
 package com.datadog.iast;
 
+import static datadog.trace.api.iast.IastContext.Mode.GLOBAL;
+import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
+
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.propagation.FastCodecModule;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
+import com.datadog.iast.sink.ApplicationModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
+import com.datadog.iast.sink.HardcodedSecretModuleImpl;
+import com.datadog.iast.sink.HeaderInjectionModuleImpl;
 import com.datadog.iast.sink.HstsMissingHeaderModuleImpl;
 import com.datadog.iast.sink.HttpResponseHeaderModuleImpl;
+import com.datadog.iast.sink.InsecureAuthProtocolModuleImpl;
 import com.datadog.iast.sink.InsecureCookieModuleImpl;
 import com.datadog.iast.sink.LdapInjectionModuleImpl;
 import com.datadog.iast.sink.NoHttpOnlyCookieModuleImpl;
 import com.datadog.iast.sink.NoSameSiteCookieModuleImpl;
 import com.datadog.iast.sink.PathTraversalModuleImpl;
+import com.datadog.iast.sink.ReflectionInjectionModuleImpl;
 import com.datadog.iast.sink.SqlInjectionModuleImpl;
 import com.datadog.iast.sink.SsrfModuleImpl;
 import com.datadog.iast.sink.StacktraceLeakModuleImpl;
@@ -34,6 +42,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -65,11 +74,21 @@ public class IastSystem {
     DEBUG = config.isIastDebugEnabled();
     LOGGER.debug("IAST is starting: debug={}", DEBUG);
     final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);
+    final boolean globalContext = config.getIastContextMode() == GLOBAL;
+    final IastContext.Provider contextProvider =
+        globalContext ? new IastGlobalContext.Provider() : new IastRequestContext.Provider();
     if (overheadController == null) {
-      overheadController = OverheadController.build(config, AgentTaskScheduler.INSTANCE);
+      overheadController =
+          OverheadController.build(
+              globalContext ? UNLIMITED : config.getIastRequestSampling(),
+              config.getIastMaxConcurrentRequests(),
+              globalContext,
+              AgentTaskScheduler.INSTANCE);
     }
+    IastContext.Provider.register(contextProvider);
     final Dependencies dependencies =
-        new Dependencies(config, reporter, overheadController, StackWalkerFactory.INSTANCE);
+        new Dependencies(
+            config, reporter, overheadController, StackWalkerFactory.INSTANCE, contextProvider);
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
     iastModules(dependencies).forEach(InstrumentationBridge::registerIastModule);
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
@@ -102,7 +121,12 @@ public class IastSystem {
         new XPathInjectionModuleImpl(dependencies),
         new TrustBoundaryViolationModuleImpl(dependencies),
         new XssModuleImpl(dependencies),
-        new StacktraceLeakModuleImpl(dependencies));
+        new StacktraceLeakModuleImpl(dependencies),
+        new HeaderInjectionModuleImpl(dependencies),
+        new ApplicationModuleImpl(dependencies),
+        new HardcodedSecretModuleImpl(dependencies),
+        new InsecureAuthProtocolModuleImpl(dependencies),
+        new ReflectionInjectionModuleImpl(dependencies));
   }
 
   private static void registerRequestStartedCallback(

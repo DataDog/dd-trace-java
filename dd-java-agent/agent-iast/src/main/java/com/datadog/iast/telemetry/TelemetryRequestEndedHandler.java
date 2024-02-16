@@ -2,12 +2,13 @@ package com.datadog.iast.telemetry;
 
 import static datadog.trace.api.iast.telemetry.IastMetric.Scope.REQUEST;
 
-import com.datadog.iast.IastRequestContext;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
+import datadog.trace.api.iast.telemetry.IastMetricCollector.HasMetricCollector;
 import datadog.trace.api.iast.telemetry.IastMetricCollector.IastMetricData;
 import datadog.trace.api.internal.TraceSegment;
 import java.util.Collection;
@@ -16,8 +17,6 @@ import javax.annotation.Nonnull;
 
 public class TelemetryRequestEndedHandler
     implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
-
-  static final String TRACE_METRIC_PATTERN = "_dd.iast.telemetry.%s";
 
   private final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> delegate;
 
@@ -34,16 +33,20 @@ public class TelemetryRequestEndedHandler
   }
 
   private static void onRequestEnded(final RequestContext context) {
-    final IastRequestContext iastCtx = IastRequestContext.get(context);
-    if (iastCtx != null && iastCtx.getMetricCollector() != null) {
-      final IastMetricCollector collector = iastCtx.getMetricCollector();
-      collector.prepareMetrics();
-      final Collection<IastMetricData> metrics = collector.drain();
-      if (!metrics.isEmpty()) {
-        final TraceSegment trace = context.getTraceSegment();
-        addMetricsToTrace(trace, metrics);
-        addMetricsToTelemetry(metrics);
-      }
+    final IastContext iastCtx = IastContext.Provider.get(context);
+    if (!(iastCtx instanceof HasMetricCollector)) {
+      return;
+    }
+    final IastMetricCollector collector = ((HasMetricCollector) iastCtx).getMetricCollector();
+    if (collector == null) {
+      return;
+    }
+    collector.prepareMetrics();
+    final Collection<IastMetricData> metrics = collector.drain();
+    if (!metrics.isEmpty()) {
+      final TraceSegment trace = context.getTraceSegment();
+      addMetricsToTrace(trace, metrics);
+      addMetricsToTelemetry(metrics);
     }
   }
 
@@ -52,8 +55,7 @@ public class TelemetryRequestEndedHandler
     for (final IastMetricData data : metrics) {
       final IastMetric metric = data.getMetric();
       if (metric.getScope() == REQUEST) {
-        final String tagValue = data.getSpanTag();
-        trace.setTagTop(String.format(TRACE_METRIC_PATTERN, tagValue), data.value);
+        trace.setTagTop(data.getSpanTag(), data.value);
       }
     }
   }

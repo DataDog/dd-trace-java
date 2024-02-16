@@ -12,12 +12,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class Servlet2Instrumentation extends Instrumenter.Tracing
+public final class Servlet2Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public Servlet2Instrumentation() {
@@ -70,8 +71,8 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing
    * method.
    */
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("doFilter", "service")
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))
             .and(takesArgument(1, named("javax.servlet.ServletResponse")))

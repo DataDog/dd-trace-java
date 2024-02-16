@@ -6,9 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public class SpringAsyncInstrumentation extends Instrumenter.Tracing
+public class SpringAsyncInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public SpringAsyncInstrumentation() {
@@ -28,8 +29,8 @@ public class SpringAsyncInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(
                 named("invoke")

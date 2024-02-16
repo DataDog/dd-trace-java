@@ -74,6 +74,7 @@ public class JakartaServletBlockingHelper {
   private static boolean start(HttpServletResponse resp, int statusCode) {
     if (resp.isCommitted()) {
       log.warn("response already committed, we can't change it");
+      return false;
     }
 
     log.debug("Committing blocking response");

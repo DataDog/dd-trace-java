@@ -50,8 +50,15 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
             || className.startsWith("com/datadog/")) {
           return null;
         }
-      } else if (!allowListHelper.isAllowed(Strings.getClassName(className))) {
-        return null;
+      } else {
+        String javaClassName = Strings.getClassName(className);
+        if (!allowListHelper.isAllowed(javaClassName)) {
+          return null;
+        }
+        if (javaClassName.startsWith("com.datadog.debugger.symbol.")) {
+          // Don't parse our own classes to avoid duplicate class definition
+          return null;
+        }
       }
       symbolAggregator.parseClass(className, classfileBuffer, protectionDomain);
       return null;

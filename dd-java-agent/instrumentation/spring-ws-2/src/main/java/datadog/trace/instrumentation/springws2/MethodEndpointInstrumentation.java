@@ -7,11 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class MethodEndpointInstrumentation extends Instrumenter.Tracing
+public class MethodEndpointInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public MethodEndpointInstrumentation() {
     super("spring-ws", "spring-ws-2");
@@ -23,9 +24,9 @@ public class MethodEndpointInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // public Object MethodEndpoint.invoke(Object... args)
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("invoke")),
         MethodEndpointInstrumentation.class.getName() + "$InvokeAdvice");
   }

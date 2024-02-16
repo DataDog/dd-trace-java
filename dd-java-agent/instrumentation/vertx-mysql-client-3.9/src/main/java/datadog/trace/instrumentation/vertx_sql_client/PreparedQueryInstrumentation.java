@@ -12,12 +12,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class PreparedQueryInstrumentation extends Instrumenter.Tracing
+public class PreparedQueryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public PreparedQueryInstrumentation() {
     super("vertx", "vertx-sql-client");
@@ -46,22 +47,22 @@ public class PreparedQueryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("execute"))
             .and(takesArguments(2))
             .and(takesArgument(1, named("io.vertx.core.Handler"))),
         packageName + ".QueryAdvice$Execute");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("executeBatch"))
             .and(takesArguments(2))
             .and(takesArgument(1, named("io.vertx.core.Handler"))),
         packageName + ".QueryAdvice$Execute");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isVirtual())
             .and(named("copy"))

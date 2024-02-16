@@ -6,10 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class StandardUtextTagProcessorInstrumentation extends Instrumenter.Iast
+public class StandardUtextTagProcessorInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public StandardUtextTagProcessorInstrumentation() {
@@ -17,8 +18,8 @@ public class StandardUtextTagProcessorInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isMethod().and(named("doProcess")), packageName + ".ProcessAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isMethod().and(named("doProcess")), packageName + ".ProcessAdvice");
   }
 
   @Override

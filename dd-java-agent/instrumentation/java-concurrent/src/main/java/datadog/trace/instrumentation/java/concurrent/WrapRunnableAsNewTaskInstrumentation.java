@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import java.util.concurrent.AbstractExecutorService;
@@ -21,7 +22,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher.Junction;
 
 @AutoService(Instrumenter.class)
-public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tracing
+public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
   public WrapRunnableAsNewTaskInstrumentation() {
     super("java_concurrent", "new-task-for");
@@ -45,7 +46,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     Junction<MethodDescription> hasExecute =
         isMethod().and(named("execute").and(takesArgument(0, named(Runnable.class.getName()))));
 
@@ -53,10 +54,10 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
         isDeclaredBy(extendsClass(named("java.util.concurrent.AbstractExecutorService")));
 
     // executors that extend AbstractExecutorService should use 'newTaskFor' wrapper
-    transformation.applyAdvice(hasExecute.and(hasNewTaskFor), getClass().getName() + "$NewTaskFor");
+    transformer.applyAdvice(hasExecute.and(hasNewTaskFor), getClass().getName() + "$NewTaskFor");
 
     // use simple wrapper for executors that don't extend AbstractExecutorService
-    transformation.applyAdvice(hasExecute.and(not(hasNewTaskFor)), getClass().getName() + "$Wrap");
+    transformer.applyAdvice(hasExecute.and(not(hasNewTaskFor)), getClass().getName() + "$Wrap");
   }
 
   // We tolerate a bit of duplication between these advice classes because

@@ -6,9 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.core.gherkin.Pickle;
 import java.util.List;
@@ -22,7 +24,7 @@ import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
 
 @AutoService(Instrumenter.class)
-public class JUnit4CucumberItrInstrumentation extends Instrumenter.CiVisibility
+public class JUnit4CucumberItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4CucumberItrInstrumentation() {
@@ -47,6 +49,7 @@ public class JUnit4CucumberItrInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
@@ -56,8 +59,13 @@ public class JUnit4CucumberItrInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public Reference[] additionalMuzzleReferences() {
+    return CucumberUtils.MuzzleHelper.additionalMuzzleReferences();
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
         JUnit4CucumberItrInstrumentation.class.getName() + "$CucumberItrAdvice");
   }
@@ -77,7 +85,7 @@ public class JUnit4CucumberItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      SkippableTest test = JUnit4Utils.toSkippableTest(description);
+      TestIdentifier test = CucumberUtils.toTestIdentifier(description);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         notifier.fireTestAssumptionFailed(
             new Failure(

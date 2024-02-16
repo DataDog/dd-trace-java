@@ -15,7 +15,8 @@ import org.slf4j.LoggerFactory;
 public class TelemetryRunnable implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(TelemetryRunnable.class);
-  private static final int MAX_APP_STARTED_RETRIES = 3;
+  private static final int APP_STARTED_RETRIES = 3;
+  private static final int APP_STARTED_PAUSE_BETWEEN_RETRIES_MILLIS = 500;
   private static final int MAX_CONSECUTIVE_REQUESTS = 3;
 
   private final TelemetryService telemetryService;
@@ -81,8 +82,10 @@ public class TelemetryRunnable implements Runnable {
       }
     }
 
-    flushPendingTelemetryData();
-    telemetryService.sendAppClosingEvent();
+    if (startupEventSent) {
+      flushPendingTelemetryData();
+      telemetryService.sendAppClosingEvent();
+    }
     log.debug("Telemetry thread finished");
   }
 
@@ -91,18 +94,19 @@ public class TelemetryRunnable implements Runnable {
    *
    * @return `true` - if attempt was successful and `false` otherwise
    */
-  private boolean sendAppStartedEvent() {
+  private boolean sendAppStartedEvent() throws InterruptedException {
     int attempt = 0;
-    while (!Thread.interrupted()
-        && attempt < MAX_APP_STARTED_RETRIES
-        && !telemetryService.sendAppStartedEvent()) {
+    while (attempt < APP_STARTED_RETRIES && !telemetryService.sendAppStartedEvent()) {
       attempt += 1;
       log.debug(
           "Couldn't send an app-started event on {} attempt out of {}.",
           attempt,
-          MAX_APP_STARTED_RETRIES);
+          APP_STARTED_RETRIES);
+      // Sleep between retries to allow OkHttp to release a non-daemon writer thread that would
+      // otherwise prevent the application from exiting.
+      Thread.sleep(APP_STARTED_PAUSE_BETWEEN_RETRIES_MILLIS);
     }
-    return Thread.interrupted() || attempt < MAX_APP_STARTED_RETRIES;
+    return attempt < APP_STARTED_RETRIES;
   }
 
   private void mainLoopIteration() throws InterruptedException {

@@ -49,7 +49,7 @@ public class IndexExpression implements ValueExpression<Value<?>> {
     if (obj != null && Redaction.isRedactedType(obj.getClass().getTypeName())) {
       ExpressionHelper.throwRedactedException(this);
     }
-    return result;
+    return Value.of(result.getValue());
   }
 
   public <R> R accept(Visitor<R> visitor) {

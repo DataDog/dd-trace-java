@@ -6,9 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public class CookieParamInjectorInstrumentation extends Instrumenter.Iast
+public class CookieParamInjectorInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public CookieParamInjectorInstrumentation() {
@@ -21,8 +22,8 @@ public class CookieParamInjectorInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("inject").and(isPublic()).and(takesArguments(2)),
         packageName + ".CookieParamInjectorAdvice");
   }

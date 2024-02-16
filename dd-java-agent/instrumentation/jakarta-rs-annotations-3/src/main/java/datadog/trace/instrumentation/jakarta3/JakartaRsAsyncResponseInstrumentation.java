@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tracing
+public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public JakartaRsAsyncResponseInstrumentation() {
@@ -52,14 +53,14 @@ public final class JakartaRsAsyncResponseInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("resume").and(takesArgument(0, Object.class)).and(isPublic()),
         JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("resume").and(takesArgument(0, Throwable.class)).and(isPublic()),
         JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseThrowableAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("cancel"),
         JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseCancelAdvice");
   }

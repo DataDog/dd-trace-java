@@ -1,6 +1,7 @@
 package com.datadog.iast;
 
 import static com.datadog.iast.IastTag.ANALYZED;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
@@ -18,9 +19,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Reports IAST vulnerabilities. */
 public class Reporter {
+
+  private static final Logger LOG = LoggerFactory.getLogger(Reporter.class);
+
+  private static final String IAST_TAG = "iast";
 
   private static final String VULNERABILITY_SPAN_NAME = "vulnerability";
 
@@ -60,24 +67,44 @@ public class Reporter {
 
   private void reportVulnerability(
       @Nonnull final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
+    final VulnerabilityBatch batch = getOrCreateVulnerabilityBatch(span);
+    if (batch != null) {
+      batch.add(vulnerability);
+    }
+  }
+
+  @Nullable
+  private VulnerabilityBatch getOrCreateVulnerabilityBatch(final AgentSpan span) {
     final RequestContext reqCtx = span.getRequestContext();
     if (reqCtx == null) {
-      return;
+      return null;
     }
-    final IastRequestContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-    if (ctx == null) {
-      return;
+    final TraceSegment segment = reqCtx.getTraceSegment();
+    final Object current = segment.getDataTop(IAST_TAG);
+    if (current instanceof VulnerabilityBatch) {
+      return (VulnerabilityBatch) current;
     }
-    final VulnerabilityBatch batch = ctx.getVulnerabilityBatch();
-    batch.add(vulnerability);
-    if (!ctx.getAndSetSpanDataIsSet()) {
-      final TraceSegment segment = reqCtx.getTraceSegment();
-      segment.setDataTop("iast", batch);
+    if (current == null) {
+      final IastRequestContext iastCtx = reqCtx.getData(RequestContextSlot.IAST);
+      final VulnerabilityBatch batch;
+      if (iastCtx != null) {
+        batch = iastCtx.getVulnerabilityBatch();
+      } else {
+        // in case the request is not handled by IAST create a new one and set the analyzed flag
+        batch = new VulnerabilityBatch();
+        ANALYZED.setTagTop(segment);
+      }
+      segment.setDataTop(IAST_TAG, batch);
       // Once we have added a vulnerability, try to override sampling and keep the trace.
       // TODO: We need to check if we can have an API with more fine-grained semantics on why traces
       // are kept.
       segment.setTagTop(DDTags.MANUAL_KEEP, true);
+      return batch;
     }
+
+    // TODO: can we do better here? (maybe create a new span)
+    LOG.debug(SEND_TELEMETRY, "Cannot attach vulnerability to span, current={}", current);
+    return null;
   }
 
   private AgentSpan startNewSpan() {

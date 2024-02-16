@@ -38,6 +38,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   static final String INFO_WITHOUT_DATA_STREAMS_STATE = Strings.sha256(INFO_WITHOUT_DATA_STREAMS_RESPONSE)
   static final String INFO_WITH_LONG_RUNNING_SPANS = loadJsonFile("agent-info-with-long-running-spans.json")
   static final String INFO_WITH_TELEMETRY_PROXY_RESPONSE = loadJsonFile("agent-info-with-telemetry-proxy.json")
+  static final String INFO_WITH_OLD_EVP_PROXY = loadJsonFile("agent-info-with-old-evp-proxy.json")
   static final String PROBE_STATE = "probestate"
 
   def "test parse /info response"() {
@@ -59,7 +60,10 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.state() == INFO_STATE
     features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
     features.supportsDebugger()
+    features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
+    features.supportsContentEncodingHeadersWithEvpProxy()
+    features.getEvpProxyEndpoint() == "evp_proxy/v4/"
     features.getVersion() == "0.99.0"
     !features.supportsLongRunning()
     !features.supportsTelemetryProxy()
@@ -87,6 +91,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.state() == INFO_STATE
     features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
     features.supportsDebugger()
+    features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
     features.getVersion() == "0.99.0"
     !features.supportsLongRunning()
@@ -402,6 +407,21 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_TELEMETRY_PROXY_RESPONSE) }
     features.supportsTelemetryProxy()
     0 * _
+  }
+
+  def "test parse /info response with old EVP proxy"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_OLD_EVP_PROXY) }
+    features.supportsEvpProxy()
+    features.getEvpProxyEndpoint() == "evp_proxy/v2/" // v3 is advertised, but the tracer should ignore it
+    !features.supportsContentEncodingHeadersWithEvpProxy()
   }
 
   def infoResponse(Request request, String json) {

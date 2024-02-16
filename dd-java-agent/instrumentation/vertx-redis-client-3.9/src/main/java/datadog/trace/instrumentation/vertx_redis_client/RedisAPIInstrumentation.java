@@ -8,11 +8,12 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.HashMap;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class RedisAPIInstrumentation extends Instrumenter.Tracing
+public class RedisAPIInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public RedisAPIInstrumentation() {
     super("vertx", "vertx-redis-client");
@@ -41,11 +42,11 @@ public class RedisAPIInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isVirtual().and(isDefaultMethod()).and(returns(named("io.vertx.redis.client.RedisAPI"))),
         packageName + ".RedisAPICallAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("send").and(not(isDefaultMethod())).and(returns(named("io.vertx.core.Future"))),
         packageName + ".RedisAPIImplSendAdvice");
   }

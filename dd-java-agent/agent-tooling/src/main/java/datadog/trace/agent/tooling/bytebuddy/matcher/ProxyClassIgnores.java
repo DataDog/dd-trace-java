@@ -12,7 +12,8 @@ public class ProxyClassIgnores {
           || name.contains("$$EnhancerByGuice$$")
           || name.contains("$$EnhancerByProxool$$")
           || name.contains("$$$view")
-          || name.contains("$$_Weld")) {
+          || name.contains("$$_Weld")
+          || name.contains("_$$_jvst")) {
         return true;
       }
     }

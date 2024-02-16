@@ -11,13 +11,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpResponse;
 import org.apache.synapse.transport.passthru.TargetResponse;
 
 @AutoService(Instrumenter.class)
-public final class SynapseClientWorkerInstrumentation extends Instrumenter.Tracing
+public final class SynapseClientWorkerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public SynapseClientWorkerInstrumentation() {
@@ -37,12 +38,12 @@ public final class SynapseClientWorkerInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(final MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(2, named("org.apache.synapse.transport.passthru.TargetResponse"))),
         getClass().getName() + "$NewClientWorkerAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(named("run")).and(takesNoArguments()),
         getClass().getName() + "$ClientWorkerResponseAdvice");
   }

@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -32,7 +33,7 @@ import scala.concurrent.Future;
  * unmarshallers, this propagation mechanism will not work.
  */
 @AutoService(Instrumenter.class)
-public class UnmarshallerInstrumentation extends Instrumenter.Iast
+public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public UnmarshallerInstrumentation() {
     super("pekko-http");
@@ -57,8 +58,8 @@ public class UnmarshallerInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("apply"))

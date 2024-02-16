@@ -51,6 +51,7 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
       Config.get(),
       '0.0.0',
       'containerid',
+      'entityid',
       { -> URL.toString() },
       okHttpClient,
       scheduler

@@ -12,12 +12,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpClientInstrumentation extends Instrumenter.Tracing
+public class HttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public HttpClientInstrumentation() {
@@ -59,8 +60,8 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("send"))
             .and(isPublic())
@@ -68,7 +69,7 @@ public class HttpClientInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(0, named("java.net.http.HttpRequest"))),
         packageName + ".SendAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("sendAsync"))
             .and(isPublic())

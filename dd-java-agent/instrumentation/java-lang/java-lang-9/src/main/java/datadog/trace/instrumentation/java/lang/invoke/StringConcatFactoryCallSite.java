@@ -43,7 +43,7 @@ public class StringConcatFactoryCallSite {
       @CallSite.Argument final String name,
       @CallSite.Argument final MethodType concatType,
       @CallSite.Argument final String recipe,
-      @CallSite.Argument final Object[] constants)
+      @CallSite.Argument final Object... constants)
       throws StringConcatException {
     if (INSTRUMENTATION_BRIDGE == null) {
       return makeConcatWithConstants(lookup, name, concatType, recipe, constants);

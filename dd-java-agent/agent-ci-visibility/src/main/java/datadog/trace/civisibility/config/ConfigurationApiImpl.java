@@ -3,8 +3,17 @@ package datadog.trace.civisibility.config;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.communication.http.OkHttpUtils;
+import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.CoverageEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.civisibility.communication.BackendApi;
+import datadog.trace.civisibility.communication.TelemetryListener;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.Collection;
@@ -21,20 +30,26 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final String SETTINGS_URI = "libraries/tests/services/setting";
   private static final String SKIPPABLE_TESTS_URI = "ci/tests/skippable";
+  private static final String FLAKY_TESTS_URI = "ci/libraries/tests/flaky";
 
   private final BackendApi backendApi;
+  private final CiVisibilityMetricCollector metricCollector;
   private final Supplier<String> uuidGenerator;
 
   private final JsonAdapter<EnvelopeDto<TracerEnvironment>> requestAdapter;
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
-  private final JsonAdapter<MultiEnvelopeDto<SkippableTest>> skippableTestsResponseAdapter;
+  private final JsonAdapter<MultiEnvelopeDto<TestIdentifier>> testIdentifiersResponseAdapter;
 
-  public ConfigurationApiImpl(BackendApi backendApi) {
-    this(backendApi, () -> UUID.randomUUID().toString());
+  public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
+    this(backendApi, metricCollector, () -> UUID.randomUUID().toString());
   }
 
-  ConfigurationApiImpl(BackendApi backendApi, Supplier<String> uuidGenerator) {
+  ConfigurationApiImpl(
+      BackendApi backendApi,
+      CiVisibilityMetricCollector metricCollector,
+      Supplier<String> uuidGenerator) {
     this.backendApi = backendApi;
+    this.metricCollector = metricCollector;
     this.uuidGenerator = uuidGenerator;
 
     Moshi moshi =
@@ -50,10 +65,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             ConfigurationApiImpl.class, EnvelopeDto.class, CiVisibilitySettings.class);
     settingsResponseAdapter = moshi.adapter(settingsResponseType);
 
-    ParameterizedType skippableTestsResponseType =
+    ParameterizedType testIdentifiersResponseType =
         Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, MultiEnvelopeDto.class, SkippableTest.class);
-    skippableTestsResponseAdapter = moshi.adapter(skippableTestsResponseType);
+            ConfigurationApiImpl.class, MultiEnvelopeDto.class, TestIdentifier.class);
+    testIdentifiersResponseAdapter = moshi.adapter(testIdentifiersResponseType);
   }
 
   @Override
@@ -64,25 +79,76 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             new DataDto<>(uuid, "ci_app_test_service_libraries_settings", tracerEnvironment));
     String json = requestAdapter.toJson(settingsRequest);
     RequestBody requestBody = RequestBody.create(JSON, json);
-    return backendApi.post(
-        SETTINGS_URI,
-        requestBody,
-        is -> settingsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes);
+
+    OkHttpUtils.CustomListener telemetryListener =
+        new TelemetryListener.Builder(metricCollector)
+            .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_SETTINGS)
+            .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_SETTINGS_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.GIT_REQUESTS_SETTINGS_MS)
+            .build();
+
+    CiVisibilitySettings settings =
+        backendApi.post(
+            SETTINGS_URI,
+            requestBody,
+            is -> settingsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
+            telemetryListener);
+
+    metricCollector.add(
+        CiVisibilityCountMetric.GIT_REQUESTS_SETTINGS_RESPONSE,
+        1,
+        settings.isItrEnabled() ? ItrEnabled.TRUE : null,
+        settings.isTestsSkippingEnabled() ? ItrSkipEnabled.TRUE : null,
+        settings.isCodeCoverageEnabled() ? CoverageEnabled.TRUE : null,
+        settings.isGitUploadRequired() ? RequireGit.TRUE : null);
+
+    return settings;
   }
 
   @Override
-  public Collection<SkippableTest> getSkippableTests(TracerEnvironment tracerEnvironment)
+  public Collection<TestIdentifier> getSkippableTests(TracerEnvironment tracerEnvironment)
+      throws IOException {
+    OkHttpUtils.CustomListener telemetryListener =
+        new TelemetryListener.Builder(metricCollector)
+            .requestCount(CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_REQUEST_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.ITR_SKIPPABLE_TESTS_REQUEST_MS)
+            .responseBytes(CiVisibilityDistributionMetric.ITR_SKIPPABLE_TESTS_RESPONSE_BYTES)
+            .build();
+
+    Collection<TestIdentifier> skippableTests =
+        getTestsData(SKIPPABLE_TESTS_URI, "test_params", tracerEnvironment, telemetryListener);
+
+    metricCollector.add(
+        CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_RESPONSE_TESTS, skippableTests.size());
+
+    return skippableTests;
+  }
+
+  @Override
+  public Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment)
+      throws IOException {
+    return getTestsData(
+        FLAKY_TESTS_URI, "flaky_test_from_libraries_params", tracerEnvironment, null);
+  }
+
+  private Collection<TestIdentifier> getTestsData(
+      String endpoint,
+      String dataType,
+      TracerEnvironment tracerEnvironment,
+      OkHttpUtils.CustomListener requestListener)
       throws IOException {
     String uuid = uuidGenerator.get();
-    EnvelopeDto<TracerEnvironment> skippableTestsRequest =
-        new EnvelopeDto<>(new DataDto<>(uuid, "test_params", tracerEnvironment));
-    String json = requestAdapter.toJson(skippableTestsRequest);
+    EnvelopeDto<TracerEnvironment> request =
+        new EnvelopeDto<>(new DataDto<>(uuid, dataType, tracerEnvironment));
+    String json = requestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
-    Collection<DataDto<SkippableTest>> response =
+    Collection<DataDto<TestIdentifier>> response =
         backendApi.post(
-            SKIPPABLE_TESTS_URI,
+            endpoint,
             requestBody,
-            is -> skippableTestsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data);
+            is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data,
+            requestListener);
     return response.stream().map(DataDto::getAttributes).collect(Collectors.toList());
   }
 

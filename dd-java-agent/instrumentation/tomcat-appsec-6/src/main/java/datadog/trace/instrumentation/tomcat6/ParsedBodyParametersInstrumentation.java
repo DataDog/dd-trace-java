@@ -10,6 +10,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -26,7 +27,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.tomcat.util.http.Parameters;
 
 @AutoService(Instrumenter.class)
-public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
+public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 
   public ParsedBodyParametersInstrumentation() {
@@ -53,8 +54,8 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         // also matches the variant taking an extra encoding parameter
         named("processParameters")
             .and(takesArgument(0, byte[].class))
@@ -62,7 +63,7 @@ public class ParsedBodyParametersInstrumentation extends Instrumenter.AppSec
             .and(takesArgument(2, int.class)),
         getClass().getName() + "$ProcessParametersAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("handleQueryParameters").and(takesArguments(0)),
         getClass().getName() + "$HandleQueryParametersAdvice");
   }

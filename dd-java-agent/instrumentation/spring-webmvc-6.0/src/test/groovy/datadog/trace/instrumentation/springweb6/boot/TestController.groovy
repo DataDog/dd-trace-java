@@ -129,6 +129,14 @@ class TestController {
     }
   }
 
+  @RequestMapping("/secure/success")
+  @ResponseBody
+  String secure_success() {
+    HttpServerTest.controller(SECURE_SUCCESS) {
+      SECURE_SUCCESS.body
+    }
+  }
+
   @ExceptionHandler
   ResponseEntity handleException(Throwable throwable) {
     new ResponseEntity(throwable.message, HttpStatus.INTERNAL_SERVER_ERROR)

@@ -72,6 +72,19 @@
     ]
   },
   {
+    "name" : "io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator",
+    "methods": [
+      {"name": "extractTraceState", "parameterTypes": ["io.opentelemetry.api.trace.TraceState", "java.lang.String"] }
+    ]
+  },
+  {
+    "name" : "io.opentelemetry.api.trace.propagation.internal.W3CTraceContextEncoding",
+    "methods": [
+      {"name": "decodeTraceState", "parameterTypes": ["io.opentelemetry.api.trace.TraceState", "java.lang.String"] },
+      {"name": "encodeTraceState", "parameterTypes": ["java.lang.String", "io.opentelemetry.api.trace.TraceState"] }
+    ]
+  },
+  {
     "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueColdProducerFields",
     "fields": [
       {"name": "producerLimit", "allowUnsafeAccess": true}

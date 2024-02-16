@@ -2,11 +2,12 @@ package datadog.trace.instrumentation.akkahttp.iast;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 
 @AutoService(Instrumenter.class)
-public class MakeTaintableInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForKnownTypes {
+public class MakeTaintableInstrumentation extends InstrumenterModule.Iast
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
   public MakeTaintableInstrumentation() {
     super("akka-http");
   }
@@ -31,10 +32,10 @@ public class MakeTaintableInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(knownMatchingTypes()));
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(knownMatchingTypes()));
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {}
+  public void methodAdvice(MethodTransformer transformer) {}
 }

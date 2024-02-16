@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
@@ -14,7 +15,7 @@ import net.bytebuddy.asm.Advice;
  * whether spans propagate to the event loop or not.
  */
 @AutoService(Instrumenter.class)
-public class EventLoopInstrumentation extends Instrumenter.Profiling
+public class EventLoopInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForKnownTypes {
   public EventLoopInstrumentation() {
     super("netty-transport", "netty-eventloop");
@@ -37,8 +38,8 @@ public class EventLoopInstrumentation extends Instrumenter.Profiling
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("run").and(takesNoArguments())),
         getClass().getName() + "$ManageEventLoopThread");
   }

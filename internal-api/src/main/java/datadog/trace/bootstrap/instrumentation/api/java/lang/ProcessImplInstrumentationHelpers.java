@@ -3,14 +3,14 @@ package datadog.trace.bootstrap.instrumentation.api.java.lang;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -55,7 +55,7 @@ public class ProcessImplInstrumentationHelpers {
 
   private ProcessImplInstrumentationHelpers() {}
 
-  public static Map<String, String> createTags(String[] origCommand) {
+  public static void setTags(final AgentSpan span, final String[] origCommand) {
     String[] command;
     if (!ActiveSubsystems.APPSEC_ACTIVE) {
       command = new String[] {origCommand[0]};
@@ -63,14 +63,13 @@ public class ProcessImplInstrumentationHelpers {
       command = origCommand;
     }
     command = redact(command);
-    Map<String, String> ret = new HashMap<>(4);
     StringBuilder sb = new StringBuilder("[");
     long remaining = LIMIT;
     for (int i = 0; i < command.length; i++) {
       String cur = command[i];
       remaining -= cur.length();
       if (remaining < 0) {
-        ret.put("cmd.truncated", "true");
+        span.setTag("cmd.truncated", "true");
         break;
       }
       if (i != 0) {
@@ -81,8 +80,7 @@ public class ProcessImplInstrumentationHelpers {
       sb.append('"');
     }
     sb.append("]");
-    ret.put("cmd.exec", sb.toString());
-    return ret;
+    span.setTag("cmd.exec", sb.toString());
   }
 
   private static String[] redact(String[] command) {
@@ -142,6 +140,7 @@ public class ProcessImplInstrumentationHelpers {
       try {
         future = (CompletableFuture<Process>) PROCESS_ON_EXIT.invokeExact(p);
       } catch (Throwable e) {
+        span.finish();
         if (e instanceof Error) {
           throw (Error) e;
         } else if (e instanceof RuntimeException) {
@@ -151,27 +150,28 @@ public class ProcessImplInstrumentationHelpers {
         }
       }
 
+      final AgentScope.Continuation continuation = captureContinuation();
       future.whenComplete(
           (process, thr) -> {
             if (thr != null) {
-              span.setError(true);
-              span.setErrorMessage(thr.getMessage());
+              span.addThrowable(thr);
             } else {
-              span.setTag("cmd.exit_code", process.exitValue());
+              span.setTag("cmd.exit_code", Integer.toString(process.exitValue()));
             }
-            span.finish();
+            finishSpan(continuation, span);
           });
     } else if (EXECUTOR != null) {
+      final AgentScope.Continuation continuation = captureContinuation();
       EXECUTOR.execute(
           () -> {
             try {
               int exitCode = p.waitFor();
-              span.setTag("cmd.exit_code", exitCode);
+              span.setTag("cmd.exit_code", Integer.toString(exitCode));
             } catch (InterruptedException e) {
-              span.setError(true);
-              span.setErrorMessage(e.getMessage());
+              span.addThrowable(e);
+            } finally {
+              finishSpan(continuation, span);
             }
-            span.finish();
           });
     }
   }
@@ -183,5 +183,21 @@ public class ProcessImplInstrumentationHelpers {
       return first;
     }
     return first.substring(pos + 1);
+  }
+
+  private static AgentScope.Continuation captureContinuation() {
+    final AgentScope parentScope = AgentTracer.activeScope();
+    return parentScope == null ? null : parentScope.capture();
+  }
+
+  private static void finishSpan(
+      final AgentScope.Continuation parentContinuation, final AgentSpan span) {
+    if (parentContinuation == null) {
+      span.finish();
+      return;
+    }
+    try (final AgentScope scope = parentContinuation.activate()) {
+      span.finish();
+    }
   }
 }

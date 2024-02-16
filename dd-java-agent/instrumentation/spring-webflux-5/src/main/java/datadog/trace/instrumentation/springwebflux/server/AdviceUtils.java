@@ -26,7 +26,7 @@ public final class AdviceUtils {
       GenericClassValue.of(
           type -> {
             String name = type.getName();
-            int lambdaIdx = name.lastIndexOf("$$Lambda$");
+            int lambdaIdx = name.lastIndexOf("$$Lambda");
             if (lambdaIdx > -1) {
               return UTF8BytesString.create(
                   name.substring(name.lastIndexOf('.') + 1, lambdaIdx) + ".lambda");
@@ -43,6 +43,10 @@ public final class AdviceUtils {
     return mono.<T>transform(finishSpanNextOrError(span));
   }
 
+  public static <T> Mono<T> wrapMonoWithScope(Mono<T> mono, AgentSpan span) {
+    return mono.<T>transform(wrapPublisher(span));
+  }
+
   /**
    * Idea for this has been lifted from https://github.com/reactor/reactor-core/issues/947. Newer
    * versions of reactor-core have easier way to access context but we want to support older
@@ -54,23 +58,18 @@ public final class AdviceUtils {
         (scannable, subscriber) -> new SpanFinishingSubscriber<>(subscriber, span));
   }
 
-  /**
-   * This makes sure any callback is wrapped in suspend/resume checkpoints. Otherwise, we may end up
-   * executing these callbacks in different threads without being resumed first.
-   */
-  private static final class SpanFinishingSubscriber<T> implements CoreSubscriber<T>, Subscription {
+  private static <T> Function<? super Publisher<T>, ? extends Publisher<T>> wrapPublisher(
+      AgentSpan span) {
+    return Operators.lift((scannable, subscriber) -> new SpanSubscriber<>(subscriber, span));
+  }
 
+  private static class SpanSubscriber<T> implements CoreSubscriber<T>, Subscription {
     private final CoreSubscriber<? super T> subscriber;
-    private final AgentSpan span;
+    protected final AgentSpan span;
     private final Context context;
     private volatile Subscription subscription;
-    private volatile int completed;
 
-    @SuppressWarnings("rawtypes")
-    private static final AtomicIntegerFieldUpdater<SpanFinishingSubscriber> COMPLETED =
-        AtomicIntegerFieldUpdater.newUpdater(SpanFinishingSubscriber.class, "completed");
-
-    public SpanFinishingSubscriber(CoreSubscriber<? super T> subscriber, AgentSpan span) {
+    public SpanSubscriber(CoreSubscriber<? super T> subscriber, AgentSpan span) {
       this.subscriber = subscriber;
       this.span = span;
       this.context = subscriber.currentContext().put(AgentSpan.class, span);
@@ -93,19 +92,11 @@ public final class AdviceUtils {
 
     @Override
     public void onError(Throwable t) {
-      if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
-        span.setError(true);
-        span.addThrowable(t);
-        span.finish();
-      }
       subscriber.onError(t);
     }
 
     @Override
     public void onComplete() {
-      if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
-        span.finish();
-      }
       subscriber.onComplete();
     }
 
@@ -121,10 +112,49 @@ public final class AdviceUtils {
 
     @Override
     public void cancel() {
+      subscription.cancel();
+    }
+  }
+
+  /**
+   * This makes sure any callback is wrapped in suspend/resume checkpoints. Otherwise, we may end up
+   * executing these callbacks in different threads without being resumed first.
+   */
+  private static final class SpanFinishingSubscriber<T> extends SpanSubscriber<T> {
+    private volatile int completed;
+
+    @SuppressWarnings("rawtypes")
+    private static final AtomicIntegerFieldUpdater<SpanFinishingSubscriber> COMPLETED =
+        AtomicIntegerFieldUpdater.newUpdater(SpanFinishingSubscriber.class, "completed");
+
+    public SpanFinishingSubscriber(CoreSubscriber<? super T> subscriber, AgentSpan span) {
+      super(subscriber, span);
+    }
+
+    @Override
+    public void onError(Throwable t) {
+      if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
+        span.setError(true);
+        span.addThrowable(t);
+        span.finish();
+      }
+      super.onError(t);
+    }
+
+    @Override
+    public void onComplete() {
       if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
         span.finish();
       }
-      subscription.cancel();
+      super.onComplete();
+    }
+
+    @Override
+    public void cancel() {
+      if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
+        span.finish();
+      }
+      super.cancel();
     }
   }
 }

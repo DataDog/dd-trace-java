@@ -1,11 +1,11 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
+import com.datadog.iast.Reporter
 import com.datadog.iast.model.Evidence
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.sink.WeakCipherModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 class WeakCipherModuleTest extends IastModuleImplTestBase {
 
@@ -15,19 +15,16 @@ class WeakCipherModuleTest extends IastModuleImplTestBase {
     module = new WeakCipherModuleImpl(dependencies)
   }
 
-  void 'iast module vulnerable cipher algorithm'(final String algorithm){
-    given:
-    final spanId = 123456
-    final span = Mock(AgentSpan)
+  @Override
+  protected Reporter buildReporter() {
+    return Mock(Reporter)
+  }
 
+  void 'iast module vulnerable cipher algorithm'(final String algorithm){
     when:
     module.onCipherAlgorithm(algorithm)
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * span.getSpanId() >> spanId
-    1 * span.getServiceName()
-    1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _) >> { args ->
       Vulnerability vuln = args[1] as Vulnerability
       assert vuln != null
@@ -67,10 +64,6 @@ class WeakCipherModuleTest extends IastModuleImplTestBase {
   }
 
   void 'iast module not blocklisted cipher algorithm'(){
-    given:
-    final span = Mock(AgentSpan)
-    tracer.activeSpan() >> span
-
     when:
     module.onCipherAlgorithm("SecureAlgorithm")
 

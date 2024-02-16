@@ -110,6 +110,9 @@ public class ExcludeFilter {
     SKIP_TYPE_PREFIXES
         .get(ExcludeType.RUNNABLE)
         .add("com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap");
+    SKIP_TYPE_PREFIXES
+        .get(ExcludeType.RUNNABLE)
+        .add("org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer$");
   }
 
   /**

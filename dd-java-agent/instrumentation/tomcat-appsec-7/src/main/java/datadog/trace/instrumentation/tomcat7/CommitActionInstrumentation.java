@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -22,7 +23,7 @@ import org.apache.coyote.Response;
 
 /** @see org.apache.coyote.ActionHook */
 @AutoService(Instrumenter.class)
-public class CommitActionInstrumentation extends Instrumenter.AppSec
+public class CommitActionInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 
   public CommitActionInstrumentation() {
@@ -50,8 +51,8 @@ public class CommitActionInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic()
             .and(named("action"))
             .and(takesArguments(2))

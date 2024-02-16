@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import akka.dispatch.Envelope;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -19,7 +20,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class AkkaActorCellInstrumentation extends Instrumenter.Tracing
+public class AkkaActorCellInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public AkkaActorCellInstrumentation() {
@@ -37,8 +38,8 @@ public class AkkaActorCellInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("invoke")), getClass().getName() + "$InvokeAdvice");
   }
 

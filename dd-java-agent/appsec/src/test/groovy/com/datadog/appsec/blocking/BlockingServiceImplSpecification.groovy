@@ -23,7 +23,6 @@ class BlockingServiceImplSpecification extends DDSpecification {
   EventProducerService eps = new EventDispatcher()
   def bs = new BlockingServiceImpl(eps)
   def origTracer
-  AgentTracer.TracerAPI tracer = Mock()
 
   void setup() {
     origTracer = AgentTracer.get()
@@ -50,7 +49,7 @@ class BlockingServiceImplSpecification extends DDSpecification {
     })
     eps.subscribeDataAvailable set
 
-    AppSecRequestContext appSecRequestContext = Mock()
+    AppSecRequestContext appSecRequestContext = Stub()
     AgentTracer.forceRegister(Stub(AgentTracer.TracerAPI) {
       activeSpan() >> Stub(AgentSpan) {
         getRequestContext() >> Stub(RequestContext) {
@@ -94,9 +93,9 @@ class BlockingServiceImplSpecification extends DDSpecification {
     setup:
     BlockResponseFunction brf = Mock()
     TraceSegment mts = Mock()
-    AgentTracer.forceRegister(Mock(AgentTracer.TracerAPI) {
-      activeSpan() >> Mock(AgentSpan) {
-        getRequestContext() >> Mock(RequestContext) {
+    AgentTracer.forceRegister(Stub(AgentTracer.TracerAPI) {
+      activeSpan() >> Stub(AgentSpan) {
+        getRequestContext() >> Stub(RequestContext) {
           getBlockResponseFunction() >> brf
           getTraceSegment() >> mts
         }
@@ -115,8 +114,8 @@ class BlockingServiceImplSpecification extends DDSpecification {
   void 'tryCommitBlockingResponse without active span'() {
     setup:
     RequestContext reqCtx = Mock(RequestContext)
-    AgentTracer.forceRegister(Mock(AgentTracer.TracerAPI) {
-      activeSpan() >> Mock(AgentSpan) {
+    AgentTracer.forceRegister(Stub(AgentTracer.TracerAPI) {
+      activeSpan() >> Stub(AgentSpan) {
         getRequestContext() >> reqCtx
       }
     })

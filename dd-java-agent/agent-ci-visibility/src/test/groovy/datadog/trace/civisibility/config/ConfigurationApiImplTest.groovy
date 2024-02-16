@@ -5,14 +5,19 @@ import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.civisibility.config.Configurations
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.civisibility.communication.BackendApi
 import datadog.trace.civisibility.communication.EvpProxyApi
+import datadog.trace.civisibility.communication.IntakeApi
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import org.apache.commons.io.IOUtils
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
+
+import java.util.zip.GZIPOutputStream
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
@@ -49,7 +54,7 @@ class ConfigurationApiImplTest extends Specification {
                 "runtime.version"     : "runtimeVersion",
                 "runtime.vendor"      : "vendor",
                 "runtime.architecture": "amd64",
-                "custom": [
+                "custom"              : [
                   "customTag": "customValue"
                 ]
               ]
@@ -57,8 +62,18 @@ class ConfigurationApiImplTest extends Specification {
           ]
         ]
 
+        def response = response
         if (expectedRequest) {
-          response.status(200).send('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true, "require_git": true } } }')
+          def requestBody = '{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true, "require_git": true, "flaky_test_retries_enabled": true } } }'.bytes
+
+          def header = request.getHeader("Accept-Encoding")
+          def gzipSupported = header != null && header.contains("gzip")
+          if (gzipSupported) {
+            response.addHeader("Content-Encoding", "gzip")
+            requestBody = gzip(requestBody)
+          }
+
+          response.status(200).send(requestBody)
         } else {
           response.status(400).send()
         }
@@ -86,7 +101,7 @@ class ConfigurationApiImplTest extends Specification {
                 "runtime.version"     : "runtimeVersion",
                 "runtime.vendor"      : "vendor",
                 "runtime.architecture": "amd64",
-                "custom": [
+                "custom"              : [
                   "customTag": "customValue"
                 ]
               ]
@@ -94,13 +109,23 @@ class ConfigurationApiImplTest extends Specification {
           ]
         ]
 
+        def response = response
         if (expectedRequest) {
-          response.status(200).send('{ "data": [' +
+          def requestBody = ('{ "data": [' +
             '{ "id": "49968354e2091cdb", "type": "test", "attributes": ' +
             '{ "configurations": { "test.bundle": "testBundle-a", "custom": { "customTag": "customValue" } }, "suite": "suite-a", "name": "name-a", "parameters": "parameters-a" } },' +
             '{ "id": "49968354e2091cdc", "type": "test", "attributes": ' +
             '   { "configurations": { "test.bundle": "testBundle-b", "custom": { "customTag": "customValue" } }, "suite": "suite-b", "name": "name-b", "parameters": "parameters-b" } }' +
-            '] }')
+            '] }').bytes
+
+          def header = request.getHeader("Accept-Encoding")
+          def gzipSupported = header != null && header.contains("gzip")
+          if (gzipSupported) {
+            response.addHeader("Content-Encoding", "gzip")
+            requestBody = gzip(requestBody)
+          }
+
+          response.status(200).send(requestBody)
         } else {
           response.status(400).send()
         }
@@ -108,47 +133,86 @@ class ConfigurationApiImplTest extends Specification {
     }
   }
 
-  def "test settings request"() {
+  private static byte[] gzip(byte[] payload) {
+    def baos = new ByteArrayOutputStream()
+    try (GZIPOutputStream zip = new GZIPOutputStream(baos)) {
+      IOUtils.copy(new ByteArrayInputStream(payload), zip)
+    }
+    return baos.toByteArray()
+  }
+
+  def "test settings request: #displayName"() {
     given:
-    def evpProxy = givenEvpProxy()
     def tracerEnvironment = givenTracerEnvironment()
+    def metricCollector = Stub(CiVisibilityMetricCollector)
 
     when:
-    def configurationApi = new ConfigurationApiImpl(evpProxy, () -> "1234")
+    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
     def settings = configurationApi.getSettings(tracerEnvironment)
 
     then:
     settings.codeCoverageEnabled
     settings.testsSkippingEnabled
     settings.gitUploadRequired
+    settings.flakyTestRetriesEnabled
+
+    where:
+    api                   | displayName
+    givenEvpProxy(false)  | "EVP proxy, compression disabled"
+    givenEvpProxy(true)   | "EVP proxy, compression enabled"
+    givenIntakeApi(false) | "intake, compression disabled"
+    givenIntakeApi(true)  | "intake, compression enabled"
   }
 
-  def "test skippable tests request"() {
+  def "test skippable tests request: #displayName"() {
     given:
-    def evpProxy = givenEvpProxy()
     def tracerEnvironment = givenTracerEnvironment()
+    def metricCollector = Stub(CiVisibilityMetricCollector)
 
     when:
-    def configurationApi = new ConfigurationApiImpl(evpProxy, () -> "1234")
+    def configurationApi = new ConfigurationApiImpl(api, metricCollector, () -> "1234")
     def skippableTests = configurationApi.getSkippableTests(tracerEnvironment)
 
     then:
     skippableTests == [
-      new SkippableTest("suite-a", "name-a", "parameters-a",
+      new TestIdentifier("suite-a", "name-a", "parameters-a",
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-a", Collections.singletonMap("customTag", "customValue"))),
-      new SkippableTest("suite-b", "name-b", "parameters-b",
+      new TestIdentifier("suite-b", "name-b", "parameters-b",
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-b", Collections.singletonMap("customTag", "customValue")))
     ]
+
+    where:
+    api                   | displayName
+    givenEvpProxy(false)  | "EVP proxy, compression disabled"
+    givenEvpProxy(true)   | "EVP proxy, compression enabled"
+    givenIntakeApi(false) | "intake, compression disabled"
+    givenIntakeApi(true)  | "intake, compression enabled"
   }
 
-  private BackendApi givenEvpProxy() {
+  private BackendApi givenEvpProxy(boolean enableGzip) {
     String traceId = "a-trace-id"
     HttpUrl proxyUrl = HttpUrl.get(intakeServer.address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
     OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
-    return new EvpProxyApi(traceId, proxyUrl, retryPolicyFactory, client)
+    return new EvpProxyApi(traceId, proxyUrl, retryPolicyFactory, client, enableGzip)
+  }
+
+  private BackendApi givenIntakeApi(boolean enableGzip) {
+    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", intakeServer.address.toString(), IntakeApi.API_VERSION))
+
+    String apiKey = "api-key"
+    String traceId = "a-trace-id"
+    long timeoutMillis = 1000
+
+    HttpRetryPolicy retryPolicy = Stub(HttpRetryPolicy)
+    retryPolicy.shouldRetry(_) >> false
+
+    HttpRetryPolicy.Factory retryPolicyFactory = Stub(HttpRetryPolicy.Factory)
+    retryPolicyFactory.create() >> retryPolicy
+
+    return new IntakeApi(intakeUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, enableGzip)
   }
 
   private static TracerEnvironment givenTracerEnvironment() {

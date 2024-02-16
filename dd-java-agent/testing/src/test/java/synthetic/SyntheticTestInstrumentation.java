@@ -5,12 +5,13 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class SyntheticTestInstrumentation extends Instrumenter.Tracing
+public class SyntheticTestInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public SyntheticTestInstrumentation() {
@@ -32,8 +33,8 @@ public class SyntheticTestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(named("access$000"), getClass().getName() + "$AccessAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(named("access$000"), getClass().getName() + "$AccessAdvice");
   }
 
   public static class Compute {

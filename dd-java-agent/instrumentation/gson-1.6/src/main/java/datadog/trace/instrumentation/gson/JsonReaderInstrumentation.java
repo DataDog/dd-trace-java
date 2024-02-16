@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -20,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JsonReaderInstrumentation extends Instrumenter.Iast
+public class JsonReaderInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public JsonReaderInstrumentation() {
@@ -38,11 +39,11 @@ public class JsonReaderInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArguments(1)).and(takesArgument(0, named("java.io.Reader"))),
         getClass().getName() + "$ConstructAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(returns(String.class))

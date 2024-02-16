@@ -7,9 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public class RouteHandlerInstrumentation extends Instrumenter.Tracing
+public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public RouteHandlerInstrumentation() {
     super("vertx", "vertx-3.4");
@@ -31,8 +32,8 @@ public class RouteHandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("handler"))
             .and(isPublic())

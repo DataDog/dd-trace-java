@@ -7,9 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Set;
@@ -22,7 +23,7 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 import org.spockframework.runtime.SpockNode;
 
 @AutoService(Instrumenter.class)
-public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
+public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5SpockItrInstrumentation() {
@@ -53,14 +54,15 @@ public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JUnitPlatformUtils",
+      packageName + ".TestIdentifierFactory",
       packageName + ".SpockUtils",
       packageName + ".TestEventsHandlerHolder",
     };
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),
         JUnit5SpockItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
   }
@@ -96,7 +98,7 @@ public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      SkippableTest test = SpockUtils.toSkippableTest(spockNode);
+      TestIdentifier test = SpockUtils.toTestIdentifier(spockNode, true);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }

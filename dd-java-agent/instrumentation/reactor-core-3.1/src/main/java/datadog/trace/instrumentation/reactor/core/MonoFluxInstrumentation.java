@@ -4,11 +4,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class MonoFluxInstrumentation extends Instrumenter.Tracing
+public class MonoFluxInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public MonoFluxInstrumentation() {
     super("reactor-core");
@@ -33,8 +34,8 @@ public class MonoFluxInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), this.getClass().getName() + "$AsyncTypeAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), this.getClass().getName() + "$AsyncTypeAdvice");
   }
 
   public static class AsyncTypeAdvice {

@@ -1,20 +1,17 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
+import com.datadog.iast.Reporter
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.PathTraversalModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
 import static com.datadog.iast.taint.TaintUtils.taintFormat
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class PathTraversalModuleTest extends IastModuleImplTestBase {
 
@@ -22,23 +19,13 @@ class PathTraversalModuleTest extends IastModuleImplTestBase {
 
   private PathTraversalModule module
 
-  private List<Object> objectHolder
-
-  private IastRequestContext ctx
-
   def setup() {
     module = new PathTraversalModuleImpl(dependencies)
-    objectHolder = []
-    ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
-    }
-    final span = Mock(AgentSpan) {
-      getSpanId() >> 123456
-      getRequestContext() >> reqCtx
-    }
-    tracer.activeSpan() >> span
-    overheadController.consumeQuota(_, _) >> true
+  }
+
+  @Override
+  protected Reporter buildReporter() {
+    return Mock(Reporter)
   }
 
   void 'iast module detects path traversal with String path (#path)'(final String path, final int mark, final String expected) {

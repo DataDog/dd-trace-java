@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
@@ -14,26 +15,35 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCE
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.ApiVersions;
+import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.internals.Sender;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(Instrumenter.class)
-public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
+public final class KafkaProducerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public KafkaProducerInstrumentation() {
@@ -52,18 +62,32 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       packageName + ".TextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
+      packageName + ".AvroSchemaExtractor",
     };
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public Map<String, String> contextStore() {
+    return singletonMap("org.apache.kafka.clients.Metadata", "java.lang.String");
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("send"))
             .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
             .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
         KafkaProducerInstrumentation.class.getName() + "$ProducerAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(isPrivate())
+            .and(takesArgument(0, int.class))
+            .and(named("ensureValidRecordSize")), // intercepting this call allows us to see the
+        // estimated message size
+        KafkaProducerInstrumentation.class.getName() + "$PayloadSizeAdvice");
   }
 
   public static class ProducerAdvice {
@@ -72,14 +96,18 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
     public static AgentScope onEnter(
         @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
+        @Advice.FieldValue("sender") Sender sender,
+        @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+      String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
+
       final AgentSpan parent = activeSpan();
       final AgentSpan span = startSpan(KAFKA_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig);
 
-      callback = new KafkaProducerCallback(callback, parent, span);
+      callback = new KafkaProducerCallback(callback, parent, span, clusterId);
 
       if (record.value() == null) {
         span.setTag(InstrumentationTags.TOMBSTONE, true);
@@ -97,12 +125,21 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
         sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+        if (clusterId != null) {
+          sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+        }
         sortedTags.put(TOPIC_TAG, record.topic());
         sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
           if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
-            propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+            // inject the context in the headers, but delay sending the stats until we know the
+            // message size.
+            // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
+            propagate()
+                .injectPathwayContextWithoutSendingStats(
+                    span, record.headers(), SETTER, sortedTags);
+            AvroSchemaExtractor.tryExtractProducer(record, span);
           }
         } catch (final IllegalStateException e) {
           // headers must be read-only from reused record. try again with new one.
@@ -117,7 +154,10 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
 
           propagate().inject(span, record.headers(), SETTER);
           if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
-            propagate().injectPathwayContext(span, record.headers(), SETTER, sortedTags);
+            propagate()
+                .injectPathwayContextWithoutSendingStats(
+                    span, record.headers(), SETTER, sortedTags);
+            AvroSchemaExtractor.tryExtractProducer(record, span);
           }
         }
         if (TIME_IN_QUEUE_ENABLED) {
@@ -134,6 +174,33 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+    }
+  }
+
+  public static class PayloadSizeAdvice {
+
+    /**
+     * Instrumentation for the method KafkaProducer.ensureValidRecordSize that is called as part of
+     * sending a kafka payload. This gives us access to an estimate of the payload size "for free",
+     * that we send as a metric.
+     */
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(value = 0) int estimatedPayloadSize) {
+      StatsPoint saved = activeSpan().context().getPathwayContext().getSavedStats();
+      if (saved != null) {
+        // create new stats including the payload size
+        StatsPoint updated =
+            new StatsPoint(
+                saved.getEdgeTags(),
+                saved.getHash(),
+                saved.getParentHash(),
+                saved.getTimestampNanos(),
+                saved.getPathwayLatencyNano(),
+                saved.getEdgeLatencyNano(),
+                estimatedPayloadSize);
+        // then send the point
+        AgentTracer.get().getDataStreamsMonitoring().add(updated);
+      }
     }
   }
 }

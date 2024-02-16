@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import akka.actor.ActorRef;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.Map;
@@ -16,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import redis.RedisClientActorLike;
 
 @AutoService(Instrumenter.class)
-public class RedisClientActorInstrumentation extends Instrumenter.Tracing
+public class RedisClientActorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public RedisClientActorInstrumentation() {
     super("rediscala", "redis", "rediscala-connection");
@@ -43,8 +44,8 @@ public class RedisClientActorInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("onConnect")),
         RedisClientActorInstrumentation.class.getName() + "$ConnectionAdvice");
   }

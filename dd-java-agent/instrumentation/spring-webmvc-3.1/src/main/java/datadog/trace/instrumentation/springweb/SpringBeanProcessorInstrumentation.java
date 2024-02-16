@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.springframework.beans.factory.config.BeanDefinition;
 
@@ -16,7 +17,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
  * provider or a root resource, so it is safe to skip processing of it in the 'processBean' method.
  */
 @AutoService(Instrumenter.class)
-public class SpringBeanProcessorInstrumentation extends Instrumenter.Tracing
+public class SpringBeanProcessorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SpringBeanProcessorInstrumentation() {
     super("spring-web");
@@ -28,8 +29,8 @@ public class SpringBeanProcessorInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("processBean"))
             .and(

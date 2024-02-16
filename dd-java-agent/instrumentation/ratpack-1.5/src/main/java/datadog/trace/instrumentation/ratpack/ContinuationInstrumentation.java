@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.google.common.net.HostAndPort;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -16,7 +17,7 @@ import ratpack.func.Block;
 import ratpack.path.PathBinding;
 
 @AutoService(Instrumenter.class)
-public final class ContinuationInstrumentation extends Instrumenter.Tracing
+public final class ContinuationInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public ContinuationInstrumentation() {
@@ -41,8 +42,8 @@ public final class ContinuationInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("resume").and(takesArgument(0, named("ratpack.func.Block"))),
         ContinuationInstrumentation.class.getName() + "$ResumeAdvice");
   }

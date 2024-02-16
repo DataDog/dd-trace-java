@@ -2,6 +2,7 @@ package com.datadog.appsec.config;
 
 import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INVALID_JSON_FILE;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_ACTIVATION;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_CUSTOM_RULES;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_DD_RULES;
@@ -155,6 +156,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private void subscribeActivation() {
     this.configurationPoller.addListener(
         Product.ASM_FEATURES,
+        "asm_features_activation",
         AppSecFeaturesDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
           if (!initialized) {
@@ -244,8 +246,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
    */
   private class TransactionalAppSecModuleConfigurerImpl
       implements TransactionalAppSecModuleConfigurer {
-    private Map<String, SubconfigListener> listenerMap = new HashMap<>();
-    private List<TraceSegmentPostProcessor> postProcessors = new ArrayList<>();
+    private final Map<String, SubconfigListener> listenerMap = new HashMap<>();
+    private final List<TraceSegmentPostProcessor> postProcessors = new ArrayList<>();
 
     @Override
     public Optional<Object> addSubConfigListener(String key, SubconfigListener listener) {
@@ -331,11 +333,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_USER_BLOCKING
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-            | CAPABILITY_ASM_TRUSTED_IPS);
-    this.configurationPoller.removeListener(Product.ASM_DD);
-    this.configurationPoller.removeListener(Product.ASM_DATA);
-    this.configurationPoller.removeListener(Product.ASM);
-    this.configurationPoller.removeListener(Product.ASM_FEATURES);
+            | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE);
+    this.configurationPoller.removeListeners(Product.ASM_DD);
+    this.configurationPoller.removeListeners(Product.ASM_DATA);
+    this.configurationPoller.removeListeners(Product.ASM);
+    this.configurationPoller.removeListeners(Product.ASM_FEATURES);
     this.configurationPoller.removeConfigurationEndListener(applyWAFChangesAsListener);
     this.configurationPoller.stop();
   }

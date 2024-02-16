@@ -17,8 +17,8 @@ import com.datadog.debugger.el.expressions.HasAnyExpression;
 import com.datadog.debugger.el.expressions.IfElseExpression;
 import com.datadog.debugger.el.expressions.IfExpression;
 import com.datadog.debugger.el.expressions.IndexExpression;
+import com.datadog.debugger.el.expressions.IsDefinedExpression;
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
-import com.datadog.debugger.el.expressions.IsUndefinedExpression;
 import com.datadog.debugger.el.expressions.LenExpression;
 import com.datadog.debugger.el.expressions.MatchesExpression;
 import com.datadog.debugger.el.expressions.NotExpression;
@@ -176,8 +176,8 @@ public class MoshiConfigTestHelper {
     }
 
     @Override
-    public Void visit(IsUndefinedExpression isUndefinedExpression) {
-      throw new UnsupportedOperationException("isUndefined expression");
+    public Void visit(IsDefinedExpression isDefinedExpression) {
+      throw new UnsupportedOperationException("isDefined expression");
     }
 
     @Override

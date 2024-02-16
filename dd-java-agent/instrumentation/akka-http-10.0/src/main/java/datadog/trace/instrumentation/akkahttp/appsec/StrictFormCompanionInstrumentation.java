@@ -13,12 +13,13 @@ import akka.http.scaladsl.model.HttpEntity;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
 /** @see akka.http.scaladsl.common.StrictForm$#unmarshaller(Unmarshaller, Unmarshaller) */
 @AutoService(Instrumenter.class)
-public class StrictFormCompanionInstrumentation extends Instrumenter.AppSec
+public class StrictFormCompanionInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public StrictFormCompanionInstrumentation() {
     super("akka-http");
@@ -49,8 +50,8 @@ public class StrictFormCompanionInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("unmarshaller"))

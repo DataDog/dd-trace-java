@@ -1,49 +1,35 @@
 package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
+import com.datadog.iast.Reporter
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.taint.Ranges
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import foo.bar.VisitableClass
 
 class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
-  private List<Object> objectHolder
-
-  private IastRequestContext ctx
 
   private TrustBoundaryViolationModuleImpl module
-
-  private AgentSpan span
-
 
   def setup() {
     InstrumentationBridge.clearIastModules()
     module = new TrustBoundaryViolationModuleImpl(dependencies)
-    objectHolder = []
-    ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
-    }
-    span = Mock(AgentSpan) {
-      getSpanId() >> 123456
-      getRequestContext() >> reqCtx
-    }
+  }
+
+  @Override
+  protected Reporter buildReporter() {
+    return Mock(Reporter)
   }
 
   void 'report TrustBoundary vulnerability without context'() {
     when:
-    module.onSessionValue('test', null)
+    module.onSessionValue('test', 'a value')
 
     then:
-    1 * tracer.activeSpan() >> null
-    0 * overheadController.consumeQuota(_, _)
+    tracer.activeSpan() >> null
     0 * reporter._
   }
 
@@ -52,8 +38,6 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     module.onSessionValue('test', null)
 
     then:
-    1 * tracer.activeSpan() >> span
-    0 * overheadController.consumeQuota(_, _)
     0 * reporter._
   }
 
@@ -67,8 +51,6 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     module.onSessionValue(name, "value")
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
     assertVulnerability(savedVul, name)
   }
@@ -84,8 +66,6 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     module.onSessionValue(name, badValue)
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
     assertVulnerability(savedVul, badValue)
   }
@@ -103,8 +83,6 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     module.onSessionValue(name, values)
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
     assertVulnerability(savedVul, badValue)
   }
@@ -124,8 +102,6 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     module.onSessionValue(name, values)
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
     assertVulnerability(savedVul, badValue)
   }
@@ -145,8 +121,6 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     module.onSessionValue(name, values)
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
     assertVulnerability(savedVul, badValue)
   }
@@ -163,8 +137,6 @@ class TrustBoundaryViolationModuleTest extends IastModuleImplTestBase {
     module.onSessionValue(name, value)
 
     then:
-    1 * tracer.activeSpan() >> span
-    1 * overheadController.consumeQuota(_, _) >> true
     1 * reporter.report(_, _ as Vulnerability) >> { savedVul = it[1] }
     assertVulnerability(savedVul, badValue)
   }

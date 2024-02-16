@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -16,7 +17,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public class JakartaHttpSessionInstrumentation extends Instrumenter.Iast
+public class JakartaHttpSessionInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public JakartaHttpSessionInstrumentation() {
     super("servlet", "servlet-5", "servlet-session");
@@ -34,8 +35,8 @@ public class JakartaHttpSessionInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("setAttribute", "putValue")
             .and(takesArguments(String.class, Object.class).and(isPublic())),
         getClass().getName() + "$InstrumenterAdvice");

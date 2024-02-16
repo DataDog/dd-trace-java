@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
@@ -38,25 +38,32 @@ public class TracingRequestHandler extends RequestHandler2 {
   private static final Logger log = LoggerFactory.getLogger(TracingRequestHandler.class);
 
   private final ContextStore<Object, String> responseQueueStore;
+  private final ContextStore<AmazonWebServiceRequest, AgentSpan> requestSpanStore;
 
-  public TracingRequestHandler(ContextStore<Object, String> responseQueueStore) {
+  public TracingRequestHandler(
+      ContextStore<Object, String> responseQueueStore,
+      ContextStore<AmazonWebServiceRequest, AgentSpan> requestSpanStore) {
     this.responseQueueStore = responseQueueStore;
-  }
-
-  @Override
-  public AmazonWebServiceRequest beforeMarshalling(final AmazonWebServiceRequest request) {
-    return request;
+    this.requestSpanStore = requestSpanStore;
   }
 
   @Override
   public void beforeRequest(final Request<?> request) {
-    final AgentSpan span;
+    AgentSpan span;
     if (!AWS_LEGACY_TRACING && isPollingRequest(request.getOriginalRequest())) {
       // SQS messages spans are created by aws-java-sqs-1.0 - replace client scope with no-op,
       // so we can tell when receive call is complete without affecting the rest of the trace
-      span = noopSpan();
+      activateSpan(blackholeSpan());
     } else {
-      span = startSpan(AwsNameCache.spanName(request));
+      span = requestSpanStore.remove(request.getOriginalRequest());
+      if (span != null) {
+        // we'll land here for SQS send requests when DSM is enabled. In that case, we create the
+        // span in SqsInterceptor to inject DSM tags.
+        span.setOperationName(AwsNameCache.spanName(request));
+      } else {
+        // this is the most common code path
+        span = startSpan(AwsNameCache.spanName(request));
+      }
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       request.addHandlerContext(SPAN_CONTEXT_KEY, span);
@@ -67,10 +74,13 @@ public class TracingRequestHandler extends RequestHandler2 {
           log.warn("Unable to inject trace header", e);
         }
       }
+      // This scope will be closed by AwsHttpClientInstrumentation
+      if (AWS_LEGACY_TRACING) {
+        activateSpan(span);
+      } else {
+        activateSpan(blackholeSpan());
+      }
     }
-
-    // This scope will be closed by AwsHttpClientInstrumentation
-    activateSpan(span);
   }
 
   @Override
@@ -124,7 +134,12 @@ public class TracingRequestHandler extends RequestHandler2 {
 
   @Override
   public void afterError(final Request<?> request, final Response<?> response, final Exception e) {
-    final AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
+    AgentSpan span = request.getHandlerContext(SPAN_CONTEXT_KEY);
+    if (span == null) {
+      // also try getting the span from the context store, if the error happened early
+      span = requestSpanStore.remove(request.getOriginalRequest());
+    }
+
     if (span != null) {
       request.addHandlerContext(SPAN_CONTEXT_KEY, null);
       if (response != null) {

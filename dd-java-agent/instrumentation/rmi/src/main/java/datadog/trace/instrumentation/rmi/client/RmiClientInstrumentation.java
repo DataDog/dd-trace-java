@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
@@ -20,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class RmiClientInstrumentation extends Instrumenter.Tracing
+public final class RmiClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public RmiClientInstrumentation() {
@@ -38,8 +39,8 @@ public final class RmiClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("invoke"))
             .and(takesArgument(0, named("java.rmi.Remote")))

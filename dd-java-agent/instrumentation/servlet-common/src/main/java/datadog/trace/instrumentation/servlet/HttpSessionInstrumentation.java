@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -18,7 +19,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpSessionInstrumentation extends Instrumenter.Iast
+public class HttpSessionInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public HttpSessionInstrumentation() {
     super("servlet", "servlet-session");
@@ -45,8 +46,8 @@ public class HttpSessionInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("setAttribute", "putValue")
             .and(takesArguments(String.class, Object.class).and(isPublic())),
         getClass().getName() + "$InstrumenterAdvice");

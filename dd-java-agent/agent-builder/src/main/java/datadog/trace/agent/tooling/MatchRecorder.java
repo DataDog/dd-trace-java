@@ -38,8 +38,12 @@ abstract class MatchRecorder {
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
         BitSet matches) {
+      long fromTick = InstrumenterMetrics.tick();
       if (typeMatcher.matches(type)) {
+        InstrumenterMetrics.knownTypeHit(fromTick);
         matches.set(id);
+      } else {
+        InstrumenterMetrics.knownTypeMiss(fromTick);
       }
     }
   }
@@ -63,8 +67,14 @@ abstract class MatchRecorder {
         Class<?> classBeingRedefined,
         BitSet matches) {
       // check current state first in case a known-type already matched this instrumentation
-      if (!matches.get(id) && hintMatcher.matches(classLoader) && typeMatcher.matches(type)) {
-        matches.set(id);
+      if (!matches.get(id)) {
+        long fromTick = InstrumenterMetrics.tick();
+        if (hintMatcher.matches(classLoader) && typeMatcher.matches(type)) {
+          InstrumenterMetrics.typeHierarchyHit(fromTick);
+          matches.set(id);
+        } else {
+          InstrumenterMetrics.typeHierarchyMiss(fromTick);
+        }
       }
     }
   }
@@ -87,8 +97,12 @@ abstract class MatchRecorder {
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
         BitSet matches) {
+      long fromTick = InstrumenterMetrics.tick();
       if (activation.matches(classLoader) && contextMatcher.matches(type, classBeingRedefined)) {
+        InstrumenterMetrics.contextStoreHit(fromTick);
         matches.set(id);
+      } else {
+        InstrumenterMetrics.contextStoreMiss(fromTick);
       }
     }
 
@@ -114,8 +128,14 @@ abstract class MatchRecorder {
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
         BitSet matches) {
-      if (matches.get(id) && !matcher.matches(type)) {
-        matches.clear(id);
+      if (matches.get(id)) {
+        long fromTick = InstrumenterMetrics.tick();
+        if (!matcher.matches(type)) {
+          InstrumenterMetrics.narrowTypeMiss(fromTick);
+          matches.clear(id);
+        } else {
+          InstrumenterMetrics.narrowTypeHit(fromTick);
+        }
       }
     }
   }
@@ -135,8 +155,14 @@ abstract class MatchRecorder {
         ClassLoader classLoader,
         Class<?> classBeingRedefined,
         BitSet matches) {
-      if (matches.get(id) && !matcher.matches(classLoader)) {
-        matches.clear(id);
+      if (matches.get(id)) {
+        long fromTick = InstrumenterMetrics.tick();
+        if (!matcher.matches(classLoader)) {
+          InstrumenterMetrics.narrowLocationMiss(fromTick);
+          matches.clear(id);
+        } else {
+          InstrumenterMetrics.narrowLocationHit(fromTick);
+        }
       }
     }
   }

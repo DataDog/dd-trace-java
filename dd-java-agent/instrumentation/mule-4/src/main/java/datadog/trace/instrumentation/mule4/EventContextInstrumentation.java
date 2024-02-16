@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;
 
 /**
@@ -13,7 +14,7 @@ import java.util.Map;
  * and activate/deactivate the span when mule changes which event it is processing.
  */
 @AutoService(Instrumenter.class)
-public final class EventContextInstrumentation extends Instrumenter.Tracing
+public final class EventContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 
   public EventContextInstrumentation() {
@@ -41,7 +42,7 @@ public final class EventContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), packageName + ".EventContextCreationAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), packageName + ".EventContextCreationAdvice");
   }
 }

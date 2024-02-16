@@ -5,6 +5,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.junit.runner.notification.RunListener;
@@ -12,7 +14,7 @@ import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 
 @AutoService(Instrumenter.class)
-public class JUnit4CucumberInstrumentation extends Instrumenter.CiVisibility
+public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public JUnit4CucumberInstrumentation() {
@@ -27,6 +29,7 @@ public class JUnit4CucumberInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
@@ -36,8 +39,13 @@ public class JUnit4CucumberInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public Reference[] additionalMuzzleReferences() {
+    return CucumberUtils.MuzzleHelper.additionalMuzzleReferences();
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("childrenInvoker")
             .and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
         JUnit4CucumberInstrumentation.class.getName() + "$CucumberAdvice");

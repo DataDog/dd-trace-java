@@ -6,9 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public class ServerRegistryInstrumentation extends Instrumenter.Tracing
+public class ServerRegistryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public ServerRegistryInstrumentation() {
@@ -30,8 +31,8 @@ public class ServerRegistryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(isStatic()).and(named("buildBaseRegistry")),
         packageName + ".ServerRegistryAdvice");
   }

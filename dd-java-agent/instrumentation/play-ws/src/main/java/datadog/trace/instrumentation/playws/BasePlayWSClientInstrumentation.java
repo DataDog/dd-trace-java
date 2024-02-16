@@ -9,10 +9,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Tracing
+public abstract class BasePlayWSClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public BasePlayWSClientInstrumentation() {
     super("play-ws");
@@ -34,8 +35,8 @@ public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))

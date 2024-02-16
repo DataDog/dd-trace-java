@@ -7,9 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Set;
@@ -22,7 +23,7 @@ import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
 @AutoService(Instrumenter.class)
-public class JUnit5CucumberItrInstrumentation extends Instrumenter.CiVisibility
+public class JUnit5CucumberItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5CucumberItrInstrumentation() {
@@ -54,13 +55,16 @@ public class JUnit5CucumberItrInstrumentation extends Instrumenter.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CucumberUtils", packageName + ".TestEventsHandlerHolder",
+      packageName + ".TestIdentifierFactory",
+      packageName + ".JUnitPlatformUtils",
+      packageName + ".CucumberUtils",
+      packageName + ".TestEventsHandlerHolder",
     };
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),
         JUnit5CucumberItrInstrumentation.class.getName() + "$JUnit5ItrAdvice");
   }
@@ -96,7 +100,7 @@ public class JUnit5CucumberItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      SkippableTest test = CucumberUtils.toSkippableTest(testDescriptor);
+      TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor, true);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }

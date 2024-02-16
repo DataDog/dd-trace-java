@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -21,7 +22,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class OpenTelemetryContextStorageInstrumentation extends Instrumenter.Tracing
+public class OpenTelemetryContextStorageInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   public OpenTelemetryContextStorageInstrumentation() {
@@ -80,9 +81,9 @@ public class OpenTelemetryContextStorageInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // Context ContextStorage.current()
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("current"))
             .and(takesNoArguments())

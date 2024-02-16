@@ -80,6 +80,22 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
     0 * _
   }
 
+  void 'test createParser(byte[])'() {
+    setup:
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
+    final bytes = '{}'.bytes
+
+    when:
+    final result = new JsonFactory().createParser(bytes)
+
+
+    then:
+    result != null
+    1 * propagationModule.taintIfTainted(_ as JsonParser, bytes)
+    0 * _
+  }
+
   void 'test createParser(URL)'() {
     setup:
     final propagationModule = Mock(PropagationModule)
@@ -96,8 +112,7 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
     parser != null
     json == [key: 'value']
     1 * propagationModule.taintIfTainted(_ as JsonParser, url)
-    1 * propagationModule.taintIfTainted('key', _ as JsonParser)
-    1 * propagationModule.taintIfTainted('value', _ as JsonParser)
+    1 * propagationModule.findSource(_ as JsonParser) >> null
     1 * ssrfModule.onURLConnection(url)
     0 * _
   }

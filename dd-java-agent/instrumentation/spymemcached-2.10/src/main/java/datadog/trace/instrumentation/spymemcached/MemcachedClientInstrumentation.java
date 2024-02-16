@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -21,7 +22,7 @@ import net.spy.memcached.internal.GetFuture;
 import net.spy.memcached.internal.OperationFuture;
 
 @AutoService(Instrumenter.class)
-public final class MemcachedClientInstrumentation extends Instrumenter.Tracing
+public final class MemcachedClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   private static final String MEMCACHED_PACKAGE = "net.spy.memcached";
@@ -48,8 +49,8 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(returns(named(MEMCACHED_PACKAGE + ".internal.OperationFuture")))
@@ -59,13 +60,13 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Tracing
             */
             .and(not(named("flush"))),
         MemcachedClientInstrumentation.class.getName() + "$AsyncOperationAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.GetFuture"))),
         MemcachedClientInstrumentation.class.getName() + "$AsyncGetAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.BulkFuture"))),
         MemcachedClientInstrumentation.class.getName() + "$AsyncBulkAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(namedOneOf("incr", "decr")),
         MemcachedClientInstrumentation.class.getName() + "$SyncOperationAdvice");
   }

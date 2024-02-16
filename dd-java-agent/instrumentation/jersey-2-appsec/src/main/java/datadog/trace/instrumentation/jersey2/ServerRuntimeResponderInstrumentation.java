@@ -11,12 +11,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 // tested in GrizzlyTest (grizzly-http)
 @AutoService(Instrumenter.class)
-public class ServerRuntimeResponderInstrumentation extends Instrumenter.AppSec
+public class ServerRuntimeResponderInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public ServerRuntimeResponderInstrumentation() {
     super("jersey");
@@ -33,8 +34,8 @@ public class ServerRuntimeResponderInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isPublic()
             .and(named("process"))
             .and(takesArguments(1))

@@ -47,7 +47,7 @@ abstract class AppSecInactiveHttpServerTest extends WithHttpServer {
   }
 
   DDSpan getTopSpan() {
-    TEST_WRITER.get(0).sort {it.spanId }.first()
+    TEST_WRITER.get(0).sort (false, {it.spanId }).first()
   }
 
   protected buildUrl(ServerEndpoint endpoint) {

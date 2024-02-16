@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -17,7 +18,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CommonsFileuploadInstrumenter extends Instrumenter.Iast
+public class CommonsFileuploadInstrumenter extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 
   public CommonsFileuploadInstrumenter() {
@@ -25,8 +26,8 @@ public class CommonsFileuploadInstrumenter extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("parse"))
             .and(isPublic())

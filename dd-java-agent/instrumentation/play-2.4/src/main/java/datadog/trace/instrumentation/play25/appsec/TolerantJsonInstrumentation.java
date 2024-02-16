@@ -8,12 +8,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.util.ByteString;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import play.mvc.Http;
 
 /** @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString) */
 @AutoService(Instrumenter.class)
-public class TolerantJsonInstrumentation extends Instrumenter.AppSec
+public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public TolerantJsonInstrumentation() {
     super("play");
@@ -42,8 +43,8 @@ public class TolerantJsonInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parse")
             .and(takesArguments(2))
             .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))

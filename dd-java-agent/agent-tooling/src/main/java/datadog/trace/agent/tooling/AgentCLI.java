@@ -38,8 +38,8 @@ public final class AgentCLI {
   public static void printIntegrationNames() {
     Set<String> names = new TreeSet<>();
     for (Instrumenter instrumenter : Instrumenters.load(Instrumenter.class.getClassLoader())) {
-      if (instrumenter instanceof Instrumenter.Default) {
-        names.add(((Instrumenter.Default) instrumenter).name());
+      if (instrumenter instanceof InstrumenterModule) {
+        names.add(((InstrumenterModule) instrumenter).name());
       }
     }
     for (String name : names) {

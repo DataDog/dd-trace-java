@@ -1,6 +1,5 @@
 package com.datadog.iast.test
 
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.TaintedObjects
 import datadog.trace.agent.test.AgentTestRunner
@@ -9,6 +8,7 @@ import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -37,7 +37,7 @@ class IastAgentTestRunner extends AgentTestRunner implements IastRequestContextP
   }
 
   protected TaintedObjects getLocalTaintedObjects() {
-    IastRequestContext.get().taintedObjects
+    IastContext.Provider.get().taintedObjects
   }
 
   protected TaintedObjectCollection getLocalTaintedObjectCollection() {

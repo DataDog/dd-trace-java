@@ -6,10 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(Instrumenter.class)
-public class ContextParseInstrumentation extends Instrumenter.AppSec
+public class ContextParseInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 
   public ContextParseInstrumentation() {
@@ -30,8 +31,8 @@ public class ContextParseInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(Instrumenter.AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("parse")
             .and(takesArguments(2))
             .and(takesArgument(0, named("ratpack.http.TypedData")))

@@ -4,13 +4,16 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.core.read.ListAppender
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers
+import datadog.trace.api.Platform
 import datadog.trace.bootstrap.ExceptionLogger
+import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer
 import net.bytebuddy.dynamic.ClassFileLocator
 import org.slf4j.LoggerFactory
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.security.Permission
@@ -20,6 +23,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.isMethod
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
+@IgnoreIf(reason = "SecurityManager used in the test is marked for removal and throws exceptions", value = {
+  Platform.isJavaVersionAtLeast(21)
+})
 abstract class BaseExceptionHandlerTest extends DDSpecification {
   @Shared
   ListAppender testAppender = new ListAppender()
@@ -111,7 +117,7 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     ]
     URLClassLoader loader = new URLClassLoader(classpath, (ClassLoader) null)
     when:
-    loader.loadClass(LoggerFactory.getName())
+    loader.loadClass(InstrumentationErrors.getName())
     then:
     thrown ClassNotFoundException
 

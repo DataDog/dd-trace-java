@@ -10,12 +10,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class AerospikeClientInstrumentation extends Instrumenter.Tracing
+public final class AerospikeClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public AerospikeClientInstrumentation() {
     super("aerospike");
@@ -34,13 +35,13 @@ public final class AerospikeClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(takesArgument(0, nameStartsWith("com.aerospike.client.policy"))),
         getClass().getName() + "$TraceSyncRequestAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(takesArgument(1, nameStartsWith("com.aerospike.client.listener"))),

@@ -1,5 +1,6 @@
 import com.mongodb.client.result.DeleteResult
 import com.mongodb.client.result.UpdateResult
+import com.mongodb.internal.build.MongoDriverVersion
 import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoCollection
@@ -10,6 +11,7 @@ import org.bson.BsonString
 import org.bson.Document
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
+import org.spockframework.util.VersionNumber
 import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
@@ -32,6 +34,16 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
     client?.close()
     client = null
   }
+
+  @Shared
+  String query = {
+    def version  = VersionNumber.parse(MongoDriverVersion.VERSION)
+    if (version.major == 4 && version.minor < 3) {
+      // query is returned for versions < 4.3
+      return ',"query":{}'
+    }
+    return ''
+  }.call()
 
   MongoCollection<Document> setupCollection(String collectionName) {
     DDSpan setupSpan = null
@@ -158,7 +170,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
     count.get() == 0
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
       }
     }
 
@@ -182,7 +194,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
       trace(2) {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
-        mongoSpan(it, 1, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-description", span(0))
+        mongoSpan(it, 1, "count", "{\"count\":\"$collectionName\"$query}", false, "some-description", span(0))
       }
     }
 
@@ -207,7 +219,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
       }
     }
 
@@ -234,7 +246,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
         mongoSpan(it, 1, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}", false, "some-description", span(0))
-        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-description", span(0))
+        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\"$query}", false, "some-description", span(0))
       }
     }
 
@@ -265,7 +277,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
       }
     }
 
@@ -298,7 +310,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
         mongoSpan(it, 1, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}", false, "some-description", span(0))
-        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-description", span(0))
+        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\"$query}", false, "some-description", span(0))
       }
     }
 
@@ -327,7 +339,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
       }
     }
 
@@ -358,7 +370,7 @@ abstract class MongoReactiveClientTest extends MongoBaseTest {
         sortSpansByStart()
         basicSpan(it, 0,"parent")
         mongoSpan(it, 1, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}", false, "some-description", span(0))
-        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\",\"query\":{}}", false, "some-description", span(0))
+        mongoSpan(it, 2, "count", "{\"count\":\"$collectionName\"$query}", false, "some-description", span(0))
       }
     }
 

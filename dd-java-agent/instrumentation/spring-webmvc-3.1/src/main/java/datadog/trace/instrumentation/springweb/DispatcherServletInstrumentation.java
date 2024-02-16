@@ -15,6 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
@@ -25,7 +26,7 @@ import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
 
 @AutoService(Instrumenter.class)
-public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
+public final class DispatcherServletInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public DispatcherServletInstrumentation() {
@@ -48,21 +49,21 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isProtected())
             .and(named("onRefresh"))
             .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
             .and(takesArguments(1)),
         DispatcherServletInstrumentation.class.getName() + "$HandlerMappingAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isProtected())
             .and(named("render"))
             .and(takesArgument(0, named("org.springframework.web.servlet.ModelAndView"))),
         DispatcherServletInstrumentation.class.getName() + "$RenderAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isProtected())
             .and(nameStartsWith("processHandlerException"))

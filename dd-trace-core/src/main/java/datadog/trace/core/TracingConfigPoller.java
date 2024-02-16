@@ -1,5 +1,11 @@
 package datadog.trace.core;
 
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_CUSTOM_TAGS;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_HTTP_HEADER_TAGS;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_LOGS_INJECTION;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_SAMPLE_RATE;
+
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -15,6 +21,8 @@ import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -25,20 +33,30 @@ import org.slf4j.LoggerFactory;
 final class TracingConfigPoller {
   private static final Logger log = LoggerFactory.getLogger(TracingConfigPoller.class);
 
-  private final DynamicConfig dynamicConfig;
+  private final DynamicConfig<?> dynamicConfig;
 
   private boolean startupLogsEnabled;
 
   private Runnable stopPolling;
 
-  public TracingConfigPoller(DynamicConfig dynamicConfig) {
+  public TracingConfigPoller(DynamicConfig<?> dynamicConfig) {
     this.dynamicConfig = dynamicConfig;
   }
 
   public void start(Config config, SharedCommunicationObjects sco) {
     this.startupLogsEnabled = config.isStartupLogsEnabled();
-
-    stopPolling = new Updater().register(config, sco);
+    ConfigurationPoller configPoller = sco.configurationPoller(config);
+    // TODO: Add CAPABILITY_APM_TRACING_TRACING_ENABLED flag when tracing_enabled is implemented for
+    // Remote config
+    if (configPoller != null) {
+      configPoller.addCapabilities(
+          CAPABILITY_APM_TRACING_SAMPLE_RATE
+              | CAPABILITY_APM_LOGS_INJECTION
+              | CAPABILITY_APM_HTTP_HEADER_TAGS
+              | CAPABILITY_APM_CUSTOM_TAGS
+              | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED);
+    }
+    stopPolling = new Updater().register(config, configPoller);
   }
 
   public void stop() {
@@ -57,8 +75,7 @@ final class TracingConfigPoller {
 
     private boolean receivedOverrides = false;
 
-    public Runnable register(Config config, SharedCommunicationObjects sco) {
-      ConfigurationPoller poller = sco.configurationPoller(config);
+    public Runnable register(Config config, ConfigurationPoller poller) {
       if (null != poller) {
         poller.addListener(Product.APM_TRACING, this);
         return poller::stop;
@@ -76,6 +93,25 @@ final class TracingConfigPoller {
               Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
 
       if (null != overrides && null != overrides.libConfig) {
+        ServiceTarget serviceTarget = overrides.serviceTarget;
+        if (serviceTarget != null) {
+          String targetService = serviceTarget.service;
+          String thisService = Config.get().getServiceName();
+          if (targetService != null && !targetService.equalsIgnoreCase(thisService)) {
+            log.debug(
+                "Skipping config for service {}. Current service is {}",
+                targetService,
+                thisService);
+            throw new IllegalArgumentException("service mismatch");
+          }
+          String targetEnv = serviceTarget.env;
+          String thisEnv = Config.get().getEnv();
+          if (targetEnv != null && !targetEnv.equalsIgnoreCase(thisEnv)) {
+            log.debug("Skipping config for env {}. Current env is {}", targetEnv, thisEnv);
+            throw new IllegalArgumentException("env mismatch");
+          }
+        }
+
         receivedOverrides = true;
         applyConfigOverrides(overrides.libConfig);
         if (log.isDebugEnabled()) {
@@ -104,11 +140,8 @@ final class TracingConfigPoller {
   void applyConfigOverrides(LibConfig libConfig) {
     DynamicConfig<?>.Builder builder = dynamicConfig.initial();
 
-    maybeOverride(builder::setDebugEnabled, libConfig.debugEnabled);
-
     if (libConfig.debugEnabled != null) {
       if (Boolean.TRUE.equals(libConfig.debugEnabled)) {
-        builder.setTriageEnabled(true); // debug implies triage
         GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
       } else {
         // Disable debugEnabled when it was set to true at startup
@@ -120,6 +153,8 @@ final class TracingConfigPoller {
           GlobalLogLevelSwitcher.get().switchLevel(LogLevel.WARN);
         }
       }
+    } else {
+      GlobalLogLevelSwitcher.get().restore();
     }
 
     maybeOverride(builder::setRuntimeMetricsEnabled, libConfig.runtimeMetricsEnabled);
@@ -130,7 +165,7 @@ final class TracingConfigPoller {
     maybeOverride(builder::setHeaderTags, libConfig.headerTags);
 
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
-
+    maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
     builder.apply();
   }
 
@@ -145,9 +180,41 @@ final class TracingConfigPoller {
     }
   }
 
+  private Map<String, String> parseTagListToMap(List<String> input) {
+    Map<String, String> resultMap = Collections.emptyMap();
+    if (null == input || input.isEmpty()) {
+      return resultMap;
+    }
+    resultMap = new HashMap<>(input.size());
+    for (String s : input) {
+      int colonIndex = s.indexOf(":");
+      if (colonIndex > -1
+          && colonIndex < s.length() - 1) { // ensure there's a colon that's not at the start or end
+        String key = s.substring(0, colonIndex);
+        String value = s.substring(colonIndex + 1);
+        if (!key.isEmpty() && !value.isEmpty()) {
+          resultMap.put(key, value);
+        }
+      }
+    }
+
+    return resultMap;
+  }
+
   static final class ConfigOverrides {
+    @Json(name = "service_target")
+    public ServiceTarget serviceTarget;
+
     @Json(name = "lib_config")
     public LibConfig libConfig;
+  }
+
+  static final class ServiceTarget {
+    @Json(name = "service")
+    public String service;
+
+    @Json(name = "env")
+    public String env;
   }
 
   static final class LibConfig {
@@ -171,6 +238,9 @@ final class TracingConfigPoller {
 
     @Json(name = "tracing_sampling_rate")
     public Double traceSampleRate;
+
+    @Json(name = "tracing_tags")
+    public List<String> tracingTags;
   }
 
   static final class ServiceMappingEntry implements Map.Entry<String, String> {

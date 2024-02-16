@@ -81,7 +81,7 @@ public class DatabricksParentContext implements AgentSpan.Context {
 
   @Override
   public int getSamplingPriority() {
-    return PrioritySampling.SAMPLER_KEEP;
+    return PrioritySampling.UNSET;
   }
 
   @Override

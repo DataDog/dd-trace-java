@@ -5,6 +5,7 @@ import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;
 
 /**
@@ -13,7 +14,7 @@ import java.util.Map;
  * Event} via its {@code EventContext}.
  */
 @AutoService(Instrumenter.class)
-public final class PrivilegedEventInstrumentation extends Instrumenter.Tracing
+public final class PrivilegedEventInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public PrivilegedEventInstrumentation() {
@@ -38,8 +39,8 @@ public final class PrivilegedEventInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("setCurrentEvent"), packageName + ".PrivilegedEventSetCurrentAdvice");
   }
 

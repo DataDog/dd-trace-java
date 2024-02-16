@@ -13,7 +13,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -102,10 +101,15 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
 
   public void addMetric(final IastMetric metric, final byte tagValue, final int value) {
     final Tag tag = metric.getTag();
-    if (tag != null && tag.isWrapped(tagValue)) {
-      // e.g.: VulnerabilityTypes.RESPONSE_HEADER
-      for (final byte unwrapped : metric.getTag().unwrap(tagValue)) {
-        increment(metric.getIndex(unwrapped), value);
+    if (tag != null) {
+      final byte[] unwrapped = tag.unwrap(tagValue);
+      if (unwrapped != null) {
+        // e.g.: VulnerabilityTypes.RESPONSE_HEADER
+        for (final byte unwrappedValue : unwrapped) {
+          increment(metric.getIndex(unwrappedValue), value);
+        }
+      } else {
+        increment(metric.getIndex(tagValue), value);
       }
     } else {
       increment(metric.getIndex(tagValue), value);
@@ -133,8 +137,9 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
       if (metric.getTag() == null) {
         prepareMetric(metric, (byte) -1);
       } else {
-        for (final byte tagValue : metric.getTag().getValues()) {
-          prepareMetric(metric, tagValue);
+        final int tagCount = metric.getTag().count();
+        for (byte i = 0; i < tagCount; i++) {
+          prepareMetric(metric, i);
         }
       }
     }
@@ -172,7 +177,7 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
           metric.getName(),
           "count",
           value,
-          computeTag(metric, tagValue));
+          metric.getTelemetryTag(tagValue));
       this.metric = metric;
       this.tagValue = tagValue;
     }
@@ -186,19 +191,7 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
     }
 
     public String getSpanTag() {
-      if (metric.getTag() == null) {
-        return metric.getName();
-      }
-      final String tag = metric.getTag().toString(tagValue);
-      final String spanTag = tag.toLowerCase(Locale.ROOT).replace('.', '_');
-      return String.format("%s.%s", metric.getName(), spanTag);
-    }
-
-    public static String computeTag(final IastMetric metric, final byte tagValue) {
-      if (metric.getTag() == null) {
-        return null;
-      }
-      return String.format("%s:%s", metric.getTag().getName(), metric.getTag().toString(tagValue));
+      return metric.getSpanTag(tagValue);
     }
   }
 

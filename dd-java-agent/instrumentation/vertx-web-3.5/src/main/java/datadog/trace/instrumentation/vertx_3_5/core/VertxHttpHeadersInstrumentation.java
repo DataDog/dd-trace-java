@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.IastContext;
@@ -23,8 +24,8 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+public class VertxHttpHeadersInstrumentation extends InstrumenterModule.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public static final Reference VERTX_HTTP_HEADERS =
       new Reference.Builder("io.vertx.core.http.impl.headers.VertxHttpHeaders").build();
@@ -46,30 +47,30 @@ public class VertxHttpHeadersInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("get"))
             .and(takesArguments(1).and(takesArgument(0, CharSequence.class))),
         className + "$GetAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("getAll"))
             .and(takesArguments(1).and(takesArgument(0, CharSequence.class))),
         className + "$GetAllAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("entries")).and(takesArguments(0)),
         className + "$EntriesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesArguments(0)),
         className + "$NamesAdvice");
-  }
-
-  @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(instrumentedType()));
   }
 
   public static class GetAdvice {

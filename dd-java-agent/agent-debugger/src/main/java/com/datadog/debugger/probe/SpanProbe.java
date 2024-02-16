@@ -3,14 +3,13 @@ package com.datadog.debugger.probe;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.instrumentation.SpanInstrumentor;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 
 public class SpanProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
@@ -25,13 +24,8 @@ public class SpanProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
-    return new SpanInstrumentor(this, classLoader, classNode, methodNode, diagnostics, probeIds)
-        .instrument();
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+    return new SpanInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
   }
 
   @Generated

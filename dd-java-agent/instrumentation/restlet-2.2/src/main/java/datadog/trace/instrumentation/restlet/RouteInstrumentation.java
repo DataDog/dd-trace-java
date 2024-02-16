@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.restlet.Request;
 import org.restlet.engine.header.Header;
@@ -14,7 +15,7 @@ import org.restlet.routing.TemplateRoute;
 import org.restlet.util.Series;
 
 @AutoService(Instrumenter.class)
-public final class RouteInstrumentation extends Instrumenter.Tracing
+public final class RouteInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public RouteInstrumentation() {
@@ -27,8 +28,8 @@ public final class RouteInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("beforeHandle"))
             .and(takesArgument(0, named("org.restlet.Request")))

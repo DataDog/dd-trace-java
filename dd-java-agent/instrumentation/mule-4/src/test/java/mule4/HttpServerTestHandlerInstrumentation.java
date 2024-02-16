@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 /**
  * Test instrumentation to make the {@code testHandle} method in {@code HttpServerTestHandler} call
@@ -12,7 +13,7 @@ import datadog.trace.agent.tooling.Instrumenter;
  * the test code in {@code HttpServerTest}.
  */
 @AutoService(Instrumenter.class)
-public class HttpServerTestHandlerInstrumentation extends Instrumenter.Tracing
+public class HttpServerTestHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public HttpServerTestHandlerInstrumentation() {
@@ -25,8 +26,8 @@ public class HttpServerTestHandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("testHandle").and(isStatic()), "mule4.HttpServerTestHandlerAdvice");
   }
 }

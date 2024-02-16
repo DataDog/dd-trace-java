@@ -5,9 +5,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public final class SprayHttpServerInstrumentation extends Instrumenter.Tracing
+public final class SprayHttpServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SprayHttpServerInstrumentation() {
     super("spray-http", "spray-http-server");
@@ -40,11 +41,11 @@ public final class SprayHttpServerInstrumentation extends Instrumenter.Tracing
    * order to capture that exception we have to also wrap 'inner' route.
    */
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("runSealedRoute$1").and(takesArgument(1, named("spray.routing.RequestContext"))),
         packageName + ".SprayHttpServerRunSealedRouteAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("runRoute").and(takesArgument(1, named("scala.Function1"))),
         packageName + ".SprayHttpServerRunRouteAdvice");
   }

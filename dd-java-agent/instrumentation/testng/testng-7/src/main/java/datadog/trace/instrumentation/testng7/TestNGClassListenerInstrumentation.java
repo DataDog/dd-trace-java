@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.instrumentation.testng.TestNGClassListener;
 import datadog.trace.instrumentation.testng.TestNGUtils;
 import datadog.trace.util.Strings;
@@ -17,7 +18,7 @@ import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlTest;
 
 @AutoService(Instrumenter.class)
-public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibility
+public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
 
   private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
@@ -35,14 +36,14 @@ public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibilit
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("invokeBeforeClassMethods")
             .and(takesArgument(0, named("org.testng.ITestClass")))
             .and(takesArgument(1, named("org.testng.IMethodInstance"))),
         TestNGClassListenerInstrumentation.class.getName() + "$InvokeBeforeClassAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("invokeAfterClassMethods")
             .and(takesArgument(0, named("org.testng.ITestClass")))
             .and(takesArgument(1, named("org.testng.IMethodInstance"))),

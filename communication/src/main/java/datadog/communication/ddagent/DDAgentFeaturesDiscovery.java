@@ -7,6 +7,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.DDAgentStatsDClientManager;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -42,10 +43,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
   public static final String V2_EVP_PROXY_ENDPOINT = "evp_proxy/v2/";
+  public static final String V4_EVP_PROXY_ENDPOINT = "evp_proxy/v4/";
 
   public static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   public static final String DEBUGGER_ENDPOINT = "debugger/v1/input";
+  public static final String DEBUGGER_DIAGNOSTICS_ENDPOINT = "debugger/v1/diagnostics";
 
   public static final String TELEMETRY_PROXY_ENDPOINT = "telemetry/proxy/";
 
@@ -59,7 +62,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
-  private final String[] evpProxyEndpoints = {V2_EVP_PROXY_ENDPOINT};
+  // ordered from most recent to least recent, as the logic will stick with the first one that is
+  // available
+  private final String[] evpProxyEndpoints = {V4_EVP_PROXY_ENDPOINT, V2_EVP_PROXY_ENDPOINT};
   private final String[] telemetryProxyEndpoints = {TELEMETRY_PROXY_ENDPOINT};
 
   private volatile String traceEndpoint;
@@ -70,6 +75,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile String state;
   private volatile String configEndpoint;
   private volatile String debuggerEndpoint;
+  private volatile String debuggerDiagnosticsEndpoint;
   private volatile String evpProxyEndpoint;
   private volatile String version;
   private volatile String telemetryProxyEndpoint;
@@ -100,6 +106,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     state = null;
     configEndpoint = null;
     debuggerEndpoint = null;
+    debuggerDiagnosticsEndpoint = null;
     dataStreamsEndpoint = null;
     evpProxyEndpoint = null;
     version = null;
@@ -211,7 +218,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       String foundMetricsEndpoint = null;
       if (metricsEnabled) {
         for (String endpoint : metricsEndpoints) {
-          if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+          if (containsEndpoint(endpoints, endpoint)) {
             foundMetricsEndpoint = endpoint;
             break;
           }
@@ -222,39 +229,42 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       metricsEndpoint = foundMetricsEndpoint;
 
       for (String endpoint : traceEndpoints) {
-        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+        if (containsEndpoint(endpoints, endpoint)) {
           traceEndpoint = endpoint;
           break;
         }
       }
 
       for (String endpoint : configEndpoints) {
-        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+        if (containsEndpoint(endpoints, endpoint)) {
           configEndpoint = endpoint;
           break;
         }
       }
 
-      if (endpoints.contains(DEBUGGER_ENDPOINT) || endpoints.contains("/" + DEBUGGER_ENDPOINT)) {
+      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT)) {
         debuggerEndpoint = DEBUGGER_ENDPOINT;
+      }
+      if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+        debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
       }
 
       for (String endpoint : dataStreamsEndpoints) {
-        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+        if (containsEndpoint(endpoints, endpoint)) {
           dataStreamsEndpoint = endpoint;
           break;
         }
       }
 
       for (String endpoint : evpProxyEndpoints) {
-        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+        if (containsEndpoint(endpoints, endpoint)) {
           evpProxyEndpoint = endpoint;
           break;
         }
       }
 
       for (String endpoint : telemetryProxyEndpoints) {
-        if (endpoints.contains(endpoint) || endpoints.contains("/" + endpoint)) {
+        if (containsEndpoint(endpoints, endpoint)) {
           telemetryProxyEndpoint = endpoint;
           break;
         }
@@ -279,6 +289,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       log.debug("Error parsing trace agent /info response", error);
     }
     return false;
+  }
+
+  private static boolean containsEndpoint(Set<String> endpoints, String endpoint) {
+    return endpoints.contains(endpoint) || endpoints.contains("/" + endpoint);
   }
 
   @SuppressWarnings("unchecked")
@@ -307,6 +321,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsDebugger() {
     return debuggerEndpoint != null;
+  }
+
+  public boolean supportsDebuggerDiagnostics() {
+    return debuggerDiagnosticsEndpoint != null;
   }
 
   boolean supportsDropping() {
@@ -345,6 +363,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return evpProxyEndpoint != null;
   }
 
+  public boolean supportsContentEncodingHeadersWithEvpProxy() {
+    // content encoding headers are supported in /v4 and above
+    return evpProxyEndpoint != null && V4_EVP_PROXY_ENDPOINT.compareTo(evpProxyEndpoint) <= 0;
+  }
+
   public String getConfigEndpoint() {
     return configEndpoint;
   }
@@ -354,7 +377,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   private void errorQueryingEndpoint(String endpoint, Throwable t) {
-    log.debug("Error querying {} at {}", endpoint, agentBaseUrl, t);
+    log.debug(LogCollector.EXCLUDE_TELEMETRY, "Error querying {} at {}", endpoint, agentBaseUrl, t);
   }
 
   public String state() {

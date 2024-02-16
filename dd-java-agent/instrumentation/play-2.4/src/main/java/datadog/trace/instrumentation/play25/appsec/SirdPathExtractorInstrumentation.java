@@ -8,11 +8,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 /** @see play.api.routing.sird.PathExtractor */
 @AutoService(Instrumenter.class)
-public class SirdPathExtractorInstrumentation extends Instrumenter.AppSec
+public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public SirdPathExtractorInstrumentation() {
     super("play");
@@ -34,8 +35,8 @@ public class SirdPathExtractorInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("extract", "play$api$routing$sird$PathExtractor$$extract")
             .and(takesArguments(1))
             .and(takesArgument(0, String.class))

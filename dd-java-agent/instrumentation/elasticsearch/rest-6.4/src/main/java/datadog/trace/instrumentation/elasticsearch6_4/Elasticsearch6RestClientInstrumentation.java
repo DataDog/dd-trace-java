@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -18,7 +19,7 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.client.ResponseListener;
 
 @AutoService(Instrumenter.class)
-public class Elasticsearch6RestClientInstrumentation extends Instrumenter.Tracing
+public class Elasticsearch6RestClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public Elasticsearch6RestClientInstrumentation() {
@@ -39,8 +40,8 @@ public class Elasticsearch6RestClientInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("performRequestAsyncNoCatch"))
             .and(takesArguments(2))

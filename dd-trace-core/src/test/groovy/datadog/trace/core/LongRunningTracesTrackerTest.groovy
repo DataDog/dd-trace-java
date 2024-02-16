@@ -6,9 +6,11 @@ import datadog.communication.monitor.Monitoring
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.api.time.SystemTimeSource
+import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
+
+import java.util.concurrent.TimeUnit
 
 class LongRunningTracesTrackerTest extends DDSpecification {
   Config config = Mock(Config)
@@ -17,20 +19,24 @@ class LongRunningTracesTrackerTest extends DDSpecification {
   DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(null, Monitoring.DISABLED, null, false, false)
   LongRunningTracesTracker tracker
   def tracer = Mock(CoreTracer)
-  def traceConfig = Mock(CoreTracer.ConfigSnapshot)
+  def traceConfig = Stub(CoreTracer.ConfigSnapshot)
   PendingTraceBuffer.DelayingPendingTraceBuffer buffer
   PendingTrace.Factory factory = null
+  def timeSource = new ControllableTimeSource()
 
   def setup() {
+    timeSource.set(0L)
     features.supportsLongRunning = true
     tracer.captureTraceConfig() >> traceConfig
+    tracer.getTimeWithNanoTicks(_) >> { Long x -> x }
     traceConfig.getServiceMapping() >> [:]
+    config.getLongRunningTraceInitialFlushInterval() >> 10
     config.getLongRunningTraceFlushInterval() >> 20
     config.longRunningTraceEnabled >> true
     sharedCommunicationObjects.featuresDiscovery(_) >> features
-    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, SystemTimeSource.INSTANCE, config, sharedCommunicationObjects, HealthMetrics.NO_OP)
+    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, timeSource, config, sharedCommunicationObjects, HealthMetrics.NO_OP)
     tracker = buffer.runningTracesTracker
-    factory = new PendingTrace.Factory(tracer, buffer, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
+    factory = new PendingTrace.Factory(tracer, buffer, timeSource, false, HealthMetrics.NO_OP)
   }
 
   def "null is not added"() {
@@ -120,6 +126,44 @@ class LongRunningTracesTrackerTest extends DDSpecification {
 
     then:
     tracker.traceArray.size() == 0
+  }
+
+  def flushAt(long timeMilli) {
+    timeSource.set(TimeUnit.MILLISECONDS.toNanos(timeMilli))
+    tracker.flushAndCompact(timeMilli)
+  }
+
+  def "flush logic with initial flush"() {
+    given:
+    def trace = newTraceToTrack()
+    tracker.add(trace)
+
+    when: // Before the initial flush
+    flushAt(tracker.initialFlushPeriodMilli - 1000)
+
+    then:
+    0 * tracer.write(_)
+
+    when: // After the initial flush
+    flushAt(tracker.initialFlushPeriodMilli + 1000)
+
+    then:
+    1 * tracer.write(_)
+    trace.getLastWriteTime() == TimeUnit.MILLISECONDS.toNanos(tracker.initialFlushPeriodMilli + 1000)
+
+    when: // Before the regular flush
+    flushAt(tracker.initialFlushPeriodMilli + tracker.flushPeriodMilli - 1000)
+
+    then:
+    0 * tracer.write(_)
+    trace.getLastWriteTime() == TimeUnit.MILLISECONDS.toNanos(tracker.initialFlushPeriodMilli + 1000)
+
+    when: // After the first regular flush
+    flushAt(tracker.initialFlushPeriodMilli + tracker.flushPeriodMilli + 2000)
+
+    then:
+    1 * tracer.write(_)
+    trace.getLastWriteTime() == TimeUnit.MILLISECONDS.toNanos(tracker.initialFlushPeriodMilli + tracker.flushPeriodMilli + 2000)
   }
 
   PendingTrace newTraceToTrack() {

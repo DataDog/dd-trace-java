@@ -56,7 +56,7 @@ class EvidenceRedactionTest extends DDSpecification {
 
   void 'test empty value parts'() {
     given:
-    final writer = Mock(JsonWriter)
+    final writer = Stub(JsonWriter)
     final ctx = new AdapterFactory.Context()
 
     when:
@@ -70,8 +70,8 @@ class EvidenceRedactionTest extends DDSpecification {
     new StringValuePart(null)                                  | _
     new StringValuePart('')                                    | _
     new RedactedValuePart(null)                                | _
-    new TaintedValuePart(Mock(JsonAdapter), null, null, true)  | _
-    new TaintedValuePart(Mock(JsonAdapter), null, null, false) | _
+    new TaintedValuePart(Stub(JsonAdapter), null, null, true)  | _
+    new TaintedValuePart(Stub(JsonAdapter), null, null, false) | _
   }
 
   void 'test #suite'() {

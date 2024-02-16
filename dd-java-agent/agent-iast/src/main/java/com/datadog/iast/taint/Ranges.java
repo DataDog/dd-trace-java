@@ -5,6 +5,8 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
+import com.datadog.iast.util.HttpHeader;
+import datadog.trace.api.iast.SourceTypes;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +59,15 @@ public final class Ranges {
 
   public static Range[] forObject(final @Nonnull Source source, final int mark) {
     return new Range[] {new Range(0, Integer.MAX_VALUE, source, mark)};
+  }
+
+  @Nullable
+  public static Range findUnbound(@Nonnull final Range[] ranges) {
+    if (ranges.length != 1) {
+      return null;
+    }
+    final Range range = ranges[0];
+    return range.getStart() == 0 && range.getLength() == Integer.MAX_VALUE ? range : null;
   }
 
   public static void copyShift(
@@ -204,6 +215,52 @@ public final class Ranges {
       }
     }
     return ranges[0];
+  }
+
+  /**
+   * Checks if all ranges are coming from any header, in case no ranges are provided it will return
+   * {@code true}
+   */
+  public static boolean allRangesFromAnyHeader(@Nonnull final Range[] ranges) {
+    for (Range range : ranges) {
+      final Source source = range.getSource();
+      if (source.getOrigin() != SourceTypes.REQUEST_HEADER_VALUE) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Checks if a range is coming from the header */
+  public static boolean rangeFromHeader(@Nonnull final String header, @Nonnull final Range range) {
+    final Source source = range.getSource();
+    if (source.getOrigin() != SourceTypes.REQUEST_HEADER_VALUE) {
+      return false;
+    }
+    if (!header.equalsIgnoreCase(source.getName())) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Checks if all ranges are coming from the header, in case no ranges are provided it will return
+   * {@code true}
+   */
+  public static boolean allRangesFromHeader(
+      @Nonnull final String header, @Nonnull final Range[] ranges) {
+    for (Range range : ranges) {
+      if (!rangeFromHeader(header, range)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** @see #allRangesFromHeader(String, Range[]) */
+  public static boolean allRangesFromHeader(
+      @Nonnull final HttpHeader header, @Nonnull final Range[] ranges) {
+    return allRangesFromHeader(header.name, ranges);
   }
 
   public static Range[] newArray(final long size) {

@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.instrumentation.play26.MuzzleReferences;
 import java.util.function.BiFunction;
@@ -16,7 +17,7 @@ import play.routing.RoutingDsl;
 
 /** @see RoutingDsl.Route */
 @AutoService(Instrumenter.class)
-public class RoutingDslInstrumentation extends Instrumenter.AppSec
+public class RoutingDslInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public RoutingDslInstrumentation() {
     super("play");
@@ -60,8 +61,8 @@ public class RoutingDslInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArguments(5))
             .and(takesArgument(3, Object.class))

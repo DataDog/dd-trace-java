@@ -4,6 +4,7 @@ import static datadog.trace.instrumentation.pekkohttp.iast.TraitMethodMatchers.i
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.pekkohttp.iast.helpers.TaintRequestContextFunction;
@@ -32,7 +33,7 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  * @see UnmarshallerInstrumentation propagates taint on unmarshalling of {@link HttpRequest}
  */
 @AutoService(Instrumenter.class)
-public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
+public class ExtractDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public ExtractDirectivesInstrumentation() {
     super("pekko-http");
@@ -56,15 +57,13 @@ public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    instrumentDirective(transformation, "extractUri", "TaintUriDirectiveAdvice");
-    instrumentDirective(transformation, "extractRequest", "TaintRequestDirectiveAdvice");
-    instrumentDirective(
-        transformation, "extractRequestContext", "TaintRequestContextDirectiveAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    instrumentDirective(transformer, "extractUri", "TaintUriDirectiveAdvice");
+    instrumentDirective(transformer, "extractRequest", "TaintRequestDirectiveAdvice");
+    instrumentDirective(transformer, "extractRequestContext", "TaintRequestContextDirectiveAdvice");
   }
 
-  private void instrumentDirective(
-      AdviceTransformation transformation, String method, String advice) {
+  private void instrumentDirective(MethodTransformer transformation, String method, String advice) {
     transformation.applyAdvice(
         isTraitDirectiveMethod(
             "org.apache.pekko.http.scaladsl.server.directives.BasicDirectives", method),

@@ -25,6 +25,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
@@ -411,7 +412,8 @@ public class PowerWAFModule implements AppSecModule {
       try {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
       } catch (TimeoutPowerwafException tpe) {
-        log.debug("Timeout calling the WAF", tpe);
+        reqCtx.increaseTimeouts();
+        log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
         return;
       } catch (AbstractPowerwafException e) {
         log.error("Error calling WAF", e);
@@ -453,13 +455,8 @@ public class PowerWAFModule implements AppSecModule {
         reqCtx.reportEvents(events);
 
         if (flow.isBlocking()) {
-          WafMetricCollector.get().wafRequestBlocked();
-        } else {
-          WafMetricCollector.get().wafRequestTriggered();
+          reqCtx.setBlocked();
         }
-
-      } else {
-        WafMetricCollector.get().wafRequest();
       }
 
       if (resultWithData != null && resultWithData.schemas != null) {

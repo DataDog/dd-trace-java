@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -28,7 +29,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
+public final class ClientCallImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public ClientCallImplInstrumentation() {
@@ -46,19 +47,19 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    transformation.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
-    transformation.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
+    transformer.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
+    transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
+    transformer.applyAdvice(
         named("request")
             .and(isMethod())
             .and(takesArguments(int.class))
             .or(isMethod().and(named("halfClose").and(takesArguments(0)))),
         getClass().getName() + "$ActivateSpan");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("closeObserver").and(takesArguments(3)), getClass().getName() + "$CloseObserver");
   }
 

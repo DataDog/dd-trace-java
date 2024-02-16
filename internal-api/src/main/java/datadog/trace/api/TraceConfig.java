@@ -8,10 +8,6 @@ import java.util.Map;
 /** Snapshot of dynamic configuration; valid for the duration of a trace. */
 public interface TraceConfig {
 
-  boolean isDebugEnabled();
-
-  boolean isTriageEnabled();
-
   boolean isRuntimeMetricsEnabled();
 
   boolean isLogsInjectionEnabled();
@@ -27,6 +23,14 @@ public interface TraceConfig {
   Map<String, String> getBaggageMapping();
 
   Double getTraceSampleRate();
+
+  Map<String, String> getTracingTags();
+  /**
+   * The preferred service name to be used for tracing.
+   *
+   * @return null if not set (will use tracing default one)
+   */
+  String getPreferredServiceName();
 
   /**
    * Get the tracer sampler Span Sampling Rules.

@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.log.UnionMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -24,7 +25,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.tinylog.core.LogEntry;
 
 @AutoService(Instrumenter.class)
-public class LogEntryInstrumentation extends Instrumenter.Tracing
+public class LogEntryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public LogEntryInstrumentation() {
     super("tinylog");
@@ -41,8 +42,8 @@ public class LogEntryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("getContext")).and(takesArguments(0)),
         LogEntryInstrumentation.class.getName() + "$GetContextAdvice");
   }

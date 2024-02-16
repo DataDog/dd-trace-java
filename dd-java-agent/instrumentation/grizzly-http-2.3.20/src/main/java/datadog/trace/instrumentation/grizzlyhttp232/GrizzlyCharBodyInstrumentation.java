@@ -8,6 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.StoredBodyFactories;
 import datadog.trace.api.http.StoredCharBody;
@@ -22,7 +23,7 @@ import org.glassfish.grizzly.http.io.InputBuffer;
 import org.glassfish.grizzly.http.io.NIOReader;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
+public class GrizzlyCharBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public GrizzlyCharBodyInstrumentation() {
     super("grizzly");
@@ -45,27 +46,27 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("setInputBuffer")
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.glassfish.grizzly.http.io.InputBuffer"))),
         getClass().getName() + "$NIOReaderSetInputBufferAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(0)), getClass().getName() + "$NIOReaderReadAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(1)).and(takesArgument(0, char[].class)),
         getClass().getName() + "$NIOReaderReadCharArrayAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(char[].class, int.class, int.class)),
         getClass().getName() + "$NIOReaderReadCharArrayIntIntAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(CharBuffer.class)),
         getClass().getName() + "$NIOReaderReadCharBufferAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("isFinished").and(takesArguments(0)),
         getClass().getName() + "$NIOReaderIsFinishedAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("recycle").and(takesArguments(0)), getClass().getName() + "$NIOReaderRecycleAdvice");
   }
 

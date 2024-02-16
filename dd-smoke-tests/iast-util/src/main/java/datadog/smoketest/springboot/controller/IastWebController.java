@@ -322,6 +322,12 @@ public class IastWebController {
     return "ok";
   }
 
+  @GetMapping(value = "/insecureAuthProtocol")
+  public String insecureAuthProtocol(HttpServletRequest request) {
+    String authorization = request.getHeader("Authorization");
+    return authorization;
+  }
+
   @PostMapping("/multipart")
   public String handleFileUpload(
       @RequestParam("theFile") MultipartFile file, @RequestParam("param1") String param1) {
@@ -363,6 +369,26 @@ public class IastWebController {
   @PostMapping(value = "/gson_json_parser_deserialization", consumes = MediaType.TEXT_PLAIN_VALUE)
   String gsonJsonParser(@RequestBody String json) {
     JsonParser.parseReader(new StringReader(json));
+    return "Ok";
+  }
+
+  @GetMapping("/header_injection")
+  public String headerInjection(@RequestParam("param") String param, HttpServletResponse response) {
+    response.addHeader("X-Test-Header", param);
+    return "Ok";
+  }
+
+  @GetMapping("/header_injection_exclusion")
+  public String headerInjectionExclusion(
+      @RequestParam("param") String param, HttpServletResponse response) {
+    response.addHeader("Sec-WebSocket-Location", param);
+    return "Ok";
+  }
+
+  @GetMapping("/header_injection_redaction")
+  public String headerInjectionRedaction(
+      @RequestParam("param") String param, HttpServletResponse response) {
+    response.addHeader("X-Test-Header", param);
     return "Ok";
   }
 

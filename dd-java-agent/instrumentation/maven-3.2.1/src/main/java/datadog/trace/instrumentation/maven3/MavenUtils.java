@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.maven3;
 
+import datadog.trace.util.MethodHandles;
+import java.lang.invoke.MethodHandle;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +15,7 @@ import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
@@ -272,5 +275,34 @@ public abstract class MavenUtils {
       current = child;
     }
     return current;
+  }
+
+  public static String getUniqueModuleName(MavenProject project, MojoExecution mojoExecution) {
+    return project.getName()
+        + " "
+        + mojoExecution.getArtifactId()
+        + " "
+        + mojoExecution.getExecutionId();
+  }
+
+  private static final MethodHandles METHOD_HANDLES =
+      new MethodHandles(PlexusContainer.class.getClassLoader());
+  private static final MethodHandle SESSION_FIELD =
+      METHOD_HANDLES.privateFieldGetter(MavenSession.class, "session");
+  private static final MethodHandle LOOKUP_FIELD =
+      METHOD_HANDLES.privateFieldGetter("org.apache.maven.internal.impl.DefaultSession", "lookup");
+  private static final MethodHandle LOOKUP_METHOD =
+      METHOD_HANDLES.method("org.apache.maven.api.services.Lookup", "lookup", Class.class);
+
+  public static PlexusContainer getContainer(MavenSession mavenSession) {
+    PlexusContainer container = mavenSession.getContainer();
+    if (container != null) {
+      return container;
+    }
+    Object /* org.apache.maven.internal.impl.DefaultSession */ session =
+        METHOD_HANDLES.invoke(SESSION_FIELD, mavenSession);
+    Object /* org.apache.maven.api.services.Lookup */ lookup =
+        METHOD_HANDLES.invoke(LOOKUP_FIELD, session);
+    return METHOD_HANDLES.invoke(LOOKUP_METHOD, lookup, PlexusContainer.class);
   }
 }

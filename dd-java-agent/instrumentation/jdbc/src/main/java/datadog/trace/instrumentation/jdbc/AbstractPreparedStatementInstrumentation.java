@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -24,7 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-public abstract class AbstractPreparedStatementInstrumentation extends Instrumenter.Tracing
+public abstract class AbstractPreparedStatementInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap {
 
   public AbstractPreparedStatementInstrumentation(
@@ -48,8 +49,8 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
         AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
   }

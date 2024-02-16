@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -21,7 +22,7 @@ import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
+public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   static final String INSTRUMENTATION_NAME = "netty";
@@ -71,13 +72,13 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(nameStartsWith("add"))
             .and(takesArgument(1, named("org.jboss.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineAdd2ArgsAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(nameStartsWith("add"))
             .and(takesArgument(2, named("org.jboss.netty.channel.ChannelHandler"))),

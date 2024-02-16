@@ -10,14 +10,17 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class RouteImplInstrumentation extends Instrumenter.Default
-    implements Instrumenter.ForKnownTypes, Instrumenter.WithPostProcessor {
+public class RouteImplInstrumentation extends InstrumenterModule
+    implements Instrumenter.ForKnownTypes,
+        Instrumenter.HasMethodAdvice,
+        Instrumenter.WithPostProcessor {
 
   private Advice.PostProcessor.Factory postProcessorFactory;
 
@@ -54,8 +57,8 @@ public class RouteImplInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("matches")
             .and(takesArguments(3))
             .and(takesArgument(0, named("io.vertx.ext.web.impl.RoutingContextImplBase")))
@@ -65,7 +68,7 @@ public class RouteImplInstrumentation extends Instrumenter.Default
             .and(returns(int.class)),
         packageName + ".RouteMatchesAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("matches")
             .and(takesArguments(3))
             .and(

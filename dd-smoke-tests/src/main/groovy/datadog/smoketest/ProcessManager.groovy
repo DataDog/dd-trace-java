@@ -185,7 +185,7 @@ abstract class ProcessManager extends Specification {
       ProcessBuilder processBuilder = createProcessBuilder(idx)
 
 
-      processBuilder.environment().put("JAVA_HOME", javaHome())
+      processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
       processBuilder.environment().put("DD_API_KEY", apiKey())
 
       processBuilder.redirectErrorStream(true)
@@ -200,11 +200,7 @@ abstract class ProcessManager extends Specification {
 
   String javaPath() {
     final String separator = System.getProperty("file.separator")
-    return javaHome() + separator + "bin" + separator + "java"
-  }
-
-  String javaHome() {
-    return System.getProperty("java.home")
+    return System.getProperty("java.home") + separator + "bin" + separator + "java"
   }
 
   def cleanupSpec() {

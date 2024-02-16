@@ -53,7 +53,7 @@ dependencies {
   testImplementation project(':dd-trace-core')
   testImplementation project(':dd-java-agent:agent-builder')
   testImplementation project(':utils:test-utils')
-  testRuntimeOnly group: 'org.scala-lang', name: 'scala-compiler', version: '2.13.3'
+  testRuntimeOnly group: 'org.scala-lang', name: 'scala-compiler', version: versions.scala213
   testRuntimeOnly group: 'antlr', name: 'antlr', version: '2.7.7'
 }
 
@@ -70,6 +70,7 @@ jar {
 }
 
 tasks.withType(Test).configureEach {
+  onlyIf { !project.rootProject.hasProperty("skipDebuggerTests") }
   // DebuggerTransformerTest made some Reflective calls on java.lang package
   // needs to open it since jdk16
   def matcher = it.name =~ /testJava(\d+)Generated/
@@ -78,5 +79,11 @@ tasks.withType(Test).configureEach {
     if (javaVersion >= 16) {
       jvmArgs '--add-opens', 'java.base/java.lang=ALL-UNNAMED'
     }
+  }
+}
+
+subprojects { Project subProj ->
+  subProj.tasks.withType(Test).configureEach { subTask ->
+    onlyIf { !project.rootProject.hasProperty("skipDebuggerTests") }
   }
 }

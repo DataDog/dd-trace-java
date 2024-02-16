@@ -11,12 +11,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.stream.Materializer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.duration.FiniteDuration;
 
 /** @see akka.http.scaladsl.model.Multipart.FormData#toStrict(FiniteDuration, Materializer) */
 @AutoService(Instrumenter.class)
-public class FormDataToStrictInstrumentation extends Instrumenter.AppSec
+public class FormDataToStrictInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, ScalaListCollectorMuzzleReferences {
   public FormDataToStrictInstrumentation() {
     super("akka-http");
@@ -42,8 +43,8 @@ public class FormDataToStrictInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("toStrict"))

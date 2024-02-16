@@ -1,0 +1,25 @@
+plugins {
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'Kafka Smoke Tests.'
+
+dependencies {
+  implementation('org.springframework.boot:spring-boot-starter-web')
+  implementation('org.springframework.boot:spring-boot-starter-actuator')
+  implementation('org.springframework.kafka:spring-kafka')
+
+  testImplementation('org.springframework.kafka:spring-kafka-test')
+
+  testImplementation project(':dd-smoke-tests')
+  implementation project(':dd-smoke-tests:iast-util')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn 'bootJar'
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
+}

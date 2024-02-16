@@ -6,6 +6,7 @@ public class LogMessage {
   private String tags;
   private String stackTrace;
   private Long tracerTime;
+  private int count;
 
   public String getMessage() {
     return message;
@@ -50,5 +51,14 @@ public class LogMessage {
   public LogMessage tracerTime(Long tracerTime) {
     this.tracerTime = tracerTime;
     return this;
+  }
+
+  public LogMessage count(int count) {
+    this.count = count;
+    return this;
+  }
+
+  public int getCount() {
+    return count;
   }
 }

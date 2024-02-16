@@ -6,12 +6,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CookieParamValueFactoryInstrumentation extends Instrumenter.Iast
+public class CookieParamValueFactoryInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public CookieParamValueFactoryInstrumentation() {
@@ -19,8 +20,8 @@ public class CookieParamValueFactoryInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("get").and(isPublic()).and(takesArguments(1)),
         CookieParamValueFactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
   }

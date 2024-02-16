@@ -1,40 +1,63 @@
 package com.datadog.iast.util
 
-import com.datadog.iast.IastRequestContext
 import spock.lang.Specification
-
-import static com.datadog.iast.util.HttpHeader.Values.HEADERS
 
 class HttpHeaderTest extends Specification {
 
-
-  void 'test context headers'() {
-    setup:
-    final iastCtx = Spy(IastRequestContext)
+  void 'test that headers are not case sensitive'() {
+    given:
+    final name = header.name
 
     when:
-    final parsed = HttpHeader.from(header.name)
+    final sameName = HttpHeader.from(name)
 
     then:
-    parsed != null
+    sameName == header
 
     when:
-    final matches = parsed.matches(header.name.toUpperCase(Locale.ROOT))
+    final lowerHeader = HttpHeader.from(name.toLowerCase(Locale.ROOT))
+
+    then:
+    lowerHeader == header
+
+    when:
+    final upperHeader = HttpHeader.from(name.toUpperCase(Locale.ROOT))
+
+    then:
+    upperHeader == header
+
+    when:
+    final mixedChars = name.toCharArray()
+    mixedChars.eachWithIndex { char entry, int i ->
+      if (i % 2 == 0) {
+        mixedChars[i] = Character.toLowerCase(entry)
+      } else {
+        mixedChars[i] = Character.toUpperCase(entry)
+      }
+    }
+    final mixedHeader = HttpHeader.from(new String(mixedChars))
+
+    then:
+    mixedHeader == header
+
+    when:
+    final nonExisting = HttpHeader.from(name + '_')
+
+    then:
+    nonExisting == null
+
+    where:
+    header << HttpHeader.values()
+  }
+
+  void 'ensure headers can be used in the map'() {
+    when:
+    final matches = header.name  ==~ /[a-zA-Z0-9-]+/
 
     then:
     matches
 
-    when:
-    if (header instanceof HttpHeader.ContextAwareHeader) {
-      header.onHeader(iastCtx, "my_value")
-    }
-
-    then:
-    if (header instanceof HttpHeader.ContextAwareHeader) {
-      1 * iastCtx._
-    }
-
     where:
-    header << HEADERS.values()
+    header << HttpHeader.values()
   }
 }

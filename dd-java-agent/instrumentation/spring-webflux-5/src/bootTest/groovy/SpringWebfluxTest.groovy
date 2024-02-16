@@ -42,6 +42,11 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   WebClient client = WebClient.builder().clientConnector (new ReactorClientHttpConnector()).build()
 
+  @Override
+  boolean useStrictTraceWrites() {
+    false
+  }
+
   def "Basic GET test #testName"() {
     setup:
     String url = "http://localhost:$port$urlPath"
@@ -198,7 +203,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             resourceName "TestController.tracedMethod"
             operationName "trace.annotation"
           }
-          childOf(span(0)) // FIXME this is wrong
+          childOfPrevious()
           errored false
           tags {
             "$Tags.COMPONENT" "trace"

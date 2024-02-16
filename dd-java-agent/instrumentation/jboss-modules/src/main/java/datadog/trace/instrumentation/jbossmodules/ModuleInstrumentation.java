@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.AgentClassLoading;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,7 +17,7 @@ import org.jboss.modules.Module;
 import org.jboss.modules.ModuleLinkageHelper;
 
 @AutoService(Instrumenter.class)
-public final class ModuleInstrumentation extends Instrumenter.Tracing
+public final class ModuleInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ModuleInstrumentation() {
     super("classloading", "jboss-modules");
@@ -37,18 +38,18 @@ public final class ModuleInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("getResource"))
             .and(takesArguments(1).and(takesArgument(0, String.class))),
         ModuleInstrumentation.class.getName() + "$WidenGetResourceAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("getResourceAsStream"))
             .and(takesArguments(1).and(takesArgument(0, String.class))),
         ModuleInstrumentation.class.getName() + "$WidenGetResourceAsStreamAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("loadModuleClass"))
             .and(

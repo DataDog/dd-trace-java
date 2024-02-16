@@ -31,6 +31,9 @@ public class CapturedSnapshot20 {
         return new CapturedSnapshot20().processWithException(arg);
       }
       return new CapturedSnapshot20().process(arg);
+    } catch (Exception ex) {
+      span.addThrowable(ex);
+      throw ex;
     } finally {
       span.finish();
     }

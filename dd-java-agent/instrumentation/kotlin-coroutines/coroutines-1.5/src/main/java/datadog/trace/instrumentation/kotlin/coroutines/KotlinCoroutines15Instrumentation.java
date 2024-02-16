@@ -21,9 +21,9 @@ import net.bytebuddy.asm.Advice;
 public class KotlinCoroutines15Instrumentation extends AbstractCoroutinesInstrumentation {
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    super.adviceTransformations(transformation);
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    super.methodAdvice(transformer);
+    transformer.applyAdvice(
         isConstructor()
             .and(isDeclaredBy(named(ABSTRACT_COROUTINE_CLASS_NAME)))
             .and(takesArguments(3))

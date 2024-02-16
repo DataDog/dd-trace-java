@@ -9,16 +9,20 @@ import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
-import spock.lang.Specification
+import datadog.trace.api.config.AppSecConfig
+import datadog.trace.api.config.DebuggerConfig
+import datadog.trace.api.config.ProfilingConfig
+import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.Strings
 
-class TelemetryServiceSpecification extends Specification {
+class TelemetryServiceSpecification extends DDSpecification {
   def confKeyValue = new ConfigSetting("confkey", "confvalue", ConfigOrigin.DEFAULT)
   def configuration = [confkey: confKeyValue]
   def integration = new Integration("integration", true)
   def dependency = new Dependency("dependency", "1.0.0", "src", "hash")
   def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])
   def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
-  def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423)
+  def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423).count(1)
 
   def 'happy path without data'() {
     setup:
@@ -401,9 +405,66 @@ class TelemetryServiceSpecification extends Specification {
     testHttpClient.assertNoMoreRequests()
 
     where:
-    resultCode                           | _
-    TelemetryClient.Result.SUCCESS   | _
-    TelemetryClient.Result.FAILURE   | _
-    TelemetryClient.Result.NOT_FOUND | _
+    resultCode << [
+      TelemetryClient.Result.SUCCESS,
+      TelemetryClient.Result.FAILURE,
+      TelemetryClient.Result.NOT_FOUND
+    ]
+  }
+
+  def 'app started must have install signature'() {
+    setup:
+    injectEnvConfig("INSTRUMENTATION_INSTALL_ID", installId)
+    injectEnvConfig("INSTRUMENTATION_INSTALL_TYPE", installType)
+    injectEnvConfig("INSTRUMENTATION_INSTALL_TIME", installTime)
+
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    when: 'first iteration'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
+
+    then: 'app-started'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().installSignature(installId, installType, installTime)
+    testHttpClient.assertNoMoreRequests()
+
+    where:
+    installId                              | installType       | installTime
+    null                                   | null              | null
+    null                                   | null              | "1703188334"
+    null                                   | "k8s_single_step" | null
+    null                                   | "k8s_single_step" | "1703188212"
+    "68e75c99-57ca-4a12-adfc-575c4b05fcbe" | null              | null
+    "68e75c48-57ca-4a12-adfc-575c4b05bfff" | null              | "1704183412"
+    "68e75c55-57ca-4a12-adfc-575c4b05aaaa" | "k8s_single_step" | null
+    "68e75c77-57ca-4a12-adfc-575c4b05fc44" | "k8s_single_step" | "1993188215"
+  }
+
+  def 'app-started must include activated products info'() {
+    setup:
+    injectEnvConfig(Strings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
+    injectEnvConfig(Strings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
+    injectEnvConfig(Strings.toEnvVar(DebuggerConfig.DEBUGGER_ENABLED), dynInstrConfig)
+
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    when: 'first iteration'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
+
+    then: 'app-started'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products(appsecEnabled, profilingEnabled, dynInstrEnabled)
+    testHttpClient.assertNoMoreRequests()
+
+    where:
+    appsecConfig | appsecEnabled | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled
+    "1"          | true          | "1"             | true             | "1"            | true
+    "1"          | true          | "1"             | true             | "0"            | false
+    "1"          | true          | "0"             | false            | "1"            | true
+    "1"          | true          | "0"             | false            | "0"            | false
+    "0"          | false         | "0"             | false            | "0"            | false
+    "inactive"   | true          | "0"             | false            | "0"            | false
   }
 }

@@ -6,9 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
@@ -17,7 +18,7 @@ import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 
 @AutoService(Instrumenter.class)
-public class TestNGItrInstrumentation extends Instrumenter.CiVisibility
+public class TestNGItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
   public TestNGItrInstrumentation() {
     super("testng", "testng-itr");
@@ -37,8 +38,8 @@ public class TestNGItrInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("invokeMethod")
             .and(takesArguments(3))
             .and(takesArgument(0, Method.class))
@@ -67,7 +68,7 @@ public class TestNGItrInstrumentation extends Instrumenter.CiVisibility
         return;
       }
 
-      SkippableTest skippableTest = TestNGUtils.toSkippableTest(method, instance, parameters);
+      TestIdentifier skippableTest = TestNGUtils.toTestIdentifier(method, instance, parameters);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(skippableTest)) {
         throw new SkipException(InstrumentationBridge.ITR_SKIP_REASON);
       }

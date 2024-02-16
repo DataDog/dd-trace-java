@@ -14,6 +14,7 @@ import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Response;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -25,7 +26,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tracing
+public final class AsyncCompletionHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public AsyncCompletionHandlerInstrumentation() {
@@ -58,12 +59,12 @@ public final class AsyncCompletionHandlerInstrumentation extends Instrumenter.Tr
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         namedOneOf("onBodyPartReceived", "onHeadersReceived")
             .and(takesArgument(0, named("com.ning.http.client.HttpResponseBodyPart"))),
         getClass().getName() + "$OnActivity");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("onCompleted")
             .and(takesArgument(0, named("com.ning.http.client.Response")))
             .and(isPublic()),

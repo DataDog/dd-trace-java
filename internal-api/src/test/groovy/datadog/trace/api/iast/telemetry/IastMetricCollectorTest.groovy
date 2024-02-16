@@ -81,7 +81,7 @@ class IastMetricCollectorTest extends DDSpecification {
         if (metric.tag == null) {
           IastMetricCollector.add(metric, value)
         } else {
-          final tag = metric.tag.values[random.nextInt(metric.tag.values.length)]
+          final tag = (byte) random.nextInt(metric.tag.values.length)
           IastMetricCollector.add(metric, tag, value)
         }
       }
@@ -162,7 +162,7 @@ class IastMetricCollectorTest extends DDSpecification {
 
     then:
     if (metric.tag) {
-      final tagString = metric.tag.toString(tag)
+      final tagString = metric.tag.values[tag]
       data.tags.size() == 1
       data.tags.first() == "${metric.tag.name}:${tagString}"
       data.spanTag == "${metric.name}.${tagString.toLowerCase().replaceAll('\\.', '_')}"
@@ -190,11 +190,11 @@ class IastMetricCollectorTest extends DDSpecification {
 
     then:
     if (metric.tag) {
-      final assertedTags = metric.tag.isWrapped(tag) ? metric.tag.unwrap(tag) : [tag]
+      def assertedTags = metric.tag.unwrap(tag) ?: [tag]
       result.size() == assertedTags
       final grouped = result.groupBy { it.tags.first() }
       assertedTags.each {
-        final tagValue = "${metric.tag.name}:${metric.tag.toString(it as byte)}"
+        final tagValue = "${metric.tag.name}:${metric.tag.values[it as byte]}"
         final data = grouped[tagValue].first()
         assert data.metric == metric
         assert data.value.toLong() == value
@@ -224,6 +224,5 @@ class IastMetricCollectorTest extends DDSpecification {
     IastMetric.EXECUTED_SOURCE     | SourceTypes.REQUEST_HEADER_NAME
 
     IastMetric.EXECUTED_TAINTED    | null
-    IastMetric.TAINTED_FLAT_MODE   | null
   }
 }

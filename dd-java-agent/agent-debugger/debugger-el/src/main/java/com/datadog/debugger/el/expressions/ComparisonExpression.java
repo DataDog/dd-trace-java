@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -30,7 +32,11 @@ public class ComparisonExpression implements BooleanExpression {
     if (rightValue.isUndefined()) {
       return Boolean.FALSE;
     }
-    return operator.apply(leftValue, rightValue);
+    try {
+      return operator.apply(leftValue, rightValue);
+    } catch (EvaluationException e) {
+      throw new EvaluationException(e.getMessage(), PrettyPrintVisitor.print(this));
+    }
   }
 
   @Override

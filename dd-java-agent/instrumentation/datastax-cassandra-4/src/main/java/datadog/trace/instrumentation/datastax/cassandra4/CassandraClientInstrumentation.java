@@ -9,9 +9,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public class CassandraClientInstrumentation extends Instrumenter.Tracing
+public class CassandraClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public CassandraClientInstrumentation() {
@@ -33,8 +34,8 @@ public class CassandraClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("init"))
             .and(isStatic())

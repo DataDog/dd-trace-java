@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.log.UnionMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -27,7 +28,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LoggingEventInstrumentation extends Instrumenter.Tracing
+public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public LoggingEventInstrumentation() {
     super("logback");
@@ -50,8 +51,8 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("getMDCPropertyMap").or(named("getMdc"))).and(takesArguments(0)),
         LoggingEventInstrumentation.class.getName() + "$GetMdcAdvice");
   }

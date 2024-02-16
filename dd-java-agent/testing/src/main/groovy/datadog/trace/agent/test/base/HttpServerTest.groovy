@@ -367,6 +367,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true // bug in liberty-20
   }
 
+  boolean testEncodedQuery() {
+    true // bug in armeria-jetty
+  }
+
   @Override
   int version() {
     return 0
@@ -415,6 +419,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     AUTH_REQUIRED("authRequired", 200, null),
     LOGIN("login", 302, null),
     UNKNOWN("", 451, null), // This needs to have a valid status code
+    // should be used to test secure area success (i.e. under access control)
+    SECURE_SUCCESS("secure/success", 200, null),
 
     private final String path
     private final String rawPath
@@ -691,7 +697,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test QUERY_ENCODED_BOTH with response header x-ig-response-header tag mapping"() {
     setup:
-    assumeTrue(testResponseHeadersMapping())
+    assumeTrue(testResponseHeadersMapping() && testEncodedQuery())
     def endpoint = QUERY_ENCODED_BOTH
     def method = 'GET'
     def body = null
@@ -740,6 +746,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/4690", suites = ["MuleHttpServerForkedTest"])
   def "test tag query string for #endpoint rawQuery=#rawQuery"() {
     setup:
+    assumeTrue(!encoded || testEncodedQuery())
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
     injectSysConfig(HTTP_SERVER_RAW_QUERY_STRING, "$rawQuery")
     def request = request(endpoint, method, body).build()
@@ -779,13 +786,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
-    rawQuery | endpoint
-    true     | SUCCESS
-    true     | QUERY_PARAM
-    true     | QUERY_ENCODED_QUERY
-    false    | SUCCESS
-    false    | QUERY_PARAM
-    false    | QUERY_ENCODED_QUERY
+    rawQuery | endpoint               | encoded
+    true     | SUCCESS                | false
+    true     | QUERY_PARAM            | false
+    true     | QUERY_ENCODED_QUERY    | true
+    false    | SUCCESS                | false
+    false    | QUERY_PARAM            | false
+    false    | QUERY_ENCODED_QUERY    | true
 
     method = "GET"
     body = null
@@ -1215,6 +1222,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def "test instrumentation gateway callbacks for #endpoint with #header = #value"() {
     setup:
+    assumeTrue(!encodedQuery || testEncodedQuery())
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
     def request = request(endpoint, "GET", null).header(header, value).build()
     def traces = extraSpan ? 2 : 1
@@ -1265,12 +1273,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
-    endpoint            | header         | value       | extraSpan
-    QUERY_ENCODED_BOTH  | IG_TEST_HEADER | "something" | true
-    QUERY_ENCODED_BOTH  | "x-ignored"    | "something" | false
-    SUCCESS             | IG_TEST_HEADER | "whatever"  | false
-    QUERY_ENCODED_QUERY | IG_TEST_HEADER | "whatever"  | false
-    QUERY_PARAM         | IG_TEST_HEADER | "whatever"  | false
+    endpoint            | header         | value       | extraSpan | encodedQuery
+    QUERY_ENCODED_BOTH  | IG_TEST_HEADER | "something" | true      | true
+    QUERY_ENCODED_BOTH  | "x-ignored"    | "something" | false     | true
+    SUCCESS             | IG_TEST_HEADER | "whatever"  | false     | false
+    QUERY_ENCODED_QUERY | IG_TEST_HEADER | "whatever"  | false     | true
+    QUERY_PARAM         | IG_TEST_HEADER | "whatever"  | false     | false
   }
 
   def 'test instrumentation gateway request body interception'() {
@@ -2171,6 +2179,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   class IastIGCallbacks {
     static class Context implements IastContext {
+      @Override
+      <TO> TO getTaintedObjects() {
+        throw new UnsupportedOperationException()
+      }
     }
 
     final Supplier<Flow<Context>> requestStartedCb =

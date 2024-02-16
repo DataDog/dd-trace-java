@@ -116,6 +116,16 @@ public class ASMHelper {
             Opcodes.GETSTATIC, owner.getInternalName(), fieldName, owner.getDescriptor()));
   }
 
+  public static void getStatic(
+      InsnList insnList,
+      org.objectweb.asm.Type owner,
+      String fieldName,
+      org.objectweb.asm.Type fieldType) {
+    insnList.add(
+        new FieldInsnNode(
+            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, fieldType.getDescriptor()));
+  }
+
   public static Type decodeSignature(String signature) {
     SignatureReader sigReader = new SignatureReader(signature);
     FieldSignatureVisitor fieldSignatureVisitor = new FieldSignatureVisitor();
@@ -243,6 +253,23 @@ public class ASMHelper {
         localVarTableIdx++;
       }
     }
+  }
+
+  public static void newInstance(InsnList insnList, org.objectweb.asm.Type type) {
+    insnList.add(new TypeInsnNode(Opcodes.NEW, type.getInternalName()));
+  }
+
+  public static void invokeConstructor(
+      InsnList insnList, org.objectweb.asm.Type owner, org.objectweb.asm.Type... argTypes) {
+    // expected stack: [instance, arg_type_1 ... arg_type_N]
+    insnList.add(
+        new MethodInsnNode(
+            Opcodes.INVOKESPECIAL,
+            owner.getInternalName(),
+            Types.CONSTRUCTOR,
+            org.objectweb.asm.Type.getMethodDescriptor(org.objectweb.asm.Type.VOID_TYPE, argTypes),
+            false));
+    // stack: []
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */

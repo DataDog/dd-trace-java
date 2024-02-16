@@ -92,7 +92,10 @@ public class Agent {
     PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
     APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
     IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
-    REMOTE_CONFIG(propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
+    REMOTE_CONFIG(
+        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED), true),
+    DEPRECATED_REMOTE_CONFIG(
+        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
     CWS(propertyNameToSystemPropertyName(CwsConfig.CWS_ENABLED), false),
     CIVISIBILITY(propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED), false),
     CIVISIBILITY_AGENTLESS(
@@ -209,7 +212,9 @@ public class Agent {
     usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
     appSecFullyDisabled = isAppSecFullyDisabled();
-    remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
+    remoteConfigEnabled =
+        isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
+            || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
@@ -220,7 +225,7 @@ public class Agent {
         // multiple times
         // If early profiling is enabled then this call will start profiling.
         // If early profiling is disabled then later call will do this.
-        startProfilingAgent(true);
+        startProfilingAgent(true, inst);
       } else {
         log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
         // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
@@ -230,7 +235,7 @@ public class Agent {
             new Runnable() {
               @Override
               public void run() {
-                startProfilingAgent(false);
+                startProfilingAgent(false, inst);
               }
             };
       }
@@ -309,9 +314,9 @@ public class Agent {
 
       if (delayOkHttp) {
         log.debug("Custom logger detected. Delaying Profiling initialization.");
-        registerLogManagerCallback(new StartProfilingAgentCallback());
+        registerLogManagerCallback(new StartProfilingAgentCallback(inst));
       } else {
-        startProfilingAgent(false);
+        startProfilingAgent(false, inst);
         // only enable instrumentation based profilers when we know JFR is ready
         InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
       }
@@ -468,7 +473,7 @@ public class Agent {
       installDatadogTracer(scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
-      maybeStartCiVisibility(scoClass, sco);
+      maybeStartCiVisibility(instrumentation, scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -480,6 +485,12 @@ public class Agent {
   }
 
   protected static class StartProfilingAgentCallback extends ClassLoadCallBack {
+    private final Instrumentation inst;
+
+    protected StartProfilingAgentCallback(Instrumentation inst) {
+      this.inst = inst;
+    }
+
     @Override
     public AgentThread agentThread() {
       return PROFILER_STARTUP;
@@ -487,7 +498,7 @@ public class Agent {
 
     @Override
     public void execute() {
-      startProfilingAgent(false);
+      startProfilingAgent(false, inst);
       // only enable instrumentation based profilers when we know JFR is ready
       InstrumentationBasedProfiling.enableInstrumentationBasedProfiling();
     }
@@ -756,7 +767,7 @@ public class Agent {
     }
   }
 
-  private static void maybeStartCiVisibility(Class<?> scoClass, Object sco) {
+  private static void maybeStartCiVisibility(Instrumentation inst, Class<?> scoClass, Object sco) {
     if (ciVisibilityEnabled) {
       StaticEventLogger.begin("CI Visibility");
 
@@ -764,8 +775,8 @@ public class Agent {
         final Class<?> ciVisibilitySysClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
         final Method ciVisibilityInstallerMethod =
-            ciVisibilitySysClass.getMethod("start", scoClass);
-        ciVisibilityInstallerMethod.invoke(null, sco);
+            ciVisibilitySysClass.getMethod("start", Instrumentation.class, scoClass);
+        ciVisibilityInstallerMethod.invoke(null, inst, sco);
       } catch (final Throwable e) {
         log.warn("Not starting CI Visibility subsystem", e);
       }
@@ -881,7 +892,7 @@ public class Agent {
     return ProfilingContextIntegration.NoOp.INSTANCE;
   }
 
-  private static void startProfilingAgent(final boolean isStartingFirst) {
+  private static void startProfilingAgent(final boolean isStartingFirst, Instrumentation inst) {
     StaticEventLogger.begin("ProfilingAgent");
 
     if (isAwsLambdaRuntime()) {
@@ -895,8 +906,9 @@ public class Agent {
       final Class<?> profilingAgentClass =
           AGENT_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
       final Method profilingInstallerMethod =
-          profilingAgentClass.getMethod("run", Boolean.TYPE, ClassLoader.class);
-      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER);
+          profilingAgentClass.getMethod(
+              "run", Boolean.TYPE, ClassLoader.class, Instrumentation.class);
+      profilingInstallerMethod.invoke(null, isStartingFirst, AGENT_CLASSLOADER, inst);
       /*
        * Install the tracer hooks only when not using 'early start'.
        * The 'early start' is happening so early that most of the infrastructure has not been set up yet.

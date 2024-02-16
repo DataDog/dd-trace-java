@@ -12,6 +12,7 @@ import com.google.auto.service.AutoService;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.event.CommandListener;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +36,7 @@ import org.bson.ByteBuf;
  * effectively overriding the previous instrumentation when necessary.
  */
 @AutoService(Instrumenter.class)
-public final class MongoClient34Instrumentation extends Instrumenter.Tracing
+public final class MongoClient34Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.WithTypeStructure {
 
   public MongoClient34Instrumentation() {
@@ -80,15 +81,15 @@ public final class MongoClient34Instrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("build"))
             .and(takesArguments(0))
             .and(isDeclaredBy(declaresField(named("applicationName")))),
         MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceAppName");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("build"))

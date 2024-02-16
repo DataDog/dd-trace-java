@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.InstrumenterConfig;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -18,7 +19,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.LoggerFactory;
 
 @AutoService(Instrumenter.class)
-public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing
+public final class TraceAnnotationsInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   static final String CONFIG_FORMAT = "(?:\\s*[\\w.$]+\\s*;)*\\s*[\\w.$]+\\s*;?\\s*";
@@ -77,7 +78,7 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isAnnotatedWith(methodTraceMatcher), packageName + ".TraceAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isAnnotatedWith(methodTraceMatcher), packageName + ".TraceAdvice");
   }
 }

@@ -3,7 +3,9 @@ package datadog.trace.instrumentation.axis2;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.SOAP;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import org.apache.axis2.context.MessageContext;
@@ -41,11 +43,24 @@ public class AxisMessageDecorator extends BaseDecorator {
 
   public boolean sameTrace(final AgentSpan span, final MessageContext message) {
     return AXIS2_MESSAGE.equals(span.getSpanName())
-        && span.getResourceName().equals(soapAction(message));
+        && span.getResourceName().toString().equals(soapAction(message));
   }
 
   public void onMessage(final AgentSpan span, final MessageContext message) {
-    span.setResourceName(soapAction(message));
+    final CharSequence soapAction = UTF8BytesString.create(soapAction(message));
+    span.setResourceName(soapAction);
+    if (message.isServerSide() && Config.get().isAxisPromoteResourceName()) {
+      final AgentSpan localRoot = span.getLocalRootSpan();
+      // explicitly check for strict comparison in order to set only once (if multiple axis
+      // messages)
+      if (localRoot != null
+          && localRoot.getResourceNamePriority() < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
+        localRoot.setResourceName(
+            soapAction,
+            ResourceNamePriorities
+                .HTTP_FRAMEWORK_ROUTE); // reusing this since functionally equivalent
+      }
+    }
   }
 
   public void beforeFinish(final AgentSpan span, final MessageContext message) {
@@ -64,5 +79,10 @@ public class AxisMessageDecorator extends BaseDecorator {
       return message.getTo().getAddress();
     }
     return null;
+  }
+
+  @Override
+  public AgentSpan afterStart(AgentSpan span) {
+    return super.afterStart(span).setMeasured(true);
   }
 }

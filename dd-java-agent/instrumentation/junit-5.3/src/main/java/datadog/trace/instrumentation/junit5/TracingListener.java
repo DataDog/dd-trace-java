@@ -20,7 +20,7 @@ public class TracingListener implements EngineExecutionListener {
 
   public TracingListener(TestEngine testEngine) {
     String engineId = testEngine.getId();
-    testFramework = engineId != null && engineId.startsWith("junit") ? "junit5" : engineId;
+    testFramework = engineId == null || engineId.startsWith("junit") ? "junit5" : engineId;
     testFrameworkVersion = testEngine.getVersion().orElse(null);
   }
 

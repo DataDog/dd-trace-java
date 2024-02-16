@@ -6,7 +6,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBU
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
@@ -35,7 +34,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_COLLAPSING;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER;
@@ -45,15 +43,21 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DatadogProfilerConfig {
+  private static final Logger log = LoggerFactory.getLogger(DatadogProfilerConfig.class);
 
   public static boolean isCpuProfilerEnabled(ConfigProvider configProvider) {
     return getBoolean(
@@ -138,14 +142,42 @@ public class DatadogProfilerConfig {
         PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT);
   }
 
-  public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
-    boolean userOptedIn =
-        getBoolean(configProvider, PROFILING_DATADOG_PROFILER_ALLOC_ENABLED, false);
-    // once DD allocation profiling is GA use the longstanding allocation flag to toggle it
-    if (PROFILING_DATADOG_PROFILER_ALLOC_ENABLED_DEFAULT) {
-      return getBoolean(configProvider, PROFILING_ALLOCATION_ENABLED, userOptedIn);
+  private static boolean isJmethodIDSafe() {
+    // see https://bugs.openjdk.org/browse/JDK-8313816
+    if (Platform.isJavaVersionAtLeast(22)) {
+      // any version after 22 should be safe
+      return true;
     }
-    return userOptedIn;
+    switch (Platform.getLangVersion()) {
+      case "8":
+        // Java 8 is not affected by the jmethodID issue
+        return true;
+      case "11":
+        return Platform.isJavaVersionAtLeast(11, 0, 23);
+      case "17":
+        return Platform.isJavaVersionAtLeast(17, 0, 11);
+      case "21":
+        return Platform.isJavaVersionAtLeast(21, 0, 3);
+      default:
+        // any other non-LTS version should be considered unsafe
+        return false;
+    }
+  }
+
+  public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
+    boolean dflt = isJmethodIDSafe();
+    boolean enableDdprofAlloc =
+        getBoolean(
+            configProvider,
+            PROFILING_ALLOCATION_ENABLED,
+            dflt,
+            PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
+
+    if (!dflt && enableDdprofAlloc) {
+      log.warn(
+          "Allocation profiling was enabled although it is not considered stable on this JVM version.");
+    }
+    return enableDdprofAlloc;
   }
 
   public static boolean isAllocationProfilingEnabled() {
@@ -164,11 +196,18 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isMemoryLeakProfilingEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
-        PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT,
-        PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
+    boolean isSafe = isJmethodIDSafe();
+    boolean enableDdprofMemleak =
+        getBoolean(
+            configProvider,
+            PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
+            PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT,
+            PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
+    if (!isSafe && enableDdprofMemleak) {
+      log.warn(
+          "Memory leak profiling was enabled although it is not considered stable on this JVM version.");
+    }
+    return enableDdprofMemleak;
   }
 
   public static boolean isMemoryLeakProfilingEnabled() {
@@ -217,8 +256,9 @@ public class DatadogProfilerConfig {
   public static int getStackDepth(ConfigProvider configProvider) {
     return getInteger(
         configProvider,
-        PROFILING_DATADOG_PROFILER_STACKDEPTH,
-        PROFILING_DATADOG_PROFILER_STACKDEPTH_DEFAULT);
+        PROFILING_STACKDEPTH,
+        PROFILING_STACKDEPTH_DEFAULT,
+        PROFILING_DATADOG_PROFILER_STACKDEPTH);
   }
 
   public static int getStackDepth() {

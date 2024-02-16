@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
-public abstract class AbstractWebfluxInstrumentation extends Instrumenter.Tracing {
+public abstract class AbstractWebfluxInstrumentation extends InstrumenterModule.Tracing {
 
   public AbstractWebfluxInstrumentation(final String... additionalNames) {
     super("spring-webflux", additionalNames);
@@ -13,6 +13,7 @@ public abstract class AbstractWebfluxInstrumentation extends Instrumenter.Tracin
     return new String[] {
       packageName + ".SpringWebfluxHttpServerDecorator",
       packageName + ".AdviceUtils",
+      packageName + ".AdviceUtils$SpanSubscriber",
       packageName + ".AdviceUtils$SpanFinishingSubscriber",
       packageName + ".RouteOnSuccessOrError"
     };

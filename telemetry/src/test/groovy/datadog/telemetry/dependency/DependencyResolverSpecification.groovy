@@ -2,7 +2,6 @@ package datadog.telemetry.dependency
 
 import org.apache.tools.ant.taskdefs.Classloader
 
-import java.util.jar.Attributes
 import java.util.jar.JarFile
 import java.util.jar.Manifest
 
@@ -146,7 +145,7 @@ class DependencyResolverSpecification extends DepSpecification {
     File temp = File.createTempFile('temp', '.zip')
 
     expect:
-    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
+    DependencyResolver.resolve(temp.toURI()).isEmpty()
 
     cleanup:
     temp.delete()
@@ -158,7 +157,7 @@ class DependencyResolverSpecification extends DepSpecification {
     temp.delete()
 
     expect:
-    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
+    DependencyResolver.resolve(temp.toURI()).isEmpty()
   }
 
   void 'try to determine invalid jar lib'() throws IOException {
@@ -167,16 +166,7 @@ class DependencyResolverSpecification extends DepSpecification {
     temp.write("just a text file")
 
     expect:
-    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
-  }
-
-  void 'try to determine invalid jar lib'() throws IOException {
-    setup:
-    File temp = File.createTempFile('temp', '.jar')
-    temp.write("just a text file")
-
-    expect:
-    DependencyResolver.getNestedDependency(temp.toURI()) == null
+    DependencyResolver.resolve(temp.toURI()).isEmpty()
   }
 
   void 'spring boot dependency'() throws IOException {
@@ -191,9 +181,9 @@ class DependencyResolverSpecification extends DepSpecification {
 
     then:
     dep != null
-    dep.name == 'opentracing-util-0.33.0.jar'
+    dep.name == 'io.opentracing:opentracing-util'
     dep.version == '0.33.0'
-    dep.hash == '132630F17E198A1748F23CE33597EFDF4A807FB9'
+    dep.hash == null
     dep.source == 'opentracing-util-0.33.0.jar'
   }
 
@@ -251,22 +241,9 @@ class DependencyResolverSpecification extends DepSpecification {
       hash: '6438819DAB9C9AC18D8A6922C8A923C2ADAEA85D')
   }
 
-  void 'retrieve manifest attributes'() {
-    when:
-    Attributes attributes = manifestAttributesFromJar('junit-4.12.jar')
-
-    then:
-    attributes != null
-
-    attributes.getValue('implementation-title') == 'JUnit'
-    attributes.getValue('implementation-version') == '4.12'
-    attributes.getValue('implementation-vendor') == 'JUnit'
-    attributes.getValue('built-by') == 'jenkins'
-  }
-
   private static void knownJarCheck(Map opts) {
     File jarFile = getJar(opts['jarName'])
-    List<Dependency> deps = DependencyResolver.extractDependenciesFromJar(jarFile)
+    List<Dependency> deps = DependencyResolver.resolve(jarFile.toURI())
 
     assert deps.size() == 1
     Dependency dep = deps.get(0)
@@ -275,13 +252,5 @@ class DependencyResolverSpecification extends DepSpecification {
     assert dep.name == opts['name']
     assert dep.version == opts['version']
     assert dep.hash == opts['hash']
-  }
-
-  private static Attributes manifestAttributesFromJar(String jarName) {
-    File jarFile = getJar(jarName)
-
-    Attributes attributes = DependencyResolver.getManifestAttributes(jarFile)
-    assert attributes != null
-    attributes
   }
 }

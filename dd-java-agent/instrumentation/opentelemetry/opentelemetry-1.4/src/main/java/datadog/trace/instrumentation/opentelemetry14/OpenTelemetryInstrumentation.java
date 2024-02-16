@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.instrumentation.opentelemetry14.context.propagation.OtelContextPropagators;
 import datadog.trace.instrumentation.opentelemetry14.trace.OtelTracerProvider;
@@ -19,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
+public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
   public static final String ROOT_PACKAGE_NAME =
       Strings.getPackageName(OpenTelemetryInstrumentation.class.getName());
@@ -63,6 +64,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
       packageName + ".context.OtelScope",
       packageName + ".context.propagation.AgentTextMapPropagator",
       packageName + ".context.propagation.OtelContextPropagators",
+      packageName + ".context.propagation.TraceStateHelper",
       packageName + ".trace.OtelExtractedContext",
       packageName + ".trace.OtelConventions",
       packageName + ".trace.OtelConventions$1",
@@ -82,16 +84,16 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // TracerProvider OpenTelemetry.getTracerProvider()
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("getTracerProvider"))
             .and(takesNoArguments())
             .and(returns(named("io.opentelemetry.api.trace.TracerProvider"))),
         OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
     // ContextPropagators OpenTelemetry.getPropagators();
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("getPropagators"))
             .and(takesNoArguments())

@@ -1,9 +1,11 @@
 import com.intuit.karate.FileUtils
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
 import org.example.TestFailedKarate
+import org.example.TestFailedParameterizedKarate
+import org.example.TestFailedThenSucceedKarate
 import org.example.TestParameterizedKarate
 import org.example.TestSucceedKarate
 import org.example.TestUnskippableKarate
@@ -24,24 +26,55 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     setup:
     Assumptions.assumeTrue(assumption)
 
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName         | tests                     | expectedTracesCount | assumption
+    "test-succeed"       | [TestSucceedKarate]       | 3                   | true
+    "test-with-setup"    | [TestWithSetupKarate]     | 3                   | isSetupTagSupported(FileUtils.KARATE_VERSION)
+    "test-parameterized" | [TestParameterizedKarate] | 3                   | true
+    "test-failed"        | [TestFailedKarate]        | 3                   | true
+  }
+
+  def "test ITR #testcaseName"() {
+    setup:
+    Assumptions.assumeTrue(isSkippingSupported(FileUtils.KARATE_VERSION))
+
     givenSkippableTests(skippedTests)
 
     runTests(tests)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName                      | tests                     | expectedTracesCount | skippedTests                                                                                                                                           | assumption
-    "test-succeed"                    | [TestSucceedKarate]       | 3                   | []                                                                                                                                                     | true
-    "test-with-setup"                 | [TestWithSetupKarate]     | 3                   | []                                                                                                                                                     | isSetupTagSupported(FileUtils.KARATE_VERSION)
-    "test-parameterized"              | [TestParameterizedKarate] | 3                   | []                                                                                                                                                     | true
-    "test-failed"                     | [TestFailedKarate]        | 3                   | []                                                                                                                                                     | true
-    "test-itr-skipping"               | [TestSucceedKarate]       | 3                   | [new SkippableTest("[org/example/test_succeed] test succeed", "first scenario", null, null)]                                                           | isSkippingSupported(FileUtils.KARATE_VERSION)
+    testcaseName                      | tests                     | expectedTracesCount | skippedTests
+    "test-itr-skipping"               | [TestSucceedKarate]       | 3                   | [new TestIdentifier("[org/example/test_succeed] test succeed", "first scenario", null, null)]
     "test-itr-skipping-parameterized" | [TestParameterizedKarate] | 3                   | [
-      new SkippableTest("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\\\'a\\\'","value":"aa"}', null)
-    ] | isSkippingSupported(FileUtils.KARATE_VERSION)
-    "test-itr-unskippable"            | [TestUnskippableKarate]   | 3                   | [new SkippableTest("[org/example/test_unskippable] test unskippable", "first scenario", null, null)]                                                   | isSkippingSupported(FileUtils.KARATE_VERSION)
+      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", '{"param":"\\\'a\\\'","value":"aa"}', null)
+    ]
+    "test-itr-unskippable"            | [TestUnskippableKarate]   | 3                   | [new TestIdentifier("[org/example/test_unskippable] test unskippable", "first scenario", null, null)]
+  }
+
+  def "test flaky retries #testcaseName"() {
+    setup:
+    givenFlakyTests(retriedTests)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName               | tests                           | expectedTracesCount | retriedTests
+    "test-failed"              | [TestFailedKarate]              | 3                   | []
+    "test-retry-failed"        | [TestFailedKarate]              | 3                   | [new TestIdentifier("[org/example/test_failed] test failed", "second scenario", null, null)]
+    "test-failed-then-succeed" | [TestFailedThenSucceedKarate]   | 3                   | [
+      new TestIdentifier("[org/example/test_failed_then_succeed] test failed", "flaky scenario", null, null)
+    ]
+    "test-retry-parameterized" | [TestFailedParameterizedKarate] | 3                   | [
+      new TestIdentifier("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline", null, null)
+    ]
   }
 
   private void runTests(List<Class<?>> tests) {

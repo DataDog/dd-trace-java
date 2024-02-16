@@ -8,10 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 /** @see org.springframework.http.codec.json.Jackson2Tokenizer */
 @AutoService(Instrumenter.class)
-public class Json2TokenizerInstrumentation extends Instrumenter.Iast
+public class Json2TokenizerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public Json2TokenizerInstrumentation() {
     super("spring-webflux");
@@ -35,8 +36,8 @@ public class Json2TokenizerInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("apply").or(named("tokenize")))
             .and(takesArgument(0, named("org.springframework.core.io.buffer.DataBuffer")))

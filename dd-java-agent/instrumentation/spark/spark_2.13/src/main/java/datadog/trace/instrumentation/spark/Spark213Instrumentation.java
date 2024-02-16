@@ -16,16 +16,20 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".AbstractDatadogSparkListener",
       packageName + ".DatabricksParentContext",
       packageName + ".DatadogSpark213Listener",
+      packageName + ".RemoveEldestHashMap",
       packageName + ".SparkAggregatedTaskMetrics",
       packageName + ".SparkConfAllowList",
+      packageName + ".SparkSQLUtils",
+      packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
+      packageName + ".SparkSQLUtils$AccumulatorWithStage",
     };
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    super.adviceTransformations(transformation);
+  public void methodAdvice(MethodTransformer transformer) {
+    super.methodAdvice(transformer);
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("setupAndStartListenerBus"))
             .and(isDeclaredBy(named("org.apache.spark.SparkContext")))

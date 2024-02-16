@@ -4,7 +4,7 @@ import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
@@ -61,27 +61,35 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
 
     boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
     boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
+    boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
     Map<String, String> systemProperties =
-        getPropertiesPropagatedToChildProcess(codeCoverageEnabled, itrEnabled);
+        getPropertiesPropagatedToChildProcess(
+            codeCoverageEnabled, itrEnabled, flakyTestRetriesEnabled);
 
     LOGGER.info(
-        "Remote CI Visibility settings received: code coverage - {}, ITR - {}; {}, {}",
+        "Remote CI Visibility settings received: per-test code coverage - {}, ITR - {}, flaky test retries - {}; {}, {}",
         codeCoverageEnabled,
         itrEnabled,
+        flakyTestRetriesEnabled,
         repositoryRoot,
         jvmInfo);
 
-    Map<String, List<SkippableTest>> skippableTestsByModulePath =
+    Map<String, Collection<TestIdentifier>> skippableTestsByModuleName =
         itrEnabled && repositoryRoot != null
-            ? getSkippableTestsByModulePath(Paths.get(repositoryRoot), tracerEnvironment)
+            ? getSkippableTestsByModuleName(Paths.get(repositoryRoot), tracerEnvironment)
             : Collections.emptyMap();
+
+    Collection<TestIdentifier> flakyTests =
+        flakyTestRetriesEnabled ? getFlakyTests(tracerEnvironment) : Collections.emptyList();
 
     List<String> coverageEnabledPackages = getCoverageEnabledPackages(codeCoverageEnabled);
     return new ModuleExecutionSettings(
         codeCoverageEnabled,
         itrEnabled,
+        flakyTestRetriesEnabled,
         systemProperties,
-        skippableTestsByModulePath,
+        skippableTestsByModuleName,
+        flakyTests,
         coverageEnabledPackages);
   }
 
@@ -137,7 +145,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       LOGGER.warn(
           "Could not obtain CI Visibility settings, will default to disabled code coverage and tests skipping");
       LOGGER.debug("Error while obtaining CI Visibility settings", e);
-      return new CiVisibilitySettings(false, false, false);
+      return CiVisibilitySettings.DEFAULT;
     }
   }
 
@@ -146,15 +154,17 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   }
 
   private boolean isCodeCoverageEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return config.isCiVisibilityCodeCoverageEnabled()
-        && (ciVisibilitySettings.isCodeCoverageEnabled() // coverage enabled via backend settings
-            || config
-                .isCiVisibilityJacocoPluginVersionProvided() // coverage enabled via tracer settings
-        );
+    return ciVisibilitySettings.isCodeCoverageEnabled()
+        && config.isCiVisibilityCodeCoverageEnabled();
+  }
+
+  private boolean isFlakyTestRetriesEnabled(CiVisibilitySettings ciVisibilitySettings) {
+    return ciVisibilitySettings.isFlakyTestRetriesEnabled()
+        && config.isCiVisibilityFlakyRetryEnabled();
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
-      boolean codeCoverageEnabled, boolean itrEnabled) {
+      boolean codeCoverageEnabled, boolean itrEnabled, boolean flakyTestRetriesEnabled) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
     Properties systemProperties = System.getProperties();
     for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
@@ -174,6 +184,11 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED),
         Boolean.toString(itrEnabled));
 
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED),
+        Boolean.toString(flakyTestRetriesEnabled));
+
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
     // and we don't want to show those as if they were regular build executions
@@ -190,7 +205,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     return propagatedSystemProperties;
   }
 
-  private Map<String, List<SkippableTest>> getSkippableTestsByModulePath(
+  private Map<String, Collection<TestIdentifier>> getSkippableTestsByModuleName(
       Path repositoryRoot, TracerEnvironment tracerEnvironment) {
     try {
       // ensure git data upload is finished before asking for tests
@@ -198,21 +213,13 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
           .startOrObserveGitDataUpload()
           .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
 
-      Collection<SkippableTest> skippableTests =
+      Collection<TestIdentifier> skippableTests =
           configurationApi.getSkippableTests(tracerEnvironment);
       LOGGER.info(
           "Received {} skippable tests in total for {}", skippableTests.size(), repositoryRoot);
 
-      Configurations configurations = tracerEnvironment.getConfigurations();
-      String configurationsBundle = configurations.getTestBundle();
-      String defaultBundle = configurationsBundle != null ? configurationsBundle : "";
-      return skippableTests.stream()
-          .collect(
-              Collectors.groupingBy(
-                  t ->
-                      t.getConfigurations() != null && t.getConfigurations().getTestBundle() != null
-                          ? t.getConfigurations().getTestBundle()
-                          : defaultBundle));
+      return (Map<String, Collection<TestIdentifier>>)
+          groupTestsByModule(tracerEnvironment, skippableTests);
 
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -225,19 +232,46 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     }
   }
 
+  private static Map<String, ? extends Collection<TestIdentifier>> groupTestsByModule(
+      TracerEnvironment tracerEnvironment, Collection<TestIdentifier> tests) {
+    Configurations configurations = tracerEnvironment.getConfigurations();
+    String configurationsBundle = configurations.getTestBundle();
+    String defaultBundle = configurationsBundle != null ? configurationsBundle : "";
+    return tests.stream()
+        .collect(
+            Collectors.groupingBy(
+                t ->
+                    t.getConfigurations() != null && t.getConfigurations().getTestBundle() != null
+                        ? t.getConfigurations().getTestBundle()
+                        : defaultBundle));
+  }
+
+  private Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {
+    try {
+      Collection<TestIdentifier> flakyTests = configurationApi.getFlakyTests(tracerEnvironment);
+      LOGGER.info("Received {} flaky tests in total for {}", flakyTests.size(), repositoryRoot);
+      return flakyTests;
+
+    } catch (Exception e) {
+      LOGGER.error(
+          "Could not obtain list of flaky tests, flaky test retries will not be available", e);
+      return Collections.emptyList();
+    }
+  }
+
   private List<String> getCoverageEnabledPackages(boolean codeCoverageEnabled) {
     if (!codeCoverageEnabled) {
       return Collections.emptyList();
     }
 
-    List<String> includedPackages = config.getCiVisibilityJacocoPluginIncludes();
+    List<String> includedPackages = config.getCiVisibilityCodeCoverageIncludes();
     if (includedPackages != null && !includedPackages.isEmpty()) {
       return includedPackages;
     }
 
     RepoIndex repoIndex = repoIndexProvider.getIndex();
     List<String> packages = new ArrayList<>(repoIndex.getRootPackages());
-    List<String> excludedPackages = config.getCiVisibilityJacocoPluginExcludes();
+    List<String> excludedPackages = config.getCiVisibilityCodeCoverageExcludes();
     if (excludedPackages != null && !excludedPackages.isEmpty()) {
       removeMatchingPackages(packages, excludedPackages);
     }

@@ -8,9 +8,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -25,7 +26,7 @@ import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 
 @AutoService(Instrumenter.class)
-public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
+public class JUnit4ItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit4ItrInstrumentation() {
@@ -61,8 +62,8 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("runChild")
             .and(takesArguments(2))
             .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
@@ -97,7 +98,7 @@ public class JUnit4ItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      SkippableTest test = JUnit4Utils.toSkippableTest(description);
+      TestIdentifier test = JUnit4Utils.toTestIdentifier(description, true);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         Description skippedDescription = JUnit4Utils.getSkippedDescription(description);
         notifier.fireTestIgnored(skippedDescription);

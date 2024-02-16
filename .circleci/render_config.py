@@ -14,7 +14,7 @@ OUT_FILENAME = "config.continue.yml"
 GENERATED_CONFIG_PATH = os.path.join(SCRIPT_DIR, OUT_FILENAME)
 
 # JDKs that will run on every pipeline.
-ALWAYS_ON_JDKS = {"8", "11", "17"}
+ALWAYS_ON_JDKS = {"8", "11", "17", "21"}
 # And these will run only in master and release/ branches.
 MASTER_ONLY_JDKS = {
     "ibm8",
@@ -28,7 +28,7 @@ MASTER_ONLY_JDKS = {
 }
 # Version to use for all the base Docker images, see
 # https://github.com/DataDog/dd-trace-java-docker-build/pkgs/container/dd-trace-java-docker-build
-DOCKER_IMAGE_VERSION="v23.10"
+DOCKER_IMAGE_VERSION = "v24.01"
 
 # Get labels from pull requests to override some defaults for jobs to run.
 # `run-tests: all` will run all tests.
@@ -52,7 +52,7 @@ if pr_url:
             )
             resp.raise_for_status()
         except Exception as e:
-            print(f"Request filed: {e}")
+            print(f"Request failed: {e}")
             time.sleep(1)
             continue
         data = resp.json()
@@ -63,12 +63,17 @@ if pr_url:
     labels = {
         l.replace("run-tests: ", "") for l in labels if l.startswith("run-tests: ")
     }
+    # get the base reference (e.g. `master`), commit hash is also available at the `sha` field.
+    pr_base_ref = data.get("base", {}).get("ref")
 else:
     labels = set()
-
+    pr_base_ref = ""
 
 branch = os.environ.get("CIRCLE_BRANCH", "")
-if branch == "master" or branch.startswith("release/v") or "all" in labels:
+run_all = "all" in labels
+is_master_or_release = branch == "master" or branch.startswith("release/v")
+
+if is_master_or_release or run_all:
     all_jdks = ALWAYS_ON_JDKS | MASTER_ONLY_JDKS
 else:
     all_jdks = ALWAYS_ON_JDKS | (MASTER_ONLY_JDKS & labels)
@@ -83,6 +88,9 @@ is_nightly = os.environ.get("CIRCLE_IS_NIGHTLY", "false") == "true"
 is_weekly = os.environ.get("CIRCLE_IS_WEEKLY", "false") == "true"
 is_regular = not is_nightly and not is_weekly
 
+# Use git changes detection on PRs
+use_git_changes = not run_all and not is_master_or_release and is_regular
+
 vars = {
     "is_nightly": is_nightly,
     "is_weekly": is_weekly,
@@ -92,12 +100,14 @@ vars = {
     "nocov_jdks": nocov_jdks,
     "flaky": branch == "master" or "flaky" in labels or "all" in labels,
     "docker_image_prefix": "" if is_nightly else f"{DOCKER_IMAGE_VERSION}-",
+    "use_git_changes": use_git_changes,
+    "pr_base_ref": pr_base_ref,
 }
 
 print(f"Variables for this build: {vars}")
 
 loader = jinja2.FileSystemLoader(searchpath=SCRIPT_DIR)
-env = jinja2.Environment(loader=loader)
+env = jinja2.Environment(loader=loader, trim_blocks=True)
 tpl = env.get_template(TPL_FILENAME)
 out = tpl.render(**vars)
 

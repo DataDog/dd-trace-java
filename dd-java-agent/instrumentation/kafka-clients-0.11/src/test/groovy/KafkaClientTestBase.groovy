@@ -92,10 +92,62 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     return true
   }
 
+  def "test extracting avro schema"() {
+    setup:
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    Producer<String, AvroMock> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new AvroMockSerializer())
+
+    when:
+    AvroMock message = new AvroMock("{\"name\":\"test\"}")
+    runUnderTrace("parent") {
+      producer.send(new ProducerRecord(SHARED_TOPIC, message)) { meta, ex ->
+        assert activeScope().isAsyncPropagating()
+        if (ex == null) {
+          runUnderTrace("producer callback") {}
+        } else {
+          runUnderTrace("producer exception: " + ex) {}
+        }
+      }
+      blockUntilChildSpansFinished(2)
+    }
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+      TEST_DATA_STREAMS_WRITER.waitForBacklogs(1)
+    }
+
+    then:
+    // check that the message was received
+    assertTraces(1, SORT_TRACES_BY_ID) {
+      trace(3) {
+        basicSpan(it, "parent")
+        basicSpan(it, "producer callback", span(0))
+        producerSpan(it, senderProps, span(0), false, false, "{\"name\":\"test\"}")
+      }
+    }
+
+    if (isDataStreamsEnabled()) {
+    }
+
+    cleanup:
+    producer.close()
+  }
+
   def "test kafka produce and consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    Producer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+    if (isDataStreamsEnabled()) {
+      senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
+    }
+    KafkaProducer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+    String clusterId = ""
+    if (isDataStreamsEnabled()) {
+      producer.flush()
+      clusterId = producer.metadata.cluster.clusterResource().clusterId()
+      while (clusterId == null || clusterId.isEmpty()) {
+        Thread.sleep(1500)
+        clusterId = producer.metadata.cluster.clusterResource().clusterId()
+      }
+    }
 
     // set up the Kafka consumer properties
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
@@ -160,12 +212,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[2])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[2])
+          consumerSpan(it, consumerProperties, trace(0)[2])
         }
       }
     }
@@ -178,8 +230,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 3
+        edgeTags == ["direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -187,14 +239,21 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         edgeTags == [
           "direction:in",
           "group:sender",
+          "kafka_cluster_id:$clusterId",
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
         ]
-        edgeTags.size() == 4
+        edgeTags.size() == 5
       }
-      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> produce = [
+        "kafka_cluster_id:$clusterId",
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_produce"
+      ]
       List<String> commit = [
         "consumer_group:sender",
+        "kafka_cluster_id:$clusterId",
         "partition:"+received.partition(),
         "topic:"+SHARED_TOPIC,
         "type:kafka_commit"
@@ -231,8 +290,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def "test spring kafka template produce and consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    if (isDataStreamsEnabled()) {
+      senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
+    }
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
+    String clusterId = null
+    if (isDataStreamsEnabled()) {
+      clusterId = waitForKafkaMetadataUpdate(kafkaTemplate)
+    }
 
     // set up the Kafka consumer properties
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
@@ -294,12 +360,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[2])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[2])
+          consumerSpan(it, consumerProperties, trace(0)[2])
         }
       }
     }
@@ -312,8 +378,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["direction:out", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 3
+        edgeTags == [
+          "direction:out",
+          "kafka_cluster_id:$clusterId".toString(),
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -321,14 +392,21 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         edgeTags == [
           "direction:in",
           "group:sender",
+          "kafka_cluster_id:$clusterId".toString(),
           "topic:$SHARED_TOPIC".toString(),
           "type:kafka"
         ]
-        edgeTags.size() == 4
+        edgeTags.size() == 5
       }
-      List<String> produce = ["partition:"+received.partition(), "topic:"+SHARED_TOPIC, "type:kafka_produce"]
+      List<String> produce = [
+        "kafka_cluster_id:$clusterId".toString(),
+        "partition:"+received.partition(),
+        "topic:"+SHARED_TOPIC,
+        "type:kafka_produce"
+      ]
       List<String> commit = [
         "consumer_group:sender",
+        "kafka_cluster_id:$clusterId".toString(),
         "partition:"+received.partition(),
         "topic:"+SHARED_TOPIC,
         "type:kafka_commit"
@@ -395,12 +473,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1], 0..0, true)
+          consumerSpan(it, consumerProperties, trace(1)[1], 0..0, true)
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0], 0..0, true)
+          consumerSpan(it, consumerProperties, trace(0)[0], 0..0, true)
         }
       }
     }
@@ -449,12 +527,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0])
+          consumerSpan(it, consumerProperties, trace(0)[0])
         }
       }
     }
@@ -505,12 +583,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0])
+          consumerSpan(it, consumerProperties, trace(0)[0])
         }
       }
     }
@@ -561,12 +639,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1])
+          consumerSpan(it, consumerProperties, trace(1)[1])
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0])
+          consumerSpan(it, consumerProperties, trace(0)[0])
         }
       }
     }
@@ -630,52 +708,52 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       // iterating to the end of ListIterator:
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(3)[1], 0..0)
+          consumerSpan(it, consumerProperties, trace(3)[1], 0..0)
           queueSpan(it, trace(0)[0])
         }
         trace(2) {
-          consumerSpan(it, trace(4)[1], 1..1)
+          consumerSpan(it, consumerProperties, trace(4)[1], 1..1)
           queueSpan(it, trace(1)[0])
         }
         trace(2) {
-          consumerSpan(it, trace(5)[1], 2..2)
+          consumerSpan(it, consumerProperties, trace(5)[1], 2..2)
           queueSpan(it, trace(2)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[0], 0..0)
+          consumerSpan(it, consumerProperties, trace(0)[0], 0..0)
         }
         trace(1) {
-          consumerSpan(it, trace(1)[0], 1..1)
+          consumerSpan(it, consumerProperties, trace(1)[0], 1..1)
         }
         trace(1) {
-          consumerSpan(it, trace(2)[0], 2..2)
+          consumerSpan(it, consumerProperties, trace(2)[0], 2..2)
         }
       }
 
       // backwards iteration over ListIterator to the beginning
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(6)[1], 2..2)
+          consumerSpan(it, consumerProperties, trace(6)[1], 2..2)
           queueSpan(it, trace(2)[0])
         }
         trace(2) {
-          consumerSpan(it, trace(7)[1], 1..1)
+          consumerSpan(it, consumerProperties, trace(7)[1], 1..1)
           queueSpan(it, trace(1)[0])
         }
         trace(2) {
-          consumerSpan(it, trace(8)[1], 0..0)
+          consumerSpan(it, consumerProperties, trace(8)[1], 0..0)
           queueSpan(it, trace(0)[0])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(2)[0], 2..2)
+          consumerSpan(it, consumerProperties, trace(2)[0], 2..2)
         }
         trace(1) {
-          consumerSpan(it, trace(1)[0], 1..1)
+          consumerSpan(it, consumerProperties, trace(1)[0], 1..1)
         }
         trace(1) {
-          consumerSpan(it, trace(0)[0], 0..0)
+          consumerSpan(it, consumerProperties, trace(0)[0], 0..0)
         }
       }
     }
@@ -690,8 +768,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   def "test spring kafka template produce and batch consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    if (isDataStreamsEnabled()) {
+      senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
+    }
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
+    String clusterId = null
+    if (isDataStreamsEnabled()) {
+      clusterId = waitForKafkaMetadataUpdate(kafkaTemplate)
+    }
 
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
@@ -756,26 +841,26 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
       if (hasQueueSpan()) {
         trace(2) {
-          consumerSpan(it, trace(1)[1], 0..0)
+          consumerSpan(it, consumerProperties, trace(1)[1], 0..0)
           queueSpan(it, trace(0)[6])
         }
         trace(2) {
-          consumerSpan(it, trace(2)[1], 0..1)
+          consumerSpan(it, consumerProperties, trace(2)[1], 0..1)
           queueSpan(it, trace(0)[4])
         }
         trace(2) {
-          consumerSpan(it, trace(3)[1], 0..1)
+          consumerSpan(it, consumerProperties, trace(3)[1], 0..1)
           queueSpan(it, trace(0)[2])
         }
       } else {
         trace(1) {
-          consumerSpan(it, trace(0)[6], 0..0)
+          consumerSpan(it, consumerProperties, trace(0)[6], 0..0)
         }
         trace(1) {
-          consumerSpan(it, trace(0)[4], 0..1)
+          consumerSpan(it, consumerProperties, trace(0)[4], 0..1)
         }
         trace(1) {
-          consumerSpan(it, trace(0)[2], 0..1)
+          consumerSpan(it, consumerProperties, trace(0)[2], 0..1)
         }
       }
     }
@@ -783,14 +868,20 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        edgeTags == ["topic:$SHARED_TOPIC".toString(), "type:internal"]
-        edgeTags.size() == 2
+        edgeTags == ["direction:out", "kafka_cluster_id:$clusterId", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
+        edgeTags.size() == 4
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        edgeTags == ["group:sender", "topic:$SHARED_TOPIC".toString(), "type:kafka"]
-        edgeTags.size() == 3
+        edgeTags == [
+          "direction:in",
+          "group:sender",
+          "kafka_cluster_id:$clusterId",
+          "topic:$SHARED_TOPIC".toString(),
+          "type:kafka"
+        ]
+        edgeTags.size() == 5
       }
     }
 
@@ -871,7 +962,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     Map<String,?> config,
     DDSpan parentSpan = null,
     boolean partitioned = true,
-    boolean tombstone = false
+    boolean tombstone = false,
+    String schema = null
   ) {
     trace.span {
       serviceName service()
@@ -897,6 +989,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         }
         if ({isDataStreamsEnabled()}) {
           "$DDTags.PATHWAY_HASH" { String }
+          if (schema != null) {
+            "$DDTags.SCHEMA_DEFINITION" schema
+            "$DDTags.SCHEMA_WEIGHT" 1
+            "$DDTags.SCHEMA_TYPE" "avro"
+            "$DDTags.SCHEMA_OPERATION" "serialization"
+            "$DDTags.SCHEMA_ID" "10810872322569724838"
+          }
         }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         defaultTags()
@@ -930,6 +1029,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def consumerSpan(
     TraceAssert trace,
+    Map<String,Object> config,
     DDSpan parentSpan = null,
     Range offset = 0..0,
     boolean tombstone = false,
@@ -953,6 +1053,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$InstrumentationTags.PARTITION" { it >= 0 }
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
+        "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         if (tombstone) {
@@ -964,6 +1065,20 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         defaultTags(distributedRootSpan)
       }
     }
+  }
+
+  def waitForKafkaMetadataUpdate(KafkaTemplate kafkaTemplate) {
+    kafkaTemplate.flush()
+    Producer<String, String> wrappedProducer = kafkaTemplate.getTheProducer()
+    assert(wrappedProducer instanceof DefaultKafkaProducerFactory.CloseSafeProducer)
+    Producer<String, String> producer = wrappedProducer.delegate
+    assert(producer instanceof KafkaProducer)
+    String clusterId = producer.metadata.cluster.clusterResource().clusterId()
+    while (clusterId == null || clusterId.isEmpty()) {
+      Thread.sleep(1500)
+      clusterId = producer.metadata.cluster.clusterResource().clusterId()
+    }
+    return clusterId
   }
 }
 

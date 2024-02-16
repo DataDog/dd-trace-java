@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -16,7 +17,7 @@ import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(Instrumenter.class)
-public class IastQueryInstrumentation extends Instrumenter.Iast
+public class IastQueryInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public IastQueryInstrumentation() {
@@ -29,8 +30,8 @@ public class IastQueryInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("before").and(takesArguments(0))),
         IastQueryInstrumentation.class.getName() + "$QueryMethodAdvice");
   }

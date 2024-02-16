@@ -2,13 +2,14 @@ package datadog.trace.instrumentation.java.concurrent;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.profiling.UnwrappingVisitor;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(Instrumenter.class)
-public class TaskUnwrappingInstrumentation extends Instrumenter.Profiling
-    implements Instrumenter.ForKnownTypes {
+public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
   public TaskUnwrappingInstrumentation() {
     super("java_concurrent", "task-unwrapping");
   }
@@ -52,12 +53,12 @@ public class TaskUnwrappingInstrumentation extends Instrumenter.Profiling
   };
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new UnwrappingVisitor(TYPES_WITH_FIELDS));
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new UnwrappingVisitor(TYPES_WITH_FIELDS));
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {}
+  public void methodAdvice(MethodTransformer transformer) {}
 
   @Override
   public String[] knownMatchingTypes() {

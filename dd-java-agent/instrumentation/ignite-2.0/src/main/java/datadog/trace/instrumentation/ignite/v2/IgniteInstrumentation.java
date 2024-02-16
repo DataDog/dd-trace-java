@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collection;
 import java.util.Collections;
@@ -21,7 +22,7 @@ import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 
 @AutoService(Instrumenter.class)
-public class IgniteInstrumentation extends Instrumenter.Tracing
+public class IgniteInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public IgniteInstrumentation() {
@@ -49,8 +50,8 @@ public class IgniteInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(
@@ -62,7 +63,7 @@ public class IgniteInstrumentation extends Instrumenter.Tracing
                     "getOrCreateNearCache"))
             .and(returns(hasInterface(named("org.apache.ignite.IgniteCache")))),
         IgniteInstrumentation.class.getName() + "$IgniteCacheAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(namedOneOf("createCaches", "getOrCreateCaches"))

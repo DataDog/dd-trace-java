@@ -21,6 +21,7 @@ import com.google.cloud.pubsub.v1.Publisher;
 import com.google.pubsub.v1.PubsubMessage;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -30,7 +31,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public final class PublisherInstrumentation extends Instrumenter.Tracing
+public final class PublisherInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 
   public PublisherInstrumentation() {
@@ -58,8 +59,8 @@ public final class PublisherInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isMethod().and(named("publish")), getClass().getName() + "$Wrap");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isMethod().and(named("publish")), getClass().getName() + "$Wrap");
   }
 
   public static final class Wrap {

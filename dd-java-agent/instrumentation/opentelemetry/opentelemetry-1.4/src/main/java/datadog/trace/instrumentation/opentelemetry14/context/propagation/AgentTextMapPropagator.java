@@ -1,15 +1,18 @@
 package datadog.trace.instrumentation.opentelemetry14.context.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static datadog.trace.instrumentation.opentelemetry14.trace.OtelSpanContext.fromRemote;
+
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.instrumentation.opentelemetry14.context.OtelContext;
 import datadog.trace.instrumentation.opentelemetry14.trace.OtelExtractedContext;
 import datadog.trace.instrumentation.opentelemetry14.trace.OtelSpan;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
-import io.opentelemetry.api.trace.SpanId;
-import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapGetter;
@@ -79,20 +82,29 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     if (extracted == null) {
       return context;
     } else {
-      SpanContext spanContext = extractSpanContext(extracted);
+      TraceState traceState = extractTraceState(extracted, carrier, getter);
+      SpanContext spanContext = fromRemote(extracted, traceState);
       return new OtelContext(Span.wrap(spanContext), OtelSpan.invalid());
     }
   }
 
-  private static SpanContext extractSpanContext(Extracted extracted) {
-    String traceId = extracted.getTraceId().toHexString();
-    String spanId = SpanId.fromLong(extracted.getSpanId());
-    TraceFlags traceFlags =
-        extracted.getSamplingPriority() > 0 ? TraceFlags.getSampled() : TraceFlags.getDefault();
-    // Do not support tracestate extraction from PropagationTags:
-    // As OtelSpanContext used in OtelSpanBuilder only implements AgentSpan.Context,
-    // PropagationTags from ExtractedContext are lost.
-    TraceState traceState = TraceState.getDefault();
-    return SpanContext.createFromRemoteParent(traceId, spanId, traceFlags, traceState);
+  /**
+   * Extracts tracestate if {@code tracestate} header is present and extracted context comes from
+   * {@link TracePropagationStyle#TRACECONTEXT}
+   *
+   * @param extracted The extracted context.
+   * @param carrier The context carrier.
+   * @param getter The context getter.
+   * @return The extracted tracestate, or an empty tracestate otherwise.
+   * @param <C> The carrier type.
+   */
+  private static <C> TraceState extractTraceState(
+      Extracted extracted, C carrier, TextMapGetter<C> getter) {
+    String header;
+    return extracted instanceof TagContext
+            && TRACECONTEXT.equals(((TagContext) extracted).getPropagationStyle())
+            && (header = getter.get(carrier, "tracestate")) != null
+        ? TraceStateHelper.decodeHeader(header)
+        : TraceState.getDefault();
   }
 }

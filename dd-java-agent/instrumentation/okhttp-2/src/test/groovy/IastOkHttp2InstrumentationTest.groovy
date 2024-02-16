@@ -15,7 +15,7 @@ class IastOkHttp2InstrumentationTest extends AgentTestRunner {
   @Override
   protected void configurePreAgent() {
     // HttpUrl gets loaded early so we have to disable the advice transformer
-    IastHttpUrlInstrumentation.DISABLE_ADVICE_TRANSFORMER = true
+    IastHttpUrlInstrumentation.ENABLE_ADVICE_TRANSFORMER = false
     injectSysConfig('dd.iast.enabled', 'true')
   }
 

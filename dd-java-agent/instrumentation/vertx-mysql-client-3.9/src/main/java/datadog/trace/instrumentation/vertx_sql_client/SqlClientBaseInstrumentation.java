@@ -8,12 +8,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.util.HashMap;
 import java.util.Map;
 
 @AutoService(Instrumenter.class)
-public class SqlClientBaseInstrumentation extends Instrumenter.Tracing
+public class SqlClientBaseInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SqlClientBaseInstrumentation() {
     super("vertx", "vertx-sql-client");
@@ -33,15 +34,15 @@ public class SqlClientBaseInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("query"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("java.lang.String"))),
         packageName + ".SqlClientBaseAdvice$NormalQuery");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("preparedQuery"))

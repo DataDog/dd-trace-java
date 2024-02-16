@@ -8,6 +8,7 @@ import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
+import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
@@ -17,6 +18,7 @@ import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
+import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -80,7 +82,8 @@ public class ProfilingAgent {
    * Main entry point into profiling Note: this must be reentrant because we may want to start
    * profiling before any other tool, and then attempt to start it again at normal time
    */
-  public static synchronized void run(final boolean isStartingFirst, ClassLoader agentClasLoader)
+  public static synchronized void run(
+      final boolean isStartingFirst, ClassLoader agentClasLoader, Instrumentation inst)
       throws IllegalArgumentException, IOException {
     if (profiler == null) {
       final Config config = Config.get();
@@ -112,6 +115,7 @@ public class ProfilingAgent {
       }
 
       try {
+        JFRAccess.setup(inst);
         final Controller controller = ControllerFactory.createController(configProvider);
 
         String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);

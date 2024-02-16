@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.IastContext;
@@ -26,8 +27,8 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
-    implements Instrumenter.ForSingleType {
+public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Iast
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   private final String className = CaseInsensitiveHeadersInstrumentation.class.getName();
 
@@ -46,32 +47,32 @@ public class CaseInsensitiveHeadersInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("get"))
             .and(takesArguments(1))
             .and(takesArgument(0, String.class)),
         className + "$GetAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("getAll"))
             .and(takesArguments(1))
             .and(takesArgument(0, String.class)),
         className + "$GetAllAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("entries")).and(takesNoArguments()),
         className + "$EntriesAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesNoArguments()),
         className + "$NamesAdvice");
-  }
-
-  @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new TaintableVisitor(instrumentedType()));
   }
 
   public static class GetAdvice {

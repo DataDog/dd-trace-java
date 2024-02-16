@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -27,7 +28,7 @@ import org.eclipse.jetty.server.Request;
  * onDispatchFailure/onAfterDispatch. These are only available starting in 9.4 though.
  */
 @AutoService(Instrumenter.class)
-public class ServerHandleInstrumentation extends Instrumenter.Tracing
+public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ServerHandleInstrumentation() {
     super("jetty");
@@ -57,8 +58,8 @@ public class ServerHandleInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("handle")
             .or(named("handleAsync"))
             .and(takesArguments(1))

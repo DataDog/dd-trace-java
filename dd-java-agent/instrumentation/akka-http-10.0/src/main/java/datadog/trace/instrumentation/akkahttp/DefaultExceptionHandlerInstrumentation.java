@@ -10,10 +10,11 @@ import akka.http.scaladsl.server.ExceptionHandler;
 import akka.http.scaladsl.server.ExceptionHandler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class DefaultExceptionHandlerInstrumentation extends Instrumenter.AppSec
+public class DefaultExceptionHandlerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public DefaultExceptionHandlerInstrumentation() {
     super("akka-http", "akka-http-server");
@@ -32,8 +33,8 @@ public class DefaultExceptionHandlerInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(returns(named("akka.http.scaladsl.server.ExceptionHandler")))
             .and(takesArguments(1))

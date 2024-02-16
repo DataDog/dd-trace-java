@@ -7,10 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.mongodb.internal.async.SingleResultCallback;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class InternalStreamConnectionInstrumentation extends Instrumenter.Tracing
+public class InternalStreamConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public InternalStreamConnectionInstrumentation() {
     super("mongo", "mongo-reactivestreams");
@@ -27,8 +28,8 @@ public class InternalStreamConnectionInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("readAsync"))
             .and(takesArgument(1, named("com.mongodb.internal.async.SingleResultCallback"))),
@@ -38,12 +39,12 @@ public class InternalStreamConnectionInstrumentation extends Instrumenter.Tracin
     // not cancelled/activated. FIXED in:
     // https://github.com/mongodb/mongo-java-driver/pull/783
     // https://github.com/mongodb/mongo-java-driver/commit/0eac1f09b9006899b2aed677dbcfdfe0ce94ab45
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("openAsync"))
             .and(takesArgument(0, named("com.mongodb.internal.async.SingleResultCallback"))),
         InternalStreamConnectionInstrumentation.class.getName() + "$OpenAsyncAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("writeAsync"))
             .and(takesArgument(1, named("com.mongodb.internal.async.SingleResultCallback"))),

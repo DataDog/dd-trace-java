@@ -8,12 +8,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpHeadersInstrumentation extends Instrumenter.Tracing
+public class HttpHeadersInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public HttpHeadersInstrumentation() {
@@ -48,7 +49,7 @@ public class HttpHeadersInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isMethod().and(named("headers")), packageName + ".HeadersAdvice");
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isMethod().and(named("headers")), packageName + ".HeadersAdvice");
   }
 }

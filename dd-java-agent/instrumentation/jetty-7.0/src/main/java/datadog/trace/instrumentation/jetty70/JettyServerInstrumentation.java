@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
@@ -37,8 +38,8 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
 @AutoService(Instrumenter.class)
-public final class JettyServerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   public JettyServerInstrumentation() {
     super("jetty");
@@ -69,20 +70,20 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isConstructor(), JettyServerInstrumentation.class.getName() + "$ConstructorAdvice");
-    transformation.applyAdvice(
-        named("handleRequest").and(takesNoArguments()),
-        JettyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
-    transformation.applyAdvice(
-        named("reset").and(takesArgument(0, boolean.class)),
-        JettyServerInstrumentation.class.getName() + "$ResetAdvice");
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new ConnectionHandleRequestVisitorWrapper());
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new ConnectionHandleRequestVisitorWrapper());
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isConstructor(), JettyServerInstrumentation.class.getName() + "$ConstructorAdvice");
+    transformer.applyAdvice(
+        named("handleRequest").and(takesNoArguments()),
+        JettyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
+    transformer.applyAdvice(
+        named("reset").and(takesArgument(0, boolean.class)),
+        JettyServerInstrumentation.class.getName() + "$ResetAdvice");
   }
 
   public static class ConnectionHandleRequestVisitorWrapper implements AsmVisitorWrapper {

@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,7 +21,7 @@ import redis.clients.jedis.Connection;
 import redis.clients.jedis.Protocol.Command;
 
 @AutoService(Instrumenter.class)
-public final class JedisInstrumentation extends Instrumenter.Tracing
+public final class JedisInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public JedisInstrumentation() {
@@ -46,8 +47,8 @@ public final class JedisInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("sendCommand"))
             .and(takesArgument(0, named("redis.clients.jedis.Protocol$Command"))),

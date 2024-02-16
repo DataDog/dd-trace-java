@@ -1,6 +1,11 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.util.ClassFileHelperTest.getClassFileBytes;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -8,13 +13,16 @@ import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
-import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.TestSnapshotListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
@@ -45,8 +53,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 public class DebuggerTransformerTest {
@@ -63,27 +69,6 @@ public class DebuggerTransformerTest {
     NONE,
     UNHANDLED,
     HANDLED
-  }
-
-  static class TestSnapshotListener extends DebuggerSink {
-    boolean skipped;
-    DebuggerContext.SkipCause cause;
-    List<Snapshot> snapshots = new ArrayList<>();
-
-    public TestSnapshotListener(Config config, ProbeStatusSink probeStatusSink) {
-      super(config, probeStatusSink);
-    }
-
-    @Override
-    public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {
-      skipped = true;
-      this.cause = cause;
-    }
-
-    @Override
-    public void addSnapshot(Snapshot snapshot) {
-      snapshots.add(snapshot);
-    }
   }
 
   static final String VAR_NAME = "var";
@@ -146,36 +131,43 @@ public class DebuggerTransformerTest {
 
   @BeforeEach
   void setup() {
-    DebuggerContext.init(null, null);
+    DebuggerContext.initProbeResolver(null);
   }
 
   @Test
   public void testDump() {
     Config config = createConfig();
-    when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    File instrumentedClassFile = new File("/tmp/debugger/java.util.ArrayList.class");
-    File origClassFile = new File("/tmp/debugger/java.util.ArrayList_orig.class");
-    if (instrumentedClassFile.exists()) {
-      instrumentedClassFile.delete();
+    final String JAVA_IO_TMPDIR = "java.io.tmpdir";
+    String initialTmpDir = System.getProperty(JAVA_IO_TMPDIR);
+    System.setProperty(JAVA_IO_TMPDIR, "/tmp");
+    try {
+      when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+      File instrumentedClassFile = new File("/tmp/debugger/java.util.ArrayList.class");
+      File origClassFile = new File("/tmp/debugger/java.util.ArrayList_orig.class");
+      if (instrumentedClassFile.exists()) {
+        instrumentedClassFile.delete();
+      }
+      if (origClassFile.exists()) {
+        origClassFile.delete();
+      }
+      LogProbe logProbe =
+          LogProbe.builder().where("java.util.ArrayList", "add").probeId("", 0).build();
+      DebuggerTransformer debuggerTransformer =
+          new DebuggerTransformer(
+              config, new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)));
+      debuggerTransformer.transform(
+          ClassLoader.getSystemClassLoader(),
+          "java.util.ArrayList",
+          ArrayList.class,
+          null,
+          getClassFileBytes(ArrayList.class));
+      Assertions.assertTrue(instrumentedClassFile.exists());
+      Assertions.assertTrue(origClassFile.exists());
+      Assertions.assertTrue(instrumentedClassFile.delete());
+      Assertions.assertTrue(origClassFile.delete());
+    } finally {
+      System.setProperty(JAVA_IO_TMPDIR, initialTmpDir);
     }
-    if (origClassFile.exists()) {
-      origClassFile.delete();
-    }
-    LogProbe logProbe =
-        LogProbe.builder().where("java.util.ArrayList", "add").probeId("", 0).build();
-    DebuggerTransformer debuggerTransformer =
-        new DebuggerTransformer(
-            config, new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)));
-    debuggerTransformer.transform(
-        ClassLoader.getSystemClassLoader(),
-        "java.util.ArrayList",
-        ArrayList.class,
-        null,
-        getClassFileBytes(ArrayList.class));
-    Assertions.assertTrue(instrumentedClassFile.exists());
-    Assertions.assertTrue(origClassFile.exists());
-    Assertions.assertTrue(instrumentedClassFile.delete());
-    Assertions.assertTrue(origClassFile.delete());
   }
 
   @Test
@@ -226,7 +218,7 @@ public class DebuggerTransformerTest {
             HashSet.class,
             null,
             getClassFileBytes(HashSet.class));
-    Assertions.assertNull(newClassBuffer);
+    assertNull(newClassBuffer);
   }
 
   static class ProbeTestInfo {
@@ -262,7 +254,8 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
-            new DebuggerSink(config));
+            new DebuggerSink(
+                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     byte[] newClassBuffer =
         debuggerTransformer.transform(
             ClassLoader.getSystemClassLoader(),
@@ -270,11 +263,11 @@ public class DebuggerTransformerTest {
             String.class,
             null,
             getClassFileBytes(String.class));
-    Assertions.assertNull(newClassBuffer);
+    assertNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
     Assertions.assertTrue(lastResult.get().isBlocked());
     Assertions.assertFalse(lastResult.get().isInstalled());
-    Assertions.assertEquals("java.lang.String", lastResult.get().getTypeName());
+    assertEquals("java.lang.String", lastResult.get().getTypeName());
   }
 
   @Test
@@ -289,7 +282,8 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
-            new DebuggerSink(config));
+            new DebuggerSink(
+                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     byte[] newClassBuffer =
         debuggerTransformer.transform(
             ClassLoader.getSystemClassLoader(),
@@ -301,7 +295,7 @@ public class DebuggerTransformerTest {
     Assertions.assertNotNull(lastResult.get());
     Assertions.assertFalse(lastResult.get().isBlocked());
     Assertions.assertTrue(lastResult.get().isInstalled());
-    Assertions.assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
+    assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
   }
 
   @Test
@@ -334,19 +328,61 @@ public class DebuggerTransformerTest {
             null,
             null,
             getClassFileBytes(DebuggerAgent.class));
-    Assertions.assertNull(newClassBuffer);
+    assertNull(newClassBuffer);
     ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
     verify(probeStatusSink, times(3)).addError(probeIdCaptor.capture(), strCaptor.capture());
-    Assertions.assertEquals("logprobe1", probeIdCaptor.getAllValues().get(0).getId());
-    Assertions.assertEquals("logprobe2", probeIdCaptor.getAllValues().get(1).getId());
-    Assertions.assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(2).getId());
-    Assertions.assertEquals(
-        "Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(0));
-    Assertions.assertEquals(
-        "Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(1));
-    Assertions.assertEquals(
-        "Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(2));
+    assertEquals("logprobe1", probeIdCaptor.getAllValues().get(0).getId());
+    assertEquals("logprobe2", probeIdCaptor.getAllValues().get(1).getId());
+    assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(2).getId());
+    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(0));
+    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(1));
+    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(2));
+  }
+
+  @Test
+  public void ordering() {
+    Config config = createConfig();
+    List<ProbeDefinition> invocationOrder = new ArrayList<>();
+    MetricProbe metricProbe = createMock(MetricProbe.class, invocationOrder, "metric");
+    LogProbe logProbe = createMock(LogProbe.class, invocationOrder, "log");
+    SpanProbe spanProbe = createMock(SpanProbe.class, invocationOrder, "span");
+    SpanDecorationProbe spanDecorationProbe =
+        createMock(SpanDecorationProbe.class, invocationOrder, "spanDecoration");
+    Configuration configuration =
+        Configuration.builder()
+            .add(spanDecorationProbe)
+            .add(spanProbe)
+            .add(metricProbe)
+            .add(logProbe)
+            .build();
+    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
+    debuggerTransformer.transform(
+        ClassLoader.getSystemClassLoader(),
+        ArrayList.class.getName(), // always FQN
+        ArrayList.class,
+        null,
+        getClassFileBytes(ArrayList.class));
+    assertEquals(3, invocationOrder.size());
+    assertEquals(metricProbe, invocationOrder.get(0));
+    assertEquals(logProbe, invocationOrder.get(1));
+    assertEquals(spanProbe, invocationOrder.get(2));
+  }
+
+  <T extends ProbeDefinition> T createMock(
+      Class<T> clazz, List<ProbeDefinition> invocationOrder, String id) {
+    ProbeDefinition mock = mock(clazz);
+    doAnswer(
+            invocation -> {
+              invocationOrder.add(mock);
+              return InstrumentationResult.Status.INSTALLED;
+            })
+        .when(mock)
+        .instrument(any(), anyList(), anyList());
+    when(mock.getProbeId()).thenReturn(new ProbeId(id, 0));
+    Where where = Where.from(ArrayList.class.getName(), "add", "(Object)");
+    when(mock.getWhere()).thenReturn(where);
+    return (T) mock;
   }
 
   private Config createConfig() {
@@ -366,13 +402,12 @@ public class DebuggerTransformerTest {
 
     @Override
     public InstrumentationResult.Status instrument(
-        ClassLoader classLoader,
-        ClassNode classNode,
-        MethodNode methodNode,
-        List<DiagnosticMessage> diagnostics,
-        List<String> probeIds) {
-      methodNode.instructions.insert(
-          new VarInsnNode(Opcodes.ASTORE, methodNode.localVariables.size()));
+        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      methodInfo
+          .getMethodNode()
+          .instructions
+          .insert(
+              new VarInsnNode(Opcodes.ASTORE, methodInfo.getMethodNode().localVariables.size()));
       return InstrumentationResult.Status.INSTALLED;
     }
 

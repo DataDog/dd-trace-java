@@ -10,6 +10,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -27,7 +28,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
-public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
+public class DecodedFormParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 
   public DecodedFormParametersInstrumentation() {
@@ -52,8 +53,8 @@ public class DecodedFormParametersInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("getDecodedFormParameters").and(takesArguments(0)),
         DecodedFormParametersInstrumentation.class.getName() + "$GetDecodedFormParametersAdvice");
   }

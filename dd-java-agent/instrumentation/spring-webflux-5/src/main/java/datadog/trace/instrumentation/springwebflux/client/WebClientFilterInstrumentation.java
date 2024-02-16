@@ -7,9 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(Instrumenter.class)
-public class WebClientFilterInstrumentation extends Instrumenter.Tracing
+public class WebClientFilterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public WebClientFilterInstrumentation() {
@@ -20,6 +21,7 @@ public class WebClientFilterInstrumentation extends Instrumenter.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SpringWebfluxHttpClientDecorator",
+      packageName + ".StatusCodes",
       packageName + ".TraceWebClientSubscriber",
       packageName + ".WebClientTracingFilter",
       packageName + ".WebClientTracingFilter$MonoWebClientTrace",
@@ -32,14 +34,14 @@ public class WebClientFilterInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     // This one can't possibly happen on multiple threads so makes sure we are always added to the
     // list initially
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor(), packageName + ".WebClientFilterAdvices$AfterConstructorAdvice");
     // These methods are not thread safe already so doing our work here shouldn't change the
     // likelihood of ConcurrentModificationException happening
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("filter").or(named("filters"))),
         packageName + ".WebClientFilterAdvices$AfterFilterListModificationAdvice");
   }

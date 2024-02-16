@@ -8,6 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.StoredBodyFactories;
 import datadog.trace.api.http.StoredByteBody;
@@ -26,7 +27,7 @@ import org.glassfish.grizzly.http.io.NIOInputStream;
 import org.glassfish.grizzly.utils.Charsets;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec
+public class GrizzlyByteBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public GrizzlyByteBodyInstrumentation() {
     super("grizzly");
@@ -49,28 +50,28 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("setInputBuffer")
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.glassfish.grizzly.http.io.InputBuffer"))),
         getClass().getName() + "$NIOInputStreamSetInputBufferAdvice");
     /* we're assuming here none of these methods call the other instrumented methods */
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(0)), getClass().getName() + "$NIOInputStreamReadAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(1)).and(takesArgument(0, byte[].class)),
         getClass().getName() + "$NIOInputStreamReadByteArrayAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("read").and(takesArguments(byte[].class, int.class, int.class)),
         getClass().getName() + "$NIOInputStreamReadByteArrayIntIntAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("readBuffer").and(takesArguments(0).or(takesArguments(int.class))),
         getClass().getName() + "$NIOInputStreamReadBufferAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("isFinished").and(takesArguments(0)),
         getClass().getName() + "$NIOInputStreamIsFinishedAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("recycle").and(takesArguments(0)),
         getClass().getName() + "$NIOInputStreamRecycleAdvice");
     /* Possible alternative impl: call getBuffer() and register notifications.

@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -25,7 +26,7 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
  * which sometimes only copies the classname
  */
 @AutoService(Instrumenter.class)
-public class BeanFactoryInstrumentation extends Instrumenter.Tracing
+public class BeanFactoryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public BeanFactoryInstrumentation() {
     super("spring-beans");
@@ -47,14 +48,14 @@ public class BeanFactoryInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("registerBeanDefinition"))
             .and(
                 takesArgument(1, named("org.springframework.beans.factory.config.BeanDefinition"))),
         BeanFactoryInstrumentation.class.getName() + "$BeanRegisteringAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("resolveBeanClass"))
             .and(

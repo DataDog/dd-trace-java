@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.testng;
 
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.util.Strings;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
@@ -12,6 +11,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.IClass;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
@@ -26,18 +27,16 @@ import org.testng.xml.XmlTest;
 
 public abstract class TestNGUtils {
 
-  private static final MethodHandle XML_TEST_GET_PARALLEL = accessGetParallel();
+  private static final Logger LOGGER = LoggerFactory.getLogger(TestNGUtils.class);
 
-  private static MethodHandle accessGetParallel() {
-    try {
-      Method getParallel = XmlTest.class.getMethod("getParallel");
-      MethodHandles.Lookup lookup = MethodHandles.lookup();
-      return lookup.unreflect(getParallel);
+  private static final datadog.trace.util.MethodHandles METHOD_HANDLES =
+      new datadog.trace.util.MethodHandles(TestNG.class.getClassLoader());
 
-    } catch (Exception e) {
-      return null;
-    }
-  }
+  private static final MethodHandle XML_TEST_GET_PARALLEL =
+      METHOD_HANDLES.method(XmlTest.class, "getParallel");
+
+  private static final MethodHandle TEST_RESULT_WAS_RETRIED =
+      METHOD_HANDLES.method(ITestResult.class, "wasRetried");
 
   public static Class<?> getTestClass(final ITestResult result) {
     IClass testClass = result.getTestClass();
@@ -162,23 +161,22 @@ public abstract class TestNGUtils {
       // has different return type in different versions,
       // and if the method is invoked directly,
       // the instrumentation will not get past Muzzle checks
-      Object parallel =
-          XML_TEST_GET_PARALLEL != null
-              ? XML_TEST_GET_PARALLEL.invoke(testClass.getXmlTest())
-              : null;
+      Object parallel = METHOD_HANDLES.invoke(XML_TEST_GET_PARALLEL, testClass.getXmlTest());
       return parallel != null
           && ("methods".equals(parallel.toString()) || "tests".equals(parallel.toString()));
     } catch (Throwable e) {
+      LOGGER.warn("Error while checking if a test class is paralellized");
       return false;
     }
   }
 
-  public static SkippableTest toSkippableTest(Method method, Object instance, Object[] parameters) {
+  public static TestIdentifier toTestIdentifier(
+      Method method, Object instance, Object[] parameters) {
     Class<?> testClass = instance != null ? instance.getClass() : method.getDeclaringClass();
     String testSuiteName = testClass.getName();
     String testName = method.getName();
     String testParameters = TestNGUtils.getParameters(parameters);
-    return new SkippableTest(testSuiteName, testName, testParameters, null);
+    return new TestIdentifier(testSuiteName, testName, testParameters, null);
   }
 
   public static String getTestNGVersion() {
@@ -213,6 +211,14 @@ public abstract class TestNGUtils {
 
     } catch (Exception e) {
       return null;
+    }
+  }
+
+  public static boolean wasRetried(ITestResult result) {
+    try {
+      return METHOD_HANDLES.invoke(TEST_RESULT_WAS_RETRIED, result);
+    } catch (Throwable e) {
+      return false;
     }
   }
 }

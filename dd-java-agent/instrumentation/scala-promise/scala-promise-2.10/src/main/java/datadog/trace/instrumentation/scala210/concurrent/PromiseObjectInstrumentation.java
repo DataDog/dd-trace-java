@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -23,7 +24,7 @@ import scala.util.Try;
  * with a {@code Promise}, then we capture the active span when the {@code Try} is resolved.
  */
 @AutoService(Instrumenter.class)
-public class PromiseObjectInstrumentation extends Instrumenter.Tracing
+public class PromiseObjectInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public PromiseObjectInstrumentation() {
@@ -42,8 +43,8 @@ public class PromiseObjectInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("scala$concurrent$impl$Promise$$resolveTry")),
         getClass().getName() + "$ResolveTry");
   }

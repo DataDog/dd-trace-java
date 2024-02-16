@@ -77,7 +77,7 @@ class AppSecSystemSpecification extends DDSpecification {
     1 * subService.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
     1 * requestContext.getData(RequestContextSlot.APPSEC) >> appSecReqCtx
     1 * requestContext.traceSegment >> traceSegment
-    1 * appSecReqCtx.transferCollectedEvents() >> [Mock(AppSecEvent)]
+    1 * appSecReqCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
     1 * appSecReqCtx.getRequestHeaders() >> ['foo-bar': ['1.1.1.1']]
     1 * appSecReqCtx.getResponseHeaders() >> [:]
     1 * traceSegment.setTagTop('actor.ip', '1.1.1.1')
@@ -105,7 +105,7 @@ class AppSecSystemSpecification extends DDSpecification {
     1 * subService.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
     7 * requestContext.getData(RequestContextSlot.APPSEC) >> appSecReqCtx
     7 * requestContext.traceSegment >> traceSegment
-    7 * appSecReqCtx.transferCollectedEvents() >> [Mock(AppSecEvent)]
+    7 * appSecReqCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
     // allow for one extra in case we move to another second and round down the prev count
     (5..6) * appSecReqCtx.getRequestHeaders() >> [:]
     (5..6) * appSecReqCtx.getResponseHeaders() >> [:]
@@ -189,9 +189,9 @@ class AppSecSystemSpecification extends DDSpecification {
           poller
         }
       }
-    sco.okHttpClient = Mock(OkHttpClient)
+    sco.okHttpClient = Stub(OkHttpClient)
     sco.monitoring = Mock(Monitoring)
-    sco.featuresDiscovery = Mock(DDAgentFeaturesDiscovery)
+    sco.featuresDiscovery = Stub(DDAgentFeaturesDiscovery)
     sco
   }
 }

@@ -6,11 +6,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import org.springframework.core.io.buffer.DataBuffer;
 
 /** @see DataBuffer#asInputStream() */
 @AutoService(Instrumenter.class)
-public class DataBufferInstrumentation extends Instrumenter.Iast
+public class DataBufferInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public DataBufferInstrumentation() {
     super("spring-webflux");
@@ -28,8 +29,8 @@ public class DataBufferInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("asInputStream")).and(takesArguments(0)),
         packageName + ".DataBufferAsInputStreamAdvice");
   }

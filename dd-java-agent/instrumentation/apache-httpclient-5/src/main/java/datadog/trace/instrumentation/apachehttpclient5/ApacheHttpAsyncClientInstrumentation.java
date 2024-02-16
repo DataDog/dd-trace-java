@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -23,11 +24,12 @@ import org.apache.hc.core5.http.nio.AsyncRequestProducer;
 import org.apache.hc.core5.http.protocol.HttpContext;
 
 @AutoService(Instrumenter.class)
-public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
+public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   public ApacheHttpAsyncClientInstrumentation() {
-    super("httpasyncclient5", "apache-httpasyncclient5");
+    super(
+        "httpasyncclient5", "apache-httpasyncclient5", "httpasyncclient", "apache-httpasyncclient");
   }
 
   @Override
@@ -71,8 +73,8 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(5))

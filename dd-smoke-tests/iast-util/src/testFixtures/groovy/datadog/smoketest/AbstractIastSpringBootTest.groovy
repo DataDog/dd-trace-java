@@ -9,7 +9,6 @@ import okhttp3.RequestBody
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
-import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED
 
 abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
@@ -22,18 +21,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     List<String> command = []
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.addAll([
-      withSystemProperty(IAST_ENABLED, true),
-      withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
-      withSystemProperty(IAST_DEBUG_ENABLED, true),
-      withSystemProperty(IAST_REDACTION_ENABLED, false)
-    ])
+    command.addAll(iastJvmOpts())
     command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
     // Spring will print all environment variables to the log, which may pollute it and affect log assertions.
     processBuilder.environment().clear()
     return processBuilder
+  }
+
+  protected List<String> iastJvmOpts() {
+    return [
+      withSystemProperty(IAST_ENABLED, true),
+      withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
+      withSystemProperty(IAST_DEBUG_ENABLED, true),
+    ]
   }
 
   void 'IAST subsystem starts'() {
@@ -851,5 +853,96 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
         tainted.ranges[0].source.origin == 'http.request.path'
     }
   }
+
+  void 'header injection'(){
+    setup:
+    final url = "http://localhost:${httpPort}/header_injection?param=test"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'HEADER_INJECTION' }
+  }
+
+  void 'header injection exclusion'(){
+    setup:
+    final url = "http://localhost:${httpPort}/header_injection_exclusion?param=testExclusion"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    noVulnerability { vul -> vul.type == 'HEADER_INJECTION'}
+  }
+
+  void 'header injection redaction'(){
+    setup:
+    String bearer = URLEncoder.encode("Authorization: bearer 12345644", "UTF-8")
+    final url = "http://localhost:${httpPort}/header_injection_redaction?param=" + bearer
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'HEADER_INJECTION' && vul.evidence.valueParts[1].redacted == true }
+  }
+
+  void 'Insecure Auth Protocol vulnerability is present'() {
+    setup:
+    String url = "http://localhost:${httpPort}/insecureAuthProtocol"
+    def request = new Request.Builder().url(url).header("Authorization", "Basic YWxhZGRpbjpvcGVuc2VzYW1l").get().build()
+    when:
+    def response = client.newCall(request).execute()
+    then:
+    response.isSuccessful()
+    hasVulnerability { vul ->
+      vul.type == 'INSECURE_AUTH_PROTOCOL'
+    }
+  }
+
+  void "Check reflection injection forName"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/class?param=java.lang.String"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionClass'}
+  }
+
+  void "Check reflection injection getMethod"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/method?param=isEmpty"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionMethod'}
+  }
+
+  void "Check reflection injection getField"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/field?param=hash"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionField'}
+  }
+
+
 
 }

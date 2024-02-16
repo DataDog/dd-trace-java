@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
@@ -20,7 +21,7 @@ import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
+public class GrizzlyHttpHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public GrizzlyHttpHandlerInstrumentation() {
@@ -52,8 +53,8 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(named("doHandle"))
             .and(takesArgument(0, named("org.glassfish.grizzly.http.server.Request")))

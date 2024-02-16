@@ -44,7 +44,8 @@ public class CILocalGitInfoBuilder implements GitInfoBuilder {
         }
       }
     } catch (Exception e) {
-      LOGGER.debug("Error while getting Git folder in " + repositoryPath, e);
+      LOGGER.debug("Error while getting Git folder in {}", repositoryPath, e);
+      LOGGER.warn("Error while getting Git folder");
     }
     return Paths.get(repositoryPath, gitFolderName);
   }

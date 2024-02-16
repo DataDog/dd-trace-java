@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.Constants;
 import net.bytebuddy.asm.Advice;
 
@@ -18,7 +19,7 @@ import net.bytebuddy.asm.Advice;
  * blocking method to avoid specific namespaces to be blocked.
  */
 @AutoService(Instrumenter.class)
-public final class GlassFishInstrumentation extends Instrumenter.Tracing
+public final class GlassFishInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public GlassFishInstrumentation() {
@@ -31,8 +32,8 @@ public final class GlassFishInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(named("addToBlackList")).and(takesArguments(1)),
         GlassFishInstrumentation.class.getName() + "$AvoidGlassFishBlockingAdvice");
   }

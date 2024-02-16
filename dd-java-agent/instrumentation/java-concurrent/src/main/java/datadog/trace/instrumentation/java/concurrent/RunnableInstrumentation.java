@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -24,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument {@link Runnable} */
 @AutoService(Instrumenter.class)
-public final class RunnableInstrumentation extends Instrumenter.Tracing
+public final class RunnableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public RunnableInstrumentation() {
@@ -49,8 +50,8 @@ public final class RunnableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("run").and(takesArguments(0)).and(isPublic()),
         RunnableInstrumentation.class.getName() + "$RunnableAdvice");
   }

@@ -12,6 +12,7 @@ import akka.http.scaladsl.server.directives.MarshallingDirectives$;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -26,7 +27,7 @@ import net.bytebuddy.asm.Advice;
  * @see UnmarshallerInstrumentation unconditionally taints marshaller output if its input is tainted
  */
 @AutoService(Instrumenter.class)
-public class MarshallingDirectivesInstrumentation extends Instrumenter.Iast
+public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 
   public MarshallingDirectivesInstrumentation() {
@@ -49,8 +50,8 @@ public class MarshallingDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod()
             .and(isStatic())
             .and(named("entity"))
@@ -63,7 +64,7 @@ public class MarshallingDirectivesInstrumentation extends Instrumenter.Iast
         MarshallingDirectivesInstrumentation.class.getName()
             + "$TaintUnmarshallerInputOldScalaAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(not(isStatic()))
             .and(named("entity"))

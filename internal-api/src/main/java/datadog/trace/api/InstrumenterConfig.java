@@ -28,6 +28,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
@@ -36,6 +37,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_SIMPLE_METHOD_GRAPH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -61,6 +63,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -114,6 +117,7 @@ public class InstrumenterConfig {
   private final ResolverCacheConfig resolverCacheConfig;
   private final String resolverCacheDir;
   private final boolean resolverNamesAreUnique;
+  private final boolean resolverSimpleMethodGraph;
   private final boolean resolverUseLoadClass;
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
@@ -129,6 +133,8 @@ public class InstrumenterConfig {
   private final boolean internalExitOnFailure;
 
   private final boolean legacyInstallerEnabled;
+
+  private final Collection<String> additionalJaxRsAnnotations;
 
   private InstrumenterConfig() {
     this(ConfigProvider.createDefault());
@@ -192,6 +198,9 @@ public class InstrumenterConfig {
             RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
+    resolverSimpleMethodGraph =
+        // use simpler approach everywhere except GraalVM, where it affects reachability analysis
+        configProvider.getBoolean(RESOLVER_SIMPLE_METHOD_GRAPH, !Platform.isNativeImageBuilder());
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverUseUrlCaches = configProvider.getBoolean(RESOLVER_USE_URL_CACHES);
     resolverResetInterval =
@@ -218,6 +227,8 @@ public class InstrumenterConfig {
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
+    this.additionalJaxRsAnnotations =
+        tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
   }
 
   public boolean isIntegrationsEnabled() {
@@ -347,6 +358,10 @@ public class InstrumenterConfig {
     return resolverNamesAreUnique;
   }
 
+  public boolean isResolverSimpleMethodGraph() {
+    return resolverSimpleMethodGraph;
+  }
+
   public boolean isResolverUseLoadClass() {
     return resolverUseLoadClass;
   }
@@ -369,6 +384,10 @@ public class InstrumenterConfig {
 
   public String getTraceAnnotations() {
     return traceAnnotations;
+  }
+
+  public Collection<String> getAdditionalJaxRsAnnotations() {
+    return additionalJaxRsAnnotations;
   }
 
   /**
@@ -469,6 +488,8 @@ public class InstrumenterConfig {
         + resolverCacheDir
         + ", resolverNamesAreUnique="
         + resolverNamesAreUnique
+        + ", resolverSimpleMethodGraph="
+        + resolverSimpleMethodGraph
         + ", resolverUseLoadClass="
         + resolverUseLoadClass
         + ", resolverUseUrlCaches="
@@ -494,6 +515,8 @@ public class InstrumenterConfig {
         + internalExitOnFailure
         + ", legacyInstallerEnabled="
         + legacyInstallerEnabled
+        + ", additionalJaxRsAnnotations="
+        + additionalJaxRsAnnotations
         + '}';
   }
 }

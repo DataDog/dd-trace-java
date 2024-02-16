@@ -12,16 +12,22 @@ public class TracingList implements List<ConsumerRecord<?, ?>>, TracingIterableD
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
   private final String group;
+  private final String clusterId;
+  private final String bootstrapServers;
 
   public TracingList(
       final List<ConsumerRecord<?, ?>> delegate,
       final CharSequence operationName,
       final KafkaDecorator decorator,
-      String group) {
+      String group,
+      String clusterId,
+      String bootstrapServers) {
     this.operationName = operationName;
     this.decorator = decorator;
     this.delegate = delegate;
     this.group = group;
+    this.clusterId = clusterId;
+    this.bootstrapServers = bootstrapServers;
   }
 
   @Override
@@ -133,12 +139,19 @@ public class TracingList implements List<ConsumerRecord<?, ?>>, TracingIterableD
   @Override
   public ListIterator<ConsumerRecord<?, ?>> listIterator(final int index) {
     // every iteration will add spans. Not only the very first one
-    return new TracingListIterator(delegate.listIterator(index), operationName, decorator, group);
+    return new TracingListIterator(
+        delegate.listIterator(index), operationName, decorator, group, clusterId, bootstrapServers);
   }
 
   @Override
   public List<ConsumerRecord<?, ?>> subList(final int fromIndex, final int toIndex) {
-    return new TracingList(delegate.subList(fromIndex, toIndex), operationName, decorator, group);
+    return new TracingList(
+        delegate.subList(fromIndex, toIndex),
+        operationName,
+        decorator,
+        group,
+        clusterId,
+        bootstrapServers);
   }
 
   @Override

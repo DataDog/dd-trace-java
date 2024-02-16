@@ -203,7 +203,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
             resourceName "TestController.tracedMethod"
             operationName "trace.annotation"
           }
-          childOf(span(0)) // FIXME this is wrong
+          childOfPrevious()
           errored false
           tags {
             "$Tags.COMPONENT" "trace"

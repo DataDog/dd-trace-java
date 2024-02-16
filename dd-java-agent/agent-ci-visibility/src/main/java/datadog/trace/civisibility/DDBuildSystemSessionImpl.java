@@ -3,7 +3,7 @@ package datadog.trace.civisibility;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.civisibility.config.SkippableTest;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.JvmInfo;
@@ -13,23 +13,24 @@ import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import datadog.trace.civisibility.ipc.ModuleSettingsRequest;
+import datadog.trace.civisibility.ipc.ModuleSettingsResponse;
 import datadog.trace.civisibility.ipc.RepoIndexRequest;
 import datadog.trace.civisibility.ipc.RepoIndexResponse;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.ipc.SignalType;
-import datadog.trace.civisibility.ipc.SkippableTestsRequest;
-import datadog.trace.civisibility.ipc.SkippableTestsResponse;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
-import datadog.trace.civisibility.source.index.RepoIndexBuilder;
+import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -43,7 +44,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
   private final TestModuleRegistry testModuleRegistry;
   private final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
   private final SignalServer signalServer;
-  private final RepoIndexBuilder repoIndexBuilder;
+  private final RepoIndexProvider repoIndexProvider;
   protected final LongAdder testsSkipped = new LongAdder();
   private volatile boolean codeCoverageEnabled;
   private volatile boolean itrEnabled;
@@ -69,7 +70,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       SignalServer signalServer,
-      RepoIndexBuilder repoIndexBuilder) {
+      RepoIndexProvider repoIndexProvider) {
     super(
         projectName,
         startTime,
@@ -84,14 +85,14 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
     this.testModuleRegistry = testModuleRegistry;
     this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
     this.signalServer = signalServer;
-    this.repoIndexBuilder = repoIndexBuilder;
+    this.repoIndexProvider = repoIndexProvider;
 
     signalServer.registerSignalHandler(
         SignalType.MODULE_EXECUTION_RESULT, this::onModuleExecutionResultReceived);
     signalServer.registerSignalHandler(
         SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
     signalServer.registerSignalHandler(
-        SignalType.SKIPPABLE_TESTS_REQUEST, this::onSkippableTestsRequestReceived);
+        SignalType.MODULE_SETTINGS_REQUEST, this::onModuleExecutionSettingsRequestReceived);
     signalServer.start();
 
     setTag(Tags.TEST_COMMAND, startCommand);
@@ -120,24 +121,38 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
 
   private SignalResponse onRepoIndexRequestReceived(RepoIndexRequest request) {
     try {
-      RepoIndex index = repoIndexBuilder.getIndex();
+      RepoIndex index = repoIndexProvider.getIndex();
       return new RepoIndexResponse(index);
     } catch (Exception e) {
       return new ErrorResponse("Error while building repo index: " + e.getMessage());
     }
   }
 
-  private SignalResponse onSkippableTestsRequestReceived(
-      SkippableTestsRequest skippableTestsRequest) {
+  private SignalResponse onModuleExecutionSettingsRequestReceived(ModuleSettingsRequest request) {
     try {
-      String relativeModulePath = skippableTestsRequest.getRelativeModulePath();
-      JvmInfo jvmInfo = skippableTestsRequest.getJvmInfo();
-      ModuleExecutionSettings moduleExecutionSettings = getModuleExecutionSettings(jvmInfo);
-      Collection<SkippableTest> tests =
-          moduleExecutionSettings.getSkippableTests(relativeModulePath);
-      return new SkippableTestsResponse(tests);
+      JvmInfo jvmInfo = request.getJvmInfo();
+      ModuleExecutionSettings settings = getModuleExecutionSettings(jvmInfo);
+
+      String moduleName = request.getModuleName();
+      Collection<TestIdentifier> skippableTestsForModule = settings.getSkippableTests(moduleName);
+      Map<String, Collection<TestIdentifier>> skippableTests =
+          !skippableTestsForModule.isEmpty()
+              ? Collections.singletonMap(moduleName, skippableTestsForModule)
+              : Collections.emptyMap();
+      Collection<TestIdentifier> flakyTests = settings.getFlakyTests(moduleName);
+      ModuleExecutionSettings moduleSettings =
+          new ModuleExecutionSettings(
+              settings.isCodeCoverageEnabled(),
+              settings.isItrEnabled(),
+              settings.isFlakyTestRetriesEnabled(),
+              settings.getSystemProperties(),
+              skippableTests,
+              flakyTests,
+              settings.getCoverageEnabledPackages());
+
+      return new ModuleSettingsResponse(moduleSettings);
     } catch (Exception e) {
-      return new ErrorResponse("Error while getting skippable tests: " + e.getMessage());
+      return new ErrorResponse("Error while getting module execution settings: " + e.getMessage());
     }
   }
 
@@ -182,7 +197,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
     File coverageReportFolder = getCoverageReportFolder();
     if (coverageReportFolder != null) {
       CoverageUtils.dumpCoverageReport(
-          coverageBundle, repoIndexBuilder.getIndex(), repoRoot, coverageReportFolder);
+          coverageBundle, repoIndexProvider.getIndex(), repoRoot, coverageReportFolder);
     }
   }
 
@@ -232,7 +247,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
             codeowners,
             methodLinesResolver,
             coverageProbeStoreFactory,
-            repoIndexBuilder,
+            repoIndexProvider,
             testModuleRegistry,
             SpanUtils.propagateCiVisibilityTagsTo(span));
     testModuleRegistry.addModule(module);

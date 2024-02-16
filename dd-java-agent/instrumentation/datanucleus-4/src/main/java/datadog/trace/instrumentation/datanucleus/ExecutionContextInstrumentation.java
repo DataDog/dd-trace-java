@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -21,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
 
 @AutoService(Instrumenter.class)
-public class ExecutionContextInstrumentation extends Instrumenter.Tracing
+public class ExecutionContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
   public ExecutionContextInstrumentation() {
     super("datanucleus");
@@ -57,23 +58,23 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isMethod().and(namedOneOf("persistObject", "deleteObject", "refreshObject")),
         ExecutionContextInstrumentation.class.getName() + "$SingleObjectActionAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(namedOneOf("refreshAllObjects", "persistObjects", "deleteObjects", "findObjects")),
         ExecutionContextInstrumentation.class.getName() + "$MultiObjectActionAdvice");
 
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("findObject"))
             .and(takesArguments(4))
             .and(takesArgument(3, String.class)),
         ExecutionContextInstrumentation.class.getName() + "$FindWithStringClassnameAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isMethod()
             .and(named("findObject"))
             .and(takesArguments(4))

@@ -11,14 +11,14 @@ import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
 
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
+import com.datadog.debugger.util.ClassFileLines;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
@@ -27,19 +27,16 @@ public class SpanInstrumentor extends Instrumentor {
 
   public SpanInstrumentor(
       SpanProbe spanProbe,
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
+      MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
-      List<String> probeIds) {
-    super(spanProbe, classLoader, classNode, methodNode, diagnostics, probeIds);
+      List<ProbeId> probeIds) {
+    super(spanProbe, methodInfo, diagnostics, probeIds);
   }
 
   @Override
   public InstrumentationResult.Status instrument() {
-    if (isLineProbe) {
-      fillLineMap();
-      return addRangeSpan(lineMap);
+    if (definition.isLineProbe()) {
+      return addRangeSpan(classFileLines);
     }
     spanVar = newVar(DEBUGGER_SPAN_TYPE);
     processInstructions();
@@ -75,15 +72,18 @@ public class SpanInstrumentor extends Instrumentor {
 
   private InsnList createSpan(LabelNode initSpanLabel) {
     InsnList insnList = new InsnList();
-    ldc(insnList, buildResourceName());
+    ldc(insnList, definition.getProbeId().getEncodedId());
     // stack: [string]
+    ldc(insnList, buildResourceName());
+    // stack: [string, string]
     pushTags(insnList, addProbeIdWithTags(definition.getId(), definition.getTags()));
-    // stack: [string, tags]
+    // stack: [string, string, tags]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
         "createSpan",
         DEBUGGER_SPAN_TYPE,
+        STRING_TYPE,
         STRING_TYPE,
         Types.asArray(STRING_TYPE, 1)); // tags
     // stack: [span]
@@ -93,13 +93,13 @@ public class SpanInstrumentor extends Instrumentor {
     return insnList;
   }
 
-  private InstrumentationResult.Status addRangeSpan(LineMap lineMap) {
+  private InstrumentationResult.Status addRangeSpan(ClassFileLines classFileLines) {
     Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
     if (targetLines == null || targetLines.length == 0) {
       reportError("Missing line(s) in probe definition.");
       return InstrumentationResult.Status.ERROR;
     }
-    if (lineMap.isEmpty()) {
+    if (classFileLines.isEmpty()) {
       reportError("Missing line debug information.");
       return InstrumentationResult.Status.ERROR;
     }
@@ -110,8 +110,8 @@ public class SpanInstrumentor extends Instrumentor {
         reportError("Single line span is not supported, you need to provide a range.");
         return InstrumentationResult.Status.ERROR;
       }
-      LabelNode beforeLabel = lineMap.getLineLabel(from);
-      LabelNode afterLabel = lineMap.getLineLabel(till);
+      LabelNode beforeLabel = classFileLines.getLineLabel(from);
+      LabelNode afterLabel = classFileLines.getLineLabel(till);
       if (beforeLabel == null || afterLabel == null) {
         reportError(
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
@@ -147,12 +147,12 @@ public class SpanInstrumentor extends Instrumentor {
 
   private String buildResourceName() {
     String resourceName = stripPackagePath(classNode.name) + "." + methodNode.name;
-    if (isLineProbe) {
+    if (definition.isLineProbe()) {
       Where.SourceLine[] targetLines = definition.getWhere().getSourceLines();
       if (targetLines == null || targetLines.length == 0) {
         return resourceName;
       }
-      if (lineMap.isEmpty()) {
+      if (classFileLines.isEmpty()) {
         return resourceName;
       }
       return resourceName + ":L" + targetLines[0];

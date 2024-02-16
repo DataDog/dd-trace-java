@@ -9,6 +9,7 @@ import akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 import scala.collection.Seq;
@@ -18,7 +19,7 @@ import scala.collection.Seq;
  * @see PredefinedFromEntityUnmarshallers#stringUnmarshaller()
  */
 @AutoService(Instrumenter.class)
-public class PredefinedFromEntityUnmarshallersInstrumentation extends Instrumenter.AppSec
+public class PredefinedFromEntityUnmarshallersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 
   private static final String TRAIT_NAME =
@@ -55,8 +56,8 @@ public class PredefinedFromEntityUnmarshallersInstrumentation extends Instrument
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isTraitMethod(
                 TRAIT_NAME,
                 "urlEncodedFormDataUnmarshaller",
@@ -64,7 +65,7 @@ public class PredefinedFromEntityUnmarshallersInstrumentation extends Instrument
             .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
         PredefinedFromEntityUnmarshallersInstrumentation.class.getName()
             + "$UrlEncodedUnmarshallerWrappingAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "stringUnmarshaller")
             .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
         PredefinedFromEntityUnmarshallersInstrumentation.class.getName()

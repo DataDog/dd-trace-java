@@ -4,6 +4,7 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Arrays;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -18,8 +19,8 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
 
 @AutoService(Instrumenter.class)
-public class RequestImplInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+public class RequestImplInstrumentation extends InstrumenterModule.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
   public RequestImplInstrumentation() {
     super("vertx", "vertx-redis-client");
   }
@@ -30,14 +31,14 @@ public class RequestImplInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    // This advice should never match any methods, and is only here for Muzzle
-    transformation.applyAdvice(none(), packageName + ".RequestImplMuzzle");
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(new RequestImplVisitorWrapper());
   }
 
   @Override
-  public AdviceTransformer transformer() {
-    return new VisitingTransformer(new RequestImplVisitorWrapper());
+  public void methodAdvice(MethodTransformer transformer) {
+    // This advice should never match any methods, and is only here for Muzzle
+    transformer.applyAdvice(none(), packageName + ".RequestImplMuzzle");
   }
 
   // This Transformer will add the Cloneable interface to RequestImpl, as well

@@ -1,40 +1,42 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.IastRequestContext
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
 import com.datadog.iast.taint.TaintedObject
 import datadog.trace.api.Config
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import org.junit.Assume
+import spock.lang.Shared
+
+import java.lang.ref.Reference
 
 import static com.datadog.iast.taint.Ranges.highestPriorityRange
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
 class PropagationModuleTest extends IastModuleImplTestBase {
 
+  @Shared
+  private static int maxValueLength = Config.get().iastTruncationMaxValueLength
+
   private PropagationModule module
 
-  private IastRequestContext ctx
 
   void setup() {
     module = new PropagationModuleImpl()
-    ctx = new IastRequestContext()
-    final reqCtx = Mock(RequestContext) {
-      getData(RequestContextSlot.IAST) >> ctx
+  }
+
+  @Override
+  protected AgentTracer.TracerAPI buildAgentTracer() {
+    return Mock(AgentTracer.TracerAPI) {
+      activeSpan() >> span
+      getTraceSegment() >> traceSegment
     }
-    final span = Mock(AgentSpan) {
-      getRequestContext() >> reqCtx
-    }
-    tracer.activeSpan() >> span
   }
 
   void '#method(#args) not taintable'() {
@@ -416,7 +418,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   void 'test source names over threshold'() {
     given:
-    final maxSize = Config.get().iastTruncationMaxValueLength
+    assert target.length() > maxValueLength
 
     when:
     module.taint(target, SourceTypes.REQUEST_PARAMETER_VALUE)
@@ -424,27 +426,56 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     then:
     final tainted = ctx.getTaintedObjects().get(target)
     tainted != null
-    final sourceValue  = tainted.ranges.first().source.value
-    sourceValue.length() <= target.length()
-    sourceValue.length() <= maxSize
+    final sourceValue = tainted.ranges.first().source.value
+    if (resize) {
+      sourceValue.length() == maxValueLength
+    } else {
+      sourceValue.length() == target.length()
+    }
 
     where:
-    target                                                                          | _
-    string((0..Config.get().getIastTruncationMaxValueLength() * 2).join(''))        | _
-    stringBuilder((0..Config.get().getIastTruncationMaxValueLength() * 2).join('')) | _
+    target                                          | resize
+    string((0..maxValueLength * 2).join(''))        | false // a reference to the string is created
+    stringBuilder((0..maxValueLength * 2).join('')) | true  // we create a copy
   }
 
-  void 'test that source names should not make a strong reference over the value'() {
-    given:
-    final name = 'name'
-
+  void 'test that source names/values should not make a strong reference over the value'() {
     when:
-    module.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, name)
+    module.taint(value, SourceTypes.REQUEST_PARAMETER_NAME, name)
 
     then:
-    final tainted = ctx.getTaintedObjects().get(name)
-    final taintedName = tainted.ranges[0].source.name
-    assert !taintedName.is(name) : 'Weak value should not be retained by the source name'
+    final tainted = ctx.getTaintedObjects().get(value)
+    final source = tainted.ranges.first().source
+    final sourceName = source.@name
+    final sourceValue = source.@value
+
+    assert sourceName !== value: 'Source name should never be a strong reference to the original value'
+    assert sourceValue !== value: 'Source value should never be a strong reference to the original value'
+    switch (value.class) {
+      case String:
+        assert sourceValue instanceof Reference
+        assert (sourceValue as Reference).get() === value
+        break
+      case CharSequence:
+        assert sourceValue instanceof String
+        assert sourceValue == value.toString()
+        break
+      default:
+        assert sourceValue == null
+        break
+    }
+    if (name === value) {
+      assert sourceName === sourceValue
+    } else {
+      assert sourceName !== sourceValue
+      assert sourceName === name
+    }
+
+    where:
+    name           | value
+    string('name') | name
+    string('name') | stringBuilder('name')
+    string('name') | date()
   }
 
   private List<Tuple<Object>> taintIfSuite() {
@@ -471,7 +502,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   private TaintedObject getTaintedObject(final Object target) {
     if (target instanceof Taintable) {
       final source = (target as Taintable).$$DD$getSource() as Source
-      return source == null ? null : new TaintedObject(target, Ranges.forObject(source), null)
+      return source == null ? null : new TaintedObject(target, Ranges.forObject(source))
     }
     return ctx.getTaintedObjects().get(target)
   }
@@ -534,7 +565,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   private static void assertTainted(final TaintedObject tainted, final Range[] ranges, final int mark = NOT_MARKED) {
     assert tainted != null
-    final originalValue = tainted.get()
     assert tainted.ranges.length == ranges.length
     ranges.eachWithIndex { Range expected, int i ->
       final range = tainted.ranges[i]
@@ -544,9 +574,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
         assert (range.marks & mark) > 0
       }
       final source = range.source
-      assert !source.name.is(originalValue): 'Weak value should not be retained by the source name'
-      assert !source.value.is(originalValue): 'Weak value should not be retained by the source value'
-
       final expectedSource = expected.source
       assert source.origin == expectedSource.origin
       assert source.name == expectedSource.name

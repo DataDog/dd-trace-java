@@ -15,6 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -30,7 +31,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracing
+public final class JMSMessageProducerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public JMSMessageProducerInstrumentation() {
@@ -58,11 +59,11 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("send").and(takesArgument(0, named("javax.jms.Message"))).and(isPublic()),
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         named("send")
             .and(takesArgument(0, named("javax.jms.Destination")))
             .and(takesArgument(1, named("javax.jms.Message")))

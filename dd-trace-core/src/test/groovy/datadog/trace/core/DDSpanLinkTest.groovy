@@ -106,7 +106,7 @@ class DDSpanLinkTest extends DDCoreSpecification {
     def spanLinksTag = writer[0][0].tags[SPAN_LINKS] as String
 
     then:
-    spanLinksTag == '[{"spanId":"123456789abcdef0","traceId":"11223344556677889900aabbccddeeff"}]'
+    spanLinksTag == '[{"span_id":"123456789abcdef0","trace_id":"11223344556677889900aabbccddeeff"}]'
   }
 
   def "add span link at any time"() {
@@ -176,17 +176,17 @@ class DDSpanLinkTest extends DDCoreSpecification {
   }
 
   def assertLink(SpanLink expected, DDSpanLink.SpanLinkJson actual) {
-    assert expected.traceId().toHexString() == actual.traceId
-    assert DDSpanId.toHexString(expected.spanId()) == actual.spanId
+    assert expected.traceId().toHexString() == actual.trace_id
+    assert DDSpanId.toHexString(expected.spanId()) == actual.span_id
     if (expected.traceFlags() == DEFAULT_FLAGS) {
-      assert null == actual.traceFlags
+      assert null == actual.flags
     } else {
-      assert expected.traceFlags() == actual.traceFlags
+      assert expected.traceFlags() == actual.flags
     }
     if (expected.traceState().isEmpty()) {
-      assert null == actual.traceState
+      assert null == actual.tracestate
     } else {
-      assert expected.traceState() == actual.traceState
+      assert expected.traceState() == actual.trace_id
     }
     if (expected.attributes().isEmpty()) {
       assert null == actual.attributes

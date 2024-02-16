@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.coverage.TestReport
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry
 import datadog.trace.api.civisibility.coverage.TestReportHolder
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
@@ -187,18 +188,49 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     ]
   }
 
+  def "skips duplicate reports"() {
+    given:
+    def trace = new ArrayList()
+
+    def report = new TestReport(1, 2, 3, [new TestReportFileEntry("source", [new TestReportFileEntry.Segment(4, -1, 4, -1, 11)])])
+
+    trace.add(buildSpan(0, InternalSpanTypes.TEST, PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, new DummyReportHolder(report)))
+    trace.add(buildSpan(0, "testChild", PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, new DummyReportHolder(report)))
+
+    when:
+    def message = getMappedMessage(trace)
+
+    then:
+    message == [
+      version  : 2,
+      coverages: [
+        [
+          test_session_id: 1,
+          test_suite_id  : 2,
+          span_id        : 3,
+          files          : [
+            [
+              filename: "source",
+              segments: [[4, -1, 4, -1, 11]]
+            ]
+          ]
+        ]
+      ]
+    ]
+  }
+
   private List<? extends CoreSpan<?>> givenTrace(TestReport... testReports) {
     def trace = new ArrayList()
     for (TestReport testReport : testReports) {
       def testReportHolder = new DummyReportHolder(testReport)
-      trace.add(buildSpan(0, "spanType", PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, testReportHolder))
+      trace.add(buildSpan(0, InternalSpanTypes.TEST, PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, testReportHolder))
     }
     return trace
   }
 
   private Map getMappedMessage(List<? extends CoreSpan<?>> trace) {
     def buffer = new GrowableBuffer(1024)
-    def mapper = new CiTestCovMapperV2()
+    def mapper = new CiTestCovMapperV2(false)
     mapper.map(trace, new MsgPackWriter(buffer))
 
     WritableByteChannel channel = new ByteArrayWritableByteChannel()

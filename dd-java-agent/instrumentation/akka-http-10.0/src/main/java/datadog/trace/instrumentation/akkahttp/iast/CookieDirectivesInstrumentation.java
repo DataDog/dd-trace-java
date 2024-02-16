@@ -6,6 +6,7 @@ import akka.http.scaladsl.server.Directive;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintCookieFunction;
@@ -20,7 +21,7 @@ import net.bytebuddy.asm.Advice;
  * all the cookies, see {@link CookieHeaderInstrumentation}.
  */
 @AutoService(Instrumenter.class)
-public class CookieDirectivesInstrumentation extends Instrumenter.Iast
+public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public CookieDirectivesInstrumentation() {
     super("akka-http");
@@ -43,12 +44,12 @@ public class CookieDirectivesInstrumentation extends Instrumenter.Iast
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void methodAdvice(MethodTransformer transformer) {
     String traitName = "akka.http.scaladsl.server.directives.CookieDirectives";
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitDirectiveMethod(traitName, "cookie", "java.lang.String"),
         CookieDirectivesInstrumentation.class.getName() + "$TaintCookieAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isTraitDirectiveMethod(traitName, "optionalCookie", "java.lang.String"),
         CookieDirectivesInstrumentation.class.getName() + "$TaintOptionalCookieAdvice");
   }

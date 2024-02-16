@@ -1,5 +1,15 @@
 package datadog.trace.instrumentation.springweb6.boot
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SECURE_SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -15,6 +25,7 @@ import datadog.trace.instrumentation.springweb6.SetupSpecHelper
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import okhttp3.Credentials
 import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -23,17 +34,7 @@ import org.springframework.boot.SpringApplication
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.HandlerInterceptor
-import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Shared
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.MATRIX_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
@@ -58,7 +59,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     @Override
     void start() {
-      app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext"])
+      app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext",
+        "spring.mvc.throw-exception-if-no-handler-found": false,
+        "spring.web.resources.add-mappings" : false])
       context = app.run()
       port = (context as ServletWebServerApplicationContext).webServer.port
       assert port > 0
@@ -183,6 +186,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     if (endpoint == REDIRECT) {
       // Spring is generates a RenderView and ResponseSpan for REDIRECT
       return super.spanCount(endpoint) + 1
+    } else if (endpoint == NOT_FOUND) {
+      //not found is handled by the application server in this test case
+      return super.spanCount(endpoint) - 1
     }
     return super.spanCount(endpoint)
   }
@@ -222,6 +228,30 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     where:
     testPassword << ["password", "dfsdföääöüüä", "🤓"]
+  }
+
+  def "test authenticated request"() {
+    setup:
+    injectSysConfig("trace.servlet.principal.enabled", "true")
+
+    def request = request(SECURE_SUCCESS, "GET", null)
+      .header("Authorization", Credentials.basic("test", "password"))
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+
+    and:
+    assertTraces(1) {
+      trace(3) {
+        serverSpan(it, null, null, "GET", SECURE_SUCCESS, ["user.principal": "test"])
+        handlerSpan(it, SECURE_SUCCESS)
+        controllerSpan(it)
+      }
+    }
   }
 
   def "test not-here"() {
@@ -275,7 +305,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     // spring-security filter causes uri matching to happen twice
-    2 * mod.taint(_, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
+    (1.._) * mod.taint(_, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:
@@ -313,12 +343,12 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    // spring-security filter (AuthorizationFilter.java:95) causes uri matching to happen twice
-    2 * mod.taint(_ as IastContext, 'a=x,y', SourceTypes.REQUEST_PATH_PARAMETER, 'var') // this version of spring removes ;a=z
-    2 * mod.taint(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    2 * mod.taint(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    2 * mod.taint(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    2 * mod.taint(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    // spring-security filter (AuthorizationFilter.java:95) causes uri matching to happen twice (or three times in recent spring (6.1+) versions)
+    (1.._) * mod.taint(_ as IastContext, 'a=x,y', SourceTypes.REQUEST_PATH_PARAMETER, 'var') // this version of spring removes ;a=z
+    (1.._) * mod.taint(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    (1.._) * mod.taint(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    (1.._) * mod.taint(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    (1.._) * mod.taint(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
     0 * mod._
 
     cleanup:
@@ -361,59 +391,15 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
-    if (endpoint == LOGIN) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendRedirect"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
-      }
-    } else if (endpoint == NOT_FOUND) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendError"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
-      }
-    } else if (endpoint == REDIRECT) {
-      // Spring creates a RenderView span and the response span is the child the servlet
-      // This is not part of the controller hierarchy because rendering happens after the controller
-      // method returns
-
-      trace.span {
-        operationName "response.render"
-        resourceName "response.render"
-        spanType "web"
-        errored false
-        tags {
-          "$Tags.COMPONENT" "spring-webmvc"
-          "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-          "view.type" RedirectView.simpleName
-          defaultTags()
-        }
-      }
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendRedirect"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
-      }
-    } else {
-      throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
-    }
   }
+
+
 
   @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    if (endpoint == NOT_FOUND) {
+      return
+    }
     trace.span {
       serviceName expectedServiceName()
       operationName "spring.handler"

@@ -7,7 +7,8 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
-import datadog.trace.api.civisibility.config.SkippableTest
+import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.coverage.CoverageBridge
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.codeowners.Codeowners
@@ -23,6 +24,7 @@ import datadog.trace.civisibility.ipc.SignalServer
 import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
+import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
 import datadog.trace.common.writer.RemoteMapper
@@ -49,13 +51,17 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   private static Path agentKeyFile
 
-  private static final List<SkippableTest> skippableTests = new ArrayList<>()
+  private static final List<TestIdentifier> skippableTests = new ArrayList<>()
+  private static final List<TestIdentifier> flakyTests = new ArrayList<>()
   private static volatile boolean itrEnabled = false
+  private static volatile boolean flakyRetryEnabled = false
 
   def setupSpec() {
     def currentPath = Paths.get("").toAbsolutePath()
     def rootPath = currentPath.parent
     dummyModule = rootPath.relativize(currentPath)
+
+    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
 
     def sourcePathResolver = Stub(SourcePathResolver)
     sourcePathResolver.getSourcePath(_ as Class) >> DUMMY_SOURCE_PATH
@@ -72,13 +78,20 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
     moduleExecutionSettingsFactory.create(_ as JvmInfo, _ as String) >> {
       Map<String, String> properties = [
-        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED): String.valueOf(itrEnabled)
+        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED): String.valueOf(itrEnabled),
+        (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED): String.valueOf(flakyRetryEnabled)
       ]
-      return new ModuleExecutionSettings(false, itrEnabled, properties, Collections.singletonMap(dummyModule, skippableTests), Collections.emptyList())
+      return new ModuleExecutionSettings(false,
+      itrEnabled,
+      flakyRetryEnabled,
+      properties,
+      Collections.singletonMap(dummyModule, skippableTests),
+      flakyTests,
+      Collections.emptyList())
     }
 
-    def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory()
-    DDTestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, Path projectRoot, String component, Long startTime) -> {
+    def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector)
+    DDTestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
       return new DDTestFrameworkSessionImpl(
@@ -90,13 +103,13 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       codeowners,
       methodLinesResolver,
       coverageProbeStoreFactory,
-      moduleExecutionSettingsFactory,
+      moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, "")
       )
     }
 
     InstrumentationBridge.registerTestEventsHandlerFactory {
-      component, path ->
-      DDTestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, path, component, null)
+      component ->
+      DDTestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
       DDTestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
       new TestEventsHandlerImpl(testSession, testModule)
     }
@@ -129,18 +142,25 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactoryImpl())
     }
 
-    InstrumentationBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
+    CoverageBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
   }
 
   @Override
   void setup() {
     skippableTests.clear()
+    flakyTests.clear()
     itrEnabled = false
+    flakyRetryEnabled = false
   }
 
-  def givenSkippableTests(List<SkippableTest> tests) {
+  def givenSkippableTests(List<TestIdentifier> tests) {
     skippableTests.addAll(tests)
     itrEnabled = true
+  }
+
+  def givenFlakyTests(List<TestIdentifier> tests) {
+    flakyTests.addAll(tests)
+    flakyRetryEnabled = true
   }
 
   @Override
@@ -153,6 +173,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(GeneralConfig.API_KEY_FILE, agentKeyFile.toString())
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
   }
 
   def cleanupSpec() {
@@ -185,11 +207,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   }
 
   def getEventsAsJson(List<List<DDSpan>> traces) {
-    return getSpansAsJson(new CiTestCycleMapperV1(Config.get().getWellKnownTags()), traces)
+    return getSpansAsJson(new CiTestCycleMapperV1(Config.get().getWellKnownTags(), false), traces)
   }
 
   def getCoveragesAsJson(List<List<DDSpan>> traces) {
-    return getSpansAsJson(new CiTestCovMapperV2(), traces)
+    return getSpansAsJson(new CiTestCovMapperV2(false), traces)
   }
 
   def getSpansAsJson(RemoteMapper mapper, List<List<DDSpan>> traces) {

@@ -10,6 +10,7 @@ import com.couchbase.client.core.env.SeedNode;
 import com.couchbase.client.core.util.ConnectionString;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(Instrumenter.class)
-public class CoreInstrumentation extends Instrumenter.Tracing
+public class CoreInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public CoreInstrumentation() {
     super("couchbase");
@@ -41,11 +42,11 @@ public class CoreInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         isConstructor().and(takesArgument(2, named("java.util.Set"))),
         CoreInstrumentation.class.getName() + "$CoreConstructorSeedNodeAdvice");
-    transformation.applyAdvice(
+    transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(2, named("com.couchbase.client.core.util.ConnectionString"))),
         CoreInstrumentation.class.getName() + "$CoreConstructorConnectionStringAdvice");

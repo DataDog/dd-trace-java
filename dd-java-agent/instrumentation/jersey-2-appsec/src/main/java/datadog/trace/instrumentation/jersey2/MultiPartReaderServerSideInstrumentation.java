@@ -11,6 +11,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -30,7 +31,7 @@ import org.glassfish.jersey.media.multipart.MultiPart;
 import org.glassfish.jersey.message.internal.MediaTypes;
 
 @AutoService(Instrumenter.class)
-public class MultiPartReaderServerSideInstrumentation extends Instrumenter.AppSec
+public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 
   public MultiPartReaderServerSideInstrumentation() {
@@ -48,8 +49,8 @@ public class MultiPartReaderServerSideInstrumentation extends Instrumenter.AppSe
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
         named("readMultiPart")
             .and(isProtected())
             .and(returns(named("org.glassfish.jersey.media.multipart.MultiPart")))
