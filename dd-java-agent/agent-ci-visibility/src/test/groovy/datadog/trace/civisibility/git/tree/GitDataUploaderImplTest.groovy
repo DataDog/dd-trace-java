@@ -40,7 +40,7 @@ class GitDataUploaderImplTest extends Specification {
     gitInfoProvider.getGitInfo(repoRoot) >> new GitInfo(repoUrl, null, null, null)
 
     def gitClient = new GitClient(metricCollector, repoRoot, "25 years ago", 3, TIMEOUT_MILLIS)
-    def uploader = new GitDataUploaderImpl(config, api, gitClient, gitInfoProvider, repoRoot, "origin")
+    def uploader = new GitDataUploaderImpl(config, metricCollector, api, gitClient, gitInfoProvider, repoRoot, "origin")
 
     when:
     def future = uploader.startOrObserveGitDataUpload()

@@ -27,7 +27,7 @@ public enum CiVisibilityDistributionMetric {
   GIT_REQUESTS_OBJECTS_PACK_MS("git_requests.objects_pack_ms"),
   /** The sum of the sizes of the object pack files inside a single payload */
   GIT_REQUESTS_OBJECTS_PACK_BYTES("git_requests.objects_pack_bytes"),
-  /** The number of files sent in the object pack payload */
+  /** The number of pack files created in a test session */
   GIT_REQUESTS_OBJECTS_PACK_FILES("git_requests.objects_pack_files"),
   /** The time it takes to get the response of the settings endpoint request in ms */
   GIT_REQUESTS_SETTINGS_MS("git_requests.settings_ms"),

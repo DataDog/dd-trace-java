@@ -38,6 +38,7 @@ excludedClassesCoverage += [
   "datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory",
   "datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory.Key",
   "datadog.trace.civisibility.config.CiVisibilitySettings",
+  "datadog.trace.civisibility.config.ConfigurationApiImpl",
   "datadog.trace.civisibility.config.ConfigurationApiImpl.MultiEnvelopeDto",
   "datadog.trace.civisibility.config.ConfigurationApi.1",
   "datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl",
