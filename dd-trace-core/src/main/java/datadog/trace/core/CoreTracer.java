@@ -59,6 +59,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
+import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
@@ -685,6 +686,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           // CI Test Cycle protocol is not available
           addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
         }
+      }
+
+      if (config.isCiVisibilityTelemetryEnabled()) {
+        addTraceInterceptor(new CiVisibilityTelemetryInterceptor());
       }
     }
 

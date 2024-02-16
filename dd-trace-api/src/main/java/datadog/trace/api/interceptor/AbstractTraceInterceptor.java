@@ -23,6 +23,7 @@ public abstract class AbstractTraceInterceptor implements TraceInterceptor {
     GIT_METADATA(3),
 
     // trace data collection
+    CI_VISIBILITY_TELEMETRY(Integer.MAX_VALUE - 1),
     SERVICE_NAME_COLLECTING(Integer.MAX_VALUE);
 
     private final int idx;
