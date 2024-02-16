@@ -67,6 +67,7 @@ if pr_url:
     pr_base_ref = data.get("base", {}).get("ref")
 else:
     labels = set()
+    pr_base_ref = ""
 
 branch = os.environ.get("CIRCLE_BRANCH", "")
 run_all = "all" in labels
