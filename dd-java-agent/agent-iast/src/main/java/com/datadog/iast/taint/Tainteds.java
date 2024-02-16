@@ -1,7 +1,7 @@
 package com.datadog.iast.taint;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.List;
+import java.util.RandomAccess;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.jetbrains.annotations.Contract;
@@ -36,15 +36,14 @@ public final class Tainteds {
   }
 
   @Contract("null -> false")
-  public static boolean canBeTainted(@Nullable final Collection<String> e) {
+  public static boolean canBeTainted(@Nullable final List<String> e) {
     if (e == null || e.isEmpty()) {
       return false;
     }
-    if (e instanceof ArrayList) {
-      // indexed optimization for ArrayList to prevent the iterator allocation
-      final ArrayList<String> list = (ArrayList<String>) e;
-      for (int i = list.size() - 1; i >= 0; i--) {
-        if (canBeTainted(list.get(i))) {
+    if (e instanceof RandomAccess) {
+      // indexed optimization for RandomAccess to prevent the iterator allocation
+      for (int i = e.size() - 1; i >= 0; i--) {
+        if (canBeTainted(e.get(i))) {
           return true;
         }
       }
