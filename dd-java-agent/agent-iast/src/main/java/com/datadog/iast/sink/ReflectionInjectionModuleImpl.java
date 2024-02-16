@@ -41,7 +41,8 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
   @Override
   public void onMethodName(
       @Nonnull Class<?> clazz, @Nonnull String methodName, @Nullable Class<?>... parameterTypes) {
-    checkReflectionInjection(ReflectionInjectionModuleImpl::methodEvidence, clazz, methodName, parameterTypes);
+    checkReflectionInjection(
+        ReflectionInjectionModuleImpl::methodEvidence, clazz, methodName, parameterTypes);
   }
 
   @Override
@@ -107,6 +108,7 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
   }
 
   private interface StringEvidenceBuilder {
-    String build(@Nonnull Class<?> clazz, @Nonnull String name, @Nullable Class<?>... parameterTypes);
+    String build(
+        @Nonnull Class<?> clazz, @Nonnull String name, @Nullable Class<?>... parameterTypes);
   }
 }
