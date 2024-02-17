@@ -41,7 +41,7 @@ class TelemetryRequestBodySpecification extends Specification {
     ex.cause != null
   }
 
-  def 'writeConfig must support values of Boolean, String, Integer, Double, Map<String, Object>'() {
+  def 'writeConfig must support values of Boolean, String, Number, and null'() {
     setup:
     TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
     Map<String, Object> map = new HashMap<>()
@@ -57,12 +57,13 @@ class TelemetryRequestBodySpecification extends Specification {
     then:
     req.beginConfiguration()
     [
-      new ConfigSetting("string", "bar", ConfigOrigin.REMOTE),
-      new ConfigSetting("int", 2342, ConfigOrigin.DEFAULT),
-      new ConfigSetting("double", Double.valueOf("123.456"), ConfigOrigin.ENV),
-      new ConfigSetting("map", map, ConfigOrigin.JVM_PROP),
+      ConfigSetting.of("string", "bar", ConfigOrigin.REMOTE),
+      ConfigSetting.of("int", 2342, ConfigOrigin.DEFAULT),
+      ConfigSetting.of("double", Double.valueOf("123.456"), ConfigOrigin.ENV),
+      ConfigSetting.of("map", map, ConfigOrigin.JVM_PROP),
+      ConfigSetting.of("list", Arrays.asList("1", "2", 3), ConfigOrigin.DEFAULT),
       // make sure null values are serialized
-      new ConfigSetting("null", null, ConfigOrigin.DEFAULT)
+      ConfigSetting.of("null", null, ConfigOrigin.DEFAULT)
     ].forEach { cc -> req.writeConfiguration(cc) }
     req.endConfiguration()
 
@@ -71,7 +72,8 @@ class TelemetryRequestBodySpecification extends Specification {
       '{"name":"string","value":"bar","origin":"remote_config"},' +
       '{"name":"int","value":2342,"origin":"default"},' +
       '{"name":"double","value":123.456,"origin":"env_var"},' +
-      '{"name":"map","value":{"key1":"value1","key2":432.32,"key3":324},"origin":"jvm_prop"},' +
+      '{"name":"map","value":"key1:value1,key2:432.32,key3:324","origin":"jvm_prop"},' +
+      '{"name":"list","value":"1,2,3","origin":"default"},' +
       '{"name":"null","value":null,"origin":"default"}]'
   }
 

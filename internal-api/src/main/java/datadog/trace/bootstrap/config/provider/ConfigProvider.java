@@ -66,7 +66,8 @@ public final class ConfigProvider {
       }
     }
     if (collectConfig) {
-      ConfigCollector.get().put(key, String.valueOf(defaultValue), ConfigOrigin.DEFAULT);
+      String valueStr = defaultValue == null ? null : defaultValue.name();
+      ConfigCollector.get().put(key, valueStr, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
   }
@@ -81,7 +82,7 @@ public final class ConfigProvider {
         return value;
       }
     }
-    if (collectConfig && defaultValue != null) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -101,7 +102,7 @@ public final class ConfigProvider {
         return value;
       }
     }
-    if (collectConfig && defaultValue != null) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -125,7 +126,7 @@ public final class ConfigProvider {
         return value;
       }
     }
-    if (collectConfig && defaultValue != null) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -203,7 +204,7 @@ public final class ConfigProvider {
         // continue
       }
     }
-    if (collectConfig && defaultValue != null) {
+    if (collectConfig) {
       ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
@@ -216,8 +217,8 @@ public final class ConfigProvider {
   public List<String> getList(String key, List<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
-      if (collectConfig && defaultValue != null) {
-        ConfigCollector.get().put(key, String.join(",", defaultValue), ConfigOrigin.DEFAULT);
+      if (collectConfig) {
+        ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
       }
       return defaultValue;
     } else {
@@ -228,9 +229,8 @@ public final class ConfigProvider {
   public Set<String> getSet(String key, Set<String> defaultValue) {
     String list = getString(key);
     if (null == list) {
-      if (collectConfig && defaultValue != null) {
-        String defaultValueStr = String.join(",", defaultValue);
-        ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
+      if (collectConfig) {
+        ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
       }
       return defaultValue;
     } else {
@@ -257,7 +257,9 @@ public final class ConfigProvider {
       }
       merged.putAll(parsedMap);
     }
-    collectMapSetting(key, merged, origin);
+    if (collectConfig) {
+      ConfigCollector.get().put(key, merged, origin);
+    }
     return merged;
   }
 
@@ -276,7 +278,9 @@ public final class ConfigProvider {
       }
       merged.putAll(parsedMap);
     }
-    collectMapSetting(key, merged, origin);
+    if (collectConfig) {
+      ConfigCollector.get().put(key, merged, origin);
+    }
     return merged;
   }
 
@@ -298,7 +302,9 @@ public final class ConfigProvider {
         }
         merged.putAll(parsedMap);
       }
-      collectMapSetting(key, merged, origin);
+      if (collectConfig) {
+        ConfigCollector.get().put(key, merged, origin);
+      }
     }
     return merged;
   }
@@ -313,8 +319,7 @@ public final class ConfigProvider {
       log.warn("Invalid configuration for {}", key, e);
     }
     if (collectConfig) {
-      String defaultValueStr = ConfigConverter.renderIntegerRange(defaultValue);
-      ConfigCollector.get().put(key, defaultValueStr, ConfigOrigin.DEFAULT);
+      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
   }
@@ -405,22 +410,6 @@ public final class ConfigProvider {
           new PropertiesConfigSource(configProperties, true),
           new CapturedEnvironmentConfigSource());
     }
-  }
-
-  private void collectMapSetting(String key, Map<String, String> merged, ConfigOrigin origin) {
-    if (!collectConfig || merged.isEmpty()) {
-      return;
-    }
-    StringBuilder mergedValue = new StringBuilder();
-    for (Map.Entry<String, String> entry : merged.entrySet()) {
-      if (mergedValue.length() > 0) {
-        mergedValue.append(',');
-      }
-      mergedValue.append(entry.getKey());
-      mergedValue.append(':');
-      mergedValue.append(entry.getValue());
-    }
-    ConfigCollector.get().put(key, mergedValue.toString(), origin);
   }
 
   /**

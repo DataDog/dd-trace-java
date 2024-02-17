@@ -9,11 +9,10 @@ import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.api.naming.SpanNaming
-import datadog.trace.bootstrap.config.provider.ConfigConverter
+import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
 import static datadog.trace.api.UserEventTrackingMode.SAFE
@@ -99,25 +98,31 @@ class ConfigCollectorTest extends DDSpecification {
     GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
     CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS  | "main"
     IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | DEFAULT_IAST_WEAK_HASH_ALGORITHMS.join(",")
-    TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | ConfigConverter.renderIntegerRange(DEFAULT_HTTP_CLIENT_ERROR_STATUSES)
+    TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | "400-500"
   }
 
-  def "default NULL config settings are NOT collected"() {
-    expect:
-    ConfigCollector.get().collect().get(configKey) == null
+  def "default null config settings are also collected"() {
+    when:
+    ConfigSetting cs = ConfigCollector.get().collect().get(configKey)
+
+    then:
+    cs.key == configKey
+    cs.value == null
+    cs.origin == ConfigOrigin.DEFAULT
 
     where:
-    configKey                                                  | _
-    GeneralConfig.APPLICATION_KEY                              | _
-    TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | _
-    JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | _
-    CiVisibilityConfig.CIVISIBILITY_MODULE_ID                  | _
-    TracerConfig.TRACE_SAMPLE_RATE                             | _
-    TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS | _
-    TracerConfig.PROXY_NO_PROXY                                | _
-    TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | _
-    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | _
-    TracerConfig.HEADER_TAGS                                   | _
+    configKey << [
+      GeneralConfig.APPLICATION_KEY,
+      TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES,
+      JmxFetchConfig.JMX_FETCH_CHECK_PERIOD,
+      CiVisibilityConfig.CIVISIBILITY_MODULE_ID,
+      TracerConfig.TRACE_SAMPLE_RATE,
+      TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS,
+      TracerConfig.PROXY_NO_PROXY,
+      TracerConfig.TRACE_PEER_SERVICE_MAPPING,
+      TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING,
+      TracerConfig.HEADER_TAGS,
+    ]
   }
 
   def "put-get configurations"() {
@@ -132,9 +137,9 @@ class ConfigCollectorTest extends DDSpecification {
 
     then:
     ConfigCollector.get().collect().values().toSet() == [
-      new ConfigSetting('key1', 'replaced', ConfigOrigin.REMOTE),
-      new ConfigSetting('key2', 'value2', ConfigOrigin.ENV),
-      new ConfigSetting('key3', 'value3', ConfigOrigin.JVM_PROP)
+      ConfigSetting.of('key1', 'replaced', ConfigOrigin.REMOTE),
+      ConfigSetting.of('key2', 'value2', ConfigOrigin.ENV),
+      ConfigSetting.of('key3', 'value3', ConfigOrigin.JVM_PROP)
     ] as Set
   }
 
