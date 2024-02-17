@@ -9,7 +9,6 @@ import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.api.naming.SpanNaming
-import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 
@@ -153,5 +152,61 @@ class ConfigCollectorTest extends DDSpecification {
 
     then:
     ConfigCollector.get().collect().get('DD_API_KEY').value == '<hidden>'
+  }
+
+  def "collects common setting default values"() {
+    when:
+    def settings = ConfigCollector.get().collect()
+
+    then:
+    def setting = settings.get(key)
+
+    setting.key == key
+    setting.value == value
+    setting.origin == ConfigOrigin.DEFAULT
+
+    where:
+    key                      | value
+    "trace.enabled"          | true
+    "profiling.enabled"      | false
+    "appsec.enabled"         | "inactive" //TODO false
+    "data.streams.enabled"   | false
+    "trace.tags"             | null // TODO ""
+    "trace.header.tags"      | null // TODO ""
+    "logs.injection.enabled" | true // TODO false
+    "trace.sample.rate"      | null // TODO 1.0
+  }
+
+  def "collects common setting overridden values"() {
+    setup:
+    injectEnvConfig("DD_TRACE_ENABLED", "false")
+    injectEnvConfig("DD_PROFILING_ENABLED", "true")
+    injectEnvConfig("DD_APPSEC_ENABLED", "false")
+    injectEnvConfig("DD_DATA_STREAMS_ENABLED", "true")
+    injectEnvConfig("DD_TAGS", "team:apm,component:web")
+    injectEnvConfig("DD_TRACE_HEADER_TAGS", "X-Header-Tag-1:header_tag_1,X-Header-Tag-2:header_tag_2")
+    injectEnvConfig("DD_LOGS_INJECTION", "false")
+    injectEnvConfig("DD_TRACE_SAMPLE_RATE", "0.3")
+
+    when:
+    def settings = ConfigCollector.get().collect()
+
+    then:
+    def setting = settings.get(key)
+
+    setting.key == key
+    setting.value == value
+    setting.origin == ConfigOrigin.ENV
+
+    where:
+    key                      | value
+    "trace.enabled"          | "false"
+    "profiling.enabled"      | "true"
+    "appsec.enabled"         | "false"
+    "data.streams.enabled"   | "true"
+    "trace.tags"             | "component:web,team:apm" // TODO should it preserve ordering? "team:apm,component:web"
+    "trace.header.tags"      | "X-Header-Tag-1:header_tag_1,X-Header-Tag-2:header_tag_2".toLowerCase() // TODO should it preserve case?
+    "logs.injection.enabled" | "false"
+    "trace.sample.rate"      | "0.3"
   }
 }

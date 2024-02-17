@@ -242,7 +242,7 @@ public final class ConfigProvider {
     return ConfigConverter.parseList(getString(key), " ");
   }
 
-  public Map<String, String> getMergedMap(String key) {
+  public Map<String, String> getMergedMap(String key, String... aliases) {
     Map<String, String> merged = new HashMap<>();
     ConfigOrigin origin = ConfigOrigin.DEFAULT;
     // System properties take precedence over env
@@ -250,7 +250,7 @@ public final class ConfigProvider {
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
-      String value = sources[i].get(key);
+      String value = sources[i].get(key, aliases);
       Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
       if (!parsedMap.isEmpty()) {
         origin = sources[i].origin();
