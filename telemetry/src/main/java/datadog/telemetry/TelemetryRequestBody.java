@@ -216,7 +216,7 @@ public class TelemetryRequestBody extends RequestBody {
 
   public void writeConfiguration(ConfigSetting configSetting) throws IOException {
     bodyWriter.beginObject();
-    bodyWriter.name("name").value(configSetting.key);
+    bodyWriter.name("name").value(configSetting.normalizedKey());
     bodyWriter.setSerializeNulls(true);
     bodyWriter.name("value").jsonValue(configSetting.value);
     bodyWriter.setSerializeNulls(false);

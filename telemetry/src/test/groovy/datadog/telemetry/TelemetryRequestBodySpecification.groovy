@@ -77,6 +77,24 @@ class TelemetryRequestBodySpecification extends Specification {
       '{"name":"null","value":null,"origin":"default"}]'
   }
 
+  def 'use snake_case for setting keys'() {
+    setup:
+    TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
+
+    when:
+    req.beginRequest(false)
+    // exclude request header to simplify assertion
+    drainToString(req)
+
+    then:
+    req.beginConfiguration()
+    req.writeConfiguration(ConfigSetting.of("this.is.a.key", "value", ConfigOrigin.REMOTE))
+    req.endConfiguration()
+
+    then:
+    drainToString(req) == ',"configuration":[{"name":"this_is_a_key","value":"value","origin":"remote_config"}]'
+  }
+
   def 'add debug flag'() {
     setup:
     TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_STARTED)

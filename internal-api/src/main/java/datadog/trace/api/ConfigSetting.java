@@ -89,6 +89,10 @@ public final class ConfigSetting {
     this.origin = origin;
   }
 
+  public String normalizedKey() {
+    return key.toLowerCase().replace(".", "_");
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
