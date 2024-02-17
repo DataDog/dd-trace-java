@@ -377,6 +377,11 @@ final class TypeFactory {
       return outline().getDeclaringType();
     }
 
+    @Override
+    public boolean isVisibleTo(TypeDescription type) {
+      return name.startsWith("java.") || super.isVisibleTo(type);
+    }
+
     private TypeDescription outline() {
       if (null != delegate) {
         return delegate; // will be at least an outline, no need to re-resolve
