@@ -114,9 +114,10 @@ class Converter {
       def virtualFieldConverter = new VirtualFieldConverter(writer, file.name)
       def muzzleConverter = new MuzzleConverter(virtualFieldConverter, file.name)
       def javaAgentApiChecker = new OtelApiVerifier(muzzleConverter, file.name)
+      def instrumenterConverter = new InstrumentationModuleConverter(javaAgentApiChecker, file.name)
       // TODO Insert more visitors here
       def reader = new ClassReader(inputStream)
-      reader.accept(javaAgentApiChecker, 0) // TODO flags?
+      reader.accept(instrumenterConverter, 0) // TODO flags?
       Files.write(targetFile, writer.toByteArray())
 
       // Check if there are references to write as muzzle class // TODO Update as a later phase

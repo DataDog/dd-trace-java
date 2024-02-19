@@ -6,7 +6,6 @@ import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
 import static org.objectweb.asm.Opcodes.ARETURN;
-import static org.objectweb.asm.Opcodes.ASM9;
 import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.BIPUSH;
 import static org.objectweb.asm.Opcodes.DUP;
@@ -31,6 +30,7 @@ import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
+import otel.AbstractClassVisitor;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,9 +38,9 @@ import java.util.Map;
 import java.util.stream.StreamSupport;
 
 /**
- * This visitor use the ASM Tree API to converts muzzle methods.
+ * This visitor uses the ASM Tree API to converts muzzle methods.
  */
-public class MuzzleConverter extends ClassVisitor {
+public class MuzzleConverter extends AbstractClassVisitor {
   private static final String INSTRUMENTATION_MODULE_MUZZLE_CLASS_NAME = "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle";
   private static final String STRING_CLASS_NAME = "java/lang/String";
   /* OTel muzzle API */
@@ -56,15 +56,11 @@ public class MuzzleConverter extends ClassVisitor {
   private static final String REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME = "registerMuzzleVirtualFields";
   private static final String REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC = "(Lio/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder;)V";
 
-  private final ClassVisitor next;
-  private final String className;
   private final List<MuzzleReference> references;
   private boolean instrumentationModule;
 
   public MuzzleConverter(ClassVisitor classVisitor, String className) {
-    super(ASM9, new ClassNode());
-    this.next = classVisitor;
-    this.className = className;
+    super(classVisitor, className);
     this.references = new ArrayList<>();
     this.instrumentationModule = false;
   }
@@ -83,7 +79,7 @@ public class MuzzleConverter extends ClassVisitor {
     }
 
     if (this.next != null) {
-      ClassNode cn = (ClassNode) cv;
+      ClassNode cn = (ClassNode) this.cv;
       cn.accept(this.next);
     }
   }
@@ -106,9 +102,8 @@ public class MuzzleConverter extends ClassVisitor {
    * Converts OTel {@code public List getMuzzleHelperClassNames()} method into Datadog {@code public String[] helperClassNames()} method.
    */
   private void convertHelperClassNames() {
-    ClassNode classNode = (ClassNode) this.cv;
     // Look for OTel method
-    MethodNode methodNode = findMethodNode(classNode, GET_MUZZLE_HELPER_CLASS_NAMES_METHOD_NAME, GET_MUZZLE_HELPS_CASS_NAMES_DESC);
+    MethodNode methodNode = findMethodNode(GET_MUZZLE_HELPER_CLASS_NAMES_METHOD_NAME, GET_MUZZLE_HELPS_CASS_NAMES_DESC);
     List<String> helperNames = captureHelperClassNames(methodNode);
     /*
      * Update method signature and implementation
@@ -172,9 +167,8 @@ public class MuzzleConverter extends ClassVisitor {
    * Captures OpenTelemetry ClassRef/ClassRefBuilder/Source/Field/Method and ASM Type calls to recreate muzzle references.
    */
   private void captureMuzzleReferences() {
-    ClassNode classNode = (ClassNode) this.cv;
     // Look for OTel method
-    MethodNode methodNode = findMethodNode(classNode, GET_MUZZLE_REFERENCES_METHOD_NAME, GET_MUZZLE_REFERENCES_DESC);
+    MethodNode methodNode = findMethodNode(GET_MUZZLE_REFERENCES_METHOD_NAME, GET_MUZZLE_REFERENCES_DESC);
     // Store sources, flags and types captured along walking the instructions
     List<String> sources = new ArrayList<>();
     int flags = 0;
@@ -305,7 +299,7 @@ public class MuzzleConverter extends ClassVisitor {
    */
   private void convertContextStore() {
     ClassNode classNode = (ClassNode) this.cv;
-    MethodNode methodNode = findMethodNode(classNode, REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME, REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC);
+    MethodNode methodNode = findMethodNode(REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME, REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC);
     Map<String, String> stores = captureContextStore(methodNode);
     MethodNode contextStoreMethodNode = generateContextStoreMethod(stores);
     classNode.methods.add(contextStoreMethodNode);
@@ -360,15 +354,6 @@ public class MuzzleConverter extends ClassVisitor {
     // Return wrapped map
     methodNode.visitInsn(ARETURN);
     return methodNode;
-  }
-
-  private MethodNode findMethodNode(ClassNode classNode, String methodName, String methodDesc) {
-    return classNode.methods.stream()
-        .filter(node -> methodName.equals(node.name) && methodDesc.equals(node.desc))
-        .findAny()
-        .orElseThrow(() -> new IllegalStateException(
-            "Unable to find method " + methodName + " from " + this.className
-        ));
   }
 
   private String getFieldType(List<String> types) {
@@ -439,11 +424,11 @@ public class MuzzleConverter extends ClassVisitor {
     classNode.interfaces.remove(INSTRUMENTATION_MODULE_MUZZLE_CLASS_NAME);
     // Remove getMuzzleReferences() method
     MethodNode getMuzzleReferencesMethodNode =
-        findMethodNode(classNode, GET_MUZZLE_REFERENCES_METHOD_NAME, GET_MUZZLE_REFERENCES_DESC);
+        findMethodNode(GET_MUZZLE_REFERENCES_METHOD_NAME, GET_MUZZLE_REFERENCES_DESC);
     classNode.methods.remove(getMuzzleReferencesMethodNode);
     // Remove registerMuzzleVirtualFields(VirtualFieldMappingsBuilder) method
     MethodNode registerMuzzleVirtualFieldsMethodNode =
-        findMethodNode(classNode, REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME, REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC);
+        findMethodNode(REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME, REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC);
     classNode.methods.remove(registerMuzzleVirtualFieldsMethodNode);
   }
 }
