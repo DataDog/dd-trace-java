@@ -41,7 +41,10 @@ public class DefaultConnectionInstrumentation extends AbstractConnectionInstrume
     // IBM Informix
     "com.informix.jdbc.IfmxConnection",
     // for testing purposes
-    "test.TestConnection"
+    "test.TestConnection",
+      // 达梦db
+      "dm.jdbc.driver.DmdbConnection"
+
   };
 
   @Override

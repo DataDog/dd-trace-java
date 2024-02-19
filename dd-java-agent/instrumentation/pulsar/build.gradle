@@ -1,0 +1,56 @@
+muzzle {
+  pass {
+    group = "org.apache.pulsar"
+    module = "pulsar-client"
+    versions = "[2.8.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+//addTestSuiteForDir('latestDepTest','test')
+
+dependencies {
+  compileOnly group: 'org.apache.pulsar', name: 'pulsar-client', version: '2.11.0'
+  //library("org.apache.pulsar:pulsar-client:2.8.0")
+
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
+/*
+
+dependencies {
+
+  testImplementation("javax.annotation:javax.annotation-api:1.3.2")
+  testImplementation("org.testcontainers:pulsar")
+  testImplementation("org.apache.pulsar:pulsar-client-admin:2.8.0")
+}
+*/
+
+
+/*
+
+muzzle {
+  pass {
+    group = "org.apache.rocketmq"
+    module = "rocketmq-client"
+    versions = "[4.8.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest','test')
+
+dependencies {
+  compileOnly group: 'org.apache.rocketmq', name: 'rocketmq-client', version: '4.8.0'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
+*/

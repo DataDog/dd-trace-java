@@ -16,6 +16,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -57,10 +58,13 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter
     public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
       AgentSpan span = activeSpan();
+      if (span != null) {
+        TraceConfig traceConfig = span.traceConfig();
 
-      if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class)
-            .put(event, span.context());
+        if (traceConfig != null && traceConfig.isLogsInjectionEnabled()) {
+          InstrumentationContext.get(ILoggingEvent.class, AgentSpan.Context.class)
+              .put(event, span.context());
+        }
       }
     }
   }

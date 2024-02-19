@@ -33,7 +33,7 @@ dependencies {
   // Include latest version of kafka itself along with latest version of client libs.
   // This seems to help with jar compatibility hell.
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '2.+'
-  latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.+'
+ // latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.+'
   latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.19.+'
