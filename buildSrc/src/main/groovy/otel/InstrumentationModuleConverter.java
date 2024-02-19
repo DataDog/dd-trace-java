@@ -23,6 +23,8 @@ public class InstrumentationModuleConverter extends AbstractClassVisitor {
   private static final String OTEL_AUTOMATIC_INSTRUMENTATION_CLASS_NAME = "datadog/trace/instrumentation/automatic/OtelAutomaticInstrumentation";
   private static final String INSTRUMENTER_CLASS_NAME = "datadog/trace/agent/tooling/Instrumenter";
   private static final String CLASS_CONSTRUCTOR_DESC = "()V";
+  private static final String TYPE_INSTRUMENTATIONS_METHOD_NAME = "typeInstrumentations";
+  private static final String TYPE_INSTRUMENTATIONS_DESC = "()Ljava/util/List;";
 
   public InstrumentationModuleConverter(ClassVisitor classVisitor, String className) {
     super(classVisitor, className);
@@ -49,7 +51,7 @@ public class InstrumentationModuleConverter extends AbstractClassVisitor {
     ClassNode classNode = (ClassNode) this.cv;
     // Update parent class
     classNode.superName = OTEL_AUTOMATIC_INSTRUMENTATION_CLASS_NAME;
-    // Rewrite constructor
+    // Rewrite constructor to call the Datadog parent constructor
     MethodNode constructorMethodNode = findMethodNode("<init>", CLASS_CONSTRUCTOR_DESC);
     InsnList instructions = new InsnList();
     for (AbstractInsnNode instruction : constructorMethodNode.instructions) {
@@ -67,7 +69,8 @@ public class InstrumentationModuleConverter extends AbstractClassVisitor {
   }
 
   private void convertTypeInstrumentations() {
-    MethodNode methodNode = findMethodNode("typeInstrumentations", "()Ljava/util/List;");
+    // Rewrite typeInstrumentations() to create the Datadog type of array
+    MethodNode methodNode = findMethodNode(TYPE_INSTRUMENTATIONS_METHOD_NAME, TYPE_INSTRUMENTATIONS_DESC);
     InsnList instructions = new InsnList();
     for (AbstractInsnNode instruction : methodNode.instructions) {
       if (instruction.getType() == TYPE_INSN) {

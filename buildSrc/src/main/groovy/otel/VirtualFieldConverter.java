@@ -11,6 +11,9 @@ import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This visitor converts OpenTelemetry VirtualField API usage into Datadog ContextStore and InstrumentationContext usage.
+ */
 public class VirtualFieldConverter extends ClassVisitor {
   private static final Logger LOGGER = LoggerFactory.getLogger(VirtualFieldConverter.class);
   // VirtualField

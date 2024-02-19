@@ -38,7 +38,7 @@ import java.util.Map;
 import java.util.stream.StreamSupport;
 
 /**
- * This visitor uses the ASM Tree API to converts muzzle methods.
+ * This visitor converts muzzle methods from OpenTelemetry InstrumentationModuleMuzzle implementation into a dedicated Datadog Muzzle class.
  */
 public class MuzzleConverter extends AbstractClassVisitor {
   private static final String INSTRUMENTATION_MODULE_MUZZLE_CLASS_NAME = "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle";

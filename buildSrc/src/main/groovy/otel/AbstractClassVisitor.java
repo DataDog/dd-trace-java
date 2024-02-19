@@ -7,7 +7,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 /**
- * Base class visitor to convert OpenTelemetry class into their Datadog equivalence.
+ * Base class visitor to convert OpenTelemetry class into their Datadog equivalence using Tree API.
  */
 public class AbstractClassVisitor extends ClassVisitor {
   protected final ClassVisitor next;

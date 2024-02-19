@@ -7,8 +7,6 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.TaskAction
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import otel.muzzle.MuzzleConverter
 import otel.muzzle.MuzzleGenerator
 
@@ -18,8 +16,6 @@ import java.nio.file.Path
 import static groovy.io.FileType.FILES
 
 class OtelConverterPlugin implements Plugin<Project> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(OtelConverterPlugin.class)
-
   @Override
   void apply(Project project) {
     // Declare "javaagent" configuration to declare dependencies to convert
@@ -43,7 +39,6 @@ class OtelConverterPlugin implements Plugin<Project> {
 class ConvertJavaAgent extends DefaultTask {
   @TaskAction
   void convert() {
-    println '>>> Running convert task'
     // Retrieve plugin configuration
     def extension = project.extensions.getByType(OtelConverterExtension)
     def workingDirectory = extension.workingDirectory.get()
@@ -52,19 +47,18 @@ class ConvertJavaAgent extends DefaultTask {
     project.configurations.named('javaagent').get().resolve().each {jarFile ->
       def artifactName = getArtifactName(jarFile.name)
       def artifactDir = workingDirectory.dir(artifactName).asFile
-      println ">>> Coonverting javaagent $artifactName into $artifactDir"
+      logger.debug("Coonverting javaagent $artifactName into $artifactDir")
       project.copy {
         from(project.zipTree(jarFile)) {
           include '**/*.class'
         }
         into artifactDir
       }
-      def converter = new Converter(artifactDir, targetDirectory)
       artifactDir.traverse(
         type: FILES,
         nameFilter: ~/.*\.class$/
       ) {
-        converter.convert(it)
+        convertClass(artifactDir, targetDirectory, it)
       }
     }
   }
@@ -85,25 +79,13 @@ class ConvertJavaAgent extends DefaultTask {
     }
     return reversedParts.reverse().join('-')
   }
-}
 
-// TODO Merge with its task?
-class Converter {
-  private static final Logger LOGGER = LoggerFactory.getLogger(OtelConverterPlugin.class)
-  private final File sourceDirectory
-  private final File targetDirectory
-
-  Converter(File sourceDirectory, File targetDirectory) {
-    this.targetDirectory = targetDirectory
-    this.sourceDirectory = sourceDirectory
-  }
-
-  void convert(File file) {
+  void convertClass(File sourceDirectory, File targetDirectory, File file) {
     // Compute target file location
-    def relativePath = this.sourceDirectory.relativePath(file)
-    Path targetFile = this.targetDirectory.toPath().resolve(relativePath)
+    def relativePath = sourceDirectory.relativePath(file)
+    Path targetFile = targetDirectory.toPath().resolve(relativePath)
     Path targetFolder = targetFile.parent
-    LOGGER.debug("Converting class file ${relativePath}")
+    logger.debug("Converting class file ${relativePath}")
     // Ensure target folder exists
     if (!Files.isDirectory(targetFolder)) {
       Files.createDirectories(targetFolder)

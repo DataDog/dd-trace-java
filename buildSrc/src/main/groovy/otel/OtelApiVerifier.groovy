@@ -15,7 +15,7 @@ class OtelApiVerifier extends ClassVisitor {
   private final String className
 
   protected OtelApiVerifier(ClassVisitor classVisitor, String className) {
-    super(ASM9, classVisitor) // TODO I supposed I could use the latest version
+    super(ASM9, classVisitor)
     this.className = className
   }
 
@@ -39,8 +39,8 @@ class OtelApiVerifier extends ClassVisitor {
   private void checkType(Type type, String name) {
     String typeClassName = type.getClassName()
     if (!isValidClass(typeClassName)) {
-      LOGGER.warn("Found $name of type $typeClassName in class $className")
-//      throw new IllegalStateException("Found $name of type $typeClassName in class $className")
+      LOGGER.warn("Invalid OpenTelemetry type found: found $name of type $typeClassName in class $className")
+//      throw new IllegalStateException("Invalid OpenTelemetry type found: found $name of type $typeClassName in class $className")
     }
   }
 
