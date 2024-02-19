@@ -28,6 +28,11 @@ public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".DeploymentHelper",

@@ -20,6 +20,7 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
       "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()}:includeResource:includeService,DDAgentWriter",
+      "-Ddd.integration.spring-boot.enabled=true",
       "-jar",
       springBootShadowJar,
       "--server.port=${httpPort}"

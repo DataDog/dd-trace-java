@@ -7,7 +7,11 @@ import org.springframework.boot.SpringApplication
 import spock.lang.Unroll
 
 class SpringBootApplicationTest extends AgentTestRunner {
-
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.integration.spring-boot.enabled", "true")
+  }
   static class BeanWhoTraces implements InitializingBean {
 
     @Override
@@ -18,6 +22,7 @@ class SpringBootApplicationTest extends AgentTestRunner {
 
   @Unroll
   def 'should change service name before bean factory initializes'() {
+    setup:
     def context = SpringApplication.run(BeanWhoTraces, args)
     when:
     context.start()
@@ -35,10 +40,10 @@ class SpringBootApplicationTest extends AgentTestRunner {
     context?.stop()
     where:
     expectedService | args
-    "args"          | new String[]{
-      "--spring.application.name=args"
+    "application-name-from-args"          | new String[]{
+      "--spring.application.name=application-name-from-args"
     }
-    "props"         | new String[0] // will load from properties
+    "application-name-from-properties"         | new String[0] // will load from properties
   }
 }
 
@@ -47,6 +52,7 @@ class SpringBootApplicationNotAppliedForkedTest extends AgentTestRunner {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("service", "myservice")
+    injectSysConfig("trace.integration.spring-boot.enabled", "true")
   }
 
   def 'should not service name when user inferred dd_service'() {

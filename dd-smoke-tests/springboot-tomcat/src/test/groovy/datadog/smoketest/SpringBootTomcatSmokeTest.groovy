@@ -41,6 +41,7 @@ class SpringBootTomcatSmokeTest extends AbstractServerSmokeTest {
       new ProcessBuilder("bin/catalina.sh", "run")
     processBuilder.directory(tomcatDirectory.toFile())
     defaultJavaProperties += "-Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}:includeService:includeResource"
+    defaultJavaProperties += "-Ddd.integration.spring-boot.enabled=true"
     processBuilder.environment().put("CATALINA_OPTS", defaultJavaProperties.join(" "))
     return processBuilder
   }
