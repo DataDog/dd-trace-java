@@ -7,10 +7,6 @@ import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.util.HttpHeader;
 import datadog.trace.api.iast.SourceTypes;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -18,28 +14,6 @@ import javax.annotation.Nullable;
 public final class Ranges {
 
   public static final Range[] EMPTY = new Range[0];
-  public static final RangesProvider<?> EMPTY_PROVIDER =
-      new RangesProvider<Object>() {
-        @Override
-        public int rangeCount() {
-          return 0;
-        }
-
-        @Override
-        public int size() {
-          return 0;
-        }
-
-        @Override
-        public Object value(final int index) {
-          throw new UnsupportedOperationException("empty provider");
-        }
-
-        @Override
-        public Range[] ranges(final Object value) {
-          throw new UnsupportedOperationException("empty provider");
-        }
-      };
 
   private Ranges() {}
 
@@ -108,30 +82,6 @@ public final class Ranges {
       Ranges.copyShift(rangesRight, ranges, rangesLeft.length, offset, remaining);
     }
     return ranges;
-  }
-
-  public static <E> RangesProvider<E> rangesProviderFor(
-      @Nonnull final TaintedObjects to, @Nullable final E[] items) {
-    if (items == null || items.length == 0) {
-      return (RangesProvider<E>) EMPTY_PROVIDER;
-    }
-    return new ArrayProvider<>(items, to);
-  }
-
-  public static <E> RangesProvider<E> rangesProviderFor(
-      @Nonnull final TaintedObjects to, @Nullable final E item) {
-    if (item == null) {
-      return (RangesProvider<E>) EMPTY_PROVIDER;
-    }
-    return new SingleProvider<>(item, to);
-  }
-
-  public static <E> RangesProvider<E> rangesProviderFor(
-      @Nonnull final TaintedObjects to, @Nullable final List<E> items) {
-    if (items == null || items.isEmpty()) {
-      return (RangesProvider<E>) EMPTY_PROVIDER;
-    }
-    return new ListProvider<>(items, to);
   }
 
   @Nullable
@@ -267,142 +217,6 @@ public final class Ranges {
     return new Range[size > MAX_RANGE_COUNT ? MAX_RANGE_COUNT : (int) size];
   }
 
-  public interface RangesProvider<E> {
-    int rangeCount();
-
-    int size();
-
-    @Nullable
-    E value(final int index);
-
-    @Nullable
-    Range[] ranges(final E value);
-  }
-
-  private abstract static class IterableProvider<E, LIST> implements RangesProvider<E> {
-    private final LIST items;
-    @Nullable private final Map<E, Range[]> ranges;
-    private final int rangeCount;
-
-    private IterableProvider(@Nonnull final LIST items, @Nonnull final TaintedObjects to) {
-      this.items = items;
-      final int length = size(items);
-      Map<E, Range[]> ranges = null;
-      int rangeCount = 0;
-      for (int i = 0; i < length; i++) {
-        final E item = item(items, i);
-        if (item != null) {
-          final TaintedObject tainted = to.get(item);
-          if (tainted != null) {
-            final Range[] taintedRanges = tainted.getRanges();
-            rangeCount += taintedRanges.length;
-            if (ranges == null) {
-              ranges = new HashMap<>(length);
-            }
-            ranges.put(item, taintedRanges);
-          }
-        }
-      }
-      this.ranges = ranges;
-      this.rangeCount = rangeCount;
-    }
-
-    @Override
-    public int rangeCount() {
-      return rangeCount;
-    }
-
-    @Nullable
-    @Override
-    public E value(final int index) {
-      return item(items, index);
-    }
-
-    @Nullable
-    @Override
-    public Range[] ranges(final E value) {
-      return ranges == null ? null : ranges.get(value);
-    }
-
-    @Override
-    public int size() {
-      return size(items);
-    }
-
-    protected abstract int size(@Nonnull final LIST items);
-
-    @Nullable
-    protected abstract E item(@Nonnull final LIST items, final int index);
-  }
-
-  private static class SingleProvider<E> implements RangesProvider<E> {
-    private final E value;
-    @Nullable private final TaintedObject tainted;
-
-    private SingleProvider(@Nonnull final E value, @Nonnull final TaintedObjects to) {
-      this.value = value;
-      tainted = to.get(value);
-    }
-
-    @Override
-    public int rangeCount() {
-      return tainted == null ? 0 : tainted.getRanges().length;
-    }
-
-    @Override
-    public int size() {
-      return 1;
-    }
-
-    @Nullable
-    @Override
-    public E value(int index) {
-      return index == 0 ? value : null;
-    }
-
-    @Nullable
-    @Override
-    public Range[] ranges(E value) {
-      return value == this.value && tainted != null ? tainted.getRanges() : null;
-    }
-  }
-
-  private static class ArrayProvider<E> extends IterableProvider<E, E[]> {
-
-    private ArrayProvider(@Nonnull final E[] items, @Nonnull final TaintedObjects to) {
-      super(items, to);
-    }
-
-    @Override
-    protected int size(@Nonnull final E[] items) {
-      return items.length;
-    }
-
-    @Nullable
-    @Override
-    protected E item(@Nonnull final E[] items, final int index) {
-      return items[index];
-    }
-  }
-
-  private static class ListProvider<E> extends IterableProvider<E, List<E>> {
-
-    private ListProvider(@Nonnull final List<E> items, @Nonnull final TaintedObjects to) {
-      super(items, to);
-    }
-
-    @Override
-    protected int size(@Nonnull final List<E> items) {
-      return items.size();
-    }
-
-    @Nullable
-    @Override
-    protected E item(@Nonnull final List<E> items, final int index) {
-      return items.get(index);
-    }
-  }
-
   @Nullable
   public static Range[] getNotMarkedRanges(@Nullable final Range[] ranges, final int mark) {
     if (ranges == null) {
@@ -433,38 +247,5 @@ public final class Ranges {
 
   public static Range copyWithPosition(final Range range, final int offset, final int length) {
     return new Range(offset, length, range.getSource(), range.getMarks());
-  }
-
-  public static class RangeList {
-    private final ArrayList<Range> delegate = new ArrayList<>();
-    private int remaining;
-
-    public RangeList() {
-      this(MAX_RANGE_COUNT);
-    }
-
-    public RangeList(final int maxSize) {
-      this.remaining = maxSize;
-    }
-
-    public boolean add(final Range item) {
-      if (remaining > 0 && delegate.add(item)) {
-        remaining--;
-        return true;
-      }
-      return false;
-    }
-
-    public boolean isEmpty() {
-      return delegate.isEmpty();
-    }
-
-    public boolean isFull() {
-      return remaining == 0;
-    }
-
-    public Range[] toArray() {
-      return delegate.toArray(new Range[0]);
-    }
   }
 }

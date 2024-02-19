@@ -5,7 +5,6 @@ import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
-import com.datadog.iast.overhead.Operations;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.HstsMissingHeaderModule;
@@ -51,12 +50,8 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
           return;
         }
         final AgentSpan span = AgentTracer.activeSpan();
-        if (overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
-          reporter.report(
-              span,
-              new Vulnerability(
-                  VulnerabilityType.HSTS_HEADER_MISSING, Location.forSpan(span), null));
-        }
+        report(
+            span, new Vulnerability(VulnerabilityType.HSTS_HEADER_MISSING, Location.forSpan(span)));
       } catch (Throwable e) {
         LOGGER.debug("Exception while checking for missing HSTS headers vulnerability", e);
       }
