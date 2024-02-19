@@ -23,6 +23,6 @@ public class XPathInjectionModuleImpl extends SinkModuleBase implements XPathInj
     if (ctx == null) {
       return;
     }
-    checkInjection(ctx, VulnerabilityType.InjectionType.XPATH_INJECTION, expression);
+    checkInjection(VulnerabilityType.XPATH_INJECTION, expression);
   }
 }
