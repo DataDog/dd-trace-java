@@ -95,11 +95,12 @@ class ConvertJavaAgent extends DefaultTask {
       def writer = new ClassWriter(0) // TODO flags?
       def virtualFieldConverter = new VirtualFieldConverter(writer, file.name)
       def muzzleConverter = new MuzzleConverter(virtualFieldConverter, file.name)
-      def javaAgentApiChecker = new OtelApiVerifier(muzzleConverter, file.name)
-      def instrumenterConverter = new InstrumentationModuleConverter(javaAgentApiChecker, file.name)
+      def instrumenterConverter = new InstrumentationModuleConverter(muzzleConverter, file.name)
       // TODO Insert more visitors here
+
+      def javaAgentApiChecker = new OtelApiVerifier(instrumenterConverter, file.name)
       def reader = new ClassReader(inputStream)
-      reader.accept(instrumenterConverter, 0) // TODO flags?
+      reader.accept(javaAgentApiChecker, 0) // TODO flags?
       Files.write(targetFile, writer.toByteArray())
 
       // Check if there are references to write as muzzle class // TODO Update as a later phase
