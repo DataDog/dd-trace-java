@@ -1,5 +1,6 @@
 package com.datadog.iast.propagation;
 
+import static com.datadog.iast.model.Source.PROPAGATION_PLACEHOLDER;
 import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
@@ -16,6 +17,7 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Array;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -313,7 +315,8 @@ public class PropagationModuleImpl implements PropagationModule {
       }
       return charSequence.toString();
     }
-    return null; // ignore non char-sequence instances (e.g. byte buffers)
+    // ignore non char-sequence instances (e.g. byte buffers)
+    return value ? PROPAGATION_PLACEHOLDER : null;
   }
 
   @Contract("null -> false")
@@ -323,6 +326,9 @@ public class PropagationModuleImpl implements PropagationModule {
     }
     if (target instanceof CharSequence) {
       return Tainteds.canBeTainted((CharSequence) target);
+    }
+    if (target.getClass().isArray()) {
+      return Array.getLength(target) > 0;
     }
     return true;
   }
@@ -396,7 +402,7 @@ public class PropagationModuleImpl implements PropagationModule {
   private static void internalTaint(
       @Nullable final IastContext ctx,
       @Nonnull final Object value,
-      @Nullable final Source source,
+      @Nullable Source source,
       int mark) {
     if (source == null) {
       return;
@@ -409,6 +415,7 @@ public class PropagationModuleImpl implements PropagationModule {
         return;
       }
       if (value instanceof CharSequence) {
+        source = source.attachValue((CharSequence) value);
         to.taint(value, Ranges.forCharSequence((CharSequence) value, source, mark));
       } else {
         to.taint(value, Ranges.forObject(source, mark));
@@ -419,7 +426,7 @@ public class PropagationModuleImpl implements PropagationModule {
   private static void internalTaint(
       @Nullable final IastContext ctx,
       @Nonnull final Object value,
-      @Nullable final Range[] ranges,
+      @Nullable Range[] ranges,
       final int mark) {
     if (ranges == null || ranges.length == 0) {
       return;
@@ -429,8 +436,11 @@ public class PropagationModuleImpl implements PropagationModule {
     } else {
       final TaintedObjects to = getTaintedObjects(ctx);
       if (to != null) {
-        final Range[] markedRanges = markRanges(ranges, mark);
-        to.taint(value, markedRanges);
+        if (value instanceof CharSequence) {
+          ranges = attachSourceValue(ranges, (CharSequence) value);
+        }
+        ranges = markRanges(ranges, mark);
+        to.taint(value, ranges);
       }
     }
   }
@@ -447,6 +457,20 @@ public class PropagationModuleImpl implements PropagationModule {
       result[i] = new Range(range.getStart(), range.getLength(), range.getSource(), newMark);
     }
     return result;
+  }
+
+  public static Range[] attachSourceValue(
+      @Nonnull final Range[] ranges, @Nonnull final CharSequence value) {
+    // unbound sources can only occur when there's a single range in the array
+    if (ranges.length != 1) {
+      return ranges;
+    }
+    final Range range = ranges[0];
+    final Source source = range.getSource();
+    final Source newSource = range.getSource().attachValue(value);
+    return newSource == source
+        ? ranges
+        : Ranges.forCharSequence(value, newSource, range.getMarks());
   }
 
   private static class LazyContext implements IastContext {

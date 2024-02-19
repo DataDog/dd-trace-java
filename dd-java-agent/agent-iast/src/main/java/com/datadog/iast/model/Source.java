@@ -16,6 +16,9 @@ public final class Source implements Taintable.Source {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Source.class);
 
+  /** Placeholder for non char sequence objects */
+  public static final Object PROPAGATION_PLACEHOLDER = new Object();
+
   // value to send in the rare case that the name/value have been garbage collected
   private static final String GARBAGE_COLLECTED_REF =
       "[unknown: original value was garbage collected]";
@@ -51,7 +54,9 @@ public final class Source implements Taintable.Source {
   @Nullable
   private String asString(@Nullable final Object target) {
     Object value = target;
-    if (value instanceof Reference) {
+    if (value == PROPAGATION_PLACEHOLDER) {
+      value = null;
+    } else if (value instanceof Reference) {
       value = ((Reference<?>) value).get();
       if (value == null) {
         value = GARBAGE_COLLECTED_REF;
@@ -89,5 +94,12 @@ public final class Source implements Taintable.Source {
   @Override
   public int hashCode() {
     return Objects.hash(origin, getName(), getValue());
+  }
+
+  public Source attachValue(final CharSequence result) {
+    if (value != PROPAGATION_PLACEHOLDER) {
+      return this;
+    }
+    return new Source(origin, name, result);
   }
 }
