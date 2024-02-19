@@ -97,7 +97,7 @@ public class VirtualFieldConverter extends ClassVisitor {
       }
 
       private void rewriteFind() {
-        LOGGER.warn("Found VirtualField.find() access - instrumentation.class={}", className);
+        LOGGER.debug("Found VirtualField.find() access - instrumentation.class={}", className);
         // We track the last two constants pushed onto the stack to make sure they match
         // the expected key and context types. Matching calls are rewritten to call the
         // dynamically injected context store implementation instead.
