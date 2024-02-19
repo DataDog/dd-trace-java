@@ -13,7 +13,6 @@ import spock.lang.Shared
 import java.nio.charset.StandardCharsets
 
 import static org.hamcrest.Matchers.greaterThan
-import static org.hamcrest.Matchers.nullValue
 
 class IastAkkaTest extends IastRequestTestRunner {
   @Shared
@@ -340,7 +339,7 @@ class IastAkkaTest extends IastRequestTestRunner {
     then:
     toc.hasTaintedObject {
       value 'var1=foo&var1=bar&var2=a+b+c'
-      range 0, 28, source(SourceTypes.REQUEST_QUERY, null, null)
+      range 0, 28, source(SourceTypes.REQUEST_QUERY, null, 'var1=foo&var1=bar&var2=a+b+c')
     }
     toc.hasTaintedObject {
       value 'var1'
@@ -486,14 +485,16 @@ class IastAkkaTest extends IastRequestTestRunner {
   }
 
   void 'json request — #variant variant'() {
+    given:
+    final json =  '''{
+        "var1": "foo",
+        "var2": ["foo2", "foo2"]
+      }'''
+
     when:
     String url = buildUrl "iast/$variant"
     def request = new Builder().url(url).post(
-      RequestBody.create(MediaType.get("application/json"), '''{
-        "var1": "foo",
-        "var2": ["foo2", "foo2"]
-      }'''.getBytes(StandardCharsets.US_ASCII))
-      ).build()
+      RequestBody.create(MediaType.get("application/json"), json.getBytes(StandardCharsets.US_ASCII))).build()
     def response = client.newCall(request).execute()
     def respBody = response.body().string()
 
@@ -505,21 +506,22 @@ class IastAkkaTest extends IastRequestTestRunner {
     def toc = finReqTaintedObjects
 
     then:
+    // source values take the value of the full body as it's converted to string at TaintFutureHelper
     toc.hasTaintedObject {
       value 'var1'
-      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var1', nullValue())
+      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var1', json)
     }
     toc.hasTaintedObject {
       value 'var2'
-      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var2', nullValue())
+      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var2', json)
     }
     toc.hasTaintedObject {
       value 'foo'
-      range 0, 3, source(SourceTypes.REQUEST_BODY, 'var1', nullValue())
+      range 0, 3, source(SourceTypes.REQUEST_BODY, 'var1', json)
     }
     toc.hasTaintedObject {
       value 'foo2'
-      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var2', nullValue())
+      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var2', json)
     }
 
     where:
