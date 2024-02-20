@@ -41,6 +41,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.Timer;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
@@ -234,6 +235,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void updatePreferredServiceName(String serviceName) {
     dynamicConfig.current().setPreferredServiceName(serviceName).apply();
+    ServiceNameCollector.get().addService(serviceName);
   }
 
   PropagationTags.Factory getPropagationTagsFactory() {

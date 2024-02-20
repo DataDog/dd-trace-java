@@ -34,7 +34,8 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
       "-Ddd.appsec.enabled=true",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
-      "-Ddd.iast.enabled=true", "-Ddd.iast.request-sampling=100"
+      "-Ddd.iast.enabled=true", "-Ddd.iast.request-sampling=100",
+      "-Ddd.integration.spring-boot.enabled=true"
       )
 
 

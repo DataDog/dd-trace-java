@@ -9,6 +9,7 @@ import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
@@ -485,6 +486,10 @@ class CoreTracerTest extends DDCoreSpecification {
     span.finish()
     then:
     span.serviceName == expected
+    and:
+    if (preferred != null) {
+      ServiceNameCollector.get().getServices().contains(preferred)
+    }
     cleanup:
     tracer?.close()
     where:
