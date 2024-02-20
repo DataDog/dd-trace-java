@@ -4,6 +4,7 @@ import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
+
 import com.datadog.iast.taint.TaintedObject
 import datadog.trace.api.Config
 import datadog.trace.api.iast.SourceTypes
@@ -461,7 +462,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
         assert sourceValue == value.toString()
         break
       default:
-        assert sourceValue == null
+        assert sourceValue === Source.PROPAGATION_PLACEHOLDER
         break
     }
     if (name === value) {
@@ -476,6 +477,35 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     string('name') | name
     string('name') | stringBuilder('name')
     string('name') | date()
+  }
+
+  void 'test propagation of the source value for non char sequences'() {
+    given:
+    final toTaint = 'hello'
+    final baos = toTaint.bytes
+
+    when: 'tainting a non char sequence object'
+    module.taint(baos, SourceTypes.KAFKA_MESSAGE_KEY)
+
+    then:
+    with(ctx.taintedObjects.get(baos)) {
+      assert ranges.length == 1
+      final source = ranges.first().source
+      assert source.origin == SourceTypes.KAFKA_MESSAGE_KEY
+      assert source.@value === Source.PROPAGATION_PLACEHOLDER
+      assert source.value == null
+    }
+
+    when: 'the object is propagated'
+    module.taintIfTainted(toTaint, baos)
+
+    then:
+    with(ctx.taintedObjects.get(toTaint)) {
+      assert ranges.length == 1
+      final source = ranges.first().source
+      assert source.origin == SourceTypes.KAFKA_MESSAGE_KEY
+      assert source.value == toTaint
+    }
   }
 
   private List<Tuple<Object>> taintIfSuite() {

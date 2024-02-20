@@ -41,6 +41,7 @@ class SpringBootTomcatSmokeTest extends AbstractServerSmokeTest {
       new ProcessBuilder("bin/catalina.sh", "run")
     processBuilder.directory(tomcatDirectory.toFile())
     defaultJavaProperties += "-Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}:includeService:includeResource"
+    defaultJavaProperties += "-Ddd.integration.spring-boot.enabled=true"
     processBuilder.environment().put("CATALINA_OPTS", defaultJavaProperties.join(" "))
     return processBuilder
   }
@@ -51,10 +52,13 @@ class SpringBootTomcatSmokeTest extends AbstractServerSmokeTest {
   }
 
   @Override
+  def inferServiceName() {
+    false // will use servlet context
+  }
+
+  @Override
   protected Set<String> expectedTraces() {
-    return [
-      "[smoke-test-java-app:servlet.request:GET /hello[smoke-test-java-app:spring.handler:TestSuite.hello]]"
-    ].toSet()
+    return ["[smoke:servlet.request:GET /hello[smoke:spring.handler:TestSuite.hello]]"].toSet()
   }
 
   @Override
