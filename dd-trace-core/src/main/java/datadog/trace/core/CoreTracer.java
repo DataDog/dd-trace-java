@@ -41,6 +41,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.profiling.Timer;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
@@ -59,6 +60,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
+import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
@@ -233,6 +235,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void updatePreferredServiceName(String serviceName) {
     dynamicConfig.current().setPreferredServiceName(serviceName).apply();
+    ServiceNameCollector.get().addService(serviceName);
   }
 
   PropagationTags.Factory getPropagationTagsFactory() {
@@ -685,6 +688,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           // CI Test Cycle protocol is not available
           addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
         }
+      }
+
+      if (config.isCiVisibilityTelemetryEnabled()) {
+        addTraceInterceptor(new CiVisibilityTelemetryInterceptor());
       }
     }
 

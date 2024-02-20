@@ -99,11 +99,6 @@ commands:
   setup_code:
     steps:
       - checkout
-{% if use_git_changes %}
-      - run:
-          name: Fetch base branch
-          command: git fetch origin {{ pr_base_ref }}
-{% endif %}
       - run:
           name: Checkout merge commit
           command: .circleci/checkout_merge_commit.sh
@@ -306,10 +301,6 @@ jobs:
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
             << parameters.gradleTarget >>
-{% if use_git_changes %}
-            -Paffected_module_detector.enable
-            -PbaseBranch=origin/{{ pr_base_ref }}
-{% endif %}
             -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -402,10 +393,6 @@ jobs:
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew
             << parameters.gradleTarget >>
-{% if use_git_changes %}
-            -Paffected_module_detector.enable
-            -PbaseBranch=origin/{{ pr_base_ref }}
-{% endif %}
             -PskipTests
             -PrunBuildSrcTests
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
@@ -552,10 +539,6 @@ jobs:
             ./gradlew
             << parameters.gradleTarget >>
             << parameters.gradleParameters >>
-{% if use_git_changes %}
-            -Paffected_module_detector.enable
-            -PbaseBranch=origin/{{ pr_base_ref }}
-{% endif %}
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -1336,6 +1319,7 @@ build_test_jobs: &build_test_jobs
 {% endfor %}
         - profiling
         - debugger
+        - system-tests
       name: required
       stage: required
 

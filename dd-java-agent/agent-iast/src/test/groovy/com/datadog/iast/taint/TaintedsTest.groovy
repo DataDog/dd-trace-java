@@ -5,7 +5,7 @@ import datadog.trace.test.util.DDSpecification
 
 class TaintedsTest extends DDSpecification {
 
-  def 'can be tainted with char sequence #value ? #expected'(final CharSequence value, final boolean expected) {
+  def 'can be tainted with char sequence #value ? #expected'() {
     when:
     final result = Tainteds.canBeTainted((CharSequence)value)
 
@@ -22,10 +22,10 @@ class TaintedsTest extends DDSpecification {
     new StringBuilder("x") | true
   }
 
-  def 'can be tainted with array #value ? #expected'(final List<? extends CharSequence> value, final boolean expected) {
+  def 'can be tainted with array #value ? #expected'() {
     when:
-    final arary = value == null ? null : value.toArray(new CharSequence[0])
-    final result = Tainteds.canBeTainted((CharSequence[]) arary)
+    final array = value == null ? null : value.toArray(new String[0]) as String[]
+    final result = Tainteds.canBeTainted(array)
 
     then:
     result == expected
@@ -39,7 +39,7 @@ class TaintedsTest extends DDSpecification {
     ["a", null, ""] | true
   }
 
-  def 'can be tainted with list #value ? #expected'(final List<? extends CharSequence> value, final boolean expected) {
+  def 'can be tainted with list #value ? #expected'() {
     when:
     final result = Tainteds.canBeTainted(value)
 
@@ -55,7 +55,7 @@ class TaintedsTest extends DDSpecification {
     ["a", null, ""] | true
   }
 
-  def 'get tainted'(final Object value) {
+  def 'get tainted'() {
     given:
     final to = Mock(TaintedObjects)
 

@@ -23,6 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Supplies memoized matchers. */
 public final class MemoizedMatchers implements HierarchyMatchers.Supplier {
   public static void registerAsSupplier() {
+    PreloadHierarchy.observeClassDefinitions();
     HierarchyMatchers.registerIfAbsent(new MemoizedMatchers());
     Memoizer.resetState();
   }
