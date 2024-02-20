@@ -1,4 +1,4 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.util.Strings.toJson;
@@ -9,12 +9,17 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -27,16 +32,18 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DDTestImpl implements DDTest {
+public class TestImpl implements DDTest {
 
-  private static final Logger log = LoggerFactory.getLogger(DDTestImpl.class);
+  private static final Logger log = LoggerFactory.getLogger(TestImpl.class);
 
+  private final CiVisibilityMetricCollector metricCollector;
+  private final TestFrameworkInstrumentation instrumentation;
   private final AgentSpan span;
   private final long sessionId;
   private final long suiteId;
   private final Consumer<AgentSpan> onSpanFinish;
 
-  public DDTestImpl(
+  public TestImpl(
       long sessionId,
       long moduleId,
       long suiteId,
@@ -46,13 +53,18 @@ public class DDTestImpl implements DDTest {
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
       @Nullable Method testMethod,
+      InstrumentationType instrumentationType,
+      TestFrameworkInstrumentation instrumentation,
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       MethodLinesResolver methodLinesResolver,
       Codeowners codeowners,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
+    this.instrumentation = instrumentation;
+    this.metricCollector = metricCollector;
     this.sessionId = sessionId;
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
@@ -100,6 +112,12 @@ public class DDTestImpl implements DDTest {
     }
 
     testDecorator.afterStart(span);
+
+    metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.TEST);
+
+    if (instrumentationType == InstrumentationType.MANUAL_API) {
+      metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.TEST);
+    }
   }
 
   private void populateSourceDataTags(
@@ -151,8 +169,10 @@ public class DDTestImpl implements DDTest {
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
+
       if (skipReason.equals(InstrumentationBridge.ITR_SKIP_REASON)) {
         span.setTag(Tags.TEST_SKIPPED_BY_ITR, true);
+        metricCollector.add(CiVisibilityCountMetric.ITR_SKIPPED, 1, EventType.TEST);
       }
     }
   }
@@ -182,7 +202,11 @@ public class DDTestImpl implements DDTest {
 
     CoverageBridge.removeThreadLocalCoverageProbeStore();
     CoverageProbeStore probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
-    probes.report(sessionId, suiteId, span.getSpanId());
+    boolean coveragesGathered = probes.report(sessionId, suiteId, span.getSpanId());
+    if (!coveragesGathered && !CIConstants.TEST_SKIP.equals(span.getTag(Tags.TEST_STATUS))) {
+      // test is not skipped, but no coverages were gathered
+      metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
+    }
 
     scope.close();
 
@@ -193,6 +217,8 @@ public class DDTestImpl implements DDTest {
     } else {
       span.finish();
     }
+
+    metricCollector.add(CiVisibilityCountMetric.EVENT_FINISHED, 1, instrumentation, EventType.TEST);
   }
 
   /**

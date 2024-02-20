@@ -1,17 +1,19 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Test module abstraction that is used by test framework instrumentations (e.g. JUnit, TestNG) */
-public interface DDTestFrameworkModule {
-  DDTestSuiteImpl testSuiteStart(
+public interface TestFrameworkModule {
+  TestSuiteImpl testSuiteStart(
       String testSuiteName,
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
-      boolean parallelized);
+      boolean parallelized,
+      TestFrameworkInstrumentation instrumentation);
 
   /**
    * Checks if a given test can be skipped with Intelligent Test Runner or not

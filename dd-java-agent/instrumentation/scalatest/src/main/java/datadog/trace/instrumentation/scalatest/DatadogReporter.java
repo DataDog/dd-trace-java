@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.scalatest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.scalatest.retry.SuppressedTestFailedException;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -90,7 +91,13 @@ public class DatadogReporter {
     boolean parallelized = true;
 
     eventHandler.onTestSuiteStart(
-        testSuiteName, TEST_FRAMEWORK, TEST_FRAMEWORK_VERSION, testClass, categories, parallelized);
+        testSuiteName,
+        TEST_FRAMEWORK,
+        TEST_FRAMEWORK_VERSION,
+        testClass,
+        categories,
+        parallelized,
+        TestFrameworkInstrumentation.SCALATEST);
   }
 
   private static void onSuiteFinish(SuiteCompleted event) {

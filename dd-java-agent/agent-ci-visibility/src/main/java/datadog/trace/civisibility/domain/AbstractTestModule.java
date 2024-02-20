@@ -1,28 +1,31 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.DDTestModule;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
-public class DDTestModuleImpl implements DDTestModule {
+public abstract class AbstractTestModule {
 
   protected final AgentSpan span;
   protected final long sessionId;
   protected final String moduleName;
   protected final Config config;
+  protected final CiVisibilityMetricCollector metricCollector;
   protected final TestDecorator testDecorator;
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
@@ -30,12 +33,14 @@ public class DDTestModuleImpl implements DDTestModule {
   protected final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final Consumer<AgentSpan> onSpanFinish;
 
-  public DDTestModuleImpl(
+  public AbstractTestModule(
       AgentSpan.Context sessionSpanContext,
       long sessionId,
       String moduleName,
       @Nullable Long startTime,
+      InstrumentationType instrumentationType,
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
@@ -45,6 +50,7 @@ public class DDTestModuleImpl implements DDTestModule {
     this.sessionId = sessionId;
     this.moduleName = moduleName;
     this.config = config;
+    this.metricCollector = metricCollector;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
@@ -72,21 +78,24 @@ public class DDTestModuleImpl implements DDTestModule {
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
 
     testDecorator.afterStart(span);
+
+    metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, EventType.MODULE);
+
+    if (instrumentationType == InstrumentationType.MANUAL_API) {
+      metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.MODULE);
+    }
   }
 
-  @Override
   public void setTag(String key, Object value) {
     span.setTag(key, value);
   }
 
-  @Override
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
   }
 
-  @Override
   public void setSkipReason(String skipReason) {
     span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
     if (skipReason != null) {
@@ -94,7 +103,6 @@ public class DDTestModuleImpl implements DDTestModule {
     }
   }
 
-  @Override
   public void end(@Nullable Long endTime) {
     onSpanFinish.accept(span);
 
@@ -103,29 +111,7 @@ public class DDTestModuleImpl implements DDTestModule {
     } else {
       span.finish();
     }
-  }
 
-  @Override
-  public DDTestSuiteImpl testSuiteStart(
-      String testSuiteName,
-      @Nullable Class<?> testClass,
-      @Nullable Long startTime,
-      boolean parallelized) {
-    return new DDTestSuiteImpl(
-        span.context(),
-        sessionId,
-        span.getSpanId(),
-        moduleName,
-        testSuiteName,
-        testClass,
-        startTime,
-        parallelized,
-        config,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        methodLinesResolver,
-        coverageProbeStoreFactory,
-        SpanUtils.propagateCiVisibilityTagsTo(span));
+    metricCollector.add(CiVisibilityCountMetric.EVENT_FINISHED, 1, EventType.MODULE);
   }
 }

@@ -249,7 +249,8 @@ class MavenProjectConfigurator {
     MavenProject project = testExecution.getProject();
     excludeDatadogClassLoaderFromJacocoInstrumentation(project);
 
-    if (!Config.get().isCiVisibilityJacocoPluginVersionProvided()
+    if (!Config.get().isCiVisibilityCoverageSegmentsEnabled()
+            && !Config.get().isCiVisibilityJacocoPluginVersionProvided()
         || testExecution.isRunsWithJacoco()) {
       return;
     }

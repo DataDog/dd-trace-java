@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.coverage.CoverageBridge;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import io.cucumber.core.gherkin.Pickle;
 import java.net.URI;
 import java.util.ArrayList;
@@ -34,7 +35,13 @@ public class CucumberTracingListener extends TracingListener {
     if (isFeature(description)) {
       String testSuiteName = CucumberUtils.getTestSuiteNameForFeature(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-          testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, null, Collections.emptyList(), false);
+          testSuiteName,
+          FRAMEWORK_NAME,
+          FRAMEWORK_VERSION,
+          null,
+          Collections.emptyList(),
+          false,
+          TestFrameworkInstrumentation.CUCUMBER);
     }
   }
 
@@ -133,7 +140,13 @@ public class CucumberTracingListener extends TracingListener {
     if (isFeature(description)) {
       String testSuiteName = CucumberUtils.getTestSuiteNameForFeature(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-          testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, null, Collections.emptyList(), false);
+          testSuiteName,
+          FRAMEWORK_NAME,
+          FRAMEWORK_VERSION,
+          null,
+          Collections.emptyList(),
+          false,
+          TestFrameworkInstrumentation.CUCUMBER);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, null, reason);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, null);
     } else {
