@@ -10,6 +10,7 @@ import org.objectweb.asm.ClassWriter
 import otel.muzzle.MuzzleConverter
 import otel.muzzle.MuzzleGenerator
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -47,6 +48,7 @@ class ConvertJavaAgent extends DefaultTask {
     project.configurations.named('javaagent').get().resolve().each {jarFile ->
       def artifactName = getArtifactName(jarFile.name)
       def artifactDir = workingDirectory.dir(artifactName).asFile
+      def instrumenterFiles = []
       logger.debug("Coonverting javaagent $artifactName into $artifactDir")
       project.copy {
         from(project.zipTree(jarFile)) {
@@ -58,8 +60,9 @@ class ConvertJavaAgent extends DefaultTask {
         type: FILES,
         nameFilter: ~/.*\.class$/
       ) {
-        convertClass(artifactDir, targetDirectory, it)
+        convertClass(artifactDir, targetDirectory, it, instrumenterFiles)
       }
+      generateServiceLoaderConfiguration(targetDirectory, instrumenterFiles)
     }
   }
 
@@ -80,7 +83,7 @@ class ConvertJavaAgent extends DefaultTask {
     return reversedParts.reverse().join('-')
   }
 
-  void convertClass(File sourceDirectory, File targetDirectory, File file) {
+  void convertClass(File sourceDirectory, File targetDirectory, File file, List<String> instrumenterFiles) {
     // Compute target file location
     def relativePath = sourceDirectory.relativePath(file)
     Path targetFile = targetDirectory.toPath().resolve(relativePath)
@@ -98,18 +101,30 @@ class ConvertJavaAgent extends DefaultTask {
       def instrumentationModuleConverter = new InstrumentationModuleConverter(muzzleConverter, file.name)
       def typeInstrumentationConverter = new TypeInstrumentationConverter(instrumentationModuleConverter, file.name)
       // TODO Insert more visitors here
-
       def javaAgentApiChecker = new OtelApiVerifier(typeInstrumentationConverter, file.name)
       def reader = new ClassReader(inputStream)
       reader.accept(javaAgentApiChecker, 0) // TODO flags?
       Files.write(targetFile, writer.toByteArray())
 
-      // Check if there are references to write as muzzle class // TODO Update as a later phase
+      // Check if there are references to write as muzzle class
       if (muzzleConverter.isInstrumentationModule()) {
         MuzzleGenerator.writeMuzzleClass(targetFolder, file.name, muzzleConverter.getReferences())
-        // TODO Store class name to write service loader configuration
+        instrumenterFiles.add(relativePath)
       }
     }
+  }
+
+  void generateServiceLoaderConfiguration(File targetDirectory, List<String> instrumenterFiles) {
+    if (instrumenterFiles.isEmpty()) {
+      return
+    }
+    def classNames = instrumenterFiles.collect {
+      it.replace('/', '.').substring(0, it.length() - 6)
+    }
+    logger.debug("Writing service loader configuration for instrumenters: ${classNames.join(',')}")
+    def configurationPath = targetDirectory.toPath().resolve("META-INF/services/datadog.trace.agent.tooling.Instrumenter")
+    Files.createDirectories(configurationPath.parent)
+    Files.write(configurationPath, classNames, StandardCharsets.UTF_8)
   }
 }
 
