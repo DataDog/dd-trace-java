@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.java.lang
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ReflectionInjectionModule
-import foo.bar.TestClassSuite
 import foo.bar.TestLookupSuite
 
 class LookupCallSiteTest extends AgentTestRunner {
