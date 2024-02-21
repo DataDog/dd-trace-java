@@ -33,7 +33,7 @@ class OtelConverterPlugin implements Plugin<Project> {
     extension.targetDirectory.convention(project.layout.buildDirectory.dir('classes/java/main'))
     // Register task
     def convertTask = project.tasks.register('convertOtelJavaAgent', ConvertJavaAgent).get()
-    def buildTask = project.tasks.named('build').get()
+    def buildTask = project.tasks.named('classes').get()
     buildTask.dependsOn(convertTask)
   }
 }
