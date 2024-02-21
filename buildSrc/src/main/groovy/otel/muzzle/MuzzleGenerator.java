@@ -1,5 +1,6 @@
 package otel.muzzle;
 
+import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_FRAMES;
 import static net.bytebuddy.jar.asm.Opcodes.AASTORE;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_FINAL;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_PUBLIC;
@@ -45,7 +46,7 @@ public final class MuzzleGenerator {
   }
 
   private static byte[] writeMuzzleClass(String originalClass, List<MuzzleReference> references) {
-    ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+    ClassWriter cw = new ClassWriter(COMPUTE_FRAMES);
     cw.visit(
         V1_8,
         ACC_PUBLIC | ACC_FINAL,

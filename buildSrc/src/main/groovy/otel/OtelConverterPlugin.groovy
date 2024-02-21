@@ -109,7 +109,7 @@ class ConvertJavaAgent extends DefaultTask {
 
       // Check if there are references to write as muzzle class
       if (muzzleConverter.isInstrumentationModule()) {
-        MuzzleGenerator.writeMuzzleClass(targetFolder, file.name, muzzleConverter.getReferences())
+        MuzzleGenerator.writeMuzzleClass(targetFolder, relativePath, muzzleConverter.getReferences())
         instrumenterFiles.add(relativePath)
       }
     }
