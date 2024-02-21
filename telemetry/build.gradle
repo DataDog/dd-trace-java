@@ -23,6 +23,8 @@ ext {
   excludedClassesInstructionCoverage = []
 }
 
+addTestSuite('spring3Test')
+
 dependencies {
   implementation deps.slf4j
 
@@ -45,5 +47,18 @@ dependencies {
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'org.jboss', name: 'jboss-vfs', version: '3.2.16.Final'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-loader', version: '1.5.22.RELEASE'
+
+  spring3TestImplementation group: 'org.springframework.boot', name: 'spring-boot-loader', version: '3.2.2'
+}
+
+[compileSpring3TestGroovy, spring3Test].each {
+  it.javaLauncher = getJavaLauncherFor(17)
+}
+
+spring3Test {
+  jacoco {
+    // jacoco fails with Unsupported class file major version 61
+    enabled = false
+  }
 }
 
