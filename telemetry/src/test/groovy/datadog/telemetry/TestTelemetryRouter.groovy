@@ -255,7 +255,7 @@ class TestTelemetryRouter extends TelemetryRouter {
     PayloadAssertions dependencies(List<Dependency> dependencies) {
       def expected = []
       for (Dependency d : dependencies) {
-        expected.add([hash: d.hash, name: d.name, version: d.version])
+        expected.add([hash: d.hash, name: d.name, version: d.version, location: d.location])
       }
       assert this.payload['dependencies'] == expected
       return this

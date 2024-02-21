@@ -301,7 +301,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     bodySize > 0
 
     when: 'sending first part of data'
-    telemetryService = new TelemetryService(testHttpClient, bodySize + 500, false)
+    telemetryService = new TelemetryService(testHttpClient, bodySize + 550, false)
 
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
