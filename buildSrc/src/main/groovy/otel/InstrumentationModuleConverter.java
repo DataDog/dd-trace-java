@@ -20,7 +20,7 @@ import org.objectweb.asm.tree.TypeInsnNode;
 public class InstrumentationModuleConverter extends AbstractClassVisitor {
   private static final String INSTRUMENTATION_MODULE_CLASS_NAME = "io/opentelemetry/javaagent/extension/instrumentation/InstrumentationModule";
   private static final String INSTRUMENTATION_MODULE_CONSTRUCTOR_DESC = "(Ljava/lang/String;[Ljava/lang/String;)V";
-  private static final String OTEL_AUTOMATIC_INSTRUMENTATION_CLASS_NAME = "datadog/trace/instrumentation/automatic/OtelAutomaticInstrumentation";
+  private static final String OTEL_AUTOMATIC_INSTRUMENTATION_CLASS_NAME = "datadog/trace/instrumentation/opentelemetry/automatic/OtelAutomaticInstrumentation";
   private static final String INSTRUMENTER_CLASS_NAME = "datadog/trace/agent/tooling/Instrumenter";
   private static final String CLASS_CONSTRUCTOR_DESC = "()V";
   private static final String TYPE_INSTRUMENTATIONS_METHOD_NAME = "typeInstrumentations";

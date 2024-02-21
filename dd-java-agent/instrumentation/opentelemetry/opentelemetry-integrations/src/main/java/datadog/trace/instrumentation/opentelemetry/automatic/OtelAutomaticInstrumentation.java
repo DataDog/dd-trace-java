@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.automatic;
+package datadog.trace.instrumentation.opentelemetry.automatic;
 
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
