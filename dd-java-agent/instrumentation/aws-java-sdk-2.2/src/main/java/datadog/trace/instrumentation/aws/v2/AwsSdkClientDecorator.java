@@ -74,6 +74,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     KINESIS_PUT_RECORD_OPERATION_NAMES.add("PutRecords");
   }
 
+  private static final Set<String> SNS_PUBLISH_OPERATION_NAMES;
+
+  static {
+    SNS_PUBLISH_OPERATION_NAMES = new HashSet<>();
+    SNS_PUBLISH_OPERATION_NAMES.add("Publish");
+    SNS_PUBLISH_OPERATION_NAMES.add("PublishBatch");
+  }
+
   public static final ExecutionAttribute<String> KINESIS_STREAM_ARN_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
           .putIfAbsent("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
@@ -122,9 +130,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
     // SNS
-    request
-        .getValueForField("TopicArn", String.class)
-        .ifPresent(arn -> setTopicName(span, arn.substring(arn.lastIndexOf(':') + 1)));
+    Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
+    if (!snsTopicArn.isPresent()) snsTopicArn = request.getValueForField("TargetArn", String.class);
+    Optional<String> snsTopicName = snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+    snsTopicName.ifPresent(topic -> setTopicName(span, topic));
 
     // Kinesis
     request
@@ -146,20 +155,34 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
 
     // DSM
-    if (span.traceConfig().isDataStreamsEnabled()
-        && kinesisStreamArn.isPresent()
-        && "kinesis".equalsIgnoreCase(awsServiceName)
-        && KINESIS_PUT_RECORD_OPERATION_NAMES.contains(awsOperationName)) {
-      // https://github.com/DataDog/dd-trace-py/blob/864abb6c99e1cb0449904260bac93e8232261f2a/ddtrace/contrib/botocore/patch.py#L368
-      List records =
-          request
-              .getValueForField("Records", List.class)
-              .orElse(Collections.singletonList(request)); // For PutRecord use request
+    if (span.traceConfig().isDataStreamsEnabled()) {
+      if (kinesisStreamArn.isPresent()
+          && "kinesis".equalsIgnoreCase(awsServiceName)
+          && KINESIS_PUT_RECORD_OPERATION_NAMES.contains(awsOperationName)) {
+        // https://github.com/DataDog/dd-trace-py/blob/864abb6c99e1cb0449904260bac93e8232261f2a/ddtrace/contrib/botocore/patch.py#L368
+        List records =
+            request
+                .getValueForField("Records", List.class)
+                .orElse(Collections.singletonList(request)); // For PutRecord use request
 
-      for (Object ignored : records) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .setProduceCheckpoint("kinesis", kinesisStreamArn.get(), NoOp.INSTANCE);
+        for (Object ignored : records) {
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setProduceCheckpoint("kinesis", kinesisStreamArn.get(), NoOp.INSTANCE);
+        }
+      } else if (snsTopicName.isPresent()
+          && "sns".equalsIgnoreCase(awsServiceName)
+          && SNS_PUBLISH_OPERATION_NAMES.contains(awsOperationName)) {
+        List entries =
+            request
+                .getValueForField("PublishBatchRequestEntries", List.class)
+                .orElse(Collections.singletonList(request));
+
+        for (Object ignored : entries) {
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setProduceCheckpoint("sns", snsTopicName.get(), NoOp.INSTANCE);
+        }
       }
     }
 
