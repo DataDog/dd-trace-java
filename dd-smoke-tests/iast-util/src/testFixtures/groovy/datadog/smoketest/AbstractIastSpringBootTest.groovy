@@ -943,6 +943,19 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       && vul.location.method == 'reflectionInjectionField'}
   }
 
+  void "Check reflection injection lookup"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/lookup?param=getBytes"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionLookup'}
+  }
+
 
 
 }

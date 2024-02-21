@@ -26,6 +26,8 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
     super(dependencies);
   }
 
+  private static final String LOOKUP_METHOD = "Lookup: ";
+
   @Override
   public void onClassName(@Nullable String value) {
     if (!canBeTainted(value)) {
@@ -48,6 +50,39 @@ public class ReflectionInjectionModuleImpl extends SinkModuleBase
   @Override
   public void onFieldName(@Nonnull Class<?> clazz, @Nonnull String fieldName) {
     checkReflectionInjection(ReflectionInjectionModuleImpl::fieldEvidence, clazz, fieldName);
+  }
+
+  @Override
+  public void onLookupMethod(@Nullable String value) {
+    if (!canBeTainted(value)) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final TaintedObject taintedObject = to.get(value);
+    if (taintedObject == null) {
+      return;
+    }
+    final Range[] ranges =
+        Ranges.getNotMarkedRanges(
+            taintedObject.getRanges(), VulnerabilityType.REFLECTION_INJECTION.mark());
+    if (ranges == null || ranges.length == 0) {
+      return;
+    }
+    final AgentSpan span = AgentTracer.activeSpan();
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+    final String evidenceString = LOOKUP_METHOD + value;
+    final Range[] shiftedRanges = new Range[ranges.length];
+    for (int i = 0; i < ranges.length; i++) {
+      shiftedRanges[i] = ranges[i].shift(LOOKUP_METHOD.length());
+    }
+    final Evidence result = new Evidence(evidenceString, shiftedRanges);
+    report(span, VulnerabilityType.REFLECTION_INJECTION, result);
   }
 
   private void checkReflectionInjection(
