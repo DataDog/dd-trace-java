@@ -16,8 +16,8 @@ import org.objectweb.asm.tree.MethodNode;
  */
 public class TypeInstrumentationConverter extends AbstractClassVisitor {
   static final String TYPE_INSTRUMENTATION_CLASS_NAME = "io/opentelemetry/javaagent/extension/instrumentation/TypeInstrumentation";
-  private static final String FOR_TYPE_HIERARCHY_CLASS_NAME = "datadog/trace/agent/tooling/Instrumenter/ForTypeHierarchy";
-  private static final String HAS_TYPE_ADVICE_CLASS_NAME = "datadog/trace/agent/tooling/Instrumenter/HasTypeAdvice";
+  private static final String FOR_TYPE_HIERARCHY_CLASS_NAME = "datadog/trace/agent/tooling/Instrumenter$ForTypeHierarchy";
+  private static final String HAS_TYPE_ADVICE_CLASS_NAME = "datadog/trace/agent/tooling/Instrumenter$HasTypeAdvice";
   private static final String TYPE_MATCHER_METHOD_NAME = "typeMatcher";
   private static final String TYPE_MATCHER_DESC = "()Lnet/bytebuddy/matcher/ElementMatcher;";
   private static final String HIERARCHY_MATCHER_METHOD_NAME = "hierarchyMatcher";
