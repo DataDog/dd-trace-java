@@ -58,8 +58,11 @@ public class DependencyResolver {
   private static List<Dependency> extractFromJarURI(final URI uri) throws IOException {
     final URL url = uri.toURL();
     final JarURLConnection conn = (JarURLConnection) url.openConnection();
+    // Prevent sharing of jar file handles, which can break Spring Boot's loader.
+    // https://github.com/DataDog/dd-trace-java/issues/6704
+    conn.setUseCaches(false);
     try (final JarFile jar = conn.getJarFile();
-        final InputStream is = url.openStream()) {
+        final InputStream is = conn.getInputStream()) {
       return extractFromJarFile(jar, is);
     }
   }
