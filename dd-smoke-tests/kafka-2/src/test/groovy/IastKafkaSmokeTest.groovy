@@ -29,6 +29,7 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     String springBootShadowJar = System.getProperty('datadog.smoketest.springboot.shadowJar.path')
     List<String> command = []
     command.add(javaPath())
+    command.add('-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005')
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
       withSystemProperty(IAST_ENABLED, true),
@@ -48,6 +49,12 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     return processBuilder
   }
 
+  def setup() {
+    // ensure everything is working fine
+    final result = client.newCall(new Request.Builder().url("http://localhost:${httpPort}/iast/health").get().build()).execute()
+    assert result.body().string() == 'OK'
+  }
+
   void 'test kafka #endpoint key source'() {
     setup:
     final type = "${endpoint}_source_key"
@@ -65,7 +72,7 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    endpoint << ['json', 'string']
+    endpoint << ['json', 'string', 'byteArray', 'byteBuffer']
   }
 
   void 'test kafka #endpoint value source'() {
@@ -85,6 +92,6 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    endpoint << ['json', 'string']
+    endpoint << ['json', 'string', 'byteArray', 'byteBuffer']
   }
 }

@@ -1,0 +1,53 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'java-test-fixtures'
+description = 'Kafka 3.x Smoke Tests.'
+
+dependencies {
+  testImplementation('org.springframework.kafka:spring-kafka-test:2.9.13')
+
+  testImplementation project(':dd-smoke-tests')
+  implementation project(':dd-smoke-tests:iast-util')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+final appDir = "$projectDir/application"
+final appBuildDir = "$buildDir/application"
+final isWindows = System.getProperty('os.name').toLowerCase().contains('win')
+final gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+
+tasks.register('bootJar', Exec) {
+  workingDir appDir
+
+  final toolchain17 = getJavaLauncherFor(17).get()
+  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'", "JAVA_HOME": "$toolchain17.metadata.installationPath"]
+  commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir"
+
+  outputs.cacheIf { true }
+
+  outputs.dir(appBuildDir)
+    .withPropertyName("applicationJar")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**'
+  })
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
+
+  group('build')
+}
+
+tasks.named('compileTestGroovy').configure {
+  dependsOn 'bootJar'
+  outputs.upToDateWhen {
+    !bootJar.didWork
+  }
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${appBuildDir}/libs/kafka-3-smoketest.jar"
+}
