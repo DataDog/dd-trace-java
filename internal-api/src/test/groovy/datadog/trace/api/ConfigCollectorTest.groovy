@@ -118,6 +118,20 @@ class ConfigCollectorTest extends DDSpecification {
       TracerConfig.TRACE_SAMPLE_RATE,
       TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS,
       TracerConfig.PROXY_NO_PROXY,
+    ]
+  }
+
+  def "default empty maps and list config settings are collected as empty strings"() {
+    when:
+    ConfigSetting cs = ConfigCollector.get().collect().get(configKey)
+
+    then:
+    cs.key == configKey
+    cs.value == ""
+    cs.origin == ConfigOrigin.DEFAULT
+
+    where:
+    configKey << [
       TracerConfig.TRACE_PEER_SERVICE_MAPPING,
       TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING,
       TracerConfig.HEADER_TAGS,
@@ -171,8 +185,8 @@ class ConfigCollectorTest extends DDSpecification {
     "profiling.enabled"      | false
     "appsec.enabled"         | "inactive" //TODO false
     "data.streams.enabled"   | false
-    "trace.tags"             | null // TODO ""
-    "trace.header.tags"      | null // TODO ""
+    "trace.tags"             | ""
+    "trace.header.tags"      | ""
     "logs.injection.enabled" | true // TODO false
     "trace.sample.rate"      | null // TODO 1.0
   }

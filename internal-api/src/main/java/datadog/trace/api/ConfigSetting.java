@@ -69,7 +69,7 @@ public final class ConfigSetting {
       result.append(':');
       result.append(entry.getValue());
     }
-    return result.length() > 0 ? result.toString() : null;
+    return result.toString();
   }
 
   private static String renderIterable(Iterable iterable) {
@@ -80,7 +80,7 @@ public final class ConfigSetting {
       }
       result.append(entry);
     }
-    return result.length() > 0 ? result.toString() : null;
+    return result.toString();
   }
 
   public ConfigSetting(String key, Object value, ConfigOrigin origin) {
