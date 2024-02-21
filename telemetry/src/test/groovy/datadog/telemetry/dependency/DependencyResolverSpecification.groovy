@@ -145,7 +145,7 @@ class DependencyResolverSpecification extends DepSpecification {
     File temp = File.createTempFile('temp', '.zip')
 
     expect:
-    DependencyResolver.resolve(temp.toURI()).isEmpty()
+    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
 
     cleanup:
     temp.delete()
@@ -157,7 +157,7 @@ class DependencyResolverSpecification extends DepSpecification {
     temp.delete()
 
     expect:
-    DependencyResolver.resolve(temp.toURI()).isEmpty()
+    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
   }
 
   void 'try to determine invalid jar lib'() throws IOException {
@@ -166,7 +166,16 @@ class DependencyResolverSpecification extends DepSpecification {
     temp.write("just a text file")
 
     expect:
-    DependencyResolver.resolve(temp.toURI()).isEmpty()
+    DependencyResolver.extractDependenciesFromJar(temp).isEmpty()
+  }
+
+  void 'try to determine invalid jar lib'() throws IOException {
+    setup:
+    File temp = File.createTempFile('temp', '.jar')
+    temp.write("just a text file")
+
+    expect:
+    DependencyResolver.getNestedDependency(temp.toURI()) == null
   }
 
   void 'spring boot dependency'() throws IOException {
@@ -181,9 +190,9 @@ class DependencyResolverSpecification extends DepSpecification {
 
     then:
     dep != null
-    dep.name == 'io.opentracing:opentracing-util'
+    dep.name == 'opentracing-util-0.33.0.jar'
     dep.version == '0.33.0'
-    dep.hash == null
+    dep.hash == '132630F17E198A1748F23CE33597EFDF4A807FB9'
     dep.source == 'opentracing-util-0.33.0.jar'
   }
 
@@ -243,7 +252,7 @@ class DependencyResolverSpecification extends DepSpecification {
 
   private static void knownJarCheck(Map opts) {
     File jarFile = getJar(opts['jarName'])
-    List<Dependency> deps = DependencyResolver.resolve(jarFile.toURI())
+    List<Dependency> deps = DependencyResolver.extractDependenciesFromJar(jarFile)
 
     assert deps.size() == 1
     Dependency dep = deps.get(0)
