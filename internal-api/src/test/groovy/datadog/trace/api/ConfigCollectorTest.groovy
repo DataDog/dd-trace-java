@@ -24,7 +24,7 @@ class ConfigCollectorTest extends DDSpecification {
 
     expect:
     def setting = ConfigCollector.get().collect().get(configKey)
-    setting.value == configValue
+    setting.stringValue() == configValue
     setting.origin == ConfigOrigin.ENV
 
     where:
@@ -70,7 +70,7 @@ class ConfigCollectorTest extends DDSpecification {
 
     expect:
     def setting = ConfigCollector.get().collect().get(configKey)
-    setting.value == expectedValue
+    setting.stringValue() == expectedValue
     setting.origin == ConfigOrigin.JVM_PROP
 
     where:
@@ -87,7 +87,7 @@ class ConfigCollectorTest extends DDSpecification {
     expect:
     def setting = ConfigCollector.get().collect().get(configKey)
     setting.origin == ConfigOrigin.DEFAULT
-    setting.value == defaultValue
+    setting.stringValue() == defaultValue
 
     where:
     configKey                                                  | defaultValue
@@ -106,7 +106,7 @@ class ConfigCollectorTest extends DDSpecification {
 
     then:
     cs.key == configKey
-    cs.value == null
+    cs.stringValue() == null
     cs.origin == ConfigOrigin.DEFAULT
 
     where:
@@ -127,7 +127,7 @@ class ConfigCollectorTest extends DDSpecification {
 
     then:
     cs.key == configKey
-    cs.value == ""
+    cs.stringValue() == ""
     cs.origin == ConfigOrigin.DEFAULT
 
     where:
@@ -165,7 +165,7 @@ class ConfigCollectorTest extends DDSpecification {
     ConfigCollector.get().put('DD_API_KEY', 'sensitive data', ConfigOrigin.ENV)
 
     then:
-    ConfigCollector.get().collect().get('DD_API_KEY').value == '<hidden>'
+    ConfigCollector.get().collect().get('DD_API_KEY').stringValue() == '<hidden>'
   }
 
   def "collects common setting default values"() {
@@ -176,7 +176,7 @@ class ConfigCollectorTest extends DDSpecification {
     def setting = settings.get(key)
 
     setting.key == key
-    setting.value == value
+    setting.stringValue() == value
     setting.origin == ConfigOrigin.DEFAULT
 
     where:
@@ -209,7 +209,7 @@ class ConfigCollectorTest extends DDSpecification {
     def setting = settings.get(key)
 
     setting.key == key
-    setting.value == value
+    setting.stringValue() == value
     setting.origin == ConfigOrigin.ENV
 
     where:

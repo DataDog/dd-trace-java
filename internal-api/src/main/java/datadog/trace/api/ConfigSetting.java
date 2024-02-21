@@ -17,18 +17,31 @@ public final class ConfigSetting {
           Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
-    if (CONFIG_FILTER_LIST.contains(key)) {
-      value = "<hidden>";
-    } else if (value instanceof BitSet) {
-      value = renderIntegerRange((BitSet) value);
-    } else if (value instanceof Map) {
-      value = renderMap((Map) value);
-    } else if (value instanceof Iterable) {
-      value = renderIterable((Iterable) value);
-    } else if (value != null) {
-      value = value.toString();
-    }
     return new ConfigSetting(key, value, origin);
+  }
+
+  private ConfigSetting(String key, Object value, ConfigOrigin origin) {
+    this.key = key;
+    this.value = CONFIG_FILTER_LIST.contains(key) ? "<hidden>" : value;
+    this.origin = origin;
+  }
+
+  public String normalizedKey() {
+    return key.toLowerCase().replace(".", "_");
+  }
+
+  public String stringValue() {
+    if (value == null) {
+      return null;
+    } else if (value instanceof BitSet) {
+      return renderIntegerRange((BitSet) value);
+    } else if (value instanceof Map) {
+      return renderMap((Map<Object, Object>) value);
+    } else if (value instanceof Iterable) {
+      return renderIterable((Iterable) value);
+    } else {
+      return value.toString();
+    }
   }
 
   private static String renderIntegerRange(BitSet bitset) {
@@ -81,16 +94,6 @@ public final class ConfigSetting {
     return result.toString();
   }
 
-  private ConfigSetting(String key, Object value, ConfigOrigin origin) {
-    this.key = key;
-    this.value = value;
-    this.origin = origin;
-  }
-
-  public String normalizedKey() {
-    return key.toLowerCase().replace(".", "_");
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -108,10 +111,10 @@ public final class ConfigSetting {
   public String toString() {
     return "ConfigSetting{"
         + "key='"
-        + key
+        + normalizedKey()
         + '\''
         + ", value="
-        + value
+        + stringValue()
         + ", origin="
         + origin
         + '}';

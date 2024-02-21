@@ -32,7 +32,7 @@ class ConfigSettingTest extends Specification {
 
   def "filters key values"() {
     expect:
-    ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).value == filteredValue
+    ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue() == filteredValue
 
     where:
     key                    | value       | filteredValue
@@ -45,7 +45,7 @@ class ConfigSettingTest extends Specification {
 
   def "support basic types"() {
     expect:
-    ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).value == rendered
+    ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).stringValue() == rendered
 
     where:
     value          | rendered
@@ -60,7 +60,7 @@ class ConfigSettingTest extends Specification {
 
   def "convert Iterable, Map, and BitSet to String"() {
     expect:
-    ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).value == rendered
+    ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).stringValue() == rendered
 
     where:
     value                  | rendered
