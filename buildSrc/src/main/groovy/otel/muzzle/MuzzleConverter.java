@@ -10,9 +10,9 @@ import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.BIPUSH;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
-import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
+import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.POP;
 import static org.objectweb.asm.tree.AbstractInsnNode.FIELD_INSN;
@@ -345,7 +345,7 @@ public class MuzzleConverter extends AbstractClassVisitor {
       methodNode.visitVarInsn(ALOAD, 1);
       methodNode.visitLdcInsn(key);
       methodNode.visitLdcInsn(value);
-      methodNode.visitMethodInsn(INVOKEINTERFACE, "java/util/HashMap", "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", true);
+      methodNode.visitMethodInsn(INVOKEVIRTUAL, "java/util/HashMap", "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", false);
       methodNode.visitInsn(POP);
     });
     // Wrap into unmodifiable map
