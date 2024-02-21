@@ -15,6 +15,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 import static groovy.io.FileType.FILES
+import static org.objectweb.asm.ClassWriter.COMPUTE_FRAMES
 
 class OtelConverterPlugin implements Plugin<Project> {
   @Override
@@ -95,7 +96,7 @@ class ConvertJavaAgent extends DefaultTask {
     }
 
     try (InputStream inputStream = Files.newInputStream(file.toPath())) {
-      def writer = new ClassWriter(0) // TODO flags?
+      def writer = new ClassWriter(COMPUTE_FRAMES)
       def virtualFieldConverter = new VirtualFieldConverter(writer, file.name)
       def muzzleConverter = new MuzzleConverter(virtualFieldConverter, file.name)
       def instrumentationModuleConverter = new InstrumentationModuleConverter(muzzleConverter, file.name)
