@@ -17,13 +17,10 @@ import org.objectweb.asm.tree.MethodNode;
 public class TypeInstrumentationConverter extends AbstractClassVisitor {
   static final String TYPE_INSTRUMENTATION_CLASS_NAME = "io/opentelemetry/javaagent/extension/instrumentation/TypeInstrumentation";
   private static final String FOR_TYPE_HIERARCHY_CLASS_NAME = "datadog/trace/agent/tooling/Instrumenter$ForTypeHierarchy";
-  private static final String HAS_TYPE_ADVICE_CLASS_NAME = "datadog/trace/agent/tooling/Instrumenter$HasTypeAdvice";
   private static final String TYPE_MATCHER_METHOD_NAME = "typeMatcher";
   private static final String TYPE_MATCHER_DESC = "()Lnet/bytebuddy/matcher/ElementMatcher;";
   private static final String HIERARCHY_MATCHER_METHOD_NAME = "hierarchyMatcher";
-  private static final String TRANSFORM_METHOD_NAME = "transform";
-  private static final String TRANSFORM_DESC = "(Lio/opentelemetry/javaagent/extension/instrumentation/TypeTransformer;)V";
-  private static final String TYPE_ADVICE_METHOD_NAME = "typeAdvice";
+  private static final String HAS_ADVICE_CLASS_NAME = "datadog/trace/instrumentation/opentelemetry/automatic/HasAdvice";
 
   public TypeInstrumentationConverter(ClassVisitor classVisitor, String className) {
     super(classVisitor, className);
@@ -53,9 +50,8 @@ public class TypeInstrumentationConverter extends AbstractClassVisitor {
     classNode.interfaces.add(FOR_TYPE_HIERARCHY_CLASS_NAME);
     addHierarchyMarkerTypeMethod();
     convertTypeMatcherMethod();
-    // Implement Instrumenter.HasTypeAdvice
-    classNode.interfaces.add(HAS_TYPE_ADVICE_CLASS_NAME);
-    convertTransformMethod();
+    // Implement HasAdvice wrapper
+    classNode.interfaces.add(HAS_ADVICE_CLASS_NAME);
   }
 
   private void addHierarchyMarkerTypeMethod() {
@@ -80,11 +76,4 @@ public class TypeInstrumentationConverter extends AbstractClassVisitor {
     MethodNode methodNode = findMethodNode(TYPE_MATCHER_METHOD_NAME, TYPE_MATCHER_DESC);
     methodNode.name = HIERARCHY_MATCHER_METHOD_NAME;
   }
-
-  private void convertTransformMethod() {
-    MethodNode methodNode = findMethodNode(TRANSFORM_METHOD_NAME, TRANSFORM_DESC);
-    methodNode.name = TYPE_ADVICE_METHOD_NAME;
-  }
 }
-
-
