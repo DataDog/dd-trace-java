@@ -183,12 +183,13 @@ class ConfigCollectorTest extends DDSpecification {
     key                      | value
     "trace.enabled"          | "true"
     "profiling.enabled"      | "false"
-    "appsec.enabled"         | "inactive" //TODO false
+    "appsec.enabled"         | "inactive"
     "data.streams.enabled"   | "false"
     "trace.tags"             | ""
     "trace.header.tags"      | ""
     "logs.injection.enabled" | "true"
-    "trace.sample.rate"      | null // TODO 1.0
+    // defaults to null meaning sample everything but not exactly the same as when explicitly set to 1.0
+    "trace.sample.rate"      | null
   }
 
   def "collects common setting overridden values"() {
@@ -218,8 +219,10 @@ class ConfigCollectorTest extends DDSpecification {
     "profiling.enabled"      | "true"
     "appsec.enabled"         | "false"
     "data.streams.enabled"   | "true"
-    "trace.tags"             | "component:web,team:apm" // TODO should it preserve ordering? "team:apm,component:web"
-    "trace.header.tags"      | "X-Header-Tag-1:header_tag_1,X-Header-Tag-2:header_tag_2".toLowerCase() // TODO should it preserve case?
+    // doesn't preserve ordering for some maps
+    "trace.tags"             | "component:web,team:apm"
+    // lowercase keys for some maps merged from different sources
+    "trace.header.tags"      | "X-Header-Tag-1:header_tag_1,X-Header-Tag-2:header_tag_2".toLowerCase()
     "logs.injection.enabled" | "false"
     "trace.sample.rate"      | "0.3"
   }
