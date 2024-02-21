@@ -94,7 +94,7 @@ class ConfigCollectorTest extends DDSpecification {
     IastConfig.IAST_TELEMETRY_VERBOSITY                        | Verbosity.INFORMATION.toString()
     TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | "v" + SpanNaming.SCHEMA_MIN_VERSION
     AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING         | SAFE.toString()
-    GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL
+    GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | new Float(DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL).toString()
     CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS  | "main"
     IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | DEFAULT_IAST_WEAK_HASH_ALGORITHMS.join(",")
     TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | "400-500"
@@ -181,13 +181,13 @@ class ConfigCollectorTest extends DDSpecification {
 
     where:
     key                      | value
-    "trace.enabled"          | true
-    "profiling.enabled"      | false
+    "trace.enabled"          | "true"
+    "profiling.enabled"      | "false"
     "appsec.enabled"         | "inactive" //TODO false
-    "data.streams.enabled"   | false
+    "data.streams.enabled"   | "false"
     "trace.tags"             | ""
     "trace.header.tags"      | ""
-    "logs.injection.enabled" | true // TODO false
+    "logs.injection.enabled" | "true"
     "trace.sample.rate"      | null // TODO 1.0
   }
 

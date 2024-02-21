@@ -12,6 +12,10 @@ public final class ConfigSetting {
   public final Object value;
   public final ConfigOrigin origin;
 
+  private static final Set<String> CONFIG_FILTER_LIST =
+      new HashSet<>(
+          Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
+
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
     if (CONFIG_FILTER_LIST.contains(key)) {
       value = "<hidden>";
@@ -21,16 +25,10 @@ public final class ConfigSetting {
       value = renderMap((Map) value);
     } else if (value instanceof Iterable) {
       value = renderIterable((Iterable) value);
+    } else if (value != null) {
+      value = value.toString();
     }
     return new ConfigSetting(key, value, origin);
-  }
-
-  private static final Set<String> CONFIG_FILTER_LIST =
-      new HashSet<>(
-          Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
-
-  private static Object filterConfigEntry(String key, Object value) {
-    return CONFIG_FILTER_LIST.contains(key) ? "<hidden>" : value;
   }
 
   private static String renderIntegerRange(BitSet bitset) {
@@ -83,9 +81,9 @@ public final class ConfigSetting {
     return result.toString();
   }
 
-  public ConfigSetting(String key, Object value, ConfigOrigin origin) {
+  private ConfigSetting(String key, Object value, ConfigOrigin origin) {
     this.key = key;
-    this.value = filterConfigEntry(key, value);
+    this.value = value;
     this.origin = origin;
   }
 

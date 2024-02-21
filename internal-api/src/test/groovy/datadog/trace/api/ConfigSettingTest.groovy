@@ -45,10 +45,17 @@ class ConfigSettingTest extends Specification {
 
   def "support basic types"() {
     expect:
-    ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).value == value
+    ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).value == rendered
 
     where:
-    value << [null, true, false, 1, 1.0, 2.33f, "string"]
+    value          | rendered
+    null           | null
+    true           | "true"
+    false          | "false"
+    1              | "1"
+    1.0            | "1.0"
+    2.33f          | "2.33"
+    "string"       | "string"
   }
 
   def "convert Iterable, Map, and BitSet to String"() {
@@ -56,14 +63,15 @@ class ConfigSettingTest extends Specification {
     ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).value == rendered
 
     where:
-    value             | rendered
-    ["1", "2", "3"]   | "1,2,3"
-    [1, 2, 3]         | "1,2,3"
-    [a: 1, b: 2]      | "a:1,b:2"
-    [a: "1", b: "2"]  | "a:1,b:2"
-    [:]               | null
-    []                | null
-    bitSetIntervals() | "33,200-300,303,400-500"
+    value                  | rendered
+    ["1", "2", "3"]        | "1,2,3"
+    [1, 2, 3]              | "1,2,3"
+    [1.0f, 22.23d, 3.1415] | "1.0,22.23,3.1415"
+    [a: 1, b: 2]           | "a:1,b:2"
+    [a: "1", b: "2"]       | "a:1,b:2"
+    [:]                    | ""
+    []                     | ""
+    bitSetIntervals()      | "33,200-300,303,400-500"
   }
 
   BitSet bitSetIntervals() {
