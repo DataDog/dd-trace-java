@@ -26,30 +26,12 @@ class LookupCallSiteTest extends AgentTestRunner {
     TestLookupSuite.&"$suiteMethod".call(clazz, methodName, fieldsType)
 
     then:
-    1 * module.onMethodName(clazz, methodName, fieldsType)
+    1 * module.onFieldName(clazz, methodName)
 
     where:
     suiteMethod        | _
     'findSetter'       | _
     'findStaticSetter' | _
-  }
-
-  void 'test beforeFindGetter'() {
-    setup:
-    final module = Mock(ReflectionInjectionModule)
-    InstrumentationBridge.registerIastModule(module)
-    final clazz = String
-    final methodName = 'getField'
-    final fieldsType = String
-
-    when:
-    TestLookupSuite.&"$suiteMethod".call(clazz, methodName, fieldsType)
-
-    then:
-    1 * module.onMethodName(clazz, methodName)
-
-    where:
-    suiteMethod        | _
     'findGetter'       | _
     'findStaticGetter' | _
   }
