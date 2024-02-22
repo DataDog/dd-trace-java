@@ -2,14 +2,17 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.datadog.profiling.agent.ControllerFactory;
+import com.datadog.profiling.agent.Composer;
+import com.datadog.profiling.agent.CompositeController;
+import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
-public class ControllerFactoryTest {
+public class InstantiationTest {
 
   /**
    * We assume that tests for this module are run only on JVMs that support JFR. Ideally we would
@@ -19,9 +22,15 @@ public class ControllerFactoryTest {
    */
   @Test
   public void testCreateController() throws UnsupportedEnvironmentException {
-    assertEquals(
-        "com.datadog.profiling.controller.openjdk.OpenJdkController",
-        ControllerFactory.createController(ConfigProvider.getInstance()).getClass().getName());
+    Controller controller = Composer.compose(ConfigProvider.getInstance(), new ControllerContext());
+    if (controller instanceof CompositeController) {
+      assertEquals(
+          1,
+          ((CompositeController) controller)
+              .getControllers().stream().filter(c -> c instanceof OpenJdkController).count());
+    } else {
+      assertInstanceOf(OpenJdkController.class, controller);
+    }
   }
 
   @Test
@@ -29,10 +38,6 @@ public class ControllerFactoryTest {
     Properties props = new Properties();
     props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, "some-path-that-is-not-supposed-to-exist!!!");
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
-    UnsupportedEnvironmentException exception =
-        assertThrows(
-            UnsupportedEnvironmentException.class,
-            () -> ControllerFactory.createController(configProvider));
-    assertEquals(ConfigurationException.class, exception.getCause().getClass());
+    assertThrows(ConfigurationException.class, () -> OpenJdkController.instance(configProvider));
   }
 }

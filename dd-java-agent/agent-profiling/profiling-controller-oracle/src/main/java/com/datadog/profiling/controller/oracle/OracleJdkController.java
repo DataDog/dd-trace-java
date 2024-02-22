@@ -2,6 +2,7 @@ package com.datadog.profiling.controller.oracle;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
+import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import datadog.trace.api.config.ProfilingConfig;
@@ -26,13 +27,8 @@ public final class OracleJdkController implements Controller {
   private final Map<String, String> eventSettings;
   private final JfrMBeanHelper helper;
 
-  public static Controller instance(ConfigProvider configProvider) {
-    try {
-      return new OracleJdkController(configProvider);
-    } catch (ConfigurationException e) {
-      log.debug("Unable to create OracleJdkController", e);
-      return new MisconfiguredController(e);
-    }
+  public static Controller instance(ConfigProvider configProvider) throws ConfigurationException {
+    return new OracleJdkController(configProvider);
   }
 
   /**
@@ -57,7 +53,8 @@ public final class OracleJdkController implements Controller {
 
   @Override
   @Nonnull
-  public OracleJdkOngoingRecording createRecording(@Nonnull final String recordingName)
+  public OracleJdkOngoingRecording createRecording(
+      @Nonnull final String recordingName, ControllerContext.Snapshot context)
       throws UnsupportedEnvironmentException {
     try {
       log.debug("Attempting to create a new recording with name '{}'", recordingName);
