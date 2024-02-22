@@ -182,6 +182,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RESOURCE_FOLDER_NAMES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
@@ -759,6 +760,7 @@ public class Config {
   private final long ciVisibilityGitUploadTimeoutMillis;
   private final String ciVisibilitySignalServerHost;
   private final int ciVisibilitySignalServerPort;
+  private final int ciVisibilitySignalClientTimeoutMillis;
   private final boolean ciVisibilityItrEnabled;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexSharingEnabled;
@@ -1734,6 +1736,8 @@ public class Config {
     ciVisibilitySignalServerPort =
         configProvider.getInteger(
             CIVISIBILITY_SIGNAL_SERVER_PORT, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT);
+    ciVisibilitySignalClientTimeoutMillis =
+        configProvider.getInteger(CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS, 20_000);
     ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED, true);
     ciVisibilityCiProviderIntegrationEnabled =
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
@@ -2928,6 +2932,10 @@ public class Config {
 
   public int getCiVisibilitySignalServerPort() {
     return ciVisibilitySignalServerPort;
+  }
+
+  public int getCiVisibilitySignalClientTimeoutMillis() {
+    return ciVisibilitySignalClientTimeoutMillis;
   }
 
   public String getCiVisibilitySignalServerHost() {
