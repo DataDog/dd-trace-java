@@ -82,7 +82,7 @@ public class LookupCallSite {
         module.onMethodName(
             clazz, methodName, methodType != null ? methodType.parameterArray() : null);
       } catch (Throwable e) {
-        module.onUnexpectedException("beforeMethod threw", e);
+        module.onUnexpectedException("beforeSpecial threw", e);
       }
     }
   }
