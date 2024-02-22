@@ -18,6 +18,12 @@ import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
 import datadog.trace.civisibility.coverage.SegmentlessTestProbes
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
+import datadog.trace.civisibility.domain.BuildSystemSession
+import datadog.trace.civisibility.domain.TestFrameworkModule
+import datadog.trace.civisibility.domain.TestFrameworkSession
+import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl
+import datadog.trace.civisibility.domain.buildsystem.TestModuleRegistry
+import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
 import datadog.trace.civisibility.ipc.SignalServer
@@ -61,6 +67,8 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def rootPath = currentPath.parent
     dummyModule = rootPath.relativize(currentPath)
 
+    def supportedCiProvider = true
+
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
 
     def sourcePathResolver = Stub(SourcePathResolver)
@@ -91,13 +99,15 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector)
-    DDTestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
+    TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
-      return new DDTestFrameworkSessionImpl(
+      return new HeadlessTestSession(
       projectName,
       startTime,
+      supportedCiProvider,
       Config.get(),
+      metricCollector,
       testDecorator,
       sourcePathResolver,
       codeowners,
@@ -109,23 +119,25 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
     InstrumentationBridge.registerTestEventsHandlerFactory {
       component ->
-      DDTestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
-      DDTestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
-      new TestEventsHandlerImpl(testSession, testModule)
+      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
+      TestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
+      new TestEventsHandlerImpl(metricCollector, testSession, testModule)
     }
 
-    DDBuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
+    BuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
       TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
       SignalServer signalServer = new SignalServer()
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
-      return new DDBuildSystemSessionImpl(
+      return new BuildSystemSessionImpl(
       projectName,
       rootPath.toString(),
       startCommand,
       startTime,
+      supportedCiProvider,
       Config.get(),
+      metricCollector,
       testModuleRegistry,
       testDecorator,
       sourcePathResolver,

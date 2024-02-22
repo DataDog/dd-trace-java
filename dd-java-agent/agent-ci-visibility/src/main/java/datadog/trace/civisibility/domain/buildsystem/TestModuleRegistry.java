@@ -1,5 +1,6 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain.buildsystem;
 
+import datadog.trace.civisibility.domain.BuildSystemModule;
 import datadog.trace.civisibility.ipc.AckResponse;
 import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
@@ -13,23 +14,23 @@ public class TestModuleRegistry {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TestModuleRegistry.class);
 
-  private final Map<Long, DDBuildSystemModule> testModuleById;
+  private final Map<Long, BuildSystemModule> testModuleById;
 
   public TestModuleRegistry() {
     this.testModuleById = new ConcurrentHashMap<>();
   }
 
-  public void addModule(DDBuildSystemModule module) {
+  public void addModule(BuildSystemModule module) {
     testModuleById.put(module.getId(), module);
   }
 
-  public void removeModule(DDBuildSystemModule module) {
+  public void removeModule(BuildSystemModule module) {
     testModuleById.remove(module.getId());
   }
 
   public SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
     long moduleId = result.getModuleId();
-    DDBuildSystemModule module = testModuleById.get(moduleId);
+    BuildSystemModule module = testModuleById.get(moduleId);
     if (module == null) {
       String message =
           String.format(

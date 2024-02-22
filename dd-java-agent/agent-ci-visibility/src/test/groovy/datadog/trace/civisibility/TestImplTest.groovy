@@ -5,10 +5,13 @@ import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.civisibility.codeowners.CodeownersImpl
+import datadog.trace.civisibility.codeowners.NoCodeowners
 import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
+import datadog.trace.civisibility.domain.TestImpl
 import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.civisibility.source.NoOpSourcePathResolver
 import datadog.trace.civisibility.utils.SpanUtils
@@ -17,7 +20,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
-class DDTestImplTest extends DDSpecification {
+class TestImplTest extends DDSpecification {
 
   @SuppressWarnings('PropertyName')
   @Shared
@@ -101,17 +104,19 @@ class DDTestImplTest extends DDSpecification {
     })
   }
 
-  private DDTestImpl givenATest() {
+  private TestImpl givenATest() {
     def sessionId = 123
     def moduleId = 456
     def suiteId = 789
 
+    def testFramework = TestFrameworkInstrumentation.OTHER
     def config = Config.get()
+    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
     def testDecorator = new TestDecoratorImpl("component", [:])
     def methodLinesResolver = { it -> MethodLinesResolver.MethodLines.EMPTY }
-    def codeowners = CodeownersImpl.EMPTY
+    def codeowners = NoCodeowners.INSTANCE
     def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
-    new DDTestImpl(
+    new TestImpl(
       sessionId,
       moduleId,
       suiteId,
@@ -121,7 +126,10 @@ class DDTestImplTest extends DDSpecification {
       null,
       null,
       null,
+      InstrumentationType.BUILD,
+      testFramework,
       config,
+      metricCollector,
       testDecorator,
       NoOpSourcePathResolver.INSTANCE,
       methodLinesResolver,

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -35,7 +36,13 @@ public class MUnitTracingListener extends TracingListener {
     String testSuiteName = description.getClassName();
     List<String> categories = getCategories(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, testClass, categories, false);
+        testSuiteName,
+        FRAMEWORK_NAME,
+        FRAMEWORK_VERSION,
+        testClass,
+        categories,
+        false,
+        TestFrameworkInstrumentation.MUNIT);
   }
 
   public void testSuiteFinished(final Description description) {
