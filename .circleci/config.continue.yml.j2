@@ -287,9 +287,15 @@ jobs:
       collectLibs:
         type: boolean
         default: false
+      triggeredBy:
+        type: string
+        default: ".*"
 
     steps:
       - setup_code
+
+      - skip_unless_matching_files_changed:
+          pattern: << parameters.triggeredBy >>
 
       - restore_dependency_cache:
           cacheType: << parameters.cacheType >>
@@ -374,6 +380,9 @@ jobs:
         type: string
       cacheType:
         type: string
+      triggeredBy:
+        type: string
+        default: ".*"
 
     resource_class: medium+
 
@@ -381,6 +390,10 @@ jobs:
 
     steps:
       - setup_code
+
+      - skip_unless_matching_files_changed:
+          pattern: << parameters.triggeredBy >>
+
       - restore_dependency_cache:
           cacheType: << parameters.cacheType >>
       - restore_build_cache:
@@ -947,6 +960,7 @@ build_test_jobs: &build_test_jobs
       name: build_inst
       gradleTarget: :instrumentationTest
       cacheType: inst
+      triggeredBy: *instrumentation_modules
   - build:
       name: build_latestdep
       gradleTarget: :instrumentationLatestDepTest
@@ -986,6 +1000,7 @@ build_test_jobs: &build_test_jobs
       parallelism: 4
       gradleTarget: ":instrumentationCheck"
       cacheType: inst
+      triggeredBy: *instrumentation_modules
 
   - check:
       requires:
