@@ -10,6 +10,7 @@ import net.bytebuddy.utility.JavaModule
 import net.bytebuddy.utility.nullability.MaybeNull
 import org.apache.tools.ant.taskdefs.Classloader
 import org.springframework.boot.loader.net.protocol.Handlers
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -25,6 +26,9 @@ import java.util.jar.JarFile
 import static net.bytebuddy.matcher.ElementMatchers.named
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments
 
+@IgnoreIf({
+  new BigDecimal(System.getProperty("java.specification.version")).intValue() < 17
+})
 class DependencyResolverSpring3Specification extends Specification {
 
   @Shared
@@ -36,7 +40,6 @@ class DependencyResolverSpring3Specification extends Specification {
   @Shared
   private Path jarPath
 
-  @SuppressWarnings('GroovyAccessibility')
   void setupSpec() {
     // separate thread to read telemetry dependencies
     executors = Executors.newSingleThreadExecutor()
