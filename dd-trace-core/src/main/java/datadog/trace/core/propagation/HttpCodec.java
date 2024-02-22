@@ -151,7 +151,7 @@ public class HttpCodec {
           extractors.add(XRayHttpCodec.newExtractor(config, traceConfigSupplier));
           break;
         case NONE:
-          extractors.add(NoneCodec.EXTRACTOR);
+          extractors.add(NoneCodec.newExtractor(config, traceConfigSupplier));
           break;
         case TRACECONTEXT:
           extractors.add(W3CHttpCodec.newExtractor(config, traceConfigSupplier));
