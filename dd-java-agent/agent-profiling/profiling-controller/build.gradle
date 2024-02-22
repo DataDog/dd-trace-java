@@ -5,8 +5,7 @@ minimumInstructionCoverage = 0.8
 minimumBranchCoverage = 0.8
 
 excludedClassesCoverage += [
-  // ControllerFactory gets better tested in actual controller implementations
-  'com.datadog.profiling.agent.Composer',
+  'com.datadog.profiling.agent.CompositeController',
   // There are some code paths that is impossible/very-very hard to hit
   'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
   'com.datadog.profiling.controller.ProfilingSystem.StopRecording',

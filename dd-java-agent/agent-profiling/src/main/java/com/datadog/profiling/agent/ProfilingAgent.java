@@ -118,7 +118,7 @@ public class ProfilingAgent {
       try {
         JFRAccess.setup(inst);
         ControllerContext context = new ControllerContext();
-        final Controller controller = Composer.compose(configProvider, context);
+        final Controller controller = CompositeController.build(configProvider, context);
 
         String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);
         DataDumper dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;

@@ -8,13 +8,13 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import org.junit.jupiter.api.Test;
 
 /** Note: some additional tests for this class are located in profiling-controller-openjdk module */
-public class ComposerTest {
+public class CompositeControllerTest {
 
   @Test
   public void smokeTest() {
     UnsupportedEnvironmentException unsupportedEnvironmentException = null;
     try {
-      Composer.compose(ConfigProvider.getInstance(), new ControllerContext());
+      CompositeController.build(ConfigProvider.getInstance(), new ControllerContext());
       // successfully created controller, return
       return;
     } catch (UnsupportedEnvironmentException e) {

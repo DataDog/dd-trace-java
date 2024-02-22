@@ -32,6 +32,8 @@ public class DatadogProfilerOngoingRecordingTest {
 
   @BeforeAll
   public static void setupAll() {
+    // If the profiler couldn't be loaded, the reason why is saved.
+    // This test assumes the profiler could be loaded.
     Assume.assumeNoException("profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
   }
 

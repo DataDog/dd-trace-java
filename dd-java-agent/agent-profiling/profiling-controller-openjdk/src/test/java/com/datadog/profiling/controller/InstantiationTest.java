@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.datadog.profiling.agent.Composer;
 import com.datadog.profiling.agent.CompositeController;
 import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -22,7 +21,8 @@ public class InstantiationTest {
    */
   @Test
   public void testCreateController() throws UnsupportedEnvironmentException {
-    Controller controller = Composer.compose(ConfigProvider.getInstance(), new ControllerContext());
+    Controller controller =
+        CompositeController.build(ConfigProvider.getInstance(), new ControllerContext());
     if (controller instanceof CompositeController) {
       assertEquals(
           1,

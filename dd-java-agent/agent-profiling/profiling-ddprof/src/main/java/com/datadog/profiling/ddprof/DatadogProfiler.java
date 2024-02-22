@@ -61,10 +61,27 @@ public final class DatadogProfiler {
 
   private static final int MAX_NUM_ENDPOINTS = 8192;
 
+  /**
+   * Creates a profiler API with default configuration, may result in loading the profiler native
+   * library if that has not already happened, but this will not happen more than once. Applying
+   * default configuration will not prevent overloading any setting that would not require reloading
+   * the native library.
+   *
+   * @return a profiler with default configuration.
+   */
   public static DatadogProfiler newInstance() {
     return newInstance(ConfigProvider.getInstance());
   }
 
+  /**
+   * Creates a new instance of the Datadog profiler API, may result in loading the profiler native
+   * library if that has not already happened, but this will not happen more than once. The
+   * underlying configuration for where to load the library from cannot be overridden by providing
+   * config here, but all other properties can be changed.
+   *
+   * @param configProvider config
+   * @return a profiler with the configuration applied.
+   */
   public static DatadogProfiler newInstance(ConfigProvider configProvider) {
     return new DatadogProfiler(configProvider);
   }

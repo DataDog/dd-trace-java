@@ -5,7 +5,6 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 excludedClassesCoverage += [
-  'com.datadog.profiling.agent.Composer',
   'com.datadog.profiling.agent.CompositeController',
   'com.datadog.profiling.agent.CompositeController.CompositeRecordingData',
   'com.datadog.profiling.agent.CompositeController.CompositeOngoingRecording',
