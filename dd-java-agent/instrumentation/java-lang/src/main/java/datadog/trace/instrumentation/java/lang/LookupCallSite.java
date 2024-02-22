@@ -20,12 +20,12 @@ public class LookupCallSite {
       "java.lang.invoke.MethodHandle java.lang.invoke.MethodHandles$Lookup.findStaticSetter(java.lang.Class, java.lang.String, java.lang.Class)")
   public static void beforeFindSetter(
       @CallSite.Argument(0) @Nonnull final Class<?> clazz,
-      @CallSite.Argument(1) @Nonnull final String methodName,
+      @CallSite.Argument(1) @Nonnull final String fieldName,
       @CallSite.Argument(2) @Nullable final Class<?> parameterType) {
     final ReflectionInjectionModule module = InstrumentationBridge.REFLECTION_INJECTION;
     if (module != null) {
       try {
-        module.onMethodName(clazz, methodName, parameterType);
+        module.onMethodName(clazz, fieldName, parameterType);
       } catch (Throwable e) {
         module.onUnexpectedException("beforeFindSetter threw", e);
       }
@@ -38,12 +38,12 @@ public class LookupCallSite {
       "java.lang.invoke.MethodHandle java.lang.invoke.MethodHandles$Lookup.findStaticGetter(java.lang.Class, java.lang.String, java.lang.Class)")
   public static void beforeFindGetter(
       @CallSite.Argument(0) @Nonnull final Class<?> clazz,
-      @CallSite.Argument(1) @Nonnull final String methodName,
+      @CallSite.Argument(1) @Nonnull final String fieldName,
       @CallSite.Argument(2) @Nullable final Class<?> parameterType) {
     final ReflectionInjectionModule module = InstrumentationBridge.REFLECTION_INJECTION;
     if (module != null) {
       try {
-        module.onMethodName(clazz, methodName);
+        module.onMethodName(clazz, fieldName);
       } catch (Throwable e) {
         module.onUnexpectedException("beforeFindGetter threw", e);
       }
