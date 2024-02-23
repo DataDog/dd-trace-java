@@ -12,15 +12,15 @@ import java.util.Set;
  */
 public class ControllerContext {
 
-  private boolean isDatadogProfilerActive;
+  private boolean isDatadogProfilerEnabled;
   private Set<ProfilingMode> datadogProfilingModes = EnumSet.noneOf(ProfilingMode.class);
 
-  public boolean isDatadogProfilerActive() {
-    return isDatadogProfilerActive;
+  public boolean isDatadogProfilerEnabled() {
+    return isDatadogProfilerEnabled;
   }
 
-  public void setDatadogProfilerActive(boolean datadogProfilerActive) {
-    isDatadogProfilerActive = datadogProfilerActive;
+  public void setDatadogProfilerEnabled(boolean datadogProfilerActive) {
+    isDatadogProfilerEnabled = datadogProfilerActive;
   }
 
   public Set<ProfilingMode> getDatadogProfilingModes() {
@@ -41,20 +41,20 @@ public class ControllerContext {
   }
 
   public static final class Snapshot {
-    private final boolean isDatadogProfilerActive;
+    private final boolean isDatadogProfilerEnabled;
     private final Set<ProfilingMode> datadogProfilingModes;
 
     public Snapshot(ControllerContext context) {
-      this(context.isDatadogProfilerActive, EnumSet.copyOf(context.datadogProfilingModes));
+      this(context.isDatadogProfilerEnabled, EnumSet.copyOf(context.datadogProfilingModes));
     }
 
-    private Snapshot(boolean isDatadogProfilerActive, Set<ProfilingMode> datadogProfilingModes) {
-      this.isDatadogProfilerActive = isDatadogProfilerActive;
+    private Snapshot(boolean isDatadogProfilerEnabled, Set<ProfilingMode> datadogProfilingModes) {
+      this.isDatadogProfilerEnabled = isDatadogProfilerEnabled;
       this.datadogProfilingModes = datadogProfilingModes;
     }
 
-    public boolean isDatadogProfilerActive() {
-      return isDatadogProfilerActive;
+    public boolean isDatadogProfilerEnabled() {
+      return isDatadogProfilerEnabled;
     }
 
     public Set<ProfilingMode> getDatadogProfilingModes() {

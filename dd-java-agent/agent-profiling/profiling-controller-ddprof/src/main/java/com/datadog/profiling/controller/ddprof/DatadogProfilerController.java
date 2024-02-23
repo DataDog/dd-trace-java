@@ -51,7 +51,7 @@ public final class DatadogProfilerController implements Controller {
 
   @Override
   public void configure(ControllerContext context) {
-    context.setDatadogProfilerActive(datadogProfiler.isActive());
+    context.setDatadogProfilerEnabled(true);
     context.setDatadogProfilingModes(EnumSet.copyOf(datadogProfiler.enabledModes()));
   }
 }

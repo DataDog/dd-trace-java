@@ -45,7 +45,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     recording.setSettings(settings);
     recording.setMaxSize(maxSize);
     recording.setMaxAge(maxAge);
-    if (context.isDatadogProfilerActive()) {
+    if (context.isDatadogProfilerEnabled()) {
       disableOverriddenEvents(context);
     }
     recording.start();
@@ -54,7 +54,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
 
   OpenJdkOngoingRecording(Recording recording, ControllerContext.Snapshot context) {
     this.recording = recording;
-    if (context.isDatadogProfilerActive()) {
+    if (context.isDatadogProfilerEnabled()) {
       disableOverriddenEvents(context);
     }
     recording.start();
