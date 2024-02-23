@@ -108,26 +108,17 @@ public class SpockUtils {
     }
   }
 
-  private static datadog.trace.api.civisibility.events.TestDescriptor toTestDescriptor(
-      TestDescriptor testDescriptor) {
-    TestSource testSource = testDescriptor.getSource().orElse(null);
-    if (!(testSource instanceof MethodSource) || !(testDescriptor instanceof SpockNode)) {
-      return null;
-    }
-
-    MethodSource methodSource = (MethodSource) testSource;
-    String testSuiteName = methodSource.getClassName();
-    String displayName = testDescriptor.getDisplayName();
-    String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
-    Class<?> testClass = methodSource.getJavaClass();
-    return new datadog.trace.api.civisibility.events.TestDescriptor(
-        testSuiteName, testClass, displayName, testParameters, null);
-  }
-
   public static boolean isSpec(TestDescriptor testDescriptor) {
     UniqueId uniqueId = testDescriptor.getUniqueId();
     List<UniqueId.Segment> segments = uniqueId.getSegments();
     UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
     return "spec".equals(lastSegment.getType());
+  }
+
+  public static TestDescriptor getSpecDescriptor(TestDescriptor testDescriptor) {
+    while (testDescriptor != null && !isSpec(testDescriptor)) {
+      testDescriptor = testDescriptor.getParent().orElse(null);
+    }
+    return testDescriptor;
   }
 }

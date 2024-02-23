@@ -35,6 +35,7 @@ public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
       packageName + ".TestEventsHandlerHolder",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
+      packageName + ".MUnitUtils",
       packageName + ".TracingListener",
       packageName + ".MUnitTracingListener",
     };

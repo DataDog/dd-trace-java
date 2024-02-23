@@ -8,6 +8,7 @@ import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Tag;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
+import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
@@ -82,13 +83,18 @@ public abstract class KarateUtils {
     return new TestIdentifier(featureName, scenarioName, parameters, null);
   }
 
-  public static TestDescriptor toTestDescriptor(
-      Scenario scenario, ScenarioRuntime scenarioRuntime) {
+  public static TestDescriptor toTestDescriptor(ScenarioRuntime scenarioRuntime) {
+    Scenario scenario = scenarioRuntime.scenario;
     Feature feature = scenario.getFeature();
     String featureName = feature.getNameForReport();
     String scenarioName = KarateUtils.getScenarioName(scenario);
     String parameters = KarateUtils.getParameters(scenario);
     return new TestDescriptor(featureName, null, scenarioName, parameters, scenarioRuntime);
+  }
+
+  public static TestSuiteDescriptor toSuiteDescriptor(FeatureRuntime featureRuntime) {
+    String featureName = KarateUtils.getFeature(featureRuntime).getNameForReport();
+    return new TestSuiteDescriptor(featureName, null);
   }
 
   public static Result abortedResult() {

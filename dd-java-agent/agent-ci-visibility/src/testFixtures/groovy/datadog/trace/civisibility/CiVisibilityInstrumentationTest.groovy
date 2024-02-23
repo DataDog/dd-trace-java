@@ -5,13 +5,18 @@ import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.DDTest
+import datadog.trace.api.civisibility.DDTestSuite
 import datadog.trace.api.civisibility.InstrumentationBridge
 import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageBridge
+import datadog.trace.api.civisibility.events.TestEventsHandler
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.bootstrap.ContextStore
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.JvmInfo
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl
@@ -32,6 +37,7 @@ import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
+import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
 import datadog.trace.common.writer.RemoteMapper
@@ -44,7 +50,6 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.stream.Collectors
 
 @Unroll
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
@@ -134,12 +139,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       )
     }
 
-    InstrumentationBridge.registerTestEventsHandlerFactory {
-      component ->
-      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
-      TestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
-      new TestEventsHandlerImpl(metricCollector, testSession, testModule)
-    }
+    InstrumentationBridge.registerTestEventsHandlerFactory(new TestEventHandlerFactory(testFrameworkSessionFactory, metricCollector))
 
     BuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
@@ -172,6 +172,28 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     CoverageBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
+  }
+
+  private static final class TestEventHandlerFactory implements TestEventsHandler.Factory {
+    private final TestFrameworkSession.Factory testFrameworkSessionFactory
+    private final CiVisibilityMetricCollector metricCollector
+
+    TestEventHandlerFactory(testFrameworkSessionFactory, metricCollector) {
+      this.testFrameworkSessionFactory = testFrameworkSessionFactory
+      this.metricCollector = metricCollector
+    }
+
+    @Override
+    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component) {
+      return create(component, new ConcurrentHashMapContextStore<>(), new ConcurrentHashMapContextStore())
+    }
+
+    @Override
+    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore) {
+      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
+      TestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
+      new TestEventsHandlerImpl(metricCollector, testSession, testModule, suiteStore, testStore)
+    }
   }
 
   @Override

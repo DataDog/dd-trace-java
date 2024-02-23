@@ -48,4 +48,23 @@ public final class TestDescriptor {
   public int hashCode() {
     return Objects.hash(testSuiteName, testClass, testName, testParameters, testQualifier);
   }
+
+  @Override
+  public String toString() {
+    return "TestDescriptor{"
+        + "testSuiteName='"
+        + testSuiteName
+        + '\''
+        + ", testClass="
+        + testClass
+        + ", testName='"
+        + testName
+        + '\''
+        + ", testParameters='"
+        + testParameters
+        + '\''
+        + ", testQualifier="
+        + testQualifier
+        + '}';
+  }
 }

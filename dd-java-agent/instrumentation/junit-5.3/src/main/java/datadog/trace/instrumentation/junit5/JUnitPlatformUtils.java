@@ -107,34 +107,6 @@ public abstract class JUnitPlatformUtils {
     }
   }
 
-  public static datadog.trace.api.civisibility.events.TestDescriptor toTestDescriptor(
-      TestDescriptor testDescriptor) {
-    TestSource testSource = testDescriptor.getSource().orElse(null);
-    if (!(testSource instanceof MethodSource)) {
-      return null;
-    }
-
-    MethodSource methodSource = (MethodSource) testSource;
-    TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
-
-    Class<?> testClass;
-    String testSuiteName;
-    if (suiteDescriptor != null) {
-      testClass = JUnitPlatformUtils.getJavaClass(suiteDescriptor);
-      testSuiteName =
-          testClass != null ? testClass.getName() : suiteDescriptor.getLegacyReportingName();
-    } else {
-      testClass = JUnitPlatformUtils.getTestClass(methodSource);
-      testSuiteName = methodSource.getClassName();
-    }
-
-    String testName = methodSource.getMethodName();
-    String displayName = testDescriptor.getDisplayName();
-    String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
-    return new datadog.trace.api.civisibility.events.TestDescriptor(
-        testSuiteName, testClass, testName, testParameters, null);
-  }
-
   public static boolean isAssumptionFailure(Throwable throwable) {
     switch (throwable.getClass().getName()) {
       case "org.junit.AssumptionViolatedException":
