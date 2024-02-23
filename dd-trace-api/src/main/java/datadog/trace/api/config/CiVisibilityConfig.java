@@ -38,6 +38,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_GIT_REMOTE_NAME = "civisibility.git.remote.name";
   public static final String CIVISIBILITY_SIGNAL_SERVER_HOST = "civisibility.signal.server.host";
   public static final String CIVISIBILITY_SIGNAL_SERVER_PORT = "civisibility.signal.server.port";
+  public static final String CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS =
+      "civisibility.signal.client.timeout.millis";
   public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
   public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
       "civisibility.ciprovider.integration.enabled";
