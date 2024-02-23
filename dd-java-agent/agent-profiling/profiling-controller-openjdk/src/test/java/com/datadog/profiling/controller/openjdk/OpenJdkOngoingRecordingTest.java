@@ -5,6 +5,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.datadog.profiling.controller.ControllerContext;
 import datadog.trace.api.profiling.RecordingData;
 import java.time.Instant;
 import jdk.jfr.Recording;
@@ -36,7 +37,7 @@ public class OpenJdkOngoingRecordingTest {
     when(recording.getState()).thenReturn(RecordingState.RUNNING);
     when(recording.getName()).thenReturn(TEST_NAME);
 
-    ongoingRecording = new OpenJdkOngoingRecording(recording);
+    ongoingRecording = new OpenJdkOngoingRecording(recording, new ControllerContext().snapshot());
   }
 
   @Test

@@ -28,6 +28,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
+import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
@@ -49,7 +50,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,15 +70,9 @@ public final class OpenJdkController implements Controller {
   private final ConfigProvider configProvider;
   private final Map<String, String> recordingSettings;
 
-  private final AtomicBoolean shouldCleanup = new AtomicBoolean(false);
-
-  public static Controller instance(ConfigProvider configProvider) {
-    try {
-      return new OpenJdkController(configProvider);
-    } catch (ConfigurationException | ClassNotFoundException e) {
-      log.debug("Unable to create OpenJDK controller", e);
-      return new MisconfiguredController(e);
-    }
+  public static Controller instance(ConfigProvider configProvider)
+      throws ConfigurationException, ClassNotFoundException {
+    return new OpenJdkController(configProvider);
   }
 
   /**
@@ -271,10 +265,11 @@ public final class OpenJdkController implements Controller {
   }
 
   @Override
-  public OpenJdkOngoingRecording createRecording(final String recordingName)
+  public OpenJdkOngoingRecording createRecording(
+      final String recordingName, ControllerContext.Snapshot context)
       throws UnsupportedEnvironmentException {
     return new OpenJdkOngoingRecording(
-        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE, configProvider);
+        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE, configProvider, context);
   }
 
   private static void disableEvent(

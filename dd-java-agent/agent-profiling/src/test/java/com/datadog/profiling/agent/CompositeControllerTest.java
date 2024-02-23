@@ -2,18 +2,19 @@ package com.datadog.profiling.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import org.junit.jupiter.api.Test;
 
 /** Note: some additional tests for this class are located in profiling-controller-openjdk module */
-public class ControllerFactoryTest {
+public class CompositeControllerTest {
 
   @Test
-  public void testCreateControllerSanity() {
+  public void smokeTest() {
     UnsupportedEnvironmentException unsupportedEnvironmentException = null;
     try {
-      ControllerFactory.createController(ConfigProvider.getInstance());
+      CompositeController.build(ConfigProvider.getInstance(), new ControllerContext());
       // successfully created controller, return
       return;
     } catch (UnsupportedEnvironmentException e) {
