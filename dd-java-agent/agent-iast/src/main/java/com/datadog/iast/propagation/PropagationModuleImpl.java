@@ -76,7 +76,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(target)) {
       return;
     }
-    internalTaint(ctx, target, newSource(origin, name, value), NOT_MARKED);
+    internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
   }
 
   @Override
@@ -177,7 +177,7 @@ public class PropagationModuleImpl implements PropagationModule {
       return;
     }
     if (isTainted(ctx, input)) {
-      internalTaint(ctx, target, newSource(origin, name, value), NOT_MARKED);
+      internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
     }
   }
 
@@ -252,7 +252,7 @@ public class PropagationModuleImpl implements PropagationModule {
       return 0;
     }
     if (target instanceof CharSequence) {
-      internalTaint(ctx, target, newSource(origin, null, target), NOT_MARKED);
+      internalTaint(ctx, target, newSource(target, origin, null, target), NOT_MARKED);
       return 1;
     } else {
       final TaintingVisitor visitor = new TaintingVisitor(to, origin);
@@ -292,9 +292,12 @@ public class PropagationModuleImpl implements PropagationModule {
    * properties
    */
   private static Source newSource(
-      final byte origin, @Nullable final CharSequence name, @Nullable final Object value) {
-    final Object sourceValue = sourceString(value, true);
-    final Object sourceName = name == value ? sourceValue : sourceString(name, false);
+      @Nonnull final Object tainted,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final Object value) {
+    final Object sourceValue = sourceReference(tainted, value, true);
+    final Object sourceName = name == value ? sourceValue : sourceReference(tainted, name, false);
     return new Source(origin, sourceName, sourceValue);
   }
 
@@ -303,10 +306,11 @@ public class PropagationModuleImpl implements PropagationModule {
    * reachable
    */
   @Nullable
-  private static Object sourceString(@Nullable final Object target, final boolean value) {
+  private static Object sourceReference(
+      @Nonnull final Object tainted, @Nullable final Object target, final boolean value) {
     if (target instanceof String) {
-      // use a weak reference for the value and a strong one for the name
-      return value ? new WeakReference<>(target) : target;
+      // weak reference if it's a value or matches the tainted value
+      return value || tainted == target ? new WeakReference<>(target) : target;
     } else if (target instanceof CharSequence) {
       // char-sequences can mutate so we have to keep a snapshot
       CharSequence charSequence = (CharSequence) target;
@@ -459,7 +463,7 @@ public class PropagationModuleImpl implements PropagationModule {
     return result;
   }
 
-  public static Range[] attachSourceValue(
+  private static Range[] attachSourceValue(
       @Nonnull final Range[] ranges, @Nonnull final CharSequence value) {
     // unbound sources can only occur when there's a single range in the array
     if (ranges.length != 1) {
@@ -517,7 +521,7 @@ public class PropagationModuleImpl implements PropagationModule {
       if (value instanceof CharSequence) {
         final CharSequence charSequence = (CharSequence) value;
         if (canBeTainted(charSequence)) {
-          final Source source = newSource(origin, path, charSequence);
+          final Source source = newSource(charSequence, origin, path, charSequence);
           count++;
           taintedObjects.taint(
               charSequence, Ranges.forCharSequence(charSequence, source, NOT_MARKED));

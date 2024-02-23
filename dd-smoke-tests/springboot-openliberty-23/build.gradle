@@ -8,13 +8,17 @@ dependencies {
 
 def appDir = "$projectDir/application"
 def jarName = "demo-open-liberty-app.jar"
+def jarPath = "$buildDir/application/target/${jarName}"
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 
 // compile the Open liberty spring boot server
 tasks.register('mvnStage', Exec) {
   workingDir "$appDir"
-  commandLine "$rootDir/${mvnwCommand}", 'package'
+  commandLine "$rootDir/${mvnwCommand}", 'package', "-Dtarget.dir=${buildDir}/application/target"
+  inputs.dir "$appDir/src"
+  inputs.file "$appDir/pom.xml"
+  outputs.file jarPath
 }
 
 tasks.named("compileTestGroovy").configure {
@@ -26,7 +30,7 @@ tasks.named("compileTestGroovy").configure {
 
 // compiled dir of the packaged spring boot app with embedded openliberty
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.openliberty.jar.path=${appDir}/target/${jarName}"
+  jvmArgs "-Ddatadog.smoketest.openliberty.jar.path=${jarPath}"
 }
 
 

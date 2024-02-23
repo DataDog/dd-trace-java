@@ -116,7 +116,9 @@ class ConfigurationApiImplTest extends Specification {
             '{ "configurations": { "test.bundle": "testBundle-a", "custom": { "customTag": "customValue" } }, "suite": "suite-a", "name": "name-a", "parameters": "parameters-a" } },' +
             '{ "id": "49968354e2091cdc", "type": "test", "attributes": ' +
             '   { "configurations": { "test.bundle": "testBundle-b", "custom": { "customTag": "customValue" } }, "suite": "suite-b", "name": "name-b", "parameters": "parameters-b" } }' +
-            '] }').bytes
+            '], "meta": {' +
+            '    "correlation_id": "11223344"' +
+            '} }').bytes
 
           def header = request.getHeader("Accept-Encoding")
           def gzipSupported = header != null && header.contains("gzip")
@@ -174,7 +176,7 @@ class ConfigurationApiImplTest extends Specification {
     def skippableTests = configurationApi.getSkippableTests(tracerEnvironment)
 
     then:
-    skippableTests == [
+    skippableTests.identifiers == [
       new TestIdentifier("suite-a", "name-a", "parameters-a",
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-a", Collections.singletonMap("customTag", "customValue"))),
@@ -182,6 +184,8 @@ class ConfigurationApiImplTest extends Specification {
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-b", Collections.singletonMap("customTag", "customValue")))
     ]
+
+    skippableTests.correlationId == "11223344"
 
     where:
     api                   | displayName
