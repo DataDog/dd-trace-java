@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 public class OpenJdkOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(OpenJdkOngoingRecording.class);
 
-  private static final JfrProfilerSettings CONFIG_MEMENTO = JfrProfilerSettings.instance();
+  private final JfrProfilerSettings configMemento;
 
   private final Recording recording;
 
@@ -28,8 +28,16 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
       Map<String, String> settings,
       int maxSize,
       Duration maxAge,
-      ControllerContext.Snapshot context) {
-    this(recordingName, settings, maxSize, maxAge, ConfigProvider.getInstance(), context);
+      ControllerContext.Snapshot context,
+      boolean jfrStackDepthSettingApplied) {
+    this(
+        recordingName,
+        settings,
+        maxSize,
+        maxAge,
+        ConfigProvider.getInstance(),
+        context,
+        jfrStackDepthSettingApplied);
   }
 
   OpenJdkOngoingRecording(
@@ -38,7 +46,8 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
       int maxSize,
       Duration maxAge,
       ConfigProvider configProvider,
-      ControllerContext.Snapshot context) {
+      ControllerContext.Snapshot context,
+      boolean jfrStackDepthSettingApplied) {
     log.debug("Creating new recording: {}", recordingName);
     recording = new Recording();
     recording.setName(recordingName);
@@ -50,15 +59,28 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     }
     recording.start();
     log.debug("Recording {} started", recordingName);
+    this.configMemento =
+        new JfrProfilerSettings(
+            configProvider,
+            context.getDatadogProfilerUnavailableReason(),
+            jfrStackDepthSettingApplied);
   }
 
-  OpenJdkOngoingRecording(Recording recording, ControllerContext.Snapshot context) {
+  OpenJdkOngoingRecording(
+      Recording recording,
+      ControllerContext.Snapshot context,
+      boolean jfrStackDepthSettingApplied) {
     this.recording = recording;
     if (context.isDatadogProfilerEnabled()) {
       disableOverriddenEvents(context);
     }
     recording.start();
     log.debug("Recording {} started", recording.getName());
+    this.configMemento =
+        new JfrProfilerSettings(
+            ConfigProvider.getInstance(),
+            context.getDatadogProfilerUnavailableReason(),
+            jfrStackDepthSettingApplied);
   }
 
   private void disableOverriddenEvents(ControllerContext.Snapshot context) {
@@ -110,7 +132,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
       throw new IllegalStateException("Cannot stop recording that is not running");
     }
     // dump the config to the current JFR recording
-    CONFIG_MEMENTO.publish();
+    configMemento.publish();
 
     recording.stop();
     return new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
@@ -129,7 +151,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     }
 
     // dump the config to the current JFR recording
-    CONFIG_MEMENTO.publish();
+    configMemento.publish();
     final Recording snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     snapshot.setName(recording.getName()); // Copy name from original recording
     // Since we just requested a snapshot, the end time of the snapshot will be

@@ -14,20 +14,15 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
   private static final String EXCEPTION_HISTO_SIZE_LIMIT_KEY = "Exception Histo Size Limit";
   private final String jfrImplementation;
 
-  private static final class SingletonHolder {
-    private static final JfrProfilerSettings INSTANCE = new JfrProfilerSettings();
-  }
-
-  public JfrProfilerSettings() {
-    super(ConfigProvider.getInstance());
+  public JfrProfilerSettings(
+      ConfigProvider configProvider,
+      String ddprofUnavailableReason,
+      boolean hasJfrStackDepthApplied) {
+    super(configProvider, ddprofUnavailableReason, hasJfrStackDepthApplied);
     this.jfrImplementation =
         Platform.isNativeImage()
             ? "native-image"
             : (Platform.isOracleJDK8() ? "oracle" : "openjdk");
-  }
-
-  public static JfrProfilerSettings instance() {
-    return SingletonHolder.INSTANCE;
   }
 
   public void publish() {
@@ -64,6 +59,9 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
         new ProfilerSettingEvent(STACK_DEPTH_KEY, String.valueOf(stackDepth)).commit();
       }
       new ProfilerSettingEvent(SELINUX_STATUS_KEY, seLinuxStatus).commit();
+      if (ddprofUnavailableReason != null) {
+        new ProfilerSettingEvent(DDPROF_UNAVAILABLE_REASON_KEY, ddprofUnavailableReason).commit();
+      }
     }
   }
 }

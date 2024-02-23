@@ -37,7 +37,8 @@ public class OpenJdkOngoingRecordingTest {
     when(recording.getState()).thenReturn(RecordingState.RUNNING);
     when(recording.getName()).thenReturn(TEST_NAME);
 
-    ongoingRecording = new OpenJdkOngoingRecording(recording, new ControllerContext().snapshot());
+    ongoingRecording =
+        new OpenJdkOngoingRecording(recording, new ControllerContext().snapshot(), true);
   }
 
   @Test

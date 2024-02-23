@@ -168,17 +168,32 @@ public class CompositeController implements Controller {
       try {
         controllers.add(DatadogProfilerController.instance(provider));
       } catch (Throwable error) {
+        Throwable rootCause = error.getCause() == null ? error : error.getCause();
+        context.setDatadogProfilerUnavailableReason(rootCause.getMessage());
         OperatingSystem os = OperatingSystem.current();
         if (os != OperatingSystem.linux) {
-          log.debug("Datadog profiler only supported on Linux", error);
+          log.debug("Datadog profiler only supported on Linux", rootCause);
         } else if (log.isDebugEnabled()) {
-          log.warn("failed to instantiate Datadog profiler on {} {}", os, Arch.current(), error);
+          log.warn(
+              "failed to instantiate Datadog profiler on {} {}", os, Arch.current(), rootCause);
         } else {
           log.warn(
               "failed to instantiate Datadog profiler on {} {} because: {}",
               os,
               Arch.current(),
-              error.getMessage());
+              rootCause.getMessage());
+        }
+      }
+    } else {
+      if (!(Platform.isLinux() || Platform.isMac())) {
+        context.setDatadogProfilerUnavailableReason("unavailable on OS");
+      } else if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
+        context.setDatadogProfilerUnavailableReason("unavailable on GraalVM");
+      } else if (!isDatadogProfilerEnabled) {
+        if (!Config.isDatadogProfilerSafeInCurrentEnvironment()) {
+          context.setDatadogProfilerUnavailableReason("not safe in current environment");
+        } else {
+          context.setDatadogProfilerUnavailableReason("disabled");
         }
       }
     }

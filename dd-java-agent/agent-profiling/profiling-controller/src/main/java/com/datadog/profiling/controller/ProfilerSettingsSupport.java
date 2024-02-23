@@ -32,6 +32,8 @@ public abstract class ProfilerSettingsSupport {
   protected static final String STACK_DEPTH_KEY = "Stack Depth";
   protected static final String SELINUX_STATUS_KEY = "SELinux Status";
 
+  protected static final String DDPROF_UNAVAILABLE_REASON_KEY = "DDProf Unavailable Reason";
+
   protected final int uploadPeriod;
   protected final int uploadTimeout;
   protected final String uploadCompression;
@@ -49,10 +51,15 @@ public abstract class ProfilerSettingsSupport {
   protected final boolean hasNativeStacks;
   protected final String seLinuxStatus;
 
-  protected final int stackDepth;
-  protected volatile boolean hasJfrStackDepthApplied = false;
+  protected final String ddprofUnavailableReason;
 
-  protected ProfilerSettingsSupport(ConfigProvider configProvider) {
+  protected final int stackDepth;
+  protected final boolean hasJfrStackDepthApplied;
+
+  protected ProfilerSettingsSupport(
+      ConfigProvider configProvider,
+      String ddprofUnavailableReason,
+      boolean hasJfrStackDepthApplied) {
     uploadPeriod =
         configProvider.getInteger(
             ProfilingConfig.PROFILING_UPLOAD_PERIOD,
@@ -113,6 +120,8 @@ public abstract class ProfilerSettingsSupport {
             ProfilingConfig.PROFILING_DATADOG_PROFILER_STACKDEPTH);
 
     seLinuxStatus = getSELinuxStatus();
+    this.ddprofUnavailableReason = ddprofUnavailableReason;
+    this.hasJfrStackDepthApplied = hasJfrStackDepthApplied;
   }
 
   private String getSELinuxStatus() {
@@ -153,10 +162,6 @@ public abstract class ProfilerSettingsSupport {
 
   /** To be defined in controller specific way. Eg. one could emit JFR events. */
   public abstract void publish();
-
-  public void markJfrStackDepthApplied() {
-    hasJfrStackDepthApplied = true;
-  }
 
   private static String readPerfEventsParanoidSetting() {
     String value = "unknown";

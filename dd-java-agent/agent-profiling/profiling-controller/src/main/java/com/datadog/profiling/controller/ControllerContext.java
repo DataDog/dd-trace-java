@@ -13,22 +13,23 @@ import java.util.Set;
 public class ControllerContext {
 
   private boolean isDatadogProfilerEnabled;
+  private String datadogProfilerUnavailableReason;
   private Set<ProfilingMode> datadogProfilingModes = EnumSet.noneOf(ProfilingMode.class);
 
-  public boolean isDatadogProfilerEnabled() {
-    return isDatadogProfilerEnabled;
-  }
-
-  public void setDatadogProfilerEnabled(boolean datadogProfilerActive) {
+  public ControllerContext setDatadogProfilerEnabled(boolean datadogProfilerActive) {
     isDatadogProfilerEnabled = datadogProfilerActive;
+    return this;
   }
 
-  public Set<ProfilingMode> getDatadogProfilingModes() {
-    return datadogProfilingModes;
-  }
-
-  public void setDatadogProfilingModes(Set<ProfilingMode> datadogProfilingModes) {
+  public ControllerContext setDatadogProfilingModes(Set<ProfilingMode> datadogProfilingModes) {
     this.datadogProfilingModes = datadogProfilingModes;
+    return this;
+  }
+
+  public ControllerContext setDatadogProfilerUnavailableReason(
+      String datadogProfilerUnavailableReason) {
+    this.datadogProfilerUnavailableReason = datadogProfilerUnavailableReason;
+    return this;
   }
 
   /**
@@ -42,15 +43,23 @@ public class ControllerContext {
 
   public static final class Snapshot {
     private final boolean isDatadogProfilerEnabled;
+    private final String datadogProfilerUnavailableReason;
     private final Set<ProfilingMode> datadogProfilingModes;
 
     public Snapshot(ControllerContext context) {
-      this(context.isDatadogProfilerEnabled, EnumSet.copyOf(context.datadogProfilingModes));
+      this(
+          context.isDatadogProfilerEnabled,
+          EnumSet.copyOf(context.datadogProfilingModes),
+          context.datadogProfilerUnavailableReason);
     }
 
-    private Snapshot(boolean isDatadogProfilerEnabled, Set<ProfilingMode> datadogProfilingModes) {
+    private Snapshot(
+        boolean isDatadogProfilerEnabled,
+        Set<ProfilingMode> datadogProfilingModes,
+        String datadogProfilerFailureReason) {
       this.isDatadogProfilerEnabled = isDatadogProfilerEnabled;
       this.datadogProfilingModes = datadogProfilingModes;
+      this.datadogProfilerUnavailableReason = datadogProfilerFailureReason;
     }
 
     public boolean isDatadogProfilerEnabled() {
@@ -59,6 +68,10 @@ public class ControllerContext {
 
     public Set<ProfilingMode> getDatadogProfilingModes() {
       return datadogProfilingModes;
+    }
+
+    public String getDatadogProfilerUnavailableReason() {
+      return datadogProfilerUnavailableReason;
     }
   }
 }
