@@ -17,6 +17,7 @@ import java.nio.file.Path
 import static groovy.io.FileType.FILES
 import static org.objectweb.asm.ClassWriter.COMPUTE_FRAMES
 
+@SuppressWarnings('unused')
 class OtelConverterPlugin implements Plugin<Project> {
   @Override
   void apply(Project project) {
@@ -101,10 +102,9 @@ class ConvertJavaAgent extends DefaultTask {
       def muzzleConverter = new MuzzleConverter(virtualFieldConverter, file.name)
       def instrumentationModuleConverter = new InstrumentationModuleConverter(muzzleConverter, file.name)
       def typeInstrumentationConverter = new TypeInstrumentationConverter(instrumentationModuleConverter, file.name)
-      // TODO Insert more visitors here
       def javaAgentApiChecker = new OtelApiVerifier(typeInstrumentationConverter, file.name)
       def reader = new ClassReader(inputStream)
-      reader.accept(javaAgentApiChecker, 0) // TODO flags?
+      reader.accept(javaAgentApiChecker, 0)
       Files.write(targetFile, writer.toByteArray())
 
       // Check if there are references to write as muzzle class
