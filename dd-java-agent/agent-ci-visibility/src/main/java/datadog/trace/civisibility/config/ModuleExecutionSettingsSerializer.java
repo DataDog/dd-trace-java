@@ -51,11 +51,15 @@ public class ModuleExecutionSettingsSerializer {
       coveragePackagesSize += serializeStringLength(coveragePackage.getBytes());
     }
 
+    byte[] itrCorrelationId =
+        settings.getItrCorrelationId() != null ? settings.getItrCorrelationId().getBytes() : null;
+
     int size =
         skippableTestsSize
             + flakyTestsSize
             + systemPropertiesSize
             + coveragePackagesSize
+            + serializeStringLength(itrCorrelationId)
             + Byte.BYTES; // flags
     ByteBuffer buffer = ByteBuffer.allocate(size);
 
@@ -77,6 +81,8 @@ public class ModuleExecutionSettingsSerializer {
     for (String coverageEnabledPackage : coverageEnabledPackages) {
       serializeString(buffer, coverageEnabledPackage.getBytes());
     }
+
+    serializeString(buffer, itrCorrelationId);
 
     byte flags =
         (byte)
@@ -128,6 +134,8 @@ public class ModuleExecutionSettingsSerializer {
       codeCoveragePackages.add(deserializeString(buffer));
     }
 
+    String itrCorrelationId = deserializeString(buffer);
+
     byte flags = buffer.get();
     boolean codeCoverageEnabled = (flags & 1) != 0;
     boolean itrEnabled = (flags & 2) != 0;
@@ -138,6 +146,7 @@ public class ModuleExecutionSettingsSerializer {
         itrEnabled,
         flakyTestRetriesEnabled,
         systemProperties,
+        itrCorrelationId,
         skippableTestsByModule,
         flakyTests,
         codeCoveragePackages);

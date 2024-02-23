@@ -155,6 +155,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
               settings.isItrEnabled(),
               settings.isFlakyTestRetriesEnabled(),
               settings.getSystemProperties(),
+              settings.getItrCorrelationId(),
               skippableTests,
               flakyTests,
               settings.getCoverageEnabledPackages());

@@ -15,21 +15,19 @@ public interface ConfigurationApi {
         }
 
         @Override
-        public Collection<TestIdentifier> getSkippableTests(TracerEnvironment tracerEnvironment) {
-          return Collections.emptyList();
+        public SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) {
+          return new SkippableTests(null, Collections.emptyList());
         }
 
         @Override
-        public Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment)
-            throws IOException {
+        public Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {
           return Collections.emptyList();
         }
       };
 
   CiVisibilitySettings getSettings(TracerEnvironment tracerEnvironment) throws IOException;
 
-  Collection<TestIdentifier> getSkippableTests(TracerEnvironment tracerEnvironment)
-      throws IOException;
+  SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) throws IOException;
 
   Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) throws IOException;
 }
