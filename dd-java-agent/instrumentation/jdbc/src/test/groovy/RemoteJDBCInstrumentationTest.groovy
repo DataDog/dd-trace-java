@@ -20,6 +20,7 @@ import java.sql.Driver
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Statement
+import java.sql.Types
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -419,6 +420,33 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
     "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+  }
+
+  @Unroll
+  def "prepared call with storedproc on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+    setup:
+    CallableStatement upperProc = connection.prepareCall(query)
+    upperProc.setString(1, "hello world")
+    upperProc.registerOutParameter(2, Types.VARCHAR)
+    when:
+    runUnderTrace("parent") {
+      return upperProc.execute()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+      assert upperProc.getString(2) == "HELLO WORLD"
+    cleanup:
+    upperProc?.close()
+    connection.close()
+
+    where:
+    driver       | connection                                              | query
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | "{ ? = call upper( ? ) }"
+
   }
 
   @Unroll
