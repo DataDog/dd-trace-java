@@ -16,6 +16,7 @@ import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spockframework.runtime.SpockNode;
+import org.spockframework.runtime.model.FeatureInfo;
 import org.spockframework.runtime.model.FeatureMetadata;
 import org.spockframework.runtime.model.SpecElementInfo;
 
@@ -45,6 +46,10 @@ public class SpockUtils {
     try {
       Collection<TestTag> junitPlatformTestTags = new ArrayList<>();
       SpecElementInfo<?, ?> nodeInfo = spockNode.getNodeInfo();
+      if (!(nodeInfo instanceof FeatureInfo)) {
+        return Collections.emptyList();
+      }
+
       Collection<?> testTags = (Collection<?>) GET_TEST_TAGS.invoke(nodeInfo);
       for (Object testTag : testTags) {
         String tagValue = (String) GET_TEST_TAG_VALUE.invoke(testTag);

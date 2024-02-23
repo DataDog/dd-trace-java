@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit5.retry;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
@@ -93,8 +92,6 @@ public class JUnit5RetryInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isTypeInitializer(), JUnit5RetryInstrumentation.class.getName() + "$BeforeTypeInit");
     transformer.applyAdvice(
         isConstructor()
             .and(

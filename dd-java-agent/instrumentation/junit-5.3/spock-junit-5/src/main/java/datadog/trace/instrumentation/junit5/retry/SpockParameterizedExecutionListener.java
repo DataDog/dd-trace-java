@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit5.retry;
 
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.platform.engine.EngineExecutionListener;
@@ -20,8 +21,7 @@ public class SpockParameterizedExecutionListener implements EngineExecutionListe
   @Override
   public void dynamicTestRegistered(TestDescriptor testDescriptor) {
     delegate.dynamicTestRegistered(testDescriptor);
-    if (RetryContext.RETRY_ATTEMPT_TEST_ID_SEGMENT.equals(
-        testDescriptor.getUniqueId().getLastSegment().getType())) {
+    if (JUnitPlatformUtils.isRetry(testDescriptor)) {
       // register generated retry descriptor
       pending.put(testDescriptor, new CompletableFuture<>());
     }
