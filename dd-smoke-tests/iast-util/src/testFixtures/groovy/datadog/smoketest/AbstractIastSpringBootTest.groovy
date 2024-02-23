@@ -954,7 +954,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void "Check reflection injection lookup"() {
     setup:
-    String url = "http://localhost:${httpPort}/reflection_injection/lookup?param=getBytes"
+    String url = "http://localhost:${httpPort}/reflection_injection/lookup?param=hash"
     def request = new Request.Builder().url(url).get().build()
 
     when:
@@ -964,8 +964,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
       && vul.location.method == 'reflectionInjectionLookup'
       && vul.evidence.valueParts[0].value == "java.lang.String#"
-      && vul.evidence.valueParts[1].value == "getBytes"
-      && vul.evidence.valueParts[2].value == "()"
+      && vul.evidence.valueParts[1].value == "hash"
     }
   }
 

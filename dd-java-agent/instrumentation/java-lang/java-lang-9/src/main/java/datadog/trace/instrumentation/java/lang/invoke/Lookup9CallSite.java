@@ -10,7 +10,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.REFLECTION_INJECTION)
-@CallSite(spi = IastCallSites.class)
+@CallSite(
+    spi = IastCallSites.class,
+    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isMajorJavaVersionAtLeast", "9"})
 public class Lookup9CallSite {
 
   @CallSite.Before(
