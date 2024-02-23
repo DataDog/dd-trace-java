@@ -19,7 +19,7 @@ class LookupCallSiteTest extends AgentTestRunner {
     final module = Mock(ReflectionInjectionModule)
     InstrumentationBridge.registerIastModule(module)
     final clazz = String
-    final methodName = 'setField'
+    final methodName = 'field'
     final fieldsType = String
 
     when:
