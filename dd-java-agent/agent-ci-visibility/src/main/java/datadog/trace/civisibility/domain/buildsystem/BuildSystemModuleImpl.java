@@ -126,6 +126,12 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     if (result.isItrEnabled()) {
       itrEnabled = true;
     }
+    if (result.isEarlyFlakeDetectionEnabled()) {
+      setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
+      if (result.isEarlyFlakeDetectionFaulty()) {
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, "faulty");
+      }
+    }
 
     testsSkipped.add(result.getTestsSkippedTotal());
 

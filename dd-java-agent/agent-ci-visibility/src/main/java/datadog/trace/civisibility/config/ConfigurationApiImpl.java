@@ -16,8 +16,11 @@ import datadog.trace.civisibility.communication.BackendApi;
 import datadog.trace.civisibility.communication.TelemetryListener;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -33,6 +36,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private static final String SETTINGS_URI = "libraries/tests/services/setting";
   private static final String SKIPPABLE_TESTS_URI = "ci/tests/skippable";
   private static final String FLAKY_TESTS_URI = "ci/libraries/tests/flaky";
+  private static final String KNOWN_TESTS_URI = "ci/libraries/tests";
 
   private final BackendApi backendApi;
   private final CiVisibilityMetricCollector metricCollector;
@@ -41,6 +45,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<TracerEnvironment>> requestAdapter;
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
   private final JsonAdapter<MultiEnvelopeDto<TestIdentifier>> testIdentifiersResponseAdapter;
+  private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
     this(backendApi, metricCollector, () -> UUID.randomUUID().toString());
@@ -55,7 +60,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     this.uuidGenerator = uuidGenerator;
 
     Moshi moshi =
-        new Moshi.Builder().add(new ConfigurationsJson.ConfigurationsJsonAdapter()).build();
+        new Moshi.Builder()
+            .add(ConfigurationsJson.JsonAdapter.INSTANCE)
+            .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
+            .add(EarlyFlakeDetectionSettingsJsonAdapter.INSTANCE)
+            .build();
 
     ParameterizedType requestType =
         Types.newParameterizedTypeWithOwner(
@@ -71,6 +80,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, MultiEnvelopeDto.class, TestIdentifier.class);
     testIdentifiersResponseAdapter = moshi.adapter(testIdentifiersResponseType);
+
+    ParameterizedType testFullNamesResponseType =
+        Types.newParameterizedTypeWithOwner(
+            ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsDto.class);
+    testFullNamesResponseAdapter = moshi.adapter(testFullNamesResponseType);
   }
 
   @Override
@@ -156,6 +170,47 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     return response.stream().map(DataDto::getAttributes).collect(Collectors.toList());
   }
 
+  @Override
+  public Map<String, Collection<TestIdentifier>> getKnownTestsByModuleName(
+      TracerEnvironment tracerEnvironment) throws IOException {
+    String uuid = uuidGenerator.get();
+    EnvelopeDto<TracerEnvironment> request =
+        new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", tracerEnvironment));
+    String json = requestAdapter.toJson(request);
+    RequestBody requestBody = RequestBody.create(JSON, json);
+    KnownTestsDto knownTests =
+        backendApi.post(
+            KNOWN_TESTS_URI,
+            requestBody,
+            is ->
+                testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
+            null);
+    return parseTestIdentifiers(knownTests);
+  }
+
+  private static Map<String, Collection<TestIdentifier>> parseTestIdentifiers(
+      KnownTestsDto knownTests) {
+    Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
+        new HashMap<>(knownTests.tests.size() * 4 / 3);
+    for (Map.Entry<String, Map<String, List<String>>> e : knownTests.tests.entrySet()) {
+      String moduleName = e.getKey();
+      Map<String, List<String>> testsBySuiteName = e.getValue();
+
+      ArrayList<TestIdentifier> testIdentifiers = new ArrayList<>();
+      for (Map.Entry<String, List<String>> se : testsBySuiteName.entrySet()) {
+        String suiteName = se.getKey();
+        List<String> testNames = se.getValue();
+        testIdentifiers.ensureCapacity(testIdentifiers.size() + testNames.size());
+        for (String testName : testNames) {
+          testIdentifiers.add(new TestIdentifier(suiteName, testName, null, null));
+        }
+      }
+
+      knownTestsByModuleName.put(moduleName, testIdentifiers);
+    }
+    return knownTestsByModuleName;
+  }
+
   private static final class EnvelopeDto<T> {
     private final DataDto<T> data;
 
@@ -195,6 +250,14 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     private MetaDto(String correlation_id) {
       this.correlation_id = correlation_id;
+    }
+  }
+
+  private static final class KnownTestsDto {
+    private final Map<String, Map<String, List<String>>> tests;
+
+    private KnownTestsDto(Map<String, Map<String, List<String>>> tests) {
+      this.tests = tests;
     }
   }
 }

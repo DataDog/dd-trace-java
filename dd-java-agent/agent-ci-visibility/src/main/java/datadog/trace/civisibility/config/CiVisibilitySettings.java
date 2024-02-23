@@ -1,52 +1,89 @@
 package datadog.trace.civisibility.config;
 
+import com.squareup.moshi.FromJson;
+import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import java.nio.file.Path;
+import java.util.Map;
 
 public class CiVisibilitySettings {
 
   public static final CiVisibilitySettings DEFAULT =
-      new CiVisibilitySettings(false, false, false, false, false);
+      new CiVisibilitySettings(false, false, false, false, false, null);
 
-  private final boolean itr_enabled;
-  private final boolean code_coverage;
-  private final boolean tests_skipping;
-  private final boolean require_git;
-  private final boolean flaky_test_retries_enabled;
+  private final boolean itrEnabled;
+  private final boolean codeCoverage;
+  private final boolean testsSkipping;
+  private final boolean requireGit;
+  private final boolean flakyTestRetriesEnabled;
+  private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
 
-  public CiVisibilitySettings(
-      boolean itr_enabled,
-      boolean code_coverage,
-      boolean tests_skipping,
-      boolean require_git,
-      boolean flaky_test_retries_enabled) {
-    this.itr_enabled = itr_enabled;
-    this.code_coverage = code_coverage;
-    this.tests_skipping = tests_skipping;
-    this.require_git = require_git;
-    this.flaky_test_retries_enabled = flaky_test_retries_enabled;
+  private CiVisibilitySettings(
+      boolean itrEnabled,
+      boolean codeCoverage,
+      boolean testsSkipping,
+      boolean requireGit,
+      boolean flakyTestRetriesEnabled,
+      EarlyFlakeDetectionSettings earlyFlakeDetectionSettings) {
+    this.itrEnabled = itrEnabled;
+    this.codeCoverage = codeCoverage;
+    this.testsSkipping = testsSkipping;
+    this.requireGit = requireGit;
+    this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
+    this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
   }
 
   public boolean isItrEnabled() {
-    return itr_enabled;
+    return itrEnabled;
   }
 
   public boolean isCodeCoverageEnabled() {
-    return code_coverage;
+    return codeCoverage;
   }
 
   public boolean isTestsSkippingEnabled() {
-    return tests_skipping;
+    return testsSkipping;
   }
 
   public boolean isGitUploadRequired() {
-    return require_git;
+    return requireGit;
   }
 
   public boolean isFlakyTestRetriesEnabled() {
-    return flaky_test_retries_enabled;
+    return flakyTestRetriesEnabled;
+  }
+
+  public EarlyFlakeDetectionSettings getEarlyFlakeDetectionSettings() {
+    return earlyFlakeDetectionSettings;
   }
 
   public interface Factory {
     CiVisibilitySettings create(Path path);
+  }
+
+  public static final class JsonAdapter {
+
+    public static final JsonAdapter INSTANCE = new JsonAdapter();
+
+    @FromJson
+    public CiVisibilitySettings fromJson(Map<String, Object> json) {
+      if (json == null) {
+        return DEFAULT;
+      }
+
+      return new CiVisibilitySettings(
+          getBoolean(json, "itr_enabled", false),
+          getBoolean(json, "code_coverage", false),
+          getBoolean(json, "tests_skipping", false),
+          getBoolean(json, "require_git", false),
+          getBoolean(json, "flaky_test_retries_enabled", false),
+          EarlyFlakeDetectionSettingsJsonAdapter.INSTANCE.fromJson(
+              (Map<String, Object>) json.get("early_flake_detection")));
+    }
+
+    private static boolean getBoolean(
+        Map<String, Object> json, String fieldName, boolean defaultValue) {
+      Object value = json.get(fieldName);
+      return value instanceof Boolean ? (Boolean) value : defaultValue;
+    }
   }
 }

@@ -4,8 +4,10 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Result;
 import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Tag;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
@@ -14,6 +16,8 @@ import java.util.Collections;
 import java.util.List;
 
 public abstract class KarateUtils {
+
+  public static final String RETRY_MAGIC_VARIABLE = "__datadog_retry";
 
   private KarateUtils() {}
 
@@ -70,12 +74,21 @@ public abstract class KarateUtils {
     return scenario.getExampleData() != null ? Strings.toJson(scenario.getExampleData()) : null;
   }
 
-  public static TestIdentifier toTestIdentifier(Scenario scenario, boolean includeParameters) {
+  public static TestIdentifier toTestIdentifier(Scenario scenario) {
     Feature feature = scenario.getFeature();
     String featureName = feature.getNameForReport();
     String scenarioName = KarateUtils.getScenarioName(scenario);
-    String parameters = includeParameters ? KarateUtils.getParameters(scenario) : null;
+    String parameters = KarateUtils.getParameters(scenario);
     return new TestIdentifier(featureName, scenarioName, parameters, null);
+  }
+
+  public static TestDescriptor toTestDescriptor(
+      Scenario scenario, ScenarioRuntime scenarioRuntime) {
+    Feature feature = scenario.getFeature();
+    String featureName = feature.getNameForReport();
+    String scenarioName = KarateUtils.getScenarioName(scenario);
+    String parameters = KarateUtils.getParameters(scenario);
+    return new TestDescriptor(featureName, null, scenarioName, parameters, scenarioRuntime);
   }
 
   public static Result abortedResult() {

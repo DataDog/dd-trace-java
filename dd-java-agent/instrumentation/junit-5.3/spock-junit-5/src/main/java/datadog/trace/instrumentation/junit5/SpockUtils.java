@@ -88,25 +88,35 @@ public class SpockUtils {
     return null;
   }
 
-  public static TestIdentifier toTestIdentifier(
-      TestDescriptor testDescriptor, boolean includeParameters) {
+  public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof MethodSource && testDescriptor instanceof SpockNode) {
       SpockNode spockNode = (SpockNode) testDescriptor;
       MethodSource methodSource = (MethodSource) testSource;
       String testSuiteName = methodSource.getClassName();
       String displayName = spockNode.getDisplayName();
-      String testParameters;
-      if (includeParameters) {
-        testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
-      } else {
-        testParameters = null;
-      }
+      String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
       return new TestIdentifier(testSuiteName, displayName, testParameters, null);
 
     } else {
       return null;
     }
+  }
+
+  private static datadog.trace.api.civisibility.events.TestDescriptor toTestDescriptor(
+      TestDescriptor testDescriptor) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (!(testSource instanceof MethodSource) || !(testDescriptor instanceof SpockNode)) {
+      return null;
+    }
+
+    MethodSource methodSource = (MethodSource) testSource;
+    String testSuiteName = methodSource.getClassName();
+    String displayName = testDescriptor.getDisplayName();
+    String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
+    Class<?> testClass = methodSource.getJavaClass();
+    return new datadog.trace.api.civisibility.events.TestDescriptor(
+        testSuiteName, testClass, displayName, testParameters, null);
   }
 
   public static boolean isSpec(TestDescriptor testDescriptor) {

@@ -28,7 +28,7 @@ public class JUnit5SpockParameterizedRetryInstrumentation extends InstrumenterMo
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityFlakyRetryEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
   }
 
   @Override

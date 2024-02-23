@@ -1,9 +1,9 @@
-package datadog.trace.civisibility.events;
+package datadog.trace.api.civisibility.events;
 
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-final class TestDescriptor {
+public final class TestDescriptor {
   private final String testSuiteName;
   private final Class<?> testClass;
   private final String testName;
@@ -15,7 +15,7 @@ final class TestDescriptor {
    */
   private final @Nullable Object testQualifier;
 
-  TestDescriptor(
+  public TestDescriptor(
       String testSuiteName,
       Class<?> testClass,
       String testName,

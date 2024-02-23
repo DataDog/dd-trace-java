@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import io.cucumber.core.gherkin.Feature;
@@ -100,6 +101,12 @@ public abstract class CucumberUtils {
     String suite = getTestSuiteNameForScenario(description);
     String name = description.getMethodName();
     return new TestIdentifier(suite, name, null, null);
+  }
+
+  public static TestDescriptor toTestDescriptor(Description description) {
+    String suite = getTestSuiteNameForScenario(description);
+    String name = description.getMethodName();
+    return new TestDescriptor(suite, null, name, null, null);
   }
 
   public static final class MuzzleHelper {

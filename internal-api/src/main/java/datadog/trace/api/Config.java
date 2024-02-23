@@ -163,6 +163,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
@@ -772,6 +774,8 @@ public class Config {
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final int ciVisibilityFlakyRetryCount;
+  private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
+  private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
   private final String ciVisibilityModuleName;
   private final boolean ciVisibilityTelemetryEnabled;
 
@@ -1757,6 +1761,10 @@ public class Config {
             CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
     ciVisibilityFlakyRetryEnabled =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
+    ciVisibilityEarlyFlakeDetectionEnabled =
+        configProvider.getBoolean(CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED, true);
+    ciVisibilityEarlyFlakeDetectionLowerLimit =
+        configProvider.getInteger(CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, 30);
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
@@ -2980,6 +2988,18 @@ public class Config {
 
   public boolean isCiVisibilityFlakyRetryEnabled() {
     return ciVisibilityFlakyRetryEnabled;
+  }
+
+  public boolean isCiVisibilityEarlyFlakeDetectionEnabled() {
+    return ciVisibilityEarlyFlakeDetectionEnabled;
+  }
+
+  public int getCiVisibilityEarlyFlakeDetectionLowerLimit() {
+    return ciVisibilityEarlyFlakeDetectionLowerLimit;
+  }
+
+  public boolean isCiVisibilityTestRetryEnabled() {
+    return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
   }
 
   public int getCiVisibilityFlakyRetryCount() {

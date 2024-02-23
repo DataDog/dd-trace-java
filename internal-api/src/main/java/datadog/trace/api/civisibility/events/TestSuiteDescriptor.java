@@ -1,12 +1,12 @@
-package datadog.trace.civisibility.events;
+package datadog.trace.api.civisibility.events;
 
 import java.util.Objects;
 
-final class TestSuiteDescriptor {
+public final class TestSuiteDescriptor {
   private final String testSuiteName;
   private final Class<?> testClass;
 
-  TestSuiteDescriptor(String testSuiteName, Class<?> testClass) {
+  public TestSuiteDescriptor(String testSuiteName, Class<?> testClass) {
     this.testSuiteName = testSuiteName;
     this.testClass = testClass;
   }
