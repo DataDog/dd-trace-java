@@ -26,6 +26,14 @@ public class CalculatorSteps {
     calc.push("+");
   }
 
+  @When("I slowly add {int} and {int}")
+  public void addingSlow(int arg1, int arg2) throws InterruptedException {
+    Thread.sleep(1100);
+    calc.push(arg1);
+    calc.push(arg2);
+    calc.push("+");
+  }
+
   @Given("^I press (.+)$")
   public void I_press(String what) {
     calc.push(what);

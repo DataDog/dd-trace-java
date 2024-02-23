@@ -10,7 +10,9 @@ import org.example.TestIgnoredCanceled
 import org.example.TestIgnoredPending
 import org.example.TestSucceed
 import org.example.TestSucceedFlatSpec
+import org.example.TestSucceedMoreCases
 import org.example.TestSucceedParameterized
+import org.example.TestSucceedSlow
 import org.example.TestSucceedUnskippable
 import org.scalatest.tools.Runner
 
@@ -63,6 +65,21 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
       new TestIdentifier("org.example.TestFailedParameterized", "addition should correctly add two numbers", null, null)
     ]
     "test-failed-then-succeed" | [TestFailedThenSucceed]   | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "Example.add adds two numbers", null, null)]
+  }
+
+  def "test early flakiness detection #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                        | tests                  | expectedTracesCount | knownTestsList
+    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "Example.add adds two numbers", null, null)]
+    "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
+    "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
+    "test-efd-faulty-session-threshold" | [TestSucceedMoreCases] | 8                   | []
   }
 
   @Override
