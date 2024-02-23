@@ -245,7 +245,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     metricCollector.add(
         CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_EVENTS_SERIALIZATION_MS,
         serializationTimeMillis,
-        Endpoint.CODE_COVERAGE);
+        Endpoint.TEST_CYCLE);
 
     return new PayloadV1(compressionEnabled).withHeader(headerBuffer.slice());
   }

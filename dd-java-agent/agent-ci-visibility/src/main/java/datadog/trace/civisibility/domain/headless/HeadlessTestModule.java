@@ -1,19 +1,26 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain.headless;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.domain.AbstractTestModule;
+import datadog.trace.civisibility.domain.TestFrameworkModule;
+import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.retry.NeverRetry;
 import datadog.trace.civisibility.retry.RetryIfFailed;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.atomic.LongAdder;
@@ -22,11 +29,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Test module implementation that is used by test framework instrumentations only in cases when the
- * build system is NOT instrumented: This class manages the module span since there is no build
- * system instrumentation to do it
+ * Test module implementation that is used when the tracer is running in "headless" mode, meaning
+ * that only child processes that are forked to execute tests are instrumented, and the parent build
+ * system process is NOT instrumented.
+ *
+ * <p>This class manages the module span since there is no build system instrumentation to do it.
  */
-public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTestFrameworkModule {
+public class HeadlessTestModule extends AbstractTestModule implements TestFrameworkModule {
 
   private final LongAdder testsSkipped = new LongAdder();
   private final Collection<TestIdentifier> skippableTests;
@@ -34,12 +43,13 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
   private final boolean codeCoverageEnabled;
   private final boolean itrEnabled;
 
-  public DDTestFrameworkModuleImpl(
+  public HeadlessTestModule(
       AgentSpan.Context sessionSpanContext,
       long sessionId,
       String moduleName,
       @Nullable Long startTime,
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
@@ -52,7 +62,9 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
         sessionId,
         moduleName,
         startTime,
+        InstrumentationType.HEADLESS,
         config,
+        metricCollector,
         testDecorator,
         sourcePathResolver,
         codeowners,
@@ -107,5 +119,33 @@ public class DDTestFrameworkModuleImpl extends DDTestModuleImpl implements DDTes
     }
 
     super.end(endTime);
+  }
+
+  @Override
+  public TestSuiteImpl testSuiteStart(
+      String testSuiteName,
+      @Nullable Class<?> testClass,
+      @Nullable Long startTime,
+      boolean parallelized,
+      TestFrameworkInstrumentation instrumentation) {
+    return new TestSuiteImpl(
+        span.context(),
+        sessionId,
+        span.getSpanId(),
+        moduleName,
+        testSuiteName,
+        testClass,
+        startTime,
+        parallelized,
+        InstrumentationType.HEADLESS,
+        instrumentation,
+        config,
+        metricCollector,
+        testDecorator,
+        sourcePathResolver,
+        codeowners,
+        methodLinesResolver,
+        coverageProbeStoreFactory,
+        SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

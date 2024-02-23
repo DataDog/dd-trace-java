@@ -94,4 +94,18 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>targetDir</id>
+      <activation>
+        <property>
+          <name>target.dir</name>
+        </property>
+      </activation>
+      <build>
+        <directory>${target.dir}</directory>
+      </build>
+    </profile>
+  </profiles>
 </project>

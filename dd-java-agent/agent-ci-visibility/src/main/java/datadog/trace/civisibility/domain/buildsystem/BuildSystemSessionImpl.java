@@ -1,16 +1,20 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.domain.AbstractTestSession;
+import datadog.trace.civisibility.domain.BuildSystemSession;
 import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.ModuleSettingsRequest;
@@ -38,7 +42,7 @@ import org.jacoco.core.analysis.IBundleCoverage;
 import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.data.ExecutionDataStore;
 
-public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBuildSystemSession {
+public class BuildSystemSessionImpl extends AbstractTestSession implements BuildSystemSession {
   private final String repoRoot;
   private final String startCommand;
   private final TestModuleRegistry testModuleRegistry;
@@ -56,12 +60,14 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
   @GuardedBy("coverageDataLock")
   private final Collection<File> outputClassesDirs = new HashSet<>();
 
-  public DDBuildSystemSessionImpl(
+  public BuildSystemSessionImpl(
       String projectName,
       String repoRoot,
       String startCommand,
       @Nullable Long startTime,
+      boolean supportedCiProvider,
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       TestModuleRegistry testModuleRegistry,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
@@ -74,7 +80,10 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
     super(
         projectName,
         startTime,
+        InstrumentationType.BUILD,
+        supportedCiProvider,
         config,
+        metricCollector,
         testDecorator,
         sourcePathResolver,
         codeowners,
@@ -220,19 +229,14 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
   }
 
   @Override
-  public DDBuildSystemModuleImpl testModuleStart(String moduleName, @Nullable Long startTime) {
-    return testModuleStart(moduleName, startTime, Collections.emptySet());
-  }
-
-  @Override
-  public DDBuildSystemModuleImpl testModuleStart(
+  public BuildSystemModuleImpl testModuleStart(
       String moduleName, @Nullable Long startTime, Collection<File> outputClassesDirs) {
     synchronized (coverageDataLock) {
       this.outputClassesDirs.addAll(outputClassesDirs);
     }
 
-    DDBuildSystemModuleImpl module =
-        new DDBuildSystemModuleImpl(
+    BuildSystemModuleImpl module =
+        new BuildSystemModuleImpl(
             span.context(),
             span.getSpanId(),
             moduleName,
@@ -242,6 +246,7 @@ public class DDBuildSystemSessionImpl extends DDTestSessionImpl implements DDBui
             signalServer.getAddress(),
             outputClassesDirs,
             config,
+            metricCollector,
             testDecorator,
             sourcePathResolver,
             codeowners,

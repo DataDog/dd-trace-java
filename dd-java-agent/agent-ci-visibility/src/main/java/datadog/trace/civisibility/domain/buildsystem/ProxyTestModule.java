@@ -1,15 +1,20 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.domain.TestFrameworkModule;
+import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.TestFramework;
@@ -33,8 +38,8 @@ import org.slf4j.LoggerFactory;
  * class does not do it. Instead, it accumulates module execution data and forwards it to the parent
  * process (build system) using the signal server
  */
-public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
-  private static final Logger log = LoggerFactory.getLogger(DDTestFrameworkModuleProxy.class);
+public class ProxyTestModule implements TestFrameworkModule {
+  private static final Logger log = LoggerFactory.getLogger(ProxyTestModule.class);
 
   private final long parentProcessSessionId;
   private final long parentProcessModuleId;
@@ -42,6 +47,7 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
   private final SignalClient.Factory signalClientFactory;
   private final CoverageDataSupplier coverageDataSupplier;
   private final Config config;
+  private final CiVisibilityMetricCollector metricCollector;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
@@ -52,12 +58,13 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
   private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
-  public DDTestFrameworkModuleProxy(
+  public ProxyTestModule(
       long parentProcessSessionId,
       long parentProcessModuleId,
       String moduleName,
       ModuleExecutionSettings executionSettings,
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
@@ -71,6 +78,7 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
     this.signalClientFactory = signalClientFactory;
     this.coverageDataSupplier = coverageDataSupplier;
     this.config = config;
+    this.metricCollector = metricCollector;
     this.testDecorator = testDecorator;
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
@@ -134,12 +142,13 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
   }
 
   @Override
-  public DDTestSuiteImpl testSuiteStart(
+  public TestSuiteImpl testSuiteStart(
       String testSuiteName,
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
-      boolean parallelized) {
-    return new DDTestSuiteImpl(
+      boolean parallelized,
+      TestFrameworkInstrumentation instrumentation) {
+    return new TestSuiteImpl(
         null,
         parentProcessSessionId,
         parentProcessModuleId,
@@ -148,7 +157,10 @@ public class DDTestFrameworkModuleProxy implements DDTestFrameworkModule {
         testClass,
         startTime,
         parallelized,
+        InstrumentationType.BUILD,
+        instrumentation,
         config,
+        metricCollector,
         testDecorator,
         sourcePathResolver,
         codeowners,
