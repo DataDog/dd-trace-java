@@ -1,5 +1,6 @@
 package datadog.telemetry.dependency;
 
+import datadog.trace.api.Config;
 import java.net.URI;
 import java.util.Collections;
 import java.util.HashSet;
@@ -16,8 +17,16 @@ public class DependencyResolverQueue {
 
   private final Queue<URI> newUrlsQueue;
   private final Set<URI> processedUrlsSet; // guarded by this
+  private static int MAX_QUEUE_SIZE = Config.get().getTelemetryDependencyResolutionQueueSize();
 
   public DependencyResolverQueue() {
+    newUrlsQueue = new ConcurrentLinkedQueue<>();
+    processedUrlsSet = new HashSet<>();
+  }
+
+  // This constructor is intended for testing purposes only
+  public DependencyResolverQueue(int maxQueueSize) {
+    MAX_QUEUE_SIZE = maxQueueSize;
     newUrlsQueue = new ConcurrentLinkedQueue<>();
     processedUrlsSet = new HashSet<>();
   }
@@ -26,7 +35,10 @@ public class DependencyResolverQueue {
     if (uri == null) {
       return;
     }
-
+    if (processedUrlsSet.size() >= MAX_QUEUE_SIZE || newUrlsQueue.size() >= MAX_QUEUE_SIZE) {
+      log.debug("DependencyResolverQueue is full, URI {} will not be queued", uri);
+      return;
+    }
     // we ignore .class files directly within webapp folder (they aren't part of dependencies)
     String path = uri.getPath();
     if (path != null && path.endsWith(".class")) {
