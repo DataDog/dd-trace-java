@@ -44,7 +44,8 @@ public abstract class AbstractExecutorInstrumentation extends InstrumenterModule
       "kotlinx.coroutines.scheduling.CoroutineScheduler",
       "play.api.libs.streams.Execution$trampoline$",
       "scala.concurrent.Future$InternalCallbackExecutor$",
-      "scala.concurrent.impl.ExecutionContextImpl"
+      "scala.concurrent.impl.ExecutionContextImpl",
+      "java.util.concurrent.ThreadPerTaskExecutor"
     };
   }
 
