@@ -1,7 +1,5 @@
 package datadog.telemetry.dependency
 
-import datadog.trace.api.Config
-
 class DependencyResolverQueueSpecification extends DepSpecification {
 
   DependencyResolverQueue resolverQueue = new DependencyResolverQueue()
