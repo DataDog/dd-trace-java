@@ -166,6 +166,7 @@ final class TracingConfigPoller {
 
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
+    maybeOverride(builder::setTracingEnabled, libConfig.tracingEnabled);
     builder.apply();
   }
 
@@ -241,6 +242,9 @@ final class TracingConfigPoller {
 
     @Json(name = "tracing_tags")
     public List<String> tracingTags;
+
+    @Json(name = "tracing_enabled")
+    public Boolean tracingEnabled;
   }
 
   static final class ServiceMappingEntry implements Map.Entry<String, String> {

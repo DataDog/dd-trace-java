@@ -45,4 +45,6 @@ public interface TraceConfig {
    * @return The tracer sampler Trace Sampling Rules, or an empty collection if no rule is defined.
    */
   List<? extends TraceSamplingRule> getTraceSamplingRules();
+
+  boolean isTracingEnabled();
 }

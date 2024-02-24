@@ -1291,5 +1291,10 @@ public class AgentTracer {
     public List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
       return Collections.emptyList();
     }
+
+    @Override
+    public boolean isTracingEnabled() {
+      return false;
+    }
   }
 }

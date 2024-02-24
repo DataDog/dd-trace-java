@@ -110,6 +110,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     String preferredServiceName;
 
+    boolean tracingEnabled;
+
     Builder() {}
 
     Builder(Snapshot snapshot) {
@@ -126,6 +128,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.traceSampleRate = snapshot.traceSampleRate;
       this.tracingTags = snapshot.tracingTags;
       this.preferredServiceName = snapshot.preferredServiceName;
+      this.tracingEnabled = snapshot.tracingEnabled;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
@@ -204,6 +207,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setPreferredServiceName(String preferredServiceName) {
       this.preferredServiceName = preferredServiceName;
+      return this;
+    }
+
+    public Builder setTracingEnabled(boolean tracingEnabled) {
+      this.tracingEnabled = tracingEnabled;
       return this;
     }
 
@@ -306,6 +314,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final Map<String, String> tracingTags;
 
     final String preferredServiceName;
+    final boolean tracingEnabled;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
@@ -324,6 +333,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.traceSamplingRules = builder.traceSamplingRules;
       this.tracingTags = builder.tracingTags;
       this.preferredServiceName = builder.preferredServiceName;
+      this.tracingEnabled = builder.tracingEnabled;
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
@@ -386,6 +396,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     @Override
+    public boolean isTracingEnabled() {
+      return tracingEnabled;
+    }
+
+    @Override
     public Map<String, String> getTracingTags() {
       return tracingTags;
     }
@@ -419,6 +434,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
           + tracingTags
           + ", preferredServiceName="
           + preferredServiceName
+          + ", tracingEnabled="
+          + tracingEnabled
           + '}';
     }
   }

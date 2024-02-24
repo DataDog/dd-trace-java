@@ -238,6 +238,11 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
       return null
     }
+
+    @Override
+    boolean isTracingEnabled() {
+      return false
+    }
   }
 
   boolean originalAppSecRuntimeValue

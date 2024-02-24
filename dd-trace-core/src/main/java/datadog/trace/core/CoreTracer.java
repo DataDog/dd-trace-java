@@ -557,6 +557,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setSpanSamplingRules(spanSamplingRules.getRules())
             .setTraceSamplingRules(traceSamplingRules.getRules())
             .setTracingTags(config.getGlobalTags())
+            .setTracingEnabled(config.isTraceEnabled())
             .apply();
 
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
@@ -740,6 +741,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         .setBaggageMapping(config.getBaggageMapping())
         .setTraceSampleRate(config.getTraceSampleRate())
         .setTracingTags(config.getGlobalTags())
+        .setTracingEnabled(config.isTraceEnabled())
         .apply();
   }
 
@@ -939,6 +941,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    * @param trace a list of the spans related to the same trace
    */
   void write(final List<DDSpan> trace) {
+    if (trace.isEmpty() || !trace.get(0).traceConfig().isTracingEnabled()) {
+      return;
+    }
+
     List<DDSpan> writtenTrace = interceptCompleteTrace(trace);
     if (writtenTrace.isEmpty()) {
       return;

@@ -352,6 +352,7 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer.captureTraceConfig().requestHeaderTags == [:]
     tracer.captureTraceConfig().responseHeaderTags == [:]
     tracer.captureTraceConfig().traceSampleRate == null
+    tracer.captureTraceConfig().tracingEnabled
 
     when:
     updater.accept(key, '''
@@ -385,7 +386,8 @@ class CoreTracerTest extends DDCoreSpecification {
              "tag_name": "whatever.the.user.wants.this.header"
           }]
           ,
-          "tracing_sampling_rate": 0.5
+          "tracing_sampling_rate": 0.5,
+          "tracing_enabled": false
         }
       }
       '''.getBytes(StandardCharsets.UTF_8), null)
@@ -408,6 +410,7 @@ class CoreTracerTest extends DDCoreSpecification {
       'this.header':'whatever.the.user.wants.this.header'
     ]
     tracer.captureTraceConfig().traceSampleRate == 0.5
+    !tracer.captureTraceConfig().tracingEnabled
 
     when:
     updater.remove(key, null)
