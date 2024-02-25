@@ -19,8 +19,8 @@ public final class Source implements Taintable.Source {
   /** Placeholder for non char sequence objects */
   public static final Object PROPAGATION_PLACEHOLDER = new Object();
 
-  // value to send in the rare case that the name/value have been garbage collected
-  private static final String GARBAGE_COLLECTED_REF =
+  /** value to send in the rare case that the name/value have been garbage collected */
+  public static final String GARBAGE_COLLECTED_REF =
       "[unknown: original value was garbage collected]";
 
   private final @SourceTypeString byte origin;

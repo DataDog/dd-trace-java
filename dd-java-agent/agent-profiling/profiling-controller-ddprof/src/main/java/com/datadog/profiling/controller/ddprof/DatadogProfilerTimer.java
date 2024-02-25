@@ -4,7 +4,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_E
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 
 import com.datadog.profiling.ddprof.DatadogProfiler;
-import com.datadog.profiling.ddprof.QueueTimeTracker;
 import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -23,16 +22,13 @@ public class DatadogProfilerTimer implements Timer {
   }
 
   public DatadogProfilerTimer() {
-    this(DatadogProfiler.getInstance());
+    this(DatadogProfiler.newInstance());
   }
 
   @Override
   public Timing start(TimerType type) {
     if (IS_PROFILING_QUEUEING_TIME_ENABLED && type == TimerType.QUEUEING) {
-      QueueTimeTracker tracker = profiler.newQueueTimeTracker();
-      if (tracker != null) {
-        return tracker;
-      }
+      return profiler.newQueueTimeTracker();
     }
     return Timing.NoOp.INSTANCE;
   }

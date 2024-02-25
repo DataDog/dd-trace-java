@@ -16,7 +16,7 @@ import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 
 class TelemetryServiceSpecification extends DDSpecification {
-  def confKeyValue = new ConfigSetting("confkey", "confvalue", ConfigOrigin.DEFAULT)
+  def confKeyValue = ConfigSetting.of("confkey", "confvalue", ConfigOrigin.DEFAULT)
   def configuration = [confkey: confKeyValue]
   def integration = new Integration("integration", true)
   def dependency = new Dependency("dependency", "1.0.0", "src", "hash")

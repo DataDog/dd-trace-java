@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.testng;
 
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.testng.IConfigurationListener;
@@ -30,7 +31,13 @@ public class TracingListener extends TestNGClassListener
     Class<?> testSuiteClass = testClass.getRealClass();
     List<String> groups = TestNGUtils.getGroups(testClass);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, testSuiteClass, groups, parallelized);
+        testSuiteName,
+        FRAMEWORK_NAME,
+        FRAMEWORK_VERSION,
+        testSuiteClass,
+        groups,
+        parallelized,
+        TestFrameworkInstrumentation.TESTNG);
   }
 
   @Override

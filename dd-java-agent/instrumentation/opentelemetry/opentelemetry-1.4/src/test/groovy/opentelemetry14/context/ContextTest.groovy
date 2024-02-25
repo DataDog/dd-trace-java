@@ -6,7 +6,9 @@ import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ContextKey
+import io.opentelemetry.context.ImplicitContextKeyed
 import io.opentelemetry.context.ThreadLocalContextStorage
+import spock.lang.Ignore
 import spock.lang.Subject
 
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.MANUAL
@@ -277,11 +279,52 @@ class ContextTest extends AgentTestRunner {
     parentSpan.end()
   }
 
+  @Ignore("Not supported")
+  def "test custom object storage"() {
+    setup:
+    def context = Context.root()
+    def originalContext = context
+    def data1 = new CustomData()
+    def data2 = new CustomData()
+
+    when:
+    context = context.with(data1)
+
+    then:
+    CustomData.fromContext(context) == data1
+    CustomData.fromContext(originalContext) == null
+
+    when:
+    context = context.with(data2)
+
+    then:
+    CustomData.fromContext(context) == data2
+
+    when:
+    context = context.with(CustomData.KEY, null)
+
+    then:
+    context.get(CustomData.KEY) == null
+  }
+
   @Override
   void cleanup() {
     // Test for context leak
     assert Context.current() == Context.root()
     // Safely reset OTel context storage
     ThreadLocalContextStorage.THREAD_LOCAL_STORAGE.remove()
+  }
+
+  private static class CustomData implements ImplicitContextKeyed {
+    private static final ContextKey<CustomData> KEY = ContextKey.named('custom')
+
+    @Override
+    Context storeInContext(Context context) {
+      return context.with(KEY, this)
+    }
+
+    private static CustomData fromContext(Context context) {
+      return context.get(KEY)
+    }
   }
 }

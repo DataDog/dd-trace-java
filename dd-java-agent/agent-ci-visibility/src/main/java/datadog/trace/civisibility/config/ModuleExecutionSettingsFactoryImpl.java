@@ -74,10 +74,18 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         repositoryRoot,
         jvmInfo);
 
-    Map<String, Collection<TestIdentifier>> skippableTestsByModuleName =
-        itrEnabled && repositoryRoot != null
-            ? getSkippableTestsByModuleName(Paths.get(repositoryRoot), tracerEnvironment)
-            : Collections.emptyMap();
+    String itrCorrelationId = null;
+    Map<String, Collection<TestIdentifier>> skippableTestsByModuleName = Collections.emptyMap();
+    if (itrEnabled && repositoryRoot != null) {
+      SkippableTests skippableTests =
+          getSkippableTests(Paths.get(repositoryRoot), tracerEnvironment);
+      if (skippableTests != null) {
+        itrCorrelationId = skippableTests.getCorrelationId();
+        skippableTestsByModuleName =
+            (Map<String, Collection<TestIdentifier>>)
+                groupTestsByModule(tracerEnvironment, skippableTests.getIdentifiers());
+      }
+    }
 
     Collection<TestIdentifier> flakyTests =
         flakyTestRetriesEnabled ? getFlakyTests(tracerEnvironment) : Collections.emptyList();
@@ -88,6 +96,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         itrEnabled,
         flakyTestRetriesEnabled,
         systemProperties,
+        itrCorrelationId,
         skippableTestsByModuleName,
         flakyTests,
         coverageEnabledPackages);
@@ -205,7 +214,8 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     return propagatedSystemProperties;
   }
 
-  private Map<String, Collection<TestIdentifier>> getSkippableTestsByModuleName(
+  @Nullable
+  private SkippableTests getSkippableTests(
       Path repositoryRoot, TracerEnvironment tracerEnvironment) {
     try {
       // ensure git data upload is finished before asking for tests
@@ -213,22 +223,22 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
           .startOrObserveGitDataUpload()
           .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
 
-      Collection<TestIdentifier> skippableTests =
-          configurationApi.getSkippableTests(tracerEnvironment);
+      SkippableTests skippableTests = configurationApi.getSkippableTests(tracerEnvironment);
       LOGGER.info(
-          "Received {} skippable tests in total for {}", skippableTests.size(), repositoryRoot);
+          "Received {} skippable tests in total for {}",
+          skippableTests.getIdentifiers().size(),
+          repositoryRoot);
 
-      return (Map<String, Collection<TestIdentifier>>)
-          groupTestsByModule(tracerEnvironment, skippableTests);
+      return skippableTests;
 
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while waiting for git data upload", e);
-      return Collections.emptyMap();
+      return null;
 
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of skippable tests, will proceed without skipping", e);
-      return Collections.emptyMap();
+      return null;
     }
   }
 

@@ -21,6 +21,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.junit.Assume;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,11 +43,8 @@ class DatadogProfilerTest {
 
   @Test
   void test() throws Exception {
+    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
     DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
-    if (!profiler.isAvailable()) {
-      log.warn("Datadog Profiler not available. Skipping test.");
-      return;
-    }
     assertFalse(profiler.enabledModes().isEmpty());
 
     if (profiler.isActive()) {
@@ -78,12 +76,9 @@ class DatadogProfilerTest {
   @ParameterizedTest
   @MethodSource("profilingModes")
   void testStartCmd(boolean cpu, boolean wall, boolean alloc, boolean memleak) throws Exception {
+    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(configProvider(cpu, wall, alloc, memleak));
-    if (!profiler.isAvailable()) {
-      log.warn("Datadog Profiler not available. Skipping test.");
-      return;
-    }
 
     Path targetFile = Paths.get("/tmp/target.jfr");
     String cmd = profiler.cmdStartProfiling(targetFile);

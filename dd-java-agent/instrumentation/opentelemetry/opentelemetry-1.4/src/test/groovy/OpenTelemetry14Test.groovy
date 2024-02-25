@@ -1,5 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.common.Attributes
@@ -8,7 +10,9 @@ import io.opentelemetry.api.trace.TraceFlags
 import io.opentelemetry.api.trace.TraceState
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ThreadLocalContextStorage
+import opentelemetry14.context.propagation.TextMap
 import org.skyscreamer.jsonassert.JSONAssert
+import spock.lang.Ignore
 import spock.lang.Subject
 
 import java.security.InvalidParameterException
@@ -74,8 +78,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def childSpan = tracer.spanBuilder("other-name")
-      .setParent(Context.current().with(parentSpan))
-      .startSpan()
+    .setParent(Context.current().with(parentSpan))
+    .startSpan()
     childSpan.end()
     parentSpan.end()
 
@@ -96,12 +100,41 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
+  @Ignore("Core tracer is not picking incomplete span context from context")
+  def "test parent span using propagation data"() {
+    setup:
+    def traceId = '00000000000000001111111111111111'
+    def spanId = '2222222222222222'
+    def headers = ['traceparent': "00-$traceId-$spanId-00" as String]
+    def propagator = GlobalOpenTelemetry.getPropagators().textMapPropagator
+    def context = propagator.extract(Context.root(), headers, TextMap.INSTANCE)
+
+    when:
+    try (def scope = context.makeCurrent()) {
+      def childSpan = tracer.spanBuilder("some-name")
+      .startSpan()
+      childSpan.end()
+    }
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          traceDDId(DDTraceId.fromHex(traceId))
+          parentSpanId(DDSpanId.fromHex(spanId).toLong() as BigInteger)
+          operationName "internal"
+          resourceName "some-name"
+        }
+      }
+    }
+  }
+
   def "test parent span using invalid reference"() {
     when:
     def invalidCurrentSpanContext = Context.root() // Contains a SpanContext with TID/SID to 0 as current span
     def childSpan = tracer.spanBuilder("some-name")
-      .setParent(invalidCurrentSpanContext)
-      .startSpan()
+    .setParent(invalidCurrentSpanContext)
+    .startSpan()
     childSpan.end()
 
     TEST_WRITER.waitForTraces(1)
@@ -119,8 +152,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def childSpan = tracer.spanBuilder("other-name")
-      .setNoParent()
-      .startSpan()
+    .setNoParent()
+    .startSpan()
     childSpan.end()
     scope.close()
     parentSpan.end()
@@ -183,9 +216,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def span1 =tracer.spanBuilder("some-name")
-      .addLink(SpanContext.getInvalid())  // Should not be added
-      .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
-      .startSpan()
+    .addLink(SpanContext.getInvalid())  // Should not be added
+    .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+    .startSpan()
     span1.end()
 
     then:
@@ -253,8 +286,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def span1 =tracer.spanBuilder("some-name")
-      .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState), attributes)
-      .startSpan()
+    .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState), attributes)
+    .startSpan()
     span1.end()
 
     then:
@@ -294,8 +327,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def span1 =tracer.spanBuilder("some-name")
-      .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
-      .startSpan()
+    .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+    .startSpan()
     span1.end()
 
     then:
@@ -323,19 +356,19 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def builder = tracer.spanBuilder("some-name")
     if (tagBuilder) {
       builder.setAttribute(DDTags.RESOURCE_NAME, "some-resource")
-        .setAttribute("string", "a")
-        .setAttribute("null-string", null)
-        .setAttribute("empty_string", "")
-        .setAttribute("number", 1)
-        .setAttribute("boolean", true)
-        .setAttribute(AttributeKey.stringKey("null-string-attribute"), null)
-        .setAttribute(AttributeKey.stringKey("empty-string-attribute"), "")
-        .setAttribute(AttributeKey.stringArrayKey("string-array"), ["a", "b", "c"])
-        .setAttribute(AttributeKey.booleanArrayKey("boolean-array"), [true, false])
-        .setAttribute(AttributeKey.longArrayKey("long-array"), [1L, 2L, 3L, 4L])
-        .setAttribute(AttributeKey.doubleArrayKey("double-array"), [1.23D, 4.56D])
-        .setAttribute(AttributeKey.stringArrayKey("empty-array"), Collections.emptyList())
-        .setAttribute(AttributeKey.stringArrayKey("null-array"), null)
+      .setAttribute("string", "a")
+      .setAttribute("null-string", null)
+      .setAttribute("empty_string", "")
+      .setAttribute("number", 1)
+      .setAttribute("boolean", true)
+      .setAttribute(AttributeKey.stringKey("null-string-attribute"), null)
+      .setAttribute(AttributeKey.stringKey("empty-string-attribute"), "")
+      .setAttribute(AttributeKey.stringArrayKey("string-array"), ["a", "b", "c"])
+      .setAttribute(AttributeKey.booleanArrayKey("boolean-array"), [true, false])
+      .setAttribute(AttributeKey.longArrayKey("long-array"), [1L, 2L, 3L, 4L])
+      .setAttribute(AttributeKey.doubleArrayKey("double-array"), [1.23D, 4.56D])
+      .setAttribute(AttributeKey.stringArrayKey("empty-array"), Collections.emptyList())
+      .setAttribute(AttributeKey.stringArrayKey("null-array"), null)
     }
     def result = builder.startSpan()
     if (tagSpan) {
@@ -427,8 +460,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
   def "test span kinds"() {
     setup:
     def result = tracer.spanBuilder("some-name")
-      .setSpanKind(otelSpanKind)
-      .startSpan()
+    .setSpanKind(otelSpanKind)
+    .startSpan()
 
     when:
     result.end()
@@ -577,8 +610,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
   def "test span name update"() {
     setup:
     def result = tracer.spanBuilder("some-name")
-      .setSpanKind(SERVER)
-      .startSpan()
+    .setSpanKind(SERVER)
+    .startSpan()
 
     expect:
     result.delegate.operationName == SPAN_KIND_INTERNAL

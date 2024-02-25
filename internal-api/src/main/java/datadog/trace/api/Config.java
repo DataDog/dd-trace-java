@@ -182,6 +182,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RESOURCE_FOLDER_NAMES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
@@ -254,6 +255,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_DIR;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
@@ -362,6 +364,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_UNACKNOWLEDGED_MAX_AGE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
@@ -761,6 +764,7 @@ public class Config {
   private final long ciVisibilityGitUploadTimeoutMillis;
   private final String ciVisibilitySignalServerHost;
   private final int ciVisibilitySignalServerPort;
+  private final int ciVisibilitySignalClientTimeoutMillis;
   private final boolean ciVisibilityItrEnabled;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexSharingEnabled;
@@ -1106,7 +1110,7 @@ public class Config {
 
     {
       final Map<String, String> tags = new HashMap<>(configProvider.getMergedMap(GLOBAL_TAGS));
-      tags.putAll(configProvider.getMergedMapWithOptionalMappings(null, false, TAGS));
+      tags.putAll(configProvider.getMergedMapWithOptionalMappings(null, false, TRACE_TAGS, TAGS));
       this.tags = getMapWithPropertiesDefinedByEnvironment(tags, ENV, VERSION);
     }
 
@@ -1330,7 +1334,8 @@ public class Config {
     clockSyncPeriod = configProvider.getInteger(CLOCK_SYNC_PERIOD, DEFAULT_CLOCK_SYNC_PERIOD);
 
     logsInjectionEnabled =
-        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+        configProvider.getBoolean(
+            LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
@@ -1736,6 +1741,8 @@ public class Config {
     ciVisibilitySignalServerPort =
         configProvider.getInteger(
             CIVISIBILITY_SIGNAL_SERVER_PORT, DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT);
+    ciVisibilitySignalClientTimeoutMillis =
+        configProvider.getInteger(CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS, 10_000);
     ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED, true);
     ciVisibilityCiProviderIntegrationEnabled =
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
@@ -2930,6 +2937,10 @@ public class Config {
 
   public int getCiVisibilitySignalServerPort() {
     return ciVisibilitySignalServerPort;
+  }
+
+  public int getCiVisibilitySignalClientTimeoutMillis() {
+    return ciVisibilitySignalClientTimeoutMillis;
   }
 
   public String getCiVisibilitySignalServerHost() {

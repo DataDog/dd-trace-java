@@ -235,7 +235,7 @@ class TestTelemetryRouter extends TelemetryRouter {
       def expected = configuration == null ? null : []
       if (configuration != null) {
         for (ConfigSetting cs : configuration) {
-          expected.add([name: cs.key, value: cs.value, origin: cs.origin.value])
+          expected.add([name: cs.normalizedKey(), value: cs.stringValue(), origin: cs.origin.value])
         }
       }
       assert this.payload['configuration'] == expected

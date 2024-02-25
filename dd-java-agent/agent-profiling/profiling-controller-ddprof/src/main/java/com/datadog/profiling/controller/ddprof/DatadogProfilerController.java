@@ -16,32 +16,21 @@
 package com.datadog.profiling.controller.ddprof;
 
 import com.datadog.profiling.controller.Controller;
+import com.datadog.profiling.controller.ControllerContext;
+import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import java.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.EnumSet;
+import javax.annotation.Nonnull;
 
-/** This is the implementation of the controller for Async. */
+/** This is the implementation of the controller for DD profiler. */
 public final class DatadogProfilerController implements Controller {
-  static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
-
-  private static final Logger log = LoggerFactory.getLogger(DatadogProfilerController.class);
 
   private final DatadogProfiler datadogProfiler;
 
-  public static Controller instance(ConfigProvider configProvider) {
+  public static Controller instance(ConfigProvider configProvider) throws Throwable {
     return new DatadogProfilerController(configProvider);
-  }
-
-  /**
-   * Main constructor for Async profiling controller.
-   *
-   * <p>This has to be public because it is created via reflection
-   */
-  public DatadogProfilerController() {
-    this(DatadogProfiler.getInstance());
   }
 
   public DatadogProfilerController(ConfigProvider configProvider) {
@@ -50,12 +39,19 @@ public final class DatadogProfilerController implements Controller {
 
   DatadogProfilerController(DatadogProfiler datadogProfiler) {
     this.datadogProfiler = datadogProfiler;
-    assert datadogProfiler.isAvailable();
+  }
+
+  @Nonnull
+  @Override
+  public OngoingRecording createRecording(
+      @Nonnull String recordingName, ControllerContext.Snapshot context)
+      throws UnsupportedEnvironmentException {
+    return new DatadogProfilerOngoingRecording(datadogProfiler, recordingName);
   }
 
   @Override
-  public DatadogProfilerOngoingRecording createRecording(final String recordingName)
-      throws UnsupportedEnvironmentException {
-    return new DatadogProfilerOngoingRecording(datadogProfiler, recordingName);
+  public void configure(ControllerContext context) {
+    context.setDatadogProfilerEnabled(true);
+    context.setDatadogProfilingModes(EnumSet.copyOf(datadogProfiler.enabledModes()));
   }
 }

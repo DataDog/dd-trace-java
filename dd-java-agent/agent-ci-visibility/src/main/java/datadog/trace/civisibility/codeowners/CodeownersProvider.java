@@ -45,6 +45,6 @@ public class CodeownersProvider {
         log.error("Could not read CODEOWNERS file from {}", path, e);
       }
     }
-    return CodeownersImpl.EMPTY;
+    return NoCodeowners.INSTANCE;
   }
 }
