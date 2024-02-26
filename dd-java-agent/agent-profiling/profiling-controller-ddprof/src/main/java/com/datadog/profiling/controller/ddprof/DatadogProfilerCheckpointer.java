@@ -22,7 +22,7 @@ public class DatadogProfilerCheckpointer implements EndpointCheckpointer {
   }
 
   public DatadogProfilerCheckpointer() {
-    this(DatadogProfiler.getInstance(), ConfigProvider.getInstance());
+    this(DatadogProfiler.newInstance(), ConfigProvider.getInstance());
   }
 
   @Override

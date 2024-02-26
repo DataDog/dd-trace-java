@@ -1,3 +1,7 @@
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
 muzzle {
   // Catalina doesn't reliably depend on coyote, so we use a different dependency that does.
   pass {
@@ -34,6 +38,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
 
 def tomcatVersion = '5.5.12' // earliest 5.5.x available in maven central (with all needed dependencies).
 
@@ -44,14 +49,11 @@ configurations.all {
   }
 }
 
-tasks.named("latestDepTest").configure {
-  javaLauncher = getJavaLauncherFor(11)
+[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
+  it.javaLauncher = getJavaLauncherFor(11)
 }
-tasks.named("compileLatestDepTestJava").configure {
+[compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
   setJavaVersion(it, 11)
-}
-tasks.named("compileLatestDepTestGroovy").configure {
-  javaLauncher = getJavaLauncherFor(11)
 }
 
 

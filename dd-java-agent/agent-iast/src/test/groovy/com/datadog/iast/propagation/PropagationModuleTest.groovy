@@ -27,7 +27,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   private PropagationModule module
 
-
   void setup() {
     module = new PropagationModuleImpl()
   }
@@ -442,16 +441,17 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   void 'test that source names/values should not make a strong reference over the value'() {
     when:
-    module.taint(value, SourceTypes.REQUEST_PARAMETER_NAME, name)
+    module.taint(toTaint, SourceTypes.REQUEST_PARAMETER_NAME, name, value)
 
     then:
-    final tainted = ctx.getTaintedObjects().get(value)
+    final tainted = ctx.getTaintedObjects().get(toTaint)
     final source = tainted.ranges.first().source
     final sourceName = source.@name
     final sourceValue = source.@value
 
-    assert sourceName !== value: 'Source name should never be a strong reference to the original value'
-    assert sourceValue !== value: 'Source value should never be a strong reference to the original value'
+    assert sourceName !== toTaint: 'Source name should never be a strong reference to the tainted value'
+    assert sourceValue !== toTaint: 'Source value should never be a strong reference to the tainted value'
+
     switch (value.class) {
       case String:
         assert sourceValue instanceof Reference
@@ -473,10 +473,13 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    name           | value
-    string('name') | name
-    string('name') | stringBuilder('name')
-    string('name') | date()
+    name           | value                 | toTaint
+    string('name') | name                  | string('name')
+    string('name') | stringBuilder('name') | stringBuilder('name')
+    string('name') | date()                | date()
+    string('name') | name                  | value
+    string('name') | stringBuilder('name') | value
+    string('name') | date()                | value
   }
 
   void 'test propagation of the source value for non char sequences'() {

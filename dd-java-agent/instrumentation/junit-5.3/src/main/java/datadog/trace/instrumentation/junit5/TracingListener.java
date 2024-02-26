@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit5;
 
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -65,7 +66,13 @@ public class TracingListener implements EngineExecutionListener {
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
+        testSuiteName,
+        testFramework,
+        testFrameworkVersion,
+        testClass,
+        tags,
+        false,
+        TestFrameworkInstrumentation.JUNIT5);
   }
 
   private void containerExecutionFinished(
@@ -214,7 +221,13 @@ public class TracingListener implements EngineExecutionListener {
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
+        testSuiteName,
+        testFramework,
+        testFrameworkVersion,
+        testClass,
+        tags,
+        false,
+        TestFrameworkInstrumentation.JUNIT5);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, testClass, reason);
 
     for (TestDescriptor child : testDescriptor.getChildren()) {

@@ -17,9 +17,11 @@ import datadog.trace.civisibility.communication.TelemetryListener;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import okio.Okio;
@@ -106,8 +108,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   @Override
-  public Collection<TestIdentifier> getSkippableTests(TracerEnvironment tracerEnvironment)
-      throws IOException {
+  public SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_REQUEST)
@@ -116,39 +117,42 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .responseBytes(CiVisibilityDistributionMetric.ITR_SKIPPABLE_TESTS_RESPONSE_BYTES)
             .build();
 
-    Collection<TestIdentifier> skippableTests =
-        getTestsData(SKIPPABLE_TESTS_URI, "test_params", tracerEnvironment, telemetryListener);
+    String uuid = uuidGenerator.get();
+    EnvelopeDto<TracerEnvironment> request =
+        new EnvelopeDto<>(new DataDto<>(uuid, "test_params", tracerEnvironment));
+    String json = requestAdapter.toJson(request);
+    RequestBody requestBody = RequestBody.create(JSON, json);
+    MultiEnvelopeDto<TestIdentifier> response =
+        backendApi.post(
+            SKIPPABLE_TESTS_URI,
+            requestBody,
+            is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))),
+            telemetryListener);
 
+    List<TestIdentifier> testIdentifiers =
+        response.data.stream().map(DataDto::getAttributes).collect(Collectors.toList());
     metricCollector.add(
-        CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_RESPONSE_TESTS, skippableTests.size());
+        CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_RESPONSE_TESTS, testIdentifiers.size());
 
-    return skippableTests;
+    String correlationId = response.meta != null ? response.meta.correlation_id : null;
+    return new SkippableTests(correlationId, testIdentifiers);
   }
 
   @Override
   public Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment)
       throws IOException {
-    return getTestsData(
-        FLAKY_TESTS_URI, "flaky_test_from_libraries_params", tracerEnvironment, null);
-  }
-
-  private Collection<TestIdentifier> getTestsData(
-      String endpoint,
-      String dataType,
-      TracerEnvironment tracerEnvironment,
-      OkHttpUtils.CustomListener requestListener)
-      throws IOException {
     String uuid = uuidGenerator.get();
     EnvelopeDto<TracerEnvironment> request =
-        new EnvelopeDto<>(new DataDto<>(uuid, dataType, tracerEnvironment));
+        new EnvelopeDto<>(
+            new DataDto<>(uuid, "flaky_test_from_libraries_params", tracerEnvironment));
     String json = requestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
     Collection<DataDto<TestIdentifier>> response =
         backendApi.post(
-            endpoint,
+            FLAKY_TESTS_URI,
             requestBody,
             is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data,
-            requestListener);
+            null);
     return response.stream().map(DataDto::getAttributes).collect(Collectors.toList());
   }
 
@@ -162,9 +166,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final class MultiEnvelopeDto<T> {
     private final Collection<DataDto<T>> data;
+    private final @Nullable MetaDto meta;
 
-    private MultiEnvelopeDto(Collection<DataDto<T>> data) {
+    private MultiEnvelopeDto(Collection<DataDto<T>> data, MetaDto meta) {
       this.data = data;
+      this.meta = meta;
     }
   }
 
@@ -181,6 +187,14 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     public T getAttributes() {
       return attributes;
+    }
+  }
+
+  private static final class MetaDto {
+    private final String correlation_id;
+
+    private MetaDto(String correlation_id) {
+      this.correlation_id = correlation_id;
     }
   }
 }

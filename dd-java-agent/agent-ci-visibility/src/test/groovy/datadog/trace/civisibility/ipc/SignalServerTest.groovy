@@ -6,6 +6,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class SignalServerTest extends Specification {
 
+  def signalClientTimeoutMillis = 10_000
+
   def "test message send and receive"() {
     given:
     def signalProcessed = new AtomicBoolean(false)
@@ -24,7 +26,7 @@ class SignalServerTest extends Specification {
     server.start()
 
     def address = server.getAddress()
-    try (def client = new SignalClient(address)) {
+    try (def client = new SignalClient(address, signalClientTimeoutMillis)) {
       client.send(signal)
       // verify that the signal was processed by the server by the time send() method returns
       // (we want the send() method to be truly synchronous in that regard)
@@ -55,7 +57,7 @@ class SignalServerTest extends Specification {
     server.start()
 
     def address = server.getAddress()
-    try (def client = new SignalClient(address)) {
+    try (def client = new SignalClient(address, signalClientTimeoutMillis)) {
       client.send(signalA)
       client.send(signalB)
     }
@@ -86,11 +88,11 @@ class SignalServerTest extends Specification {
     server.start()
 
     def address = server.getAddress()
-    try (def client = new SignalClient(address)) {
+    try (def client = new SignalClient(address, signalClientTimeoutMillis)) {
       client.send(signalA)
     }
 
-    try (def client = new SignalClient(address)) {
+    try (def client = new SignalClient(address, signalClientTimeoutMillis)) {
       client.send(signalB)
     }
 
@@ -148,7 +150,7 @@ class SignalServerTest extends Specification {
 
     when:
     def address = server.getAddress()
-    try (def client = new SignalClient(address)) {
+    try (def client = new SignalClient(address, signalClientTimeoutMillis)) {
       client.send(signal)
     }
 
