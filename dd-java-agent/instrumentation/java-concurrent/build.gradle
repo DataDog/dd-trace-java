@@ -9,11 +9,11 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuiteForDir('latestDepTest')
+addTestSuite('latestDepTest')
 
-[compileLatestDepTestGroovy, latestDepTest].each {
-  it.javaLauncher = getJavaLauncherFor(21)
-}
+//[compileLatestDepTestGroovy, latestDepTest].each {
+//  it.javaLauncher = getJavaLauncherFor(21)
+//}
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
