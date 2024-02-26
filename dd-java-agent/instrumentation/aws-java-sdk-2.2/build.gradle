@@ -47,7 +47,7 @@ dependencies {
   dsmTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.18.40'
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '+'
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '+'
-  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
+  latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
 
   latestDepTestImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
   latestDepTestImplementation project(':dd-java-agent:instrumentation:netty-4.1')
