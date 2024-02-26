@@ -20,8 +20,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
-import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
@@ -187,7 +185,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
-  private final EndpointCheckpointerHolder endpointCheckpointer;
   private final DataStreamsMonitoring dataStreamsMonitoring;
   private final ExternalAgentLauncher externalAgentLauncher;
   private final boolean disableSamplingMechanismValidation;
@@ -244,12 +241,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
-    endpointCheckpointer.onRootSpanFinished(root, tracker);
+    profilingContextIntegration.onRootSpanFinished(root, tracker);
   }
 
   @Override
   public EndpointTracker onRootSpanStarted(AgentSpan root) {
-    return endpointCheckpointer.onRootSpanStarted(root);
+    return profilingContextIntegration.onRootSpanStarted(root);
   }
 
   @Override
@@ -524,7 +521,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
     lastSyncTicks = startNanoTicks;
 
-    endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
 
     this.initialConfig = config;
@@ -1069,11 +1065,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (scopeManager instanceof ContinuableScopeManager) {
       ((ContinuableScopeManager) scopeManager).addScopeListener(listener);
     }
-  }
-
-  @Override
-  public void registerCheckpointer(EndpointCheckpointer implementation) {
-    endpointCheckpointer.register(implementation);
   }
 
   @Override

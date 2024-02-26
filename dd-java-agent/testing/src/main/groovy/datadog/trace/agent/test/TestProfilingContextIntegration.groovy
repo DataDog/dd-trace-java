@@ -1,7 +1,9 @@
 package datadog.trace.agent.test
 
+import datadog.trace.api.EndpointTracker
 import datadog.trace.api.profiling.ProfilingContextAttribute
 import datadog.trace.api.profiling.ProfilingScope
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -32,5 +34,14 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   @Override
   ProfilingScope newScope() {
     return ProfilingScope.NO_OP
+  }
+
+  @Override
+  void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {
+  }
+
+  @Override
+  EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+    return EndpointTracker.NO_OP
   }
 }

@@ -7,7 +7,6 @@ import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.monitor.Monitoring
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.checkpoints.TestEndpointCheckpointer
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.test.timer.TestTimer
@@ -146,10 +145,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @SuppressWarnings('PropertyName')
   @Shared
   AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger(0)
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  TestEndpointCheckpointer TEST_CHECKPOINTER = Spy(new TestEndpointCheckpointer())
 
   // don't use mocks because it will break too many exhaustive interaction-verifying tests
   @SuppressWarnings('PropertyName')
@@ -332,7 +327,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
       .build())
     TEST_TRACER.registerTimer(TEST_TIMER)
-    TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
@@ -446,7 +440,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     def util = new MockUtil()
     util.attachMock(STATS_D_CLIENT, this)
-    util.attachMock(TEST_CHECKPOINTER, this)
 
     originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
     if (forceAppSecActive) {
@@ -477,7 +470,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     def util = new MockUtil()
     util.detachMock(STATS_D_CLIENT)
-    util.detachMock(TEST_CHECKPOINTER)
 
     ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
 

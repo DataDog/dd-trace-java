@@ -1,8 +1,10 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 
@@ -17,6 +19,9 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   private static final int RESOURCE_NAME_INDEX = DDPROF.resourceNameOffset();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
+
+  private static final boolean IS_ENDPOINT_COLLECTION_ENABLED =
+      DatadogProfilerConfig.isEndpointTrackingEnabled();
 
   private final Stateful contextManager =
       new Stateful() {
@@ -96,5 +101,34 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public ProfilingScope newScope() {
     return new DatadogProfilingScope(DDPROF);
+  }
+
+  @Override
+  public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {
+    if (IS_ENDPOINT_COLLECTION_ENABLED && rootSpan != null) {
+      CharSequence resourceName = rootSpan.getResourceName();
+      CharSequence operationName = rootSpan.getOperationName();
+      if (resourceName != null && operationName != null) {
+        DDPROF.recordTraceRoot(
+            rootSpan.getSpanId(), resourceName.toString(), operationName.toString());
+      }
+    }
+  }
+
+  @Override
+  public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+    return NoOpEndpointTracker.INSTANCE;
+  }
+
+  /**
+   * This implementation is actually stateless, so we don't actually need a tracker object, but
+   * we'll create a singleton to avoid returning null and risking NPEs elsewhere.
+   */
+  private static final class NoOpEndpointTracker implements EndpointTracker {
+
+    public static final NoOpEndpointTracker INSTANCE = new NoOpEndpointTracker();
+
+    @Override
+    public void endpointWritten(AgentSpan span) {}
   }
 }

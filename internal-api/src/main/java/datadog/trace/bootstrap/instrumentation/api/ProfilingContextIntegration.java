@@ -1,11 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.EndpointCheckpointer;
+import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.Profiling;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
 
-public interface ProfilingContextIntegration extends Profiling {
+public interface ProfilingContextIntegration extends Profiling, EndpointCheckpointer {
   /**
    * invoked when the profiler is started, implementations must not initialise JFR before this is
    * called.
@@ -59,6 +61,14 @@ public interface ProfilingContextIntegration extends Profiling {
     @Override
     public String name() {
       return "none";
+    }
+
+    @Override
+    public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {}
+
+    @Override
+    public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+      return EndpointTracker.NO_OP;
     }
   }
 }

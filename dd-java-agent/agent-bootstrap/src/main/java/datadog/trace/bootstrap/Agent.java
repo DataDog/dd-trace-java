@@ -15,7 +15,6 @@ import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
@@ -921,25 +920,11 @@ public class Agent {
               public void withTracer(TracerAPI tracer) {
                 // TODO simplify this by reworking module boundaries
                 log.debug("Initializing profiler tracer integrations");
-                String checkpointerClassName =
-                    Config.get().isDatadogProfilerEnabled()
-                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerCheckpointer"
-                        : Platform.isOracleJDK8() || Platform.isJ9()
-                            ? null
-                            : "com.datadog.profiling.controller.openjdk.JFRCheckpointer";
                 String timerClassName =
                     Config.get().isDatadogProfilerEnabled()
                         ? "com.datadog.profiling.controller.ddprof.DatadogProfilerTimer"
                         : null;
                 try {
-                  if (checkpointerClassName != null) {
-                    tracer.registerCheckpointer(
-                        (EndpointCheckpointer)
-                            AGENT_CLASSLOADER
-                                .loadClass(checkpointerClassName)
-                                .getDeclaredConstructor()
-                                .newInstance());
-                  }
                   if (timerClassName != null) {
                     tracer.registerTimer(
                         (Timer)

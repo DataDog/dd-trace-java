@@ -264,13 +264,6 @@ public class AgentTracer {
      */
     void addScopeListener(ScopeListener listener);
 
-    /**
-     * Registers the checkpointer
-     *
-     * @param checkpointer
-     */
-    void registerCheckpointer(EndpointCheckpointer checkpointer);
-
     void registerTimer(Timer timer);
 
     SubscriptionService getSubscriptionService(RequestContextSlot slot);
@@ -479,9 +472,6 @@ public class AgentTracer {
 
     @Override
     public void addScopeListener(final ScopeListener listener) {}
-
-    @Override
-    public void registerCheckpointer(EndpointCheckpointer checkpointer) {}
 
     @Override
     public void registerTimer(Timer timer) {}
