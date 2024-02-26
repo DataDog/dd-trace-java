@@ -1,3 +1,7 @@
+ext {
+  virtualThreadTestMinJavaVersionForTests = JavaVersion.VERSION_21
+  //virtualThreadTestLatestDepTestMinJavaVersionForTests = JavaVersion.VERSION_21
+}
 muzzle {
   pass {
     coreJdk()
@@ -5,6 +9,12 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('virtualThreadTest', 'virtualThreadTest')
+
+[compileVirtualThreadTestGroovy, virtualThreadTest].each {
+  it.javaLauncher = getJavaLauncherFor(21)
+}
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')

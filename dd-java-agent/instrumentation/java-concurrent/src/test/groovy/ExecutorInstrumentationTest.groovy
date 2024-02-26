@@ -161,19 +161,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAny"              | invokeAny           | new ForkJoinPool()
     "invokeAny with timeout" | invokeAnyTimeout    | new ForkJoinPool()
 
-    "execute Runnable"       | executeRunnable     | Executors.newVirtualThreadPerTaskExecutor()
-    "execute ForkJoinTask"   | executeForkJoinTask | Executors.newVirtualThreadPerTaskExecutor()
-    "submit Runnable"        | submitRunnable      | Executors.newVirtualThreadPerTaskExecutor()
-    "submit Callable"        | submitCallable      | Executors.newVirtualThreadPerTaskExecutor()
-    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
-    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
-    "submit ForkJoinTask"    | submitForkJoinTask  | Executors.newVirtualThreadPerTaskExecutor()
-    "invoke ForkJoinTask"    | invokeForkJoinTask  | Executors.newVirtualThreadPerTaskExecutor()
-    "invokeAll"              | invokeAll           | Executors.newVirtualThreadPerTaskExecutor()
-    "invokeAll with timeout" | invokeAllTimeout    | Executors.newVirtualThreadPerTaskExecutor()
-    "invokeAny"              | invokeAny           | Executors.newVirtualThreadPerTaskExecutor()
-    "invokeAny with timeout" | invokeAnyTimeout    | Executors.newVirtualThreadPerTaskExecutor()
-
     // CustomThreadPoolExecutor would normally be disabled except enabled above.
     "execute Runnable"       | executeRunnable     | new CustomThreadPoolExecutor()
     "submit Runnable"        | submitRunnable      | new CustomThreadPoolExecutor()
