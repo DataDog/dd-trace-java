@@ -295,6 +295,15 @@ public class DatadogProfilerConfig {
         ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
   }
 
+  public static boolean isQueueTimeEnabled() {
+    return isQueueTimeEnabled(ConfigProvider.getInstance());
+  }
+
+  public static boolean isQueueTimeEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider, PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+  }
+
   public static String getCStack() {
     return getCStack(ConfigProvider.getInstance());
   }

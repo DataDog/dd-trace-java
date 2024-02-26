@@ -9,7 +9,6 @@ import datadog.communication.monitor.Monitoring
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
-import datadog.trace.agent.test.timer.TestTimer
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
@@ -162,10 +161,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @SuppressWarnings('PropertyName')
   @Shared
   AgentDataStreamsMonitoring TEST_DATA_STREAMS_MONITORING
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  TestTimer TEST_TIMER = Spy(new TestTimer())
 
   @Shared
   ClassFileTransformer activeTransformer
@@ -326,7 +321,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
       .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
       .build())
-    TEST_TRACER.registerTimer(TEST_TIMER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()

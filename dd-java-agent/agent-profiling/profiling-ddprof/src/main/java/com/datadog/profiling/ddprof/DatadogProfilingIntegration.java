@@ -4,6 +4,7 @@ import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
+import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -22,6 +23,10 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   private static final boolean IS_ENDPOINT_COLLECTION_ENABLED =
       DatadogProfilerConfig.isEndpointTrackingEnabled();
+
+  // don't use Config because it may use ThreadPoolExecutor to initialize itself
+  private static final boolean IS_PROFILING_QUEUEING_TIME_ENABLED =
+      DatadogProfilerConfig.isQueueTimeEnabled();
 
   private final Stateful contextManager =
       new Stateful() {
@@ -118,6 +123,14 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
     return NoOpEndpointTracker.INSTANCE;
+  }
+
+  @Override
+  public Timing start(TimerType type) {
+    if (IS_PROFILING_QUEUEING_TIME_ENABLED && type == TimerType.QUEUEING) {
+      return DDPROF.newQueueTimeTracker();
+    }
+    return Timing.NoOp.INSTANCE;
   }
 
   /**

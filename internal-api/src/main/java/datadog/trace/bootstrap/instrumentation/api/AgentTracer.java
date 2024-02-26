@@ -19,7 +19,6 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
@@ -264,8 +263,6 @@ public class AgentTracer {
      */
     void addScopeListener(ScopeListener listener);
 
-    void registerTimer(Timer timer);
-
     SubscriptionService getSubscriptionService(RequestContextSlot slot);
 
     CallbackProvider getCallbackProvider(RequestContextSlot slot);
@@ -277,8 +274,6 @@ public class AgentTracer {
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
-
-    Timer getTimer();
 
     String getTraceId(AgentSpan span);
 
@@ -474,9 +469,6 @@ public class AgentTracer {
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
-    public void registerTimer(Timer timer) {}
-
-    @Override
     public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
       return SubscriptionService.SubscriptionServiceNoop.INSTANCE;
     }
@@ -515,11 +507,6 @@ public class AgentTracer {
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {
       return NoopAgentDataStreamsMonitoring.INSTANCE;
-    }
-
-    @Override
-    public Timer getTimer() {
-      return Timer.NoOp.INSTANCE;
     }
 
     @Override
