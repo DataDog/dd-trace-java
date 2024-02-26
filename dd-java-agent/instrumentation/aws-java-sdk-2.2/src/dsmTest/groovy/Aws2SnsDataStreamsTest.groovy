@@ -19,6 +19,8 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sns.SnsAsyncClient
 import software.amazon.awssdk.services.sns.SnsClient
+import software.amazon.awssdk.services.sns.model.PublishBatchRequest
+import software.amazon.awssdk.services.sns.model.PublishBatchRequestEntry
 import software.amazon.awssdk.services.sns.model.PublishRequest
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -190,8 +192,18 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
     servedRequestId.set(null)
 
     where:
-    service | operation | dsmDirection | dsmStatCount | method | path | requestId                              | builder             | call                                                                                                          | body
-    "Sns"   | "Publish" | "out"        | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsClient.builder() | { SnsClient c -> c.publish(PublishRequest.builder().topicArn("arnprefix:mytopic").message("hello").build()) } | """<?xml version="1.0" encoding="UTF-8" ?><MessageId>f2edefec-298a-58d7-bcc0-b1bd2077fccb</MessageId>"""
+    service | operation      | dsmDirection | dsmStatCount | method | path | requestId                              | builder             | call                                                                                                                                                                                                                                                                        | body
+    "Sns"   | "Publish"      | "out"        | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsClient.builder() | { SnsClient c -> c.publish(PublishRequest.builder().topicArn("arnprefix:mytopic").message("hello").build()) }                                                                                                                                                               | """<?xml version="1.0" encoding="UTF-8" ?><MessageId>f2edefec-298a-58d7-bcc0-b1bd2077fccb</MessageId>"""
+    "Sns"   | "PublishBatch" | "out"        | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsClient.builder() | { SnsClient c -> c.publishBatch(PublishBatchRequest.builder().topicArn("arnprefix:mytopic").publishBatchRequestEntries(PublishBatchRequestEntry.builder().id("1").message("hello").build(), PublishBatchRequestEntry.builder().id("2").message("world").build()).build()) } | """<?xml version="1.0" encoding="UTF-8" ?>
+  <Successful>
+    <Id>1</Id>
+    <MessageId>4898a3df-db3a-5078-a6a9-fd895f9acb64</MessageId>
+  </Successful>
+  <Successful>
+    <Id>2</Id>
+    <MessageId>0967c76c-5cbb-5637-82f8-993ad81bed2b</MessageId>
+  </Successful>
+  <Failed/>"""
   }
 
   def "send #operation async request with builder #builder.class.getSimpleName() mocked response"() {
@@ -264,8 +276,18 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
     servedRequestId.set(null)
 
     where:
-    service | operation | dsmDirection | dsmStatCount | method | path | requestId                              | builder                  | call                                                                                                               | body
-    "Sns"   | "Publish" | "out"        | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsAsyncClient.builder() | { SnsAsyncClient c -> c.publish(PublishRequest.builder().topicArn("arnprefix:mytopic").message("hello").build()) } | """<?xml version="1.0" encoding="UTF-8" ?><MessageId>f2edefec-298a-58d7-bcc0-b1bd2077fccb</MessageId>"""
+    service | operation      | dsmDirection | dsmStatCount | method | path | requestId                              | builder                  | call                                                                                                                                                                                                                                                                             | body
+    "Sns"   | "Publish"      | "out"        | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsAsyncClient.builder() | { SnsAsyncClient c -> c.publish(PublishRequest.builder().topicArn("arnprefix:mytopic").message("hello").build()) }                                                                                                                                                               | """<?xml version="1.0" encoding="UTF-8" ?><MessageId>f2edefec-298a-58d7-bcc0-b1bd2077fccb</MessageId>"""
+    "Sns"   | "PublishBatch" | "out"        | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsAsyncClient.builder() | { SnsAsyncClient c -> c.publishBatch(PublishBatchRequest.builder().topicArn("arnprefix:mytopic").publishBatchRequestEntries(PublishBatchRequestEntry.builder().id("1").message("hello").build(), PublishBatchRequestEntry.builder().id("2").message("world").build()).build()) } | """<?xml version="1.0" encoding="UTF-8" ?>
+  <Successful>
+    <Id>1</Id>
+    <MessageId>4898a3df-db3a-5078-a6a9-fd895f9acb64</MessageId>
+  </Successful>
+  <Successful>
+    <Id>2</Id>
+    <MessageId>0967c76c-5cbb-5637-82f8-993ad81bed2b</MessageId>
+  </Successful>
+  <Failed/>"""
   }
 }
 
