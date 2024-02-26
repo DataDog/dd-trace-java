@@ -200,7 +200,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_TELEMETRY_METRICS_INTERVAL = 10; // in seconds
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = false;
-  static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = Integer.MAX_VALUE;
+  static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = false;

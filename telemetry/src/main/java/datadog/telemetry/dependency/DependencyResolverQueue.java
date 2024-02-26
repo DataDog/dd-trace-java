@@ -19,6 +19,8 @@ public class DependencyResolverQueue {
   private final Set<URI> processedUrlsSet; // guarded by this
   private static int MAX_QUEUE_SIZE = Config.get().getTelemetryDependencyResolutionQueueSize();
 
+  private boolean resolverQueueDisabled = false;
+
   public DependencyResolverQueue() {
     newUrlsQueue = new ConcurrentLinkedQueue<>();
     processedUrlsSet = new HashSet<>();
@@ -32,13 +34,25 @@ public class DependencyResolverQueue {
   }
 
   public void queueURI(URI uri) {
-    if (uri == null) {
+    if (resolverQueueDisabled || uri == null || newUrlsQueue.size() >= MAX_QUEUE_SIZE) {
       return;
     }
-    if (processedUrlsSet.size() >= MAX_QUEUE_SIZE || newUrlsQueue.size() >= MAX_QUEUE_SIZE) {
-      log.debug("DependencyResolverQueue is full, URI {} will not be queued", uri);
+
+    // once the processedUrlsSet reaches MAX_QUEUE_SIZE, we have reached the user-defined limit of
+    // unique dependencies to queue
+    // and we will disable the resolver queue from adding any more URI's.
+    if (processedUrlsSet.size() >= MAX_QUEUE_SIZE) {
+      resolverQueueDisabled = true;
+
+      log.warn(
+          "DependencyResolverQueue limit has been reached, additional dependencies will not be queued");
+
+      // this resolver will be disabled so we can clear the stored URIs since they will no longer be
+      // checked for duplicates
+      processedUrlsSet.clear();
       return;
     }
+
     // we ignore .class files directly within webapp folder (they aren't part of dependencies)
     String path = uri.getPath();
     if (path != null && path.endsWith(".class")) {
