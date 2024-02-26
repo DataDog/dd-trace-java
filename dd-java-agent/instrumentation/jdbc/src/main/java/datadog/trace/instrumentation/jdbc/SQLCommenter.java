@@ -44,6 +44,11 @@ public class SQLCommenter {
     if (hasDDComment(sql, appendComment)) {
       return sql;
     }
+    if (sql.startsWith("{")) {
+//      The JDBC parser doesn't allow SQL comments anywhere in a callable statement
+//      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+      return sql;
+    }
     final Config config = Config.get();
     final String parentService = config.getServiceName();
     final String env = config.getEnv();

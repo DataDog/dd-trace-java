@@ -425,6 +425,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   @Unroll
   def "prepared call with storedproc on #driver with #connection.getClass().getCanonicalName() does not hang"() {
     setup:
+    injectSysConfig("dd.dbm.propagation.mode", "full")
     CallableStatement upperProc = connection.prepareCall(query)
     upperProc.setString(1, "hello world")
     upperProc.registerOutParameter(2, Types.VARCHAR)
@@ -435,7 +436,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     TEST_WRITER.waitForTraces(1)
 
     then:
-      assert upperProc.getString(2) == "HELLO WORLD"
+    assert upperProc.getString(2) == "HELLO WORLD"
     cleanup:
     upperProc?.close()
     connection.close()
