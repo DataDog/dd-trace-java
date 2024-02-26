@@ -195,7 +195,7 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable"      | scheduleRunnable    | localEventLoopGroup
     "schedule Callable"      | scheduleCallable    | localEventLoopGroup
 
-    poolName = poolImpl.class.simpleName
+    // poolName = poolImpl.class.simpleName
   }
 
   def "#poolName '#name' reports after canceled jobs"() {
@@ -274,7 +274,7 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable"      | scheduleRunnable    | localEventLoopGroup.next()
     "schedule Callable"      | scheduleCallable    | localEventLoopGroup.next()
 
-    poolName = poolImpl.class.simpleName
+    poolName = poolImpl == null ? "null" : poolImpl.class.simpleName
   }
 
   def epollExecutor() {

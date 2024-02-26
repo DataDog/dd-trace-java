@@ -68,8 +68,9 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     injectSysConfig("trace.thread-pool-executors.exclude", "ExecutorInstrumentationTest\$ToBeIgnoredExecutor")
   }
 
-  @Unroll
-  def "#poolName '#name' propagates"() {
+  //@Unroll
+  def "TEST1"() {
+  //def "#poolName '#name' propagates"() {
     setup:
     assumeTrue(poolImpl != null) // skip for Java 7 CompletableFuture, non-Linux Netty EPoll
     def pool = poolImpl
@@ -146,6 +147,33 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAny"              | invokeAny           | new ForkJoinPool()
     "invokeAny with timeout" | invokeAnyTimeout    | new ForkJoinPool()
 
+    // ForkJoinPool has additional set of method overloads for ForkJoinTask to deal with
+    "execute Runnable"       | executeRunnable     | new ForkJoinPool()
+    "execute ForkJoinTask"   | executeForkJoinTask | new ForkJoinPool()
+    "submit Runnable"        | submitRunnable      | new ForkJoinPool()
+    "submit Callable"        | submitCallable      | new ForkJoinPool()
+    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(new ForkJoinPool())
+    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(new ForkJoinPool())
+    "submit ForkJoinTask"    | submitForkJoinTask  | new ForkJoinPool()
+    "invoke ForkJoinTask"    | invokeForkJoinTask  | new ForkJoinPool()
+    "invokeAll"              | invokeAll           | new ForkJoinPool()
+    "invokeAll with timeout" | invokeAllTimeout    | new ForkJoinPool()
+    "invokeAny"              | invokeAny           | new ForkJoinPool()
+    "invokeAny with timeout" | invokeAnyTimeout    | new ForkJoinPool()
+
+    "execute Runnable"       | executeRunnable     | Executors.newVirtualThreadPerTaskExecutor()
+    "execute ForkJoinTask"   | executeForkJoinTask | Executors.newVirtualThreadPerTaskExecutor()
+    "submit Runnable"        | submitRunnable      | Executors.newVirtualThreadPerTaskExecutor()
+    "submit Callable"        | submitCallable      | Executors.newVirtualThreadPerTaskExecutor()
+    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
+    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
+    "submit ForkJoinTask"    | submitForkJoinTask  | Executors.newVirtualThreadPerTaskExecutor()
+    "invoke ForkJoinTask"    | invokeForkJoinTask  | Executors.newVirtualThreadPerTaskExecutor()
+    "invokeAll"              | invokeAll           | Executors.newVirtualThreadPerTaskExecutor()
+    "invokeAll with timeout" | invokeAllTimeout    | Executors.newVirtualThreadPerTaskExecutor()
+    "invokeAny"              | invokeAny           | Executors.newVirtualThreadPerTaskExecutor()
+    "invokeAny with timeout" | invokeAnyTimeout    | Executors.newVirtualThreadPerTaskExecutor()
+
     // CustomThreadPoolExecutor would normally be disabled except enabled above.
     "execute Runnable"       | executeRunnable     | new CustomThreadPoolExecutor()
     "submit Runnable"        | submitRunnable      | new CustomThreadPoolExecutor()
@@ -156,7 +184,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAll with timeout" | invokeAllTimeout    | new CustomThreadPoolExecutor()
     "invokeAny"              | invokeAny           | new CustomThreadPoolExecutor()
     "invokeAny with timeout" | invokeAnyTimeout    | new CustomThreadPoolExecutor()
-
 
     "execute Runnable"       | executeRunnable     | new TypeAwareThreadPoolExecutor()
     "submit Runnable"        | submitRunnable      | new TypeAwareThreadPoolExecutor()
@@ -187,7 +214,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAll with timeout" | invokeAllTimeout    | Executors.unconfigurableExecutorService(Executors.newSingleThreadExecutor())
     "invokeAny"              | invokeAny           | Executors.unconfigurableExecutorService(Executors.newSingleThreadExecutor())
     "invokeAny with timeout" | invokeAnyTimeout    | Executors.unconfigurableExecutorService(Executors.newSingleThreadExecutor())
-
 
     "execute Runnable"       | executeRunnable     | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
     "submit Runnable"        | submitRunnable      | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
@@ -237,7 +263,7 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable"      | scheduleRunnable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     "schedule Callable"      | scheduleCallable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     // spotless:on
-    poolName = poolImpl.class.simpleName
+    //poolName = poolImpl == null ? "null poolImpl" : poolImpl.class.simpleName
   }
 
   @Unroll
