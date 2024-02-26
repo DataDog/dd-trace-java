@@ -1,6 +1,5 @@
 ext {
-  virtualThreadTestMinJavaVersionForTests = JavaVersion.VERSION_21
-  //virtualThreadTestLatestDepTestMinJavaVersionForTests = JavaVersion.VERSION_21
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_21
 }
 muzzle {
   pass {
@@ -10,9 +9,9 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuiteForDir('virtualThreadTest', 'virtualThreadTest')
+addTestSuiteForDir('latestDepTest')
 
-[compileVirtualThreadTestGroovy, virtualThreadTest].each {
+[compileLatestDepTestGroovy, latestDepTest].each {
   it.javaLauncher = getJavaLauncherFor(21)
 }
 
