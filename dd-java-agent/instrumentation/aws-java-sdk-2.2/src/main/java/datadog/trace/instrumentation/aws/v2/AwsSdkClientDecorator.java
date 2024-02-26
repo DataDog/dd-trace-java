@@ -131,7 +131,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     // SNS
     Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
-    if (!snsTopicArn.isPresent()) snsTopicArn = request.getValueForField("TargetArn", String.class);
+    if (!snsTopicArn.isPresent()) {
+      snsTopicArn = request.getValueForField("TargetArn", String.class);
+    }
     Optional<String> snsTopicName = snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
     snsTopicName.ifPresent(topic -> setTopicName(span, topic));
 
