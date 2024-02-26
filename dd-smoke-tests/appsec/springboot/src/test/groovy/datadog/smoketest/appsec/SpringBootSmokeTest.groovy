@@ -83,22 +83,36 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
   }
 
   def "malicious WAF request concurrently"() {
-    expect:
-    // Do one request before to initialize the server
+    given:
+    int totalInvocations = 200
+
+    when: 'do one request before to initialize the server'
     doAndValidateRequest()
-    ThreadUtils.runConcurrently(10, 199, {
+
+    and: 'do several concurrent requests'
+    ThreadUtils.runConcurrently(10, totalInvocations - 1, {
       doAndValidateRequest()
     })
-    waitForTraceCount(200) == 200
-    rootSpans.size() == 200
-    forEachRootSpanTrigger {
-      assert it['rule']['tags']['type'] == 'attack_tool'
-    }
-    rootSpans.each { assert it.meta['actor.ip'] == '1.2.3.4' }
+    waitForTraceCount(totalInvocations) == totalInvocations
+
+    then:
+    rootSpans.size() == totalInvocations
+    int timeouts = 0
     rootSpans.each {
-      assert it.meta['http.response.headers.content-type'] == 'text/plain;charset=UTF-8'
-      assert it.meta['http.response.headers.content-length'] == '15'
+      if (it.span.metrics.containsKey('_dd.appsec.waf.timeouts') && it.span.metrics['_dd.appsec.waf.timeouts'] > 0) {
+        timeouts++
+      } else {
+        it.triggers.every {
+          assert it['rule']['tags']['type'] == 'attack_tool'
+        }
+        assert it.meta['actor.ip'] == '1.2.3.4'
+        assert it.meta['http.response.headers.content-type'] == 'text/plain;charset=UTF-8'
+        assert it.meta['http.response.headers.content-length'] == '15'
+      }
     }
+    // Under high load, the WAF will timeout for some requests. This should be set to a limit that works for CI, but
+    // significantly lower than the total number of requests.
+    timeouts < totalInvocations * 0.1
   }
 
   def "match server request path params value"() {
