@@ -36,6 +36,7 @@ final class GetterAccess {
   private final MethodHandle getStreamName;
   private final MethodHandle getStreamARN;
   private final MethodHandle getRecords;
+  private final MethodHandle getPublishBatchRequestEntries;
   private final MethodHandle getApproximateArrivalTimestamp;
   private final MethodHandle getTableName;
 
@@ -50,6 +51,7 @@ final class GetterAccess {
     getStreamName = findStringGetter(objectType, "getStreamName");
     getStreamARN = findStringGetter(objectType, "getStreamARN");
     getRecords = findListGetter(objectType, "getRecords");
+    getPublishBatchRequestEntries = findListGetter(objectType, "getPublishBatchRequestEntries");
     getApproximateArrivalTimestamp =
         findGetter(objectType, "getApproximateArrivalTimestamp", Date.class);
     getTableName = findStringGetter(objectType, "getTableName");
@@ -89,6 +91,10 @@ final class GetterAccess {
 
   List getRecords(final Object object) {
     return invokeForList(getRecords, object);
+  }
+
+  List getEntries(final Object object) {
+    return invokeForList(getPublishBatchRequestEntries, object);
   }
 
   String getTableName(final Object object) {

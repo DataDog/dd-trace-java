@@ -52,6 +52,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   private static final String PUT_RECORD_OPERATION_NAME = "PutRecordRequest";
   private static final String PUT_RECORDS_OPERATION_NAME = "PutRecordsRequest";
+  private static final String PUBLISH_OPERATION_NAME = "PublishRequest";
+  private static final String PUBLISH_BATCH_OPERATION_NAME = "PublishBatchRequest";
 
   private static String simplifyServiceName(String awsServiceName) {
     return serviceNameCache.computeIfAbsent(
@@ -99,6 +101,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         }
         break;
       case "SNS.Publish":
+      case "SNS.PublishBatch":
         if (SNS_SERVICE_NAME != null) {
           span.setServiceName(SNS_SERVICE_NAME);
         }
@@ -137,9 +140,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       bestPrecursor = InstrumentationTags.AWS_QUEUE_NAME;
       bestPeerService = queueName;
     }
+    String topicName = null;
     String topicArn = access.getTopicArn(originalRequest);
     if (null != topicArn) {
-      final String topicName = topicArn.substring(topicArn.lastIndexOf(':') + 1);
+      topicName = topicArn.substring(topicArn.lastIndexOf(':') + 1);
       span.setTag(InstrumentationTags.AWS_TOPIC_NAME, topicName);
       span.setTag(InstrumentationTags.TOPIC_NAME, topicName);
       bestPrecursor = InstrumentationTags.AWS_TOPIC_NAME;
@@ -178,29 +182,52 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(DDTags.PEER_SERVICE_SOURCE, bestPrecursor);
     }
 
-    if (span.traceConfig().isDataStreamsEnabled()
-        && null != streamArn
-        && "AmazonKinesis".equals(awsServiceName)) {
-      switch (awsOperation.getSimpleName()) {
-        case PUT_RECORD_OPERATION_NAME:
-          try (AgentScope scope = AgentTracer.activateSpan(span)) {
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
-          }
-          break;
-        case PUT_RECORDS_OPERATION_NAME:
-          try (AgentScope scope = AgentTracer.activateSpan(span)) {
-            List records = access.getRecords(originalRequest);
-            for (Object ignored : records) {
+    // DSM
+    if (span.traceConfig().isDataStreamsEnabled()) {
+      if (null != streamArn && "AmazonKinesis".equals(awsServiceName)) {
+        switch (awsOperation.getSimpleName()) {
+          case PUT_RECORD_OPERATION_NAME:
+            try (AgentScope scope = AgentTracer.activateSpan(span)) {
               AgentTracer.get()
                   .getDataStreamsMonitoring()
                   .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
             }
-          }
-          break;
-        default:
-          break;
+            break;
+          case PUT_RECORDS_OPERATION_NAME:
+            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+              List records = access.getRecords(originalRequest);
+              for (Object ignored : records) {
+                AgentTracer.get()
+                    .getDataStreamsMonitoring()
+                    .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
+              }
+            }
+            break;
+          default:
+            break;
+        }
+      } else if (null != topicName && "AmazonSNS".equals(awsServiceName)) {
+        switch (awsOperation.getSimpleName()) {
+          case PUBLISH_OPERATION_NAME:
+            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+              AgentTracer.get()
+                  .getDataStreamsMonitoring()
+                  .setProduceCheckpoint("sns", topicName, NoOp.INSTANCE);
+            }
+            break;
+          case PUBLISH_BATCH_OPERATION_NAME:
+            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+              List entries = access.getEntries(originalRequest);
+              for (Object ignored : entries) {
+                AgentTracer.get()
+                    .getDataStreamsMonitoring()
+                    .setProduceCheckpoint("sns", topicName, NoOp.INSTANCE);
+              }
+            }
+            break;
+          default:
+            break;
+        }
       }
     }
 
