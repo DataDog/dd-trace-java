@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -167,9 +168,7 @@ public final class Dependency {
     }
 
     // Find for the most suitable name (based on priority)
-    if (isValidArtifactId(bundleSymbolicName)) {
-      artifactId = bundleSymbolicName;
-    } else if (isValidArtifactId(bundleName)) {
+    if (isValidArtifactId(bundleName)) {
       artifactId = bundleName;
     } else if (isValidArtifactId(implementationTitle)) {
       artifactId = implementationTitle;
@@ -226,20 +225,18 @@ public final class Dependency {
     return new Dependency(name, version, source, hash);
   }
 
-  /** Check is string is valid artifactId. Should be a non-capital single word. */
   private static boolean isValidArtifactId(String artifactId) {
     return hasText(artifactId)
         && !artifactId.contains(" ")
         && !artifactId.contains(".")
-        && !Character.isUpperCase(artifactId.charAt(0));
+        && artifactId.toLowerCase(Locale.ROOT).equals(artifactId);
   }
 
-  /** Check is string is valid groupId. Should be a non-capital plural-word separated with dot. */
   private static boolean isValidGroupId(String group) {
     return hasText(group)
         && !group.contains(" ")
         && group.contains(".")
-        && !Character.isUpperCase(group.charAt(0));
+        && group.toLowerCase(Locale.ROOT).equals(group);
   }
 
   private static boolean hasText(final String value) {

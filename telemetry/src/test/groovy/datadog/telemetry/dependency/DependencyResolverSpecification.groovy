@@ -66,7 +66,7 @@ class DependencyResolverSpecification extends DepSpecification {
     'com.opencsv'                               | 'opencsv'                       | '4.1.0'                    | null                              | null                  | 'opencsv-4.1.jar'                  || 'com:opencsv-4.1.jar'                   | '4.1'
     'org.liquibase.core'                        | 'liquibase-core'                | '0.0.0.SNAPSHOT'           | null                              | null                  | 'liquibase-core-4.6.2.jar'         || 'org:liquibase-core-4.6.2.jar'          | '4.6.2'
     'org.roaringbitmap.RoaringBitmap'           | 'RoaringBitmap'                 | '0.0.1'                    | null                              | null                  | 'RoaringBitmap-0.0.1.jar'          || 'RoaringBitmap-0.0.1.jar'               | '0.0.1'
-    'com.samskivert.jmustache'                  | 'jmustache'                     | '1.14.0'                   | null                              | null                  | 'jmustache-1.14.jar'               || 'com.samskivert:jmustache-1.14.jar'     | '1.14.0'
+    'com.samskivert.jmustache'                  | 'jmustache'                     | '1.14.0'                   | null                              | null                  | 'jmustache-1.14.jar'               || 'com.samskivert:jmustache-1.14.jar'     | '1.14'
   }
 
   void 'jar without pom.properties get resolved with hash'() {
