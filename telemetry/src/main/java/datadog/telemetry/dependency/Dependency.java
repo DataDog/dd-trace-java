@@ -188,7 +188,7 @@ public final class Dependency {
     } else if (equalsNonNull(bundleVersion, fileNameVersion)) {
       version = fileNameVersion;
     } else {
-      artifactId = source;
+      artifactId = fileNameArtifact;
 
       if (implementationVersion != null) {
         version = implementationVersion;
