@@ -10,9 +10,9 @@ import org.junit.platform.engine.TestDescriptor;
 
 public abstract class TestEventsHandlerHolder {
 
-  public static volatile ContextStore<TestDescriptor, DDTestSuite> SUITE_STORE;
-  public static volatile ContextStore<TestDescriptor, DDTest> TEST_STORE;
   public static volatile TestEventsHandler<TestDescriptor, TestDescriptor> TEST_EVENTS_HANDLER;
+  private static ContextStore<TestDescriptor, DDTestSuite> SUITE_STORE;
+  private static ContextStore<TestDescriptor, DDTest> TEST_STORE;
 
   static {
     Runtime.getRuntime()
@@ -23,12 +23,31 @@ public abstract class TestEventsHandlerHolder {
                 false));
   }
 
-  public static void start() {
+  public static synchronized void setContextStores(
+      ContextStore<TestDescriptor, DDTestSuite> suiteStore,
+      ContextStore<TestDescriptor, DDTest> testStore) {
+    if (SUITE_STORE == null) {
+      SUITE_STORE = suiteStore;
+    }
+    if (TEST_STORE == null) {
+      TEST_STORE = testStore;
+    }
+  }
+
+  public static synchronized void start() {
+    if (TEST_EVENTS_HANDLER == null) {
+      TEST_EVENTS_HANDLER =
+          InstrumentationBridge.createTestEventsHandler("junit", SUITE_STORE, TEST_STORE);
+    }
+  }
+
+  // used by instrumentation tests
+  public static synchronized void startForcefully() {
     TEST_EVENTS_HANDLER =
         InstrumentationBridge.createTestEventsHandler("junit", SUITE_STORE, TEST_STORE);
   }
 
-  public static void stop() {
+  public static synchronized void stop() {
     if (TEST_EVENTS_HANDLER != null) {
       TEST_EVENTS_HANDLER.close();
       TEST_EVENTS_HANDLER = null;

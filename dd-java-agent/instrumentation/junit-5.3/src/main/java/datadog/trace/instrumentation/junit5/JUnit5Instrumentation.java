@@ -96,10 +96,8 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
 
       ContextStore<TestDescriptor, Object> contextStore =
           InstrumentationContext.get(TestDescriptor.class, Object.class);
-      // FIXME nikita: same has to be done for Spock and Cucumber (tests are failing)
-      TestEventsHandlerHolder.TEST_STORE = (ContextStore) contextStore;
-      TestEventsHandlerHolder.SUITE_STORE = (ContextStore) contextStore;
-      // FIXME nikita: could be a race condition here
+      TestEventsHandlerHolder.setContextStores(
+          (ContextStore) contextStore, (ContextStore) contextStore);
       TestEventsHandlerHolder.start();
 
       TracingListener tracingListener = new TracingListener(testEngine);

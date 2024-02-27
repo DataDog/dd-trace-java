@@ -138,7 +138,7 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
   }
 
   private static void runTests(List<Class<?>> tests) {
-    TestEventsHandlerHolder.start()
+    TestEventsHandlerHolder.startForcefully()
 
     DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
     for (i in 0..<tests.size()) {
