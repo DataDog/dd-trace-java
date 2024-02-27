@@ -101,6 +101,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERV
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
@@ -248,6 +249,7 @@ import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_BUFFER
 import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_TIMEOUT;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_LOG_COLLECTION_ENABLED;
@@ -893,6 +895,7 @@ public class Config {
   private final boolean isTelemetryDependencyServiceEnabled;
   private final boolean telemetryMetricsEnabled;
   private final boolean isTelemetryLogCollectionEnabled;
+  private final int telemetryDependencyResolutionQueueSize;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -1559,7 +1562,10 @@ public class Config {
     isTelemetryLogCollectionEnabled =
         configProvider.getBoolean(
             TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
-
+    telemetryDependencyResolutionQueueSize =
+        configProvider.getInteger(
+            TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE,
+            DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE);
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
     appSecReportingInband =
@@ -2679,6 +2685,10 @@ public class Config {
 
   public boolean isTelemetryLogCollectionEnabled() {
     return isTelemetryLogCollectionEnabled;
+  }
+
+  public int getTelemetryDependencyResolutionQueueSize() {
+    return telemetryDependencyResolutionQueueSize;
   }
 
   public boolean isClientIpEnabled() {

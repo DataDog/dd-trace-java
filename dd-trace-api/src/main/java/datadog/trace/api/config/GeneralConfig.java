@@ -79,7 +79,8 @@ public final class GeneralConfig {
   public static final String TELEMETRY_DEPENDENCY_COLLECTION_ENABLED =
       "telemetry.dependency-collection.enabled";
   public static final String TELEMETRY_LOG_COLLECTION_ENABLED = "telemetry.log-collection.enabled";
-
+  public static final String TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE =
+      "telemetry.dependency-resolution.queue.size";
   public static final String TELEMETRY_DEBUG_REQUESTS_ENABLED = "telemetry.debug.requests.enabled";
 
   private GeneralConfig() {}
