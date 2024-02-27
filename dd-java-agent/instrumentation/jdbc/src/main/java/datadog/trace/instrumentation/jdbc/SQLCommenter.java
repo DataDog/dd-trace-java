@@ -45,8 +45,7 @@ public class SQLCommenter {
       return sql;
     }
 
-    System.out.println("SERVICE " + dbService);
-    if (sql.matches("\\s*\\{.*") && dbService.startsWith("postgresql")) {
+    if (sql.matches("^\\s*\\{.*$")) {
       //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a callable statement
       //      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
       return sql;
