@@ -100,7 +100,7 @@ public class JUnit5CucumberItrInstrumentation extends InstrumenterModule.CiVisib
         }
       }
 
-      TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor, true);
+      TestIdentifier test = CucumberUtils.toTestIdentifier(testDescriptor);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }

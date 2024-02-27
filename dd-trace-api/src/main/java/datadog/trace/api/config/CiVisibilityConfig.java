@@ -38,6 +38,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_GIT_REMOTE_NAME = "civisibility.git.remote.name";
   public static final String CIVISIBILITY_SIGNAL_SERVER_HOST = "civisibility.signal.server.host";
   public static final String CIVISIBILITY_SIGNAL_SERVER_PORT = "civisibility.signal.server.port";
+  public static final String CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS =
+      "civisibility.signal.client.timeout.millis";
   public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
   public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
       "civisibility.ciprovider.integration.enabled";
@@ -51,6 +53,10 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_RESOURCE_FOLDER_NAMES =
       "civisibility.resource.folder.names";
   public static final String CIVISIBILITY_FLAKY_RETRY_ENABLED = "civisibility.flaky.retry.enabled";
+  public static final String CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED =
+      "civisibility.early.flake.detection.enabled";
+  public static final String CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT =
+      "civisibility.early.flake.detection.lower.limit";
   public static final String CIVISIBILITY_FLAKY_RETRY_COUNT = "civisibility.flaky.retry.count";
   public static final String CIVISIBILITY_MODULE_NAME = "civisibility.module.name";
   public static final String CIVISIBILITY_TELEMETRY_ENABLED = "civisibility.telemetry.enabled";

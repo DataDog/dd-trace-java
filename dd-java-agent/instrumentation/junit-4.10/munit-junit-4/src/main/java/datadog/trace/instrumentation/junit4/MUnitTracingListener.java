@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.junit4;
 
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -17,6 +20,11 @@ public class MUnitTracingListener extends TracingListener {
 
   public static final String FRAMEWORK_NAME = "munit";
   public static final String FRAMEWORK_VERSION = getVersion();
+  private final ContextStore<Description, TestRetryPolicy> retryPolicies;
+
+  public MUnitTracingListener(ContextStore<Description, TestRetryPolicy> retryPolicies) {
+    this.retryPolicies = retryPolicies;
+  }
 
   public static String getVersion() {
     Package munitPackage = Suite.class.getPackage();
@@ -35,7 +43,13 @@ public class MUnitTracingListener extends TracingListener {
     String testSuiteName = description.getClassName();
     List<String> categories = getCategories(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, testClass, categories, false);
+        testSuiteName,
+        FRAMEWORK_NAME,
+        FRAMEWORK_VERSION,
+        testClass,
+        categories,
+        false,
+        TestFrameworkInstrumentation.MUNIT);
   }
 
   public void testSuiteFinished(final Description description) {
@@ -57,6 +71,7 @@ public class MUnitTracingListener extends TracingListener {
     Class<?> testClass = description.getTestClass();
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
+    TestRetryPolicy retryPolicy = retryPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         testSuiteName,
         testName,
@@ -67,7 +82,8 @@ public class MUnitTracingListener extends TracingListener {
         categories,
         testClass,
         null,
-        null);
+        null,
+        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
   }
 
   @Override
@@ -145,7 +161,8 @@ public class MUnitTracingListener extends TracingListener {
             categories,
             testClass,
             null,
-            null);
+            null,
+            false);
       }
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
           testSuiteName, testClass, testName, null, null, null);

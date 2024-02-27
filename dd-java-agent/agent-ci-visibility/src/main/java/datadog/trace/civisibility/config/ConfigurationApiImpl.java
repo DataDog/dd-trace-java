@@ -16,10 +16,15 @@ import datadog.trace.civisibility.communication.BackendApi;
 import datadog.trace.civisibility.communication.TelemetryListener;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import okio.Okio;
@@ -31,6 +36,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private static final String SETTINGS_URI = "libraries/tests/services/setting";
   private static final String SKIPPABLE_TESTS_URI = "ci/tests/skippable";
   private static final String FLAKY_TESTS_URI = "ci/libraries/tests/flaky";
+  private static final String KNOWN_TESTS_URI = "ci/libraries/tests";
 
   private final BackendApi backendApi;
   private final CiVisibilityMetricCollector metricCollector;
@@ -39,6 +45,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<TracerEnvironment>> requestAdapter;
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
   private final JsonAdapter<MultiEnvelopeDto<TestIdentifier>> testIdentifiersResponseAdapter;
+  private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
     this(backendApi, metricCollector, () -> UUID.randomUUID().toString());
@@ -53,7 +60,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     this.uuidGenerator = uuidGenerator;
 
     Moshi moshi =
-        new Moshi.Builder().add(new ConfigurationsJson.ConfigurationsJsonAdapter()).build();
+        new Moshi.Builder()
+            .add(ConfigurationsJson.JsonAdapter.INSTANCE)
+            .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
+            .add(EarlyFlakeDetectionSettingsJsonAdapter.INSTANCE)
+            .build();
 
     ParameterizedType requestType =
         Types.newParameterizedTypeWithOwner(
@@ -69,6 +80,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, MultiEnvelopeDto.class, TestIdentifier.class);
     testIdentifiersResponseAdapter = moshi.adapter(testIdentifiersResponseType);
+
+    ParameterizedType testFullNamesResponseType =
+        Types.newParameterizedTypeWithOwner(
+            ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsDto.class);
+    testFullNamesResponseAdapter = moshi.adapter(testFullNamesResponseType);
   }
 
   @Override
@@ -106,8 +122,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   @Override
-  public Collection<TestIdentifier> getSkippableTests(TracerEnvironment tracerEnvironment)
-      throws IOException {
+  public SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) throws IOException {
     OkHttpUtils.CustomListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_REQUEST)
@@ -116,40 +131,84 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .responseBytes(CiVisibilityDistributionMetric.ITR_SKIPPABLE_TESTS_RESPONSE_BYTES)
             .build();
 
-    Collection<TestIdentifier> skippableTests =
-        getTestsData(SKIPPABLE_TESTS_URI, "test_params", tracerEnvironment, telemetryListener);
+    String uuid = uuidGenerator.get();
+    EnvelopeDto<TracerEnvironment> request =
+        new EnvelopeDto<>(new DataDto<>(uuid, "test_params", tracerEnvironment));
+    String json = requestAdapter.toJson(request);
+    RequestBody requestBody = RequestBody.create(JSON, json);
+    MultiEnvelopeDto<TestIdentifier> response =
+        backendApi.post(
+            SKIPPABLE_TESTS_URI,
+            requestBody,
+            is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))),
+            telemetryListener);
 
+    List<TestIdentifier> testIdentifiers =
+        response.data.stream().map(DataDto::getAttributes).collect(Collectors.toList());
     metricCollector.add(
-        CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_RESPONSE_TESTS, skippableTests.size());
+        CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_RESPONSE_TESTS, testIdentifiers.size());
 
-    return skippableTests;
+    String correlationId = response.meta != null ? response.meta.correlation_id : null;
+    return new SkippableTests(correlationId, testIdentifiers);
   }
 
   @Override
   public Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment)
       throws IOException {
-    return getTestsData(
-        FLAKY_TESTS_URI, "flaky_test_from_libraries_params", tracerEnvironment, null);
-  }
-
-  private Collection<TestIdentifier> getTestsData(
-      String endpoint,
-      String dataType,
-      TracerEnvironment tracerEnvironment,
-      OkHttpUtils.CustomListener requestListener)
-      throws IOException {
     String uuid = uuidGenerator.get();
     EnvelopeDto<TracerEnvironment> request =
-        new EnvelopeDto<>(new DataDto<>(uuid, dataType, tracerEnvironment));
+        new EnvelopeDto<>(
+            new DataDto<>(uuid, "flaky_test_from_libraries_params", tracerEnvironment));
     String json = requestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
     Collection<DataDto<TestIdentifier>> response =
         backendApi.post(
-            endpoint,
+            FLAKY_TESTS_URI,
             requestBody,
             is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data,
-            requestListener);
+            null);
     return response.stream().map(DataDto::getAttributes).collect(Collectors.toList());
+  }
+
+  @Override
+  public Map<String, Collection<TestIdentifier>> getKnownTestsByModuleName(
+      TracerEnvironment tracerEnvironment) throws IOException {
+    String uuid = uuidGenerator.get();
+    EnvelopeDto<TracerEnvironment> request =
+        new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", tracerEnvironment));
+    String json = requestAdapter.toJson(request);
+    RequestBody requestBody = RequestBody.create(JSON, json);
+    KnownTestsDto knownTests =
+        backendApi.post(
+            KNOWN_TESTS_URI,
+            requestBody,
+            is ->
+                testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
+            null);
+    return parseTestIdentifiers(knownTests);
+  }
+
+  private static Map<String, Collection<TestIdentifier>> parseTestIdentifiers(
+      KnownTestsDto knownTests) {
+    Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
+        new HashMap<>(knownTests.tests.size() * 4 / 3);
+    for (Map.Entry<String, Map<String, List<String>>> e : knownTests.tests.entrySet()) {
+      String moduleName = e.getKey();
+      Map<String, List<String>> testsBySuiteName = e.getValue();
+
+      ArrayList<TestIdentifier> testIdentifiers = new ArrayList<>();
+      for (Map.Entry<String, List<String>> se : testsBySuiteName.entrySet()) {
+        String suiteName = se.getKey();
+        List<String> testNames = se.getValue();
+        testIdentifiers.ensureCapacity(testIdentifiers.size() + testNames.size());
+        for (String testName : testNames) {
+          testIdentifiers.add(new TestIdentifier(suiteName, testName, null, null));
+        }
+      }
+
+      knownTestsByModuleName.put(moduleName, testIdentifiers);
+    }
+    return knownTestsByModuleName;
   }
 
   private static final class EnvelopeDto<T> {
@@ -162,9 +221,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final class MultiEnvelopeDto<T> {
     private final Collection<DataDto<T>> data;
+    private final @Nullable MetaDto meta;
 
-    private MultiEnvelopeDto(Collection<DataDto<T>> data) {
+    private MultiEnvelopeDto(Collection<DataDto<T>> data, MetaDto meta) {
       this.data = data;
+      this.meta = meta;
     }
   }
 
@@ -181,6 +242,22 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     public T getAttributes() {
       return attributes;
+    }
+  }
+
+  private static final class MetaDto {
+    private final String correlation_id;
+
+    private MetaDto(String correlation_id) {
+      this.correlation_id = correlation_id;
+    }
+  }
+
+  private static final class KnownTestsDto {
+    private final Map<String, Map<String, List<String>>> tests;
+
+    private KnownTestsDto(Map<String, Map<String, List<String>>> tests) {
+      this.tests = tests;
     }
   }
 }

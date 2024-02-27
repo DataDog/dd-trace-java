@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit5;
 
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -65,7 +66,13 @@ public class TracingListener implements EngineExecutionListener {
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
+        testSuiteName,
+        testFramework,
+        testFrameworkVersion,
+        testClass,
+        tags,
+        false,
+        TestFrameworkInstrumentation.JUNIT5);
   }
 
   private void containerExecutionFinished(
@@ -107,7 +114,7 @@ public class TracingListener implements EngineExecutionListener {
   }
 
   private void testMethodExecutionStarted(TestDescriptor testDescriptor, MethodSource testSource) {
-    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
+    TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
 
     Class<?> testClass;
     String testSuiteName;
@@ -140,7 +147,8 @@ public class TracingListener implements EngineExecutionListener {
         tags,
         testClass,
         testMethodName,
-        testMethod);
+        testMethod,
+        JUnitPlatformUtils.isRetry(testDescriptor));
   }
 
   private void testCaseExecutionFinished(
@@ -155,7 +163,7 @@ public class TracingListener implements EngineExecutionListener {
       TestDescriptor testDescriptor,
       TestExecutionResult testExecutionResult,
       MethodSource testSource) {
-    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
+    TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
 
     Class<?> testClass;
     String testSuiteName;
@@ -214,7 +222,13 @@ public class TracingListener implements EngineExecutionListener {
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
 
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, testFramework, testFrameworkVersion, testClass, tags, false);
+        testSuiteName,
+        testFramework,
+        testFrameworkVersion,
+        testClass,
+        tags,
+        false,
+        TestFrameworkInstrumentation.JUNIT5);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, testClass, reason);
 
     for (TestDescriptor child : testDescriptor.getChildren()) {
@@ -226,7 +240,7 @@ public class TracingListener implements EngineExecutionListener {
 
   private void testMethodExecutionSkipped(
       final TestDescriptor testDescriptor, final MethodSource testSource, final String reason) {
-    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
+    TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
 
     Class<?> testClass;
     String testSuiteName;
@@ -261,12 +275,5 @@ public class TracingListener implements EngineExecutionListener {
         testMethodName,
         testMethod,
         reason);
-  }
-
-  private static TestDescriptor getSuiteDescriptor(TestDescriptor testDescriptor) {
-    while (testDescriptor != null && !JUnitPlatformUtils.isSuite(testDescriptor)) {
-      testDescriptor = testDescriptor.getParent().orElse(null);
-    }
-    return testDescriptor;
   }
 }

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.source.index;
 
+import datadog.trace.civisibility.ipc.Serializer;
 import datadog.trace.civisibility.source.Utils;
 import datadog.trace.util.ClassNameTrie;
 import java.io.ByteArrayInputStream;
@@ -12,8 +13,6 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -189,86 +188,34 @@ public class RepoIndex {
       // should not happen ever, since we're writing to byte array stream
       throw new RuntimeException("Could not serialize classname trie", e);
     }
-
-    int totalLength;
-
     byte[] serializedTrie = byteArrayOutputStream.toByteArray();
-    totalLength = Integer.BYTES + serializedTrie.length;
 
-    int sourceRootIdx = 0;
-    byte[][] sourceRootBytes = new byte[sourceRoots.size()][];
-    for (String sourceRoot : sourceRoots) {
-      sourceRootBytes[sourceRootIdx++] = sourceRoot.getBytes(StandardCharsets.UTF_8);
-    }
-
-    totalLength += Integer.BYTES;
-    for (byte[] sourceRoot : sourceRootBytes) {
-      totalLength += Integer.BYTES + sourceRoot.length;
-    }
-
-    int rootPackageIds = 0;
-    byte[][] rootPackageBytes = new byte[rootPackages.size()][];
-    for (String rootPackage : rootPackages) {
-      rootPackageBytes[rootPackageIds++] = rootPackage.getBytes(StandardCharsets.UTF_8);
-    }
-
-    totalLength += Integer.BYTES;
-    for (byte[] rootPackage : rootPackageBytes) {
-      totalLength += Integer.BYTES + rootPackage.length;
-    }
-
-    ByteBuffer buffer = ByteBuffer.allocate(totalLength);
-    buffer.putInt(serializedTrie.length);
-    buffer.put(serializedTrie);
-
-    buffer.putInt(sourceRootBytes.length);
-    for (byte[] sourceRoot : sourceRootBytes) {
-      buffer.putInt(sourceRoot.length);
-      buffer.put(sourceRoot);
-    }
-
-    buffer.putInt(rootPackageBytes.length);
-    for (byte[] rootPackage : rootPackageBytes) {
-      buffer.putInt(rootPackage.length);
-      buffer.put(rootPackage);
-    }
-
-    buffer.flip();
-    return buffer;
+    Serializer s = new Serializer();
+    s.write(serializedTrie);
+    s.write(sourceRoots);
+    s.write(rootPackages);
+    return s.flush();
   }
 
   public static RepoIndex deserialize(ByteBuffer buffer) {
-    int trieLength = buffer.getInt();
-    byte[] trieBytes = new byte[trieLength];
-    buffer.get(trieBytes);
-
     ClassNameTrie trie;
-    ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(trieBytes);
-    try (DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream)) {
-      trie = ClassNameTrie.readFrom(dataInputStream);
-    } catch (IOException e) {
-      // should not happen ever, since we're writing to byte array stream
-      throw new RuntimeException("Could not deserialize classname trie", e);
+
+    byte[] trieBytes = Serializer.readByteArray(buffer);
+    if (trieBytes == null) {
+      trie = null;
+
+    } else {
+      ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(trieBytes);
+      try (DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream)) {
+        trie = ClassNameTrie.readFrom(dataInputStream);
+      } catch (IOException e) {
+        // should not happen ever, since we're writing to byte array stream
+        throw new RuntimeException("Could not deserialize classname trie", e);
+      }
     }
 
-    int sourceRootsCount = buffer.getInt();
-    List<String> sourceRoots = new ArrayList<>(sourceRootsCount);
-    while (sourceRootsCount-- > 0) {
-      int sourceRootLength = buffer.getInt();
-      byte[] sourceRootBytes = new byte[sourceRootLength];
-      buffer.get(sourceRootBytes);
-      sourceRoots.add(new String(sourceRootBytes, StandardCharsets.UTF_8));
-    }
-
-    int rootPackagesCount = buffer.getInt();
-    List<String> rootPackages = new ArrayList<>(rootPackagesCount);
-    while (rootPackagesCount-- > 0) {
-      int rootPackageLength = buffer.getInt();
-      byte[] rootPackageBytes = new byte[rootPackageLength];
-      buffer.get(rootPackageBytes);
-      rootPackages.add(new String(rootPackageBytes, StandardCharsets.UTF_8));
-    }
-
+    List<String> sourceRoots = Serializer.readStringList(buffer);
+    List<String> rootPackages = Serializer.readStringList(buffer);
     return new RepoIndex(trie, sourceRoots, rootPackages);
   }
 }

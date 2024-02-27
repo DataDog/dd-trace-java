@@ -12,7 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  */
 public class DatadogProfilingIntegration implements ProfilingContextIntegration {
 
-  private static final DatadogProfiler DDPROF = DatadogProfiler.getInstance();
+  private static final DatadogProfiler DDPROF = DatadogProfiler.newInstance();
   private static final int SPAN_NAME_INDEX = DDPROF.operationNameOffset();
   private static final int RESOURCE_NAME_INDEX = DDPROF.resourceNameOffset();
   private static final boolean WALLCLOCK_ENABLED =

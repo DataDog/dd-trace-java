@@ -216,11 +216,11 @@ public class TelemetryRequestBody extends RequestBody {
 
   public void writeConfiguration(ConfigSetting configSetting) throws IOException {
     bodyWriter.beginObject();
-    bodyWriter.name("name").value(configSetting.key);
+    bodyWriter.name("name").value(configSetting.normalizedKey());
     bodyWriter.setSerializeNulls(true);
-    bodyWriter.name("value").jsonValue(configSetting.value);
+    bodyWriter.name("value").value(configSetting.stringValue());
     bodyWriter.setSerializeNulls(false);
-    bodyWriter.name("origin").jsonValue(configSetting.origin.value);
+    bodyWriter.name("origin").value(configSetting.origin.value);
     bodyWriter.endObject();
   }
 

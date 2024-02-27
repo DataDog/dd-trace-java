@@ -128,11 +128,6 @@ public final class Dependency {
 
   public static synchronized Dependency guessFallbackNoPom(
       Manifest manifest, String source, InputStream is) throws IOException {
-    final int slashIndex = source.lastIndexOf('/');
-    if (slashIndex >= 0) {
-      source = source.substring(slashIndex + 1);
-    }
-
     String artifactId;
     String groupId = null;
     String version;
@@ -220,7 +215,7 @@ public final class Dependency {
     }
 
     if (md != null) {
-      // Compute hash for all dependencies that have no pom
+      // Compute hash for all dependencies that has no pom
       // No reliable version calculate hash and use any version
       md.reset();
       is = new DigestInputStream(is, md);

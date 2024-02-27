@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.Pair;
 import datadog.trace.api.civisibility.coverage.CoverageBridge;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.platform.engine.EngineExecutionListener;
@@ -63,7 +64,13 @@ public class CucumberTracingListener implements EngineExecutionListener {
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, testFramework, testFrameworkVersion, null, tags, false);
+        testSuiteName,
+        testFramework,
+        testFrameworkVersion,
+        null,
+        tags,
+        false,
+        TestFrameworkInstrumentation.CUCUMBER);
   }
 
   private void containerExecutionFinished(
@@ -122,7 +129,8 @@ public class CucumberTracingListener implements EngineExecutionListener {
         tags,
         null,
         null,
-        null);
+        null,
+        JUnitPlatformUtils.isRetry(testDescriptor));
 
     CoverageBridge.currentCoverageProbeStoreRecordNonCode(classpathResourceName);
   }

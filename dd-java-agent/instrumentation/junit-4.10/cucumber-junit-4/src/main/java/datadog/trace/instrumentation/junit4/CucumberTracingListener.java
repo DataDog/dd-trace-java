@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.coverage.CoverageBridge;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.bootstrap.ContextStore;
 import io.cucumber.core.gherkin.Pickle;
 import java.net.URI;
 import java.util.ArrayList;
@@ -23,9 +26,13 @@ public class CucumberTracingListener extends TracingListener {
   public static final String FRAMEWORK_NAME = "cucumber";
   public static final String FRAMEWORK_VERSION = CucumberUtils.getVersion();
 
+  private final ContextStore<Description, TestRetryPolicy> retryPolicies;
   private final Map<Object, Pickle> pickleById;
 
-  public CucumberTracingListener(List<ParentRunner<?>> featureRunners) {
+  public CucumberTracingListener(
+      ContextStore<Description, TestRetryPolicy> retryPolicies,
+      List<ParentRunner<?>> featureRunners) {
+    this.retryPolicies = retryPolicies;
     pickleById = CucumberUtils.getPicklesById(featureRunners);
   }
 
@@ -34,7 +41,13 @@ public class CucumberTracingListener extends TracingListener {
     if (isFeature(description)) {
       String testSuiteName = CucumberUtils.getTestSuiteNameForFeature(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-          testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, null, Collections.emptyList(), false);
+          testSuiteName,
+          FRAMEWORK_NAME,
+          FRAMEWORK_VERSION,
+          null,
+          Collections.emptyList(),
+          false,
+          TestFrameworkInstrumentation.CUCUMBER);
     }
   }
 
@@ -52,6 +65,7 @@ public class CucumberTracingListener extends TracingListener {
     String testName = description.getMethodName();
     List<String> categories = getCategories(description);
 
+    TestRetryPolicy retryPolicy = retryPolicies.get(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         testSuiteName,
         testName,
@@ -62,7 +76,8 @@ public class CucumberTracingListener extends TracingListener {
         categories,
         null,
         null,
-        null);
+        null,
+        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
 
     recordFeatureFileCodeCoverage(description);
   }
@@ -133,7 +148,13 @@ public class CucumberTracingListener extends TracingListener {
     if (isFeature(description)) {
       String testSuiteName = CucumberUtils.getTestSuiteNameForFeature(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-          testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, null, Collections.emptyList(), false);
+          testSuiteName,
+          FRAMEWORK_NAME,
+          FRAMEWORK_VERSION,
+          null,
+          Collections.emptyList(),
+          false,
+          TestFrameworkInstrumentation.CUCUMBER);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(testSuiteName, null, reason);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, null);
     } else {

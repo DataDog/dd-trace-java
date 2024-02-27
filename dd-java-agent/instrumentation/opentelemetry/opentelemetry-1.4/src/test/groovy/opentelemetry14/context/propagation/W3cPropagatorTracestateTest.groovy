@@ -33,7 +33,7 @@ class W3cPropagatorTracestateTest extends AgentTestRunner {
     }
 
     when:
-    def context = propagator.extract(Context.root(), headers, new AbstractPropagatorTest.TextMap())
+    def context = propagator.extract(Context.root(), headers, TextMap.INSTANCE)
 
     then:
     context != Context.root()
@@ -44,7 +44,7 @@ class W3cPropagatorTracestateTest extends AgentTestRunner {
       .startSpan()
     def scope = localSpan.makeCurrent()
     Map<String, String> injectedHeaders = [:]
-    propagator.inject(Context.current(), injectedHeaders, new AbstractPropagatorTest.TextMap())
+    propagator.inject(Context.current(), injectedHeaders, TextMap.INSTANCE)
     scope.close()
     localSpan.end()
 

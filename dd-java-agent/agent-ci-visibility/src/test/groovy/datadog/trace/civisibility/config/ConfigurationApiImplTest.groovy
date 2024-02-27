@@ -17,6 +17,7 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 
+import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPOutputStream
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -64,7 +65,28 @@ class ConfigurationApiImplTest extends Specification {
 
         def response = response
         if (expectedRequest) {
-          def requestBody = '{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { "code_coverage": true, "tests_skipping": true, "require_git": true, "flaky_test_retries_enabled": true } } }'.bytes
+          def requestBody = ('{' +
+            '  "data": {' +
+            '    "type": "ci_app_tracers_test_service_settings",' +
+            '    "id": "uuid",' +
+            '    "attributes": {' +
+            '      "code_coverage": true,' +
+            '      "tests_skipping": true,' +
+            '      "require_git": true,' +
+            '      "flaky_test_retries_enabled": true,' +
+            '      "early_flake_detection": {' +
+            '        "enabled": true,' +
+            '        "slow_test_retries": {' +
+            '          "5s": 10,' +
+            '          "10s": 5,' +
+            '          "30s": 3,' +
+            '          "5m": 2' +
+            '        },' +
+            '        "faulty_session_threshold": 30' +
+            '      }' +
+            '    }' +
+            '  }' +
+            '}').bytes
 
           def header = request.getHeader("Accept-Encoding")
           def gzipSupported = header != null && header.contains("gzip")
@@ -111,12 +133,119 @@ class ConfigurationApiImplTest extends Specification {
 
         def response = response
         if (expectedRequest) {
-          def requestBody = ('{ "data": [' +
-            '{ "id": "49968354e2091cdb", "type": "test", "attributes": ' +
-            '{ "configurations": { "test.bundle": "testBundle-a", "custom": { "customTag": "customValue" } }, "suite": "suite-a", "name": "name-a", "parameters": "parameters-a" } },' +
-            '{ "id": "49968354e2091cdc", "type": "test", "attributes": ' +
-            '   { "configurations": { "test.bundle": "testBundle-b", "custom": { "customTag": "customValue" } }, "suite": "suite-b", "name": "name-b", "parameters": "parameters-b" } }' +
-            '] }').bytes
+          def requestBody = """
+{
+  "data": [
+    {
+      "id": "49968354e2091cdb",
+      "type": "test",
+      "attributes": {
+        "configurations": {
+          "test.bundle": "testBundle-a",
+          "custom": {
+            "customTag": "customValue"
+          }
+        },
+        "suite": "suite-a",
+        "name": "name-a",
+        "parameters": "parameters-a"
+      }
+    },
+    {
+      "id": "49968354e2091cdc",
+      "type": "test",
+      "attributes": {
+        "configurations": {
+          "test.bundle": "testBundle-b",
+          "custom": {
+            "customTag": "customValue"
+          }
+        },
+        "suite": "suite-b",
+        "name": "name-b",
+        "parameters": "parameters-b"
+      }
+    }
+  ],
+  "meta": {
+    "correlation_id": "11223344"
+  }
+}
+""".bytes
+
+          def header = request.getHeader("Accept-Encoding")
+          def gzipSupported = header != null && header.contains("gzip")
+          if (gzipSupported) {
+            response.addHeader("Content-Encoding", "gzip")
+            requestBody = gzip(requestBody)
+          }
+
+          response.status(200).send(requestBody)
+        } else {
+          response.status(400).send()
+        }
+      }
+
+      prefix("/api/v2/ci/libraries/tests") {
+        def requestJson = moshi.adapter(Map).fromJson(new String(request.body))
+        boolean expectedRequest = requestJson == [
+          "data": [
+            "type"      : "ci_app_libraries_tests_request",
+            "id"        : "1234",
+            "attributes": [
+              "service"       : "foo",
+              "env"           : "foo_env",
+              "repository_url": "https://github.com/DataDog/foo",
+              "branch"        : "prod",
+              "sha"           : "d64185e45d1722ab3a53c45be47accae",
+              "test_level"    : "test",
+              "configurations": [
+                "os.platform"         : "linux",
+                "os.architecture"     : "amd64",
+                "os.arch"             : "amd64",
+                "os.version"          : "bionic",
+                "runtime.name"        : "runtimeName",
+                "runtime.version"     : "runtimeVersion",
+                "runtime.vendor"      : "vendor",
+                "runtime.architecture": "amd64",
+                "custom"              : [
+                  "customTag": "customValue"
+                ]
+              ]
+            ]
+          ]
+        ]
+
+        def response = response
+        if (expectedRequest) {
+          def requestBody = ("""
+{
+    "data": {
+        "id": "9p1jTQLXB8g",
+        "type": "ci_app_libraries_tests",
+        "attributes": {
+            "tests": {
+                "test-bundle-a": {
+                    "test-suite-a": [
+                        "test-name-1",
+                        "test-name-2"
+                    ],
+                    "test-suite-b": [
+                        "another-test-name-1",
+                        "test-name-2"
+                    ]
+                },
+                "test-bundle-N": {
+                    "test-suite-M": [
+                        "test-name-1",
+                        "test-name-2"
+                    ]
+                }
+            }
+        }
+    }
+}
+          """).bytes
 
           def header = request.getHeader("Accept-Encoding")
           def gzipSupported = header != null && header.contains("gzip")
@@ -155,6 +284,13 @@ class ConfigurationApiImplTest extends Specification {
     settings.testsSkippingEnabled
     settings.gitUploadRequired
     settings.flakyTestRetriesEnabled
+    settings.earlyFlakeDetectionSettings.enabled
+    settings.earlyFlakeDetectionSettings.faultySessionThreshold == 30
+    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.SECONDS.toMillis(3)) == 10
+    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.SECONDS.toMillis(9)) == 5
+    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.SECONDS.toMillis(29)) == 3
+    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.MINUTES.toMillis(4)) == 2
+    settings.earlyFlakeDetectionSettings.getExecutions(TimeUnit.MINUTES.toMillis(6)) == 0
 
     where:
     api                   | displayName
@@ -174,13 +310,46 @@ class ConfigurationApiImplTest extends Specification {
     def skippableTests = configurationApi.getSkippableTests(tracerEnvironment)
 
     then:
-    skippableTests == [
+    skippableTests.identifiers == [
       new TestIdentifier("suite-a", "name-a", "parameters-a",
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-a", Collections.singletonMap("customTag", "customValue"))),
       new TestIdentifier("suite-b", "name-b", "parameters-b",
       new Configurations(null, null, null, null, null,
       null, null, "testBundle-b", Collections.singletonMap("customTag", "customValue")))
+    ]
+
+    skippableTests.correlationId == "11223344"
+
+    where:
+    api                   | displayName
+    givenEvpProxy(false)  | "EVP proxy, compression disabled"
+    givenEvpProxy(true)   | "EVP proxy, compression enabled"
+    givenIntakeApi(false) | "intake, compression disabled"
+    givenIntakeApi(true)  | "intake, compression enabled"
+  }
+
+  def "test known tests request: #displayName"() {
+    given:
+    def tracerEnvironment = givenTracerEnvironment()
+
+    when:
+    def configurationApi = new ConfigurationApiImpl(api, Stub(CiVisibilityMetricCollector), () -> "1234")
+    def knownTests = configurationApi.getKnownTestsByModuleName(tracerEnvironment)
+
+
+    then:
+    knownTests == [
+      "test-bundle-a": [
+        new TestIdentifier("test-suite-a", "test-name-1", null, null),
+        new TestIdentifier("test-suite-a", "test-name-2", null, null),
+        new TestIdentifier("test-suite-b", "another-test-name-1", null, null),
+        new TestIdentifier("test-suite-b", "test-name-2", null, null)
+      ],
+      "test-bundle-N": [
+        new TestIdentifier("test-suite-M", "test-name-1", null, null),
+        new TestIdentifier("test-suite-M", "test-name-2", null, null)
+      ]
     ]
 
     where:
