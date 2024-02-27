@@ -180,23 +180,17 @@ public final class Dependency {
       artifactId = bundleName;
     }
 
-    // Find version string only if any 2 variables are equal
+    // Bundle-Version and Implementation-Version have precedence only if they are equal.
     if (equalsNonNull(bundleVersion, implementationVersion)) {
       version = bundleVersion;
-    } else if (equalsNonNull(implementationVersion, fileNameVersion)) {
-      version = implementationVersion;
-    } else if (equalsNonNull(bundleVersion, fileNameVersion)) {
+    } else if (hasText(fileNameVersion)) {
       version = fileNameVersion;
+    } else if (hasText(bundleVersion)) {
+      version = bundleVersion;
+    } else if (hasText(implementationVersion)) {
+      version = implementationVersion;
     } else {
-      if (implementationVersion != null) {
-        version = implementationVersion;
-      } else if (fileNameVersion != null) {
-        version = fileNameVersion;
-      } else if (bundleVersion != null) {
-        version = bundleVersion;
-      } else {
-        version = "";
-      }
+      version = "";
     }
 
     String name;
