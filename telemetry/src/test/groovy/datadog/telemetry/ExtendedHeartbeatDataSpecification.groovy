@@ -9,7 +9,7 @@ import spock.lang.Specification
 class ExtendedHeartbeatDataSpecification extends Specification {
 
   def dependency = new Dependency("name", "version", "source", "hash")
-  def configSetting = new ConfigSetting("key", "value", ConfigOrigin.DEFAULT)
+  def configSetting = ConfigSetting.of("key", "value", ConfigOrigin.DEFAULT)
   def integration = new Integration("integration", true)
 
   def 'discard dependencies after exceeding limit'() {

@@ -24,6 +24,7 @@ public final class GeneralConfig {
   public static final String ENV = "env";
   public static final String VERSION = "version";
   public static final String PRIMARY_TAG = "primary.tag";
+  public static final String TRACE_TAGS = "trace.tags";
   public static final String TAGS = "tags";
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
