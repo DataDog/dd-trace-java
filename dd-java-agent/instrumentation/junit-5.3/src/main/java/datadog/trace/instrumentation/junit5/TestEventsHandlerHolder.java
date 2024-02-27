@@ -43,8 +43,10 @@ public abstract class TestEventsHandlerHolder {
 
   // used by instrumentation tests
   public static synchronized void startForcefully() {
-    TEST_EVENTS_HANDLER =
-        InstrumentationBridge.createTestEventsHandler("junit", SUITE_STORE, TEST_STORE);
+    if (SUITE_STORE != null && TEST_STORE != null) {
+      TEST_EVENTS_HANDLER =
+          InstrumentationBridge.createTestEventsHandler("junit", SUITE_STORE, TEST_STORE);
+    }
   }
 
   public static synchronized void stop() {
