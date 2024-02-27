@@ -260,19 +260,19 @@ class RangesTest extends DDSpecification {
     allRangesFrom == expected
 
     where:
-    header  | ranges                                                                                                     | expected
-    REFERER | []                                                                                                         | true
-    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name)]                                                       | true
-    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                                                     | false
-    REFERER | [rangeWithSource(GRPC_BODY)]                                                                               | false
-    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name), rangeWithSource(GRPC_BODY)]                           | false
+    header  | ranges                                                                           | expected
+    REFERER | []                                                                               | true
+    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name)]                             | true
+    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                           | false
+    REFERER | [rangeWithSource(GRPC_BODY)]                                                     | false
+    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name), rangeWithSource(GRPC_BODY)] | false
     REFERER | [
       rangeWithSource(REQUEST_HEADER_VALUE, header.name),
       rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)
-    ] | false
+    ]                                                                                          | false
   }
 
-  void 'test all ranges coming from any header'(){
+  void 'test all ranges coming from any header'() {
     when:
     final allRangesFrom = Ranges.allRangesFromAnyHeader(ranges as Range[])
 
@@ -280,16 +280,56 @@ class RangesTest extends DDSpecification {
     allRangesFrom == expected
 
     where:
-    headers | ranges                                                                                                     | expected
-    [REFERER] | []                                                                                                         | true
-    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name)]                                                       | true
-    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                                                     | true
-    [REFERER] | [rangeWithSource(GRPC_BODY)]                                                                               | false
-    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name), rangeWithSource(GRPC_BODY)]                           | false
+    headers   | ranges                                                                            | expected
+    [REFERER] | []                                                                                | true
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name)]                             | true
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                            | true
+    [REFERER] | [rangeWithSource(GRPC_BODY)]                                                      | false
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name), rangeWithSource(GRPC_BODY)] | false
     [REFERER] | [
       rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name),
       rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)
     ] | true
+  }
+
+  void 'test intersection of ranges'() {
+    when:
+    final intersection = Ranges.intersection(target, ranges as Range[])
+
+    then:
+    final list = intersection == null ? [] : intersection.toList()
+    list.size() == expected.size()
+    list.containsAll(expected)
+
+    where:
+    target      | ranges        | expected
+    range(2, 4) | [range(0, 2)] | [] // [2, 3, 4, 5] | [0, 1] -> []
+    range(2, 4) | [range(0, 4)] | [range(2, 2)] // [2, 3, 4, 5] | [0, 1, 2, 3] -> [2, 3]
+    range(2, 4) | [range(2, 4)] | [range(2, 4)] // [2, 3, 4, 5] | [2, 3, 4, 5] -> [2, 3, 4, 5]
+    range(2, 4) | [range(3, 1)] | [range(3, 1)] // [2, 3, 4, 5] | [3] -> [3]
+    range(2, 4) | [range(4, 4)] | [range(4, 2)] // [2, 3, 4, 5] | [4, 5, 6, 7] -> [4, 5]
+    range(2, 4) | [range(6, 4)] | [] // [2, 3, 4, 5] | [6, 7, 8, 9] -> []
+  }
+
+  void 'insert range'() {
+    when:
+    final result = Ranges.insert(array as Range[], toInsert as Range[])
+
+    then:
+    final expectedArray = expected as Range[]
+    result == expectedArray
+
+    where:
+    array                      | toInsert                   | expected
+    []                         | []                         | []
+    []                         | [range(2, 2)]              | [range(2, 2)]
+    [range(2, 2)]              | []                         | [range(2, 2)]
+    [range(2, 2)]              | [range(2, 2)]              | [range(2, 2), range(2, 2)]
+    [range(0, 2)]              | [range(2, 2)]              | [range(0, 2), range(2, 2)]
+    [range(4, 2)]              | [range(2, 2)]              | [range(2, 2), range(4, 2)]
+    [range(0, 6)]              | [range(2, 2)]              | [range(0, 6), range(2, 2)]
+    [range(0, 2), range(4, 2)] | [range(2, 2)]              | [range(0, 2), range(2, 2), range(4, 2)]
+    [range(2, 2), range(6, 2)] | [range(0, 2), range(4, 2)] | [range(0, 2), range(2, 2), range(4, 2), range(6, 2)]
   }
 
 
@@ -323,5 +363,9 @@ class RangesTest extends DDSpecification {
 
   Range rangeWithSource(final byte source, final String name = 'name', final String value = 'value') {
     return new Range(0, 10, new Source(source, name, value), NOT_MARKED)
+  }
+
+  Range range(final int start, final int length) {
+    return new Range(start, length, new Source(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED)
   }
 }
