@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
@@ -116,6 +117,9 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         settings.isItrEnabled() ? ItrEnabled.TRUE : null,
         settings.isTestsSkippingEnabled() ? ItrSkipEnabled.TRUE : null,
         settings.isCodeCoverageEnabled() ? CoverageEnabled.TRUE : null,
+        settings.getEarlyFlakeDetectionSettings().isEnabled()
+            ? EarlyFlakeDetectionEnabled.TRUE
+            : null,
         settings.isGitUploadRequired() ? RequireGit.TRUE : null);
 
     return settings;
@@ -173,6 +177,14 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   @Override
   public Map<String, Collection<TestIdentifier>> getKnownTestsByModuleName(
       TracerEnvironment tracerEnvironment) throws IOException {
+    OkHttpUtils.CustomListener telemetryListener =
+        new TelemetryListener.Builder(metricCollector)
+            .requestCount(CiVisibilityCountMetric.EFD_REQUEST)
+            .requestErrors(CiVisibilityCountMetric.EFD_REQUEST_ERRORS)
+            .requestDuration(CiVisibilityDistributionMetric.EFD_REQUEST_MS)
+            .responseBytes(CiVisibilityDistributionMetric.EFD_RESPONSE_BYTES)
+            .build();
+
     String uuid = uuidGenerator.get();
     EnvelopeDto<TracerEnvironment> request =
         new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", tracerEnvironment));
@@ -184,12 +196,13 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             requestBody,
             is ->
                 testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
-            null);
+            telemetryListener);
     return parseTestIdentifiers(knownTests);
   }
 
-  private static Map<String, Collection<TestIdentifier>> parseTestIdentifiers(
-      KnownTestsDto knownTests) {
+  private Map<String, Collection<TestIdentifier>> parseTestIdentifiers(KnownTestsDto knownTests) {
+    int knownTestsCount = 0;
+
     Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
         new HashMap<>(knownTests.tests.size() * 4 / 3);
     for (Map.Entry<String, Map<String, List<String>>> e : knownTests.tests.entrySet()) {
@@ -200,6 +213,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       for (Map.Entry<String, List<String>> se : testsBySuiteName.entrySet()) {
         String suiteName = se.getKey();
         List<String> testNames = se.getValue();
+        knownTestsCount += testNames.size();
+
         testIdentifiers.ensureCapacity(testIdentifiers.size() + testNames.size());
         for (String testName : testNames) {
           testIdentifiers.add(new TestIdentifier(suiteName, testName, null, null));
@@ -208,6 +223,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
       knownTestsByModuleName.put(moduleName, testIdentifiers);
     }
+
+    metricCollector.add(CiVisibilityDistributionMetric.EFD_RESPONSE_TESTS, knownTestsCount);
     return knownTestsByModuleName;
   }
 

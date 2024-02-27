@@ -2,8 +2,11 @@ package datadog.trace.civisibility.domain.headless;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.TagValue;
+import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
@@ -15,6 +18,8 @@ import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.utils.SpanUtils;
+import java.util.Collection;
+import java.util.Collections;
 import javax.annotation.Nullable;
 
 /**
@@ -85,5 +90,14 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         Tags.TEST_EARLY_FLAKE_ENABLED,
         Tags.TEST_EARLY_FLAKE_ABORT_REASON,
         DDTags.CI_ITR_TESTS_SKIPPED);
+  }
+
+  @Override
+  protected Collection<TagValue> additionalTelemetryTags() {
+    if (CIConstants.EFD_ABORT_REASON_FAULTY.equals(
+        span.getTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON))) {
+      return Collections.singleton(EarlyFlakeDetectionAbortReason.FAULTY);
+    }
+    return Collections.emptySet();
   }
 }

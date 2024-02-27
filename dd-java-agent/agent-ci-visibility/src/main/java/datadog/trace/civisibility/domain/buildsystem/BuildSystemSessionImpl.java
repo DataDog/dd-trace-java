@@ -2,9 +2,12 @@ package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.TagValue;
+import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -117,7 +120,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
     if (result.isEarlyFlakeDetectionEnabled()) {
       setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
       if (result.isEarlyFlakeDetectionFaulty()) {
-        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, "faulty");
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
       }
     }
 
@@ -277,5 +280,14 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
   @Override
   public ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo) {
     return moduleExecutionSettingsFactory.create(jvmInfo, null);
+  }
+
+  @Override
+  protected Collection<TagValue> additionalTelemetryTags() {
+    if (CIConstants.EFD_ABORT_REASON_FAULTY.equals(
+        span.getTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON))) {
+      return Collections.singleton(EarlyFlakeDetectionAbortReason.FAULTY);
+    }
+    return Collections.emptySet();
   }
 }

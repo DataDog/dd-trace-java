@@ -3,6 +3,8 @@ package datadog.trace.api.civisibility.telemetry;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageErrorType;
+import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
+import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.Endpoint;
 import datadog.trace.api.civisibility.telemetry.tag.ErrorType;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
@@ -10,6 +12,7 @@ import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsBenchmark;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
+import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
@@ -37,7 +40,9 @@ public enum CiVisibilityCountMetric {
       IsHeadless.class,
       HasCodeowner.class,
       IsUnsupportedCI.class,
-      IsBenchmark.class),
+      IsBenchmark.class,
+      EarlyFlakeDetectionAbortReason.class,
+      IsNew.class),
   /**
    * The number of per-test code coverage sessions started (each test case counts as a separate
    * session)
@@ -86,6 +91,7 @@ public enum CiVisibilityCountMetric {
       ItrEnabled.class,
       ItrSkipEnabled.class,
       CoverageEnabled.class,
+      EarlyFlakeDetectionEnabled.class,
       RequireGit.class),
   /** The number of requests sent to the itr skippable tests endpoint */
   ITR_SKIPPABLE_TESTS_REQUEST("itr_skippable_tests.request"),
@@ -101,7 +107,11 @@ public enum CiVisibilityCountMetric {
    * The number of tests or test suites that would've been skipped by ITR but were forced to run
    * because of their unskippable status
    */
-  ITR_FORCED_RUN("itr_forced_run", EventType.class);
+  ITR_FORCED_RUN("itr_forced_run", EventType.class),
+  /** The number of requests sent to the known tests endpoint */
+  EFD_REQUEST("early_flake_detection.request"),
+  /** The number of known tests requests sent to the endpoint that errored */
+  EFD_REQUEST_ERRORS("early_flake_detection.request_errors", ErrorType.class);
 
   // need a "holder" class, as accessing static fields from enum constructors is illegal
   static class IndexHolder {
