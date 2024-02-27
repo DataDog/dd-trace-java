@@ -447,7 +447,6 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | " { ? = call upper( ? ) }"
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
     "postgresql" | connectTo(driver, peerConnectionProps)                  | " { ? = call upper( ? ) }"
-
   }
 
   @Unroll
