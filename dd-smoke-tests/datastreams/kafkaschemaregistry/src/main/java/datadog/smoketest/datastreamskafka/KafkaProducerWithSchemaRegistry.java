@@ -1,16 +1,18 @@
 package datadog.smoketest.datastreams.kafkaschemaregistry;
 
+import com.google.protobuf.Duration;
+import datadog.smoketest.datastreams.kafkaschemaregistry.Message.MyMessage;
 import java.util.Properties;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
-import datadog.smoketest.datastreams.kafkaschemaregistry.Message.MyMessage;
 
 public class KafkaProducerWithSchemaRegistry {
   public static void main(String[] args) {
     produce();
   }
+
   public static void produce() {
     String topicName = "no_schema_topic";
     String apiKey = System.getenv("CONFLUENT_API_KEY");
@@ -23,7 +25,8 @@ public class KafkaProducerWithSchemaRegistry {
     properties.setProperty(
         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
     properties.setProperty(
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer");
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+        "io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer");
     properties.setProperty("schema.registry.url", schemaRegistryUrl);
     properties.setProperty(
         "sasl.jaas.config",
@@ -40,15 +43,17 @@ public class KafkaProducerWithSchemaRegistry {
     Producer<String, MyMessage> producer =
         new org.apache.kafka.clients.producer.KafkaProducer<>(properties);
 
+    Duration duration = Duration.newBuilder().setSeconds(10).build();
+    System.out.println("duration is " + duration.getSeconds());
+
     try {
       for (int i = 1; i <= 20; i++) {
-        MyMessage message = MyMessage.newBuilder()
-            .setId("1")
-            .setValue("Hello from Protobuf!")
-            .build();
 
-        ProducerRecord<String, MyMessage> record
-            = new ProducerRecord<String, MyMessage>(topicName, "testkey", message);
+        MyMessage message =
+            MyMessage.newBuilder().setId("1").setValue("Hello from Protobuf!").build();
+
+        ProducerRecord<String, MyMessage> record =
+            new ProducerRecord<String, MyMessage>(topicName, "testkey", message);
         producer.send(record);
         Thread.sleep(1500);
         System.out.println("produced message");
