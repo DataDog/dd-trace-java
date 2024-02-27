@@ -28,8 +28,7 @@ public final class Dependency {
 
   private static final Logger log = LoggerFactory.getLogger(Dependency.class);
 
-  private static final Pattern FILE_REGEX =
-      Pattern.compile("(.+)-(\\d[^/-]+(?:-(?:\\w+))*)?\\.jar$");
+  private static final Pattern FILE_REGEX = Pattern.compile("^(.+?)(?:-([0-9][^-]+(?:-\\w+)?))?\\.jar$");
 
   private static final byte[] buf = new byte[8192];
 
@@ -157,13 +156,12 @@ public final class Dependency {
       fileNameArtifact = m.group(1);
       fileNameVersion = m.group(2);
     } else {
-      // name without the version?
+      // Fallback to filename without extension
       int idx = source.lastIndexOf('.');
       if (idx > 0) {
-        String nameOnly = source.substring(0, idx); // name without the extension
-        if (isValidArtifactId(nameOnly)) {
-          fileNameArtifact = nameOnly;
-        }
+        fileNameArtifact = source.substring(0, idx);
+      } else {
+        fileNameArtifact = source;
       }
     }
 
@@ -172,10 +170,8 @@ public final class Dependency {
       artifactId = bundleName;
     } else if (isValidArtifactId(implementationTitle)) {
       artifactId = implementationTitle;
-    } else if (fileNameArtifact != null) {
-      artifactId = fileNameArtifact;
     } else {
-      artifactId = bundleSymbolicName;
+      artifactId = fileNameArtifact;
     }
 
     // Try to get groupId from bundleSymbolicName and bundleName
