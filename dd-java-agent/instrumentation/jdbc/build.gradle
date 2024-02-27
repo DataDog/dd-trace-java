@@ -19,6 +19,8 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
 dependencies {
+  implementation 'org.postgresql:postgresql:42.2.18'
+
   testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
   // jdbc unit testing
@@ -49,7 +51,7 @@ dependencies {
 
   oldPostgresTestImplementation(group: 'org.postgresql', name: 'postgresql') {
     version {
-      strictly '9.4-1201-jdbc41'
+//      strictly '9.4-1201-jdbc41'
     }
   }
 

@@ -17,10 +17,13 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import org.postgresql.core.JdbcCallParseInfo;
+import org.postgresql.jdbc.EscapeSyntaxCallMode;
 
 @AutoService(Instrumenter.class)
 public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
@@ -96,10 +99,25 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
           return null;
         }
         final String inputSql = sql;
+        System.out.println(sql);
+        if (sql.startsWith("{")) {
+        //  The JDBC transform is picky, so we need to transform from callable into basic SQL before injecting the comment
+
+//            final JdbcCallParseInfo parseInfo;
+//            try {
+//                parseInfo = org.postgresql.core.Parser.modifyJdbcCall(sql, true, 11000000, 0, EscapeSyntaxCallMode.CALL);
+//            } catch (SQLException e) {
+//                return inputSql;
+//            }
+//            sql = parseInfo.getSql();
+          return inputSql;
+        }
+
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo));
+//        System.out.println(sql);
         return inputSql;
       }
       return sql;
@@ -110,9 +128,12 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         @Advice.This Connection connection,
         @Advice.Enter final String inputSql,
         @Advice.Return final PreparedStatement statement) {
+      System.out.println("EXIT");
       if (null == inputSql) {
         return;
       }
+      System.out.println(inputSql);
+      System.out.println(statement);
       ContextStore<Statement, DBQueryInfo> contextStore =
           InstrumentationContext.get(Statement.class, DBQueryInfo.class);
       if (null != statement && null == contextStore.get(statement)) {
