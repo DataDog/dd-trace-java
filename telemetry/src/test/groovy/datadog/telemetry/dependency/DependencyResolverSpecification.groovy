@@ -130,9 +130,6 @@ class DependencyResolverSpecification extends DepSpecification {
   }
 
   void 'spring boot dependency'() throws IOException {
-    setup:
-    org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
-
     when:
     String zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
     URI uri = new URI("jar:file:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/")
@@ -148,9 +145,6 @@ class DependencyResolverSpecification extends DepSpecification {
   }
 
   void 'fat jar with multiple pom.properties'() throws IOException {
-    setup:
-    org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
-
     when:
     URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetapp.jar').toURI()
 
@@ -162,9 +156,6 @@ class DependencyResolverSpecification extends DepSpecification {
   }
 
   void 'fat jar with two pom.properties'() throws IOException {
-    setup:
-    org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
-
     when:
     URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreduced.jar').toURI()
 
@@ -179,9 +170,6 @@ class DependencyResolverSpecification extends DepSpecification {
   }
 
   void 'fat jar with two pom.properties one of them bad'() throws IOException {
-    setup:
-    org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler()
-
     when:
     URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetappreducedbadproperties.jar').toURI()
 

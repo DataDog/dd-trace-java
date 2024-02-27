@@ -6,12 +6,10 @@ import java.net.URI;
 import java.util.List;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
@@ -35,11 +33,6 @@ public class DependencyResolverBenchmark {
           "jar:file://"
               + PROJECT_DIR
               + "/src/test/resources/datadog/telemetry/dependencies/spring-boot-app.jar!/BOOT-INF/lib/opentracing-util-0.33.0.jar!/");
-
-  @Setup(Level.Trial)
-  public void setup() {
-    org.springframework.boot.loader.jar.JarFile.registerUrlProtocolHandler();
-  }
 
   @Benchmark
   public void resolveSimpleJar() {

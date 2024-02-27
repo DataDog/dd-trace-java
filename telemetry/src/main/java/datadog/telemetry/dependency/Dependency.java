@@ -1,6 +1,5 @@
 package datadog.telemetry.dependency;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
@@ -9,14 +8,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import java.util.jar.Attributes;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -75,59 +71,45 @@ public final class Dependency {
         + '}';
   }
 
-  public static List<Dependency> fromMavenPom(JarFile jar) {
-    if (jar == null) {
+  public static List<Dependency> fromMavenPom(
+      final String jar, Map<String, Properties> pomProperties) {
+    if (pomProperties == null) {
       return Collections.emptyList();
     }
-    List<Dependency> dependencies = new ArrayList<>(1);
-    Enumeration<JarEntry> entries = jar.entries();
-    while (entries.hasMoreElements()) {
-      JarEntry jarEntry = entries.nextElement();
-      String filename = jarEntry.getName();
-      if (filename.endsWith("pom.properties")) {
-        try (InputStream is = jar.getInputStream(jarEntry)) {
-          if (is == null) {
-            return Collections.emptyList();
-          }
-          Properties properties = new Properties();
-          properties.load(is);
-          String groupId = properties.getProperty("groupId");
-          String artifactId = properties.getProperty("artifactId");
-          String version = properties.getProperty("version");
-          String name = groupId + ":" + artifactId;
+    List<Dependency> dependencies = new ArrayList<>(pomProperties.size());
+    for (final Map.Entry<String, Properties> entry : pomProperties.entrySet()) {
+      final Properties properties = entry.getValue();
+      final String groupId = properties.getProperty("groupId");
+      final String artifactId = properties.getProperty("artifactId");
+      final String version = properties.getProperty("version");
+      final String name = groupId + ":" + artifactId;
 
-          if (groupId == null || artifactId == null || version == null) {
-            log.debug(
-                "'pom.properties' does not have all the required properties: "
-                    + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
-                jar.getName(),
-                jarEntry.getName(),
-                groupId,
-                artifactId,
-                version);
-          } else {
-            log.debug(
-                "dependency found in pom.properties: "
-                    + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
-                jar.getName(),
-                jarEntry.getName(),
-                groupId,
-                artifactId,
-                version);
-            dependencies.add(
-                new Dependency(name, version, new File(jar.getName()).getName(), null));
-          }
-        } catch (IOException e) {
-          log.debug("unable to read 'pom.properties' file from {}", jar.getName(), e);
-          return Collections.emptyList();
-        }
+      if (groupId == null || artifactId == null || version == null) {
+        log.debug(
+            "pom.properties does not have all the required properties: "
+                + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
+            jar,
+            entry.getKey(),
+            groupId,
+            artifactId,
+            version);
+      } else {
+        log.debug(
+            "dependency found in pom.properties: "
+                + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
+            jar,
+            entry.getKey(),
+            groupId,
+            artifactId,
+            version);
+        dependencies.add(new Dependency(name, version, jar, null));
       }
     }
     return dependencies;
   }
 
   public static synchronized Dependency guessFallbackNoPom(
-      Manifest manifest, String source, InputStream is) throws IOException {
+      Attributes manifest, String source, InputStream is) throws IOException {
     final int slashIndex = source.lastIndexOf('/');
     if (slashIndex >= 0) {
       source = source.substring(slashIndex + 1);
@@ -145,12 +127,11 @@ public final class Dependency {
     String bundleVersion = null;
     String implementationVersion = null;
     if (manifest != null) {
-      Attributes mainAttributes = manifest.getMainAttributes();
-      bundleSymbolicName = mainAttributes.getValue("bundle-symbolicname");
-      bundleName = mainAttributes.getValue("bundle-name");
-      bundleVersion = mainAttributes.getValue("bundle-version");
-      implementationTitle = mainAttributes.getValue("implementation-title");
-      implementationVersion = mainAttributes.getValue("implementation-version");
+      bundleSymbolicName = manifest.getValue("bundle-symbolicname");
+      bundleName = manifest.getValue("bundle-name");
+      bundleVersion = manifest.getValue("bundle-version");
+      implementationTitle = manifest.getValue("implementation-title");
+      implementationVersion = manifest.getValue("implementation-version");
     }
 
     // Guess from file name
