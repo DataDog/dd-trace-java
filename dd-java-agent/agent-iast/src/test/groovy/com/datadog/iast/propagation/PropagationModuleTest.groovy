@@ -58,12 +58,15 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint'             | [null, SourceTypes.REQUEST_PARAMETER_VALUE]
     'taint'             | [null, SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
     'taint'             | [null, SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
+    'taint'             | [null, SourceTypes.REQUEST_PARAMETER_VALUE, 0, 10]
     'taintIfTainted'    | [null, 'test']
     'taintIfTainted'    | ['test', null]
     'taintIfTainted'    | [null, 'test', false, NOT_MARKED]
     'taintIfTainted'    | ['test', null, false, NOT_MARKED]
     'taintIfTainted'    | [null, 'test']
     'taintIfTainted'    | ['test', null]
+    'taintIfTainted'    | [null, 'test', 0, 4, false, NOT_MARKED]
+    'taintIfTainted'    | ['test', null, 0, 4, false, NOT_MARKED]
     'taintIfTainted'    | [null, 'test', SourceTypes.REQUEST_PARAMETER_VALUE]
     'taintIfTainted'    | ['test', null, SourceTypes.REQUEST_PARAMETER_VALUE]
     'taintIfTainted'    | [null, 'test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
@@ -97,7 +100,9 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE]
     'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
     'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
+    'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 0, 10]
     'taintIfTainted'    | ['test', 'test']
+    'taintIfTainted'    | ['test', 'test', 0, 4, false, NOT_MARKED]
     'taintIfTainted'    | ['test', 'test', false, NOT_MARKED]
     'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE]
     'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
@@ -139,6 +144,27 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     taintable()                    | true
   }
 
+  void 'test taint with range'() {
+    given:
+    final value = (target instanceof CharSequence) ? target.toString() : null
+    final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, null, value)
+    final ranges = [new Range(start, length, source, NOT_MARKED)] as Range[]
+
+    when:
+    module.taint(target, source.origin, start, length)
+
+    then:
+    final tainted = getTaintedObject(target)
+    assertTainted(tainted, ranges)
+
+    where:
+    target                         | start | length
+    string('string')               | 0     | 2
+    stringBuilder('stringBuilder') | 0     | 2
+    date()                         | 0     | 2
+    taintable()                    | 0     | 2
+  }
+
   void 'test taintIfTainted keeping ranges'() {
     given:
     def (target, input) = suite
@@ -162,6 +188,49 @@ class PropagationModuleTest extends IastModuleImplTestBase {
       assertTainted(tainted, [taintedFrom.ranges[0]] as Range[])
     } else {
       assertTainted(tainted, taintedFrom.ranges)
+    }
+
+    where:
+    suite << taintIfSuite()
+  }
+
+  void 'test taintIfTainted with ranges'() {
+    given:
+    def (target, input) = suite
+    final source = taintedSource()
+    final ranges = [new Range(0, 2, source, NOT_MARKED)] as Range[]
+
+    when: 'input is not tainted'
+    module.taintIfTainted(target, input, 0, 2, false, NOT_MARKED)
+
+    then:
+    assert getTaintedObject(target) == null
+
+    when: 'input tainted but range does not overlap'
+    final firstTaintedForm = taintObject(input, ranges)
+    module.taintIfTainted(target, input, 4, 3, false, NOT_MARKED)
+
+    then:
+    final firstTainted = getTaintedObject(target)
+    if (input instanceof Taintable) {
+      // Taintable has no ranges so it will always overlap
+      assertTainted(firstTainted, [firstTaintedForm.ranges[0]] as Range[])
+    } else {
+      assert firstTainted == null
+    }
+
+    when: 'input is tainted and range overlaps'
+    ctx.taintedObjects.clear()
+    final secondTaintedFrom = taintObject(input, ranges)
+    module.taintIfTainted(target, input, 0, 2, false, NOT_MARKED)
+
+    then:
+    final secondTainted = getTaintedObject(target)
+    if (target instanceof Taintable) {
+      // only first range is kept
+      assertTainted(secondTainted, [secondTaintedFrom.ranges[0]] as Range[])
+    } else {
+      assertTainted(secondTainted, secondTaintedFrom.ranges)
     }
 
     where:

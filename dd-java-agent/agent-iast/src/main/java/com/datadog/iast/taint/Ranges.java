@@ -6,6 +6,8 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.util.HttpHeader;
+import com.datadog.iast.util.RangeBuilder;
+import com.datadog.iast.util.Ranged;
 import datadog.trace.api.iast.SourceTypes;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,6 +35,30 @@ public final class Ranges {
 
   public static Range[] forObject(final @Nonnull Source source, final int mark) {
     return new Range[] {new Range(0, Integer.MAX_VALUE, source, mark)};
+  }
+
+  @Nullable
+  public static Range[] intersection(
+      final @Nonnull Ranged targetRange, @Nonnull final Range[] ranges) {
+    final Range last = ranges[ranges.length - 1];
+    final int lastIndex = last.getStart() + last.getLength();
+
+    final RangeBuilder targetRanges = new RangeBuilder(ranges.length);
+    for (final Range range : ranges) {
+      if (range.getStart() >= lastIndex) {
+        break;
+      }
+      final Ranged intersection = targetRange.intersection(range);
+      if (intersection != null) {
+        targetRanges.add(
+            new Range(
+                intersection.getStart(),
+                intersection.getLength(),
+                range.getSource(),
+                range.getMarks()));
+      }
+    }
+    return targetRanges.isEmpty() ? null : targetRanges.toArray();
   }
 
   @Nullable
@@ -215,6 +241,36 @@ public final class Ranges {
 
   public static Range[] newArray(final long size) {
     return new Range[size > MAX_RANGE_COUNT ? MAX_RANGE_COUNT : (int) size];
+  }
+
+  /** Insert the new range maintaining order (it assumes that both arrays are already sorted) */
+  public static Range[] insert(final Range[] currentRanges, final Range... newRanges) {
+    if (newRanges.length == 0) {
+      return currentRanges;
+    }
+    if (currentRanges.length == 0) {
+      return newRanges;
+    }
+    int newIndex = 0;
+    Range newRange = newRanges[0];
+    final Range[] result = new Range[newRanges.length + currentRanges.length];
+    for (int currentIndex = 0; currentIndex < currentRanges.length; currentIndex++) {
+      final Range current = currentRanges[currentIndex];
+      if (newRange == null) {
+        result[currentIndex + newRanges.length] = current;
+      } else {
+        if (newRange.getStart() < current.getStart()) {
+          result[currentIndex + newIndex] = newRange;
+          newIndex++;
+          newRange = newIndex >= newRanges.length ? null : newRanges[newIndex];
+        }
+        result[currentIndex + newIndex] = current;
+      }
+    }
+    for (; newIndex < newRanges.length; newIndex++) {
+      result[currentRanges.length + newIndex] = newRanges[newIndex];
+    }
+    return result;
   }
 
   @Nullable

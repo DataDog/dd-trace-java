@@ -99,6 +99,13 @@ public class TestStringSuite {
     return result;
   }
 
+  public static String stringConstructor(final byte[] value, final int offset, final int length) {
+    LOGGER.debug("Before string stringConstructor {} {} {}", value, offset, length);
+    final String result = new String(value, offset, length);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
   public static String stringConstructor(final byte[] value, final String charset)
       throws UnsupportedEncodingException {
     LOGGER.debug("Before string stringConstructor {} {}", value, charset);
@@ -107,9 +114,26 @@ public class TestStringSuite {
     return result;
   }
 
+  public static String stringConstructor(
+      final byte[] value, final int offset, final int length, final String charset)
+      throws UnsupportedEncodingException {
+    LOGGER.debug("Before string stringConstructor {} {} {} {}", value, offset, length, charset);
+    final String result = new String(value, offset, length, charset);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
   public static String stringConstructor(final byte[] value, final Charset charset) {
     LOGGER.debug("Before string stringConstructor {} {}", value, charset);
     final String result = new String(value, charset);
+    LOGGER.debug("After string stringConstructor {}", result);
+    return result;
+  }
+
+  public static String stringConstructor(
+      final byte[] value, final int offset, final int length, final Charset charset) {
+    LOGGER.debug("Before string stringConstructor {} {} {} {}", value, offset, length, charset);
+    final String result = new String(value, offset, length, charset);
     LOGGER.debug("After string stringConstructor {}", result);
     return result;
   }

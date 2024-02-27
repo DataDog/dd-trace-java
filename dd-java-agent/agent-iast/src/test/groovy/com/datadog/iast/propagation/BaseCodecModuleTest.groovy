@@ -11,7 +11,7 @@ import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 @CompileDynamic
 abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
 
-  private CodecModule module
+  protected CodecModule module
 
   def setup() {
     module = buildModule()
@@ -38,8 +38,8 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     'onUrlDecode'       | ['test', 'utf-8', '']
     'onStringGetBytes'  | ['test', 'utf-8', null]
     'onStringGetBytes'  | ['test', 'utf-8', [] as byte[]]
-    'onStringFromBytes' | ['test'.bytes, 'utf-8', null]
-    'onStringFromBytes' | ['test'.bytes, 'utf-8', '']
+    'onStringFromBytes' | ['test'.bytes, 0, 2, 'utf-8', null]
+    'onStringFromBytes' | ['test'.bytes, 0, 2, 'utf-8', '']
     'onBase64Encode'    | ['test'.bytes, null]
     'onBase64Encode'    | ['test'.bytes, [] as byte[]]
     'onBase64Decode'    | ['test'.bytes, null]
@@ -57,7 +57,7 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     method              | args
     'onUrlDecode'       | ['test', 'utf-8', 'decoded']
     'onStringGetBytes'  | ['test', 'utf-8', 'test'.getBytes('utf-8')]
-    'onStringFromBytes' | ['test'.getBytes('utf-8'), 'utf-8', 'test']
+    'onStringFromBytes' | ['test'.getBytes('utf-8'), 0, 2, 'utf-8', 'test']
     'onBase64Encode'    | ['test'.bytes, 'dGVzdA=='.bytes]
     'onBase64Decode'    | ['dGVzdA=='.bytes, 'test'.bytes]
   }
@@ -138,7 +138,7 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     final result = charset == null ? new String(bytes) : new String(bytes, (String) charset)
 
     when:
-    module.onStringFromBytes(bytes, charset, result)
+    module.onStringFromBytes(bytes, 0, bytes.length, charset, result)
 
     then:
     final to = taintedObjects.get(result)
@@ -146,7 +146,7 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
       assert to != null
       assert to.get() == result
       final sourceTainted = taintedObjects.get(parsed)
-      assertOnStringFromBytes(bytes, charset, sourceTainted, to)
+      assertOnStringFromBytes(bytes, 0, bytes.length, charset, sourceTainted, to)
     } else {
       assert to == null
     }
@@ -239,7 +239,7 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
 
   protected abstract void assertOnUrlDecode(final String value, final String encoding, final TaintedObject source, final TaintedObject target)
 
-  protected abstract void assertOnStringFromBytes(final byte[] value, final String encoding, final TaintedObject source, final TaintedObject target)
+  protected abstract void assertOnStringFromBytes(final byte[] value, final int offset, final int length, final String encoding, final TaintedObject source, final TaintedObject target)
 
   protected abstract void assertOnStringGetBytes(final String value, final String encoding, final TaintedObject source, final TaintedObject target)
 

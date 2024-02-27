@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.java.lang
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.propagation.StringModule
@@ -215,13 +216,16 @@ class StringCallSiteTest extends AgentTestRunner {
 
     then:
     result != null && !result.empty
-    1 * module.onStringFromBytes(args[0] as byte[], charset, _ as String)
+    1 * module.onStringFromBytes(args[0] as byte[], offset, length, charset, _ as String)
 
     where:
-    charset                         | args
-    null                            | ['Hello'.bytes]
-    'UTF-8'                         | ['Hello'.getBytes(charset), charset]
-    Charset.defaultCharset().name() | ['Hello'.getBytes(charset), Charset.forName(charset)]
+    charset                         | offset | length | args
+    null                            | 0      | 5      | ['Hello'.bytes]
+    null                            | 0      | 5      | ['Hello'.bytes, offset, length]
+    'UTF-8'                         | 0      | 5      | ['Hello'.getBytes(charset), charset]
+    'UTF-8'                         | 0      | 2      | ['Hello'.getBytes(charset), offset, length, charset]
+    Charset.defaultCharset().name() | 0      | 5      | ['Hello'.getBytes(charset), Charset.forName(charset)]
+    Charset.defaultCharset().name() | 0      | 2      | ['Hello'.getBytes(charset), offset, length, Charset.forName(charset)]
   }
 
   void 'test string format'() {
@@ -272,7 +276,7 @@ class StringCallSiteTest extends AgentTestRunner {
 
     then:
     result != null && result.length > 0
-    1 * module.taintObjectIfInputIsTaintedKeepingRanges(_ as char[], string)
+    1 * module.taintIfTainted(_ as char[], string, true, VulnerabilityMarks.NOT_MARKED)
     0 * _
   }
 

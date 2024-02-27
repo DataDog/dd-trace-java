@@ -220,25 +220,80 @@ public class StringCallSite {
     return result;
   }
 
-  // TODO include other constructors with offsets
   @CallSite.After("void java.lang.String.<init>(byte[])")
-  @CallSite.After("void java.lang.String.<init>(byte[], java.lang.String)")
-  @CallSite.After("void java.lang.String.<init>(byte[], java.nio.charset.Charset)")
-  public static String afterByteArrayConstructor(
+  public static String afterByteArrayCtor(
       @CallSite.AllArguments @Nonnull final Object[] params,
       @CallSite.Return @Nonnull final String result) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
-        String charset = null;
-        if (params.length > 1) {
-          charset =
-              params[1] instanceof Charset ? ((Charset) params[1]).name() : (String) params[1];
+        final byte[] bytes = (byte[]) params[0];
+        if (bytes != null) {
+          module.onStringFromBytes(bytes, 0, bytes.length, null, result);
         }
-        module.onStringFromBytes((byte[]) params[0], charset, result);
       }
     } catch (final Throwable e) {
-      module.onUnexpectedException("afterByteArrayConstructor threw", e);
+      module.onUnexpectedException("afterByteArrayCtor threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("void java.lang.String.<init>(byte[], java.lang.String)")
+  @CallSite.After("void java.lang.String.<init>(byte[], java.nio.charset.Charset)")
+  public static String afterByteArrayCtor2(
+      @CallSite.AllArguments @Nonnull final Object[] params,
+      @CallSite.Return @Nonnull final String result) {
+    final CodecModule module = InstrumentationBridge.CODEC;
+    try {
+      if (module != null) {
+        final byte[] bytes = (byte[]) params[0];
+        if (bytes != null) {
+          final String charset =
+              params[1] instanceof Charset ? ((Charset) params[1]).name() : (String) params[1];
+          module.onStringFromBytes(bytes, 0, bytes.length, charset, result);
+        }
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterByteArrayCtor2 threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("void java.lang.String.<init>(byte[], int, int)")
+  public static String afterByteArrayCtor3(
+      @CallSite.AllArguments @Nonnull final Object[] params,
+      @CallSite.Return @Nonnull final String result) {
+    final CodecModule module = InstrumentationBridge.CODEC;
+    try {
+      if (module != null) {
+        final byte[] bytes = (byte[]) params[0];
+        if (bytes != null) {
+          module.onStringFromBytes(bytes, (int) params[1], (int) params[2], null, result);
+        }
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterByteArrayCtor3 threw", e);
+    }
+    return result;
+  }
+
+  @CallSite.After("void java.lang.String.<init>(byte[], int, int, java.lang.String)")
+  @CallSite.After("void java.lang.String.<init>(byte[], int, int, java.nio.charset.Charset)")
+  public static String afterByteArrayCtor4(
+      @CallSite.AllArguments @Nonnull final Object[] params,
+      @CallSite.Return @Nonnull final String result) {
+    final CodecModule module = InstrumentationBridge.CODEC;
+    try {
+      if (module != null) {
+        final byte[] bytes = (byte[]) params[0];
+        if (bytes != null) {
+          final String charset =
+              params[3] instanceof Charset ? ((Charset) params[3]).name() : (String) params[3];
+          module.onStringFromBytes(bytes, (int) params[1], (int) params[2], charset, result);
+        }
+      }
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterByteArrayCtor4 threw", e);
     }
     return result;
   }
