@@ -49,7 +49,9 @@ public class DependencyResolverQueue {
 
       // this resolver will be disabled so we can clear the stored URIs from processedUrlsSet
       // since they will no longer be checked against for duplicates
-      processedUrlsSet.clear();
+      synchronized (this) {
+        processedUrlsSet.clear();
+      }
       return;
     }
 
