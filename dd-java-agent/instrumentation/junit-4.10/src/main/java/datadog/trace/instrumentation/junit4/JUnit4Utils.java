@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
@@ -286,12 +287,20 @@ public abstract class JUnit4Utils {
     return Description.createTestDescription(testClass, name, updatedAnnotations);
   }
 
-  public static TestIdentifier toTestIdentifier(
-      Description description, boolean includeParameters) {
+  public static TestIdentifier toTestIdentifier(Description description) {
     Method testMethod = JUnit4Utils.getTestMethod(description);
     String suite = description.getClassName();
     String name = JUnit4Utils.getTestName(description, testMethod);
-    String parameters = includeParameters ? JUnit4Utils.getParameters(description) : null;
+    String parameters = JUnit4Utils.getParameters(description);
     return new TestIdentifier(suite, name, parameters, null);
+  }
+
+  public static TestDescriptor toTestDescriptor(Description description) {
+    Class<?> testClass = description.getTestClass();
+    Method testMethod = JUnit4Utils.getTestMethod(description);
+    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
+    String testName = JUnit4Utils.getTestName(description, testMethod);
+    String testParameters = JUnit4Utils.getParameters(description);
+    return new TestDescriptor(testSuiteName, testClass, testName, testParameters, null);
   }
 }

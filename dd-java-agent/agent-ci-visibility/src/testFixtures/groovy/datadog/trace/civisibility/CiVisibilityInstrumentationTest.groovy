@@ -6,6 +6,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
 import datadog.trace.api.civisibility.InstrumentationBridge
+import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageBridge
@@ -43,6 +44,7 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.stream.Collectors
 
 @Unroll
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
@@ -59,8 +61,12 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   private static final List<TestIdentifier> skippableTests = new ArrayList<>()
   private static final List<TestIdentifier> flakyTests = new ArrayList<>()
+  private static final List<TestIdentifier> knownTests = new ArrayList<>()
   private static volatile boolean itrEnabled = false
   private static volatile boolean flakyRetryEnabled = false
+  private static volatile boolean earlyFlakinessDetectionEnabled = false
+  public static final int SLOW_TEST_THRESHOLD_MILLIS = 1000
+  public static final int VERY_SLOW_TEST_THRESHOLD_MILLIS = 2000
 
   def setupSpec() {
     def currentPath = Paths.get("").toAbsolutePath()
@@ -86,16 +92,26 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
     moduleExecutionSettingsFactory.create(_ as JvmInfo, _ as String) >> {
       Map<String, String> properties = [
-        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED): String.valueOf(itrEnabled),
-        (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED): String.valueOf(flakyRetryEnabled)
+        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED)                  : String.valueOf(itrEnabled),
+        (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED)          : String.valueOf(flakyRetryEnabled),
+        (CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED): String.valueOf(earlyFlakinessDetectionEnabled)
       ]
       return new ModuleExecutionSettings(false,
       itrEnabled,
       flakyRetryEnabled,
+      earlyFlakinessDetectionEnabled
+      ? new EarlyFlakeDetectionSettings(true, [
+        new EarlyFlakeDetectionSettings.ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
+        new EarlyFlakeDetectionSettings.ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
+      ], 0)
+      : EarlyFlakeDetectionSettings.DEFAULT,
       properties,
       itrEnabled ? "itrCorrelationId" : null,
       Collections.singletonMap(dummyModule, skippableTests),
       flakyTests,
+      earlyFlakinessDetectionEnabled
+      ? [(dummyModule): knownTests]
+      : null,
       Collections.emptyList())
     }
 
@@ -162,8 +178,10 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   void setup() {
     skippableTests.clear()
     flakyTests.clear()
+    knownTests.clear()
     itrEnabled = false
     flakyRetryEnabled = false
+    earlyFlakinessDetectionEnabled = false
   }
 
   def givenSkippableTests(List<TestIdentifier> tests) {
@@ -174,6 +192,11 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   def givenFlakyTests(List<TestIdentifier> tests) {
     flakyTests.addAll(tests)
     flakyRetryEnabled = true
+  }
+
+  def givenKnownTests(List<TestIdentifier> tests) {
+    knownTests.addAll(tests)
+    earlyFlakinessDetectionEnabled = true
   }
 
   @Override
@@ -188,6 +211,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "2")
   }
 
   def cleanupSpec() {
@@ -202,18 +226,18 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def coverages = getCoveragesAsJson(traces)
     def additionalReplacements = [
       "content.meta.['test.framework_version']": instrumentedLibraryVersion(),
-      "content.meta.['test.toolchain']": "${instrumentedLibraryName()}:${instrumentedLibraryVersion()}"
+      "content.meta.['test.toolchain']"        : "${instrumentedLibraryName()}:${instrumentedLibraryVersion()}"
     ]
 
     // uncomment to generate expected data templates
-    //        def baseTemplatesPath = CiVisibilityInstrumentationTest.classLoader
-    //          .getResource("test-succeed")
-    //          .toURI()
-    //          .schemeSpecificPart
-    //          .replace('build/resources/test', 'src/test/resources')
-    //          .replace('build/resources/latestDepTest', 'src/test/resources')
-    //          .replace("test-succeed", testcaseName)
-    //        CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+    //    def baseTemplatesPath = CiVisibilityInstrumentationTest.classLoader
+    //    .getResource("test-succeed")
+    //    .toURI()
+    //    .schemeSpecificPart
+    //    .replace('build/resources/test', 'src/test/resources')
+    //    .replace('build/resources/latestDepTest', 'src/test/resources')
+    //    .replace("test-succeed", testcaseName)
+    //    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
 
     CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
     return true

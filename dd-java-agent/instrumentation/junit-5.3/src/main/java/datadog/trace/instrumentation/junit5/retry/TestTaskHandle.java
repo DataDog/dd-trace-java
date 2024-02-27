@@ -39,10 +39,10 @@ public class TestTaskHandle {
   private static final MethodHandle PARENT_CONTEXT_SETTER =
       METHOD_HANDLES.privateFieldSetter(TEST_TASK_CLASS, "parentContext");
 
-  private static final MethodHandle THROWABLE_COLLECTOR_GETTER =
-      METHOD_HANDLES.privateFieldGetter(TEST_TASK_CLASS, "throwableCollector");
-  private static final MethodHandle THROWABLE_COLLECTOR_SETTER =
-      METHOD_HANDLES.privateFieldSetter(TEST_TASK_CLASS, "throwableCollector");
+  private static final MethodHandle THROWABLE_COLLECTOR_FACTORY_GETTER =
+      METHOD_HANDLES.privateFieldGetter(TEST_TASK_CLASS, "throwableCollectorFactory");
+  private static final MethodHandle TASK_CONTEXT_THROWABLE_COLLECTOR_FACTORY_GETTER =
+      METHOD_HANDLES.privateFieldGetter(TEST_TASK_CONTEXT_CLASS, "throwableCollectorFactory");
 
   private static final MethodHandle EXECUTION_LISTENER_GETTER =
       METHOD_HANDLES.privateFieldGetter(TEST_TASK_CLASS, "listener");
@@ -126,14 +126,6 @@ public class TestTaskHandle {
     METHOD_HANDLES.invoke(NODE_SETTER, testTask, node);
   }
 
-  public ThrowableCollector getThrowableCollector() {
-    return METHOD_HANDLES.invoke(THROWABLE_COLLECTOR_GETTER, testTask);
-  }
-
-  public void setThrowableCollector(ThrowableCollector throwableCollector) {
-    METHOD_HANDLES.invoke(THROWABLE_COLLECTOR_SETTER, testTask, throwableCollector);
-  }
-
   public EngineExecutionContext getParentContext() {
     return METHOD_HANDLES.invoke(PARENT_CONTEXT_GETTER, testTask);
   }
@@ -146,6 +138,12 @@ public class TestTaskHandle {
     return testTaskContext != null
         ? METHOD_HANDLES.invoke(TASK_CONTEXT_EXECUTION_LISTENER_GETTER, testTaskContext)
         : METHOD_HANDLES.invoke(EXECUTION_LISTENER_GETTER, testTask);
+  }
+
+  public ThrowableCollector.Factory getThrowableCollectorFactory() {
+    return testTaskContext != null
+        ? METHOD_HANDLES.invoke(TASK_CONTEXT_THROWABLE_COLLECTOR_FACTORY_GETTER, testTaskContext)
+        : METHOD_HANDLES.invoke(THROWABLE_COLLECTOR_FACTORY_GETTER, testTask);
   }
 
   public void execute() {

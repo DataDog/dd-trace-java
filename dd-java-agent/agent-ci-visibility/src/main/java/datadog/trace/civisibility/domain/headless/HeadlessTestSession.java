@@ -82,6 +82,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         Tags.TEST_ITR_TESTS_SKIPPING_ENABLED,
         Tags.TEST_ITR_TESTS_SKIPPING_TYPE,
         Tags.TEST_ITR_TESTS_SKIPPING_COUNT,
+        Tags.TEST_EARLY_FLAKE_ENABLED,
+        Tags.TEST_EARLY_FLAKE_ABORT_REASON,
         DDTags.CI_ITR_TESTS_SKIPPED);
   }
 }

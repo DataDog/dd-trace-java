@@ -68,6 +68,23 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     ]
   }
 
+  def "test early flakiness detection #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runFeatures(features)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                                 | features                                                                   | expectedTracesCount | knownTestsList
+    "test-efd-known-test"                        | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | 2                   | [
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null, null)
+    ]
+    "test-efd-new-test"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | 4                   | []
+    "test-efd-new-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | 9                   | []
+    "test-efd-new-slow-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_slow.feature"]          | 3                   | []
+  }
+
   private String version() {
     return CucumberTracingListener.FRAMEWORK_VERSION < "7" ? CucumberTracingListener.FRAMEWORK_VERSION : "latest"
   }

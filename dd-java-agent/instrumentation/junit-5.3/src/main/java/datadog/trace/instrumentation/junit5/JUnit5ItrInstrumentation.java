@@ -96,7 +96,7 @@ public class JUnit5ItrInstrumentation extends InstrumenterModule.CiVisibility
         }
       }
 
-      TestIdentifier test = JUnitPlatformUtils.toTestIdentifier(testDescriptor, true);
+      TestIdentifier test = JUnitPlatformUtils.toTestIdentifier(testDescriptor);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }

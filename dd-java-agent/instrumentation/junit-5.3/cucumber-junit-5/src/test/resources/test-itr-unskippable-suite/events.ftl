@@ -61,6 +61,7 @@
       "language" : "jvm",
       "runtime.name" : ${content_meta_runtime_name},
       "os.platform" : ${content_meta_os_platform},
+      "test.itr.forced_run" : "true",
       "os.version" : ${content_meta_os_version},
       "library_version" : ${content_meta_library_version},
       "test.itr.unskippable" : "true",

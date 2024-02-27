@@ -101,6 +101,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERV
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
@@ -164,6 +165,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
@@ -246,6 +249,7 @@ import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_BUFFER
 import static datadog.trace.api.config.GeneralConfig.STATSD_CLIENT_SOCKET_TIMEOUT;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_LOG_COLLECTION_ENABLED;
@@ -775,6 +779,8 @@ public class Config {
   private final List<String> ciVisibilityResourceFolderNames;
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final int ciVisibilityFlakyRetryCount;
+  private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
+  private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
   private final String ciVisibilityModuleName;
   private final boolean ciVisibilityTelemetryEnabled;
 
@@ -889,6 +895,7 @@ public class Config {
   private final boolean isTelemetryDependencyServiceEnabled;
   private final boolean telemetryMetricsEnabled;
   private final boolean isTelemetryLogCollectionEnabled;
+  private final int telemetryDependencyResolutionQueueSize;
 
   private final boolean azureAppServices;
   private final String traceAgentPath;
@@ -1555,7 +1562,10 @@ public class Config {
     isTelemetryLogCollectionEnabled =
         configProvider.getBoolean(
             TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
-
+    telemetryDependencyResolutionQueueSize =
+        configProvider.getInteger(
+            TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE,
+            DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE);
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
     appSecReportingInband =
@@ -1762,6 +1772,10 @@ public class Config {
             CIVISIBILITY_RESOURCE_FOLDER_NAMES, DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES);
     ciVisibilityFlakyRetryEnabled =
         configProvider.getBoolean(CIVISIBILITY_FLAKY_RETRY_ENABLED, true);
+    ciVisibilityEarlyFlakeDetectionEnabled =
+        configProvider.getBoolean(CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED, true);
+    ciVisibilityEarlyFlakeDetectionLowerLimit =
+        configProvider.getInteger(CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, 30);
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
@@ -2673,6 +2687,10 @@ public class Config {
     return isTelemetryLogCollectionEnabled;
   }
 
+  public int getTelemetryDependencyResolutionQueueSize() {
+    return telemetryDependencyResolutionQueueSize;
+  }
+
   public boolean isClientIpEnabled() {
     return clientIpEnabled;
   }
@@ -2985,6 +3003,18 @@ public class Config {
 
   public boolean isCiVisibilityFlakyRetryEnabled() {
     return ciVisibilityFlakyRetryEnabled;
+  }
+
+  public boolean isCiVisibilityEarlyFlakeDetectionEnabled() {
+    return ciVisibilityEarlyFlakeDetectionEnabled;
+  }
+
+  public int getCiVisibilityEarlyFlakeDetectionLowerLimit() {
+    return ciVisibilityEarlyFlakeDetectionLowerLimit;
+  }
+
+  public boolean isCiVisibilityTestRetryEnabled() {
+    return ciVisibilityFlakyRetryEnabled || ciVisibilityEarlyFlakeDetectionEnabled;
   }
 
   public int getCiVisibilityFlakyRetryCount() {
