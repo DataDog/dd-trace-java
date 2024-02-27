@@ -97,7 +97,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
-  static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
+  static final int DEFAULT_APPSEC_WAF_TIMEOUT = 5000; // 1ms
   static final boolean DEFAULT_API_SECURITY_ENABLED = false;
   static final float DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE = 0.1f; // 10 %
 
