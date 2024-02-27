@@ -4,10 +4,7 @@ import org.apache.tools.ant.taskdefs.Classloader
 import spock.lang.TempDir
 
 import java.nio.charset.Charset
-import java.util.jar.JarFile
-import java.util.jar.Manifest
 import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 
 class DependencyResolverSpecification extends DepSpecification {
@@ -77,10 +74,12 @@ class DependencyResolverSpecification extends DepSpecification {
       hash: hash,
       version: version)
 
+    /* codenarc-disable */
     where:
     jar                       || name                         | hash                                       | version
     'bson4jackson-2.11.0.jar' || 'de.undercouch:bson4jackson' | '428A23E33D19DACD6E04CA7DD746206849861A95' | '2.11.0'
     'bson-4.2.0.jar'          || 'org.mongodb:bson'           | 'F87C3A90DA4BB1DA6D3A73CA18004545AD2EF06A' | '4.2.0'
+    /* codenarc-enable */
   }
 
   void 'jar with pom.properties is resolved'() {
