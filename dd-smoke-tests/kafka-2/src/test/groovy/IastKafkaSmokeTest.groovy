@@ -29,7 +29,6 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     String springBootShadowJar = System.getProperty('datadog.smoketest.springboot.shadowJar.path')
     List<String> command = []
     command.add(javaPath())
-    command.add('-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005')
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
       withSystemProperty(IAST_ENABLED, true),
