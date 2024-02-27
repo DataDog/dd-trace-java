@@ -1,6 +1,5 @@
 package datadog.telemetry.dependency;
 
-import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,7 +27,8 @@ public final class Dependency {
 
   private static final Logger log = LoggerFactory.getLogger(Dependency.class);
 
-  private static final Pattern FILE_REGEX = Pattern.compile("^(.+?)(?:-([0-9][^-]+(?:-\\w+)?))?\\.jar$");
+  private static final Pattern FILE_REGEX =
+      Pattern.compile("^(.+?)(?:-([0-9][^-]+(?:-\\w+)?))?\\.jar$");
 
   private static final byte[] buf = new byte[8192];
 
@@ -156,13 +156,13 @@ public final class Dependency {
       fileNameArtifact = m.group(1);
       fileNameVersion = m.group(2);
     } else {
-      // Fallback to filename without extension
-      int idx = source.lastIndexOf('.');
-      if (idx > 0) {
-        fileNameArtifact = source.substring(0, idx);
-      } else {
-        fileNameArtifact = source;
-      }
+      // This code path should not be exercised right now, although it might in the future (e.g.
+      // Knopflerfish uses
+      // a jar storage without .jar extension). We used to strip the extension here, but if we
+      // unexpectedly get here,
+      // it would be better to get something informative even if weird. So just fallback to the full
+      // name.
+      fileNameArtifact = source;
     }
 
     // Find for the most suitable name (based on priority)
@@ -191,7 +191,8 @@ public final class Dependency {
     if (hasText(bundleSymbolicName)) {
       groupId = parseGroupId(bundleSymbolicName, fileNameArtifact);
       if (!isValidGroupId(groupId)) {
-        groupId = parseGroupId(bundleSymbolicName, bundleName);;
+        groupId = parseGroupId(bundleSymbolicName, bundleName);
+        ;
         if (!isValidGroupId(groupId)) {
           groupId = null;
         }
@@ -247,7 +248,8 @@ public final class Dependency {
     final int truncateLen = bundleSymbolicName.length() - bundleNameWithPrefix.length();
     final String groupId = bundleSymbolicName.substring(0, truncateLen);
 
-    // Sometimes this will lead to an incorrect group id, in cases like com.opencsv / opencsv, which are frequent.
+    // Sometimes this will lead to an incorrect group id, in cases like com.opencsv / opencsv, which
+    // are frequent.
     // This will trim both single word group ids, as well as prefixes suck as `uk.ac`.
     if (groupId.contains(".") && groupId.length() > 5) {
       return groupId;
