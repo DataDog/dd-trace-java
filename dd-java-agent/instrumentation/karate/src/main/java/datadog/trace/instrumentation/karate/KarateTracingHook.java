@@ -77,7 +77,7 @@ public class KarateTracingHook implements RuntimeHook {
 
     if (Config.get().isCiVisibilityItrEnabled()
         && !categories.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
-      TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario, true);
+      TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(skippableTest)) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             featureName,
@@ -105,7 +105,8 @@ public class KarateTracingHook implements RuntimeHook {
         categories,
         null,
         null,
-        null);
+        null,
+        sr.magicVariables.containsKey(KarateUtils.RETRY_MAGIC_VARIABLE));
     return true;
   }
 

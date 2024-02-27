@@ -75,6 +75,10 @@ public class Tags {
   public static final String TEST_ITR_TESTS_SKIPPING_COUNT = "test.itr.tests_skipping.count";
   public static final String TEST_ITR_UNSKIPPABLE = "test.itr.unskippable";
   public static final String TEST_ITR_FORCED_RUN = "test.itr.forced_run";
+  public static final String TEST_EARLY_FLAKE_ENABLED = "test.early_flake.enabled";
+  public static final String TEST_EARLY_FLAKE_ABORT_REASON = "test.early_flake.abort_reason";
+  public static final String TEST_IS_NEW = "test.is_new";
+  public static final String TEST_IS_RETRY = "test.is_retry";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";

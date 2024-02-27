@@ -9,7 +9,7 @@ public class NeverRetry implements TestRetryPolicy {
   private NeverRetry() {}
 
   @Override
-  public boolean retryPossible() {
+  public boolean retriesLeft() {
     return false;
   }
 
@@ -19,7 +19,12 @@ public class NeverRetry implements TestRetryPolicy {
   }
 
   @Override
-  public boolean retry(boolean successful) {
+  public boolean retry(boolean successful, long duration) {
+    return false;
+  }
+
+  @Override
+  public boolean currentExecutionIsRetry() {
     return false;
   }
 }

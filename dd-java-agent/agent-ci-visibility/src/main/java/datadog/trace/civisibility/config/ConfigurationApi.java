@@ -4,6 +4,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 
 public interface ConfigurationApi {
 
@@ -23,6 +24,12 @@ public interface ConfigurationApi {
         public Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {
           return Collections.emptyList();
         }
+
+        @Override
+        public Map<String, Collection<TestIdentifier>> getKnownTestsByModuleName(
+            TracerEnvironment tracerEnvironment) throws IOException {
+          return Collections.emptyMap();
+        }
       };
 
   CiVisibilitySettings getSettings(TracerEnvironment tracerEnvironment) throws IOException;
@@ -30,4 +37,7 @@ public interface ConfigurationApi {
   SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) throws IOException;
 
   Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) throws IOException;
+
+  Map<String, Collection<TestIdentifier>> getKnownTestsByModuleName(
+      TracerEnvironment tracerEnvironment) throws IOException;
 }

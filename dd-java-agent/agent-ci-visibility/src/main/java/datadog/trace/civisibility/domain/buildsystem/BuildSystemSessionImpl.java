@@ -114,6 +114,12 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
     if (result.isItrEnabled()) {
       itrEnabled = true;
     }
+    if (result.isEarlyFlakeDetectionEnabled()) {
+      setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
+      if (result.isEarlyFlakeDetectionFaulty()) {
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, "faulty");
+      }
+    }
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
@@ -148,16 +154,24 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
           !skippableTestsForModule.isEmpty()
               ? Collections.singletonMap(moduleName, skippableTestsForModule)
               : Collections.emptyMap();
-      Collection<TestIdentifier> flakyTests = settings.getFlakyTests(moduleName);
+
+      Collection<TestIdentifier> knownTestsForModule = settings.getKnownTests(moduleName);
+      Map<String, Collection<TestIdentifier>> knownTests =
+          knownTestsForModule != null
+              ? Collections.singletonMap(moduleName, knownTestsForModule)
+              : null;
+
       ModuleExecutionSettings moduleSettings =
           new ModuleExecutionSettings(
               settings.isCodeCoverageEnabled(),
               settings.isItrEnabled(),
               settings.isFlakyTestRetriesEnabled(),
+              settings.getEarlyFlakeDetectionSettings(),
               settings.getSystemProperties(),
               settings.getItrCorrelationId(),
               skippableTests,
-              flakyTests,
+              settings.getFlakyTests(moduleName),
+              knownTests,
               settings.getCoverageEnabledPackages());
 
       return new ModuleSettingsResponse(moduleSettings);

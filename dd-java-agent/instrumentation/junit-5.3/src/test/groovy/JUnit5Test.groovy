@@ -24,8 +24,10 @@ import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedExpectedException
 import org.example.TestSucceedNested
+import org.example.TestSucceedSlow
 import org.example.TestSucceedUnskippable
 import org.example.TestSucceedUnskippableSuite
+import org.example.TestSucceedVerySlow
 import org.example.TestSucceedWithCategories
 import org.example.TestSuiteSetUpAssumption
 import org.example.TestTemplate
@@ -109,10 +111,30 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-retry-factory"                     | [TestFailedFactory]            | 7                   | [new TestIdentifier("org.example.TestFailedFactory", "test_factory", null, null)]
     "test-assumption-is-not-retried"         | [TestAssumption]               | 2                   | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null, null)]
     "test-skipped-is-not-retried"            | [TestSkipped]                  | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null, null)]
-    "test-retry-parameterized"               | [TestFailedParameterized]      | 11                  | [
-      new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", /* backend cannot provide parameters for flaky parameterized tests yet */ null, null)
+    "test-retry-parameterized"               | [TestFailedParameterized]      | 11                  | [new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", null, null)]
+    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2                   | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null, null)]
+  }
+
+  def "test early flakiness detection #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                        | tests                  | expectedTracesCount | knownTestsList
+    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null, null)]
+    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "test_parameterized", null, null)]
+    "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
+    "test-efd-new-parameterized-test"   | [TestParameterized]    | 7                   | []
+    "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | 6                   | [
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null, null),
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null, null)
     ]
-    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2 | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null, null)]
+    "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | 2                   | [] // is executed only once
+    "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | 8                   | []
   }
 
   private static void runTests(List<Class<?>> tests) {

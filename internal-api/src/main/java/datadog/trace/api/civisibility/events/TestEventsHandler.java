@@ -44,7 +44,8 @@ public interface TestEventsHandler extends Closeable {
       @Nullable Collection<String> categories,
       @Nullable Class<?> testClass,
       @Nullable String testMethodName,
-      @Nullable Method testMethod);
+      @Nullable Method testMethod,
+      boolean isRetry);
 
   void onTestSkip(
       String testSuiteName,

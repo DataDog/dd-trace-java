@@ -6,6 +6,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
+import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Set;
@@ -22,13 +24,16 @@ import org.junit.platform.engine.TestDescriptor;
 public class JUnit5SpockParameterizedRetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
+  private final String parentPackageName =
+      Strings.getPackageName(JUnitPlatformUtils.class.getName());
+
   public JUnit5SpockParameterizedRetryInstrumentation() {
     super("ci-visibility", "junit-5", "junit-5-spock", "test-retry");
   }
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityFlakyRetryEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
   }
 
   @Override
@@ -39,6 +44,7 @@ public class JUnit5SpockParameterizedRetryInstrumentation extends InstrumenterMo
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      parentPackageName + ".JUnitPlatformUtils",
       packageName + ".SpockParameterizedExecutionListener",
     };
   }

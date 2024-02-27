@@ -11,6 +11,7 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
   private final TestRetryPolicy retryPolicy;
 
   private boolean executionFailed;
+  private long duration;
 
   public TestExecutionWrapper(
       Function1<SuperEngine<?>.TestLeaf, Outcome> delegate, TestRetryPolicy retryPolicy) {
@@ -22,10 +23,13 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
   public Outcome apply(SuperEngine<?>.TestLeaf testLeaf) {
     executionFailed = false;
 
+    long startTimestamp = System.currentTimeMillis();
     Outcome outcome = delegate.apply(testLeaf);
+    duration = System.currentTimeMillis() - startTimestamp;
+
     if (outcome.isFailed()) {
       executionFailed = true;
-      if (retryPolicy.retryPossible() && retryPolicy.suppressFailures()) {
+      if (retryPolicy.retriesLeft() && retryPolicy.suppressFailures()) {
         Throwable t = outcome.toOption().get();
         return Canceled.apply(
             new SuppressedTestFailedException("Test failed and will be retried", t, 0));
@@ -36,6 +40,6 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
   }
 
   public boolean retry() {
-    return retryPolicy.retryPossible() && retryPolicy.retry(!executionFailed);
+    return retryPolicy.retriesLeft() && retryPolicy.retry(!executionFailed, duration);
   }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.ipc;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 
 public class ErrorResponse implements SignalResponse {
 
@@ -22,14 +21,13 @@ public class ErrorResponse implements SignalResponse {
 
   @Override
   public ByteBuffer serialize() {
-    byte[] payload = message.getBytes(StandardCharsets.UTF_8);
-    return ByteBuffer.wrap(payload);
+    Serializer s = new Serializer();
+    s.write(message);
+    return s.flush();
   }
 
   public static ErrorResponse deserialize(ByteBuffer buffer) {
-    byte[] bytes = new byte[buffer.remaining()];
-    buffer.get(bytes);
-    String message = new String(bytes, StandardCharsets.UTF_8);
+    String message = Serializer.readString(buffer);
     return new ErrorResponse(message);
   }
 }
