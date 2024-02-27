@@ -80,8 +80,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    // the actual service returns cbor encoded json
-    System.setProperty("aws.cborEnabled", "false")
   }
 
   @Override
