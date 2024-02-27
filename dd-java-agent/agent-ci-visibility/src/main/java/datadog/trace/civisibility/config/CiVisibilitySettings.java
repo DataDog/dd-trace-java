@@ -8,7 +8,8 @@ import java.util.Map;
 public class CiVisibilitySettings {
 
   public static final CiVisibilitySettings DEFAULT =
-      new CiVisibilitySettings(false, false, false, false, false, null);
+      new CiVisibilitySettings(
+          false, false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT);
 
   private final boolean itrEnabled;
   private final boolean codeCoverage;
