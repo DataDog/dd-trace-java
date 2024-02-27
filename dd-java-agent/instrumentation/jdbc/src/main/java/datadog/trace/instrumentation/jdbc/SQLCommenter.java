@@ -45,9 +45,19 @@ public class SQLCommenter {
       return sql;
     }
 
-    if (sql.matches("^\\s*\\{.*$")) {
-      //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a callable statement
-      //      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+    //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a callable statement
+    //
+    // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
+    //      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+    int charIndex = 0;
+    while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
+      charIndex++;
+    }
+    //    This should never happen but better safe than crashing
+    if (charIndex >= sql.length()) {
+      return sql;
+    }
+    if (sql.charAt(charIndex) == '{') {
       return sql;
     }
     final Config config = Config.get();
