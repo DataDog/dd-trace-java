@@ -174,12 +174,6 @@ public final class Dependency {
       artifactId = fileNameArtifact;
     }
 
-    // Try to get groupId from bundleSymbolicName and bundleName
-    if (isValidGroupId(bundleSymbolicName) && isValidArtifactId(bundleName)) {
-      groupId = parseGroupId(bundleSymbolicName, artifactId);
-      artifactId = bundleName;
-    }
-
     // Bundle-Version and Implementation-Version have precedence only if they are equal.
     if (equalsNonNull(bundleVersion, implementationVersion)) {
       version = bundleVersion;
@@ -193,12 +187,19 @@ public final class Dependency {
       version = "";
     }
 
-    String name;
+    // Try to get groupId from bundleSymbolicName and bundleName (or artifact id)
+    if (hasText(bundleSymbolicName)) {
+      groupId = parseGroupId(bundleSymbolicName, fileNameArtifact);
+      if (!isValidGroupId(groupId)) {
+        groupId = parseGroupId(bundleSymbolicName, bundleName);;
+        if (!isValidGroupId(groupId)) {
+          groupId = null;
+        }
+      }
+    }
+    String name = artifactId;
     if (groupId != null) {
       name = groupId + ":" + artifactId;
-    } else {
-      // no group resolved. use only artifactId
-      name = artifactId;
     }
 
     if (md != null) {
@@ -236,15 +237,20 @@ public final class Dependency {
   }
 
   private static String parseGroupId(String bundleSymbolicName, String bundleName) {
-    // Usually bundleSymbolicName contains bundleName at the end. Check this
+    // Some tools create Bundle-Symbolicname as `groupId.artifactid`.
+    // We'll try to infer group id based on that.
+    final String bundleNameWithPrefix = "." + bundleName;
+    if (!bundleSymbolicName.endsWith(bundleNameWithPrefix)) {
+      return null;
+    }
 
-    // Bundle name can contain dash, so normalize it
-    String normalizedBundleName = Strings.replace(bundleName, "-", ".");
+    final int truncateLen = bundleSymbolicName.length() - bundleNameWithPrefix.length();
+    final String groupId = bundleSymbolicName.substring(0, truncateLen);
 
-    String bundleNameWithPrefix = "." + normalizedBundleName;
-    if (bundleSymbolicName.endsWith(bundleNameWithPrefix)) {
-      int truncateLen = bundleSymbolicName.length() - bundleNameWithPrefix.length();
-      return bundleSymbolicName.substring(0, truncateLen);
+    // Sometimes this will lead to an incorrect group id, in cases like com.opencsv / opencsv, which are frequent.
+    // This will trim both single word group ids, as well as prefixes suck as `uk.ac`.
+    if (groupId.contains(".") && groupId.length() > 5) {
+      return groupId;
     }
 
     return null;
