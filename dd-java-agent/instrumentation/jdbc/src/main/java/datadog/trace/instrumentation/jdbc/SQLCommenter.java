@@ -58,8 +58,10 @@ public class SQLCommenter {
       return sql;
     }
     if (sql.charAt(charIndex) == '{') {
-      return sql;
+//      Just testing if this is somehow breaking seemingly unrelated tests
+//      return sql;
     }
+
     final Config config = Config.get();
     final String parentService = config.getServiceName();
     final String env = config.getEnv();
