@@ -11,9 +11,7 @@ import scala.Option
 import scala.collection.JavaConverters
 import scala.collection.immutable.Seq
 import spock.lang.IgnoreIf
-import spock.lang.Unroll
 
-@Unroll
 @IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
   Platform.isJ9()
 })

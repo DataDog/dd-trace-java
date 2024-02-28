@@ -4,7 +4,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.boot.SpringApplication
-import spock.lang.Unroll
 
 class SpringBootApplicationTest extends AgentTestRunner {
   @Override
@@ -20,7 +19,6 @@ class SpringBootApplicationTest extends AgentTestRunner {
     }
   }
 
-  @Unroll
   def 'should change service name before bean factory initializes'() {
     setup:
     def context = SpringApplication.run(BeanWhoTraces, args)
