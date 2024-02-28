@@ -2,9 +2,7 @@ package datadog.trace.instrumentation.spark
 
 import datadog.trace.agent.test.AgentTestRunner
 import org.apache.spark.sql.SparkSession
-import spock.lang.Unroll
 
-@Unroll
 abstract class AbstractSpark32SqlTest extends AgentTestRunner {
 
   @Override

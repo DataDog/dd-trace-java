@@ -9,7 +9,6 @@ import reactor.netty.http.HttpProtocol
 import reactor.netty.http.client.HttpClient
 import reactor.netty.http.server.HttpServer
 import spock.lang.Shared
-import spock.lang.Unroll
 
 class ReactorNettyHttp2ClientTest extends AgentTestRunner {
   @Shared
@@ -30,7 +29,6 @@ class ReactorNettyHttp2ClientTest extends AgentTestRunner {
     server?.disposeNow()
   }
 
-  @Unroll
   def "test http2 client/server propagation"() {
     setup:
     HttpClient httpClient = HttpClient.create()
