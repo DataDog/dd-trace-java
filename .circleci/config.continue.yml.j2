@@ -113,7 +113,7 @@ commands:
       version of Testcontainers.
     steps:
       - setup_remote_docker:
-          version: 20.10.18
+          version: docker24
           # DLC shares Docker layers across jobs (at an extra cost).
           # But its time to setup (~1min) exceeds the time required to prefetch all images we use.
           docker_layer_caching: false
