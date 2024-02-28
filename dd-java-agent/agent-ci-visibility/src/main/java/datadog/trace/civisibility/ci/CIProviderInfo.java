@@ -7,4 +7,8 @@ public interface CIProviderInfo {
   GitInfo buildCIGitInfo();
 
   CIInfo buildCIInfo();
+
+  default boolean isSupportedCiProvider() {
+    return true;
+  }
 }

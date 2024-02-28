@@ -7,7 +7,7 @@ class TaintUtilsTest extends Specification {
 
   void 'taintFormat with empty ranges'() {
     expect:
-    taintFormat(s, toRanges(ranges)) == result
+    taintFormat(s, toRanges(s, ranges)) == result
 
     where:
     s     | ranges | result
@@ -16,10 +16,10 @@ class TaintUtilsTest extends Specification {
 
   void 'taintFormat amd fromTaintFormat'() {
     expect:
-    taintFormat(s, toRanges(ranges)) == result
+    taintFormat(s, toRanges(s, ranges)) == result
 
     and:
-    fromTaintFormat(result) == toRanges(ranges)
+    fromTaintFormat(result) == toRanges(s, ranges)
 
     where:
     s     | ranges                   | result

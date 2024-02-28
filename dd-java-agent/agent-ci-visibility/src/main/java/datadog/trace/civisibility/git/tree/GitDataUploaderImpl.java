@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.git.tree;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.FileUtils;
@@ -16,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +27,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
   private static final Logger LOGGER = LoggerFactory.getLogger(GitDataUploaderImpl.class);
 
   private final Config config;
+  private final CiVisibilityMetricCollector metricCollector;
   private final GitDataApi gitDataApi;
   private final GitClient gitClient;
   private final GitInfoProvider gitInfoProvider;
@@ -35,12 +38,14 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
   public GitDataUploaderImpl(
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       GitDataApi gitDataApi,
       GitClient gitClient,
       GitInfoProvider gitInfoProvider,
       String repoRoot,
       String remoteName) {
     this.config = config;
+    this.metricCollector = metricCollector;
     this.gitDataApi = gitDataApi;
     this.gitClient = gitClient;
     this.gitInfoProvider = gitInfoProvider;
@@ -133,17 +138,24 @@ public class GitDataUploaderImpl implements GitDataUploader {
       String currentCommit = latestCommits.get(0);
 
       Path packFilesDirectory = gitClient.createPackFiles(objectHashes);
-      try (Stream<Path> packFiles = Files.list(packFilesDirectory)) {
-        packFiles
-            .filter(pf -> pf.getFileName().toString().endsWith(".pack")) // skipping ".idx" files
-            .forEach(
-                pf -> {
-                  try {
-                    gitDataApi.uploadPackFile(remoteUrl, currentCommit, pf);
-                  } catch (Exception e) {
-                    throw new RuntimeException("Could not upload pack file " + pf, e);
-                  }
-                });
+      try {
+        List<Path> packFiles =
+            Files.list(packFilesDirectory)
+                .filter(
+                    pf -> pf.getFileName().toString().endsWith(".pack")) // skipping ".idx" files
+                .collect(Collectors.toList());
+
+        metricCollector.add(
+            CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_FILES, packFiles.size());
+
+        for (Path packFile : packFiles) {
+          try {
+            gitDataApi.uploadPackFile(remoteUrl, currentCommit, packFile);
+          } catch (Exception e) {
+            throw new RuntimeException("Could not upload pack file " + packFile, e);
+          }
+        }
+
       } finally {
         FileUtils.delete(packFilesDirectory);
       }

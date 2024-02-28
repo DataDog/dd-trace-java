@@ -49,6 +49,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
 import datadog.trace.api.Platform;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
@@ -281,6 +282,26 @@ public class DatadogProfilerConfig {
         configProvider,
         PROFILING_DATADOG_PROFILER_CSTACK,
         PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT);
+  }
+
+  public static boolean isEndpointTrackingEnabled() {
+    return isEndpointTrackingEnabled(ConfigProvider.getInstance());
+  }
+
+  public static boolean isEndpointTrackingEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
+        ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
+  }
+
+  public static boolean isQueueTimeEnabled() {
+    return isQueueTimeEnabled(ConfigProvider.getInstance());
+  }
+
+  public static boolean isQueueTimeEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider, PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
   }
 
   public static String getCStack() {

@@ -36,7 +36,7 @@ public class ScalatestRetryInstrumentation extends InstrumenterModule.CiVisibili
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityFlakyRetryEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
   }
 
   @Override
@@ -82,9 +82,8 @@ public class ScalatestRetryInstrumentation extends InstrumenterModule.CiVisibili
       if (!(invokeWithFixture instanceof TestExecutionWrapper)) {
         int runStamp = args.tracker().nextOrdinal().runStamp();
         RunContext context = RunContext.getOrCreate(runStamp);
-
-        TestIdentifier test = new TestIdentifier(suite.suiteId(), testName, null, null);
-        TestRetryPolicy retryPolicy = context.retryPolicy(test);
+        TestIdentifier testIdentifier = new TestIdentifier(suite.suiteId(), testName, null, null);
+        TestRetryPolicy retryPolicy = context.retryPolicy(testIdentifier);
 
         invokeWithFixture = new TestExecutionWrapper(invokeWithFixture, retryPolicy);
       }

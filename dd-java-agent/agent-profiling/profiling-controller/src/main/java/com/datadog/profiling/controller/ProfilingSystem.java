@@ -17,6 +17,7 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
+import datadog.trace.api.profiling.ProfilingListenersRegistry;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
@@ -40,6 +41,7 @@ public final class ProfilingSystem {
   private final AgentTaskScheduler scheduler;
   private final ConfigProvider configProvider;
   private final Controller controller;
+  private final ControllerContext.Snapshot context;
   // For now only support one callback. Multiplex as needed.
   private final RecordingDataListener dataListener;
 
@@ -65,6 +67,7 @@ public final class ProfilingSystem {
   public ProfilingSystem(
       final ConfigProvider configProvider,
       final Controller controller,
+      final ControllerContext.Snapshot context,
       final RecordingDataListener dataListener,
       final Duration startupDelay,
       final Duration startupDelayRandomRange,
@@ -74,6 +77,7 @@ public final class ProfilingSystem {
     this(
         configProvider,
         controller,
+        context,
         dataListener,
         startupDelay,
         startupDelayRandomRange,
@@ -86,6 +90,7 @@ public final class ProfilingSystem {
   ProfilingSystem(
       final ConfigProvider configProvider,
       final Controller controller,
+      final ControllerContext.Snapshot context,
       final RecordingDataListener dataListener,
       final Duration baseStartupDelay,
       final Duration startupDelayRandomRange,
@@ -96,6 +101,7 @@ public final class ProfilingSystem {
       throws ConfigurationException {
     this.configProvider = configProvider;
     this.controller = controller;
+    this.context = context;
     this.dataListener = dataListener;
     this.uploadPeriod = uploadPeriod;
     this.isStartingFirst = isStartingFirst;
@@ -144,7 +150,7 @@ public final class ProfilingSystem {
   private void startProfilingRecording() {
     try {
       final Instant now = Instant.now();
-      recording = controller.createRecording(RECORDING_NAME);
+      recording = controller.createRecording(RECORDING_NAME, context);
       scheduler.scheduleAtFixedRate(
           SnapshotRecording::snapshot,
           snapshotRecording = createSnapshotRecording(now),
@@ -248,6 +254,7 @@ public final class ProfilingSystem {
             recording.snapshot(
                 lastSnapshot,
                 onShutdown ? ProfilingSnapshot.Kind.ON_SHUTDOWN : ProfilingSnapshot.Kind.PERIODIC);
+        ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).fireOnData(recordingData);
         log.debug("Snapshot created: {}", recordingData);
         if (recordingData != null) {
           // To make sure that we don't get data twice, we say that the next start should be

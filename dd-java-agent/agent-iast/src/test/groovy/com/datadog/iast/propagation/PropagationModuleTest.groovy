@@ -4,6 +4,7 @@ import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
+
 import com.datadog.iast.taint.TaintedObject
 import datadog.trace.api.Config
 import datadog.trace.api.iast.SourceTypes
@@ -25,7 +26,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   private static int maxValueLength = Config.get().iastTruncationMaxValueLength
 
   private PropagationModule module
-
 
   void setup() {
     module = new PropagationModuleImpl()
@@ -441,16 +441,17 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   void 'test that source names/values should not make a strong reference over the value'() {
     when:
-    module.taint(value, SourceTypes.REQUEST_PARAMETER_NAME, name)
+    module.taint(toTaint, SourceTypes.REQUEST_PARAMETER_NAME, name, value)
 
     then:
-    final tainted = ctx.getTaintedObjects().get(value)
+    final tainted = ctx.getTaintedObjects().get(toTaint)
     final source = tainted.ranges.first().source
     final sourceName = source.@name
     final sourceValue = source.@value
 
-    assert sourceName !== value: 'Source name should never be a strong reference to the original value'
-    assert sourceValue !== value: 'Source value should never be a strong reference to the original value'
+    assert sourceName !== toTaint: 'Source name should never be a strong reference to the tainted value'
+    assert sourceValue !== toTaint: 'Source value should never be a strong reference to the tainted value'
+
     switch (value.class) {
       case String:
         assert sourceValue instanceof Reference
@@ -461,7 +462,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
         assert sourceValue == value.toString()
         break
       default:
-        assert sourceValue == null
+        assert sourceValue === Source.PROPAGATION_PLACEHOLDER
         break
     }
     if (name === value) {
@@ -472,10 +473,42 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    name           | value
-    string('name') | name
-    string('name') | stringBuilder('name')
-    string('name') | date()
+    name           | value                 | toTaint
+    string('name') | name                  | string('name')
+    string('name') | stringBuilder('name') | stringBuilder('name')
+    string('name') | date()                | date()
+    string('name') | name                  | value
+    string('name') | stringBuilder('name') | value
+    string('name') | date()                | value
+  }
+
+  void 'test propagation of the source value for non char sequences'() {
+    given:
+    final toTaint = 'hello'
+    final baos = toTaint.bytes
+
+    when: 'tainting a non char sequence object'
+    module.taint(baos, SourceTypes.KAFKA_MESSAGE_KEY)
+
+    then:
+    with(ctx.taintedObjects.get(baos)) {
+      assert ranges.length == 1
+      final source = ranges.first().source
+      assert source.origin == SourceTypes.KAFKA_MESSAGE_KEY
+      assert source.@value === Source.PROPAGATION_PLACEHOLDER
+      assert source.value == null
+    }
+
+    when: 'the object is propagated'
+    module.taintIfTainted(toTaint, baos)
+
+    then:
+    with(ctx.taintedObjects.get(toTaint)) {
+      assert ranges.length == 1
+      final source = ranges.first().source
+      assert source.origin == SourceTypes.KAFKA_MESSAGE_KEY
+      assert source.value == toTaint
+    }
   }
 
   private List<Tuple<Object>> taintIfSuite() {

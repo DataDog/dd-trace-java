@@ -270,7 +270,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
     then:
     tracer.scopeManager().active().delegate == secondScope.delegate
-    _ * TEST_CHECKPOINTER._
+    _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
 
     when:

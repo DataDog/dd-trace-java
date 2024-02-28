@@ -59,7 +59,7 @@ public class TelemetryClient {
     String prefix = "";
     if (site.endsWith("datad0g.com")) {
       prefix = "all-http-intake.logs.";
-    } else if (site.endsWith("datadoghq.com")) {
+    } else if (site.endsWith("datadoghq.com") || site.endsWith("datadoghq.eu")) {
       prefix = "instrumentation-telemetry-intake.";
     }
     return "https://" + prefix + site + "/api/v2/apmtelemetry";

@@ -37,6 +37,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_SIMPLE_METHOD_GRAPH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -116,6 +117,7 @@ public class InstrumenterConfig {
   private final ResolverCacheConfig resolverCacheConfig;
   private final String resolverCacheDir;
   private final boolean resolverNamesAreUnique;
+  private final boolean resolverSimpleMethodGraph;
   private final boolean resolverUseLoadClass;
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
@@ -196,6 +198,9 @@ public class InstrumenterConfig {
             RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
+    resolverSimpleMethodGraph =
+        // use simpler approach everywhere except GraalVM, where it affects reachability analysis
+        configProvider.getBoolean(RESOLVER_SIMPLE_METHOD_GRAPH, !Platform.isNativeImageBuilder());
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverUseUrlCaches = configProvider.getBoolean(RESOLVER_USE_URL_CACHES);
     resolverResetInterval =
@@ -353,6 +358,10 @@ public class InstrumenterConfig {
     return resolverNamesAreUnique;
   }
 
+  public boolean isResolverSimpleMethodGraph() {
+    return resolverSimpleMethodGraph;
+  }
+
   public boolean isResolverUseLoadClass() {
     return resolverUseLoadClass;
   }
@@ -479,6 +488,8 @@ public class InstrumenterConfig {
         + resolverCacheDir
         + ", resolverNamesAreUnique="
         + resolverNamesAreUnique
+        + ", resolverSimpleMethodGraph="
+        + resolverSimpleMethodGraph
         + ", resolverUseLoadClass="
         + resolverUseLoadClass
         + ", resolverUseUrlCaches="

@@ -14,7 +14,6 @@ import datadog.trace.test.util.Flaky
 import spock.lang.AutoCleanup
 import spock.lang.Requires
 import spock.lang.Shared
-import spock.lang.Unroll
 
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
@@ -31,7 +30,6 @@ import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS
 import static org.junit.Assume.assumeTrue
 
-@Unroll
 abstract class HttpClientTest extends VersionedNamingTestBase {
   protected static final BODY_METHODS = ["POST", "PUT"]
   protected static final int CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(3) as int

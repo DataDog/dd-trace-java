@@ -32,7 +32,8 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
       "--server.port=${httpPort}",
       '-Ddd.profiling.upload.period=1',
       '-Ddd.profiling.start-force-first=true',
-      "-Ddd.profiling.debug.dump_path=${testJfrDir}"
+      "-Ddd.profiling.debug.dump_path=${testJfrDir}",
+      "-Ddd.integration.spring-boot.enabled=true"
     ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))

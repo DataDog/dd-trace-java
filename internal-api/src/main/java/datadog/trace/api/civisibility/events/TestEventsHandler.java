@@ -2,6 +2,7 @@ package datadog.trace.api.civisibility.events;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.io.Closeable;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -10,13 +11,22 @@ import javax.annotation.Nullable;
 
 public interface TestEventsHandler extends Closeable {
 
+  /**
+   * @param testFramework Name of the testing framework that executes the suite.
+   * @param instrumentation Instrumentation that emits the event. Can differ from the testing
+   *     framework, because one instrumentation can support multiple frameworks. For example, there
+   *     are many testing frameworks based on JUnit 5. For some of those frameworks we have
+   *     dedicated instrumentations, while others are handled with "generic" JUnit 5 instrumentation
+   *     .
+   */
   void onTestSuiteStart(
       String testSuiteName,
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable Class<?> testClass,
       @Nullable Collection<String> categories,
-      boolean parallelized);
+      boolean parallelized,
+      TestFrameworkInstrumentation instrumentation);
 
   void onTestSuiteFinish(String testSuiteName, @Nullable Class<?> testClass);
 
@@ -34,7 +44,8 @@ public interface TestEventsHandler extends Closeable {
       @Nullable Collection<String> categories,
       @Nullable Class<?> testClass,
       @Nullable String testMethodName,
-      @Nullable Method testMethod);
+      @Nullable Method testMethod,
+      boolean isRetry);
 
   void onTestSkip(
       String testSuiteName,

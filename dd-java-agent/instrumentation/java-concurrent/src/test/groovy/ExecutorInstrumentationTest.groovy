@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
 import org.apache.tomcat.util.threads.TaskQueue
 import spock.lang.Shared
-import spock.lang.Unroll
 
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ArrayBlockingQueue
@@ -68,7 +67,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     injectSysConfig("trace.thread-pool-executors.exclude", "ExecutorInstrumentationTest\$ToBeIgnoredExecutor")
   }
 
-  @Unroll
   def "#poolName '#name' propagates"() {
     setup:
     assumeTrue(poolImpl != null) // skip for Java 7 CompletableFuture, non-Linux Netty EPoll
@@ -240,7 +238,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     poolName = poolImpl.class.simpleName
   }
 
-  @Unroll
   def "#poolName '#name' doesn't propagate"() {
     setup:
     def pool = poolImpl
@@ -355,7 +352,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  @Unroll
   def "#poolName '#name' wraps"() {
     setup:
     def pool = poolImpl
@@ -393,7 +389,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     poolName = poolImpl.class.simpleName
   }
 
-  @Unroll
   def "#poolName '#name' reports after canceled jobs"() {
     setup:
     assumeTrue(poolImpl != null) // skip for non-Linux Netty EPoll

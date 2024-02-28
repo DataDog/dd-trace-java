@@ -21,9 +21,11 @@ import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedExpectedException
 import org.example.TestSucceedLegacy
+import org.example.TestSucceedSlow
 import org.example.TestSucceedSuite
 import org.example.TestSucceedUnskippable
 import org.example.TestSucceedUnskippableSuite
+import org.example.TestSucceedVerySlow
 import org.example.TestSucceedWithCategories
 import org.junit.runner.JUnitCore
 
@@ -99,6 +101,28 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
       new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", /* backend cannot provide parameters for flaky parameterized tests yet */ null, null)
     ]
     "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2 | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null, null)]
+  }
+
+  def "test early flakiness detection #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                        | tests                  | expectedTracesCount | knownTestsList
+    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null, null)]
+    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null, null)]
+    "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
+    "test-efd-new-parameterized-test"   | [TestParameterized]    | 7                   | []
+    "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | 6                   | [
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null, null),
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null, null)
+    ]
+    "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | 2                   | [] // is executed only once
+    "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | 8                   | []
   }
 
   private void runTests(Collection<Class<?>> tests) {

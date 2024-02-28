@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Set;
@@ -74,6 +75,11 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
    */
   public static class JUnit5ItrAdvice {
 
+    @Advice.OnMethodEnter
+    public static void beforeSkipCheck() {
+      CallDepthThreadLocalMap.incrementCallDepth(SpockNode.class);
+    }
+
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
         justification = "skipResult is the return value of the instrumented method")
@@ -81,6 +87,11 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
     public static void shouldBeSkipped(
         @Advice.This SpockNode<?> spockNode,
         @Advice.Return(readOnly = false) Node.SkipResult skipResult) {
+      if (CallDepthThreadLocalMap.decrementCallDepth(SpockNode.class) > 0) {
+        // nested call
+        return;
+      }
+
       if (skipResult.isSkipped()) {
         return;
       }
@@ -98,7 +109,7 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
         }
       }
 
-      TestIdentifier test = SpockUtils.toTestIdentifier(spockNode, true);
+      TestIdentifier test = SpockUtils.toTestIdentifier(spockNode);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }

@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation
 
+import static datadog.trace.api.TracePropagationStyle.NONE
+
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
@@ -63,7 +65,7 @@ class HttpExtractorTest extends DDSpecification {
     }
 
     if (expectDatadogFields) {
-      if (tagContext) {
+      if (tagContext && b3TraceId != null) {
         assert context.tags == ["b3.traceid": b3TraceId, "b3.spanid": b3SpanId, "some-tag": "my-interesting-info"]
       } else {
         assert context.tags == ["some-tag": "my-interesting-info"]
@@ -88,6 +90,7 @@ class HttpExtractorTest extends DDSpecification {
     [DATADOG]          | "1"               | outOfRangeTraceId | "a"               | "b"               | null            | null           | false            | false               | false
     [DATADOG, B3MULTI] | "1"               | "2"               | outOfRangeTraceId | "b"               | "1"             | "2"            | true             | false               | false
     [DATADOG, B3MULTI] | "1"               | "2"               | "a"               | outOfRangeTraceId | "1"             | "2"            | true             | false               | false
+    [NONE]             | "1"               | "2"               | null              | null              | null            | null           | true             | false               | true
     // spotless:on
   }
 }

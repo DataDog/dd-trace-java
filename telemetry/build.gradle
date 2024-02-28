@@ -1,3 +1,7 @@
+plugins {
+  id 'me.champeau.jmh'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 ext {
@@ -45,5 +49,11 @@ dependencies {
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'org.jboss', name: 'jboss-vfs', version: '3.2.16.Final'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-loader', version: '1.5.22.RELEASE'
+
+  jmh group: 'org.springframework.boot', name: 'spring-boot-loader', version: '1.5.22.RELEASE'
 }
 
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}

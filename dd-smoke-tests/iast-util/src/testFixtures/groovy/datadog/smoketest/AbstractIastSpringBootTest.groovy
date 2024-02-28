@@ -904,4 +904,70 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void "Check reflection injection forName"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/class?param=java.lang.String"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionClass'
+      && vul.evidence.valueParts[0].value == "java.lang.String"
+    }
+  }
+
+  void "Check reflection injection getMethod"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/method?param=isEmpty"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionMethod'
+      && vul.evidence.valueParts[0].value == "java.lang.String#"
+      && vul.evidence.valueParts[1].value == "isEmpty"
+      && vul.evidence.valueParts[2].value == "()"
+    }
+  }
+
+  void "Check reflection injection getField"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/field?param=hash"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionField'
+      && vul.evidence.valueParts[0].value == "java.lang.String#"
+      && vul.evidence.valueParts[1].value == "hash"
+    }
+  }
+
+  void "Check reflection injection lookup"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/lookup?param=hash"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionLookup'
+      && vul.evidence.valueParts[0].value == "java.lang.String#"
+      && vul.evidence.valueParts[1].value == "hash"
+    }
+  }
+
+
+
 }

@@ -18,6 +18,14 @@ import datadog.trace.civisibility.coverage.instrumentation.CoverageClassTransfor
 import datadog.trace.civisibility.coverage.instrumentation.CoverageInstrumentationFilter;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
+import datadog.trace.civisibility.domain.BuildSystemSession;
+import datadog.trace.civisibility.domain.TestFrameworkModule;
+import datadog.trace.civisibility.domain.TestFrameworkSession;
+import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl;
+import datadog.trace.civisibility.domain.buildsystem.ProxyTestSession;
+import datadog.trace.civisibility.domain.buildsystem.TestModuleRegistry;
+import datadog.trace.civisibility.domain.headless.HeadlessTestSession;
+import datadog.trace.civisibility.domain.manualapi.ManualApiTestSession;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.ipc.SignalServer;
@@ -66,7 +74,7 @@ public class CiVisibilitySystem {
         new CiVisibilityServices(config, metricCollector, sco, GitInfoProvider.INSTANCE);
 
     InstrumentationBridge.registerBuildEventsHandlerFactory(buildEventsHandlerFactory(services));
-    CIVisibility.registerSessionFactory(apiSessionFactory(services));
+    CIVisibility.registerSessionFactory(manualApiSessionFactory(services));
 
     if (ProcessHierarchyUtils.isChild() || ProcessHierarchyUtils.isHeadless()) {
       CiVisibilityRepoServices repoServices = services.repoServices(getCurrentPath());
@@ -121,7 +129,7 @@ public class CiVisibilitySystem {
 
   private static BuildEventsHandler.Factory buildEventsHandlerFactory(
       CiVisibilityServices services) {
-    DDBuildSystemSession.Factory sessionFactory = buildSystemSessionFactory(services);
+    BuildSystemSession.Factory sessionFactory = buildSystemSessionFactory(services);
     return new BuildEventsHandler.Factory() {
       @Override
       public <U> BuildEventsHandler<U> create() {
@@ -134,7 +142,7 @@ public class CiVisibilitySystem {
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
       ModuleExecutionSettings executionSettings) {
-    DDTestFrameworkSession.Factory sessionFactory;
+    TestFrameworkSession.Factory sessionFactory;
     if (ProcessHierarchyUtils.isChild()) {
       sessionFactory = childTestFrameworkSessionFactory(services, repoServices, executionSettings);
     } else {
@@ -143,14 +151,14 @@ public class CiVisibilitySystem {
     }
 
     return (String component) -> {
-      DDTestFrameworkSession testSession =
+      TestFrameworkSession testSession =
           sessionFactory.startSession(repoServices.moduleName, component, null);
-      DDTestFrameworkModule testModule = testSession.testModuleStart(repoServices.moduleName, null);
-      return new TestEventsHandlerImpl(testSession, testModule);
+      TestFrameworkModule testModule = testSession.testModuleStart(repoServices.moduleName, null);
+      return new TestEventsHandlerImpl(services.metricCollector, testSession, testModule);
     };
   }
 
-  private static DDBuildSystemSession.Factory buildSystemSessionFactory(
+  private static BuildSystemSession.Factory buildSystemSessionFactory(
       CiVisibilityServices services) {
     return (String projectName,
         Path projectRoot,
@@ -174,12 +182,14 @@ public class CiVisibilitySystem {
       int signalServerPort = services.config.getCiVisibilitySignalServerPort();
       SignalServer signalServer = new SignalServer(signalServerHost, signalServerPort);
 
-      return new DDBuildSystemSessionImpl(
+      return new BuildSystemSessionImpl(
           projectName,
           repoServices.repoRoot,
           startCommand,
           startTime,
+          repoServices.supportedCiProvider,
           services.config,
+          services.metricCollector,
           testModuleRegistry,
           testDecorator,
           repoServices.sourcePathResolver,
@@ -192,7 +202,7 @@ public class CiVisibilitySystem {
     };
   }
 
-  private static DDTestFrameworkSession.Factory childTestFrameworkSessionFactory(
+  private static TestFrameworkSession.Factory childTestFrameworkSessionFactory(
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
       ModuleExecutionSettings moduleExecutionSettings) {
@@ -202,10 +212,11 @@ public class CiVisibilitySystem {
       CoverageDataSupplier coverageDataSupplier = CoverageBridge::getCoverageData;
 
       TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
-      return new DDTestFrameworkSessionProxy(
+      return new ProxyTestSession(
           parentProcessSessionId,
           parentProcessModuleId,
           services.config,
+          services.metricCollector,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
@@ -217,7 +228,7 @@ public class CiVisibilitySystem {
     };
   }
 
-  private static DDTestFrameworkSession.Factory headlessTestFrameworkEssionFactory(
+  private static TestFrameworkSession.Factory headlessTestFrameworkEssionFactory(
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
       ModuleExecutionSettings moduleExecutionSettings) {
@@ -225,10 +236,12 @@ public class CiVisibilitySystem {
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
       TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
-      return new DDTestFrameworkSessionImpl(
+      return new HeadlessTestSession(
           projectName,
           startTime,
+          repoServices.supportedCiProvider,
           services.config,
+          services.metricCollector,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
@@ -238,14 +251,17 @@ public class CiVisibilitySystem {
     };
   }
 
-  private static CIVisibility.SessionFactory apiSessionFactory(CiVisibilityServices services) {
+  private static CIVisibility.SessionFactory manualApiSessionFactory(
+      CiVisibilityServices services) {
     return (String projectName, Path projectRoot, String component, Long startTime) -> {
       CiVisibilityRepoServices repoServices = services.repoServices(projectRoot);
       TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
-      return new DDTestSessionImpl(
+      return new ManualApiTestSession(
           projectName,
           startTime,
+          repoServices.supportedCiProvider,
           services.config,
+          services.metricCollector,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,

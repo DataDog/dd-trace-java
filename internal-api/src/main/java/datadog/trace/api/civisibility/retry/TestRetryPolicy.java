@@ -1,9 +1,11 @@
 package datadog.trace.api.civisibility.retry;
 
 public interface TestRetryPolicy {
-  boolean retryPossible();
+  boolean retriesLeft();
 
   boolean suppressFailures();
 
-  boolean retry(boolean successful);
+  boolean retry(boolean successful, long duration);
+
+  boolean currentExecutionIsRetry();
 }

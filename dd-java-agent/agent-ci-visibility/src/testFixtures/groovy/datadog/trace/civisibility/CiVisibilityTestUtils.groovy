@@ -34,7 +34,6 @@ abstract class CiVisibilityTestUtils {
     path("content.meta.['runtime.version']"),
     path("content.meta.['ci.workspace_path']"),
     path("content.meta.['error.message']"),
-    path("content.meta.['error.stack']"),
     path("content.meta.library_version"),
     path("content.meta.runtime-id"),
     // Different events might or might not have the same start or duration.
@@ -42,6 +41,7 @@ abstract class CiVisibilityTestUtils {
     path("content.start", false),
     path("content.duration", false),
     path("content.meta.['_dd.p.tid']", false),
+    path("content.meta.['error.stack']", false),
   ]
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
