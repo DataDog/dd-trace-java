@@ -3,27 +3,23 @@ package com.datadog.iast.propagation;
 import static com.datadog.iast.taint.Ranges.EMPTY;
 import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.taint.Ranges.mergeRanges;
-import static com.datadog.iast.taint.Ranges.rangesProviderFor;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static com.datadog.iast.taint.Tainteds.getTainted;
 
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.Ranges;
-import com.datadog.iast.taint.Ranges.RangeList;
-import com.datadog.iast.taint.Ranges.RangesProvider;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
+import com.datadog.iast.util.RangeBuilder;
 import com.datadog.iast.util.Ranged;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.StringModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Locale;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -153,38 +149,26 @@ public class StringModuleImpl implements StringModule {
     }
 
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
-    final Map<Integer, Range[]> sourceRanges = new HashMap<>();
-    long rangeCount = 0;
-    for (int i = 0; i < args.length; i++) {
-      final TaintedObject to = getTainted(taintedObjects, args[i]);
-      if (to != null) {
-        final Range[] ranges = to.getRanges();
-        sourceRanges.put(i, ranges);
-        rangeCount += ranges.length;
-      }
-    }
-    if (rangeCount == 0) {
-      return;
-    }
-
-    final Range[] targetRanges = Ranges.newArray(rangeCount);
-    int offset = 0, rangeIndex = 0;
+    final RangeBuilder targetRanges = new RangeBuilder();
+    int offset = 0;
     for (int item : recipeOffsets) {
       if (item < 0) {
         offset += -item;
       } else {
         final String argument = args[item];
-        final Range[] ranges = sourceRanges.get(item);
-        if (ranges != null) {
-          rangeIndex = insertRange(targetRanges, ranges, offset, rangeIndex);
-          if (rangeIndex >= targetRanges.length) {
+        final Range[] ranges = getRanges(getTainted(taintedObjects, argument));
+        if (ranges.length > 0) {
+          targetRanges.add(ranges, offset);
+          if (targetRanges.isFull()) {
             break;
           }
         }
         offset += getToStringLength(argument);
       }
     }
-    taintedObjects.taint(result, targetRanges);
+    if (!targetRanges.isEmpty()) {
+      taintedObjects.taint(result, targetRanges.toArray());
+    }
   }
 
   @Override
@@ -228,22 +212,16 @@ public class StringModuleImpl implements StringModule {
     if (getTainted(taintedObjects, result) != null) {
       return;
     }
-    final RangesProvider<CharSequence> elementRanges = rangesProviderFor(taintedObjects, elements);
     final Range[] delimiterRanges = getRanges(getTainted(taintedObjects, delimiter));
-    final long rangeCount =
-        elementRanges.rangeCount() + ((long) (elements.length - 1) * delimiterRanges.length);
-    if (rangeCount == 0) {
-      return;
-    }
-    final Range[] targetRanges = Ranges.newArray(rangeCount);
-    int delimiterLength = getToStringLength(delimiter), offset = 0, rangeIndex = 0;
+    final RangeBuilder targetRanges = new RangeBuilder();
+    int delimiterLength = getToStringLength(delimiter), offset = 0;
     for (int i = 0; i < elements.length; i++) {
       // insert element ranges
       final CharSequence element = elements[i];
-      final Range[] ranges = elementRanges.ranges(element);
-      if (ranges != null) {
-        rangeIndex = insertRange(targetRanges, ranges, offset, rangeIndex);
-        if (rangeIndex >= targetRanges.length) {
+      final Range[] ranges = getRanges(getTainted(taintedObjects, element));
+      if (ranges.length > 0) {
+        targetRanges.add(ranges, offset);
+        if (targetRanges.isFull()) {
           break;
         }
       }
@@ -251,14 +229,16 @@ public class StringModuleImpl implements StringModule {
 
       if (i < elements.length - 1) {
         // add delimiter ranges
-        rangeIndex = insertRange(targetRanges, delimiterRanges, offset, rangeIndex);
-        if (rangeIndex >= targetRanges.length) {
+        targetRanges.add(delimiterRanges, offset);
+        if (targetRanges.isFull()) {
           break;
         }
         offset += delimiterLength;
       }
     }
-    taintedObjects.taint(result, targetRanges);
+    if (!targetRanges.isEmpty()) {
+      taintedObjects.taint(result, targetRanges.toArray());
+    }
   }
 
   @Override
@@ -448,20 +428,14 @@ public class StringModuleImpl implements StringModule {
       return;
     }
     final TaintedObjects to = ctx.getTaintedObjects();
-    final RangesProvider<Object> paramRangesProvider = rangesProviderFor(to, parameters);
-    int rangeCount = paramRangesProvider.rangeCount();
     final Deque<Range> formatRanges = new LinkedList<>();
     final TaintedObject formatTainted = to.get(format);
     if (formatTainted != null) {
-      rangeCount += formatTainted.getRanges().length;
       formatRanges.addAll(Arrays.asList(formatTainted.getRanges()));
-    }
-    if (rangeCount == 0) {
-      return;
     }
     // params can appear zero or multiple times in the pattern so the final number of ranges is
     // unknown beforehand
-    final RangeList finalRanges = new RangeList();
+    final RangeBuilder finalRanges = new RangeBuilder();
     final Matcher matcher = FORMAT_PATTERN.matcher(format);
     int offset = 0, paramIndex = 0;
     while (matcher.find()) {
@@ -482,7 +456,8 @@ public class StringModuleImpl implements StringModule {
       final Ranged placeholderPos = Ranged.build(matcher.start(), placeholder.length());
       final Range placeholderRange =
           addFormatTaintedRanges(placeholderPos, offset, formatRanges, finalRanges);
-      final Range[] paramRanges = paramRangesProvider.ranges(parameter);
+      final TaintedObject taintedObject = to.get(parameter);
+      final Range[] paramRanges = taintedObject == null ? null : taintedObject.getRanges();
       final int shift = placeholderPos.getStart() + offset;
       addParameterTaintedRanges(
           placeholderRange, parameter, formattedValue, shift, paramRanges, finalRanges);
@@ -511,19 +486,16 @@ public class StringModuleImpl implements StringModule {
       return;
     }
     final TaintedObjects to = ctx.getTaintedObjects();
-    final RangesProvider<Object> paramRangesProvider = rangesProviderFor(to, parameters);
-    if (paramRangesProvider.rangeCount() == 0) {
-      return;
-    }
     // since we might join ranges the final number is unknown beforehand
-    final RangeList finalRanges = new RangeList();
+    final RangeBuilder finalRanges = new RangeBuilder();
     int offset = 0, paramIndex = 0;
     for (final Iterator<String> it = literals.iterator(); it.hasNext(); ) {
       final String literal = it.next();
       offset += literal.length();
       if (it.hasNext() && paramIndex < parameters.length) {
         final Object parameter = parameters[paramIndex++];
-        final Range[] parameterRanges = paramRangesProvider.ranges(parameter);
+        final TaintedObject tainted = to.get(parameter);
+        final Range[] parameterRanges = tainted == null ? null : tainted.getRanges();
         final String formatted = String.valueOf(parameter);
         addParameterTaintedRanges(null, parameter, formatted, offset, parameterRanges, finalRanges);
         offset += formatted.length();
@@ -578,14 +550,12 @@ public class StringModuleImpl implements StringModule {
       final String formatted,
       final int offset,
       @Nullable final Range[] ranges,
-      /* out */ final RangeList finalRanges) {
+      /* out */ final RangeBuilder finalRanges) {
     if (ranges != null && ranges.length > 0) {
       // only shift ranges if they are character sequences of the same length, otherwise taint the
       // whole thing
       if (charSequencesOfSameLength(param, formatted)) {
-        for (final Range range : ranges) {
-          finalRanges.add(range.shift(offset));
-        }
+        finalRanges.add(ranges, offset);
       } else {
         finalRanges.add(Ranges.copyWithPosition(ranges[0], offset, formatted.length()));
       }
@@ -608,7 +578,7 @@ public class StringModuleImpl implements StringModule {
       final Ranged placeholderPos,
       final int offset,
       final Deque<Range> ranges,
-      /* out */ final RangeList finalRanges) {
+      /* out */ final RangeBuilder finalRanges) {
     Range formatRange;
     int end = placeholderPos.getStart() + placeholderPos.getLength();
     Range placeholderRange = null;

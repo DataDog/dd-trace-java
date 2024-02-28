@@ -4,12 +4,9 @@ import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.VulnerabilityType;
-import com.datadog.iast.overhead.Operations;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.InsecureAuthProtocolModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -42,12 +39,8 @@ public class InsecureAuthProtocolModuleImpl extends SinkModuleBase
     if (authScheme == null) {
       return;
     }
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
-      return;
-    }
     final Evidence result = new Evidence(String.format("Authorization : %s", authScheme));
-    report(span, VulnerabilityType.INSECURE_AUTH_PROTOCOL, result);
+    report(VulnerabilityType.INSECURE_AUTH_PROTOCOL, result);
   }
 
   @Override
