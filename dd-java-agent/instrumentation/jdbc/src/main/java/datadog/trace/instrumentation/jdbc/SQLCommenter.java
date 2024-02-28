@@ -58,6 +58,7 @@ public class SQLCommenter {
         return sql;
       }
     }
+
     final Config config = Config.get();
     final String parentService = config.getServiceName();
     final String env = config.getEnv();

@@ -421,8 +421,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     setup:
     injectSysConfig("dd.dbm.propagation.mode", "full")
     CallableStatement upperProc = connection.prepareCall(query)
-    upperProc.setString(1, "hello world")
-    upperProc.registerOutParameter(2, Types.VARCHAR)
+    upperProc.registerOutParameter(1, Types.VARCHAR)
+    upperProc.setString(2, "hello world")
     when:
     runUnderTrace("parent") {
       return upperProc.execute()
@@ -430,7 +430,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     TEST_WRITER.waitForTraces(1)
 
     then:
-    assert upperProc.getString(2) == "HELLO WORLD"
+    assert upperProc.getString(1) == "HELLO WORLD"
     cleanup:
     upperProc?.close()
     connection.close()
@@ -438,9 +438,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     where:
     driver       | connection                                              | query
     "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
     "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | " { ? = call upper( ? ) }"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "{ ? = call upper( ? ) }"
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
     "postgresql" | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
   }
 
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {

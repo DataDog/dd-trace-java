@@ -90,7 +90,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         @Advice.This Connection connection,
         @Advice.Argument(value = 0, readOnly = false) String sql) {
       //      Using INJECT_COMMENT fails to update when a test calls injectSysConfig
-      if (INJECT_COMMENT) {
+      if (DECORATE.shouldInjectSQLComment()) {
         final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Connection.class);
         if (callDepth > 0) {
           return null;
