@@ -17,7 +17,10 @@ import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
 import software.amazon.awssdk.services.ec2.Ec2AsyncClient
 import software.amazon.awssdk.services.ec2.Ec2Client
 import software.amazon.awssdk.services.kinesis.KinesisClient
@@ -140,6 +143,9 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               if (operation == "PutObject") {
                 "aws.storage.class" "GLACIER"
               }
+              if (operation == "PutObject" || operation == "GetObject") {
+                "aws.object.key" "somekey"
+              }
               peerServiceFrom("aws.bucket.name")
               checkPeerService = true
             } else if (service == "Sqs" && operation == "CreateQueue") {
@@ -181,6 +187,8 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     "S3"       | "GetObject"         | "GET"  | "/somebucket/somekey" | "UNKNOWN"                              | S3Client.builder()       | { c -> c.getObject(GetObjectRequest.builder().bucket("somebucket").key("somekey").build()) }                                                                    | ""
     "S3"       | "PutObject"         | "PUT"  | "/somebucket/somekey" | "UNKNOWN"                              | S3Client.builder()       | { c -> c.putObject(PutObjectRequest.builder().bucket("somebucket").key("somekey").storageClass(StorageClass.GLACIER).build(), RequestBody.fromString("body")) } | "body"
     "DynamoDb" | "CreateTable"       | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                                                             | ""
+    "DynamoDb" | "GetItem"           | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.getItem(GetItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }                 | ""
+    "DynamoDb" | "UpdateItem"        | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.updateItem(UpdateItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }           | ""
     "Kinesis"  | "DeleteStream"      | "POST" | "/"                   | "UNKNOWN"                              | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                                                         | ""
     "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                                                             | """
         <CreateQueueResponse>
@@ -270,6 +278,9 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
               "bucketname" "somebucket"
+              if (operation == "PutObject" || operation == "GetObject") {
+                "aws.object.key" "somekey"
+              }
               peerServiceFrom("aws.bucket.name")
               checkPeerService = true
             } else if (service == "Sqs" && operation == "CreateQueue") {
@@ -310,6 +321,8 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     "S3"       | "CreateBucket"      | "PUT"  | "/somebucket"         | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("somebucket").build()) }                                              | ""
     "S3"       | "GetObject"         | "GET"  | "/somebucket/somekey" | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.getObject(GetObjectRequest.builder().bucket("somebucket").key("somekey").build(), AsyncResponseTransformer.toBytes()) } | "1234567890"
     "DynamoDb" | "CreateTable"       | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                              | ""
+    "DynamoDb" | "GetItem"           | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.getItem(GetItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }       | ""
+    "DynamoDb" | "UpdateItem"        | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.updateItem(UpdateItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) } | ""
     // Kinesis seems to expect an http2 response which is incompatible with our test server.
     // "Kinesis"  | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | KinesisAsyncClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                          | ""
     "Sqs"      | "CreateQueue"       | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsAsyncClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                              | """
@@ -395,6 +408,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
             "bucketname" "somebucket"
+            "aws.object.key" "somekey"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
             peerServiceFrom("aws.bucket.name")
             defaultTags()

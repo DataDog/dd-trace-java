@@ -106,6 +106,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
+    getRequestKey(request).ifPresent(key -> setObjectKey(span, key));
     request
         .getValueForField("StorageClass", String.class)
         .ifPresent(
@@ -213,6 +214,21 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag(InstrumentationTags.AWS_BUCKET_NAME, name);
     span.setTag(InstrumentationTags.BUCKET_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_BUCKET_NAME, name);
+  }
+
+  private static Optional<String> getRequestKey(SdkRequest request) {
+    Optional<String> key = Optional.empty();
+    try {
+      key = request.getValueForField("Key", String.class);
+    } catch (ClassCastException ignored) {
+      // Key is not always a string, like for dynamodb GetItemRequest
+    }
+
+    return key;
+  }
+
+  private static void setObjectKey(AgentSpan span, String key) {
+    span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key);
   }
 
   private static void setQueueName(AgentSpan span, String name) {
