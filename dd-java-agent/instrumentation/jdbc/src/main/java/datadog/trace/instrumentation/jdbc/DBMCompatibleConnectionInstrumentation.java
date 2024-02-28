@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -91,8 +90,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         @Advice.This Connection connection,
         @Advice.Argument(value = 0, readOnly = false) String sql) {
       //      Using INJECT_COMMENT fails to update when a test calls injectSysConfig
-      if (Config.get().getDBMPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-          || Config.get().getDBMPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC)) {
+      if (INJECT_COMMENT) {
         final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Connection.class);
         if (callDepth > 0) {
           return null;
@@ -101,11 +99,11 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        //        if (dbInfo.getType().equals("sqlserver")) {
-        sql = SQLCommenter.append(sql, DECORATE.getDbService(dbInfo));
-        //        } else {
-        //          sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo));
-        //        }
+        if (dbInfo.getType().equals("sqlserver")) {
+          sql = SQLCommenter.append(sql, DECORATE.getDbService(dbInfo));
+        } else {
+          sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo));
+        }
         return inputSql;
       }
       return sql;
