@@ -1,6 +1,7 @@
 package datadog.smoketest.springboot.controller;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import javax.servlet.http.HttpServletRequest;
@@ -10,6 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 @SuppressForbidden // Class.forName is needed to test Reflection Injection
 @RestController
 public class ReflectionController {
+
+  private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
   @GetMapping("/reflection_injection/class")
   public String reflectionInjectionClass(final HttpServletRequest request) {
@@ -41,6 +44,17 @@ public class ReflectionController {
       return "String Method: " + field.getName();
     } catch (NoSuchFieldException e) {
       return "NoSuchFieldException";
+    }
+  }
+
+  @GetMapping("/reflection_injection/lookup")
+  public String reflectionInjectionLookup(final HttpServletRequest request) {
+    String param = request.getParameter("param");
+    try {
+      LOOKUP.findGetter(String.class, param, byte[].class);
+      return "Lookup: " + param;
+    } catch (Exception e) {
+      return e.getMessage();
     }
   }
 }
