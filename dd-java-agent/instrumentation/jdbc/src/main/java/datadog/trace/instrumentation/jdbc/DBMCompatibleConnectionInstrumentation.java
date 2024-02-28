@@ -91,8 +91,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         @Advice.This Connection connection,
         @Advice.Argument(value = 0, readOnly = false) String sql) {
       //      Using INJECT_COMMENT fails to update when a test calls injectSysConfig
-      if (Config.get().getDBMPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-          || Config.get().getDBMPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC)) {
+      if (INJECT_COMMENT) {
         final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Connection.class);
         if (callDepth > 0) {
           return null;
