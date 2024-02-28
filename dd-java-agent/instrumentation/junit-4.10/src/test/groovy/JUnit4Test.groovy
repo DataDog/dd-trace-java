@@ -15,12 +15,15 @@ import org.example.TestFailedSuiteTearDown
 import org.example.TestFailedThenSucceed
 import org.example.TestInheritance
 import org.example.TestParameterized
+import org.example.TestParameterizedJUnitParams
 import org.example.TestSkipped
 import org.example.TestSkippedClass
 import org.example.TestSucceed
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedExpectedException
+import org.example.TestSucceedKotlin
 import org.example.TestSucceedLegacy
+import org.example.TestSucceedParameterizedKotlin
 import org.example.TestSucceedSlow
 import org.example.TestSucceedSuite
 import org.example.TestSucceedUnskippable
@@ -60,6 +63,9 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "test-parameterized"                                 | [TestParameterized]                  | 3
     "test-suite-runner"                                  | [TestSucceedSuite]                   | 3
     "test-legacy"                                        | [TestSucceedLegacy]                  | 2
+    "test-parameterized-junit-params"                    | [TestParameterizedJUnitParams]       | 3
+    "test-succeed-kotlin"                                | [TestSucceedKotlin]                  | 2
+    "test-succeed-parameterized-kotlin"                  | [TestSucceedParameterizedKotlin]     | 3
   }
 
   def "test ITR #testcaseName"() {
@@ -100,7 +106,7 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     "test-retry-parameterized"               | [TestFailedParameterized]      | 7                   | [
       new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", /* backend cannot provide parameters for flaky parameterized tests yet */ null, null)
     ]
-    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2 | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null, null)]
+    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2                   | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null, null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
