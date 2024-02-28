@@ -5,6 +5,7 @@ import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_LOGS_INJECTION;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_SAMPLE_RATE;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_TRACING_ENABLED;
 
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
@@ -50,7 +51,8 @@ final class TracingConfigPoller {
     // Remote config
     if (configPoller != null) {
       configPoller.addCapabilities(
-          CAPABILITY_APM_TRACING_SAMPLE_RATE
+          CAPABILITY_APM_TRACING_TRACING_ENABLED
+              | CAPABILITY_APM_TRACING_SAMPLE_RATE
               | CAPABILITY_APM_LOGS_INJECTION
               | CAPABILITY_APM_HTTP_HEADER_TAGS
               | CAPABILITY_APM_CUSTOM_TAGS
