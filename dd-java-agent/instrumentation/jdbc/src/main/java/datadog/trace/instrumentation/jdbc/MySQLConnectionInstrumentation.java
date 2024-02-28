@@ -98,7 +98,7 @@ public class MySQLConnectionInstrumentation extends AbstractConnectionInstrument
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo));
+        sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo), dbInfo.getType());
         return inputSql;
       }
       return sql;

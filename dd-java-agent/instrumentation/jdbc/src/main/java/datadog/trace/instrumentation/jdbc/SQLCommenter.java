@@ -24,17 +24,18 @@ public class SQLCommenter {
   private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
 
-  public static String append(final String sql, final String dbService) {
-    return inject(sql, dbService, null, false, true);
+  public static String append(final String sql, final String dbService, final String dbType) {
+    return inject(sql, dbService, dbType, null, false, true);
   }
 
-  public static String prepend(final String sql, final String dbService) {
-    return inject(sql, dbService, null, false, false);
+  public static String prepend(final String sql, final String dbService, final String dbType) {
+    return inject(sql, dbService, dbType, null, false, false);
   }
 
   public static String inject(
       final String sql,
       final String dbService,
+      final String dbType,
       final String traceParent,
       final boolean injectTrace,
       final boolean appendComment) {
@@ -45,7 +46,7 @@ public class SQLCommenter {
       return sql;
     }
 
-    if (dbService.startsWith("postgres")) {
+    if (dbType != null && dbType.startsWith("postgres")) {
       //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a callable statement
       //
       // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
