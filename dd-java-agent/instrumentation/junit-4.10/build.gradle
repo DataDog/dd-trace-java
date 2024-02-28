@@ -12,6 +12,10 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+tasks.named("compileLatestDepTestGroovy").configure {
+  classpath += files(compileLatestDepTestKotlin.destinationDirectory)
+}
+
 dependencies {
   compileOnly group: 'junit', name: 'junit', version: '4.10'
 
