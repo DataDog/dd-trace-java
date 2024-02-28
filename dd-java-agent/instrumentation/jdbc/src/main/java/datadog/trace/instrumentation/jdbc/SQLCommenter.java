@@ -53,11 +53,7 @@ public class SQLCommenter {
     while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
       charIndex++;
     }
-    //    This should never happen but better safe than crashing
-    if (charIndex >= sql.length()) {
-      return sql;
-    }
-    if (sql.charAt(charIndex) == '{') {
+    if (charIndex < sql.length() && sql.charAt(charIndex) == '{') {
       return sql;
     }
 
