@@ -9,7 +9,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.derby.jdbc.EmbeddedDataSource
 import org.h2.jdbcx.JdbcDataSource
 import spock.lang.Shared
-import spock.lang.Unroll
 import test.TestConnection
 import test.WrappedConnection
 
@@ -165,7 +164,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     }
   }
 
-  @Unroll
   def "basic statement with #connection.getClass().getCanonicalName() on #driver generates spans"() {
     setup:
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
@@ -240,7 +238,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
   }
 
-  @Unroll
   def "prepared statement execute on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     PreparedStatement statement = connection.prepareStatement(query)
@@ -296,7 +293,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
-  @Unroll
   def "prepared statement query on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     PreparedStatement statement = connection.prepareStatement(query)
@@ -351,7 +347,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
-  @Unroll
   def "prepared call on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     CallableStatement statement = connection.prepareCall(query)
@@ -406,7 +401,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
-  @Unroll
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     Statement statement = connection.createStatement()
@@ -468,7 +462,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE PUBLIC.S_HSQLDB_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
 
-  @Unroll
   def "prepared statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     def sql = connection.nativeSQL(query)
@@ -521,7 +514,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "APP"    | "CREATE TABLE PS_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
 
-  @Unroll
   def "connection constructor throwing then generating correct spans after recovery using #driver connection (prepare statement = #prepareStatement)"() {
     setup:
     Connection connection = null
@@ -710,7 +702,6 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     obfuscatedQuery = "testing ?"
   }
 
-  @Unroll
   def "#connectionPoolName connections should be cached in case of wrapped connections"() {
     setup:
     String dbType = "hsqldb"

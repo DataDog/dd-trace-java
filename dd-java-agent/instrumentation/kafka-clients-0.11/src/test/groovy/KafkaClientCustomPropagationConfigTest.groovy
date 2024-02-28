@@ -15,7 +15,6 @@ import org.springframework.kafka.listener.config.ContainerProperties
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -55,7 +54,6 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
   }
 
-  @Unroll
   def "test kafka client header propagation with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
@@ -161,7 +159,6 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     [value, expected1, expected2, expected3, expected4]<< dataTable()
   }
 
-  @Unroll
   def "test consumer with topic filters"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
