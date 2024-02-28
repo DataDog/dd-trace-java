@@ -6,6 +6,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
@@ -20,6 +21,9 @@ import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import javax.annotation.Nullable;
 
 public abstract class AbstractTestSession {
@@ -119,17 +123,31 @@ public abstract class AbstractTestSession {
       span.finish();
     }
 
-    metricCollector.add(
-        CiVisibilityCountMetric.EVENT_FINISHED,
-        1,
-        EventType.SESSION,
-        instrumentationType == InstrumentationType.HEADLESS ? IsHeadless.TRUE : null,
-        codeowners.exist() ? HasCodeowner.TRUE : null,
-        !supportedCiProvider ? IsUnsupportedCI.TRUE : null);
+    metricCollector.add(CiVisibilityCountMetric.EVENT_FINISHED, 1, telemetryTags());
 
     // flushing written traces synchronously:
     // as soon as build finish event is processed,
     // the process can be killed by the CI provider
     AgentTracer.get().flush();
+  }
+
+  private TagValue[] telemetryTags() {
+    Collection<TagValue> telemetryTags = new ArrayList<>();
+    telemetryTags.add(EventType.SESSION);
+    if (instrumentationType == InstrumentationType.HEADLESS) {
+      telemetryTags.add(IsHeadless.TRUE);
+    }
+    if (codeowners.exist()) {
+      telemetryTags.add(HasCodeowner.TRUE);
+    }
+    if (!supportedCiProvider) {
+      telemetryTags.add(IsUnsupportedCI.TRUE);
+    }
+    telemetryTags.addAll(additionalTelemetryTags());
+    return telemetryTags.toArray(new TagValue[0]);
+  }
+
+  protected Collection<TagValue> additionalTelemetryTags() {
+    return Collections.emptyList();
   }
 }
