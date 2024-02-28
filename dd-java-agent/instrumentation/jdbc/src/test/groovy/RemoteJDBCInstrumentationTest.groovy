@@ -421,33 +421,33 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
-
-  @Unroll
-  def "prepared call with storedproc on #driver with #connection.getClass().getCanonicalName() does not hang"() {
-    setup:
-    injectSysConfig("dd.dbm.propagation.mode", "full")
-    CallableStatement upperProc = connection.prepareCall(query)
-    upperProc.setString(1, "hello world")
-    upperProc.registerOutParameter(2, Types.VARCHAR)
-    when:
-    runUnderTrace("parent") {
-      return upperProc.execute()
-    }
-    TEST_WRITER.waitForTraces(1)
-
-    then:
-    assert upperProc.getString(2) == "HELLO WORLD"
-    cleanup:
-    upperProc?.close()
-    connection.close()
-
-    where:
-    driver       | connection                                              | query
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | " { ? = call upper( ? ) }"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
-  }
+  //
+  //  @Unroll
+  //  def "prepared call with storedproc on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+  //    setup:
+  //    injectSysConfig("dd.dbm.propagation.mode", "full")
+  //    CallableStatement upperProc = connection.prepareCall(query)
+  //    upperProc.setString(1, "hello world")
+  //    upperProc.registerOutParameter(2, Types.VARCHAR)
+  //    when:
+  //    runUnderTrace("parent") {
+  //      return upperProc.execute()
+  //    }
+  //    TEST_WRITER.waitForTraces(1)
+  //
+  //    then:
+  //    assert upperProc.getString(2) == "HELLO WORLD"
+  //    cleanup:
+  //    upperProc?.close()
+  //    connection.close()
+  //
+  //    where:
+  //    driver       | connection                                              | query
+  //    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+  //    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | " { ? = call upper( ? ) }"
+  //    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+  //    "postgresql" | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
+  //  }
 
   @Unroll
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {

@@ -101,11 +101,11 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        if (dbInfo.getType().equals("sqlserver")) {
-          sql = SQLCommenter.append(sql, DECORATE.getDbService(dbInfo));
-        } else {
-          sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo));
-        }
+        //        if (dbInfo.getType().equals("sqlserver")) {
+        sql = SQLCommenter.append(sql, DECORATE.getDbService(dbInfo));
+        //        } else {
+        //          sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo));
+        //        }
         return inputSql;
       }
       return sql;
