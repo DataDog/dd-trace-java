@@ -311,16 +311,16 @@ class RangesTest extends DDSpecification {
     range(2, 4) | [range(6, 4)] | [] // [2, 3, 4, 5] | [6, 7, 8, 9] -> []
   }
 
-  void 'insert range'() {
+  void 'merge ranges keeping order'() {
     when:
-    final result = Ranges.insert(array as Range[], toInsert as Range[])
+    final result = Ranges.mergeRangesSorted(left as Range[], right as Range[])
 
     then:
     final expectedArray = expected as Range[]
     result == expectedArray
 
     where:
-    array                      | toInsert                   | expected
+    left                       | right                      | expected
     []                         | []                         | []
     []                         | [range(2, 2)]              | [range(2, 2)]
     [range(2, 2)]              | []                         | [range(2, 2)]

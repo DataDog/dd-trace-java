@@ -243,32 +243,32 @@ public final class Ranges {
     return new Range[size > MAX_RANGE_COUNT ? MAX_RANGE_COUNT : (int) size];
   }
 
-  /** Insert the new range maintaining order (it assumes that both arrays are already sorted) */
-  public static Range[] insert(final Range[] currentRanges, final Range... newRanges) {
-    if (newRanges.length == 0) {
-      return currentRanges;
+  /** Merge the new ranges maintaining order (it assumes that both arrays are already sorted) */
+  public static Range[] mergeRangesSorted(final Range[] leftRanges, final Range[] rightRanges) {
+    if (leftRanges.length == 0) {
+      return rightRanges;
     }
-    if (currentRanges.length == 0) {
-      return newRanges;
+    if (rightRanges.length == 0) {
+      return leftRanges;
     }
-    int newIndex = 0;
-    Range newRange = newRanges[0];
-    final Range[] result = new Range[newRanges.length + currentRanges.length];
-    for (int currentIndex = 0; currentIndex < currentRanges.length; currentIndex++) {
-      final Range current = currentRanges[currentIndex];
-      if (newRange == null) {
-        result[currentIndex + newRanges.length] = current;
+    int rightIndex = 0;
+    Range rightRange = rightRanges[0];
+    final Range[] result = new Range[rightRanges.length + leftRanges.length];
+    for (int leftIndex = 0; leftIndex < leftRanges.length; leftIndex++) {
+      final Range leftRange = leftRanges[leftIndex];
+      if (rightRange == null) {
+        result[leftIndex + rightRanges.length] = leftRange;
       } else {
-        if (newRange.getStart() < current.getStart()) {
-          result[currentIndex + newIndex] = newRange;
-          newIndex++;
-          newRange = newIndex >= newRanges.length ? null : newRanges[newIndex];
+        if (rightRange.getStart() < leftRange.getStart()) {
+          result[leftIndex + rightIndex] = rightRange;
+          rightIndex++;
+          rightRange = rightIndex >= rightRanges.length ? null : rightRanges[rightIndex];
         }
-        result[currentIndex + newIndex] = current;
+        result[leftIndex + rightIndex] = leftRange;
       }
     }
-    for (; newIndex < newRanges.length; newIndex++) {
-      result[currentRanges.length + newIndex] = newRanges[newIndex];
+    for (; rightIndex < rightRanges.length; rightIndex++) {
+      result[leftRanges.length + rightIndex] = rightRanges[rightIndex];
     }
     return result;
   }

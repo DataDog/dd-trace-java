@@ -514,7 +514,7 @@ public class PropagationModuleImpl implements PropagationModule {
           to.taint(value, ranges);
         } else {
           // append ranges
-          final Range[] newRanges = Ranges.insert(tainted.getRanges(), ranges);
+          final Range[] newRanges = Ranges.mergeRangesSorted(tainted.getRanges(), ranges);
           tainted.setRanges(newRanges);
         }
       }
