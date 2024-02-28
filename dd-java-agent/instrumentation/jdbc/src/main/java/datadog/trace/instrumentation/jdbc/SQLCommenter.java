@@ -45,18 +45,19 @@ public class SQLCommenter {
       return sql;
     }
 
-    //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a callable statement
-    //
-    // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
-    //      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
-    int charIndex = 0;
-    while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
-      charIndex++;
+    if (dbService.startsWith("postgres")) {
+      //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a callable statement
+      //
+      // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
+      //      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+      int charIndex = 0;
+      while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
+        charIndex++;
+      }
+      if (charIndex < sql.length() && sql.charAt(charIndex) == '{') {
+        return sql;
+      }
     }
-    if (charIndex < sql.length() && sql.charAt(charIndex) == '{') {
-      return sql;
-    }
-
     final Config config = Config.get();
     final String parentService = config.getServiceName();
     final String env = config.getEnv();
