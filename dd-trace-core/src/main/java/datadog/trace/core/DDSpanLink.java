@@ -109,7 +109,8 @@ public class DDSpanLink extends SpanLink {
       json.trace_id = link.traceId().toHexString();
       json.span_id = DDSpanId.toHexString(link.spanId());
       json.flags = link.traceFlags() == 0 ? null : link.traceFlags();
-      json.tracestate = link.traceState().isEmpty() ? null : link.traceState();
+      json.tracestate =
+          (link.traceState() == null || link.traceState().isEmpty()) ? null : link.traceState();
       if (!link.attributes().isEmpty()) {
         json.attributes = link.attributes().asMap();
       }
