@@ -14,7 +14,6 @@ import org.apache.catalina.core.StandardHost
 import org.apache.catalina.startup.Embedded
 import org.apache.catalina.valves.ErrorReportValve
 import org.apache.coyote.http11.Http11BaseProtocol
-import spock.lang.Unroll
 
 import javax.servlet.Servlet
 import javax.servlet.ServletException
@@ -27,7 +26,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static org.junit.Assume.assumeTrue
 
-@Unroll
 abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
 
   class TomcatServer implements HttpServer {
