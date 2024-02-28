@@ -11,9 +11,9 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 
-//[compileLatestDepTestGroovy, latestDepTest].each {
-//  it.javaLauncher = getJavaLauncherFor(21)
-//}
+[compileLatestDepTestGroovy, latestDepTest].each {
+  it.javaLauncher = getJavaLauncherFor(21)
+}
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
