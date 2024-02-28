@@ -21,7 +21,10 @@ import org.example.TestSucceedDataProvider
 import org.example.TestSucceedGroups
 import org.example.TestSucceedMultiple
 import org.example.TestSucceedNested
+import org.example.TestSucceedSlow
 import org.example.TestSucceedUnskippable
+import org.example.TestSucceedVerySlow
+import org.junit.jupiter.api.Assumptions
 import org.testng.TestNG
 import org.testng.xml.SuiteXmlParser
 import org.testng.xml.XmlSuite
@@ -118,6 +121,34 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-retry-error"                      | [TestError]               | 6                   | [new TestIdentifier("org.example.TestError", "test_error", null, null)]
     "test-retry-parameterized"              | [TestFailedParameterized] | 7                   | [new TestIdentifier("org.example.TestFailedParameterized", "parameterized_test_succeed", null, null)]
     "test-failed-then-succeed-${version()}" | [TestFailedThenSucceed]   | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed", null, null)]
+  }
+
+  def "test early flakiness detection #testcaseName"() {
+    Assumptions.assumeTrue(isEFDSupported())
+
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                        | tests                  | expectedTracesCount | knownTestsList
+    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null, null)]
+    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null, null)]
+    "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
+    "test-efd-new-parameterized-test"   | [TestParameterized]    | 7                   | []
+    "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | 6                   | [
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null, null),
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null, null)
+    ]
+    "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | 2                   | [] // is executed only once
+    "test-efd-faulty-session-threshold" | [TestFailedAndSucceed] | 8                   | []
+  }
+
+  private static boolean isEFDSupported() {
+    TracingListener.FRAMEWORK_VERSION >= "7.5"
   }
 
   protected void runTests(List<Class> testClasses, String parallelMode = null) {

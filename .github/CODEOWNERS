@@ -47,3 +47,7 @@ dd-java-agent/instrumentation/spring-security-5/ @DataDog/asm-java
 **/iast/                               @DataDog/asm-java
 **/Iast*.java                          @DataDog/asm-java
 **/Iast*.groovy                        @DataDog/asm-java
+
+# @DataDog/data-jobs-monitoring
+dd-java-agent/instrumentation/spark/            @DataDog/data-jobs-monitoring
+dd-java-agent/instrumentation/spark-executor/   @DataDog/data-jobs-monitoring

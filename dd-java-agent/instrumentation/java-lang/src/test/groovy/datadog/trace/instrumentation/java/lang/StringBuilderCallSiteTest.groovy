@@ -59,7 +59,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     } else {
       1 * iastModule.onStringBuilderAppend(target, param.toString())
     }
-    _ * TEST_CHECKPOINTER._
+    _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
 
     where:
@@ -122,7 +122,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
     1 * iastModule.onStringBuilderAppend(_ as StringBuilder, 'Hello ')
     1 * iastModule.onStringBuilderAppend(_ as StringBuilder, 'World!')
     1 * iastModule.onStringBuilderToString(_ as StringBuilder, 'Hello World!')
-    _ * TEST_CHECKPOINTER._
+    _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
   }
 
@@ -168,7 +168,7 @@ class StringBuilderCallSiteTest extends AgentTestRunner {
 
     then:
     1 * iastModule.onStringBuilderAppend(_, 'Hello')
-    _ * TEST_CHECKPOINTER._
+    _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
     final ex = thrown(NuclearException)
     ex.stackTrace.find { it.className == StringBuilderCallSite.name } == null

@@ -3,6 +3,7 @@ package datadog.trace.civisibility.config;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.Configurations;
+import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -62,17 +63,23 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
     boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
     boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
+    boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
     Map<String, String> systemProperties =
         getPropertiesPropagatedToChildProcess(
             codeCoverageEnabled, itrEnabled, flakyTestRetriesEnabled);
 
     LOGGER.info(
-        "Remote CI Visibility settings received: per-test code coverage - {}, ITR - {}, flaky test retries - {}; {}, {}",
+        "CI Visibility settings ({}, {}):\n"
+            + "Per-test code coverage - {},\n"
+            + "Intelligent Test Runner - {},\n"
+            + "Early flakiness detection - {},\n"
+            + "Flaky test retries - {}",
+        repositoryRoot,
+        jvmInfo,
         codeCoverageEnabled,
         itrEnabled,
-        flakyTestRetriesEnabled,
-        repositoryRoot,
-        jvmInfo);
+        earlyFlakeDetectionEnabled,
+        flakyTestRetriesEnabled);
 
     String itrCorrelationId = null;
     Map<String, Collection<TestIdentifier>> skippableTestsByModuleName = Collections.emptyMap();
@@ -90,15 +97,26 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     Collection<TestIdentifier> flakyTests =
         flakyTestRetriesEnabled ? getFlakyTests(tracerEnvironment) : Collections.emptyList();
 
+    Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
+        earlyFlakeDetectionEnabled ? getKnownTests(tracerEnvironment) : null;
+
     List<String> coverageEnabledPackages = getCoverageEnabledPackages(codeCoverageEnabled);
     return new ModuleExecutionSettings(
         codeCoverageEnabled,
         itrEnabled,
         flakyTestRetriesEnabled,
+        // knownTests being null covers the following cases:
+        //  - early flake detection is disabled in remote settings
+        //  - early flake detection is disabled via local config killswitch
+        //  - the list of known tests could not be obtained
+        knownTestsByModuleName != null
+            ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
+            : EarlyFlakeDetectionSettings.DEFAULT,
         systemProperties,
         itrCorrelationId,
         skippableTestsByModuleName,
         flakyTests,
+        knownTestsByModuleName,
         coverageEnabledPackages);
   }
 
@@ -170,6 +188,11 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   private boolean isFlakyTestRetriesEnabled(CiVisibilitySettings ciVisibilitySettings) {
     return ciVisibilitySettings.isFlakyTestRetriesEnabled()
         && config.isCiVisibilityFlakyRetryEnabled();
+  }
+
+  private boolean isEarlyFlakeDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
+    return ciVisibilitySettings.getEarlyFlakeDetectionSettings().isEnabled()
+        && config.isCiVisibilityEarlyFlakeDetectionEnabled();
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
@@ -266,6 +289,25 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       LOGGER.error(
           "Could not obtain list of flaky tests, flaky test retries will not be available", e);
       return Collections.emptyList();
+    }
+  }
+
+  private Map<String, Collection<TestIdentifier>> getKnownTests(
+      TracerEnvironment tracerEnvironment) {
+    try {
+      Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
+          configurationApi.getKnownTestsByModuleName(tracerEnvironment);
+      LOGGER.info(
+          "Received known tests for {} modules for {}",
+          knownTestsByModuleName.size(),
+          repositoryRoot);
+      return knownTestsByModuleName;
+
+    } catch (Exception e) {
+      LOGGER.error(
+          "Could not obtain list of known tests, early flakiness detection will not be available",
+          e);
+      return null;
     }
   }
 

@@ -2,6 +2,7 @@ package datadog.trace.civisibility.domain.headless;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
@@ -18,11 +19,13 @@ import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.retry.NeverRetry;
 import datadog.trace.civisibility.retry.RetryIfFailed;
+import datadog.trace.civisibility.retry.RetryNTimes;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -41,6 +44,9 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final String itrCorrelationId;
   private final Collection<TestIdentifier> skippableTests;
   private final Collection<TestIdentifier> flakyTests;
+  private final Collection<TestIdentifier> knownTests;
+  private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
+  private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
   private final boolean codeCoverageEnabled;
   private final boolean itrEnabled;
 
@@ -78,11 +84,21 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     itrCorrelationId = moduleExecutionSettings.getItrCorrelationId();
     skippableTests = new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));
     flakyTests = new HashSet<>(moduleExecutionSettings.getFlakyTests(moduleName));
+
+    Collection<TestIdentifier> moduleKnownTests = moduleExecutionSettings.getKnownTests(moduleName);
+    knownTests = moduleKnownTests != null ? new HashSet<>(moduleKnownTests) : null;
+
+    earlyFlakeDetectionSettings = moduleExecutionSettings.getEarlyFlakeDetectionSettings();
   }
 
   @Override
   public boolean isSkippable(TestIdentifier test) {
     return test != null && skippableTests.contains(test);
+  }
+
+  @Override
+  public boolean isNew(TestIdentifier test) {
+    return knownTests != null && !knownTests.contains(test.withoutParameters());
   }
 
   @Override
@@ -98,9 +114,26 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   @Override
   @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test) {
-    return test != null && flakyTests.contains(test)
-        ? new RetryIfFailed(config.getCiVisibilityFlakyRetryCount())
-        : NeverRetry.INSTANCE;
+    if (test != null) {
+      if (earlyFlakeDetectionSettings.isEnabled()
+          && !knownTests.contains(test.withoutParameters())
+          && !earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.incrementAndGet())) {
+        return new RetryNTimes(earlyFlakeDetectionSettings);
+      }
+      if (flakyTests.contains(test.withoutParameters())) {
+        return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount());
+      }
+    }
+    return NeverRetry.INSTANCE;
+  }
+
+  private boolean earlyFlakeDetectionLimitReached(int earlyFlakeDetectionsUsed) {
+    int totalTests = knownTests.size() + earlyFlakeDetectionsUsed;
+    int threshold =
+        Math.max(
+            config.getCiVisibilityEarlyFlakeDetectionLowerLimit(),
+            totalTests * earlyFlakeDetectionSettings.getFaultySessionThreshold() / 100);
+    return earlyFlakeDetectionsUsed > threshold;
   }
 
   @Override
@@ -117,6 +150,13 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, testsSkippedTotal);
       if (testsSkippedTotal > 0) {
         setTag(DDTags.CI_ITR_TESTS_SKIPPED, true);
+      }
+    }
+
+    if (earlyFlakeDetectionSettings.isEnabled()) {
+      setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
+      if (earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.get())) {
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, "faulty");
       }
     }
 

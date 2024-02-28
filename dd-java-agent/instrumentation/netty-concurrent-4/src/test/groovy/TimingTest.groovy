@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.timer.TestTimer
+import datadog.trace.agent.test.TestProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import io.netty.util.concurrent.DefaultEventExecutorGroup
 
@@ -31,7 +31,7 @@ class TimingTest extends AgentTestRunner {
 
     cleanup:
     defaultEventExecutorGroup.shutdownGracefully()
-    TEST_TIMER.closedTimings.clear()
+    TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.clear()
   }
 
   def "test queue timing with schedule"() {
@@ -48,15 +48,15 @@ class TimingTest extends AgentTestRunner {
 
     cleanup:
     defaultEventExecutorGroup.shutdownGracefully()
-    TEST_TIMER.closedTimings.clear()
+    TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.clear()
   }
 
   void verify() {
-    assert TEST_TIMER.isBalanced()
-    assert !TEST_TIMER.closedTimings.isEmpty()
+    assert TEST_PROFILING_CONTEXT_INTEGRATION.isBalanced()
+    assert !TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.isEmpty()
     int numAsserts = 0
-    while (!TEST_TIMER.closedTimings.isEmpty()) {
-      def timing = TEST_TIMER.closedTimings.takeFirst() as TestTimer.TestQueueTiming
+    while (!TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.isEmpty()) {
+      def timing = TEST_PROFILING_CONTEXT_INTEGRATION.closedTimings.takeFirst() as TestProfilingContextIntegration.TestQueueTiming
       // filter out any netty chores, filtering these out by class name in the instrumentation
       // may be too expensive. They should get filtered out by duration anyway.
       if (!(timing.task as Class).simpleName.isEmpty()) {

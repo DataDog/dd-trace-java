@@ -11,6 +11,6 @@ public class SafeToLoadJFRCheckpointerTest {
   @Test
   public void testSafeToLoad() {
     Assumptions.assumeTrue(ExcludedVersions.isVersionExcluded());
-    assertThrows(IllegalArgumentException.class, JFRCheckpointer::new);
+    assertThrows(IllegalArgumentException.class, JFREventContextIntegration::new);
   }
 }

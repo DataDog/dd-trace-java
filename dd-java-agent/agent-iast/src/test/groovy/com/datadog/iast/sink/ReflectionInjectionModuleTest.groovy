@@ -90,12 +90,12 @@ class ReflectionInjectionModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    value        | parameterTypes  | mark                                   | expected
-    null         | null            | NOT_MARKED                             | null
-    '/var'       | String          | NOT_MARKED                             | null
-    '/==>var<==' | String          | NOT_MARKED                             | 'java.lang.String#/==>var<=='
-    '/==>var<==' | String          | VulnerabilityMarks.REFLECTION_INJECTION_MARK | null
-    '/==>var<==' | String          | VulnerabilityMarks.SQL_INJECTION_MARK  | 'java.lang.String#/==>var<=='
+    value         | mark                                   | expected
+    null          | NOT_MARKED                             | null
+    '/var'        | NOT_MARKED                             | null
+    '/==>var<=='  | NOT_MARKED                             | 'java.lang.String#/==>var<=='
+    '/==>var<=='  | VulnerabilityMarks.REFLECTION_INJECTION_MARK | null
+    '/==>var<=='  | VulnerabilityMarks.SQL_INJECTION_MARK  | 'java.lang.String#/==>var<=='
   }
 
   private String mapTainted(final String value, int mark) {

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ipc;
 
+import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public final class TestFramework implements Comparable<TestFramework> {
@@ -52,5 +53,14 @@ public final class TestFramework implements Comparable<TestFramework> {
       return 1;
     }
     return version.compareTo(o.version);
+  }
+
+  public static void serialize(Serializer serializer, TestFramework testFramework) {
+    serializer.write(testFramework.name);
+    serializer.write(testFramework.version);
+  }
+
+  public static TestFramework deserialize(ByteBuffer buf) {
+    return new TestFramework(Serializer.readString(buf), Serializer.readString(buf));
   }
 }
