@@ -6,6 +6,7 @@ import static datadog.trace.instrumentation.couchbase_32.client.CouchbaseClientD
 import com.couchbase.client.core.Core;
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.cnc.RequestTracer;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -35,11 +36,15 @@ public class DatadogRequestTracer implements RequestTracer {
     boolean measured = true;
     Object seedNodes = null;
 
+    final Config config = Config.get();
     AgentSpan parent = DatadogRequestSpan.unwrap(requestParent);
     if (null == parent) {
       parent = tracer.activeSpan();
     }
     if (null != parent && COUCHBASE_CLIENT.equals(parent.getTag(Tags.COMPONENT))) {
+      if (!config.isCouchbaseInternalEnabled()) {
+        return requestParent;
+      }
       spanName = COUCHBASE_INTERNAL;
       measured = false;
       seedNodes = parent.getTag(InstrumentationTags.COUCHBASE_SEED_NODES);
