@@ -1,6 +1,7 @@
 ext {
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_21
 }
+
 muzzle {
   pass {
     coreJdk()
@@ -11,8 +12,8 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 
-[compileLatestDepTestGroovy, latestDepTest].each {
-  it.javaLauncher = getJavaLauncherFor(21)
+compileLatestDepTestGroovy.configure {
+  javaLauncher = getJavaLauncherFor(21)
 }
 
 dependencies {

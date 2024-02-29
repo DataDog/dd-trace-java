@@ -1,3 +1,5 @@
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
@@ -9,15 +11,12 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-import static org.junit.Assume.assumeTrue
-
 class VirtualThreadTest extends AgentTestRunner {
 
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
-//  @Shared
-//  def executePriorityTask = { e, c -> e.execute(new ComparableAsyncChild(0, (Runnable) c)) }
+  //  @Shared
+  //  def executePriorityTask = { e, c -> e.execute(new ComparableAsyncChild(0, (Runnable) c)) }
   @Shared
   def executeForkJoinTask = { e, c -> e.execute((ForkJoinTask) c) }
   @Shared
@@ -38,45 +37,39 @@ class VirtualThreadTest extends AgentTestRunner {
   def invokeAnyTimeout = { e, c -> e.invokeAny([(Callable) c], 10, TimeUnit.SECONDS) }
   @Shared
   def invokeForkJoinTask = { e, c -> e.invoke((ForkJoinTask) c) }
-//  @Shared
-//  def scheduleRunnable = { e, c -> e.schedule((Runnable) c, 10, TimeUnit.MILLISECONDS) }
-//  @Shared
-//  def scheduleCallable = { e, c -> e.schedule((Callable) c, 10, TimeUnit.MILLISECONDS) }
+  //  @Shared
+  //  def scheduleRunnable = { e, c -> e.schedule((Runnable) c, 10, TimeUnit.MILLISECONDS) }
+  //  @Shared
+  //  def scheduleCallable = { e, c -> e.schedule((Callable) c, 10, TimeUnit.MILLISECONDS) }
   @Shared
   def scheduleAtFixedRate = { e, c -> e.scheduleAtFixedRate((Runnable) c, 10, 10, TimeUnit.MILLISECONDS) }
   @Shared
   def scheduleWithFixedDelay = { e, c -> e.scheduleWithFixedDelay((Runnable) c, 10, 10, TimeUnit.MILLISECONDS) }
 
-//  @Override
-//  void configurePreAgent() {
-//    super.configurePreAgent()
-//  }
-
   def "virtualThreadPool #name"() {
     setup:
-    assumeTrue(poolImpl != null) // skip for Java 7 CompletableFuture, non-Linux Netty EPoll
     def pool = poolImpl
     def m = method
 
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        // this child will have a span
-        m(pool, new JavaAsyncChild())
-        // this child won't
-        m(pool, new JavaAsyncChild(false, false))
-        blockUntilChildSpansFinished(1)
-      }
-    }.run()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          // this child will have a span
+          m(pool, new JavaAsyncChild())
+          // this child won't
+          m(pool, new JavaAsyncChild(false, false))
+          blockUntilChildSpansFinished(1)
+        }
+      }.run()
 
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
 
     expect:
     TEST_WRITER.size() == 1
-    trace.size() == 22 // should fail. expects 2
+    trace.size() == 2
     trace.get(0).operationName == "parent"
     trace.get(1).operationName == "asyncChild"
     trace.get(1).parentId == trace.get(0).spanId
