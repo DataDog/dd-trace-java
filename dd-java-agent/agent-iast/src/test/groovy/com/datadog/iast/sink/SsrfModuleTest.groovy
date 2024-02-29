@@ -24,6 +24,22 @@ class SsrfModuleTest extends IastModuleImplTestBase {
     return Mock(Reporter)
   }
 
+  void 'test null host'() {
+    when:
+    module.onURLConnection(null)
+
+    then:
+    0 * _
+  }
+
+  void 'test null value'() {
+    when:
+    module.onURLConnection(null, null, null)
+
+    then:
+    0 * _
+  }
+
   void 'test SSRF detection'() {
     when:
     module.onURLConnection(url)
@@ -85,13 +101,19 @@ class SsrfModuleTest extends IastModuleImplTestBase {
     0 * reporter.report(_, _)
 
     when:
-    taint(host!=null ? host : uri)
+    if (toTaint == 'both') {
+      taint(host)
+      taint(uri)
+    } else {
+      taint(toTaint == 'host' ? host : uri)
+    }
     module.onURLConnection(value, host, uri)
 
     then: 'report is called when the host or uri are tainted'
     tracer.activeSpan() >> span
     1 * reporter.report(span, {
-      Vulnerability vul -> vul.type == VulnerabilityType.SSRF
+      Vulnerability vul ->
+      vul.type == VulnerabilityType.SSRF
       && vul.evidence.value == value
       && vul.evidence.ranges.length == 1
       && vul.evidence.ranges[0].start == 0
@@ -100,9 +122,10 @@ class SsrfModuleTest extends IastModuleImplTestBase {
 
 
     where:
-    value                        | host | uri
-    'http://test.com' | new Object() | new URI('http://test.com/tested')
-    'http://test.com' | null | new URI('http://test.com/tested')
+    value             | host         | uri                               | toTaint
+    'http://test.com' | new Object() | new URI('http://test.com/tested') | 'host'
+    'http://test.com' | new Object() | new URI('http://test.com/tested') | 'uri'
+    'http://test.com' | new Object() | new URI('http://test.com/tested') | 'both'
   }
 
   private void taint(final Object value) {

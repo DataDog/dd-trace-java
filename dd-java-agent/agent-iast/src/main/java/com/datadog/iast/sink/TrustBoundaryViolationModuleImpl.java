@@ -19,9 +19,9 @@ public class TrustBoundaryViolationModuleImpl extends SinkModuleBase
     if (ctx == null) {
       return;
     }
-    checkInjection(ctx, VulnerabilityType.TRUST_BOUNDARY_VIOLATION, name);
+    checkInjection(VulnerabilityType.TRUST_BOUNDARY_VIOLATION, name);
     if (value != null) {
-      checkInjectionDeeply(ctx, VulnerabilityType.TRUST_BOUNDARY_VIOLATION, value);
+      checkInjectionDeeply(VulnerabilityType.TRUST_BOUNDARY_VIOLATION, value);
     }
   }
 }

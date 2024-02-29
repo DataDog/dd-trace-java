@@ -6,9 +6,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ThreadPoolDispatcherKt
 import spock.lang.Shared
-import spock.lang.Unroll
 
-@Unroll
 abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCoroutineTests> extends AgentTestRunner {
 
   protected abstract T getCoreKotlinCoroutineTestsInstance(CoroutineDispatcher dispatcher)

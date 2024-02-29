@@ -14,7 +14,6 @@ import static datadog.trace.api.iast.SourceTypes.GRPC_BODY
 import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_VALUE
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.Ranges.mergeRanges
-import static com.datadog.iast.taint.Ranges.rangesProviderFor
 import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_NAME
 
 class RangesTest extends DDSpecification {
@@ -73,64 +72,6 @@ class RangesTest extends DDSpecification {
     1      | 2      | 0     | [[1, 1]] | [null, [1, 1]]
     1      | 2      | 1     | [[1, 1]] | [null, [2, 1]]
     1      | 2      | -1    | [[1, 1]] | [null, [0, 1]]
-  }
-
-  void 'test range provider'(final Object values, final List<TaintedObject> tainted, final int size, final int rangeCount) {
-    setup:
-    final to = Stub(TaintedObjects)
-    values.eachWithIndex { Object entry, int i ->
-      to.get(entry) >> tainted.get(i)
-    }
-
-    when:
-    final provider = rangesProviderFor(to, values)
-
-    then:
-    provider.size() == size
-    provider.rangeCount() == rangeCount
-    values.eachWithIndex { Object entry, int i ->
-      final value = provider.value(i)
-      assert value == entry
-      assert provider.ranges(value) == tainted.get(i)?.getRanges()
-    } == values
-
-    where:
-    values                                | tainted                                                 | size | rangeCount
-    null                                  | []                                                      | 0    | 0
-    []                                    | []                                                      | 0    | 0
-    ['a', 'b', 'c', 'd']                  | [null, ranged(2), null, ranged(6), null]                | 4    | 8
-    ['a', 'b', 'c', 'd', 'e'] as String[] | [ranged(1), ranged(1), ranged(1), ranged(1), ranged(1)] | 5    | 5
-  }
-
-  void 'test empty range provider'() {
-    setup:
-    final to = Stub(TaintedObjects)
-    final provider = rangesProviderFor(to, items)
-
-    when:
-    final rangeCount = provider.rangeCount()
-    final size = provider.size()
-
-    then:
-    rangeCount == 0
-    size == 0
-
-    when:
-    provider.value(0)
-
-    then:
-    thrown(UnsupportedOperationException)
-
-    when:
-    provider.ranges('abc')
-
-    then:
-    thrown(UnsupportedOperationException)
-
-    where:
-    items | _
-    null  | _
-    []    | _
   }
 
   void 'getIncludedRangesInterval'() {
