@@ -16,7 +16,6 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
-import java.time.Instant
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
@@ -46,17 +45,6 @@ abstract class AWS1SnsClientTest extends VersionedNamingTestBase {
   @Shared
   final String topicArn = "arnprefix:" + topicName
 
-  @Shared
-  def timestamp = Instant.now().minusSeconds(60)
-
-  @Shared
-  def timestamp2 = timestamp.plusSeconds(1)
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-  }
-
   @Override
   protected boolean isDataStreamsEnabled() {
     return true
@@ -66,7 +54,6 @@ abstract class AWS1SnsClientTest extends VersionedNamingTestBase {
   protected long dataStreamsBucketDuration() {
     TimeUnit.MILLISECONDS.toNanos(250)
   }
-
 
   @Override
   String operation() {

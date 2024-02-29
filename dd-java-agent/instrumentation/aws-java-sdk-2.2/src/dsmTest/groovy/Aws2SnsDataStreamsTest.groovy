@@ -26,7 +26,6 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Unroll
 
-import java.time.Instant
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -42,12 +41,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
   def responseBody = new AtomicReference<String>()
   @Shared
   def servedRequestId = new AtomicReference<String>()
-
-  @Shared
-  def timestamp = Instant.now().minusSeconds(60)
-
-  @Shared
-  def timestamp2 = timestamp.plusSeconds(1)
 
   @AutoCleanup
   @Shared
@@ -75,11 +68,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
         .sendWithType("application/x-amz-json-1.1", responseBody.get())
       }
     }
-  }
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
   }
 
   @Override
