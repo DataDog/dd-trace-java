@@ -99,33 +99,6 @@ class ConfigConverterTest extends DDSpecification {
     // spotless:on
   }
 
-  def "render a single interval bitset"() {
-    def set = new BitSet()
-    set.set(200, 299)
-
-    expect:
-    ConfigConverter.renderIntegerRange(set) == "200-299"
-  }
-
-  def "render a single value bitset"() {
-    def set = new BitSet()
-    set.set(33)
-
-    expect:
-    ConfigConverter.renderIntegerRange(set) == "33"
-  }
-
-  def "render bitset intervals"() {
-    def set = new BitSet()
-    set.set(33)
-    set.set(200, 300)
-    set.set(303)
-    set.set(400, 500)
-
-    expect:
-    ConfigConverter.renderIntegerRange(set) == "33,200-300,303,400-500"
-  }
-
   def "test parseMapWithOptionalMappings"() {
     when:
     def result = ConfigConverter.parseMapWithOptionalMappings(mapString, "test", "", lowercaseKeys)

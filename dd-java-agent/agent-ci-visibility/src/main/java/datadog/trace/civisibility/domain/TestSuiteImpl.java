@@ -33,6 +33,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final long moduleId;
   private final String moduleName;
   private final String testSuiteName;
+  private final String itrCorrelationId;
   private final Class<?> testClass;
   private final InstrumentationType instrumentationType;
   private final TestFrameworkInstrumentation instrumentation;
@@ -52,6 +53,7 @@ public class TestSuiteImpl implements DDTestSuite {
       long moduleId,
       String moduleName,
       String testSuiteName,
+      String itrCorrelationId,
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
       boolean parallelized,
@@ -69,6 +71,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.moduleId = moduleId;
     this.moduleName = moduleName;
     this.testSuiteName = testSuiteName;
+    this.itrCorrelationId = itrCorrelationId;
     this.parallelized = parallelized;
     this.instrumentationType = instrumentationType;
     this.instrumentation = instrumentation;
@@ -190,6 +193,7 @@ public class TestSuiteImpl implements DDTestSuite {
         moduleName,
         testSuiteName,
         testName,
+        itrCorrelationId,
         startTime,
         testClass,
         testMethod,

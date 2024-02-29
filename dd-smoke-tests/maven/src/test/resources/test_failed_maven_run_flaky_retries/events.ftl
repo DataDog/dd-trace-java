@@ -82,7 +82,7 @@
       "test.code_coverage.enabled" : "true",
       "test.execution" : "maven-surefire-plugin:test:default-test",
       "error.message" : ${content_meta_error_message},
-      "error.stack" : ${content_meta_error_stack},
+      "error.stack" : ${content_meta_error_stack_2},
       "test.itr.tests_skipping.type" : "test",
       "test.command" : "mvn -B test",
       "test.framework_version" : "4.13.2",
@@ -177,7 +177,7 @@
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
       "error.type" : "java.lang.AssertionError",
-      "error.stack" : ${content_meta_error_stack_2},
+      "error.stack" : ${content_meta_error_stack_3},
       "test.framework_version" : "4.13.2",
       "test.framework" : "junit4"
     }
@@ -226,9 +226,10 @@
       "test.type" : "test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
+      "test.is_retry" : "true",
       "component" : "junit",
       "error.type" : "java.lang.AssertionError",
-      "error.stack" : ${content_meta_error_stack_2},
+      "error.stack" : ${content_meta_error_stack_4},
       "test.framework_version" : "4.13.2",
       "test.framework" : "junit4"
     }
@@ -277,9 +278,10 @@
       "test.type" : "test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
+      "test.is_retry" : "true",
       "component" : "junit",
       "error.type" : "java.lang.AssertionError",
-      "error.stack" : ${content_meta_error_stack_2},
+      "error.stack" : ${content_meta_error_stack_5},
       "test.framework_version" : "4.13.2",
       "test.framework" : "junit4"
     }
@@ -328,9 +330,10 @@
       "test.type" : "test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
+      "test.is_retry" : "true",
       "component" : "junit",
       "error.type" : "java.lang.AssertionError",
-      "error.stack" : ${content_meta_error_stack_2},
+      "error.stack" : ${content_meta_error_stack_6},
       "test.framework_version" : "4.13.2",
       "test.framework" : "junit4"
     }
@@ -379,9 +382,10 @@
       "test.type" : "test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
+      "test.is_retry" : "true",
       "component" : "junit",
       "error.type" : "java.lang.AssertionError",
-      "error.stack" : ${content_meta_error_stack_2},
+      "error.stack" : ${content_meta_error_stack_7},
       "test.framework_version" : "4.13.2",
       "test.framework" : "junit4"
     }

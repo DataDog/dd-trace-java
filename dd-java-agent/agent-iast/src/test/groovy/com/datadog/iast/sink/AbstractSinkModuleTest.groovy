@@ -59,7 +59,7 @@ class AbstractSinkModuleTest extends IastModuleImplTestBase {
 
     when:
     propagation.taintIfTainted(toReport, input)
-    final evidence = sink.checkInjection(ctx, SSRF, toReport)
+    final evidence = sink.checkInjection(SSRF, toReport)
 
     then:
     evidence.ranges.length == 1

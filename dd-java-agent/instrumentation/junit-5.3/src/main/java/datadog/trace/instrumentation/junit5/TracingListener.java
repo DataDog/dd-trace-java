@@ -114,7 +114,7 @@ public class TracingListener implements EngineExecutionListener {
   }
 
   private void testMethodExecutionStarted(TestDescriptor testDescriptor, MethodSource testSource) {
-    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
+    TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
 
     Class<?> testClass;
     String testSuiteName;
@@ -147,7 +147,8 @@ public class TracingListener implements EngineExecutionListener {
         tags,
         testClass,
         testMethodName,
-        testMethod);
+        testMethod,
+        JUnitPlatformUtils.isRetry(testDescriptor));
   }
 
   private void testCaseExecutionFinished(
@@ -162,7 +163,7 @@ public class TracingListener implements EngineExecutionListener {
       TestDescriptor testDescriptor,
       TestExecutionResult testExecutionResult,
       MethodSource testSource) {
-    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
+    TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
 
     Class<?> testClass;
     String testSuiteName;
@@ -239,7 +240,7 @@ public class TracingListener implements EngineExecutionListener {
 
   private void testMethodExecutionSkipped(
       final TestDescriptor testDescriptor, final MethodSource testSource, final String reason) {
-    TestDescriptor suiteDescriptor = getSuiteDescriptor(testDescriptor);
+    TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
 
     Class<?> testClass;
     String testSuiteName;
@@ -274,12 +275,5 @@ public class TracingListener implements EngineExecutionListener {
         testMethodName,
         testMethod,
         reason);
-  }
-
-  private static TestDescriptor getSuiteDescriptor(TestDescriptor testDescriptor) {
-    while (testDescriptor != null && !JUnitPlatformUtils.isSuite(testDescriptor)) {
-      testDescriptor = testDescriptor.getParent().orElse(null);
-    }
-    return testDescriptor;
   }
 }

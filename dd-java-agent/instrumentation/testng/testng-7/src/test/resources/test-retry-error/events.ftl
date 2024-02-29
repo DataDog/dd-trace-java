@@ -130,6 +130,7 @@
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
+      "test.is_retry" : "true",
       "component" : "testng",
       "error.type" : "java.lang.IllegalArgumentException",
       "_dd.profiling.ctx" : "test",
@@ -183,11 +184,12 @@
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
+      "test.is_retry" : "true",
       "component" : "testng",
       "error.type" : "java.lang.IllegalArgumentException",
       "_dd.profiling.ctx" : "test",
       "error.message" : ${content_meta_error_message},
-      "error.stack" : ${content_meta_error_stack_2},
+      "error.stack" : ${content_meta_error_stack_3},
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "testng"
     }
@@ -236,11 +238,12 @@
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
+      "test.is_retry" : "true",
       "component" : "testng",
       "error.type" : "java.lang.IllegalArgumentException",
       "_dd.profiling.ctx" : "test",
       "error.message" : ${content_meta_error_message},
-      "error.stack" : ${content_meta_error_stack_2},
+      "error.stack" : ${content_meta_error_stack_4},
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "testng"
     }
@@ -289,11 +292,12 @@
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
+      "test.is_retry" : "true",
       "component" : "testng",
       "error.type" : "java.lang.IllegalArgumentException",
       "_dd.profiling.ctx" : "test",
       "error.message" : ${content_meta_error_message},
-      "error.stack" : ${content_meta_error_stack_2},
+      "error.stack" : ${content_meta_error_stack_5},
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "testng"
     }

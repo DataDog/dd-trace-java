@@ -134,7 +134,8 @@ public class SpockTracingListener implements EngineExecutionListener {
         tags,
         testClass,
         testMethodName,
-        testMethod);
+        testMethod,
+        JUnitPlatformUtils.isRetry(testDescriptor));
   }
 
   private void testCaseExecutionFinished(

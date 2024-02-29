@@ -2,6 +2,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -125,6 +126,12 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     }
     if (result.isItrEnabled()) {
       itrEnabled = true;
+    }
+    if (result.isEarlyFlakeDetectionEnabled()) {
+      setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
+      if (result.isEarlyFlakeDetectionFaulty()) {
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
+      }
     }
 
     testsSkipped.add(result.getTestsSkippedTotal());

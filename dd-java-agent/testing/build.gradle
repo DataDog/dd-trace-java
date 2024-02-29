@@ -41,8 +41,7 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.datastreams.**',
   // profiling
   'datadog.trace.agent.test.TestProfilingContextIntegration',
-  'datadog.trace.agent.test.timer.TestTimer',
-  'datadog.trace.agent.test.timer.TestTimer.TestQueueTiming'
+  'datadog.trace.agent.test.TestProfilingContextIntegration.TestQueueTiming'
 ]
 
 dependencies {

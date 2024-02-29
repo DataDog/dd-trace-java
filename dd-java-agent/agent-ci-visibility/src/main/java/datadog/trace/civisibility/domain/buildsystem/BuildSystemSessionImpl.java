@@ -2,9 +2,12 @@ package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.TagValue;
+import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -114,6 +117,12 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
     if (result.isItrEnabled()) {
       itrEnabled = true;
     }
+    if (result.isEarlyFlakeDetectionEnabled()) {
+      setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
+      if (result.isEarlyFlakeDetectionFaulty()) {
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
+      }
+    }
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
@@ -148,15 +157,24 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
           !skippableTestsForModule.isEmpty()
               ? Collections.singletonMap(moduleName, skippableTestsForModule)
               : Collections.emptyMap();
-      Collection<TestIdentifier> flakyTests = settings.getFlakyTests(moduleName);
+
+      Collection<TestIdentifier> knownTestsForModule = settings.getKnownTests(moduleName);
+      Map<String, Collection<TestIdentifier>> knownTests =
+          knownTestsForModule != null
+              ? Collections.singletonMap(moduleName, knownTestsForModule)
+              : null;
+
       ModuleExecutionSettings moduleSettings =
           new ModuleExecutionSettings(
               settings.isCodeCoverageEnabled(),
               settings.isItrEnabled(),
               settings.isFlakyTestRetriesEnabled(),
+              settings.getEarlyFlakeDetectionSettings(),
               settings.getSystemProperties(),
+              settings.getItrCorrelationId(),
               skippableTests,
-              flakyTests,
+              settings.getFlakyTests(moduleName),
+              knownTests,
               settings.getCoverageEnabledPackages());
 
       return new ModuleSettingsResponse(moduleSettings);
@@ -262,5 +280,14 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
   @Override
   public ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo) {
     return moduleExecutionSettingsFactory.create(jvmInfo, null);
+  }
+
+  @Override
+  protected Collection<TagValue> additionalTelemetryTags() {
+    if (CIConstants.EFD_ABORT_REASON_FAULTY.equals(
+        span.getTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON))) {
+      return Collections.singleton(EarlyFlakeDetectionAbortReason.FAULTY);
+    }
+    return Collections.emptySet();
   }
 }

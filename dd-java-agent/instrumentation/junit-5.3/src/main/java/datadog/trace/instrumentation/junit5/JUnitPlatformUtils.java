@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class JUnitPlatformUtils {
 
+  public static final String RETRY_DESCRIPTOR_ID_SUFFIX = "retry-attempt";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitPlatformUtils.class);
 
   private JUnitPlatformUtils() {}
@@ -90,27 +92,47 @@ public abstract class JUnitPlatformUtils {
     return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(displayName) + "\"}}";
   }
 
-  public static TestIdentifier toTestIdentifier(
-      TestDescriptor testDescriptor, boolean includeParameters) {
+  public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof MethodSource) {
       MethodSource methodSource = (MethodSource) testSource;
       String testSuiteName = methodSource.getClassName();
       String testName = methodSource.getMethodName();
-
-      String testParameters;
-      if (includeParameters) {
-        String displayName = testDescriptor.getDisplayName();
-        testParameters = getParameters(methodSource, displayName);
-      } else {
-        testParameters = null;
-      }
-
+      String displayName = testDescriptor.getDisplayName();
+      String testParameters = getParameters(methodSource, displayName);
       return new TestIdentifier(testSuiteName, testName, testParameters, null);
 
     } else {
       return null;
     }
+  }
+
+  public static datadog.trace.api.civisibility.events.TestDescriptor toTestDescriptor(
+      TestDescriptor testDescriptor) {
+    TestSource testSource = testDescriptor.getSource().orElse(null);
+    if (!(testSource instanceof MethodSource)) {
+      return null;
+    }
+
+    MethodSource methodSource = (MethodSource) testSource;
+    TestDescriptor suiteDescriptor = JUnitPlatformUtils.getSuiteDescriptor(testDescriptor);
+
+    Class<?> testClass;
+    String testSuiteName;
+    if (suiteDescriptor != null) {
+      testClass = JUnitPlatformUtils.getJavaClass(suiteDescriptor);
+      testSuiteName =
+          testClass != null ? testClass.getName() : suiteDescriptor.getLegacyReportingName();
+    } else {
+      testClass = JUnitPlatformUtils.getTestClass(methodSource);
+      testSuiteName = methodSource.getClassName();
+    }
+
+    String testName = methodSource.getMethodName();
+    String displayName = testDescriptor.getDisplayName();
+    String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
+    return new datadog.trace.api.civisibility.events.TestDescriptor(
+        testSuiteName, testClass, testName, testParameters, null);
   }
 
   public static boolean isAssumptionFailure(Throwable throwable) {
@@ -160,5 +182,19 @@ public abstract class JUnitPlatformUtils {
     UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
     return "class".equals(lastSegment.getType()) // "regular" JUnit test class
         || "nested-class".equals(lastSegment.getType()); // nested JUnit test class
+  }
+
+  public static boolean isRetry(TestDescriptor testDescriptor) {
+    UniqueId uniqueId = testDescriptor.getUniqueId();
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
+    return RETRY_DESCRIPTOR_ID_SUFFIX.equals(lastSegment.getType());
+  }
+
+  public static TestDescriptor getSuiteDescriptor(TestDescriptor testDescriptor) {
+    while (testDescriptor != null && !isSuite(testDescriptor)) {
+      testDescriptor = testDescriptor.getParent().orElse(null);
+    }
+    return testDescriptor;
   }
 }

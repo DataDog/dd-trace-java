@@ -12,6 +12,7 @@ import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
+import datadog.trace.api.civisibility.telemetry.tag.IsNew;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -50,6 +51,7 @@ public class TestImpl implements DDTest {
       String moduleName,
       String testSuiteName,
       String testName,
+      @Nullable String itrCorrelationId,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
       @Nullable Method testMethod,
@@ -109,6 +111,10 @@ public class TestImpl implements DDTest {
     if (config.isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(
           span, testClass, testMethod, sourcePathResolver, methodLinesResolver, codeowners);
+    }
+
+    if (itrCorrelationId != null) {
+      span.setTag(Tags.ITR_CORRELATION_ID, itrCorrelationId);
     }
 
     testDecorator.afterStart(span);
@@ -218,7 +224,12 @@ public class TestImpl implements DDTest {
       span.finish();
     }
 
-    metricCollector.add(CiVisibilityCountMetric.EVENT_FINISHED, 1, instrumentation, EventType.TEST);
+    metricCollector.add(
+        CiVisibilityCountMetric.EVENT_FINISHED,
+        1,
+        instrumentation,
+        EventType.TEST,
+        span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null);
   }
 
   /**

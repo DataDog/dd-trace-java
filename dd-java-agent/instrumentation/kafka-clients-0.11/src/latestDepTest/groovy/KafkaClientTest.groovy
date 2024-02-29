@@ -24,7 +24,6 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker
 import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Unroll
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -1019,7 +1018,6 @@ class KafkaClientTest extends AgentTestRunner {
     container?.stop()
   }
 
-  @Unroll
   def "test kafka client header propagation manual config"() {
     setup:
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())

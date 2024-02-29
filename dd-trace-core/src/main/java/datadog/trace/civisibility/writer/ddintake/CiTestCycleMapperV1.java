@@ -45,7 +45,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span");
 
   private static final Collection<String> DEFAULT_TOP_LEVEL_TAGS =
-      Arrays.asList(Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID);
+      Arrays.asList(
+          Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID, Tags.ITR_CORRELATION_ID);
 
   private final WellKnownTags wellKnownTags;
   private final Collection<String> topLevelTags;
