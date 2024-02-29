@@ -2,6 +2,7 @@ package datadog.trace.civisibility.domain.headless;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -156,7 +157,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     if (earlyFlakeDetectionSettings.isEnabled()) {
       setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
       if (earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.get())) {
-        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, "faulty");
+        setTag(Tags.TEST_EARLY_FLAKE_ABORT_REASON, CIConstants.EFD_ABORT_REASON_FAULTY);
       }
     }
 

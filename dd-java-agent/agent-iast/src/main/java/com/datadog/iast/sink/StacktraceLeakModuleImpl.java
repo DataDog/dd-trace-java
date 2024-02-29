@@ -21,7 +21,6 @@ public class StacktraceLeakModuleImpl extends SinkModuleBase implements Stacktra
       Throwable throwable, String moduleName, String className, String methodName) {
     if (throwable != null) {
       final AgentSpan span = AgentTracer.activeSpan();
-
       Evidence evidence =
           new Evidence(
               "ExceptionHandler in "
@@ -29,9 +28,7 @@ public class StacktraceLeakModuleImpl extends SinkModuleBase implements Stacktra
                   + " \r\nthrown "
                   + throwable.getClass().getName());
       Location location = Location.forSpanAndClassAndMethod(span, className, methodName);
-
-      reporter.report(
-          span, new Vulnerability(VulnerabilityType.STACKTRACE_LEAK, location, evidence));
+      report(span, new Vulnerability(VulnerabilityType.STACKTRACE_LEAK, location, evidence));
     }
   }
 }

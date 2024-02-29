@@ -3,9 +3,7 @@ import org.apache.log4j.Category
 import org.apache.log4j.MDC
 import org.apache.log4j.Priority
 import org.apache.log4j.spi.LoggingEvent
-import spock.lang.Unroll
 
-@Unroll
 class MdcTest extends AgentTestRunner {
   def "should preserve mdc when logging injection is #injectionEnabled"() {
     setup:

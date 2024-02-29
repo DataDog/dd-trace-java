@@ -1,5 +1,7 @@
 package com.datadog.iast.propagation;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+
 import datadog.trace.api.iast.propagation.CodecModule;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -14,8 +16,13 @@ public class FastCodecModule extends PropagationModuleImpl implements CodecModul
 
   @Override
   public void onStringFromBytes(
-      @Nonnull final byte[] value, @Nullable final String charset, @Nonnull final String result) {
-    taintIfTainted(result, value);
+      @Nonnull final byte[] value,
+      int offset,
+      int length,
+      @Nullable final String charset,
+      @Nonnull final String result) {
+    // create a new range shifted to the result string coordinates
+    taintIfTainted(result, value, offset, length, false, NOT_MARKED);
   }
 
   @Override

@@ -12,18 +12,11 @@ import static com.datadog.iast.util.HttpHeader.SET_COOKIE;
 import static com.datadog.iast.util.HttpHeader.UPGRADE;
 
 import com.datadog.iast.Dependencies;
-import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.VulnerabilityType;
-import com.datadog.iast.overhead.Operations;
-import com.datadog.iast.taint.Ranges;
-import com.datadog.iast.taint.TaintedObject;
-import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.HttpHeader;
-import datadog.trace.api.iast.IastContext;
+import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.iast.sink.HeaderInjectionModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.EnumSet;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -45,56 +38,54 @@ public class HeaderInjectionModuleImpl extends SinkModuleBase implements HeaderI
     if (null == value) {
       return;
     }
+
     HttpHeader header = HttpHeader.from(name);
     if (headerInjectionExclusions.contains(header)) {
       return;
     }
 
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
-      return;
-    }
-    final TaintedObjects to = ctx.getTaintedObjects();
-    final TaintedObject taintedObject = to.get(value);
-    if (null == taintedObject) {
-      return;
+    checkInjection(
+        VulnerabilityType.HEADER_INJECTION,
+        value,
+        new HeaderInjectionEvidenceBuilder(name, header));
+  }
+
+  private static class HeaderInjectionEvidenceBuilder implements EvidenceBuilder {
+
+    private final String name;
+    @Nullable private final HttpHeader header;
+
+    private HeaderInjectionEvidenceBuilder(final String name, @Nullable final HttpHeader header) {
+      this.name = name;
+      this.header = header;
     }
 
-    final Range[] ranges =
-        Ranges.getNotMarkedRanges(
-            taintedObject.getRanges(), VulnerabilityType.HEADER_INJECTION.mark());
-    if (ranges == null || ranges.length == 0) {
-      return;
-    }
+    @Override
+    public void tainted(
+        final StringBuilder evidence,
+        final RangeBuilder ranges,
+        final Object value,
+        final Range[] valueRanges) {
+      // Exclude access-control-allow-*: when the header starts with access-control-allow- and
+      // the source of the tainted range is a request header
+      if (name.regionMatches(
+              true, 0, ACCESS_CONTROL_ALLOW_PREFIX, 0, ACCESS_CONTROL_ALLOW_PREFIX.length())
+          && allRangesFromAnyHeader(valueRanges)) {
+        return;
+      }
 
-    // Exclude access-control-allow-*: when the header starts with access-control-allow- and the
-    // source of the tainted range is a request header
-    if (name.regionMatches(
-            true, 0, ACCESS_CONTROL_ALLOW_PREFIX, 0, ACCESS_CONTROL_ALLOW_PREFIX.length())
-        && allRangesFromAnyHeader(ranges)) {
-      return;
-    }
+      // Exclude set-cookie header if the source of all the tainted ranges are cookies
+      if ((header == SET_COOKIE) && allRangesFromHeader(COOKIE, valueRanges)) {
+        return;
+      }
 
-    // Exclude set-cookie header if the source of all the tainted ranges are cookies
-    if ((header == SET_COOKIE) && allRangesFromHeader(COOKIE, ranges)) {
-      return;
-    }
+      // Exclude when the header is reflected from the request
+      if (valueRanges.length == 1 && rangeFromHeader(name, valueRanges[0])) {
+        return;
+      }
 
-    // Exclude when the header is reflected from the request
-    if (ranges.length == 1 && rangeFromHeader(name, ranges[0])) {
-      return;
+      evidence.append(name).append(": ").append(value);
+      ranges.add(valueRanges, name.length() + 2);
     }
-
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
-      return;
-    }
-    final String evidenceString = name + ": " + value;
-    final Range[] shiftedRanges = new Range[ranges.length];
-    for (int i = 0; i < ranges.length; i++) {
-      shiftedRanges[i] = ranges[i].shift(name.length() + 2);
-    }
-    final Evidence result = new Evidence(evidenceString, shiftedRanges);
-    report(span, VulnerabilityType.HEADER_INJECTION, result);
   }
 }
