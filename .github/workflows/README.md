@@ -4,16 +4,6 @@ This lists and describes the repository GitHub actions.
 
 ## Release Management
 
-### add-assets-to-release [🔗](add-assets-to-release.yaml)
-
-_Trigger:_ When a release is published.
-
-_Actions:_
-* Ensure the release name is properly formatted (using `x.y.z` format),
-* Download `dd-java-agent`, `dd-trace-api` and `dd-trace-ot` artifacts from Sonatype (aka _Maven Central_ and upload them to the release (`dd-java-agent` will also be uploaded without version number).
-
-_Recovery:_ Download artifacts and upload them manually to the release.
-
 ### add-milestone-to-pull-requests [🔗](add-milestone-to-pull-requests.yaml)
 
 _Trigger:_ When a PR to `master` is closed.

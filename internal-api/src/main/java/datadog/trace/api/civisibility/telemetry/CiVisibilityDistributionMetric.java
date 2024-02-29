@@ -36,7 +36,13 @@ public enum CiVisibilityDistributionMetric {
   /** The number of bytes received by the skippable tests endpoint */
   ITR_SKIPPABLE_TESTS_RESPONSE_BYTES("itr_skippable_tests.response_bytes"),
   /** The number of files covered inside a coverage payload */
-  CODE_COVERAGE_FILES("code_coverage.files");
+  CODE_COVERAGE_FILES("code_coverage.files"),
+  /* The time it takes to get the response of the known tests endpoint request in ms */
+  EFD_REQUEST_MS("early_flake_detection.request_ms"),
+  /** The number of bytes received by the known tests endpoint */
+  EFD_RESPONSE_BYTES("early_flake_detection.response_bytes"),
+  /** The number of tests received by the known tests endpoint */
+  EFD_RESPONSE_TESTS("early_flake_detection.response_tests");
 
   private static final String NAMESPACE = "civisibility";
 

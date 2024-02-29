@@ -17,6 +17,7 @@ import junit.framework.TestCase;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.Description;
+import org.junit.runner.RunWith;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
@@ -95,17 +96,18 @@ public abstract class JUnit4Utils {
       return null;
     }
 
-    int actualMethodNameStart, actualMethodNameEnd;
-    if ((actualMethodNameStart = methodName.indexOf('(')) > 0
-        && (actualMethodNameEnd = methodName.indexOf(')', actualMethodNameStart)) > 0) {
+    RunWith runWith = testClass.getAnnotation(RunWith.class);
+    boolean isJunitParamsTestCase =
+        runWith != null && "junitparams.JUnitParamsRunner".equals(runWith.value().getName());
+    int junitParamsStartIdx;
+    if (isJunitParamsTestCase && (junitParamsStartIdx = methodName.indexOf('(')) >= 0) {
       // assuming this is a parameterized test case that uses use pl.pragmatists.JUnitParams
       // in that case method name will have the following structure:
-      // [test case number] param1, param2, param3 (methodName)
-      // e.g. [0] 2, 2, 4 (shouldReturnCorrectSum)
+      // methodName(param1, param2, param3) [test case number]
+      // e.g. test_parameterized(1, 2, 3) [0]
 
       int parameterCount = countCharacter(methodName, ',') + 1;
-
-      methodName = methodName.substring(actualMethodNameStart + 1, actualMethodNameEnd);
+      methodName = methodName.substring(0, junitParamsStartIdx);
 
       // below is a best-effort attempt to find a matching method with the information we have
       // this is not terribly efficient, but this case should be rare

@@ -353,9 +353,9 @@ class RangeBuilderTest extends Specification {
     entry.arrayCopy(target, 1)
 
     then:
-    target[0].start === 10
-    target[1].start === 11
-    target[2].start === 12
+    target[0].start == 10
+    target[1].start == 11
+    target[2].start == 12
 
     when: 'copy before zero'
     final copied = entry.arrayCopy(target, -1)

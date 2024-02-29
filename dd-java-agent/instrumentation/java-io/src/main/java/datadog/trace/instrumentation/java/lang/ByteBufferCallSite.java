@@ -1,11 +1,14 @@
 package datadog.trace.instrumentation.java.lang;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.nio.ByteBuffer;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 @Propagation
@@ -23,10 +26,28 @@ public class ByteBufferCallSite {
       return result;
     }
     try {
-      module.taintIfTainted(result, bytes);
+      module.taintIfTainted(result, bytes, true, NOT_MARKED); // keep ranges
     } catch (final Throwable e) {
       module.onUnexpectedException("beforeConstructor threw", e);
     }
     return result;
+  }
+
+  @CallSite.After("byte[] java.nio.ByteBuffer.array()")
+  public static byte[] afterArray(
+      @CallSite.This @Nonnull final ByteBuffer buffer, @CallSite.Return final byte[] bytes) {
+    if (bytes == null || bytes.length == 0) {
+      return bytes;
+    }
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module == null) {
+      return bytes;
+    }
+    try {
+      module.taintIfTainted(bytes, buffer, true, NOT_MARKED); // keep ranges
+    } catch (final Throwable e) {
+      module.onUnexpectedException("afterArray threw", e);
+    }
+    return bytes;
   }
 }
