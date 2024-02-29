@@ -6,6 +6,8 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.util.HttpHeader;
+import com.datadog.iast.util.RangeBuilder;
+import com.datadog.iast.util.Ranged;
 import datadog.trace.api.iast.SourceTypes;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,6 +35,30 @@ public final class Ranges {
 
   public static Range[] forObject(final @Nonnull Source source, final int mark) {
     return new Range[] {new Range(0, Integer.MAX_VALUE, source, mark)};
+  }
+
+  @Nullable
+  public static Range[] intersection(
+      final @Nonnull Ranged targetRange, @Nonnull final Range[] ranges) {
+    final Range last = ranges[ranges.length - 1];
+    final int lastIndex = last.getStart() + last.getLength();
+
+    final RangeBuilder targetRanges = new RangeBuilder(ranges.length);
+    for (final Range range : ranges) {
+      if (range.getStart() >= lastIndex) {
+        break;
+      }
+      final Ranged intersection = targetRange.intersection(range);
+      if (intersection != null) {
+        targetRanges.add(
+            new Range(
+                intersection.getStart(),
+                intersection.getLength(),
+                range.getSource(),
+                range.getMarks()));
+      }
+    }
+    return targetRanges.isEmpty() ? null : targetRanges.toArray();
   }
 
   @Nullable
@@ -215,6 +241,36 @@ public final class Ranges {
 
   public static Range[] newArray(final long size) {
     return new Range[size > MAX_RANGE_COUNT ? MAX_RANGE_COUNT : (int) size];
+  }
+
+  /** Merge the new ranges maintaining order (it assumes that both arrays are already sorted) */
+  public static Range[] mergeRangesSorted(final Range[] leftRanges, final Range[] rightRanges) {
+    if (leftRanges.length == 0) {
+      return rightRanges;
+    }
+    if (rightRanges.length == 0) {
+      return leftRanges;
+    }
+    int rightIndex = 0;
+    Range rightRange = rightRanges[0];
+    final Range[] result = new Range[rightRanges.length + leftRanges.length];
+    for (int leftIndex = 0; leftIndex < leftRanges.length; leftIndex++) {
+      final Range leftRange = leftRanges[leftIndex];
+      if (rightRange == null) {
+        result[leftIndex + rightRanges.length] = leftRange;
+      } else {
+        if (rightRange.getStart() < leftRange.getStart()) {
+          result[leftIndex + rightIndex] = rightRange;
+          rightIndex++;
+          rightRange = rightIndex >= rightRanges.length ? null : rightRanges[rightIndex];
+        }
+        result[leftIndex + rightIndex] = leftRange;
+      }
+    }
+    for (; rightIndex < rightRanges.length; rightIndex++) {
+      result[leftRanges.length + rightIndex] = rightRanges[rightIndex];
+    }
+    return result;
   }
 
   @Nullable
