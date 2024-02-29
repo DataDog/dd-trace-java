@@ -15,8 +15,6 @@ public class ExceptionProbeManager {
   private final Set<String> fingerprints = ConcurrentHashMap.newKeySet();
   private final Map<String, ExceptionProbe> probes = new ConcurrentHashMap<>();
   private final ClassNameFiltering classNameFiltering;
-  private final Map<Where, ExceptionProbe> probesByLocation = new ConcurrentHashMap<>();
-  private final Map<Where, ExceptionProbe> instrumentedMethods = new ConcurrentHashMap<>();
 
   public ExceptionProbeManager(ClassNameFiltering classNameFiltering) {
     this.classNameFiltering = classNameFiltering;
@@ -42,8 +40,7 @@ public class ExceptionProbeManager {
               stackTraceElement.getMethodName(),
               null,
               String.valueOf(stackTraceElement.getLineNumber()));
-      ExceptionProbe probe =
-          probesByLocation.computeIfAbsent(where, key -> createMethodProbe(this, where));
+      ExceptionProbe probe = createMethodProbe(this, where);
       probes.putIfAbsent(probe.getId(), probe);
     }
     fingerprints.add(fingerprint);
@@ -56,10 +53,6 @@ public class ExceptionProbeManager {
         new ProbeId(probeId, 0), where, null, null, null, exceptionProbeManager);
   }
 
-  Map<Where, ExceptionProbe> instrumentedMethods() {
-    return instrumentedMethods;
-  }
-
   public boolean isAlreadyInstrumented(String fingerprint) {
     return fingerprints.contains(fingerprint);
   }
@@ -68,15 +61,7 @@ public class ExceptionProbeManager {
     return probes.values();
   }
 
-  public boolean shouldCaptureException(Where where, String fingerprint) {
-    return probesByLocation.containsKey(where) && fingerprints.contains(fingerprint);
-  }
-
-  public boolean addInstrumentedMethod(Where preciseWhere, ExceptionProbe exceptionProbe) {
-    return instrumentedMethods.putIfAbsent(preciseWhere, exceptionProbe) == null;
-  }
-
-  public void clearInstrumentedMethodsByClassName(String className) {
-    instrumentedMethods.keySet().removeIf(where -> where.getTypeName().equals(className));
+  public boolean shouldCaptureException(String fingerprint) {
+    return fingerprints.contains(fingerprint);
   }
 }

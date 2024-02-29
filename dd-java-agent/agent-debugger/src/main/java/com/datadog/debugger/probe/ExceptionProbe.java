@@ -5,9 +5,7 @@ import static java.util.Collections.emptyList;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
-import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.instrumentation.MethodInfo;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -70,7 +68,7 @@ public class ExceptionProbe extends LogProbe {
         Fingerprinter.fingerprint(
             context.getCapturedThrowable().getThrowable(),
             exceptionProbeManager.getClassNameFiltering());
-    if (exceptionProbeManager.shouldCaptureException(where, fingerprint)) {
+    if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
       LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
       // capture only on uncaught exception matching the fingerprint
       ((ExceptionProbeStatus) status).setCapture(true);
@@ -97,17 +95,6 @@ public class ExceptionProbe extends LogProbe {
     }
     // drop line number for exception probe
     this.location = new ProbeLocation(type, method, where.getSourceFile(), emptyList());
-  }
-
-  @Override
-  public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    Where preciseWhere = Where.from(methodInfo);
-    if (exceptionProbeManager.addInstrumentedMethod(preciseWhere, this)) {
-      return super.instrument(methodInfo, diagnostics, probeIds);
-    }
-    LOGGER.debug("exception probe is already instrumented for {}", preciseWhere);
-    return InstrumentationResult.Status.INSTALLED;
   }
 
   public static class ExceptionProbeStatus extends LogStatus {

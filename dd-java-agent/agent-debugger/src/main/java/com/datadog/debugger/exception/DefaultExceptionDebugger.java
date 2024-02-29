@@ -12,8 +12,7 @@ import org.slf4j.LoggerFactory;
  * Default implementation of {@link DebuggerContext.ExceptionDebugger} that uses {@link
  * ExceptionProbeManager} to instrument the exception stacktrace and send snapshots.
  */
-public class DefaultExceptionDebugger
-    implements DebuggerContext.ExceptionDebugger, ConfigurationUpdater.RetransformListener {
+public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugger {
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultExceptionDebugger.class);
   private final ExceptionProbeManager exceptionProbeManager;
   private final ConfigurationUpdater configurationUpdater;
@@ -47,11 +46,6 @@ public class DefaultExceptionDebugger
       // TODO make it async
       configurationUpdater.accept(EXCEPTION, exceptionProbeManager.getProbes());
     }
-  }
-
-  @Override
-  public void onRetransform(String className) {
-    exceptionProbeManager.clearInstrumentedMethodsByClassName(className);
   }
 
   ExceptionProbeManager getExceptionProbeManager() {

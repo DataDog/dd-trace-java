@@ -85,7 +85,6 @@ public class DebuggerAgent {
       DefaultExceptionDebugger defaultExceptionDebugger =
           new DefaultExceptionDebugger(configurationUpdater, classNameFiltering);
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
-      configurationUpdater.setRetransformListener(defaultExceptionDebugger);
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(

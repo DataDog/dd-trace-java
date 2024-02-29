@@ -1,13 +1,11 @@
 package com.datadog.debugger.probe;
 
 import com.datadog.debugger.agent.Generated;
-import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.instrumentation.Types;
 import com.datadog.debugger.util.ClassFileLines;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
-import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,11 +60,12 @@ public class Where {
     return lines;
   }
 
-  public static Where from(MethodInfo methodInfo) {
-    String typeName = Strings.getClassName(methodInfo.getClassNode().name);
-    String methodName = methodInfo.getMethodNode().name;
-    String signature = methodInfo.getMethodNode().desc;
-    return new Where(typeName, methodName, signature, (SourceLine[]) null, null);
+  public static Where from(Where lineWhere, ClassFileLines classFileLines) {
+    if (lineWhere.methodName != null && lineWhere.lines != null) {
+      MethodNode method = classFileLines.getMethodByLine(lineWhere.lines[0].getFrom());
+      return new Where(lineWhere.typeName, method.name, method.desc, (SourceLine[]) null, null);
+    }
+    return lineWhere;
   }
 
   public String getTypeName() {

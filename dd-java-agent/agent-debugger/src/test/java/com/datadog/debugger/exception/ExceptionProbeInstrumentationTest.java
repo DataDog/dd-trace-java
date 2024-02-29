@@ -111,15 +111,13 @@ public class ExceptionProbeInstrumentationTest {
     assertEquals(2, exceptionProbeManager.getProbes().size());
     callMethodThrowingIllegalArgException(
         testClass); // instrument IllegalArgumentException stacktrace
-    assertEquals(3, exceptionProbeManager.getProbes().size());
+    assertEquals(4, exceptionProbeManager.getProbes().size());
     Map<String, Set<String>> probeIdsByMethodName =
         extractProbeIdsByMethodName(exceptionProbeManager);
     // snapshot  generated for main method when leaving it with last uncaught exception
     // and after registering the Illegal exception into ExceptionProbeManager
     assertEquals(1, listener.snapshots.size());
     listener.snapshots.clear();
-    assertEquals(3, exceptionProbeManager.getProbes().size());
-    assertEquals(2, exceptionProbeManager.instrumentedMethods().size());
     callMethodThrowingRuntimeException(testClass); // generate snapshots RuntimeException
     callMethodThrowingIllegalArgException(testClass); // generate snapshots IllegalArgumentException
     assertEquals(4, listener.snapshots.size());
@@ -199,7 +197,6 @@ public class ExceptionProbeInstrumentationTest {
     DefaultExceptionDebugger exceptionDebugger =
         new DefaultExceptionDebugger(
             exceptionProbeManager, configurationUpdater, classNameFiltering);
-    configurationUpdater.setRetransformListener(exceptionDebugger);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     configurationUpdater.accept(REMOTE_CONFIG, null);
     return listener;

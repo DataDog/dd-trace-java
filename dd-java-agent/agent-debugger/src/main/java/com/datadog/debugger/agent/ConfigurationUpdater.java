@@ -40,10 +40,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
         DebuggerSink debuggerSink);
   }
 
-  public interface RetransformListener {
-    void onRetransform(String className);
-  }
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationUpdater.class);
 
   private final Instrumentation instrumentation;
@@ -56,7 +52,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
-  private RetransformListener retransformListener;
   private final String serviceName;
   private final Map<String, InstrumentationResult> instrumentationResults =
       new ConcurrentHashMap<>();
@@ -186,9 +181,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     for (Class<?> clazz : classesToBeTransformed) {
       try {
         LOGGER.info("Re-transforming class: {}", clazz.getTypeName());
-        if (retransformListener != null) {
-          retransformListener.onRetransform(clazz.getTypeName());
-        }
         instrumentation.retransformClasses(clazz);
       } catch (Exception ex) {
         ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
@@ -257,10 +249,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     instrumentation.removeTransformer(currentTransformer);
     currentTransformer = null;
-  }
-
-  public void setRetransformListener(RetransformListener retransformListener) {
-    this.retransformListener = retransformListener;
   }
 
   // only visible for tests

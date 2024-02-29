@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toList;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -175,10 +176,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (!instrumentationIsAllowed(fullyQualifiedClassName, definitions)) {
         return null;
       }
-      Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(definitions);
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
       boolean transformed =
-          performInstrumentation(loader, fullyQualifiedClassName, defByLocation, classNode);
+          performInstrumentation(loader, fullyQualifiedClassName, definitions, classNode);
       if (transformed) {
         return writeClassFile(definitions, loader, classFilePath, classNode);
       }
@@ -195,11 +195,17 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return null;
   }
 
-  private Map<Where, List<ProbeDefinition>> mergeLocations(List<ProbeDefinition> definitions) {
+  private Map<Where, List<ProbeDefinition>> mergeLocations(
+      List<ProbeDefinition> definitions, ClassFileLines classFileLines) {
     Map<Where, List<ProbeDefinition>> mergedProbes = new HashMap<>();
     for (ProbeDefinition definition : definitions) {
+      Where where = definition.getWhere();
+      if (definition instanceof ExceptionProbe) {
+        // normalize where for line => to precise method location
+        where = Where.from(definition.getWhere(), classFileLines);
+      }
       List<ProbeDefinition> instrumentationDefinitions =
-          mergedProbes.computeIfAbsent(definition.getWhere(), key -> new ArrayList<>());
+          mergedProbes.computeIfAbsent(where, key -> new ArrayList<>());
       instrumentationDefinitions.add(definition);
     }
     return mergedProbes;
@@ -267,8 +273,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           instrumentTheWorldProbes.put(probe.getProbeId().getEncodedId(), probe);
         }
       }
-      Map<Where, List<ProbeDefinition>> defByLocation = mergeLocations(probes);
-      boolean transformed = performInstrumentation(loader, classFilePath, defByLocation, classNode);
+      boolean transformed = performInstrumentation(loader, classFilePath, probes, classNode);
       if (transformed) {
         return writeClassFile(probes, loader, classFilePath, classNode);
       }
@@ -401,10 +406,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private boolean performInstrumentation(
       ClassLoader loader,
       String fullyQualifiedClassName,
-      Map<Where, List<ProbeDefinition>> definitionByLocation,
+      List<ProbeDefinition> definitions,
       ClassNode classNode) {
     boolean transformed = false;
     ClassFileLines classFileLines = new ClassFileLines(classNode);
+    Map<Where, List<ProbeDefinition>> definitionByLocation =
+        mergeLocations(definitions, classFileLines);
     // FIXME build a map also for methods to optimize the matching, currently O(probes*methods)
     for (Map.Entry<Where, List<ProbeDefinition>> entry : definitionByLocation.entrySet()) {
       Where where = entry.getKey();
@@ -417,15 +424,15 @@ public class DebuggerTransformer implements ClassFileTransformer {
       } else {
         methodNodes = matchMethodDescription(classNode, where, classFileLines);
       }
-      List<ProbeDefinition> definitions = entry.getValue();
+      List<ProbeDefinition> definitionsByWhere = entry.getValue();
       if (methodNodes.isEmpty()) {
-        reportLocationNotFound(definitions, classNode.name, methodName);
+        reportLocationNotFound(definitionsByWhere, classNode.name, methodName);
         continue;
       }
       for (MethodNode methodNode : methodNodes) {
         if (log.isDebugEnabled()) {
           List<String> probeIds =
-              definitions.stream().map(ProbeDefinition::getId).collect(toList());
+              definitionsByWhere.stream().map(ProbeDefinition::getId).collect(toList());
           log.debug(
               "Instrumenting method: {}.{}{} for probe ids: {}",
               fullyQualifiedClassName,
@@ -434,9 +441,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
               probeIds);
         }
         MethodInfo methodInfo = new MethodInfo(loader, classNode, methodNode, classFileLines);
-        InstrumentationResult result = applyInstrumentation(methodInfo, definitions);
+        InstrumentationResult result = applyInstrumentation(methodInfo, definitionsByWhere);
         transformed |= result.isInstalled();
-        handleInstrumentationResult(definitions, result);
+        handleInstrumentationResult(definitionsByWhere, result);
       }
     }
     return transformed;
@@ -537,10 +544,20 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private List<ToInstrumentInfo> filterAndSortDefinitions(List<ProbeDefinition> definitions) {
     List<ToInstrumentInfo> toInstrument = new ArrayList<>();
     List<ProbeDefinition> capturedContextProbes = new ArrayList<>();
+    boolean addedExceptionProbe = false;
     for (ProbeDefinition definition : definitions) {
       // Log and span decoration probe shared the same instrumentor: CaptureContextInstrumentor
       // and therefore need to be instrumented once
+      // note: exception probes are log probes and are handled the same way
       if (definition instanceof LogProbe || definition instanceof SpanDecorationProbe) {
+        if (definition instanceof ExceptionProbe) {
+          if (addedExceptionProbe) {
+            continue;
+          }
+          // only add one exception probe to the list of probes to instrument
+          // to have only one instance (1 probeId) of exception probe to handle all exceptions
+          addedExceptionProbe = true;
+        }
         capturedContextProbes.add(definition);
       } else {
         toInstrument.add(new ToInstrumentInfo(definition, singletonList(definition.getProbeId())));
@@ -552,6 +569,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       ProbeDefinition referenceDefinition = selectReferenceDefinition(capturedContextProbes);
       toInstrument.add(new ToInstrumentInfo(referenceDefinition, probesIds));
     }
+    //     LOGGER.debug("exception probe is already instrumented for {}", preciseWhere);
     // ordering: metric < log < span decoration < span
     toInstrument.sort(
         (info1, info2) -> {
