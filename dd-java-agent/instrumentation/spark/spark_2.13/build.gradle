@@ -34,6 +34,7 @@ dependencies {
 
   compileOnly group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   compileOnly group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
+  compileOnly group: 'org.apache.spark', name: "spark-streaming_$scalaVersion", version: "$sparkVersion"
 
   testImplementation(testFixtures(project(":dd-java-agent:instrumentation:spark")))
   testImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"

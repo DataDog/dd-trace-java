@@ -40,6 +40,9 @@ import org.apache.spark.sql.streaming.SourceProgress;
 import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
+import org.apache.spark.streaming.scheduler.StreamingListenerBatchCompleted;
+import org.apache.spark.streaming.scheduler.StreamingListenerBatchStarted;
+import org.apache.spark.streaming.scheduler.StreamingListenerBatchSubmitted;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
@@ -635,7 +638,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onOtherEvent(SparkListenerEvent event) {
-    System.out.println("### Listener - other event " + event.toString());
+    System.out.println("### Listener - other event " + event.getClass().getName());
 
     if (event instanceof StreamingQueryListener.QueryStartedEvent) {
       onStreamingQueryStartedEvent((StreamingQueryListener.QueryStartedEvent) event);
@@ -647,6 +650,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       onSQLExecutionStart((SparkListenerSQLExecutionStart) event);
     } else if (event instanceof SparkListenerSQLExecutionEnd) {
       onSQLExecutionEnd((SparkListenerSQLExecutionEnd) event);
+    } else if (event instanceof StreamingListenerBatchSubmitted) {
+      System.out.println("### StreamingListenerBatchSubmitted");
+    } else if (event instanceof StreamingListenerBatchStarted) {
+      System.out.println("### StreamingListenerBatchStarted");
+    } else if (event instanceof StreamingListenerBatchCompleted) {
+      System.out.println("### StreamingListenerBatchCompleted");
     }
 
     updateAdaptiveSQLPlan(event);

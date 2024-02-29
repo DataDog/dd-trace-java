@@ -188,6 +188,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {
+    System.out.println("### mergePathwayContextIntoSpan called");
     if (span instanceof DDSpan) {
       DefaultPathwayContext pathwayContext =
           DefaultPathwayContext.extract(
@@ -200,6 +201,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   public void trackBacklog(LinkedHashMap<String, String> sortedTags, long value) {
+    System.out.println("### trackBacklog called");
     List<String> tags = new ArrayList<>(sortedTags.size());
     for (Map.Entry<String, String> entry : sortedTags.entrySet()) {
       String tag = TagsProcessor.createTag(entry.getKey(), entry.getValue());
