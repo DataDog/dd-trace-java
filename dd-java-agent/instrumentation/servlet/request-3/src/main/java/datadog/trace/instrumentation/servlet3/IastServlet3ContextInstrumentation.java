@@ -40,6 +40,11 @@ public final class IastServlet3ContextInstrumentation extends InstrumenterModule
   }
 
   @Override
+  public String muzzleDirective() {
+    return "servlet-3.x";
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
         .and(namedNoneOf("org.apache.catalina.core.ApplicationContext")); // Tomcat has
