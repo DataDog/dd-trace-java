@@ -51,6 +51,21 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     "com.edb.jdbc.PgConnection",
     // should cover Oracle
     "oracle.jdbc.driver.PhysicalConnection",
+    // should cover mysql
+    "com.mysql.jdbc.Connection",
+    "com.mysql.jdbc.jdbc1.Connection",
+    "com.mysql.jdbc.jdbc2.Connection",
+    "com.mysql.jdbc.ConnectionImpl",
+    "com.mysql.jdbc.JDBC4Connection",
+    "com.mysql.cj.jdbc.ConnectionImpl",
+    // complete
+    "org.mariadb.jdbc.MySQLConnection",
+    // MariaDB Connector/J v2.x
+    "org.mariadb.jdbc.MariaDbConnection",
+    // MariaDB Connector/J v3.x
+    "org.mariadb.jdbc.Connection",
+    // aws-mysql-jdbc
+    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
   };
 
   @Override
