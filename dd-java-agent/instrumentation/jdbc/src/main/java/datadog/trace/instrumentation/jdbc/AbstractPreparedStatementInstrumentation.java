@@ -62,6 +62,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       if (depth > 0) {
         return null;
       }
+
       try {
         Connection connection = statement.getConnection();
         DBQueryInfo queryInfo =

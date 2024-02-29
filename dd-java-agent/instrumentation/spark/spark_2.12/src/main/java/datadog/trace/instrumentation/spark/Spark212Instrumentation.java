@@ -40,10 +40,13 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
   public static class InjectListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.This SparkContext sparkContext) {
+      System.out.println("### Inject Listener");
       AbstractDatadogSparkListener.listener =
           new DatadogSpark212Listener(
               sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
       sparkContext.listenerBus().addToSharedQueue(AbstractDatadogSparkListener.listener);
+
+      System.out.println("### Listener injected");
     }
   }
 }

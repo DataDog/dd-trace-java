@@ -217,6 +217,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       LinkedHashMap<String, String> sortedTags,
       long defaultTimestamp,
       long payloadSizeBytes) {
+    System.out.println("### setCheckpoint called with " + span.getOperationName());
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(sortedTags, this::add, defaultTimestamp, payloadSizeBytes);

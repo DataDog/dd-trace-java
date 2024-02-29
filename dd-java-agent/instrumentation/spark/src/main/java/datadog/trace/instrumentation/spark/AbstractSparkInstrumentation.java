@@ -50,11 +50,14 @@ public abstract class AbstractSparkInstrumentation extends Instrumenter.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter() {
       AbstractDatadogSparkListener.finishTraceOnApplicationEnd = false;
+      System.out.println("### Added DD listener for runMain (enter)");
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void exit(@Advice.Thrown Throwable throwable) {
+      System.out.println("### Added DD listener for runMain (exit)");
       if (AbstractDatadogSparkListener.listener != null) {
+        System.out.println("### Finishing application (listener attached)");
         AbstractDatadogSparkListener.listener.finishApplication(
             System.currentTimeMillis(), throwable, 0, null);
       }

@@ -92,6 +92,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
     public static void wrap(
         @Advice.Return(readOnly = false) Iterable<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
+      System.out.println("### Kafka - IterableAdvice");
       if (iterable != null) {
         KafkaConsumerInfo kafkaConsumerInfo =
             InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
@@ -114,6 +115,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
     public static void wrap(
         @Advice.Return(readOnly = false) List<ConsumerRecord<?, ?>> iterable,
         @Advice.This ConsumerRecords records) {
+      System.out.println("### Kafka - ListAdvice");
       if (iterable != null) {
         KafkaConsumerInfo kafkaConsumerInfo =
             InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
@@ -136,6 +138,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing
     public static void wrap(
         @Advice.Return(readOnly = false) Iterator<ConsumerRecord<?, ?>> iterator,
         @Advice.This ConsumerRecords records) {
+      System.out.println("### Kafka - IteratorAdvice");
       if (iterator != null) {
         KafkaConsumerInfo kafkaConsumerInfo =
             InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class).get(records);
