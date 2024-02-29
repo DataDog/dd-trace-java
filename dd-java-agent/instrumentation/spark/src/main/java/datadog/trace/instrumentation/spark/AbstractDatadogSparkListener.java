@@ -139,6 +139,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
+    System.out.println("### Listener - application start");
     this.applicationStart = applicationStart;
   }
 
@@ -169,6 +170,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
+    System.out.println("### Listener - application end");
     if (finishTraceOnApplicationEnd) {
       finishApplication(applicationEnd.time(), null, 0, null);
     }
@@ -304,6 +306,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onJobStart(SparkListenerJobStart jobStart) {
+    System.out.println("### Listener - job start");
     jobCount++;
     if (jobSpans.size() > MAX_COLLECTION_SIZE) {
       return;
@@ -363,6 +366,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onJobEnd(SparkListenerJobEnd jobEnd) {
+    System.out.println("### Listener - job end");
     AgentSpan jobSpan = jobSpans.remove(jobEnd.jobId());
     if (jobSpan == null) {
       return;
@@ -395,6 +399,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onStageSubmitted(SparkListenerStageSubmitted stageSubmitted) {
+    System.out.println("### Listener - stage submitted");
     if (stageSpans.size() > MAX_COLLECTION_SIZE) {
       return;
     }
@@ -446,6 +451,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onStageCompleted(SparkListenerStageCompleted stageCompleted) {
+    System.out.println("### Listener - stage completed");
     StageInfo stageInfo = stageCompleted.stageInfo();
     int stageId = stageInfo.stageId();
     int stageAttemptId = stageInfo.attemptNumber();
@@ -522,6 +528,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onTaskEnd(SparkListenerTaskEnd taskEnd) {
+    System.out.println("### Listener - task end");
+
     int stageId = taskEnd.stageId();
     int stageAttemptId = taskEnd.stageAttemptId();
     long stageSpanKey = stageSpanKey(stageId, stageAttemptId);
@@ -602,6 +610,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onExecutorAdded(SparkListenerExecutorAdded executorAdded) {
+    System.out.println("### Listener - executor added");
+
     currentExecutorCount += 1;
     maxExecutorCount = Math.max(maxExecutorCount, currentExecutorCount);
 
@@ -612,6 +622,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onExecutorRemoved(SparkListenerExecutorRemoved executorRemoved) {
+    System.out.println("### Listener - executor removed");
+
     currentExecutorCount -= 1;
 
     SparkListenerExecutorAdded executor = liveExecutors.remove(executorRemoved.executorId());
@@ -623,6 +635,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onOtherEvent(SparkListenerEvent event) {
+    System.out.println("### Listener - other event " + event.toString());
+
     if (event instanceof StreamingQueryListener.QueryStartedEvent) {
       onStreamingQueryStartedEvent((StreamingQueryListener.QueryStartedEvent) event);
     } else if (event instanceof StreamingQueryListener.QueryProgressEvent) {
