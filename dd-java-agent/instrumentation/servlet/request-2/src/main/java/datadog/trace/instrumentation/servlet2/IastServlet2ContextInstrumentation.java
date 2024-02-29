@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.servlet2;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -30,6 +32,20 @@ public final class IastServlet2ContextInstrumentation extends InstrumenterModule
 
   public IastServlet2ContextInstrumentation() {
     super("servlet", "servlet-2", "servlet-context");
+  }
+
+  // Avoid matching servlet 3 which has its own instrumentation
+  static final ElementMatcher<ClassLoader> NOT_SERVLET_3 =
+      not(hasClassNamed("javax.servlet.AsyncEvent"));
+
+  @Override
+  public String muzzleDirective() {
+    return "servlet-2.x";
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return NOT_SERVLET_3;
   }
 
   @Override
