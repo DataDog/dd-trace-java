@@ -279,5 +279,27 @@ public class RequestDispatcher3Utils {
     public String getVirtualServerName() {
       return null;
     }
+
+    public void setResponseCharacterEncoding(String s) {}
+
+    public String getResponseCharacterEncoding() {
+      return null;
+    }
+
+    public void setRequestCharacterEncoding(String s) {}
+
+    public String getRequestCharacterEncoding() {
+      return null;
+    }
+
+    public void setSessionTimeout(int timeout) {}
+
+    public int getSessionTimeout() {
+      return 0;
+    }
+
+    public ServletRegistration.Dynamic addJspFile(String s, String j) {
+      return null;
+    }
   }
 }
