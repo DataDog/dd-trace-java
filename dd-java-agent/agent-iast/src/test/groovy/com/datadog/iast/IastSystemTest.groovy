@@ -1,21 +1,31 @@
 package com.datadog.iast
 
+
 import datadog.trace.api.config.IastConfig
-import datadog.trace.api.iast.IastContext
-import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.internal.TraceSegment
-import datadog.trace.api.gateway.InstrumentationGateway
-import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.Events
+import datadog.trace.api.gateway.IGSpanInfo
+import datadog.trace.api.gateway.InstrumentationGateway
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
+import datadog.trace.api.iast.IastContext
+import datadog.trace.api.iast.IastModule
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.ApplicationModule
+import datadog.trace.api.iast.sink.HstsMissingHeaderModule
+import datadog.trace.api.iast.sink.HttpResponseHeaderModule
+import datadog.trace.api.iast.sink.InsecureCookieModule
+import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule
+import datadog.trace.api.iast.sink.NoSameSiteCookieModule
+import datadog.trace.api.iast.sink.StacktraceLeakModule
+import datadog.trace.api.iast.sink.XContentTypeModule
+import datadog.trace.api.internal.TraceSegment
+import datadog.trace.bootstrap.Agent
 import datadog.trace.test.util.DDSpecification
 
 import static com.datadog.iast.test.TaintedObjectsUtils.noOpTaintedObjects
 import static datadog.trace.api.iast.IastContext.Mode.GLOBAL
 import static datadog.trace.api.iast.IastContext.Mode.REQUEST
-
 
 class IastSystemTest extends DDSpecification {
 
@@ -103,5 +113,81 @@ class IastSystemTest extends DDSpecification {
     mode    | providerClass
     GLOBAL  | IastGlobalContext.Provider
     REQUEST | IastRequestContext.Provider
+  }
+
+  @SuppressWarnings('GroovyAccessibility')
+  void 'test opt out modules'() {
+    setup:
+    ClassLoader defaultAgentClassLoader = Agent.AGENT_CLASSLOADER
+    boolean defaultAppSecEnabled = Agent.appSecEnabled
+    boolean defaultIastEnabled = Agent.iastEnabled
+    boolean defaultIastFullyDisabled = Agent.iastFullyDisabled
+
+    and:
+    Agent.AGENT_CLASSLOADER = Thread.currentThread().contextClassLoader
+    setSysConfig('iast.enabled', iast)
+    setSysConfig('appsec.enabled', appsec)
+    Agent.appSecEnabled = Agent.isFeatureEnabled(Agent.AgentFeature.APPSEC)
+    Agent.iastEnabled = Agent.isFeatureEnabled(Agent.AgentFeature.IAST)
+    Agent.iastFullyDisabled = Agent.isIastFullyDisabled(Agent.appSecEnabled)
+
+    and:
+    InstrumentationBridge.clearIastModules()
+
+    when:
+    Agent.maybeStartIast(null, null)
+
+    then:
+    InstrumentationBridge.iastModules.each {
+      final module = InstrumentationBridge.getIastModule(it)
+      if (Agent.iastEnabled) {
+        assert module != null: "All modules should be started if IAST is enabled"
+      } else if (optOut) {
+        assert (module != null) == shouldBeOptOut(it): "Only opt out modules should be enabled"
+      } else {
+        assert module == null: "No modules should be started if IAST is disabled"
+      }
+    }
+
+    cleanup:
+    Agent.AGENT_CLASSLOADER = defaultAgentClassLoader
+    Agent.appSecEnabled = defaultAppSecEnabled
+    Agent.iastEnabled = defaultIastEnabled
+    Agent.iastFullyDisabled = defaultIastFullyDisabled
+
+    where:
+    iast  | appsec | optOut
+    null  | null   | false
+    null  | true   | true
+    null  | false  | false
+    true  | null   | false
+    true  | true   | false
+    true  | false  | false
+    false | null   | false
+    false | true   | false
+    false | false  | false
+  }
+
+  private void setSysConfig(String property, Boolean value) {
+    if (value != null) {
+      injectSysConfig(property, value.toString())
+    } else {
+      removeSysConfig(property)
+    }
+  }
+
+  private static final List<Class<? extends IastModule>> OPT_OUT_MODULES = [
+    HttpResponseHeaderModule,
+    InsecureCookieModule,
+    NoHttpOnlyCookieModule,
+    NoSameSiteCookieModule,
+    HstsMissingHeaderModule,
+    XContentTypeModule,
+    ApplicationModule,
+    StacktraceLeakModule
+  ]
+
+  private static boolean shouldBeOptOut(final Class<?> target) {
+    return OPT_OUT_MODULES.find { it.isAssignableFrom(target) } != null
   }
 }
