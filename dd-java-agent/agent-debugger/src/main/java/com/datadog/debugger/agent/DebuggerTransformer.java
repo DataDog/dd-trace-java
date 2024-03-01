@@ -202,7 +202,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       Where where = definition.getWhere();
       if (definition instanceof ExceptionProbe) {
         // normalize where for line => to precise method location
-        where = Where.from(definition.getWhere(), classFileLines);
+        where = Where.convertLineToMethod(definition.getWhere(), classFileLines);
       }
       List<ProbeDefinition> instrumentationDefinitions =
           mergedProbes.computeIfAbsent(where, key -> new ArrayList<>());

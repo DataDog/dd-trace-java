@@ -2067,7 +2067,7 @@ public class CapturedSnapshotTest {
   public void allProbesSameMethod() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     final String METRIC_NAME = "count";
-    Where where = Where.from(CLASS_NAME, "main", null);
+    Where where = Where.convertLineToMethod(CLASS_NAME, "main", null);
     Configuration configuration =
         Configuration.builder()
             .add(

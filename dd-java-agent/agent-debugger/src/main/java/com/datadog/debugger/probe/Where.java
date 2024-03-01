@@ -41,11 +41,12 @@ public class Where {
     this(typeName, methodName, signature, sourceLines(lines), sourceFile);
   }
 
-  public static Where from(String typeName, String methodName, String signature, String... lines) {
+  public static Where convertLineToMethod(
+      String typeName, String methodName, String signature, String... lines) {
     return new Where(typeName, methodName, signature, lines, null);
   }
 
-  public static Where from(String sourceFile, int line) {
+  public static Where convertLineToMethod(String sourceFile, int line) {
     return new Where(null, null, null, new SourceLine[] {new SourceLine(line)}, sourceFile);
   }
 
@@ -60,12 +61,12 @@ public class Where {
     return lines;
   }
 
-  public static Where from(Where lineWhere, ClassFileLines classFileLines) {
+  public static Where convertLineToMethod(Where lineWhere, ClassFileLines classFileLines) {
     if (lineWhere.methodName != null && lineWhere.lines != null) {
       MethodNode method = classFileLines.getMethodByLine(lineWhere.lines[0].getFrom());
       return new Where(lineWhere.typeName, method.name, method.desc, (SourceLine[]) null, null);
     }
-    return lineWhere;
+    throw new IllegalArgumentException("Invalid where to convert from line to method " + lineWhere);
   }
 
   public String getTypeName() {
