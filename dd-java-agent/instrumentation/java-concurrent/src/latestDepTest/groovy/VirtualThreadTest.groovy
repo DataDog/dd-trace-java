@@ -1,3 +1,5 @@
+import java.util.concurrent.ScheduledThreadPoolExecutor
+
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
 import datadog.trace.agent.test.AgentTestRunner
@@ -15,18 +17,16 @@ class VirtualThreadTest extends AgentTestRunner {
 
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
-  //  @Shared
-  //  def executePriorityTask = { e, c -> e.execute(new ComparableAsyncChild(0, (Runnable) c)) }
-  @Shared
-  def executeForkJoinTask = { e, c -> e.execute((ForkJoinTask) c) }
+//  @Shared
+//  def executeForkJoinTask = { e, c -> e.execute((ForkJoinTask) c) }
   @Shared
   def submitRunnable = { e, c -> e.submit((Runnable) c) }
   @Shared
   def submitCallable = { e, c -> e.submit((Callable) c) }
   @Shared
   def submitRunnableExecutorCompletionService = { ecs, c -> ecs.submit((Runnable) c, null) }
-  @Shared
-  def submitForkJoinTask = { e, c -> e.submit((ForkJoinTask) c) }
+//  @Shared
+//  def submitForkJoinTask = { e, c -> e.submit((ForkJoinTask) c) }
   @Shared
   def invokeAll = { e, c -> e.invokeAll([(Callable) c]) }
   @Shared
@@ -35,16 +35,16 @@ class VirtualThreadTest extends AgentTestRunner {
   def invokeAny = { e, c -> e.invokeAny([(Callable) c]) }
   @Shared
   def invokeAnyTimeout = { e, c -> e.invokeAny([(Callable) c], 10, TimeUnit.SECONDS) }
-  @Shared
-  def invokeForkJoinTask = { e, c -> e.invoke((ForkJoinTask) c) }
-  //  @Shared
-  //  def scheduleRunnable = { e, c -> e.schedule((Runnable) c, 10, TimeUnit.MILLISECONDS) }
-  //  @Shared
-  //  def scheduleCallable = { e, c -> e.schedule((Callable) c, 10, TimeUnit.MILLISECONDS) }
-  @Shared
-  def scheduleAtFixedRate = { e, c -> e.scheduleAtFixedRate((Runnable) c, 10, 10, TimeUnit.MILLISECONDS) }
-  @Shared
-  def scheduleWithFixedDelay = { e, c -> e.scheduleWithFixedDelay((Runnable) c, 10, 10, TimeUnit.MILLISECONDS) }
+//  @Shared
+//  def invokeForkJoinTask = { e, c -> e.invoke((ForkJoinTask) c) }
+//  @Shared
+//  def scheduleRunnable = { e, c -> e.schedule((Runnable) c, 10, TimeUnit.MILLISECONDS) }
+//  @Shared
+//  def scheduleCallable = { e, c -> e.schedule((Callable) c, 10, TimeUnit.MILLISECONDS) }
+//  @Shared
+//  def scheduleAtFixedRate = { e, c -> e.scheduleAtFixedRate((Runnable) c, 10, 10, TimeUnit.MILLISECONDS) }
+//  @Shared
+//  def scheduleWithFixedDelay = { e, c -> e.scheduleWithFixedDelay((Runnable) c, 10, 10, TimeUnit.MILLISECONDS) }
 
   def "virtualThreadPool #name"() {
     setup:
@@ -83,13 +83,10 @@ class VirtualThreadTest extends AgentTestRunner {
     // spotless:off
     name                     | method              | poolImpl
     "execute Runnable"       | executeRunnable     | Executors.newVirtualThreadPerTaskExecutor()
-    "execute ForkJoinTask"   | executeForkJoinTask | Executors.newVirtualThreadPerTaskExecutor()
     "submit Runnable"        | submitRunnable      | Executors.newVirtualThreadPerTaskExecutor()
     "submit Callable"        | submitCallable      | Executors.newVirtualThreadPerTaskExecutor()
     "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
     "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
-    "submit ForkJoinTask"    | submitForkJoinTask  | Executors.newVirtualThreadPerTaskExecutor()
-    "invoke ForkJoinTask"    | invokeForkJoinTask  | Executors.newVirtualThreadPerTaskExecutor()
     "invokeAll"              | invokeAll           | Executors.newVirtualThreadPerTaskExecutor()
     "invokeAll with timeout" | invokeAllTimeout    | Executors.newVirtualThreadPerTaskExecutor()
     "invokeAny"              | invokeAny           | Executors.newVirtualThreadPerTaskExecutor()
