@@ -17,7 +17,7 @@ public class SpanLink implements AgentSpanLink {
     this.traceId = traceId;
     this.spanId = spanId;
     this.traceFlags = traceFlags;
-    this.traceState = traceState;
+    this.traceState = (traceState == null) ? "" : traceState;
     this.attributes = attributes;
   }
 
