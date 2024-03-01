@@ -301,8 +301,10 @@ public class MuzzleConverter extends AbstractClassVisitor {
     ClassNode classNode = (ClassNode) this.cv;
     MethodNode methodNode = findMethodNode(REGISTER_MUZZLE_VIRTUAL_FIELDS_METHOD_NAME, REGISTER_MUZZLE_VIRTUAL_FIELDS_DESC);
     Map<String, String> stores = captureContextStore(methodNode);
-    MethodNode contextStoreMethodNode = generateContextStoreMethod(stores);
-    classNode.methods.add(contextStoreMethodNode);
+    if (!stores.isEmpty()) {
+      MethodNode contextStoreMethodNode = generateContextStoreMethod(stores);
+      classNode.methods.add(contextStoreMethodNode);
+    }
   }
 
   private Map<String, String> captureContextStore(MethodNode methodNode) {
