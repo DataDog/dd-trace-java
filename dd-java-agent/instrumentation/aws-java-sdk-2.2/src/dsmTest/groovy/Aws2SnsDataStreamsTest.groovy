@@ -25,6 +25,7 @@ import software.amazon.awssdk.services.sns.model.PublishRequest
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Unroll
+import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
@@ -106,6 +107,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
   @Unroll
   def "send #operation request with builder #builder.class.getSimpleName() mocked response"() {
     setup:
+    def conditions = new PollingConditions(timeout: 1)
     boolean executed = false
     def client = builder
     // tests that our instrumentation doesn't disturb any overridden configuration
@@ -131,6 +133,27 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
     response != null
     response.class.simpleName.startsWith(operation) || response instanceof ResponseInputStream
 
+    and:
+    conditions.eventually {
+      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      assert results.size() >= 1
+      def pathwayLatencyCount = 0
+      def edgeLatencyCount = 0
+      results.each { group ->
+        pathwayLatencyCount += group.pathwayLatency.count
+        edgeLatencyCount += group.edgeLatency.count
+        verifyAll(group) {
+          edgeTags.containsAll(["direction:" + dsmDirection, "topic:mytopic", "type:sns"])
+          edgeTags.size() == 3
+        }
+      }
+      verifyAll {
+        pathwayLatencyCount == dsmStatCount
+        edgeLatencyCount == dsmStatCount
+      }
+    }
+
+    and:
     assertTraces(1) {
       trace(1) {
         span {
@@ -165,15 +188,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
       }
     }
 
-    and:
-    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-    verifyAll(first) {
-      edgeTags.containsAll(["direction:" + dsmDirection, "topic:mytopic", "type:sns"])
-      edgeTags.size() == 3
-      pathwayLatency.count == dsmStatCount
-      edgeLatency.count == dsmStatCount
-    }
-
     cleanup:
     servedRequestId.set(null)
 
@@ -194,6 +208,7 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
   def "send #operation async request with builder #builder.class.getSimpleName() mocked response"() {
     setup:
+    def conditions = new PollingConditions(timeout: 1)
     boolean executed = false
     def client = builder
     // tests that our instrumentation doesn't disturb any overridden configuration
@@ -217,6 +232,27 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
     executed
     response != null
 
+    and:
+    conditions.eventually {
+      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      assert results.size() >= 1
+      def pathwayLatencyCount = 0
+      def edgeLatencyCount = 0
+      results.each { group ->
+        pathwayLatencyCount += group.pathwayLatency.count
+        edgeLatencyCount += group.edgeLatency.count
+        verifyAll(group) {
+          edgeTags.containsAll(["direction:" + dsmDirection, "topic:mytopic", "type:sns"])
+          edgeTags.size() == 3
+        }
+      }
+      verifyAll {
+        pathwayLatencyCount == dsmStatCount
+        edgeLatencyCount == dsmStatCount
+      }
+    }
+
+    and:
     assertTraces(1) {
       trace(1) {
         span {
@@ -247,15 +283,6 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
           }
         }
       }
-    }
-
-    and:
-    StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-    verifyAll(first) {
-      edgeTags.containsAll(["direction:" + dsmDirection, "topic:mytopic", "type:sns"])
-      edgeTags.size() == 3
-      pathwayLatency.count == dsmStatCount
-      edgeLatency.count == dsmStatCount
     }
 
     cleanup:
