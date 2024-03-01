@@ -20,8 +20,11 @@ public class ExceptionProbeManager {
     this.classNameFiltering = classNameFiltering;
   }
 
+  public ClassNameFiltering getClassNameFiltering() {
+    return classNameFiltering;
+  }
+
   public void createProbesForException(String fingerprint, StackTraceElement[] stackTraceElements) {
-    fingerprints.add(fingerprint);
     for (StackTraceElement stackTraceElement : stackTraceElements) {
       if (stackTraceElement.isNativeMethod() || stackTraceElement.getLineNumber() < 0) {
         // Skip native methods and lines without line numbers
@@ -31,32 +34,23 @@ public class ExceptionProbeManager {
       if (classNameFiltering.apply(stackTraceElement.getClassName())) {
         continue;
       }
-      ExceptionProbe probe =
-          createMethodProbe(
-              fingerprint,
+      Where where =
+          Where.convertLineToMethod(
               stackTraceElement.getClassName(),
               stackTraceElement.getMethodName(),
-              stackTraceElement.getLineNumber(),
-              classNameFiltering);
-      probes.put(probe.getId(), probe);
+              null,
+              String.valueOf(stackTraceElement.getLineNumber()));
+      ExceptionProbe probe = createMethodProbe(this, where);
+      probes.putIfAbsent(probe.getId(), probe);
     }
+    fingerprints.add(fingerprint);
   }
 
   private static ExceptionProbe createMethodProbe(
-      String fingerprint,
-      String className,
-      String methodName,
-      int lineNumber,
-      ClassNameFiltering classNameFiltering) {
+      ExceptionProbeManager exceptionProbeManager, Where where) {
     String probeId = UUID.randomUUID().toString();
     return new ExceptionProbe(
-        new ProbeId(probeId, 0),
-        Where.from(className, methodName, null, String.valueOf(lineNumber)),
-        null,
-        null,
-        null,
-        fingerprint,
-        classNameFiltering);
+        new ProbeId(probeId, 0), where, null, null, null, exceptionProbeManager);
   }
 
   public boolean isAlreadyInstrumented(String fingerprint) {
@@ -65,5 +59,9 @@ public class ExceptionProbeManager {
 
   public Collection<ExceptionProbe> getProbes() {
     return probes.values();
+  }
+
+  public boolean shouldCaptureException(String fingerprint) {
+    return fingerprints.contains(fingerprint);
   }
 }

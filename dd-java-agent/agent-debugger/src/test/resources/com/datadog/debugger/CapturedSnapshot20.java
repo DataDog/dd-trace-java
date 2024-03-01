@@ -27,7 +27,7 @@ public class CapturedSnapshot20 {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     AgentSpan span = tracerAPI.buildSpan("process").start();
     try (AgentScope scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL)) {
-      if (arg.equals("exception")) {
+      if (arg.equals("exception") || arg.equals("illegal")) {
         return new CapturedSnapshot20().processWithException(arg);
       }
       return new CapturedSnapshot20().process(arg);
@@ -46,6 +46,9 @@ public class CapturedSnapshot20 {
 
   private int processWithException(String arg) {
     int intLocal = intField + 42;
+    if (arg.equals("illegal")) {
+      throw new IllegalArgumentException("illegal argument");
+    }
     throw new RuntimeException("oops");
   }
 }
