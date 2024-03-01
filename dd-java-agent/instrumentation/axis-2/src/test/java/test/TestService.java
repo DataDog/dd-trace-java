@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.axis2;
+package test;
 
 import org.apache.axiom.om.OMElement;
 

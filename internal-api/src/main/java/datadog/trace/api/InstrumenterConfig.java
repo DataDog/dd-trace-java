@@ -26,6 +26,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
@@ -106,6 +107,7 @@ public class InstrumenterConfig {
   private final String jdbcConnectionClassName;
 
   private final String httpURLConnectionClassName;
+  private final String axisTransportClassName;
 
   private final boolean directAllocationProfilingEnabled;
 
@@ -183,6 +185,7 @@ public class InstrumenterConfig {
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
+    axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
 
     directAllocationProfilingEnabled =
         configProvider.getBoolean(
@@ -304,6 +307,10 @@ public class InstrumenterConfig {
 
   public String getHttpURLConnectionClassName() {
     return httpURLConnectionClassName;
+  }
+
+  public String getAxisTransportClassName() {
+    return axisTransportClassName;
   }
 
   public boolean isDirectAllocationProfilingEnabled() {
@@ -473,6 +480,9 @@ public class InstrumenterConfig {
         + '\''
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
+        + '\''
+        + ", axisTransportClassName='"
+        + axisTransportClassName
         + '\''
         + ", excludedClasses="
         + excludedClasses
