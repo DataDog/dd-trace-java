@@ -1,7 +1,7 @@
 package com.datadog.iast;
 
-import static com.datadog.iast.IastTag.ANALYZED;
-import static com.datadog.iast.IastTag.SKIPPED;
+import static com.datadog.iast.IastTag.Enabled.ANALYZED;
+import static com.datadog.iast.IastTag.Enabled.SKIPPED;
 
 import com.datadog.iast.overhead.OverheadController;
 import datadog.trace.api.gateway.Flow;

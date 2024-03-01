@@ -57,6 +57,11 @@ public final class IastServletContextInstrumentation extends InstrumenterModule.
         IastServletContextInstrumentation.class.getName() + "$IastContextAdvice");
   }
 
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
+  }
+
   public static class IastContextAdvice {
     @Sink(VulnerabilityTypes.APPLICATION)
     @Advice.OnMethodExit(suppress = Throwable.class)

@@ -28,6 +28,11 @@ public class ErrorReportValueInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
+  protected boolean isOptOutEnabled() {
+    return true;
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

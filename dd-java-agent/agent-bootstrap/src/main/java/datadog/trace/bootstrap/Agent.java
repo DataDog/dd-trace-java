@@ -138,6 +138,7 @@ public class Agent {
   private static boolean appSecFullyDisabled;
   private static boolean remoteConfigEnabled = true;
   private static boolean iastEnabled = false;
+  private static boolean iastFullyDisabled;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean usmEnabled = false;
@@ -206,10 +207,11 @@ public class Agent {
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
-    iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
-    appSecFullyDisabled = isAppSecFullyDisabled();
+    appSecFullyDisabled = isFullyDisabled(AgentFeature.APPSEC);
+    iastEnabled = isFeatureEnabled(AgentFeature.IAST);
+    iastFullyDisabled = isIastFullyDisabled(appSecEnabled);
     remoteConfigEnabled =
         isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
             || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
@@ -739,7 +741,7 @@ public class Agent {
   }
 
   private static void maybeStartIast(Class<?> scoClass, Object o) {
-    if (iastEnabled) {
+    if (iastEnabled || !iastFullyDisabled) {
 
       StaticEventLogger.begin("IAST");
 
@@ -1062,9 +1064,9 @@ public class Agent {
   }
 
   /** @see datadog.trace.api.ProductActivation#fromString(String) */
-  private static boolean isAppSecFullyDisabled() {
+  private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
+    final String featureEnabledSysprop = feature.systemProp;
     String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
     if (settingValue == null) {
       settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
@@ -1076,6 +1078,14 @@ public class Agent {
         || settingValue.equalsIgnoreCase("true")
         || settingValue.equalsIgnoreCase("1")
         || settingValue.equalsIgnoreCase("inactive"));
+  }
+
+  /** IAST will be enabled in opt-out if it's not actively disabled and AppSec is enabled */
+  private static boolean isIastFullyDisabled(final boolean isAppSecEnabled) {
+    if (isFullyDisabled(AgentFeature.IAST)) {
+      return true;
+    }
+    return !isAppSecEnabled;
   }
 
   private static String getNullIfEmpty(final String value) {

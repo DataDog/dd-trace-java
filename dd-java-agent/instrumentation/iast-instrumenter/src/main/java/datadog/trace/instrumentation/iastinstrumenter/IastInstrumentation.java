@@ -29,7 +29,8 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.IAST);
+    return enabledSystems.contains(TargetSystem.IAST)
+        || (isOptOutEnabled() && enabledSystems.contains(TargetSystem.APPSEC));
   }
 
   @Override
@@ -44,6 +45,10 @@ public class IastInstrumentation extends CallSiteInstrumentation {
     } else {
       return Advices.fromCallSites(callSites);
     }
+  }
+
+  protected boolean isOptOutEnabled() {
+    return false;
   }
 
   public static final class IastMatcher
