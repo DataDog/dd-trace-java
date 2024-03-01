@@ -278,7 +278,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
-          edgeTags.containsAll(["direction:" + dsmDirection, "topic:mytopic", "type:sns"])
+          edgeTags.containsAll(["direction:" + dsmDirection, "topic:arnprefix:stream/somestream", "type:kinesis"])
           edgeTags.size() == 3
         }
       }
