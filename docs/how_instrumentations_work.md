@@ -117,7 +117,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 
 @AutoService(Instrumenter.class)
 public class RabbitChannelInstrumentation extends Instrumenter.Tracing
-  implements Instrumenter.ForTypeHierarchy {/* */
+        implements Instrumenter.ForTypeHierarchy {/* */
 }
 ```
 
@@ -162,7 +162,7 @@ so the Instrumentation only activates when that class is loaded. For example:
 
 @Override
 public ElementMatcher<ClassLoader> classLoaderMatcher() {
-  return hasClassNamed("java.net.http.HttpClient");
+    return hasClassNamed("java.net.http.HttpClient");
 }
 ```
 
@@ -198,12 +198,12 @@ Here, any public `execute()` method taking no arguments will have `PreparedState
 
 @Override
 public void adviceTransformations(AdviceTransformation transformation) {
-  transformation.applyAdvice(
-    nameStartsWith("execute")
-      .and(takesArguments(0))
-      .and(isPublic()),
-    getClass().getName() + "$PreparedStatementAdvice"
-  );
+    transformation.applyAdvice(
+            nameStartsWith("execute")
+                    .and(takesArguments(0))
+                    .and(isPublic()),
+            getClass().getName() + "$PreparedStatementAdvice"
+    );
 }
 ```
 
@@ -213,12 +213,12 @@ Here, any matching `connect()` method will have `DriverAdvice` applied:
 
 @Override
 public void adviceTransformations(AdviceTransformation transformation) {
-  transformation.applyAdvice(
-    nameStartsWith("connect")
-      .and(takesArgument(0, String.class))
-      .and(takesArgument(1, Properties.class))
-      .and(returns(named("java.sql.Connection"))),
-    getClass().getName() + "$DriverAdvice");
+    transformation.applyAdvice(
+            nameStartsWith("connect")
+                    .and(takesArgument(0, String.class))
+                    .and(takesArgument(1, Properties.class))
+                    .and(returns(named("java.sql.Connection"))),
+            getClass().getName() + "$DriverAdvice");
 }
 ```
 
@@ -254,11 +254,11 @@ The missing class must be added in the helperClassNames method, for example:
 
 @Override
 public String[] helperClassNames() {
-  return new String[]{
-    "datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter",
-    "datadog.trace.instrumentation.jakarta.jms.JMSDecorator",
-    "datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter$1"
-  };
+    return new String[]{
+            "datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter",
+            "datadog.trace.instrumentation.jakarta.jms.JMSDecorator",
+            "datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter$1"
+    };
 }
 ```
 
@@ -411,10 +411,10 @@ either the result or the exception will be passed to the helper method here:
 
 @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
 public static void methodExit(
-  @Advice.Return final Object result,
-  @Advice.Thrown final Throwable throwable
+        @Advice.Return final Object result,
+        @Advice.Thrown final Throwable throwable
 ) {
-  HelperMethods.doMethodExit(result, throwable);
+    HelperMethods.doMethodExit(result, throwable);
 }
 ```
 
@@ -437,12 +437,12 @@ import com.google.api.client.http.HttpRequest;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 
 public class HeadersInjectAdapter implements AgentPropagation.Setter<HttpRequest> {
-  public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
+    public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 
-  @Override
-  public void set(final HttpRequest carrier, final String key, final String value) {
-    carrier.getHeaders().put(key, value);
-  }
+    @Override
+    public void set(final HttpRequest carrier, final String key, final String value) {
+        carrier.getHeaders().put(key, value);
+    }
 }
 ```
 
@@ -457,12 +457,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import org.apache.hc.core5.http.HttpRequest;
 
 public class HttpHeadersInjectAdapter implements AgentPropagation.Setter<HttpRequest> {
-  public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
+    public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
 
-  @Override
-  public void set(final HttpRequest carrier, final String key, final String value) {
-    carrier.setHeader(key, value);
-  }
+    @Override
+    public void set(final HttpRequest carrier, final String key, final String value) {
+        carrier.setHeader(key, value);
+    }
 }
 ```
 
@@ -489,7 +489,7 @@ bytecode. Since they manipulate bytecode, context stores can only be created wit
 
 ```java
 ContextStore<X> store = InstrumentationContext.get(
-  "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String");
+        "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String");
 ```
 
 It’s also possible to pass the types as class objects, but this is only possible for classes that are in the bootstrap
@@ -500,16 +500,13 @@ In the example above, that context store is used to store an arbitrary `String` 
 used like a Map:
 
 ```java
-ReceiveMessageResult response = "...";
-store.
-
-put(response, "my string");
+store.put(response, "my string");
 ```
 
 and/or
 
 ```java
-String stored = store.get(response);
+String stored = store.get(response); // "my string"
 ```
 
 Context stores also need to be pre-declared in the Advice by overriding the `contextStore()` method otherwise, using
@@ -519,10 +516,10 @@ them throws exceptions.
 
 @Override
 public Map<String, String> contextStore() {
-  return singletonMap(
-    "com.amazonaws.services.sqs.model.ReceiveMessageResult",
-    "java.lang.String"
-  );
+    return singletonMap(
+            "com.amazonaws.services.sqs.model.ReceiveMessageResult",
+            "java.lang.String"
+    );
 }
 ```
 
@@ -567,17 +564,17 @@ The basic span lifecycle in an Advice class looks like:
 
 @Advice.OnMethodEnter(suppress = Throwable.class)
 public static AgentScope begin() {
-  final AgentSpan span = startSpan(/* */);
-  DECORATE.afterStart(span);
-  return activateSpan(span);
+    final AgentSpan span = startSpan(/* */);
+    DECORATE.afterStart(span);
+    return activateSpan(span);
 }
 
 @Advice.OnMethodExit(suppress = Throwable.class)
 public static void end(@Advice.Enter final AgentScope scope) {
-  AgentSpan span = scope.span();
-  DECORATE.beforeFinish(span);
-  scope.close();
-  span.finish();
+    AgentSpan span = scope.span();
+    DECORATE.beforeFinish(span);
+    scope.close();
+    span.finish();
 }
 ```
 

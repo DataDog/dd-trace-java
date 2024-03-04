@@ -108,31 +108,31 @@ Compiler settings:
 Suggested plugins and settings:
 
 * Editor > Code Style > Java/Groovy > Imports
-  * Class count to use import with '*': `9999` (some number sufficiently large that is unlikely to matter)
-  * Names count to use static import with '*': `9999`
-  * With java use the following import layout (groovy should still use the default) to ensure consistency with
-    google-java-format:
-    ![import layout](https://user-images.githubusercontent.com/734411/43430811-28442636-94ae-11e8-86f1-f270ddcba023.png)
+    * Class count to use import with '*': `9999` (some number sufficiently large that is unlikely to matter)
+    * Names count to use static import with '*': `9999`
+    * With java use the following import layout (groovy should still use the default) to ensure consistency with
+      google-java-format:
+      ![import layout](https://user-images.githubusercontent.com/734411/43430811-28442636-94ae-11e8-86f1-f270ddcba023.png)
 * [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format)
 
 ## Troubleshooting
 
 * When Gradle is building the project, the
   error `Could not find netty-transport-native-epoll-4.1.43.Final-linux-x86_64.jar` is shown.
-  * Execute `rm -rf  ~/.m2/repository/io/netty/netty-transport*` in a Terminal and re-build again.
+    * Execute `rm -rf  ~/.m2/repository/io/netty/netty-transport*` in a Terminal and re-build again.
 
 * IntelliJ 2021.3
   complains `Failed to find KotlinGradleProjectData for GradleSourceSetData` https://youtrack.jetbrains.com/issue/KTIJ-20173
-  * Switch to `IntelliJ IDEA CE 2021.2.3`
+    * Switch to `IntelliJ IDEA CE 2021.2.3`
 
 * IntelliJ Gradle fails to import the project with `JAVA_11_HOME must be set to build Java 11 code`
-  * A workaround is to run IntelliJ from terminal with `JAVA_11_HOME`
-  * In order to verify what's visible from IntelliJ use `Add Configuration` bar and go
-    to `Add New` -> `Gradle` -> `Environmental Variables`
+    * A workaround is to run IntelliJ from terminal with `JAVA_11_HOME`
+    * In order to verify what's visible from IntelliJ use `Add Configuration` bar and go
+      to `Add New` -> `Gradle` -> `Environmental Variables`
 
 * Gradle fails with a "too many open files" error.
-  * You can check the `ulimit` for open files in your current shell by doing `ulimit -n` and raise it by
-    calling `ulimit -n <new number>`
+    * You can check the `ulimit` for open files in your current shell by doing `ulimit -n` and raise it by
+      calling `ulimit -n <new number>`
 
 ## Running tests on another JVM
 

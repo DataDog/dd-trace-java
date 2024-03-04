@@ -51,10 +51,10 @@ include ':dd-java-agent:instrumentation:google-http-client'
 
 @AutoService(Instrumenter.class)
 public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForSingleType {
-  public GoogleHttpClientInstrumentation() {
-    super("google-http-client");
-  }
-  // ...
+    public GoogleHttpClientInstrumentation() {
+        super("google-http-client");
+    }
+    // ...
 }
 ```
 
@@ -67,7 +67,7 @@ instrumentation should modify. (see [Type Matching](./how_instrumentations_work.
 
 @Override
 public String instrumentedType() {
-  return "com.google.api.client.http.HttpRequest";
+    return "com.google.api.client.http.HttpRequest";
 }
 ```
 
@@ -86,13 +86,13 @@ name String to be used for the Advice class when calling `transformation.applyAd
 
 ```java
 public void adviceTransformations(AdviceTransformation transformation) {
-  transformation.applyAdvice(
-    isMethod()
-      .and(isPublic())
-      .and(named("execute"))
-      .and(takesArguments(0)),
-    GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAdvice"
-  );
+    transformation.applyAdvice(
+            isMethod()
+                    .and(isPublic())
+                    .and(named("execute"))
+                    .and(takesArguments(0)),
+            GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAdvice"
+    );
 }
 ```
 
@@ -105,11 +105,11 @@ See [InjectorAdapters](./how_instrumentations_work.md#injectadapters--custom-get
 
 ```java
 public class HeadersInjectAdapter {
-  @Override
-  public void set(final HttpRequest carrier, final String key, final
-  String value) {
-    carrier.getHeaders().put(key, value);
-  }
+    @Override
+    public void set(final HttpRequest carrier, final String key, final
+    String value) {
+        carrier.getHeaders().put(key, value);
+    }
 }
 ```
 
@@ -120,9 +120,9 @@ public class HeadersInjectAdapter {
 3. Override the methods as needed to provide behaviors specific to this instrumentation. For
    example `getResponseHeader()` and `getRequestHeader()` require functionality specific to the Google `HttpRequest`
    and `HttpResponse` classes used when declaring this Decorator class:
-  1. `public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {/* */}`
-  2. Instrumentations of other HTTP clients would declare Decorators that extend the same HttpClientDecorator but using
-     their own Request and Response classes instead.
+    1. `public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {/* */}`
+    2. Instrumentations of other HTTP clients would declare Decorators that extend the same HttpClientDecorator but
+       using their own Request and Response classes instead.
 4. Typically, we create one static instance of the Decorator named `DECORATE`.
 5. For efficiency, create and retain frequently used CharSequences such as `GOOGLE_HTTP_CLIENT` and `HTTP_REQUEST`, etc.
 6. Add methods like `prepareSpan()` that will be called
@@ -136,61 +136,61 @@ import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 
 public class GoogleHttpClientDecorator
-  extends HttpClientDecorator<HttpRequest, HttpResponse> {
-  private static final Pattern URL_REPLACEMENT = Pattern.compile("%20");
-  public static final CharSequence GOOGLE_HTTP_CLIENT =
-    UTF8BytesString.create("google-http-client");
-  public static final GoogleHttpClientDecorator DECORATE = new
-    GoogleHttpClientDecorator();
-  public static final CharSequence HTTP_REQUEST =
-    UTF8BytesString.create(DECORATE.operationName());
+        extends HttpClientDecorator<HttpRequest, HttpResponse> {
+    private static final Pattern URL_REPLACEMENT = Pattern.compile("%20");
+    public static final CharSequence GOOGLE_HTTP_CLIENT =
+            UTF8BytesString.create("google-http-client");
+    public static final GoogleHttpClientDecorator DECORATE = new
+            GoogleHttpClientDecorator();
+    public static final CharSequence HTTP_REQUEST =
+            UTF8BytesString.create(DECORATE.operationName());
 
-  @Override
-  protected String method(final HttpRequest httpRequest) {
-    return httpRequest.getRequestMethod();
-  }
+    @Override
+    protected String method(final HttpRequest httpRequest) {
+        return httpRequest.getRequestMethod();
+    }
 
-  @Override
-  protected URI url(final HttpRequest httpRequest) throws URISyntaxException {
-    final String url = httpRequest.getUrl().build();
-    final String fixedUrl = URL_REPLACEMENT.matcher(url).replaceAll("+");
-    return URIUtils.safeParse(fixedUrl);
-  }
+    @Override
+    protected URI url(final HttpRequest httpRequest) throws URISyntaxException {
+        final String url = httpRequest.getUrl().build();
+        final String fixedUrl = URL_REPLACEMENT.matcher(url).replaceAll("+");
+        return URIUtils.safeParse(fixedUrl);
+    }
 
-  public AgentSpan prepareSpan(AgentSpan span, HttpRequest request) {
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request);
-    propagate().inject(span, request, SETTER);
-    propagate().injectPathwayContext(span, request, SETTER,
-      HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
-    return span;
-  }
+    public AgentSpan prepareSpan(AgentSpan span, HttpRequest request) {
+        DECORATE.afterStart(span);
+        DECORATE.onRequest(span, request);
+        propagate().inject(span, request, SETTER);
+        propagate().injectPathwayContext(span, request, SETTER,
+                HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+        return span;
+    }
 
-  @Override
-  protected int status(final HttpResponse httpResponse) {
-    return httpResponse.getStatusCode();
-  }
+    @Override
+    protected int status(final HttpResponse httpResponse) {
+        return httpResponse.getStatusCode();
+    }
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[]{"google-http-client"};
-  }
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[]{"google-http-client"};
+    }
 
-  @Override
-  protected CharSequence component() {
-    return GOOGLE_HTTP_CLIENT;
-  }
+    @Override
+    protected CharSequence component() {
+        return GOOGLE_HTTP_CLIENT;
+    }
 
-  @Override
-  protected String getRequestHeader(HttpRequest request, String headerName) {
-    return request.getHeaders().getFirstHeaderStringValue(headerName);
-  }
+    @Override
+    protected String getRequestHeader(HttpRequest request, String headerName) {
+        return request.getHeaders().getFirstHeaderStringValue(headerName);
+    }
 
-  @Override
-  protected String getResponseHeader(HttpResponse response,
-                                     String headerName) {
-    return response.getHeaders().getFirstHeaderStringValue(headerName);
-  }
+    @Override
+    protected String getResponseHeader(HttpResponse response,
+                                       String headerName) {
+        return response.getHeaders().getFirstHeaderStringValue(headerName);
+    }
 }
 ```
 
@@ -204,10 +204,10 @@ classes outside the current package could also be included.
 
 @Override
 public String[] helperClassNames() {
-  return new String[]{
-    packageName + ".GoogleHttpClientDecorator",
-    packageName + ".HeadersInjectAdapter"
-  };
+    return new String[]{
+            packageName + ".GoogleHttpClientDecorator",
+            packageName + ".HeadersInjectAdapter"
+    };
 }
 ```
 
@@ -218,68 +218,68 @@ public String[] helperClassNames() {
 2. Create two static methods named whatever you like.  `methodEnter` and `methodExit` are good choices. These **must**
    be static.
 3. With `methodEnter:`
-  1. Annotate the method using `@Advice.OnMethodEnter(suppress = Throwable.class) `(
-     see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
-  2. Add parameter `@Advice.This HttpRequest request`. It will point to the target `execute()` method’s _this_ reference
-     which must be of the same `HttpRequest` type.
-  3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This shared local variable will be visible to
-     both `OnMethodEnter` and `OnMethodExit` methods.
-  4. Use `activeScope()` __to __see if an `AgentScope` is already active. If so, return that `AgentScope`, but first let
-     the exit method know by setting the shared `inheritedScope` boolean.
-  5. If an `AgentScope` was not active then start a new span, decorate it, activate it and return it.
+    1. Annotate the method using `@Advice.OnMethodEnter(suppress = Throwable.class) `(
+       see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
+    2. Add parameter `@Advice.This HttpRequest request`. It will point to the target `execute()` method’s _this_
+       reference which must be of the same `HttpRequest` type.
+    3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This shared local variable will be visible
+       to both `OnMethodEnter` and `OnMethodExit` methods.
+    4. Use `activeScope()` __to __see if an `AgentScope` is already active. If so, return that `AgentScope`, but first
+       let the exit method know by setting the shared `inheritedScope` boolean.
+    5. If an `AgentScope` was not active then start a new span, decorate it, activate it and return it.
 4. With `methodExit:`
-  1. Annotate the method using `@Advice.OnMethodExit(onThrowable=Throwable.class, suppress=Throwable.class). `(
-     see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
-  2. Add parameter `@Advice.Enter AgentScope scope. `This is the `AgentScope` object returned earlier
-     by `methodEnter()`. Note this is not the return value of the target `execute()` method.
-  3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This is the shared local variable created
-     earlier.
-  4. Add a parameter `@Advice.Return final HttpResponse response`. This is the `HttpResponse` returned by the
-     instrumented target method (in this case `execute()`). Note this is not the same as the return value
-     of `methodEnter()`.`  `
-  5. Add a parameter `@Advice.Thrown final Throwable throwable`. This makes available any exception thrown by the
-     target `execute()` method.
-  6. Use `scope.span() `to obtain the `AgentSpan` and decorate the span as needed.
-  7. If the scope was just created (not inherited), close it.
+    1. Annotate the method using `@Advice.OnMethodExit(onThrowable=Throwable.class, suppress=Throwable.class). `(
+       see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
+    2. Add parameter `@Advice.Enter AgentScope scope. `This is the `AgentScope` object returned earlier
+       by `methodEnter()`. Note this is not the return value of the target `execute()` method.
+    3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This is the shared local variable created
+       earlier.
+    4. Add a parameter `@Advice.Return final HttpResponse response`. This is the `HttpResponse` returned by the
+       instrumented target method (in this case `execute()`). Note this is not the same as the return value
+       of `methodEnter()`.`  `
+    5. Add a parameter `@Advice.Thrown final Throwable throwable`. This makes available any exception thrown by the
+       target `execute()` method.
+    6. Use `scope.span() `to obtain the `AgentSpan` and decorate the span as needed.
+    7. If the scope was just created (not inherited), close it.
 
 ```java
 public static class GoogleHttpClientAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope methodEnter(
-    @Advice.This HttpRequest request,
-    @Advice.Local("inherited") boolean inheritedScope
-  ) {
-    AgentScope scope = activeScope();
-    if (null != scope) {
-      AgentSpan span = scope.span();
-      if (HTTP_REQUEST == span.getOperationName()) {
-        inheritedScope = true;
-        return scope;
-      }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope methodEnter(
+            @Advice.This HttpRequest request,
+            @Advice.Local("inherited") boolean inheritedScope
+    ) {
+        AgentScope scope = activeScope();
+        if (null != scope) {
+            AgentSpan span = scope.span();
+            if (HTTP_REQUEST == span.getOperationName()) {
+                inheritedScope = true;
+                return scope;
+            }
+        }
+        return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST),
+                request));
     }
-    return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST),
-      request));
-  }
 
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void methodExit(
-    @Advice.Enter AgentScope scope,
-    @Advice.Local("inherited") boolean inheritedScope,
-    @Advice.Return final HttpResponse response,
-    @Advice.Thrown final Throwable throwable) {
-    try {
-      AgentSpan span = scope.span();
-      DECORATE.onError(span, throwable);
-      DECORATE.onResponse(span, response);
-      DECORATE.beforeFinish(span);
-      span.finish();
-    } finally {
-      if (!inheritedScope) {
-        scope.close();
-      }
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(
+            @Advice.Enter AgentScope scope,
+            @Advice.Local("inherited") boolean inheritedScope,
+            @Advice.Return final HttpResponse response,
+            @Advice.Thrown final Throwable throwable) {
+        try {
+            AgentSpan span = scope.span();
+            DECORATE.onError(span, throwable);
+            DECORATE.onResponse(span, response);
+            DECORATE.beforeFinish(span);
+            span.finish();
+        } finally {
+            if (!inheritedScope) {
+                scope.close();
+            }
+        }
     }
-  }
 }
 ```
 
