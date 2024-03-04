@@ -1,14 +1,16 @@
 package datadog.trace.instrumentation.protobuf_java;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import com.google.protobuf.AbstractMessage;
+import com.google.protobuf.MessageLite;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -18,14 +20,14 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class AbstractMessageInstrumentation extends InstrumenterModule.Tracing
+public final class AbstractParserInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   static final String instrumentationName = "protobuf";
-  static final String TARGET_TYPE = "com.google.protobuf.AbstractMessage";
-  static final String SERIALIZE = "serialize";
+  static final String TARGET_TYPE = "com.google.protobuf.AbstractParser";
+  static final String DESERIALIZE = "deserialize";
 
-  public AbstractMessageInstrumentation() {
+  public AbstractParserInstrumentation() {
     super(instrumentationName);
   }
 
@@ -36,8 +38,7 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return declaresMethod(named("writeTo"))
-        .and(extendsClass(named(hierarchyMarkerType())))
+    return extendsClass(named(hierarchyMarkerType()))
         .and(not(nameStartsWith("com.google.protobuf")));
   }
 
@@ -51,25 +52,30 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("writeTo")),
-        AbstractMessageInstrumentation.class.getName() + "$WriteToAdvice");
+        isMethod().and(named("parsePartialFrom")),
+        AbstractParserInstrumentation.class.getName() + "$ParseFromAdvice");
   }
 
-  public static class WriteToAdvice {
+  public static class ParseFromAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.This AbstractMessage message) {
-      final AgentSpan span = startSpan(instrumentationName, SERIALIZE);
-      OpenAPIFormatExtractor.attachSchemaOnSpan(message, span, "serialization");
+    public static AgentScope onEnter() {
+      System.out.println("AbstractParserInstrumentation.ParseFromAdvice.onEnter");
+      final AgentSpan span = startSpan(instrumentationName, DESERIALIZE);
       return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable,
+        @Advice.Return MessageLite message) {
       if (scope == null) {
         return;
       }
       AgentSpan span = scope.span();
+      if (message instanceof AbstractMessage) {
+        OpenAPIFormatExtractor.attachSchemaOnSpan((AbstractMessage) message, span, "deserialization");
+      }
       scope.close();
       span.finish();
     }
