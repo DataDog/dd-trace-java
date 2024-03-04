@@ -44,8 +44,8 @@ e.g. [Akka-HTTP](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-ag
 ## Gradle
 
 Instrumentations included when building the Datadog java trace agent are defined
-in [`/settings.gradle`](https://github.com/DataDog/dd-trace-java/blob/master/settings.gradle)` `in alpha order with the
-other instrumentations in this format:
+in [`/settings.gradle`](https://github.com/DataDog/dd-trace-java/blob/master/settings.gradle) in alphabetical order with
+the other instrumentations in this format:
 
 ```groovy
 include ':dd-java-agent:instrumentation:$framework?:$framework-$minVersion'

@@ -1,4 +1,4 @@
-# Adding your own instrumentation
+# Add a New Instrumentation
 
 Now we will step through adding a very basic instrumentation to the trace agent. The
 existing [google-http-client instrumentation](https://github.com/DataDog/dd-trace-java/tree/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/instrumentation/google-http-client)
