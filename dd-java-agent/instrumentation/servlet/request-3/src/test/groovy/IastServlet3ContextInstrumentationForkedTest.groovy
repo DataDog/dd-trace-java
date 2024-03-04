@@ -6,11 +6,16 @@ import foo.bar.smoketest.RequestDispatcher3Utils
 
 import javax.servlet.SessionTrackingMode
 
-class IastServlet3ContextInstrumentationTest extends AgentTestRunner{
+class IastServlet3ContextInstrumentationForkedTest extends AgentTestRunner{
 
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
+  }
+
+  @Override
+  void cleanup() {
+    InstrumentationBridge.clearIastModules()
   }
 
   void 'test ApplicationModule onRealPath'() {
