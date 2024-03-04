@@ -30,6 +30,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
@@ -338,6 +339,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_PROMOTE_RESOURCE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.COUCHBASE_INTERNAL_SPANS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
@@ -912,6 +914,7 @@ public class Config {
   private final boolean longRunningTraceEnabled;
   private final long longRunningTraceInitialFlushInterval;
   private final long longRunningTraceFlushInterval;
+  private final boolean couchbaseInternalSpansEnabled;
   private final boolean elasticsearchBodyEnabled;
   private final boolean elasticsearchParamsEnabled;
   private final boolean elasticsearchBodyAndParamsEnabled;
@@ -999,6 +1002,9 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    couchbaseInternalSpansEnabled =
+        configProvider.getBoolean(
+            COUCHBASE_INTERNAL_SPANS_ENABLED, DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED);
     elasticsearchBodyEnabled =
         configProvider.getBoolean(ELASTICSEARCH_BODY_ENABLED, DEFAULT_ELASTICSEARCH_BODY_ENABLED);
     elasticsearchParamsEnabled =
@@ -3349,6 +3355,10 @@ public class Config {
     return grpcClientErrorStatuses;
   }
 
+  public boolean isCouchbaseInternalSpansEnabled() {
+    return couchbaseInternalSpansEnabled;
+  }
+
   public boolean isElasticsearchBodyEnabled() {
     return elasticsearchBodyEnabled;
   }
@@ -4429,6 +4439,8 @@ public class Config {
         + longRunningTraceInitialFlushInterval
         + ", longRunningTraceFlushInterval="
         + longRunningTraceFlushInterval
+        + ", couchbaseInternalSpansEnabled="
+        + couchbaseInternalSpansEnabled
         + ", elasticsearchBodyEnabled="
         + elasticsearchBodyEnabled
         + ", elasticsearchParamsEnabled="
