@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.servlet5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.stream.Collectors.toSet;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -17,8 +16,11 @@ import datadog.trace.api.iast.sink.ApplicationModule;
 import datadog.trace.api.iast.sink.SessionRewritingModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.SessionTrackingMode;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -68,9 +70,14 @@ public final class IastJakartaServletContextInstrumentation extends Instrumenter
         if (applicationModule != null) {
           applicationModule.onRealPath(realPath);
         }
-        if (sessionRewritingModule != null && context.getEffectiveSessionTrackingModes() != null) {
-          sessionRewritingModule.checkSessionTrackingModes(
-              context.getEffectiveSessionTrackingModes().stream().map(Enum::name).collect(toSet()));
+        if (sessionRewritingModule != null
+            && context.getEffectiveSessionTrackingModes() != null
+            && !context.getEffectiveSessionTrackingModes().isEmpty()) {
+          Set<String> sessionTrackingModes = new HashSet<>();
+          for (SessionTrackingMode mode : context.getEffectiveSessionTrackingModes()) {
+            sessionTrackingModes.add(mode.name());
+          }
+          sessionRewritingModule.checkSessionTrackingModes(sessionTrackingModes);
         }
       }
     }
