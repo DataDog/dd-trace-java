@@ -18,8 +18,11 @@ import datadog.trace.api.iast.sink.ApplicationModule;
 import datadog.trace.api.iast.sink.SessionRewritingModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import javax.servlet.ServletContext;
+import javax.servlet.SessionTrackingMode;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -47,10 +50,7 @@ public final class IastServlet3ContextInstrumentation extends InstrumenterModule
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(
-            namedNoneOf(
-                "org.apache.catalina.core.ApplicationContext",
-                "org.springframework.mock.web.MockServletContext")); // Tomcat has
+        .and(namedNoneOf("org.apache.catalina.core.ApplicationContext")); // Tomcat has
     // org.apache.catalina.core.ApplicationContextFacade which implements ServletContext and calls
     // internally org.apache.catalina.core.ApplicationContext
     // org.springframework.mock.web.MockServletContext is jdk6 and fails instrumentation
@@ -81,9 +81,14 @@ public final class IastServlet3ContextInstrumentation extends InstrumenterModule
         if (applicationModule != null) {
           applicationModule.onRealPath(realPath);
         }
-        if (sessionRewritingModule != null && context.getEffectiveSessionTrackingModes() != null) {
-          sessionRewritingModule.checkSessionTrackingModes(
-              context.getEffectiveSessionTrackingModes().stream().map(Enum::name).collect(toSet()));
+        if (sessionRewritingModule != null
+            && context.getEffectiveSessionTrackingModes() != null
+            && !context.getEffectiveSessionTrackingModes().isEmpty()) {
+          Set<String> sessionTrackingModes = new HashSet<>();
+          for (SessionTrackingMode mode : context.getEffectiveSessionTrackingModes()) {
+            sessionTrackingModes.add(mode.name());
+          }
+          sessionRewritingModule.checkSessionTrackingModes(sessionTrackingModes);
         }
       }
     }
