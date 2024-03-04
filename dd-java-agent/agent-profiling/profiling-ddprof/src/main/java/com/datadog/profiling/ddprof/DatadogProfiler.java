@@ -28,12 +28,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_T
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
-import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
-import datadog.trace.api.Platform;
-import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
@@ -64,58 +61,29 @@ public final class DatadogProfiler {
 
   private static final int MAX_NUM_ENDPOINTS = 8192;
 
-  private static final class Singleton {
-    private static final DatadogProfiler INSTANCE = newInstance();
+  /**
+   * Creates a profiler API with default configuration, may result in loading the profiler native
+   * library if that has not already happened, but this will not happen more than once. Applying
+   * default configuration will not prevent overloading any setting that would not require reloading
+   * the native library.
+   *
+   * @return a profiler with default configuration.
+   */
+  public static DatadogProfiler newInstance() {
+    return newInstance(ConfigProvider.getInstance());
   }
 
-  private static void logFailedInstantiation(Throwable error) {
-    if (Platform.isNativeImageBuilder() || Platform.isNativeImage()) {
-      // Datadog profiler is not supported in native-image mode
-      // Skip logging the error
-      return;
-    }
-    OperatingSystem os = OperatingSystem.current();
-    if (os != OperatingSystem.linux) {
-      log.debug("Datadog profiler only supported on Linux", error);
-    } else if (log.isDebugEnabled()) {
-      log.warn(
-          String.format("failed to instantiate Datadog profiler on %s %s", os, Arch.current()),
-          error);
-    } else {
-      log.warn(
-          "failed to instantiate Datadog profiler on {} {} because: {}",
-          os,
-          Arch.current(),
-          error.getMessage());
-    }
-  }
-
-  static DatadogProfiler newInstance() {
-    DatadogProfiler instance = null;
-    try {
-      instance = new DatadogProfiler();
-    } catch (Throwable t) {
-      logFailedInstantiation(t);
-      instance = new DatadogProfiler((Void) null);
-    }
-    return instance;
-  }
-
+  /**
+   * Creates a new instance of the Datadog profiler API, may result in loading the profiler native
+   * library if that has not already happened, but this will not happen more than once. The
+   * underlying configuration for where to load the library from cannot be overridden by providing
+   * config here, but all other properties can be changed.
+   *
+   * @param configProvider config
+   * @return a profiler with the configuration applied.
+   */
   public static DatadogProfiler newInstance(ConfigProvider configProvider) {
-    // do not recreate the default instance
-    // it is ok to use identity check as we are requiring the exact same instance
-    if (configProvider == Singleton.INSTANCE.configProvider) {
-      return Singleton.INSTANCE;
-    }
-
-    DatadogProfiler instance = null;
-    try {
-      instance = new DatadogProfiler(configProvider);
-    } catch (Throwable t) {
-      logFailedInstantiation(t);
-      instance = new DatadogProfiler((Void) null);
-    }
-    return instance;
+    return new DatadogProfiler(configProvider);
   }
 
   private final AtomicBoolean recordingFlag = new AtomicBoolean(false);
@@ -129,38 +97,17 @@ public final class DatadogProfiler {
 
   private final long queueTimeThreshold;
 
-  private DatadogProfiler() throws UnsupportedEnvironmentException {
-    this(ConfigProvider.getInstance());
-  }
-
-  private DatadogProfiler(Void dummy) {
-    this.configProvider = null;
-    this.profiler = null;
-    this.contextSetter = null;
-    this.orderedContextAttributes = null;
-    this.queueTimeThreshold = Long.MAX_VALUE;
-  }
-
-  private DatadogProfiler(ConfigProvider configProvider) throws UnsupportedEnvironmentException {
+  private DatadogProfiler(ConfigProvider configProvider) {
     this(configProvider, getContextAttributes(configProvider));
   }
 
   // visible for testing
-  DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes)
-      throws UnsupportedEnvironmentException {
+  DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes) {
     this.configProvider = configProvider;
-    try {
-      profiler =
-          JavaProfiler.getInstance(
-              configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
-              configProvider.getString(
-                  ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH,
-                  ProfilingConfig.PROFILING_DATADOG_PROFILER_SCRATCH_DEFAULT));
-    } catch (IOException e) {
-      throw new UnsupportedOperationException("Unable to instantiate datadog profiler", e);
-    }
-    if (profiler == null) {
-      throw new UnsupportedEnvironmentException("Unable to instantiate datadog profiler");
+    this.profiler = JavaProfilerLoader.PROFILER;
+    if (JavaProfilerLoader.REASON_NOT_LOADED != null) {
+      throw new UnsupportedOperationException(
+          "Unable to instantiate datadog profiler", JavaProfilerLoader.REASON_NOT_LOADED);
     }
 
     // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
@@ -189,70 +136,45 @@ public final class DatadogProfiler {
         configProvider.getLong(
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
-    try {
-      // sanity test - force load Datadog profiler to catch it not being available early
-      profiler.execute("status");
-    } catch (IOException e) {
-      throw new UnsupportedEnvironmentException("Failed to execute status on Datadog profiler", e);
-    }
-  }
-
-  public static DatadogProfiler getInstance() {
-    return Singleton.INSTANCE;
   }
 
   void addThread() {
-    if (profiler != null) {
-      profiler.addThread();
-    }
+    profiler.addThread();
   }
 
   void removeThread() {
-    if (profiler != null) {
-      profiler.removeThread();
-    }
+    profiler.removeThread();
   }
 
   public String getVersion() {
-    if (profiler != null) {
-      return profiler.getVersion();
-    }
-    return "profiler not loaded";
+    return profiler.getVersion();
   }
 
   @Nullable
   public OngoingRecording start() {
-    if (profiler != null) {
-      log.debug("Starting profiling");
-      try {
-        return new DatadogProfilerRecording(this);
-      } catch (IOException | IllegalStateException e) {
-        log.debug("Failed to start Datadog profiler recording", e);
-        return null;
-      }
+    log.debug("Starting profiling");
+    try {
+      return new DatadogProfilerRecording(this);
+    } catch (IOException | IllegalStateException e) {
+      log.debug("Failed to start Datadog profiler recording", e);
+      return null;
     }
-    return null;
   }
 
   @Nullable
   public RecordingData stop(OngoingRecording recording) {
-    if (profiler != null) {
-      log.debug("Stopping profiling");
-      return recording.stop();
-    }
-    return null;
+    log.debug("Stopping profiling");
+    return recording.stop();
   }
 
   /** A call-back from {@linkplain DatadogProfilerRecording#stop()} */
   void stopProfiler() {
-    if (profiler != null) {
-      if (recordingFlag.compareAndSet(true, false)) {
-        profiler.stop();
-        if (isActive()) {
-          log.debug("Profiling is still active. Waiting to stop.");
-          while (isActive()) {
-            LockSupport.parkNanos(10_000_000L);
-          }
+    if (recordingFlag.compareAndSet(true, false)) {
+      profiler.stop();
+      if (isActive()) {
+        log.debug("Profiling is still active. Waiting to stop.");
+        while (isActive()) {
+          LockSupport.parkNanos(10_000_000L);
         }
       }
     }
@@ -262,14 +184,7 @@ public final class DatadogProfiler {
     return profilingModes;
   }
 
-  public boolean isAvailable() {
-    return profiler != null;
-  }
-
-  boolean isActive() {
-    if (!isAvailable()) {
-      return false;
-    }
+  public boolean isActive() {
     try {
       String status = executeProfilerCmd("status");
       log.debug("Datadog Profiler Status = {}", status);
@@ -364,13 +279,11 @@ public final class DatadogProfiler {
   }
 
   public void recordTraceRoot(long rootSpanId, String endpoint, String operation) {
-    if (profiler != null) {
-      if (!profiler.recordTraceRoot(rootSpanId, endpoint, operation, MAX_NUM_ENDPOINTS)) {
-        log.debug(
-            "Endpoint event not written because more than {} distinct endpoints have been encountered."
-                + " This avoids excessive memory overhead.",
-            MAX_NUM_ENDPOINTS);
-      }
+    if (!profiler.recordTraceRoot(rootSpanId, endpoint, operation, MAX_NUM_ENDPOINTS)) {
+      log.debug(
+          "Endpoint event not written because more than {} distinct endpoints have been encountered."
+              + " This avoids excessive memory overhead.",
+          MAX_NUM_ENDPOINTS);
     }
   }
 
@@ -387,22 +300,18 @@ public final class DatadogProfiler {
   }
 
   public void setSpanContext(long spanId, long rootSpanId) {
-    if (profiler != null) {
-      try {
-        profiler.setContext(spanId, rootSpanId);
-      } catch (IllegalStateException e) {
-        log.debug("Failed to clear context", e);
-      }
+    try {
+      profiler.setContext(spanId, rootSpanId);
+    } catch (IllegalStateException e) {
+      log.debug("Failed to clear context", e);
     }
   }
 
   public void clearSpanContext() {
-    if (profiler != null) {
-      try {
-        profiler.setContext(0L, 0L);
-      } catch (IllegalStateException e) {
-        log.debug("Failed to set context", e);
-      }
+    try {
+      profiler.setContext(0L, 0L);
+    } catch (IllegalStateException e) {
+      log.debug("Failed to set context", e);
     }
   }
 
@@ -457,21 +366,14 @@ public final class DatadogProfiler {
   }
 
   public void recordSetting(String name, String value) {
-    if (profiler != null) {
-      profiler.recordSetting(name, value);
-    }
+    profiler.recordSetting(name, value);
   }
 
   public void recordSetting(String name, String value, String unit) {
-    if (profiler != null) {
-      profiler.recordSetting(name, value, unit);
-    }
+    profiler.recordSetting(name, value, unit);
   }
 
   public QueueTimeTracker newQueueTimeTracker() {
-    if (profiler != null) {
-      return new QueueTimeTracker(profiler, queueTimeThreshold);
-    }
-    return null;
+    return new QueueTimeTracker(profiler, queueTimeThreshold);
   }
 }

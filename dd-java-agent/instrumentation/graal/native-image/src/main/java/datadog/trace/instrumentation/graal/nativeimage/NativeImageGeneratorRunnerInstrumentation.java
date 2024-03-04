@@ -62,6 +62,8 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.DeadlockEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.EndpointEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.QueueTimeEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.TimelineEvent:build_time,"
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"

@@ -2,7 +2,6 @@ package datadog.trace.core.scopemanager
 
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.EndpointCheckpointer
 import datadog.trace.api.Stateful
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.interceptor.MutableSpan
@@ -49,7 +48,6 @@ class ScopeManagerTest extends DDCoreSpecification {
   ContinuableScopeManager scopeManager
   EventCountingListener eventCountingListener
   EventCountingExtendedListener eventCountingExtendedListener
-  EndpointCheckpointer rootSpanCheckpointer
   ProfilingContextIntegration profilingContext
 
   def setup() {
@@ -58,10 +56,8 @@ class ScopeManagerTest extends DDCoreSpecification {
       newScopeState(_) >> state
       name() >> "mock"
     })
-    rootSpanCheckpointer = Mock()
     writer = new ListWriter()
     tracer = tracerBuilder().writer(writer).profilingContextIntegration(profilingContext).build()
-    tracer.registerCheckpointer(rootSpanCheckpointer)
     scopeManager = tracer.scopeManager
     eventCountingListener = new EventCountingListener()
     scopeManager.addScopeListener(eventCountingListener)
@@ -552,7 +548,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     assertEvents([ACTIVATE, ACTIVATE])
-    1 * rootSpanCheckpointer.onRootSpanStarted(_)
+    1 * profilingContext.onRootSpanStarted(_)
     1 * profilingContext.onAttach()
     1 * profilingContext.encodeOperationName("foo")
     1 * profilingContext.encodeOperationName("bar")
@@ -564,7 +560,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     secondScope.close()
 
     then:
-    1 * rootSpanCheckpointer.onRootSpanFinished(_, _)
+    1 * profilingContext.onRootSpanFinished(_, _)
     1 * profilingContext.onDetach()
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
@@ -589,7 +585,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == firstSpan
     tracer.activeScope() == firstScope
     assertEvents([ACTIVATE])
-    1 * rootSpanCheckpointer.onRootSpanStarted(_)
+    1 * profilingContext.onRootSpanStarted(_)
     1 * profilingContext.onAttach()
     1 * profilingContext.encodeOperationName("foo")
     1 * profilingContext.newScopeState(_) >> Stub(Stateful)

@@ -46,6 +46,11 @@ public class JavaxWSResponseInstrumentation extends InstrumenterModule.Iast
     return extendsClass(named(hierarchyMarkerType()));
   }
 
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
+  }
+
   public static class HeaderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)

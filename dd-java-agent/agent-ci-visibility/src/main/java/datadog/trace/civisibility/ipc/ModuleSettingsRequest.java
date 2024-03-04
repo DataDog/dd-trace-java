@@ -2,7 +2,6 @@ package datadog.trace.civisibility.ipc;
 
 import datadog.trace.civisibility.config.JvmInfo;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 public class ModuleSettingsRequest implements Signal {
@@ -52,65 +51,15 @@ public class ModuleSettingsRequest implements Signal {
 
   @Override
   public ByteBuffer serialize() {
-    byte[] modulePathBytes =
-        moduleName != null ? moduleName.getBytes(StandardCharsets.UTF_8) : null;
-
-    String jvmName = jvmInfo.getName();
-    byte[] jvmNameBytes = jvmName != null ? jvmName.getBytes(StandardCharsets.UTF_8) : null;
-
-    String jvmVersion = jvmInfo.getVersion();
-    byte[] jvmVersionBytes =
-        jvmVersion != null ? jvmVersion.getBytes(StandardCharsets.UTF_8) : null;
-
-    String jvmVendor = jvmInfo.getVendor();
-    byte[] jvmVendorBytes = jvmVendor != null ? jvmVendor.getBytes(StandardCharsets.UTF_8) : null;
-
-    ByteBuffer buffer =
-        ByteBuffer.allocate(
-            serializeStringLength(modulePathBytes)
-                + serializeStringLength(jvmNameBytes)
-                + serializeStringLength(jvmVersionBytes)
-                + serializeStringLength(jvmVendorBytes));
-
-    serializeString(buffer, modulePathBytes);
-    serializeString(buffer, jvmNameBytes);
-    serializeString(buffer, jvmVersionBytes);
-    serializeString(buffer, jvmVendorBytes);
-
-    buffer.flip();
-    return buffer;
-  }
-
-  private static int serializeStringLength(byte[] stringBytes) {
-    return Integer.BYTES + (stringBytes != null ? stringBytes.length : 0);
-  }
-
-  private static void serializeString(ByteBuffer buffer, byte[] stringBytes) {
-    if (stringBytes != null) {
-      buffer.putInt(stringBytes.length);
-      buffer.put(stringBytes);
-    } else {
-      buffer.putInt(-1);
-    }
+    Serializer s = new Serializer();
+    s.write(moduleName);
+    JvmInfo.serialize(s, jvmInfo);
+    return s.flush();
   }
 
   public static ModuleSettingsRequest deserialize(ByteBuffer buffer) {
-    String moduleName = deserializeString(buffer);
-    String jvmName = deserializeString(buffer);
-    String jvmVersion = deserializeString(buffer);
-    String jvmVendor = deserializeString(buffer);
-    JvmInfo jvmInfo = new JvmInfo(jvmName, jvmVersion, jvmVendor);
+    String moduleName = Serializer.readString(buffer);
+    JvmInfo jvmInfo = JvmInfo.deserialize(buffer);
     return new ModuleSettingsRequest(moduleName, jvmInfo);
-  }
-
-  private static String deserializeString(ByteBuffer buffer) {
-    int jvmNameBytesLength = buffer.getInt();
-    if (jvmNameBytesLength >= 0) {
-      byte[] jvmNameBytes = new byte[jvmNameBytesLength];
-      buffer.get(jvmNameBytes);
-      return new String(jvmNameBytes, StandardCharsets.UTF_8);
-    } else {
-      return null;
-    }
   }
 }

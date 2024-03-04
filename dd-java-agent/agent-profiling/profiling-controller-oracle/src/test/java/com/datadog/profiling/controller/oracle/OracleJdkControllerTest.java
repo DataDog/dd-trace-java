@@ -1,7 +1,11 @@
 package com.datadog.profiling.controller.oracle;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.datadog.profiling.controller.ControllerContext;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.InputStream;
 import java.time.Instant;
@@ -22,21 +26,24 @@ class OracleJdkControllerTest {
 
   @Test
   void createRecording() throws Exception {
-    try (OracleJdkOngoingRecording recording = instance.createRecording("my_recording")) {
+    try (OracleJdkOngoingRecording recording =
+        instance.createRecording("my_recording", new ControllerContext().snapshot())) {
       assertNotNull(recording);
     }
   }
 
   @Test
   void createRecordingInvalid() {
-    assertThrows(Throwable.class, () -> instance.createRecording(null));
+    assertThrows(
+        Throwable.class, () -> instance.createRecording(null, new ControllerContext().snapshot()));
   }
 
   @Test
   void getSnapshot() throws Exception {
     String recordingName = "my_recording";
     Instant start = Instant.now();
-    try (OracleJdkOngoingRecording recording = instance.createRecording(recordingName)) {
+    try (OracleJdkOngoingRecording recording =
+        instance.createRecording(recordingName, new ControllerContext().snapshot())) {
       assertNotNull(recording);
 
       // sleep a while to allow a few events to be collected
@@ -69,7 +76,8 @@ class OracleJdkControllerTest {
   void getSnapshotAfterClose() throws Exception {
     String recordingName = "my_recording";
     Instant start = Instant.now();
-    OracleJdkOngoingRecording recording = instance.createRecording(recordingName);
+    OracleJdkOngoingRecording recording =
+        instance.createRecording(recordingName, new ControllerContext().snapshot());
     assertNotNull(recording);
     recording.close();
     assertThrows(Throwable.class, () -> recording.snapshot(start));
@@ -78,7 +86,8 @@ class OracleJdkControllerTest {
   @Test
   void getStopAndGetSnapshot() throws Exception {
     String recordingName = "my_recording";
-    try (OracleJdkOngoingRecording recording = instance.createRecording(recordingName)) {
+    try (OracleJdkOngoingRecording recording =
+        instance.createRecording(recordingName, new ControllerContext().snapshot())) {
       assertNotNull(recording);
 
       // sleep a while to allow a few events to be collected
@@ -107,7 +116,8 @@ class OracleJdkControllerTest {
   void getSnapshotAfterStop() throws Exception {
     String recordingName = "my_recording";
     Instant start = Instant.now();
-    try (OracleJdkOngoingRecording recording = instance.createRecording(recordingName)) {
+    try (OracleJdkOngoingRecording recording =
+        instance.createRecording(recordingName, new ControllerContext().snapshot())) {
       assertNotNull(recording);
 
       // sleep a while to allow a few events to be collected
@@ -124,7 +134,8 @@ class OracleJdkControllerTest {
   @Test
   void stopAfterClose() throws Exception {
     String recordingName = "my_recording";
-    OracleJdkOngoingRecording recording = instance.createRecording(recordingName);
+    OracleJdkOngoingRecording recording =
+        instance.createRecording(recordingName, new ControllerContext().snapshot());
     assertNotNull(recording);
 
     recording.close();

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -53,6 +52,21 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     "com.edb.jdbc.PgConnection",
     // should cover Oracle
     "oracle.jdbc.driver.PhysicalConnection",
+    // should cover mysql
+    "com.mysql.jdbc.Connection",
+    "com.mysql.jdbc.jdbc1.Connection",
+    "com.mysql.jdbc.jdbc2.Connection",
+    "com.mysql.jdbc.ConnectionImpl",
+    "com.mysql.jdbc.JDBC4Connection",
+    "com.mysql.cj.jdbc.ConnectionImpl",
+    // complete
+    "org.mariadb.jdbc.MySQLConnection",
+    // MariaDB Connector/J v2.x
+    "org.mariadb.jdbc.MariaDbConnection",
+    // MariaDB Connector/J v3.x
+    "org.mariadb.jdbc.Connection",
+    // aws-mysql-jdbc
+    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
   };
 
   @Override
@@ -91,7 +105,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     public static String onEnter(
         @Advice.This Connection connection,
         @Advice.Argument(value = 0, readOnly = false) String sql) {
-      if (INJECT_COMMENT) {
+      //      Using INJECT_COMMENT fails to update when a test calls injectSysConfig
+      if (DECORATE.shouldInjectSQLComment()) {
         final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Connection.class);
         if (callDepth > 0) {
           return null;
@@ -100,7 +115,11 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        sql = SQLCommenter.append(sql, DECORATE.getDbService(dbInfo));
+        if (dbInfo.getType().equals("sqlserver")) {
+          sql = SQLCommenter.append(sql, DECORATE.getDbService(dbInfo), dbInfo.getType());
+        } else {
+          sql = SQLCommenter.prepend(sql, DECORATE.getDbService(dbInfo), dbInfo.getType());
+        }
         return inputSql;
       }
       return sql;

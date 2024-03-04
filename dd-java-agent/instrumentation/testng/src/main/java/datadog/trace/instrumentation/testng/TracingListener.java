@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.testng;
 
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.instrumentation.testng.retry.RetryAnalyzer;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.testng.IConfigurationListener;
+import org.testng.IRetryAnalyzer;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
@@ -30,7 +33,13 @@ public class TracingListener extends TestNGClassListener
     Class<?> testSuiteClass = testClass.getRealClass();
     List<String> groups = TestNGUtils.getGroups(testClass);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, testSuiteClass, groups, parallelized);
+        testSuiteName,
+        FRAMEWORK_NAME,
+        FRAMEWORK_VERSION,
+        testSuiteClass,
+        groups,
+        parallelized,
+        TestFrameworkInstrumentation.TESTNG);
   }
 
   @Override
@@ -81,7 +90,17 @@ public class TracingListener extends TestNGClassListener
         groups,
         testClass,
         testMethodName,
-        testMethod);
+        testMethod,
+        isRetry(result));
+  }
+
+  private boolean isRetry(final ITestResult result) {
+    IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
+    if (retryAnalyzer instanceof RetryAnalyzer) {
+      RetryAnalyzer datadogAnalyzer = (RetryAnalyzer) retryAnalyzer;
+      return datadogAnalyzer.currentExecutionIsRetry();
+    }
+    return false;
   }
 
   @Override

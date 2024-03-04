@@ -48,9 +48,10 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     return processBuilder
   }
 
-  void 'test kafka key source'() {
+  void 'test kafka #endpoint key source'() {
     setup:
-    final url = "http://localhost:${httpPort}/iast/kafka?type=source_key"
+    final type = "${endpoint}_source_key"
+    final url = "http://localhost:${httpPort}/iast/kafka/$endpoint?type=${type}"
 
     when:
     final response = client.newCall(new Request.Builder().url(url).get().build()).execute()
@@ -58,14 +59,19 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     then:
     response.body().string() == 'OK'
     hasTainted { tainted ->
-      tainted.value == 'Kafka tainted key: source_key' &&
-        tainted.ranges[0].source.origin == 'kafka.message.key'
+      tainted.value == "Kafka tainted key: $type" &&
+        tainted.ranges[0].source.origin == 'kafka.message.key' &&
+        tainted.ranges[0].source.value == type
     }
+
+    where:
+    endpoint << ['json', 'string']
   }
 
-  void 'test kafka value source'() {
+  void 'test kafka #endpoint value source'() {
     setup:
-    final url = "http://localhost:${httpPort}/iast/kafka?type=source_value"
+    final type = "${endpoint}_source_value"
+    final url = "http://localhost:${httpPort}/iast/kafka/$endpoint?type=${type}"
 
     when:
     final response = client.newCall(new Request.Builder().url(url).get().build()).execute()
@@ -73,8 +79,12 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     then:
     response.body().string() == 'OK'
     hasTainted { tainted ->
-      tainted.value == 'Kafka tainted value: source_value' &&
-        tainted.ranges[0].source.origin == 'kafka.message.value'
+      tainted.value == "Kafka tainted value: $type" &&
+        tainted.ranges[0].source.origin == 'kafka.message.value' &&
+        tainted.ranges[0].source.value == type
     }
+
+    where:
+    endpoint << ['json', 'string']
   }
 }

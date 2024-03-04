@@ -246,6 +246,8 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
       }
 
     } catch (Exception e) {
+      LOGGER.debug("Error while getting effective JVM for mojo {}", mojo, e);
+      LOGGER.warn("Error while getting effective JVM");
       return null;
     }
   }

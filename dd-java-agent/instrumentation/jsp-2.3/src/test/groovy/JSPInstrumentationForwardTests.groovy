@@ -4,10 +4,8 @@ import okhttp3.Request
 import okhttp3.Response
 import org.apache.jasper.JasperException
 import org.eclipse.jetty.http.HttpStatus
-import spock.lang.Unroll
 
 class JSPInstrumentationForwardTests extends JSPTestBase {
-  @Unroll
   def "non-erroneous GET forward to #forwardTo"() {
     setup:
     String reqUrl = baseUrl + "/$forwardFromFileName"

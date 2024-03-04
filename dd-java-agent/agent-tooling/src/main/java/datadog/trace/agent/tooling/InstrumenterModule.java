@@ -239,7 +239,8 @@ public abstract class InstrumenterModule implements Instrumenter {
 
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.IAST);
+      return enabledSystems.contains(TargetSystem.IAST)
+          || (isOptOutEnabled() && enabledSystems.contains(TargetSystem.APPSEC));
     }
 
     /**
@@ -266,6 +267,10 @@ public abstract class InstrumenterModule implements Instrumenter {
     @Override
     public Advice.PostProcessor.Factory postProcessor() {
       return IastPostProcessorFactory.INSTANCE;
+    }
+
+    protected boolean isOptOutEnabled() {
+      return false;
     }
   }
 

@@ -9,6 +9,7 @@ import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
@@ -422,6 +423,60 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer?.close()
   }
 
+  def "verify configuration polling with custom tags"() {
+    setup:
+    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
+    def poller = Mock(ConfigurationPoller)
+    def sco = new SharedCommunicationObjects(
+      okHttpClient: Mock(OkHttpClient),
+      monitoring: Mock(Monitoring),
+      agentUrl: HttpUrl.get('https://example.com'),
+      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
+      configurationPoller: poller
+      )
+
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().tracingTags == [:]
+
+    when:
+    updater.accept(key, value.getBytes(StandardCharsets.UTF_8), null)
+    updater.commit()
+
+    then:
+    tracer.captureTraceConfig().tracingTags == expectedValue
+    tracer.captureTraceConfig().getMergedSpanTags() == expectedValue
+    when:
+    updater.remove(key, null)
+    updater.commit()
+
+    then:
+    tracer.captureTraceConfig().tracingTags == [:]
+
+    cleanup:
+    tracer?.close()
+
+    where:
+    value | expectedValue
+    """{"lib_config":{"tracing_tags": ["a:b", "c:d", "e:f"]}}""" | ["a":"b", "c":"d", "e":"f"]
+    """{"lib_config":{"tracing_tags": ["", "c:d", ""]}}""" | [ "c":"d"]
+    """{"lib_config":{"tracing_tags": [":b", "c:", "e:f"]}}""" | ["e":"f"]
+    """{"lib_config":{"tracing_tags": [":", "c:", "e:f"]}}""" | ["e":"f"]
+    """{"lib_config":{"tracing_tags": [":", "c:", ""]}}""" | [:]
+    """{"lib_config":{"tracing_tags": []}}""" | [:]
+  }
+
   def "test local root service name override"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).serviceName("test").build()
@@ -431,6 +486,10 @@ class CoreTracerTest extends DDCoreSpecification {
     span.finish()
     then:
     span.serviceName == expected
+    and:
+    if (preferred != null) {
+      ServiceNameCollector.get().getServices().contains(preferred)
+    }
     cleanup:
     tracer?.close()
     where:

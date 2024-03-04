@@ -20,9 +20,7 @@ import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 import spock.lang.IgnoreIf
-import spock.lang.Unroll
 
-@Unroll
 @IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
   Platform.isJ9()
 })

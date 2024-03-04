@@ -14,7 +14,6 @@ import static datadog.trace.api.iast.SourceTypes.GRPC_BODY
 import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_VALUE
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import static com.datadog.iast.taint.Ranges.mergeRanges
-import static com.datadog.iast.taint.Ranges.rangesProviderFor
 import static datadog.trace.api.iast.SourceTypes.REQUEST_HEADER_NAME
 
 class RangesTest extends DDSpecification {
@@ -73,64 +72,6 @@ class RangesTest extends DDSpecification {
     1      | 2      | 0     | [[1, 1]] | [null, [1, 1]]
     1      | 2      | 1     | [[1, 1]] | [null, [2, 1]]
     1      | 2      | -1    | [[1, 1]] | [null, [0, 1]]
-  }
-
-  void 'test range provider'(final Object values, final List<TaintedObject> tainted, final int size, final int rangeCount) {
-    setup:
-    final to = Stub(TaintedObjects)
-    values.eachWithIndex { Object entry, int i ->
-      to.get(entry) >> tainted.get(i)
-    }
-
-    when:
-    final provider = rangesProviderFor(to, values)
-
-    then:
-    provider.size() == size
-    provider.rangeCount() == rangeCount
-    values.eachWithIndex { Object entry, int i ->
-      final value = provider.value(i)
-      assert value == entry
-      assert provider.ranges(value) == tainted.get(i)?.getRanges()
-    } == values
-
-    where:
-    values                                | tainted                                                 | size | rangeCount
-    null                                  | []                                                      | 0    | 0
-    []                                    | []                                                      | 0    | 0
-    ['a', 'b', 'c', 'd']                  | [null, ranged(2), null, ranged(6), null]                | 4    | 8
-    ['a', 'b', 'c', 'd', 'e'] as String[] | [ranged(1), ranged(1), ranged(1), ranged(1), ranged(1)] | 5    | 5
-  }
-
-  void 'test empty range provider'() {
-    setup:
-    final to = Stub(TaintedObjects)
-    final provider = rangesProviderFor(to, items)
-
-    when:
-    final rangeCount = provider.rangeCount()
-    final size = provider.size()
-
-    then:
-    rangeCount == 0
-    size == 0
-
-    when:
-    provider.value(0)
-
-    then:
-    thrown(UnsupportedOperationException)
-
-    when:
-    provider.ranges('abc')
-
-    then:
-    thrown(UnsupportedOperationException)
-
-    where:
-    items | _
-    null  | _
-    []    | _
   }
 
   void 'getIncludedRangesInterval'() {
@@ -319,19 +260,19 @@ class RangesTest extends DDSpecification {
     allRangesFrom == expected
 
     where:
-    header  | ranges                                                                                                     | expected
-    REFERER | []                                                                                                         | true
-    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name)]                                                       | true
-    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                                                     | false
-    REFERER | [rangeWithSource(GRPC_BODY)]                                                                               | false
-    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name), rangeWithSource(GRPC_BODY)]                           | false
+    header  | ranges                                                                           | expected
+    REFERER | []                                                                               | true
+    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name)]                             | true
+    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                           | false
+    REFERER | [rangeWithSource(GRPC_BODY)]                                                     | false
+    REFERER | [rangeWithSource(REQUEST_HEADER_VALUE, header.name), rangeWithSource(GRPC_BODY)] | false
     REFERER | [
       rangeWithSource(REQUEST_HEADER_VALUE, header.name),
       rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)
-    ] | false
+    ]                                                                                          | false
   }
 
-  void 'test all ranges coming from any header'(){
+  void 'test all ranges coming from any header'() {
     when:
     final allRangesFrom = Ranges.allRangesFromAnyHeader(ranges as Range[])
 
@@ -339,16 +280,56 @@ class RangesTest extends DDSpecification {
     allRangesFrom == expected
 
     where:
-    headers | ranges                                                                                                     | expected
-    [REFERER] | []                                                                                                         | true
-    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name)]                                                       | true
-    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                                                     | true
-    [REFERER] | [rangeWithSource(GRPC_BODY)]                                                                               | false
-    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name), rangeWithSource(GRPC_BODY)]                           | false
+    headers   | ranges                                                                            | expected
+    [REFERER] | []                                                                                | true
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name)]                             | true
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)]                            | true
+    [REFERER] | [rangeWithSource(GRPC_BODY)]                                                      | false
+    [REFERER] | [rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name), rangeWithSource(GRPC_BODY)] | false
     [REFERER] | [
       rangeWithSource(REQUEST_HEADER_VALUE, REFERER.name),
       rangeWithSource(REQUEST_HEADER_VALUE, LOCATION.name)
     ] | true
+  }
+
+  void 'test intersection of ranges'() {
+    when:
+    final intersection = Ranges.intersection(target, ranges as Range[])
+
+    then:
+    final list = intersection == null ? [] : intersection.toList()
+    list.size() == expected.size()
+    list.containsAll(expected)
+
+    where:
+    target      | ranges        | expected
+    range(2, 4) | [range(0, 2)] | [] // [2, 3, 4, 5] | [0, 1] -> []
+    range(2, 4) | [range(0, 4)] | [range(2, 2)] // [2, 3, 4, 5] | [0, 1, 2, 3] -> [2, 3]
+    range(2, 4) | [range(2, 4)] | [range(2, 4)] // [2, 3, 4, 5] | [2, 3, 4, 5] -> [2, 3, 4, 5]
+    range(2, 4) | [range(3, 1)] | [range(3, 1)] // [2, 3, 4, 5] | [3] -> [3]
+    range(2, 4) | [range(4, 4)] | [range(4, 2)] // [2, 3, 4, 5] | [4, 5, 6, 7] -> [4, 5]
+    range(2, 4) | [range(6, 4)] | [] // [2, 3, 4, 5] | [6, 7, 8, 9] -> []
+  }
+
+  void 'merge ranges keeping order'() {
+    when:
+    final result = Ranges.mergeRangesSorted(left as Range[], right as Range[])
+
+    then:
+    final expectedArray = expected as Range[]
+    result == expectedArray
+
+    where:
+    left                       | right                      | expected
+    []                         | []                         | []
+    []                         | [range(2, 2)]              | [range(2, 2)]
+    [range(2, 2)]              | []                         | [range(2, 2)]
+    [range(2, 2)]              | [range(2, 2)]              | [range(2, 2), range(2, 2)]
+    [range(0, 2)]              | [range(2, 2)]              | [range(0, 2), range(2, 2)]
+    [range(4, 2)]              | [range(2, 2)]              | [range(2, 2), range(4, 2)]
+    [range(0, 6)]              | [range(2, 2)]              | [range(0, 6), range(2, 2)]
+    [range(0, 2), range(4, 2)] | [range(2, 2)]              | [range(0, 2), range(2, 2), range(4, 2)]
+    [range(2, 2), range(6, 2)] | [range(0, 2), range(4, 2)] | [range(0, 2), range(2, 2), range(4, 2), range(6, 2)]
   }
 
 
@@ -382,5 +363,9 @@ class RangesTest extends DDSpecification {
 
   Range rangeWithSource(final byte source, final String name = 'name', final String value = 'value') {
     return new Range(0, 10, new Source(source, name, value), NOT_MARKED)
+  }
+
+  Range range(final int start, final int length) {
+    return new Range(start, length, new Source(REQUEST_HEADER_NAME, 'a', 'b'), NOT_MARKED)
   }
 }

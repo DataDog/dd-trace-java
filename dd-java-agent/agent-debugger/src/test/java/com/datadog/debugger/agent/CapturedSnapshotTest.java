@@ -2067,7 +2067,7 @@ public class CapturedSnapshotTest {
   public void allProbesSameMethod() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     final String METRIC_NAME = "count";
-    Where where = Where.from(CLASS_NAME, "main", null);
+    Where where = Where.convertLineToMethod(CLASS_NAME, "main", null);
     Configuration configuration =
         Configuration.builder()
             .add(
@@ -2341,7 +2341,7 @@ public class CapturedSnapshotTest {
 
   private void assertCaptureThrowable(
       CapturedContext context, String typeName, String message, String methodName, int lineNumber) {
-    CapturedContext.CapturedThrowable throwable = context.getThrowable();
+    CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
     assertCaptureThrowable(throwable, typeName, message, methodName, lineNumber);
   }
 

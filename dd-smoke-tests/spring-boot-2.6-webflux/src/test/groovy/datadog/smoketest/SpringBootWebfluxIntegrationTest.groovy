@@ -7,6 +7,11 @@ import java.util.regex.Pattern
 class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
+  def inferServiceName() {
+    false // will be taken from spring application.properties
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     String springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
 
@@ -14,7 +19,8 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
-      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()}:includeResource,DDAgentWriter",
+      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()}:includeResource:includeService,DDAgentWriter",
+      "-Ddd.integration.spring-boot.enabled=true",
       "-jar",
       springBootShadowJar,
       "--server.port=${httpPort}"
@@ -31,9 +37,9 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
   @Override
   protected Set<String> expectedTraces() {
     return [
-      "\\[netty\\.request:GET /fruits/\\{name}\\[FruitRouter\\.lambda:FruitRouter\\.lambda\\[repository\\.operation:FruitRepository\\.findByName\\[h2\\.query:.*",
-      "\\[netty\\.request:GET /fruits\\[FruitRouter\\.lambda:FruitRouter\\.lambda\\[repository\\.operation:FruitRepository\\.findAll\\[h2.query:.*",
-      Pattern.quote("[netty.request:GET /hello[WebController.hello:WebController.hello]]")
+      "\\[$SERVICE_NAME:netty\\.request:GET /fruits/\\{name}\\[$SERVICE_NAME:FruitRouter\\.lambda:FruitRouter\\.lambda\\[$SERVICE_NAME:repository\\.operation:FruitRepository\\.findByName\\[h2:h2\\.query:.*",
+      "\\[$SERVICE_NAME:netty\\.request:GET /fruits\\[$SERVICE_NAME:FruitRouter\\.lambda:FruitRouter\\.lambda\\[$SERVICE_NAME:repository\\.operation:FruitRepository\\.findAll\\[h2:h2.query:.*",
+      Pattern.quote("[$SERVICE_NAME:netty.request:GET /hello[$SERVICE_NAME:WebController.hello:WebController.hello]]")
     ]
   }
 

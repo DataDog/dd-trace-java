@@ -14,11 +14,11 @@ public class SpanLink implements AgentSpanLink {
 
   protected SpanLink(
       DDTraceId traceId, long spanId, byte traceFlags, String traceState, Attributes attributes) {
-    this.traceId = traceId;
+    this.traceId = traceId == null ? DDTraceId.ZERO : traceId;
     this.spanId = spanId;
     this.traceFlags = traceFlags;
-    this.traceState = traceState;
-    this.attributes = attributes;
+    this.traceState = traceState == null ? "" : traceState;
+    this.attributes = attributes == null ? EMPTY : attributes;
   }
 
   /**

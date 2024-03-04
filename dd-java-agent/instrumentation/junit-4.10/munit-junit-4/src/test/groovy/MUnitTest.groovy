@@ -7,6 +7,7 @@ import org.example.TestFailedAssumptionMUnit
 import org.example.TestFailedMUnit
 import org.example.TestFailedThenSucceedMUnit
 import org.example.TestSkippedMUnit
+import org.example.TestSucceedMUnitSlow
 import org.example.TestSkippedSuiteMUnit
 import org.example.TestSucceedMUnit
 import org.junit.runner.JUnitCore
@@ -41,6 +42,20 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     "test-failed"              | [TestFailedMUnit]            | 2                   | []
     "test-retry-failed"        | [TestFailedMUnit]            | 6                   | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null, null)]
     "test-failed-then-succeed" | [TestFailedThenSucceedMUnit] | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceedMUnit", "Calculator.add", null, null)]
+  }
+
+  def "test early flakiness detection #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName             | tests                  | expectedTracesCount | knownTestsList
+    "test-efd-known-test"    | [TestSucceedMUnit]     | 2                   | [new TestIdentifier("org.example.TestSucceedMUnit", "Calculator.add", null, null)]
+    "test-efd-new-test"      | [TestSucceedMUnit]     | 4                   | []
+    "test-efd-new-slow-test" | [TestSucceedMUnitSlow] | 3                   | [] // is executed only twice
   }
 
   private void runTests(Collection<Class<?>> tests) {

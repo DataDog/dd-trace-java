@@ -26,7 +26,7 @@ class BufferedEventsSpecification extends DDSpecification {
 
   def 'return added events'() {
     def events = new BufferedEvents()
-    def configSetting = new ConfigSetting("key", "value", ConfigOrigin.DEFAULT)
+    def configSetting = ConfigSetting.of("key", "value", ConfigOrigin.DEFAULT)
     def dependency = new Dependency("name", "version", "source", "hash")
     def series = new DistributionSeries()
     def integration = new Integration("integration-name", true)

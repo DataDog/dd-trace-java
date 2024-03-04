@@ -24,17 +24,18 @@ public class SQLCommenter {
   private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
 
-  public static String append(final String sql, final String dbService) {
-    return inject(sql, dbService, null, false, true);
+  public static String append(final String sql, final String dbService, final String dbType) {
+    return inject(sql, dbService, dbType, null, false, true);
   }
 
-  public static String prepend(final String sql, final String dbService) {
-    return inject(sql, dbService, null, false, false);
+  public static String prepend(final String sql, final String dbService, final String dbType) {
+    return inject(sql, dbService, dbType, null, false, false);
   }
 
   public static String inject(
       final String sql,
       final String dbService,
+      final String dbType,
       final String traceParent,
       final boolean injectTrace,
       final boolean appendComment) {
@@ -44,6 +45,21 @@ public class SQLCommenter {
     if (hasDDComment(sql, appendComment)) {
       return sql;
     }
+
+    if (dbType != null && dbType.startsWith("postgres")) {
+      //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a callable statement
+      //
+      // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
+      //      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+      int charIndex = 0;
+      while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
+        charIndex++;
+      }
+      if (charIndex < sql.length() && sql.charAt(charIndex) == '{') {
+        return sql;
+      }
+    }
+
     final Config config = Config.get();
     final String parentService = config.getServiceName();
     final String env = config.getEnv();

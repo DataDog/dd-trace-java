@@ -6,14 +6,11 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayDeque;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Deque;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CodeownersImpl implements Codeowners {
-
-  public static final Codeowners EMPTY = new CodeownersImpl(Collections.emptyList());
 
   private final Iterable<Entry> entries;
 
@@ -34,6 +31,11 @@ public class CodeownersImpl implements Codeowners {
       }
     }
     return null;
+  }
+
+  @Override
+  public boolean exist() {
+    return true;
   }
 
   public static Codeowners parse(Reader r) throws IOException {

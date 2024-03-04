@@ -26,6 +26,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
@@ -37,6 +38,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_SIMPLE_METHOD_GRAPH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -105,6 +107,7 @@ public class InstrumenterConfig {
   private final String jdbcConnectionClassName;
 
   private final String httpURLConnectionClassName;
+  private final String axisTransportClassName;
 
   private final boolean directAllocationProfilingEnabled;
 
@@ -116,6 +119,7 @@ public class InstrumenterConfig {
   private final ResolverCacheConfig resolverCacheConfig;
   private final String resolverCacheDir;
   private final boolean resolverNamesAreUnique;
+  private final boolean resolverSimpleMethodGraph;
   private final boolean resolverUseLoadClass;
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
@@ -181,6 +185,7 @@ public class InstrumenterConfig {
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
+    axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
 
     directAllocationProfilingEnabled =
         configProvider.getBoolean(
@@ -196,6 +201,9 @@ public class InstrumenterConfig {
             RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
+    resolverSimpleMethodGraph =
+        // use simpler approach everywhere except GraalVM, where it affects reachability analysis
+        configProvider.getBoolean(RESOLVER_SIMPLE_METHOD_GRAPH, !Platform.isNativeImageBuilder());
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverUseUrlCaches = configProvider.getBoolean(RESOLVER_USE_URL_CACHES);
     resolverResetInterval =
@@ -301,6 +309,10 @@ public class InstrumenterConfig {
     return httpURLConnectionClassName;
   }
 
+  public String getAxisTransportClassName() {
+    return axisTransportClassName;
+  }
+
   public boolean isDirectAllocationProfilingEnabled() {
     return directAllocationProfilingEnabled;
   }
@@ -351,6 +363,10 @@ public class InstrumenterConfig {
 
   public boolean isResolverNamesAreUnique() {
     return resolverNamesAreUnique;
+  }
+
+  public boolean isResolverSimpleMethodGraph() {
+    return resolverSimpleMethodGraph;
   }
 
   public boolean isResolverUseLoadClass() {
@@ -465,6 +481,9 @@ public class InstrumenterConfig {
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
         + '\''
+        + ", axisTransportClassName='"
+        + axisTransportClassName
+        + '\''
         + ", excludedClasses="
         + excludedClasses
         + ", excludedClassesFile="
@@ -479,6 +498,8 @@ public class InstrumenterConfig {
         + resolverCacheDir
         + ", resolverNamesAreUnique="
         + resolverNamesAreUnique
+        + ", resolverSimpleMethodGraph="
+        + resolverSimpleMethodGraph
         + ", resolverUseLoadClass="
         + resolverUseLoadClass
         + ", resolverUseUrlCaches="

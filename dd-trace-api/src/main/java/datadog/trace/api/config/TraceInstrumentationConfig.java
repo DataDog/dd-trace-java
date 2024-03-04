@@ -61,12 +61,16 @@ public final class TraceInstrumentationConfig {
   public static final String HTTP_URL_CONNECTION_CLASS_NAME =
       "trace.http.url.connection.class.name";
 
+  public static final String AXIS_TRANSPORT_CLASS_NAME = "trace.axis.transport.class.name";
+
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
   public static final String SERIALVERSIONUID_FIELD_INJECTION =
       "trace.serialversionuid.field.injection";
 
-  public static final String LOGS_INJECTION_ENABLED = "logs.injection";
+  public static final String LOGS_INJECTION_ENABLED = "logs.injection.enabled";
+  public static final String LOGS_INJECTION = "logs.injection";
+
   public static final String TRACE_128_BIT_TRACEID_LOGGING_ENABLED =
       "trace.128.bit.traceid.logging.enabled";
 
@@ -120,6 +124,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String RESOLVER_CACHE_CONFIG = "resolver.cache.config";
   public static final String RESOLVER_CACHE_DIR = "resolver.cache.dir";
+  public static final String RESOLVER_SIMPLE_METHOD_GRAPH = "resolver.simple.method.graph";
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
   public static final String RESOLVER_USE_URL_CACHES = "resolver.use.url.caches";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";

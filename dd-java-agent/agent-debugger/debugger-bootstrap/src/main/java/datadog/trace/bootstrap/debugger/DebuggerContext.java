@@ -322,7 +322,7 @@ public class DebuggerContext {
         } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
           probeImplementation = exitStatus.probeImplementation;
         } else {
-          throw new IllegalStateException("no probe details");
+          throw new IllegalStateException("no probe details for " + encodedProbeId);
         }
         probeImplementation.commit(entryContext, exitContext, caughtExceptions);
       }

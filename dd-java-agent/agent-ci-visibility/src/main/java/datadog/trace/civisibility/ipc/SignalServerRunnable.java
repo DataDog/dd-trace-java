@@ -110,7 +110,8 @@ class SignalServerRunnable implements Runnable {
 
     Function<Signal, SignalResponse> handler = signalHandlers.get(signalType);
     if (handler == null) {
-      LOGGER.warn("No handler register for signal type {}, skipping signal {}", signalType, signal);
+      LOGGER.warn(
+          "No handler registered for signal type {}, skipping signal {}", signalType, signal);
       return serialize(new ErrorResponse("Deserializer not found for " + signalType));
     }
 
@@ -120,6 +121,11 @@ class SignalServerRunnable implements Runnable {
 
   private ByteBuffer[] serialize(SignalResponse response) {
     ByteBuffer payload = response.serialize();
+    LOGGER.debug(
+        "Serialized response of type {} and size {} bytes",
+        response.getType(),
+        payload.remaining());
+
     ByteBuffer header = ByteBuffer.allocate(Integer.BYTES + 1);
     header.putInt(payload.remaining() + 1);
     header.put(response.getType().getCode());

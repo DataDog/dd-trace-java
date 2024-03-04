@@ -48,6 +48,11 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
   }
 
   @Override
+  protected boolean isOptOutEnabled() {
+    return true;
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("addCookie").and(takesArgument(0, named("javax.servlet.http.Cookie"))),

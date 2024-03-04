@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.scalatest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.scalatest.retry.SuppressedTestFailedException;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -90,7 +92,13 @@ public class DatadogReporter {
     boolean parallelized = true;
 
     eventHandler.onTestSuiteStart(
-        testSuiteName, TEST_FRAMEWORK, TEST_FRAMEWORK_VERSION, testClass, categories, parallelized);
+        testSuiteName,
+        TEST_FRAMEWORK,
+        TEST_FRAMEWORK_VERSION,
+        testClass,
+        categories,
+        parallelized,
+        TestFrameworkInstrumentation.SCALATEST);
   }
 
   private static void onSuiteFinish(SuiteCompleted event) {
@@ -125,7 +133,8 @@ public class DatadogReporter {
     Object testQualifier = null;
     String testParameters = null;
     Collection<String> categories;
-    if (context.unskippable(new TestIdentifier(testSuiteName, testName, null, null))) {
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null, null);
+    if (context.unskippable(testIdentifier)) {
       categories = Collections.singletonList(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
     } else {
       categories = Collections.emptyList();
@@ -133,6 +142,7 @@ public class DatadogReporter {
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
     String testMethodName = null;
     Method testMethod = null;
+    TestRetryPolicy retryPolicy = context.popRetryPolicy(testIdentifier);
 
     eventHandler.onTestStart(
         testSuiteName,
@@ -144,7 +154,8 @@ public class DatadogReporter {
         categories,
         testClass,
         testMethodName,
-        testMethod);
+        testMethod,
+        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
   }
 
   private static void onTestSuccess(TestSucceeded event) {

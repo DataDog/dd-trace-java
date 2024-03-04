@@ -1,10 +1,8 @@
 package com.datadog.profiling.controller.openjdk;
 
-import com.datadog.profiling.auxiliary.AuxiliaryProfiler;
-import com.datadog.profiling.auxiliary.AuxiliaryRecordingData;
+import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
-import datadog.trace.api.profiling.ProfilingListenersRegistry;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -21,15 +19,25 @@ import org.slf4j.LoggerFactory;
 public class OpenJdkOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(OpenJdkOngoingRecording.class);
 
-  private static final JfrProfilerSettings CONFIG_MEMENTO = JfrProfilerSettings.instance();
+  private final JfrProfilerSettings configMemento;
 
   private final Recording recording;
-  private final OngoingRecording auxiliaryRecording;
-  private final AuxiliaryProfiler auxiliaryProfiler;
 
   OpenJdkOngoingRecording(
-      String recordingName, Map<String, String> settings, int maxSize, Duration maxAge) {
-    this(recordingName, settings, maxSize, maxAge, ConfigProvider.getInstance());
+      String recordingName,
+      Map<String, String> settings,
+      int maxSize,
+      Duration maxAge,
+      ControllerContext.Snapshot context,
+      boolean jfrStackDepthSettingApplied) {
+    this(
+        recordingName,
+        settings,
+        maxSize,
+        maxAge,
+        ConfigProvider.getInstance(),
+        context,
+        jfrStackDepthSettingApplied);
   }
 
   OpenJdkOngoingRecording(
@@ -37,47 +45,46 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
       Map<String, String> settings,
       int maxSize,
       Duration maxAge,
-      ConfigProvider configProvider) {
+      ConfigProvider configProvider,
+      ControllerContext.Snapshot context,
+      boolean jfrStackDepthSettingApplied) {
     log.debug("Creating new recording: {}", recordingName);
     recording = new Recording();
     recording.setName(recordingName);
     recording.setSettings(settings);
     recording.setMaxSize(maxSize);
     recording.setMaxAge(maxAge);
-    // for testing purposes we are supporting passing in a custom config provider
-    this.auxiliaryProfiler =
-        (configProvider == ConfigProvider.getInstance()
-            ? AuxiliaryProfiler.getInstance()
-            : new AuxiliaryProfiler(configProvider));
-    if (auxiliaryProfiler.isEnabled()) {
-      auxiliaryRecording = auxiliaryProfiler.start();
-      if (auxiliaryRecording != null) {
-        disableOverriddenEvents();
-      }
-    } else {
-      auxiliaryRecording = null;
+    if (context.isDatadogProfilerEnabled()) {
+      disableOverriddenEvents(context);
     }
     recording.start();
     log.debug("Recording {} started", recordingName);
+    this.configMemento =
+        new JfrProfilerSettings(
+            configProvider,
+            context.getDatadogProfilerUnavailableReason(),
+            jfrStackDepthSettingApplied);
   }
 
-  OpenJdkOngoingRecording(Recording recording) {
+  OpenJdkOngoingRecording(
+      Recording recording,
+      ControllerContext.Snapshot context,
+      boolean jfrStackDepthSettingApplied) {
     this.recording = recording;
-    this.auxiliaryProfiler = AuxiliaryProfiler.getInstance();
-    if (auxiliaryProfiler.isEnabled()) {
-      auxiliaryRecording = auxiliaryProfiler.start();
-      if (auxiliaryRecording != null) {
-        disableOverriddenEvents();
-      }
-    } else {
-      auxiliaryRecording = null;
+    if (context.isDatadogProfilerEnabled()) {
+      disableOverriddenEvents(context);
     }
     recording.start();
     log.debug("Recording {} started", recording.getName());
+    this.configMemento =
+        new JfrProfilerSettings(
+            ConfigProvider.getInstance(),
+            context.getDatadogProfilerUnavailableReason(),
+            jfrStackDepthSettingApplied);
   }
 
-  private void disableOverriddenEvents() {
-    for (ProfilingMode mode : auxiliaryProfiler.enabledModes()) {
+  private void disableOverriddenEvents(ControllerContext.Snapshot context) {
+    for (ProfilingMode mode : context.getDatadogProfilingModes()) {
       switch (mode) {
         case CPU:
           {
@@ -125,19 +132,10 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
       throw new IllegalStateException("Cannot stop recording that is not running");
     }
     // dump the config to the current JFR recording
-    CONFIG_MEMENTO.publish();
+    configMemento.publish();
 
     recording.stop();
-    OpenJdkRecordingData mainData =
-        new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
-    return auxiliaryRecording != null
-        ? new AuxiliaryRecordingData(
-            mainData.getStart(),
-            mainData.getEnd(),
-            ProfilingSnapshot.Kind.PERIODIC,
-            mainData,
-            auxiliaryRecording.stop())
-        : mainData;
+    return new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
   }
 
   // @VisibleForTesting
@@ -153,33 +151,17 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     }
 
     // dump the config to the current JFR recording
-    CONFIG_MEMENTO.publish();
+    configMemento.publish();
     final Recording snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     snapshot.setName(recording.getName()); // Copy name from original recording
     // Since we just requested a snapshot, the end time of the snapshot will be
     // very close to now, so use that end time to minimize the risk of gaps or
     // overlaps in the data.
-    OpenJdkRecordingData openJdkData =
-        new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime(), kind);
-    RecordingData ret =
-        auxiliaryRecording != null
-            ? new AuxiliaryRecordingData(
-                start,
-                snapshot.getStopTime(),
-                kind,
-                openJdkData,
-                auxiliaryRecording.snapshot(start, kind))
-            : openJdkData;
-
-    ProfilingListenersRegistry.getHost(ProfilingSnapshot.class).fireOnData(ret);
-    return ret;
+    return new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime(), kind);
   }
 
   @Override
   public void close() {
     recording.close();
-    if (auxiliaryRecording != null) {
-      auxiliaryRecording.close();
-    }
   }
 }

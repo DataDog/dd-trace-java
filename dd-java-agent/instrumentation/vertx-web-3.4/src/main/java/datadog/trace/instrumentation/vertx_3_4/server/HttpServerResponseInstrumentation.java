@@ -56,6 +56,11 @@ public class HttpServerResponseInstrumentation extends InstrumenterModule.Iast
     return implementsInterface(named(hierarchyMarkerType()));
   }
 
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
+  }
+
   public static class PutHeaderAdvice1 {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)

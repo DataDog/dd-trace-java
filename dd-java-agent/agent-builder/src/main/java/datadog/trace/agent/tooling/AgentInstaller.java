@@ -32,6 +32,9 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.VisibilityBridgeStrategy;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.dynamic.scaffold.MethodGraph;
 import net.bytebuddy.matcher.LatentMatcher;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
@@ -114,8 +117,25 @@ public class AgentInstaller {
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
     ByteBuddy byteBuddy =
         new ByteBuddy().ignore(new LatentMatcher.Resolved<>(isDefaultFinalizer()));
-    AgentBuilder agentBuilder =
-        new AgentBuilder.Default(byteBuddy)
+
+    boolean simpleMethodGraph = InstrumenterConfig.get().isResolverSimpleMethodGraph();
+    if (simpleMethodGraph) {
+      // faster compiler that just considers visibility of locally declared methods
+      byteBuddy =
+          byteBuddy
+              .with(MethodGraph.Compiler.ForDeclaredMethods.INSTANCE)
+              .with(VisibilityBridgeStrategy.Default.NEVER)
+              .with(InstrumentedType.Factory.Default.FROZEN);
+    }
+
+    AgentBuilder agentBuilder = new AgentBuilder.Default(byteBuddy);
+    if (simpleMethodGraph) {
+      // faster strategy that assumes transformations use @Advice or AsmVisitorWrapper
+      agentBuilder = agentBuilder.with(AgentBuilder.TypeStrategy.Default.DECORATE);
+    }
+
+    agentBuilder =
+        agentBuilder
             .disableClassFormatChanges()
             .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
             .with(AgentStrategies.transformerDecorator())

@@ -14,6 +14,7 @@ import com.intuit.karate.core.StepResult;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -40,7 +41,8 @@ public class KarateTracingHook implements RuntimeHook {
         FRAMEWORK_VERSION,
         null,
         KarateUtils.getCategories(feature.getTags()),
-        suite.parallel);
+        suite.parallel,
+        TestFrameworkInstrumentation.KARATE);
     return true;
   }
 
@@ -75,7 +77,7 @@ public class KarateTracingHook implements RuntimeHook {
 
     if (Config.get().isCiVisibilityItrEnabled()
         && !categories.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
-      TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario, true);
+      TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(skippableTest)) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             featureName,
@@ -103,7 +105,8 @@ public class KarateTracingHook implements RuntimeHook {
         categories,
         null,
         null,
-        null);
+        null,
+        sr.magicVariables.containsKey(KarateUtils.RETRY_MAGIC_VARIABLE));
     return true;
   }
 

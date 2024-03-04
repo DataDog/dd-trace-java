@@ -7,9 +7,12 @@ import org.example.TestFailedSpock
 import org.example.TestFailedThenSucceedParameterizedSpock
 import org.example.TestFailedThenSucceedSpock
 import org.example.TestParameterizedSpock
+import org.example.TestSucceedAndFailedSpock
 import org.example.TestSucceedSpock
+import org.example.TestSucceedSpockSlow
 import org.example.TestSucceedSpockUnskippable
 import org.example.TestSucceedSpockUnskippableSuite
+import org.example.TestSucceedSpockVerySlow
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
@@ -73,6 +76,28 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     "test-parameterized-failed-then-succeed" | [TestFailedThenSucceedParameterizedSpock] | 5                   | [
       new TestIdentifier("org.example.TestFailedThenSucceedParameterizedSpock", "test add 1 and 2", null, null)
     ]
+  }
+
+  def "test early flakiness detection #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                        | tests                        | expectedTracesCount | knownTestsList
+    "test-efd-known-test"               | [TestSucceedSpock]           | 2                   | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null, null)]
+    "test-efd-known-parameterized-test" | [TestParameterizedSpock]     | 3                   | [
+      new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", null, null),
+      new TestIdentifier("org.example.TestParameterizedSpock", "test add 4 and 4", null, null)
+    ]
+    "test-efd-new-test"                 | [TestSucceedSpock]           | 4                   | []
+    "test-efd-new-parameterized-test"   | [TestParameterizedSpock]     | 7                   | []
+    "test-efd-known-tests-and-new-test" | [TestParameterizedSpock]     | 5                   | [new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", null, null)]
+    "test-efd-new-slow-test"            | [TestSucceedSpockSlow]       | 3                   | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | [TestSucceedSpockVerySlow]   | 2                   | [] // is executed only once
+    "test-efd-faulty-session-threshold" | [TestSucceedAndFailedSpock]  | 8                   | []
   }
 
   private static void runTests(List<Class<?>> classes) {

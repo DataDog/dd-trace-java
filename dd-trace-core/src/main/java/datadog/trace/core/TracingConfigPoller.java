@@ -1,5 +1,11 @@
 package datadog.trace.core;
 
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_CUSTOM_TAGS;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_HTTP_HEADER_TAGS;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_LOGS_INJECTION;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_SAMPLE_RATE;
+
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -15,6 +21,8 @@ import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -37,8 +45,18 @@ final class TracingConfigPoller {
 
   public void start(Config config, SharedCommunicationObjects sco) {
     this.startupLogsEnabled = config.isStartupLogsEnabled();
-
-    stopPolling = new Updater().register(config, sco);
+    ConfigurationPoller configPoller = sco.configurationPoller(config);
+    // TODO: Add CAPABILITY_APM_TRACING_TRACING_ENABLED flag when tracing_enabled is implemented for
+    // Remote config
+    if (configPoller != null) {
+      configPoller.addCapabilities(
+          CAPABILITY_APM_TRACING_SAMPLE_RATE
+              | CAPABILITY_APM_LOGS_INJECTION
+              | CAPABILITY_APM_HTTP_HEADER_TAGS
+              | CAPABILITY_APM_CUSTOM_TAGS
+              | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED);
+    }
+    stopPolling = new Updater().register(config, configPoller);
   }
 
   public void stop() {
@@ -57,8 +75,7 @@ final class TracingConfigPoller {
 
     private boolean receivedOverrides = false;
 
-    public Runnable register(Config config, SharedCommunicationObjects sco) {
-      ConfigurationPoller poller = sco.configurationPoller(config);
+    public Runnable register(Config config, ConfigurationPoller poller) {
       if (null != poller) {
         poller.addListener(Product.APM_TRACING, this);
         return poller::stop;
@@ -148,7 +165,7 @@ final class TracingConfigPoller {
     maybeOverride(builder::setHeaderTags, libConfig.headerTags);
 
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
-
+    maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
     builder.apply();
   }
 
@@ -161,6 +178,27 @@ final class TracingConfigPoller {
     if (null != override) {
       setter.accept(override);
     }
+  }
+
+  private Map<String, String> parseTagListToMap(List<String> input) {
+    Map<String, String> resultMap = Collections.emptyMap();
+    if (null == input || input.isEmpty()) {
+      return resultMap;
+    }
+    resultMap = new HashMap<>(input.size());
+    for (String s : input) {
+      int colonIndex = s.indexOf(":");
+      if (colonIndex > -1
+          && colonIndex < s.length() - 1) { // ensure there's a colon that's not at the start or end
+        String key = s.substring(0, colonIndex);
+        String value = s.substring(colonIndex + 1);
+        if (!key.isEmpty() && !value.isEmpty()) {
+          resultMap.put(key, value);
+        }
+      }
+    }
+
+    return resultMap;
   }
 
   static final class ConfigOverrides {
@@ -200,6 +238,9 @@ final class TracingConfigPoller {
 
     @Json(name = "tracing_sampling_rate")
     public Double traceSampleRate;
+
+    @Json(name = "tracing_tags")
+    public List<String> tracingTags;
   }
 
   static final class ServiceMappingEntry implements Map.Entry<String, String> {

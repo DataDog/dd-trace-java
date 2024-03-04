@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.testng;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.util.Strings;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandle;
@@ -11,7 +12,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.IClass;
+import org.testng.IRetryAnalyzer;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
@@ -25,6 +29,8 @@ import org.testng.xml.XmlTest;
 
 public abstract class TestNGUtils {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(TestNGUtils.class);
+
   private static final datadog.trace.util.MethodHandles METHOD_HANDLES =
       new datadog.trace.util.MethodHandles(TestNG.class.getClassLoader());
 
@@ -33,6 +39,10 @@ public abstract class TestNGUtils {
 
   private static final MethodHandle TEST_RESULT_WAS_RETRIED =
       METHOD_HANDLES.method(ITestResult.class, "wasRetried");
+  private static final MethodHandle TEST_METHOD_GET_RETRY_ANALYZER =
+      METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer", ITestResult.class);
+  private static final MethodHandle TEST_METHOD_GET_RETRY_ANALYZER_LEGACY =
+      METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer");
 
   public static Class<?> getTestClass(final ITestResult result) {
     IClass testClass = result.getTestClass();
@@ -161,17 +171,9 @@ public abstract class TestNGUtils {
       return parallel != null
           && ("methods".equals(parallel.toString()) || "tests".equals(parallel.toString()));
     } catch (Throwable e) {
+      LOGGER.warn("Error while checking if a test class is paralellized");
       return false;
     }
-  }
-
-  public static TestIdentifier toTestIdentifier(
-      Method method, Object instance, Object[] parameters) {
-    Class<?> testClass = instance != null ? instance.getClass() : method.getDeclaringClass();
-    String testSuiteName = testClass.getName();
-    String testName = method.getName();
-    String testParameters = TestNGUtils.getParameters(parameters);
-    return new TestIdentifier(testSuiteName, testName, testParameters, null);
   }
 
   public static String getTestNGVersion() {
@@ -215,5 +217,42 @@ public abstract class TestNGUtils {
     } catch (Throwable e) {
       return false;
     }
+  }
+
+  public static IRetryAnalyzer getRetryAnalyzer(ITestResult result) {
+    ITestNGMethod method = result.getMethod();
+    IRetryAnalyzer analyzer = METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER, method, result);
+    if (analyzer != null) {
+      return analyzer;
+    } else {
+      return METHOD_HANDLES.invoke(TEST_METHOD_GET_RETRY_ANALYZER_LEGACY, method);
+    }
+  }
+
+  public static TestIdentifier toTestIdentifier(
+      Method method, Object instance, Object[] parameters) {
+    Class<?> testClass = instance != null ? instance.getClass() : method.getDeclaringClass();
+    String testSuiteName = testClass.getName();
+    String testName = method.getName();
+    String testParameters = TestNGUtils.getParameters(parameters);
+    return new TestIdentifier(testSuiteName, testName, testParameters, null);
+  }
+
+  public static TestIdentifier toTestIdentifier(ITestResult result) {
+    String testSuiteName = result.getInstanceName();
+    String testName =
+        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
+    String testParameters = TestNGUtils.getParameters(result);
+    return new TestIdentifier(testSuiteName, testName, testParameters, null);
+  }
+
+  public static TestDescriptor toTestDescriptor(ITestResult result) {
+    String testSuiteName = result.getInstanceName();
+    IClass iTestClass = result.getTestClass();
+    Class<?> testClass = iTestClass != null ? iTestClass.getRealClass() : null;
+    String testName =
+        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
+    String parameters = TestNGUtils.getParameters(result);
+    return new TestDescriptor(testSuiteName, testClass, testName, parameters, result);
   }
 }

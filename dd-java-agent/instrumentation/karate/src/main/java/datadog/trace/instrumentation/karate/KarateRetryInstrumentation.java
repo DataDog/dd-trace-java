@@ -31,7 +31,7 @@ public class KarateRetryInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityFlakyRetryEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
   }
 
   @Override
@@ -76,7 +76,8 @@ public class KarateRetryInstrumentation extends InstrumenterModule.CiVisibility
     @Advice.OnMethodEnter
     public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
       InstrumentationContext.get(Scenario.class, RetryContext.class)
-          .computeIfAbsent(scenarioRuntime.scenario, RetryContext::create);
+          .computeIfAbsent(scenarioRuntime.scenario, RetryContext::create)
+          .setStartTimestamp(System.currentTimeMillis());
     }
 
     @Advice.OnMethodExit
@@ -89,9 +90,11 @@ public class KarateRetryInstrumentation extends InstrumenterModule.CiVisibility
       }
 
       TestRetryPolicy retryPolicy = retryContext.getRetryPolicy();
-      if (retryPolicy.retry(!retryContext.getAndResetFailed())) {
+      long duration = System.currentTimeMillis() - retryContext.getStartTimestamp();
+      if (retryPolicy.retry(!retryContext.getAndResetFailed(), duration)) {
         ScenarioRuntime retry =
             new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
+        retry.magicVariables.put(KarateUtils.RETRY_MAGIC_VARIABLE, true);
         retry.run();
         retry.featureRuntime.result.addResult(retry.result);
       }
@@ -120,7 +123,7 @@ public class KarateRetryInstrumentation extends InstrumenterModule.CiVisibility
         retryContext.setFailed(true);
 
         TestRetryPolicy retryPolicy = retryContext.getRetryPolicy();
-        if (retryPolicy.suppressFailures() && retryPolicy.retryPossible()) {
+        if (retryPolicy.suppressFailures() && retryPolicy.retriesLeft()) {
           stepResult = new StepResult(stepResult.getStep(), KarateUtils.abortedResult());
           stepResult.setFailedReason(result.getError());
           stepResult.setErrorIgnored(true);

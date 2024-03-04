@@ -2,6 +2,8 @@ package locator
 
 import datadog.trace.agent.test.AgentTestRunner
 import net.bytebuddy.agent.builder.AgentBuilder
+import net.bytebuddy.description.type.TypeDescription
+import net.bytebuddy.dynamic.DynamicType
 import net.bytebuddy.utility.JavaModule
 import spock.lang.Shared
 
@@ -41,23 +43,19 @@ class ClassInjectingLoadClassDisabledForkedTest extends AgentTestRunner {
   }
 
   @Override
-  void onError(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
-    if (typeName == "${ClassInjectingTestInstrumentation.name}\$ToBeInstrumented") {
-      instrumentationFailure = true
-    } else {
-      super.onError(typeName, classLoader, module, loaded, throwable)
-    }
+  void onTransformation(TypeDescription typeDescription, ClassLoader classLoader, JavaModule module, boolean loaded, DynamicType dynamicType) {
+    transformed += typeDescription.name
   }
 
   @Shared
-  volatile boolean instrumentationFailure = false
+  def transformed = []
 
   def "should not find classes injected via defineClass"() {
     setup:
     def instrumented = new ClassInjectingTestInstrumentation.ToBeInstrumented("test")
 
     expect:
-    instrumentationFailure
+    !transformed.contains('locator.ClassInjectingTestInstrumentation$ToBeInstrumented')
     instrumented.message == "test:${ClassInjectingTransformer.NAME}"
   }
 }
