@@ -36,15 +36,15 @@ dd-java-agent/instrumentation/couchbase
 ```
 
 In some cases, such
-as [Hibernate](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent/instrumentation/hibernate), there is a
+as [Hibernate](../dd-java-agent/instrumentation/hibernate), there is a
 submodule containing different version-specific instrumentations, but typically a version-specific module is enough when
 there is only one instrumentation implemented (
-e.g. [Akka-HTTP](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent/instrumentation/akka-http-10.0))
+e.g. [Akka-HTTP](../dd-java-agent/instrumentation/akka-http-10.0))
 
 ## Gradle
 
 Instrumentations included when building the Datadog java trace agent are defined
-in [`/settings.gradle`](https://github.com/DataDog/dd-trace-java/blob/master/settings.gradle) in alphabetical order with
+in [`/settings.gradle`](../settings.gradle) in alphabetical order with
 the other instrumentations in this format:
 
 ```groovy
@@ -58,28 +58,43 @@ directory. Add necessary dependencies as `compileOnly` so they do not leak into 
 
 Muzzle directives are applied at build time from the `build.gradle` file. OpenTelemetry provides
 some [Muzzle documentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/docs/contributing/muzzle.md).
-Muzzle directives check for a range of framework versions that are safe to load the instrumentation. For example, to
-limit compilation to include only versions 2.x of Jackson use this:
+Muzzle directives check for a range of framework versions that are safe to load the instrumentation.
+
+See this excerpt as an example from [rediscala](../dd-java-agent/instrumentation/rediscala-1.8.0/build.gradle)
 
 ```groovy
 muzzle {
   pass {
-    group = 'com.fasterxml.jackson.core'
-    module = 'jackson-core'
-    versions = "[2.0.0,3)"
+    group = "com.github.etaty"
+    module = "rediscala_2.11"
+    versions = "[1.5.0,)"
     assertInverse = true
   }
+
   pass {
-    name = 'jackson-databind'
-    group = 'com.fasterxml.jackson.core'
-    module = 'jackson-databind'
-    versions = "[2.0.0,3)"
+    group = "com.github.etaty"
+    module = "rediscala_2.12"
+    versions = "[1.8.0,)"
     assertInverse = true
   }
 }
 ```
 
-**TODO: discuss why ‘name’ is not always included.**
+This means that the instrumentation should be safe with `rediscala_2.11` from version `1.5.0` and all later versions,
+but should fail (and so will not be loaded), for older versions (see `assertInverse`).
+A similar range of versions is specified for `rediscala_2.12`.
+When the agent is built, the muzzle plugin will download versions of the framework and check these directives hold.
+To run muzzle on your instrumentation, run:
+
+```shell
+./gradlew :dd-java-agent:instrumentation:rediscala-1.8.0:muzzle
+```
+
+* ⚠️ Muzzle does _not_ run tests.
+  It checks that the types and methods used by the instrumentation are present in particular versions of libraries.
+  It can be subverted with `MethodHandle` and reflection, so muzzle passing is not the end of the story.
+
+**TODO: discuss why 'name' is not always included.**
 
 ## Instrumentation classes
 
@@ -120,7 +135,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing
 ### Type Matching
 
 Instrumentation classes should implement an
-appropriate [Instrumenter interface](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/Instrumenter.java)
+appropriate [Instrumenter interface](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/Instrumenter.java)
 that specifies how target types will be selected for instrumentation.
 
 |                                                                                                                                                                                                                     |                                                                                    |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -163,7 +178,7 @@ After the type is selected, the type’s target members(e.g., methods) must next
 class’s `adviceTransformations()` method.
 ByteBuddy’s [`ElementMatchers`](https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.4.17/net/bytebuddy/matcher/ElementMatchers.html)
 are used to describe the target members to be instrumented.
-Datadog’s [`DDElementMatchers`](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-builder/src/main/java/datadog/trace/agent/tooling/bytebuddy/matcher/DDElementMatchers.java)
+Datadog’s [`DDElementMatchers`](../dd-java-agent/agent-builder/src/main/java/datadog/trace/agent/tooling/bytebuddy/matcher/DDElementMatchers.java)
 class also provides these 10 additional matchers:
 
 * implementsInterface
@@ -258,7 +273,7 @@ also `MyDecorator.MyEnum$1, MyDecorator.MyEnum$2`, etc.
 Decorators contain extra code that will be injected into the instrumented methods.
 
 These provided Decorator classes sit
-in [dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator)
+in [dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator](../dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator)
 
 |                                                                                                                                                                                                                                                                                   |                           |                                                                                                                                                       |
 |:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------:|
@@ -485,7 +500,6 @@ In the example above, that context store is used to store an arbitrary `String` 
 used like a Map:
 
 ```java
-Map<X> store;
 ReceiveMessageResult response = "...";
 store.
 
@@ -607,7 +621,7 @@ finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61
 ### ignored\_class\_name.trie
 
 The
-file [ignored\_class\_name.trie](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-tooling/src/main/resources/datadog/trace/agent/tooling/bytebuddy/matcher/ignored_class_name.trie)
+file [ignored\_class\_name.trie](../dd-java-agent/agent-tooling/src/main/resources/datadog/trace/agent/tooling/bytebuddy/matcher/ignored_class_name.trie)
 lists classes that are to be globally ignored by matchers because they are unsafe, pointless or expensive to transform.
 If you notice an expected class is not being transformed, it may be covered by an entry in this list.
 
@@ -627,7 +641,7 @@ See [GraalVM configuration docs](https://www.graalvm.org/jdk17/reference-manual/
 Tests are written in Groovy using the [Spock framework](http://spockframework.org). For
 instrumentations, `AgentTestRunner` must be extended. For example, HTTP server frameworks use base tests which enforce
 consistency between different implementations (
-see [HttpServerTest](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
+see [HttpServerTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
 When writing an instrumentation it is much faster to test just the instrumentation rather than build the entire project,
 for example:
 
@@ -672,7 +686,7 @@ Dependency tests can be run like:
 ### Additional Test Suites
 
 The
-file [dd-trace-java/gradle/test-suites.gradle](https://github.com/DataDog/dd-trace-java/blob/master/gradle/test-suites.gradle)
+file [dd-trace-java/gradle/test-suites.gradle](../gradle/test-suites.gradle)
 contains these macros for adding different test suites to individual instrumentation builds. Notice how `addTestSuite`
 and `addTestSuiteForDir` pass values
 to [`addTestSuiteExtendingForDir`](https://github.com/DataDog/dd-trace-java/blob/c3ea017590f10941232bbb0f694525bf124d4b49/gradle/test-suites.gradle#L3)
@@ -707,7 +721,7 @@ example [`vertx-web-3.5/build.gradle`](https://github.com/DataDog/dd-trace-java/
 
 ### Smoke Tests
 
-In addition to unit tests, [Smoke tests](https://github.com/DataDog/dd-trace-java/tree/master/dd-smoke-tests) may be
+In addition to unit tests, [Smoke tests](../dd-smoke-tests) may be
 needed. Smoke tests run with a real agent jar file set as the `javaagent`. These are optional and not all frameworks
 have them, but contributions are very welcome.
 

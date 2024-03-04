@@ -1,7 +1,7 @@
 # Add a New Instrumentation
 
 Now we will step through adding a very basic instrumentation to the trace agent. The
-existing [google-http-client instrumentation](https://github.com/DataDog/dd-trace-java/tree/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/instrumentation/google-http-client)
+existing [google-http-client instrumentation](../dd-java-agent/instrumentation/google-http-client)
 will be used as an example.
 
 ## Clone the dd-trace-java repo
@@ -17,7 +17,7 @@ named `google-http-client`. (see [Naming](./how_instrumentations_work.md#naming)
 
 ## Configuring Gradle
 
-Add the new instrumentation to [`settings.gradle`](https://github.com/DataDog/dd-trace-java/blob/master/settings.gradle)
+Add the new instrumentation to [`settings.gradle`](../settings.gradle)
 in alpha order with the other instrumentations in this format:
 
 ```groovy
@@ -99,7 +99,7 @@ public void adviceTransformations(AdviceTransformation transformation) {
 ## Add the HeadersInjectAdapter
 
 This particular instrumentation uses
-a [HeadersInjectAdapter](https://github.com/DataDog/dd-trace-java/blob/cc4d3ab92e455cd02f9c04526e3b3bb1714347cb/dd-java-agent/instrumentation/google-http-client/src/main/java/datadog/trace/instrumentation/googlehttpclient/HeadersInjectAdapter.java#L6)
+a [HeadersInjectAdapter](../dd-java-agent/instrumentation/google-http-client/src/main/java/datadog/trace/instrumentation/googlehttpclient/HeadersInjectAdapter.java)
 class to assist with HTTP header injection. This is not required of all instrumentations. (
 See [InjectorAdapters](./how_instrumentations_work.md#injectadapters--custom-getterssetters)).
 
@@ -120,19 +120,14 @@ public class HeadersInjectAdapter {
 3. Override the methods as needed to provide behaviors specific to this instrumentation. For
    example `getResponseHeader()` and `getRequestHeader()` require functionality specific to the Google `HttpRequest`
    and `HttpResponse` classes used when declaring this Decorator class:
-
-  ```java
-public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {/* */
-}
-  ```
-
-Instrumentations of other HTTP clients would declare Decorators that extend the same HttpClientDecorator but using their
-own Request and Response classes instead.
-
+  1. `public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {/* */}`
+  2. Instrumentations of other HTTP clients would declare Decorators that extend the same HttpClientDecorator but using
+     their own Request and Response classes instead.
 4. Typically, we create one static instance of the Decorator named `DECORATE`.
 5. For efficiency, create and retain frequently used CharSequences such as `GOOGLE_HTTP_CLIENT` and `HTTP_REQUEST`, etc.
 6. Add methods like `prepareSpan()` that will be called
-   from [multiple](https://github.com/DataDog/dd-trace-java/blob/5307b46fe3956f0d1f09f84e1dab580af222ddc5/dd-java-agent/instrumentation/google-http-client/src/main/java/datadog/trace/instrumentation/googlehttpclient/GoogleHttpClientInstrumentation.java#L75) [places](https://github.com/DataDog/dd-trace-java/blob/5307b46fe3956f0d1f09f84e1dab580af222ddc5/dd-java-agent/instrumentation/google-http-client/src/main/java/datadog/trace/instrumentation/googlehttpclient/GoogleHttpClientInstrumentation.java#L103)
+   from [multiple](https://github.com/DataDog/dd-trace-java/blob/5307b46fe3956f0d1f09f84e1dab580af222ddc5/dd-java-agent/instrumentation/google-http-client/src/main/java/datadog/trace/instrumentation/googlehttpclient/GoogleHttpClientInstrumentation.java#L75)
+   different [places](https://github.com/DataDog/dd-trace-java/blob/5307b46fe3956f0d1f09f84e1dab580af222ddc5/dd-java-agent/instrumentation/google-http-client/src/main/java/datadog/trace/instrumentation/googlehttpclient/GoogleHttpClientInstrumentation.java#L103)
    to reduce code duplication. Confining extensive tag manipulation to the Decorators also makes the Advice class easier
    to understand and maintain.
 
@@ -223,29 +218,29 @@ public String[] helperClassNames() {
 2. Create two static methods named whatever you like.  `methodEnter` and `methodExit` are good choices. These **must**
    be static.
 3. With `methodEnter:`
-1. Annotate the method using `@Advice.OnMethodEnter(suppress = Throwable.class) `(
-   see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
-2. Add parameter `@Advice.This HttpRequest request`. It will point to the target `execute()` method’s _this_ reference
-   which must be of the same `HttpRequest` type.
-3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This shared local variable will be visible to
-   both `OnMethodEnter` and `OnMethodExit` methods.
-4. Use `activeScope()` __to __see if an `AgentScope` is already active. If so, return that `AgentScope`, but first let
-   the exit method know by setting the shared `inheritedScope` boolean.
-5. If an `AgentScope` was not active then start a new span, decorate it, activate it and return it.
+  1. Annotate the method using `@Advice.OnMethodEnter(suppress = Throwable.class) `(
+     see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
+  2. Add parameter `@Advice.This HttpRequest request`. It will point to the target `execute()` method’s _this_ reference
+     which must be of the same `HttpRequest` type.
+  3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This shared local variable will be visible to
+     both `OnMethodEnter` and `OnMethodExit` methods.
+  4. Use `activeScope()` __to __see if an `AgentScope` is already active. If so, return that `AgentScope`, but first let
+     the exit method know by setting the shared `inheritedScope` boolean.
+  5. If an `AgentScope` was not active then start a new span, decorate it, activate it and return it.
 4. With `methodExit:`
-1. Annotate the method using `@Advice.OnMethodExit(onThrowable=Throwable.class, suppress=Throwable.class). `(
-   see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
-2. Add parameter `@Advice.Enter AgentScope scope. `This is the `AgentScope` object returned earlier
-   by `methodEnter()`. Note this is not the return value of the target `execute()` method.
-3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This is the shared local variable created
-   earlier.
-4. Add a parameter `@Advice.Return final HttpResponse response`. This is the `HttpResponse` returned by the
-   instrumented target method (in this case `execute()`). Note this is not the same as the return value
-   of `methodEnter()`.`  `
-5. Add a parameter `@Advice.Thrown final Throwable throwable`. This makes available any exception thrown by the
-   target `execute()` method.
-6. Use `scope.span() `to obtain the `AgentSpan` and decorate the span as needed.
-7. If the scope was just created (not inherited), close it.
+  1. Annotate the method using `@Advice.OnMethodExit(onThrowable=Throwable.class, suppress=Throwable.class). `(
+     see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
+  2. Add parameter `@Advice.Enter AgentScope scope. `This is the `AgentScope` object returned earlier
+     by `methodEnter()`. Note this is not the return value of the target `execute()` method.
+  3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This is the shared local variable created
+     earlier.
+  4. Add a parameter `@Advice.Return final HttpResponse response`. This is the `HttpResponse` returned by the
+     instrumented target method (in this case `execute()`). Note this is not the same as the return value
+     of `methodEnter()`.`  `
+  5. Add a parameter `@Advice.Thrown final Throwable throwable`. This makes available any exception thrown by the
+     target `execute()` method.
+  6. Use `scope.span() `to obtain the `AgentSpan` and decorate the span as needed.
+  7. If the scope was just created (not inherited), close it.
 
 ```java
 public static class GoogleHttpClientAdvice {
@@ -319,7 +314,7 @@ see [inline](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.14.10/net/byte
 ## Building
 
 Configure your environment as discussed
-in [CONTRIBUTING.md](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING.md). Make sure you have installed
+in [CONTRIBUTING.md](../CONTRIBUTING.md). Make sure you have installed
 the necessary JDK versions and set all environment variables as described there.
 
 If you need to clean all results from a previous build:
@@ -352,14 +347,21 @@ If Gradle is behaving badly you might try:
 ./gradlew --stop ; ./gradlew clean assemble
 ```
 
-## Adding Tests
+## Verifying Instrumentations
+
+There are four verification strategies, three of which are mandatory.
+
+- [Muzzle directives](./how_instrumentations_work.md#muzzle)
+- [Instrumentation Tests](./how_instrumentations_work.md#instrumentation-tests)
+- [Latest Dependency Tests](./how_instrumentations_work.md#latest-dependency-tests)
+- [Smoke tests](./how_instrumentations_work.md#smoke-tests)
 
 All integrations must include sufficient test coverage. This HTTP client integration will include
-a [standard HTTP test class](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientTest.groovy)
+a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientTest.groovy)
 and
-an [async HTTP test class](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientAsyncTest.groovy).
+an [async HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientAsyncTest.groovy).
 Both test classes inherit
-from [HttpClientTest](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpClientTest.groovy#L35)
+from [HttpClientTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpClientTest.groovy)
 which provides a testing framework used by many HTTP client integrations. (
 see [Testing](./how_instrumentations_work.md#testing))
 
