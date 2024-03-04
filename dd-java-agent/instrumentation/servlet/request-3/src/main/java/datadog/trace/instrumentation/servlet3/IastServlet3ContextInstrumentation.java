@@ -47,9 +47,13 @@ public final class IastServlet3ContextInstrumentation extends InstrumenterModule
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(namedNoneOf("org.apache.catalina.core.ApplicationContext")); // Tomcat has
+        .and(
+            namedNoneOf(
+                "org.apache.catalina.core.ApplicationContext",
+                "org.springframework.mock.web.MockServletContext")); // Tomcat has
     // org.apache.catalina.core.ApplicationContextFacade which implements ServletContext and calls
     // internally org.apache.catalina.core.ApplicationContext
+    // org.springframework.mock.web.MockServletContext is jdk6 and fails instrumentation
   }
 
   @Override
