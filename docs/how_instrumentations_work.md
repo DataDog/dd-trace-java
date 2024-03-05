@@ -530,7 +530,7 @@ It is important to understand that even though they look like maps, since the va
 retrieve a value if you use the exact same key object as when it was set. Using a different object that is “`.equals()`”
 to the first will yield nothing.
 
-Also, the ContextStore is not supporting null keys, hence null check must be enforced before using an object as a key.
+Since `ContextStore` does not support null keys, null checks must be enforced _before_ using an object as a key.
 
 ## CallDepthThreadLocalMap
 
