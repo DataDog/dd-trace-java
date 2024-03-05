@@ -541,7 +541,7 @@ and [decremented](https://github.com/DataDog/dd-trace-java/blob/9d5c7ea524cfec98
 or [reset](https://github.com/DataDog/dd-trace-java/blob/9d5c7ea524cfec982176e687a489fc8c2865e445/dd-java-agent/instrumentation/java-http-client/src/main/java11/datadog/trace/instrumentation/httpclient/SendAdvice.java#L44))
 when exiting.
 
-Please note that it works only if the methods are called on the same thread (since the counter is a threadlocal variable)
+This only works if the methods are called on the same thread since the counter is a ThreadLocal variable.
 
 ## Span Lifecycle
 
