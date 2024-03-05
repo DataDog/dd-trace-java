@@ -94,7 +94,10 @@ To run muzzle on your instrumentation, run:
   It checks that the types and methods used by the instrumentation are present in particular versions of libraries.
   It can be subverted with `MethodHandle` and reflection, so muzzle passing is not the end of the story.
 
-**TODO: discuss why 'name' is not always included.**
+By default, all the muzzle directives are checked against all the instrumentations included in a module.
+However, there can be situations in which it’s only needed to check one specific directive on an instrumentation.
+At this point the instrumentation should override the method `muzzleDirective()` by returning the name of the directive to execute.
+
 
 ## Instrumentation classes
 
@@ -527,6 +530,8 @@ It is important to understand that even though they look like maps, since the va
 retrieve a value if you use the exact same key object as when it was set. Using a different object that is “`.equals()`”
 to the first will yield nothing.
 
+Since `ContextStore` does not support null keys, null checks must be enforced _before_ using an object as a key.
+
 ## CallDepthThreadLocalMap
 
 In order to avoid activating new spans on recursive calls to the same method
@@ -535,6 +540,8 @@ is often used to determine if a call is recursive by using a counter. It is incr
 and [decremented](https://github.com/DataDog/dd-trace-java/blob/9d5c7ea524cfec982176e687a489fc8c2865e445/dd-java-agent/instrumentation/vertx-redis-client-3.9/src/main/java/datadog/trace/instrumentation/vertx_redis_client/RedisSendAdvice.java#L82) (
 or [reset](https://github.com/DataDog/dd-trace-java/blob/9d5c7ea524cfec982176e687a489fc8c2865e445/dd-java-agent/instrumentation/java-http-client/src/main/java11/datadog/trace/instrumentation/httpclient/SendAdvice.java#L44))
 when exiting.
+
+This only works if the methods are called on the same thread since the counter is a ThreadLocal variable.
 
 ## Span Lifecycle
 
