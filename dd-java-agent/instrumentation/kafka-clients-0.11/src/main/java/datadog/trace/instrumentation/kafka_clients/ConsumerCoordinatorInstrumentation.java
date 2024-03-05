@@ -22,7 +22,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 import org.apache.kafka.clients.consumer.internals.RequestFuture;
+import org.apache.kafka.clients.consumer.internals.SubscriptionState;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.internals.PartitionStates;
 
 @AutoService(Instrumenter.class)
 public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.Tracing
@@ -49,7 +51,9 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".KafkaConsumerInfo"};
+    return new String[] {
+      packageName + ".KafkaConsumerInfo", packageName + ".ConsumerCoordinatorInstrumentationHelper",
+    };
   }
 
   @Override
@@ -63,6 +67,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void trackCommitOffset(
         @Advice.This ConsumerCoordinator coordinator,
+        @Advice.FieldValue("subscriptions") SubscriptionState subscriptionState,
         @Advice.Return RequestFuture<Void> requestFuture,
         @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
       if (requestFuture.failed()) {
@@ -81,7 +86,8 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       if (consumerMetadata != null) {
         clusterId = InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
       }
-
+      PartitionStates partitionStates =
+          ConsumerCoordinatorInstrumentationHelper.getPartitionStates(subscriptionState);
       for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
         if (consumerGroup == null) {
           consumerGroup = "";
@@ -100,6 +106,22 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
         AgentTracer.get()
             .getDataStreamsMonitoring()
             .trackBacklog(sortedTags, entry.getValue().offset());
+
+        Long highWatermark =
+            ConsumerCoordinatorInstrumentationHelper.getHighWatermark(
+                partitionStates, entry.getKey());
+        if (highWatermark != null) {
+          LinkedHashMap<String, String> highWatermarkTags = new LinkedHashMap<>();
+          if (clusterId != null) {
+            highWatermarkTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+          }
+          highWatermarkTags.put(PARTITION_TAG, String.valueOf(entry.getKey().partition()));
+          highWatermarkTags.put(TOPIC_TAG, entry.getKey().topic());
+          highWatermarkTags.put(TYPE_TAG, "kafka_high_watermark");
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .trackBacklog(highWatermarkTags, highWatermark);
+        }
       }
     }
 
