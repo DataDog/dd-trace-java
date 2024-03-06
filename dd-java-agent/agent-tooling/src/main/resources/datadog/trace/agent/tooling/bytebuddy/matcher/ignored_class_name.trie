@@ -210,6 +210,7 @@
 2 com.google.logging.*
 2 com.google.longrunning.*
 2 com.google.protobuf.*
+0 com.google.protobuf.DynamicMessage
 2 com.google.rpc.*
 2 com.google.thirdparty.*
 2 com.google.type.*
