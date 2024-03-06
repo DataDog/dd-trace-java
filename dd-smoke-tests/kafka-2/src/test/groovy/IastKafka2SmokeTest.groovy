@@ -1,4 +1,5 @@
 import datadog.smoketest.AbstractIastServerSmokeTest
+import datadog.trace.agent.test.utils.OkHttpUtils
 import okhttp3.Request
 import org.springframework.kafka.test.EmbeddedKafkaBroker
 import spock.lang.Shared
@@ -8,7 +9,7 @@ import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
 
-class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
+class IastKafka2SmokeTest extends AbstractIastServerSmokeTest {
 
   @Shared
   EmbeddedKafkaBroker embeddedKafka
@@ -48,6 +49,19 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     return processBuilder
   }
 
+  def setupSpec() {
+    // ensure everything is working fine
+    final client = OkHttpUtils.client()
+    final url = "http://localhost:${httpPort}/iast/health"
+    for (int attempt : (0..<3)) {
+      final result = client.newCall(new Request.Builder().url(url).get().build()).execute()
+      if (result.body().string() == 'OK') {
+        return
+      }
+    }
+    throw new IllegalStateException('Server not properly initialized')
+  }
+
   void 'test kafka #endpoint key source'() {
     setup:
     final type = "${endpoint}_source_key"
@@ -65,7 +79,7 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    endpoint << ['json', 'string']
+    endpoint << ['json', 'string', 'byteArray', 'byteBuffer']
   }
 
   void 'test kafka #endpoint value source'() {
@@ -85,6 +99,6 @@ class IastKafkaSmokeTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    endpoint << ['json', 'string']
+    endpoint << ['json', 'string', 'byteArray', 'byteBuffer']
   }
 }

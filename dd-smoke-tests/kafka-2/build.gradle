@@ -5,7 +5,7 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-description = 'Kafka Smoke Tests.'
+description = 'Kafka 2.x Smoke Tests.'
 
 dependencies {
   implementation('org.springframework.boot:spring-boot-starter-web')
