@@ -336,6 +336,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                   });
         }
       }
+
+      if (span.traceConfig().isDataStreamsEnabled() && "s3".equalsIgnoreCase(awsServiceName)) {
+        System.out.println("### Got S3 response(v2, " + response.getClass().getName() + ")");
+      }
     }
     return span;
   }
