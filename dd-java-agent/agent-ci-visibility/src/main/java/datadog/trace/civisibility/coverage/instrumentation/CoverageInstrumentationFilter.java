@@ -13,6 +13,10 @@ public final class CoverageInstrumentationFilter implements Predicate<String> {
 
   @Override
   public boolean test(String className) {
+    if (!className.contains("/")) {
+      // always include classes in default package
+      return true;
+    }
     for (String excludedPackage : excludedPackages) {
       if (className.startsWith(excludedPackage)) {
         return false;
