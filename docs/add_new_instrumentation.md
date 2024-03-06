@@ -351,10 +351,10 @@ If Gradle is behaving badly you might try:
 
 There are four verification strategies, three of which are mandatory.
 
-- [Muzzle directives](./how_instrumentations_work.md#muzzle)
-- [Instrumentation Tests](./how_instrumentations_work.md#instrumentation-tests)
-- [Latest Dependency Tests](./how_instrumentations_work.md#latest-dependency-tests)
-- [Smoke tests](./how_instrumentations_work.md#smoke-tests)
+- [Muzzle directives](./how_instrumentations_work.md#muzzle) (Required)
+- [Instrumentation Tests](./how_instrumentations_work.md#instrumentation-tests) (Required)
+- [Latest Dependency Tests](./how_instrumentations_work.md#latest-dependency-tests) (Required)
+- [Smoke tests](./how_instrumentations_work.md#smoke-tests) (Not required)
 
 All integrations must include sufficient test coverage. This HTTP client integration will include
 a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientTest.groovy)
