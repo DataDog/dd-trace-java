@@ -4163,7 +4163,7 @@ public class Config {
         + httpClientTagQueryString
         + ", httpClientSplitByDomain="
         + httpClientSplitByDomain
-        + ", httpResourceRemoveTrailingSlash"
+        + ", httpResourceRemoveTrailingSlash="
         + httpResourceRemoveTrailingSlash
         + ", dbClientSplitByInstance="
         + dbClientSplitByInstance
