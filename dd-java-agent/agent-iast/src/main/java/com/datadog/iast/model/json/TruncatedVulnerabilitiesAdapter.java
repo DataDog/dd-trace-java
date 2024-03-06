@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
 
 class TruncatedVulnerabilitiesAdapter extends FormattingAdapter<TruncatedVulnerabilities> {
 
-  private static final String MAX_SIZE_EXCEEDED = "MAX SIZE EXCEEDED";
+  private static final String MAX_SIZE_EXCEEDED = "MAX_SIZE_EXCEEDED";
 
   private final JsonAdapter<Vulnerability> vulnerabilityAdapter;
 
