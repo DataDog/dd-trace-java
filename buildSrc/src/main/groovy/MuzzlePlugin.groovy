@@ -247,6 +247,9 @@ class MuzzlePlugin implements Plugin<Project> {
         ] as BiFunction)
       }
     }
+
+    // spring-aop is muzzle tested but not an actual integration to be reported
+    map.remove("spring-data:org.springframework:spring-aop")
     dumpVersionsToCsv(project, map)
   }
 
