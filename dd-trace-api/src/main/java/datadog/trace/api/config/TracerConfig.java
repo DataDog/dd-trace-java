@@ -136,5 +136,9 @@ public final class TracerConfig {
   public static final String TRACE_HEADER_ENABLED = "trace.headers.enabled";
 
   public static final String TRACE_REQUEST_BODY_ENABLED = "trace.request.body.enabled";
+
+  public static final String TRACE_RESPONSE_BODY_ENABLED = "trace.response.body.enabled";
+
+  public static final String TRACE_RESPONSE_BODY_ENCODING = "trace.response.body.encoding";
   private TracerConfig() {}
 }

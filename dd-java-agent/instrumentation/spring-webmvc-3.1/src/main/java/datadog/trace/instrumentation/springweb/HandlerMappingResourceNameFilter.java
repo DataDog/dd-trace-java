@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.springweb;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.util.List;
@@ -28,7 +29,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
   @Override
   protected void doFilterInternal(
       final HttpServletRequest request,
-      final HttpServletResponse response,
+      HttpServletResponse response,
       final FilterChain filterChain)
       throws ServletException, IOException {
 
@@ -46,8 +47,27 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
         // mapping.getHandler() threw exception.  Ignore
       }
     }
-
-    filterChain.doFilter(request, response);
+    if (!Config.get().isTracerResponseBodyEnabled()){
+      filterChain.doFilter(request, response);
+      return;
+    }
+    DataDogHttpServletResponseWrapper wrapper = new DataDogHttpServletResponseWrapper(response);
+    filterChain.doFilter(request, wrapper);
+    String contentType = response.getContentType();
+    if(contentType==null){
+      return;
+    }
+    if (contentType.contains("application/json")) {
+      try {
+        String responseStr = new String(wrapper.getContent(), "UTF-8");
+        ((AgentSpan) parentSpan).setTag("response_body", responseStr);
+        wrapper.setContentType("application/json;charset="+Config.get().getTracerResponseBodyEncoding());
+        response = wrapper;
+        response.getWriter().write(responseStr);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
   }
 
   /**

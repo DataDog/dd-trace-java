@@ -237,5 +237,9 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_REQUEST_BODY_ENABLED = false;
 
+  static final boolean DEFAULT_TRACE_RESPONSE_BODY_ENABLED = false;
+
+  static final String DEFAULT_TRACE_RESPONSE_BODY_ENCODING="utf-8";
+
   private ConfigDefaults() {}
 }
