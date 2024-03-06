@@ -106,6 +106,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   sql,
                   span.getServiceName(),
                   dbInfo.getType(),
+                  dbInfo.getHost(),
+                  dbInfo.getDb(),
                   traceParent,
                   injectTraceContext,
                   appendComment);
