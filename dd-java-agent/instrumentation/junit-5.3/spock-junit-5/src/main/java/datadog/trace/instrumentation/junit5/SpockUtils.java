@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.junit5;
 
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
@@ -62,6 +63,16 @@ public class SpockUtils {
       LOGGER.warn("Could not get tags from a spock node", throwable);
       return Collections.emptyList();
     }
+  }
+
+  public static boolean isUnskippable(SpockNode<?> spockNode) {
+    Collection<TestTag> tags = SpockUtils.getTags(spockNode);
+    for (TestTag tag : tags) {
+      if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public static Method getTestMethod(MethodSource methodSource) {
