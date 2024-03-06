@@ -85,6 +85,8 @@ public interface TestEventsHandler extends Closeable {
 
   boolean skip(TestIdentifier test);
 
+  boolean isSkippable(TestIdentifier test);
+
   @Nonnull
   TestRetryPolicy retryPolicy(TestIdentifier test);
 
