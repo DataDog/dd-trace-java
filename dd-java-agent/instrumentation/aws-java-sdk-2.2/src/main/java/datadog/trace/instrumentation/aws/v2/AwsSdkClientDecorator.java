@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -344,11 +345,15 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         System.out.printf("### Got S3 response(v2, %s, %s)", response.getClass().getName(), awsOperationName);
 
         try {
+          for(Entry<String, List<String>> header : response.sdkHttpResponse().headers().entrySet()) {
+            System.out.printf(" ### http header %s=%s\n", header.getKey(), header.getValue());
+          }
+
           Field field = attributes.getClass().getDeclaredField("attributes");
           field.setAccessible(true);
           Map<ExecutionAttribute<?>, Object> map = (Map<ExecutionAttribute<?>, Object>)field.get(attributes);
           for (Map.Entry<ExecutionAttribute<?>, Object> entry : map.entrySet()) {
-            System.out.printf(" ### %s=%s\n", entry.getKey().toString(), entry.getValue().toString());
+            System.out.printf(" ### attr %s=%s\n", entry.getKey().toString(), entry.getValue().toString());
           }
         } catch (Exception e)
         {

@@ -272,8 +272,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
 
       System.out.println("### Got S3 response(v1, " + awsResp.getClass().getName() + ")");
-      for(Map.Entry<String, String> header : response.getHttpResponse().getHeaders().entrySet()) {
-        System.out.printf(" ### %s=%s\n", header.getKey(), header.getValue());
+      try {
+        for(Map.Entry<String, String> header : response.getHttpResponse().getHeaders().entrySet()) {
+          System.out.printf(" ### %s=%s\n", header.getKey(), header.getValue());
+        }
+      } catch (Exception e) {
+        System.out.println(" ### " + e.toString());
       }
     }
 
