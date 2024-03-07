@@ -248,8 +248,6 @@ class MuzzlePlugin implements Plugin<Project> {
       }
     }
 
-    // spring-aop is muzzle tested but not an actual integration to be reported
-    map.remove("spring-data:org.springframework:spring-aop")
     dumpVersionsToCsv(project, map)
   }
 
@@ -258,7 +256,7 @@ class MuzzlePlugin implements Plugin<Project> {
     final RepositorySystem system = newRepositorySystem()
     final RepositorySystemSession session = newRepositorySystemSession(system)
     def versions = new TreeMap<String, TestedArtifact>()
-    project.muzzle.directives.findAll { !((MuzzleDirective) it).isCoreJdk() }.each {
+    project.muzzle.directives.findAll { !((MuzzleDirective) it).isCoreJdk() && !((MuzzleDirective) it).isSkipFromReport() }.each {
       def range = resolveVersionRange(it as MuzzleDirective, system, session)
       def cp = project.sourceSets.main.runtimeClasspath
       def cl = new URLClassLoader(cp*.toURI()*.toURL() as URL[], null as ClassLoader)
@@ -555,6 +553,7 @@ class MuzzleDirective {
   List<String> excludedDependencies = new ArrayList<>()
   boolean assertPass
   boolean assertInverse = false
+  boolean skipFromReport = false
   boolean coreJdk = false
   String javaVersion
 
