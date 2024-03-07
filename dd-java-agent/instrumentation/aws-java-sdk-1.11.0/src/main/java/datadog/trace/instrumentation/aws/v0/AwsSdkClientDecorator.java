@@ -26,10 +26,12 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -268,8 +270,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if (response.getAwsResponse() instanceof AmazonWebServiceResponse) {
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
+
+      System.out.println("### Got S3 response(v1, " + response.getClass().getName() + ")");
     }
-    System.out.println("### Got S3 response(v1, " + response.getClass().getName() + ")");
+
     return super.onResponse(span, response);
   }
 

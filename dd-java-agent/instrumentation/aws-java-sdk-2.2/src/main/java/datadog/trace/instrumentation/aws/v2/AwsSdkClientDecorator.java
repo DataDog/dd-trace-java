@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
@@ -22,12 +23,14 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -338,7 +341,19 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
 
       if (span.traceConfig().isDataStreamsEnabled() && "s3".equalsIgnoreCase(awsServiceName)) {
-        System.out.println("### Got S3 response(v2, " + response.getClass().getName() + ")");
+        try {
+          Field field = attributes.getClass().getDeclaredField("attributes");
+          field.setAccessible(true);
+          Map<ExecutionAttribute<?>, Object> map = (Map<ExecutionAttribute<?>, Object>)field.get(attributes);
+          for (Map.Entry<ExecutionAttribute<?>, Object> entry : map.entrySet()) {
+            System.out.printf("### %s=%s", entry.getKey().toString(), entry.getValue().toString());
+          }
+        } catch (Exception e)
+        {
+          System.out.printf("### " + e.toString());
+        }
+
+        System.out.printf("### Got S3 response(v2, %s, %s)", response.getClass().getName(), awsOperationName);
       }
     }
     return span;
