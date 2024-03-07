@@ -271,7 +271,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
 
-      System.out.println("### Got S3 response(v1, " + response.getClass().getName() + ")");
+      System.out.println("### Got S3 response(v1, " + awsResp.getClass().getName() + ")");
     }
 
     return super.onResponse(span, response);
