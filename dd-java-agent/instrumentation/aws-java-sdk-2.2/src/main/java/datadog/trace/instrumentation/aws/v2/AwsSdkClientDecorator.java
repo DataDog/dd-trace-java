@@ -341,19 +341,19 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
 
       if (span.traceConfig().isDataStreamsEnabled() && "s3".equalsIgnoreCase(awsServiceName)) {
+        System.out.printf("### Got S3 response(v2, %s, %s)", response.getClass().getName(), awsOperationName);
+
         try {
           Field field = attributes.getClass().getDeclaredField("attributes");
           field.setAccessible(true);
           Map<ExecutionAttribute<?>, Object> map = (Map<ExecutionAttribute<?>, Object>)field.get(attributes);
           for (Map.Entry<ExecutionAttribute<?>, Object> entry : map.entrySet()) {
-            System.out.printf("### %s=%s", entry.getKey().toString(), entry.getValue().toString());
+            System.out.printf(" ### %s=%s\n", entry.getKey().toString(), entry.getValue().toString());
           }
         } catch (Exception e)
         {
-          System.out.printf("### " + e.toString());
+          System.out.println(" ### " + e.toString());
         }
-
-        System.out.printf("### Got S3 response(v2, %s, %s)", response.getClass().getName(), awsOperationName);
       }
     }
     return span;

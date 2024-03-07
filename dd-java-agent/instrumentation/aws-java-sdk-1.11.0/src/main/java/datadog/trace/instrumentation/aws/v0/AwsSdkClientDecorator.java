@@ -150,8 +150,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         else if (httpMethod == HttpMethodName.POST || httpMethod == HttpMethodName.PUT || httpMethod == HttpMethodName.DELETE) {
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
           sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-          sortedTags.put("name", key);
-          sortedTags.put("namespace", bucketName);
+          sortedTags.put("s3.bucket", bucketName);
+          sortedTags.put("s3.key", key);
           sortedTags.put(TOPIC_TAG, bucketName);
           sortedTags.put(TYPE_TAG, "s3");
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, 0, 0);
@@ -272,6 +272,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
 
       System.out.println("### Got S3 response(v1, " + awsResp.getClass().getName() + ")");
+      for(Map.Entry<String, String> header : response.getHttpResponse().getHeaders().entrySet()) {
+        System.out.printf(" ### %s=%s\n", header.getKey(), header.getValue());
+      }
     }
 
     return super.onResponse(span, response);
