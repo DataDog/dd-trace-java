@@ -1,7 +1,6 @@
 package datadog.telemetry.dependency;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -52,7 +51,7 @@ public class DependencyResolver {
     if (!dependencies.isEmpty()) {
       return dependencies;
     }
-    try (final InputStream is = new FileInputStream(path)) {
+    try (final InputStream is = metadata.inputStreamSupplier.get()) {
       return Collections.singletonList(
           Dependency.guessFallbackNoPom(metadata.manifest, metadata.jarName, is));
     }
