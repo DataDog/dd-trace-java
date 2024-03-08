@@ -392,6 +392,8 @@ public final class DatadogProfiler {
         if (taskType != null) {
           profiler.recordQueueTime(startTicks, endTicks, taskType, scheduler, origin);
         }
+      } else {
+        System.err.println("timestamp threshold not exceeded");
       }
     }
   }

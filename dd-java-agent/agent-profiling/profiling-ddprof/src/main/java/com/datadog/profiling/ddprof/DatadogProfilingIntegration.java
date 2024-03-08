@@ -130,6 +130,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     if (IS_PROFILING_QUEUEING_TIME_ENABLED && type == TimerType.QUEUEING) {
       return DDPROF.newQueueTimeTracker();
     }
+    System.err.println("starting no op queue timer");
     return Timing.NoOp.INSTANCE;
   }
 

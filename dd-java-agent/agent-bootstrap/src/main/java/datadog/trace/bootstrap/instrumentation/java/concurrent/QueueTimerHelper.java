@@ -23,6 +23,8 @@ public class QueueTimerHelper {
       timing.setTask(task);
       timing.setScheduler(schedulerClass);
       state.setTiming(timing);
+    } else {
+      System.err.println("not starting queue time");
     }
   }
 }

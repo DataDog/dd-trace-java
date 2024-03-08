@@ -37,6 +37,8 @@ public class QueueTimeTracker implements QueueTiming {
     if (task != null) {
       // indirection reduces shallow size of the tracker instance
       profiler.recordQueueTimeEvent(startTicks, task, scheduler, origin);
+    } else {
+      System.err.println("task was null when ending queue timer");
     }
   }
 }
