@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller.jfr;
 
+import com.datadog.profiling.utils.Timestamper;
 import java.lang.instrument.Instrumentation;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
@@ -11,7 +12,7 @@ import org.slf4j.LoggerFactory;
  * Provides access to the JFR internal API. For Java 9 and newer, the JFR access requires
  * instrumentation in order to patch the module access.
  */
-public abstract class JFRAccess {
+public abstract class JFRAccess implements Timestamper {
   private static final Logger log = LoggerFactory.getLogger(JFRAccess.class);
 
   /** No-op JFR access implementation. */

@@ -96,6 +96,13 @@ public abstract class CucumberUtils {
     return "feature".equals(lastSegment.getType());
   }
 
+  public static TestDescriptor getFeatureDescriptor(TestDescriptor testDescriptor) {
+    while (testDescriptor != null && !isFeature(testDescriptor.getUniqueId())) {
+      testDescriptor = testDescriptor.getParent().orElse(null);
+    }
+    return testDescriptor;
+  }
+
   public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof ClasspathResourceSource) {
@@ -111,21 +118,5 @@ public abstract class CucumberUtils {
     } else {
       return null;
     }
-  }
-
-  private static datadog.trace.api.civisibility.events.TestDescriptor toTestDescriptor(
-      TestDescriptor testDescriptor) {
-    TestSource testSource = testDescriptor.getSource().orElse(null);
-    if (!(testSource instanceof ClasspathResourceSource)) {
-      return null;
-    }
-    ClasspathResourceSource classpathResourceSource = (ClasspathResourceSource) testSource;
-    String classpathResourceName = classpathResourceSource.getClasspathResourceName();
-    Pair<String, String> names =
-        CucumberUtils.getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
-    String testSuiteName = names.getLeft();
-    String testName = names.getRight();
-    return new datadog.trace.api.civisibility.events.TestDescriptor(
-        testSuiteName, null, testName, null, null);
   }
 }

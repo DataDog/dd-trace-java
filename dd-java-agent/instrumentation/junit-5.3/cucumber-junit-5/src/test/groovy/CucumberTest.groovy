@@ -103,7 +103,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   protected void runFeatures(List<String> classpathFeatures, boolean parallel) {
-    TestEventsHandlerHolder.start()
+    TestEventsHandlerHolder.startForcefully()
 
     DiscoverySelector[] selectors = new DiscoverySelector[classpathFeatures.size()]
     for (i in 0..<classpathFeatures.size()) {

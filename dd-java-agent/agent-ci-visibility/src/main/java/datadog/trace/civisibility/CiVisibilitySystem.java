@@ -4,6 +4,8 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIVisibility;
+import datadog.trace.api.civisibility.DDTest;
+import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.coverage.CoverageBridge;
@@ -13,6 +15,7 @@ import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.instrumentation.CoverageClassTransformer;
 import datadog.trace.civisibility.coverage.instrumentation.CoverageInstrumentationFilter;
@@ -30,6 +33,7 @@ import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
+import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
 import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
@@ -94,7 +98,7 @@ public class CiVisibilitySystem {
       }
 
       InstrumentationBridge.registerTestEventsHandlerFactory(
-          testEventsHandlerFactory(services, repoServices, executionSettings));
+          new TestEventsHandlerFactory(services, repoServices, executionSettings));
       CoverageBridge.registerCoverageProbeStoreRegistry(services.coverageProbeStoreFactory);
     }
   }
@@ -138,24 +142,43 @@ public class CiVisibilitySystem {
     };
   }
 
-  private static TestEventsHandler.Factory testEventsHandlerFactory(
-      CiVisibilityServices services,
-      CiVisibilityRepoServices repoServices,
-      ModuleExecutionSettings executionSettings) {
-    TestFrameworkSession.Factory sessionFactory;
-    if (ProcessHierarchyUtils.isChild()) {
-      sessionFactory = childTestFrameworkSessionFactory(services, repoServices, executionSettings);
-    } else {
-      sessionFactory =
-          headlessTestFrameworkEssionFactory(services, repoServices, executionSettings);
+  private static final class TestEventsHandlerFactory implements TestEventsHandler.Factory {
+    private final CiVisibilityServices services;
+    private final CiVisibilityRepoServices repoServices;
+    private final TestFrameworkSession.Factory sessionFactory;
+
+    private TestEventsHandlerFactory(
+        CiVisibilityServices services,
+        CiVisibilityRepoServices repoServices,
+        ModuleExecutionSettings executionSettings) {
+      this.services = services;
+      this.repoServices = repoServices;
+      if (ProcessHierarchyUtils.isChild()) {
+        sessionFactory =
+            childTestFrameworkSessionFactory(services, repoServices, executionSettings);
+      } else {
+        sessionFactory =
+            headlessTestFrameworkEssionFactory(services, repoServices, executionSettings);
+      }
     }
 
-    return (String component) -> {
+    @Override
+    public <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component) {
+      return create(
+          component, new ConcurrentHashMapContextStore<>(), new ConcurrentHashMapContextStore<>());
+    }
+
+    @Override
+    public <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(
+        String component,
+        ContextStore<SuiteKey, DDTestSuite> suiteStore,
+        ContextStore<TestKey, DDTest> testStore) {
       TestFrameworkSession testSession =
           sessionFactory.startSession(repoServices.moduleName, component, null);
       TestFrameworkModule testModule = testSession.testModuleStart(repoServices.moduleName, null);
-      return new TestEventsHandlerImpl(services.metricCollector, testSession, testModule);
-    };
+      return new TestEventsHandlerImpl<>(
+          services.metricCollector, testSession, testModule, suiteStore, testStore);
+    }
   }
 
   private static BuildSystemSession.Factory buildSystemSessionFactory(

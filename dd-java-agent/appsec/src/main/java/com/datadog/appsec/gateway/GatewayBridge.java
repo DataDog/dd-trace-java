@@ -73,6 +73,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
+  private volatile DataSubscriberInfo requestEndSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -109,6 +110,8 @@ public class GatewayBridge {
           if (ctx == null) {
             return NoopFlow.INSTANCE;
           }
+
+          maybeExtractSchemas(ctx);
 
           // WAF call
           ctx.closeAdditive();
@@ -558,18 +561,10 @@ public class GatewayBridge {
 
     ctx.setRespDataPublished(true);
 
-    boolean extractSchema = false;
-    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
-      extractSchema = requestSampler.sampleRequest();
-    }
-
     MapDataBundle bundle =
         MapDataBundle.of(
             KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
-            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders(),
-            // Extract api schema on response stage
-            KnownAddresses.WAF_CONTEXT_PROCESSOR,
-                Collections.singletonMap("extract-schema", extractSchema));
+            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
 
     while (true) {
       DataSubscriberInfo subInfo = respDataSubInfo;
@@ -584,6 +579,39 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, false);
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
+      }
+    }
+  }
+
+  private void maybeExtractSchemas(AppSecRequestContext ctx) {
+    boolean extractSchema = false;
+    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
+      extractSchema = requestSampler.sampleRequest();
+    }
+
+    if (!extractSchema) {
+      return;
+    }
+
+    while (true) {
+      DataSubscriberInfo subInfo = requestEndSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
+        requestEndSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return;
+      }
+
+      DataBundle bundle =
+          new SingletonDataBundle<>(
+              KnownAddresses.WAF_CONTEXT_PROCESSOR,
+              Collections.singletonMap("extract-schema", true));
+      try {
+        producerService.publishDataEvent(subInfo, ctx, bundle, false);
+        return;
+      } catch (ExpiredSubscriberInfoException e) {
+        requestEndSubInfo = null;
       }
     }
   }

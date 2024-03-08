@@ -28,4 +28,15 @@ public final class TestSuiteDescriptor {
   public int hashCode() {
     return Objects.hash(testSuiteName, testClass);
   }
+
+  @Override
+  public String toString() {
+    return "TestSuiteDescriptor{"
+        + "testSuiteName='"
+        + testSuiteName
+        + '\''
+        + ", testClass="
+        + testClass
+        + '}';
+  }
 }

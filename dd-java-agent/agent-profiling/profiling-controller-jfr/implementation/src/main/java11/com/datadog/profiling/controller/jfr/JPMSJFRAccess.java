@@ -39,8 +39,12 @@ public class JPMSJFRAccess extends JFRAccess {
   private final Class<?> repositoryClass;
   private final Class<?> safePathClass;
 
+  // TODO consider refactoring to make these private static final
   private final MethodHandle setStackDepthMH;
   private final MethodHandle setRepositoryBaseMH;
+
+  private final MethodHandle counterTimeMH;
+  private final MethodHandle getTimeConversionFactorMH;
 
   public JPMSJFRAccess(Instrumentation inst) throws Exception {
     patchModuleAccess(inst);
@@ -49,18 +53,29 @@ public class JPMSJFRAccess extends JFRAccess {
     repositoryClass = JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.Repository");
     safePathClass =
         JFRAccess.class.getClassLoader().loadClass("jdk.jfr.internal.SecuritySupport$SafePath");
-    setStackDepthMH = setStackDepthMethodHandle();
+    Object jvm = getJvm();
+    setStackDepthMH = getJvmMethodHandle(jvm, "setStackDepth", int.class);
     setRepositoryBaseMH = setRepositoryBaseMethodHandle();
+    counterTimeMH = getJvmMethodHandle(jvm, "counterTime");
+    getTimeConversionFactorMH = getJvmMethodHandle(jvm, "getTimeConversionFactor");
   }
 
-  private MethodHandle setStackDepthMethodHandle()
-      throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-    Method m = jvmClass.getMethod("setStackDepth", int.class);
+  private Object getJvm()
+      throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    return jvmClass.getMethod("getJVM").invoke(null);
+  }
+
+  private MethodHandle getJvmMethodHandle(Object jvm, String method, Class... args)
+      throws NoSuchMethodException, IllegalAccessException {
+    Method m = jvmClass.getMethod(method, args);
     m.setAccessible(true);
-    MethodHandle mh = MethodHandles.publicLookup().unreflect(m);
-    if (!Modifier.isStatic(m.getModifiers())) {
-      // instance method - need to call JVM.getJVM() and bind the instance
-      Object jvm = jvmClass.getMethod("getJVM").invoke(null);
+    return unreflectAndBind(m, jvm);
+  }
+
+  private static MethodHandle unreflectAndBind(Method method, Object jvm)
+      throws IllegalAccessException {
+    MethodHandle mh = MethodHandles.publicLookup().unreflect(method);
+    if (!Modifier.isStatic(method.getModifiers())) {
       mh = mh.bindTo(jvm);
     }
     return mh;
@@ -118,5 +133,25 @@ public class JPMSJFRAccess extends JFRAccess {
       log.warn("Unable to set JFR repository base location", throwable);
     }
     return false;
+  }
+
+  @Override
+  public long timestamp() {
+    try {
+      return (long) counterTimeMH.invokeExact();
+    } catch (Throwable t) {
+      log.debug("Unable to get TSC from JFR", t);
+    }
+    return super.timestamp();
+  }
+
+  @Override
+  public double toNanosConversionFactor() {
+    try {
+      return (double) getTimeConversionFactorMH.invokeExact();
+    } catch (Throwable t) {
+      log.debug("Unable to get time conversion factor from JFR", t);
+    }
+    return super.toNanosConversionFactor();
   }
 }
