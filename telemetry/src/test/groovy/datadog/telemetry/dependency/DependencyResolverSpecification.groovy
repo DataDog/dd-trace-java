@@ -192,6 +192,46 @@ class DependencyResolverSpecification extends DepSpecification {
       hash: '6438819DAB9C9AC18D8A6922C8A923C2ADAEA85D')
   }
 
+  void 'attempt to extract dependencies from directory'() {
+    given:
+    File dir = new File(testDir, 'dir')
+    dir.mkdirs()
+
+    when:
+    def deps = DependencyResolver.resolve(dir.toURI())
+
+    then:
+    deps.isEmpty()
+
+    when: 'resolve without catching exceptions'
+    deps = DependencyResolver.internalResolve(dir.toURI())
+
+    then: 'it does not throw'
+    deps.isEmpty()
+  }
+
+  void 'attempt to extract dependencies from directory within jar'() {
+    given:
+    File file = new File(testDir, "app.jar")
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(file))
+    ZipEntry e = new ZipEntry("classes/")
+    out.putNextEntry(e)
+    out.closeEntry()
+    out.close()
+
+    when:
+    def deps = DependencyResolver.resolve(new URI('jar:file:' + file.getAbsolutePath() + "!/classes!/"))
+
+    then:
+    deps.isEmpty()
+
+    when: 'resolve without catching exceptions'
+    deps = DependencyResolver.internalResolve(new URI('jar:file:' + file.getAbsolutePath() + "!/classes!/"))
+
+    then: 'it does not throw'
+    deps.isEmpty()
+  }
+
   private static void knownJarCheck(Map opts) {
     File jarFile = getJar(opts['jarName'])
     List<Dependency> deps = DependencyResolver.resolve(jarFile.toURI())
