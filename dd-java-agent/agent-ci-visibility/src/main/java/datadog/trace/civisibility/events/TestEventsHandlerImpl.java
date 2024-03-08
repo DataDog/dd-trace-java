@@ -292,6 +292,11 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   }
 
   @Override
+  public boolean isSkippable(TestIdentifier test) {
+    return testModule.isSkippable(test);
+  }
+
+  @Override
   @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test) {
     return testModule.retryPolicy(test);

@@ -103,7 +103,7 @@ class CaptureAssertionHelper {
       addThis(expectedExitContext, captures.getReturn());
       assertEquals(expectedExitContext, captures.getReturn());
     } else {
-      assertNotNull(captures.getReturn().getThrowable());
+      assertNotNull(captures.getReturn().getCapturedThrowable());
     }
   }
 
@@ -124,13 +124,13 @@ class CaptureAssertionHelper {
           new CapturedContext(
               returnArgs.get(exceptionKind), null, null, UNHANDLED_EXCEPTION, correlationFields);
       assertEquals(
-          expectedUnhandled.getThrowable().getMessage(),
-          captures.getReturn().getThrowable().getMessage());
+          expectedUnhandled.getCapturedThrowable().getMessage(),
+          captures.getReturn().getCapturedThrowable().getMessage());
       assertEquals(
-          expectedUnhandled.getThrowable().getType(),
-          captures.getReturn().getThrowable().getType());
+          expectedUnhandled.getCapturedThrowable().getType(),
+          captures.getReturn().getCapturedThrowable().getType());
     } else {
-      assertNull(captures.getReturn().getThrowable());
+      assertNull(captures.getReturn().getCapturedThrowable());
     }
     if (exceptionKind == DebuggerTransformerTest.ExceptionKind.HANDLED) {
       assertEquals(

@@ -380,7 +380,7 @@ public class LogProbe extends ProbeDefinition {
       sample(logStatus, methodLocation);
     }
     logStatus.setCondition(evaluateCondition(context, logStatus));
-    CapturedContext.CapturedThrowable throwable = context.getThrowable();
+    CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
     if (logStatus.hasConditionErrors() && throwable != null) {
       logStatus.addError(
           new EvaluationError(
@@ -475,7 +475,7 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (entryStatus.shouldReportError()) {
-      if (entryContext.getThrowable() != null) {
+      if (entryContext.getCapturedThrowable() != null) {
         // report also uncaught exception
         snapshot.setEntry(entryContext);
       }
@@ -483,7 +483,7 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (exitStatus.shouldReportError()) {
-      if (exitContext.getThrowable() != null) {
+      if (exitContext.getCapturedThrowable() != null) {
         // report also uncaught exception
         snapshot.setExit(exitContext);
       }

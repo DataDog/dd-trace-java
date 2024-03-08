@@ -19,6 +19,7 @@ import java.sql.Driver
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Statement
+import java.sql.Types
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -478,6 +479,38 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
+
+
+  def "prepared call with storedproc on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+    setup:
+    injectSysConfig("dd.dbm.propagation.mode", "full")
+    CallableStatement upperProc = connection.prepareCall(query)
+    upperProc.registerOutParameter(1, Types.VARCHAR)
+    upperProc.setString(2, "hello world")
+    when:
+    runUnderTrace("parent") {
+      return upperProc.execute()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    assert upperProc.getString(1) == "HELLO WORLD"
+    cleanup:
+    upperProc.close()
+    connection.close()
+
+    where:
+    driver       | connection                                              | query
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | " { ? = call upper( ? ) }"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
+  }
+
 
   Driver driverFor(String db) {
     return newDriver(jdbcDriverClassNames.get(db))
