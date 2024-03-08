@@ -135,28 +135,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(InstrumentationTags.BUCKET_NAME, bucketName);
       bestPrecursor = InstrumentationTags.AWS_BUCKET_NAME;
       bestPeerService = bucketName;
-
-      if (key != null) {
-        HttpMethodName httpMethod = request.getHttpMethod();
-        if (httpMethod == HttpMethodName.GET) {
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
-          sortedTags.put("name", key);
-          sortedTags.put("namespace", bucketName);
-          sortedTags.put(TOPIC_TAG, bucketName);
-          sortedTags.put(TYPE_TAG, "s3");
-          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, 0, 0);
-        }
-        else if (httpMethod == HttpMethodName.POST || httpMethod == HttpMethodName.PUT || httpMethod == HttpMethodName.DELETE) {
-          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-          sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-          sortedTags.put("s3.bucket", bucketName);
-          sortedTags.put("s3.key", key);
-          sortedTags.put(TOPIC_TAG, bucketName);
-          sortedTags.put(TYPE_TAG, "s3");
-          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, sortedTags, 0, 0);
-        }
-      }
     }
     String queueUrl = access.getQueueUrl(originalRequest);
     if (null != queueUrl) {
@@ -270,15 +248,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if (response.getAwsResponse() instanceof AmazonWebServiceResponse) {
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
-
       System.out.println("### Got S3 response(v1, " + awsResp.getClass().getName() + ")");
-      try {
-        for(Map.Entry<String, String> header : response.getHttpResponse().getHeaders().entrySet()) {
-          System.out.printf(" ### %s=%s\n", header.getKey(), header.getValue());
-        }
-      } catch (Exception e) {
-        System.out.println(" ### " + e.toString());
+    }
+
+    try {
+      System.out.println("### Got S3 response(v1, " + response.getAwsResponse().getClass().getName() + ")");
+      for(Map.Entry<String, String> header : response.getHttpResponse().getHeaders().entrySet()) {
+        System.out.printf(" ### %s=%s\n", header.getKey(), header.getValue());
       }
+    } catch (Exception e) {
+      System.out.println(" ### " + e.toString());
     }
 
     return super.onResponse(span, response);
