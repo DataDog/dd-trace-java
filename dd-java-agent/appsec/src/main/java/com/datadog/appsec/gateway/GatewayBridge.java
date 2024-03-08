@@ -589,7 +589,9 @@ public class GatewayBridge {
       extractSchema = requestSampler.sampleRequest();
     }
 
-    if (!extractSchema) return;
+    if (!extractSchema) {
+      return;
+    }
 
     while (true) {
       DataSubscriberInfo subInfo = requestEndSubInfo;
