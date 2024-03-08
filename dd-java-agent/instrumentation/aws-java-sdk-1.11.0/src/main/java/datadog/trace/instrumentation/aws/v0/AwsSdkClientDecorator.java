@@ -254,10 +254,17 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     try {
       System.out.println("### Got S3 response(v1, " + response.getAwsResponse().getClass().getName() + ")");
       for(Map.Entry<String, String> header : response.getHttpResponse().getHeaders().entrySet()) {
-        System.out.printf(" ### %s=%s\n", header.getKey(), header.getValue());
+        System.out.printf(" ### header: %s=%s\n", header.getKey(), header.getValue());
+      }
+
+      for(Map.Entry<String, Object> tag : span.getTags().entrySet()) {
+        System.out.printf(" ### tag: %s=%s\n", tag.getKey(), tag.getValue());
       }
     } catch (Exception e) {
       System.out.println(" ### " + e.toString());
+      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+        System.out.println(ste + "\n");
+      }
     }
 
     return super.onResponse(span, response);

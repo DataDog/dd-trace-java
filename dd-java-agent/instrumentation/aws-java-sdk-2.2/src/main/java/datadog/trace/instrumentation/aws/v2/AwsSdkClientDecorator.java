@@ -345,8 +345,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         System.out.printf("### Got S3 response(v2, %s, %s)", response.getClass().getName(), awsOperationName);
 
         try {
-          for(Entry<String, List<String>> header : response.sdkHttpResponse().headers().entrySet()) {
-            System.out.printf(" ### http header %s=%s\n", header.getKey(), header.getValue());
+          for(Map.Entry<String, Object> tag : span.getTags().entrySet()) {
+            System.out.printf(" ### tag: %s=%s\n", tag.getKey(), tag.getValue());
           }
 
           Field field = attributes.getClass().getDeclaredField("attributes");
@@ -355,9 +355,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
           for (Map.Entry<ExecutionAttribute<?>, Object> entry : map.entrySet()) {
             System.out.printf(" ### attr %s=%s\n", entry.getKey().toString(), entry.getValue().toString());
           }
+
+          for(Entry<String, List<String>> header : response.sdkHttpResponse().headers().entrySet()) {
+            System.out.printf(" ### http header %s=%s\n", header.getKey(), header.getValue());
+          }
         } catch (Exception e)
         {
           System.out.println(" ### " + e.toString());
+          for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+            System.out.println(ste + "\n");
+          }
         }
       }
     }
