@@ -85,7 +85,10 @@ public final class State {
   public void stopTiming() {
     Timing timing = TIMING.getAndSet(this, null);
     if (timing != null) {
+      new Throwable("close with timing").printStackTrace(System.err);
       timing.close();
+    } else {
+      new Throwable("no timing").printStackTrace(System.err);
     }
   }
 }

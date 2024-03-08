@@ -23,8 +23,14 @@ public class QueueTimerHelper {
       timing.setTask(task);
       timing.setScheduler(schedulerClass);
       state.setTiming(timing);
+      new Throwable("starting timer: " + timing.getClass().getSimpleName())
+          .printStackTrace(System.err);
     } else {
-      System.err.println("not starting queue time");
+      String reason =
+          !InstrumentationBasedProfiling.isJFRReady()
+              ? "jfr not ready"
+              : state == null ? "no state" : "no task";
+      new Throwable("not starting queue time because " + reason).printStackTrace(System.err);
     }
   }
 }

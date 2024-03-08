@@ -643,8 +643,9 @@ class JFRBasedProfilingIntegrationTest {
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
 
     assertTrue(events.apply(ItemFilters.type("datadog.ProfilerSetting")).hasItems());
-    // FIXME - for some reason the events are disabled by JFR despite being explicitly enabled
-    // assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
+    if (asyncProfilerEnabled) {
+      assertTrue(events.apply(ItemFilters.type("datadog.QueueTime")).hasItems());
+    }
   }
 
   private static void processExecutionSamples(

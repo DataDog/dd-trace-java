@@ -382,6 +382,7 @@ public final class DatadogProfiler {
 
   void recordQueueTimeEvent(long startTicks, Object task, Class<?> scheduler, Thread origin) {
     if (profiler != null) {
+      new Throwable("record").printStackTrace(System.err);
       Timestamper timestamper = timestamper();
       long endTicks = timestamper.timestamp();
       double durationNanos = timestamper.toNanosConversionFactor() * (endTicks - startTicks);
@@ -390,7 +391,10 @@ public final class DatadogProfiler {
         // we avoid doing this unless we are absolutely certain we will record the event
         Class<?> taskType = TaskWrapper.getUnwrappedType(task);
         if (taskType != null) {
+          new Throwable("record queue time").printStackTrace(System.err);
           profiler.recordQueueTime(startTicks, endTicks, taskType, scheduler, origin);
+        } else {
+          System.err.println("no task type");
         }
       } else {
         System.err.println("timestamp threshold not exceeded");

@@ -32,6 +32,7 @@ public class QueueTimeTracker implements QueueTiming {
 
   @Override
   public void close() {
+    new Throwable("close").printStackTrace(System.err);
     assert weakTask != null && scheduler != null;
     Object task = this.weakTask.get();
     if (task != null) {

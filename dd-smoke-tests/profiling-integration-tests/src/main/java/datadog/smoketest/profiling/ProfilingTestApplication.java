@@ -36,8 +36,12 @@ public class ProfilingTestApplication {
       duration = TimeUnit.SECONDS.toMillis(Long.parseLong(args[0]));
     }
     setupDeadlock();
+    System.err.println("start TPE");
     submitWorkToTPE();
+    System.err.println("done TPE");
+    System.err.println("start FJP");
     submitWorkToFJP();
+    System.err.println("done FJP");
     final long startTime = System.currentTimeMillis();
     int counter = 0;
     while (true) {
@@ -50,6 +54,7 @@ public class ProfilingTestApplication {
         counter++;
       }
     }
+
     System.out.println("Exiting (" + duration + ")");
   }
 
