@@ -58,5 +58,4 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
       endTaskScope(scope);
     }
   }
-
 }
