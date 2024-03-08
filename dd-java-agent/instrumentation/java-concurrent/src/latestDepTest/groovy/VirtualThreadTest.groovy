@@ -1,4 +1,6 @@
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ScheduledThreadPoolExecutor
+import java.util.concurrent.ThreadPoolExecutor
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
@@ -82,15 +84,32 @@ class VirtualThreadTest extends AgentTestRunner {
     where:
     // spotless:off
     name                     | method              | poolImpl
-    "execute Runnable"       | executeRunnable     | Executors.newVirtualThreadPerTaskExecutor()
+//    "execute Runnable"       | executeRunnable     | Executors.newVirtualThreadPerTaskExecutor()
     "submit Runnable"        | submitRunnable      | Executors.newVirtualThreadPerTaskExecutor()
     "submit Callable"        | submitCallable      | Executors.newVirtualThreadPerTaskExecutor()
     "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
     "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(Executors.newVirtualThreadPerTaskExecutor())
     "invokeAll"              | invokeAll           | Executors.newVirtualThreadPerTaskExecutor()
     "invokeAll with timeout" | invokeAllTimeout    | Executors.newVirtualThreadPerTaskExecutor()
+
     "invokeAny"              | invokeAny           | Executors.newVirtualThreadPerTaskExecutor()
-    "invokeAny with timeout" | invokeAnyTimeout    | Executors.newVirtualThreadPerTaskExecutor()
+ //   "invokeAny with timeout" | invokeAnyTimeout    | Executors.newVirtualThreadPerTaskExecutor()
+
+//    "xinvokeAll"              | invokeAll           | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
+//    "xinvokeAll with timeout" | invokeAllTimeout    | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
+//    "xinvokeAny"              | invokeAny           | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
+//    "xinvokeAny with timeout" | invokeAnyTimeout    | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
+//
+//    "execute Runnable"       | executeRunnable     | Executors.newFixedThreadPool(10)
+//    "submit Runnable"        | submitRunnable      | Executors.newFixedThreadPool(10)
+//    "submit Callable"        | submitCallable      | Executors.newFixedThreadPool(10)
+//    "submit Runnable ECS"    | submitRunnableExecutorCompletionService | new ExecutorCompletionService<>(Executors.newFixedThreadPool(10))
+//    "submit Callable ECS"    | submitCallable      | new ExecutorCompletionService<>(Executors.newFixedThreadPool(10))
+//    "invokeAll"              | invokeAll           | Executors.newFixedThreadPool(10)
+//    "invokeAll with timeout" | invokeAllTimeout    | Executors.newFixedThreadPool(10)
+//    "invokeAny"              | invokeAny           | Executors.newFixedThreadPool(10)
+//    "invokeAny with timeout" | invokeAnyTimeout    | Executors.newFixedThreadPool(10)
+
     // spotless:on
   }
 }

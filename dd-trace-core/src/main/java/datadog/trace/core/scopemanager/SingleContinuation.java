@@ -18,11 +18,16 @@ final class SingleContinuation extends AbstractContinuation {
       final AgentSpan spanUnderScope,
       final byte source) {
     super(scopeManager, spanUnderScope, source);
+    Throwable t = new Throwable(spanUnderScope.getSpanId()+" started.");
+    t.printStackTrace(System.err);
   }
 
   @Override
   public AgentScope activate() {
     if (USED.compareAndSet(this, 0, 1)) {
+      Throwable t = new Throwable(spanUnderScope.getSpanId()+" activated.");
+      t.printStackTrace(System.err);
+
       return scopeManager.continueSpan(this, spanUnderScope, source);
     } else {
       ContinuableScopeManager.log.debug(
@@ -34,6 +39,9 @@ final class SingleContinuation extends AbstractContinuation {
   @Override
   public void cancel() {
     if (USED.compareAndSet(this, 0, 1)) {
+      Throwable t = new Throwable(spanUnderScope.getSpanId()+" cancelled.");
+      t.printStackTrace(System.err);
+
       trace.cancelContinuation(this);
     } else {
       ContinuableScopeManager.log.debug("Failed to close continuation {}. Already used.", this);
