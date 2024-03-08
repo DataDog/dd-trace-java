@@ -26,7 +26,7 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String instrumentedType() {
-    return "java.util.concurrent.ThreadPerTaskExecutor.TaskRunner";
+    return "java.util.concurrent.ThreadPerTaskExecutor$TaskRunner";
   }
 
   @Override
