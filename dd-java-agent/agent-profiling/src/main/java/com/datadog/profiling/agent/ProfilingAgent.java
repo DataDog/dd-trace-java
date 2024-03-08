@@ -11,6 +11,7 @@ import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.uploader.ProfileUploader;
+import com.datadog.profiling.utils.Timestamper;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
@@ -117,6 +118,7 @@ public class ProfilingAgent {
 
       try {
         JFRAccess.setup(inst);
+        Timestamper.override(JFRAccess.instance());
         ControllerContext context = new ControllerContext();
         final Controller controller = CompositeController.build(configProvider, context);
 

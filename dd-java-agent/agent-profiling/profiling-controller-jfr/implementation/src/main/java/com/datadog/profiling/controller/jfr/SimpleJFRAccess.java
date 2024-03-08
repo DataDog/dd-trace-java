@@ -42,4 +42,14 @@ public class SimpleJFRAccess extends JFRAccess {
     }
     return true;
   }
+
+  @Override
+  public long timestamp() {
+    return JVM.counterTime();
+  }
+
+  @Override
+  public double toNanosConversionFactor() {
+    return JVM.getJVM().getTimeConversionFactor();
+  }
 }
