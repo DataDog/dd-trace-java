@@ -31,7 +31,7 @@ jobs:
 
       - name: Build and publish artifacts locally
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 JAVA_17_HOME=$JAVA_HOME_17_X64 JAVA_21_HOME=$JAVA_HOME_21_X64./gradlew clean publishToMavenLocal --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" JAVA_HOME=$JAVA_HOME_8_X64 JAVA_8_HOME=$JAVA_HOME_8_X64 JAVA_11_HOME=$JAVA_HOME_11_X64 JAVA_17_HOME=$JAVA_HOME_17_X64 JAVA_21_HOME=$JAVA_HOME_21_X64 ./gradlew clean publishToMavenLocal --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Copy published artifacts
         run: |
