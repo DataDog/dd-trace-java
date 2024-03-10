@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
-import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
@@ -155,17 +154,6 @@ public final class LegacyTransformerBuilder extends AbstractTransformerBuilder {
             + module.names()
             + " instrumentation.class="
             + module.getClass().getName());
-  }
-
-  @Override
-  protected void buildSingleAdvice(Instrumenter.ForSingleType instrumenter) {
-    AgentBuilder.RawMatcher matcher = new SingleTypeMatcher(instrumenter.instrumentedType());
-
-    ignoreMatcher = isSynthetic();
-    adviceBuilder =
-        agentBuilder.type(matcher).and(NOT_DECORATOR_MATCHER).transform(defaultTransformers());
-
-    agentBuilder = registerAdvice((Instrumenter) instrumenter);
   }
 
   @Override
