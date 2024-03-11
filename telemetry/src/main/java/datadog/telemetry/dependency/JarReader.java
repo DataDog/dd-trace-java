@@ -141,6 +141,11 @@ class JarReader {
     }
 
     @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+      return this.innerInputStream.read(b, off, len);
+    }
+
+    @Override
     public void close() throws IOException {
       this.innerInputStream.close();
       this.outerJar.close();
