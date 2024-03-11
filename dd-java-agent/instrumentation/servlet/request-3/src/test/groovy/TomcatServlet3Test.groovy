@@ -528,7 +528,7 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
   }
 }
 
-class IastTomcatServlet3Test extends TomcatServlet3TestSync {
+class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
 
   @Override
   void configurePreAgent() {

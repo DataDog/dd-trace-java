@@ -526,7 +526,7 @@ class JettyServlet3ServeFromAsyncTimeout extends JettyServlet3Test {
   }
 }
 
-class IastJettyServlet3Test extends JettyServlet3TestSync {
+class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
 
   @Override
   void configurePreAgent() {
