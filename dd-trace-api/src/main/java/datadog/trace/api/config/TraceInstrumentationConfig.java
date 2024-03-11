@@ -12,7 +12,6 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
-  public static final String LEGACY_INSTALLER_ENABLED = "legacy.installer.enabled";
 
   public static final String INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME =
       "integration.synapse.legacy-operation-name";
