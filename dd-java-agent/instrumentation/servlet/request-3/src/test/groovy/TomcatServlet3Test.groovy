@@ -3,6 +3,9 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.CorrelationIdentifier
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.ApplicationModule
+import datadog.trace.api.iast.sink.SessionRewritingModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import datadog.trace.instrumentation.servlet3.TestServlet3
@@ -523,4 +526,54 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
     setupDispatchServlets(context, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
   }
+}
+
+class IastTomcatServlet3Test extends TomcatServlet3TestSync {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('dd.iast.enabled', 'true')
+  }
+
+  void 'test no calls if no modules registered'() {
+    given:
+    final appModule = Mock(ApplicationModule)
+    final sessionRewritingModule = Mock(SessionRewritingModule)
+    def request = request(SUCCESS, "GET", null).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    0 * appModule.onRealPath(_)
+    0 * sessionRewritingModule.checkSessionTrackingModes(_)
+
+  }
+
+  void 'test that iast modules are called'() {
+    given:
+    final appModule = Mock(ApplicationModule)
+    final sessionRewritingModule = Mock(SessionRewritingModule)
+    InstrumentationBridge.registerIastModule(appModule)
+    InstrumentationBridge.registerIastModule(sessionRewritingModule)
+    def request = request(SUCCESS, "GET", null).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    1 *  appModule.onRealPath(_)
+    1 *  sessionRewritingModule.checkSessionTrackingModes(_)
+    0 * _
+
+    when:
+    client.newCall(request).execute()
+
+    then: //Only call once per application context
+    0 *  appModule.onRealPath(_)
+    0 *  sessionRewritingModule.checkSessionTrackingModes(_)
+    0 * _
+  }
+
 }

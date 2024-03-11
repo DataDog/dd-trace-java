@@ -392,12 +392,6 @@ public class IastWebController {
     return "Ok";
   }
 
-  @GetMapping("/realPath")
-  public String realPath(HttpServletRequest request) {
-    request.getServletContext().getRealPath("/");
-    return "Ok";
-  }
-
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {

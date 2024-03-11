@@ -971,14 +971,14 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   void 'find session rewriting'() {
     given:
-    String url = "http://localhost:${httpPort}/realPath"
+    String url = "http://localhost:${httpPort}/greeting"
 
     when:
     Response response = client.newCall(new Request.Builder().url(url).get().build()).execute()
 
     then:
     response.successful
-    hasVulnerability { vul ->
+    hasVulnerabilityInLogs { vul ->
       vul.type == 'SESSION_REWRITING'
     }
   }
