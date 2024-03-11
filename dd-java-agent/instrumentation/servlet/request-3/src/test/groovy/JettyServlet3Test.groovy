@@ -3,6 +3,9 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
+import datadog.trace.api.iast.sink.SessionRewritingModule
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.ApplicationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
@@ -17,6 +20,7 @@ import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
 import javax.servlet.Servlet
 import javax.servlet.ServletException
+import javax.servlet.SessionTrackingMode
 import javax.servlet.annotation.WebServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -52,7 +56,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
         it.setHost('localhost')
       }
 
-      ServletContextHandler servletContext = new ServletContextHandler(null, "/$context")
+      ServletContextHandler servletContext = new ServletContextHandler(null, "/$context", ServletContextHandler.SESSIONS)
       servletContext.errorHandler = new ErrorHandler() {
           @Override
           void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -532,6 +536,7 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
   void 'test no calls if no modules registered'() {
     given:
     final appModule = Mock(ApplicationModule)
+    final sessionRewritingModule = Mock(SessionRewritingModule)
     def request = request(SUCCESS, "GET", null).build()
 
     when:
@@ -539,14 +544,16 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
 
     then:
     0 * appModule.onRealPath(_)
-    0 * _
+    0 * sessionRewritingModule.checkSessionTrackingModes(_)
 
   }
 
-  void 'test that iast module is called'() {
+  void 'test that iast modules are called'() {
     given:
     final appModule = Mock(ApplicationModule)
+    final sessionRewritingModule = Mock(SessionRewritingModule)
     InstrumentationBridge.registerIastModule(appModule)
+    InstrumentationBridge.registerIastModule(sessionRewritingModule)
     def request = request(SUCCESS, "GET", null).build()
 
     when:
@@ -554,6 +561,7 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
 
     then:
     1 *  appModule.onRealPath(_)
+    1 *  sessionRewritingModule.checkSessionTrackingModes(_)
     0 * _
 
     when:
@@ -561,6 +569,7 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
 
     then: //Only call once per application context
     0 *  appModule.onRealPath(_)
+    0 *  sessionRewritingModule.checkSessionTrackingModes(_)
     0 * _
   }
 
