@@ -42,8 +42,6 @@ abstract class AbstractTransformerBuilder
           buildInstrumentation(module, member);
         }
       }
-    } else if (instrumenter instanceof Instrumenter.ForSingleType) {
-      buildSingleAdvice((Instrumenter.ForSingleType) instrumenter); // for testing purposes
     } else {
       throw new IllegalArgumentException("Unexpected Instrumenter type");
     }
@@ -52,8 +50,6 @@ abstract class AbstractTransformerBuilder
   public abstract ClassFileTransformer installOn(Instrumentation instrumentation);
 
   protected abstract void buildInstrumentation(InstrumenterModule module, Instrumenter member);
-
-  protected abstract void buildSingleAdvice(Instrumenter.ForSingleType instrumenter);
 
   protected static final class VisitingTransformer implements AgentBuilder.Transformer {
     private final AsmVisitorWrapper visitor;

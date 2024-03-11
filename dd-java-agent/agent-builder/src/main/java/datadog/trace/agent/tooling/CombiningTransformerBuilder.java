@@ -2,9 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter.WithPostProcessor;
@@ -139,30 +137,6 @@ public final class CombiningTransformerBuilder extends AbstractTransformerBuilde
     }
     if (member instanceof Instrumenter.HasMethodAdvice) {
       ((Instrumenter.HasMethodAdvice) member).methodAdvice(this);
-    }
-    transformers[id] = new AdviceStack(advice);
-
-    advice.clear();
-  }
-
-  @Override
-  protected void buildSingleAdvice(Instrumenter.ForSingleType instrumenter) {
-
-    // this is a test instrumenter which needs a dynamic id
-    int id = nextSupplementaryId++;
-    if (transformers.length <= id) {
-      transformers = Arrays.copyOf(transformers, id + 1);
-    }
-
-    // can't use known-types index because it doesn't include test instrumenters
-    matchers.add(new MatchRecorder.ForType(id, named(instrumenter.instrumentedType())));
-
-    ignoredMethods = isSynthetic();
-    if (instrumenter instanceof Instrumenter.HasTypeAdvice) {
-      ((Instrumenter.HasTypeAdvice) instrumenter).typeAdvice(this);
-    }
-    if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
-      ((Instrumenter.HasMethodAdvice) instrumenter).methodAdvice(this);
     }
     transformers[id] = new AdviceStack(advice);
 
