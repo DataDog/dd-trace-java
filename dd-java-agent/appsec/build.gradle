@@ -1,3 +1,6 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
 plugins {
   id "com.github.johnrengelman.shadow"
   id "me.champeau.jmh"
@@ -34,6 +37,14 @@ shadowJar {
 
 jar {
   archiveClassifier = 'unbundled'
+}
+
+processResources {
+  doLast {
+    fileTree(dir: outputs.files.asPath, includes: ['**/*.json']).each {
+      it.text = JsonOutput.toJson(new JsonSlurper().parse(it))
+    }
+  }
 }
 
 jmh {
