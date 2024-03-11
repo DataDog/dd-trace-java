@@ -132,10 +132,6 @@ class JarReader {
       super();
       this.outerJar = new JarFile(outerPath, false /* no verify */);
       final ZipEntry entry = outerJar.getEntry(innerPath);
-      if (entry == null) {
-        this.outerJar.close();
-        throw new NoSuchFileException("Nested jar not found: " + innerPath);
-      }
       this.innerInputStream = outerJar.getInputStream(entry);
     }
 
