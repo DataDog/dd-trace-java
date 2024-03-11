@@ -76,6 +76,13 @@ public interface TraceSegment {
   void setDataCurrent(String key, Object value);
 
   /**
+   * Set flag to indicate the need for post-processing
+   *
+   * @param postProcessing flag to indicate the need for post-processing
+   */
+  void setRequiresPostProcessing(boolean postProcessing);
+
+  /**
    * Gets the value of the tag from the current span in this {@code TraceSegment}.
    *
    * @param key key of the data
@@ -112,5 +119,8 @@ public interface TraceSegment {
     public Object getDataCurrent(String key) {
       return null;
     }
+
+    @Override
+    public void setRequiresPostProcessing(boolean postProcessing) {}
   }
 }

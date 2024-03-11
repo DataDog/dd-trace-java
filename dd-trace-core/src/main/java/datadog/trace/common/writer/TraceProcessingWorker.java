@@ -13,7 +13,11 @@ import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.postprocessor.AppSecPostProcessor;
+import datadog.trace.core.postprocessor.TracePostProcessor;
+import datadog.trace.util.AgentThreadFactory;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -206,6 +210,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
+    private final TracePostProcessor tracePostProcessor;
 
     public TraceSerializingHandler(
         final MpscBlockingConsumerArrayQueue<Object> primaryQueue,
@@ -225,6 +230,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       } else {
         this.ticksRequiredToFlush = Long.MAX_VALUE;
       }
+      this.tracePostProcessor = new AppSecPostProcessor();
     }
 
     @SuppressWarnings("unchecked")
@@ -235,6 +241,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       try {
         if (event instanceof List) {
           List<DDSpan> trace = (List<DDSpan>) event;
+          maybeTracePostProcessing(trace);
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           payloadDispatcher.addTrace(trace);
         } else if (event instanceof FlushEvent) {
@@ -294,6 +301,42 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     protected boolean queuesAreEmpty() {
       return primaryQueue.isEmpty() && secondaryQueue.isEmpty();
+    }
+
+    private void maybeTracePostProcessing(List<DDSpan> trace) {
+      if (!Config.get().isTracePostProcessingEnabled()) {
+        return;
+      }
+
+      if (trace == null || trace.isEmpty()) {
+        return;
+      }
+
+      DDSpanContext context = trace.get(0).context();
+      if (context == null || !context.isRequiresPostProcessing()) {
+        return;
+      }
+
+      Thread thread =
+          AgentThreadFactory.newAgentThread(
+              AgentThreadFactory.AgentThread.TRACE_POST_PROCESSOR,
+              () -> {
+                // do a trace post-processing work
+                tracePostProcessor.process(trace, context);
+              });
+      thread.start();
+
+      try {
+        long timeout = Config.get().getTracePostProcessingTimeout();
+        thread.join(timeout);
+        if (thread.isAlive()) {
+          thread.interrupt();
+        }
+      } catch (InterruptedException e) {
+        if (log.isDebugEnabled()) {
+          log.debug("Trace post-processing is interrupted.", e);
+        }
+      }
     }
   }
 }
