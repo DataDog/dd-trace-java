@@ -512,7 +512,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "mysql"      | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
   }
 
-  def "prepared procecdure call on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+  def "prepared procedure call on #driver with #connection.getClass().getCanonicalName() does not hang"() {
     setup:
 
     String createSql
@@ -537,6 +537,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       assert false
     }
 
+    if (driver.equals("postgresql") && connection.getMetaData().getDatabaseMajorVersion() <= 11) {
+      // Skip test for older versions of PG that don't support out on procedure
+      return
+    }
+
+
     connection.prepareCall(createSql).execute()
 
     injectSysConfig("dd.dbm.propagation.mode", "full")
@@ -553,7 +559,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     assert proc.getInt(1) == 1
 
     cleanup:
-    proc.close()
+    if (proc != null) {
+      proc.close()
+    }
     connection.close()
 
     where:
