@@ -84,8 +84,7 @@ public class SQLCommenter {
       }
 
       // Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
-      // invocation
-      //  but they seem ok with it after so we force append mode
+      // invocation but they seem ok with it after so we force append mode
       if (firstWord.equalsIgnoreCase("call")) {
         appendComment = true;
       }
