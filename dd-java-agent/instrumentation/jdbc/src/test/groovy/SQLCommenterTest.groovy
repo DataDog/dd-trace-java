@@ -7,7 +7,7 @@ class SQLCommenterTest extends AgentTestRunner {
     setup:
 
     when:
-    String word = SQLCommenter.firstWord(sql)
+    String word = SQLCommenter.getFirstWord(sql)
 
     then:
     word == firstWord

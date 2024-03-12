@@ -44,7 +44,7 @@ public class SQLCommenter {
     return inject(sql, dbService, dbType, hostname, dbName, null, false, false);
   }
 
-  public static String firstWord(String sql) {
+  public static String getFirstWord(String sql) {
     int charIndex = 0;
     StringBuilder sb = new StringBuilder();
     while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
@@ -74,20 +74,18 @@ public class SQLCommenter {
     }
 
     if (dbType != null) {
-      final String firstWord = firstWord(sql);
+      final String firstWord = getFirstWord(sql);
 
-      //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable
-      // statements
-      //
+      // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable statements
       // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
-      //      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+      // TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
       if (firstWord.startsWith("{") && dbType.equals("postgresql")) {
         return sql;
       }
 
-      //        Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
+      // Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
       // invocation
-      //      but they seem ok with it after so we force append mode
+      //  but they seem ok with it after so we force append mode
       if (firstWord.equalsIgnoreCase("call")) {
         appendComment = true;
       }
