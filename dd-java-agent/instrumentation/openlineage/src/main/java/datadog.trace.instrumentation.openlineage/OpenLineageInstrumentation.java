@@ -3,12 +3,10 @@ package datadog.trace.instrumentation.openlineage;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.util.Strings;
 import io.openlineage.client.OpenLineage;
 import net.bytebuddy.asm.Advice;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
@@ -55,21 +53,28 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class RunEmitAdvice {
-    private static final Map<UUID, OpenLineage.RunEvent> startedSpans = new HashMap<>();
+    private static final Map<UUID, OpenLineage.RunEvent> startedSpans = Collections.emptyMap();
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(@Advice.Argument(0) OpenLineage.RunEvent runEvent) {
       // We may want a spark specific version of this to capture the parent run on app start?
       if (runEvent.getEventType() == START) {
         startedSpans.put(runEvent.getRun().getRunId(), runEvent);
-      } else if( runEvent.getEventType() == COMPLETE || runEvent.getEventType() == FAIL || runEvent.getEventType() == ABORT ) {
+      } else if (runEvent.getEventType() == COMPLETE || runEvent.getEventType() == FAIL || runEvent.getEventType() == ABORT) {
         AgentSpan span;
-        OpenLineage.RunEvent startEvent = startedSpans.get(runEvent.getRun().getRunId());
-        if( startEvent == null ) {
+        OpenLineage.RunEvent startEvent = startedSpans.remove(runEvent.getRun().getRunId());
+        if (startEvent == null) {
           // Create a span with the complete event only, start time will be missing
-          span = startSpan( "OpenLineage", "RunEvent", runEvent.getEventTime().getNano());
+          span = startSpan("OpenLineage", "RunEvent", runEvent.getEventTime().getNano())
+              .setTag("uuid", runEvent.getRun().getRunId().toString());
+          // how do I introduce the OL payload
+          span.finish();
         } else {
           // Start the span using the start event
-          span = startSpan( "OpenLineage", "RunEvent", startEvent.getEventTime().getNano());
+          span = startSpan("OpenLineage", "RunEvent", startEvent.getEventTime().getNano())
+              .setTag("uuid", runEvent.getRun().getRunId().toString());
+          // how do I introduce the OL payload
+          span.finishWithDuration(runEvent.getEventTime().getNano() - startEvent.getEventTime().getNano());
         }
       }
     }
