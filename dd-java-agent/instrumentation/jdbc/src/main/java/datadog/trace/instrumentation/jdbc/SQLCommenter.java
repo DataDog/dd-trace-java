@@ -44,6 +44,19 @@ public class SQLCommenter {
     return inject(sql, dbService, dbType, hostname, dbName, null, false, false);
   }
 
+  public static String firstWord(String sql) {
+    int charIndex = 0;
+    StringBuilder sb = new StringBuilder();
+    while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
+      charIndex++;
+    }
+    while (charIndex < sql.length() && !Character.isWhitespace(sql.charAt(charIndex))) {
+      sb.append(sql.charAt(charIndex));
+      charIndex++;
+    }
+    return sb.toString();
+  }
+
   public static String inject(
       final String sql,
       final String dbService,
@@ -52,7 +65,7 @@ public class SQLCommenter {
       final String dbName,
       final String traceParent,
       final boolean injectTrace,
-      final boolean appendComment) {
+      boolean appendComment) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
@@ -60,17 +73,23 @@ public class SQLCommenter {
       return sql;
     }
 
-    if (dbType != null && dbType.startsWith("postgres")) {
-      //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a callable statement
+    if (dbType != null) {
+      final String firstWord = firstWord(sql);
+
+      //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable
+      // statements
       //
       // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
       //      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
-      int charIndex = 0;
-      while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
-        charIndex++;
-      }
-      if (charIndex < sql.length() && sql.charAt(charIndex) == '{') {
+      if (firstWord.startsWith("{") && dbType.equals("postgresql")) {
         return sql;
+      }
+
+      //        Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
+      // invocation
+      //      but they seem ok with it after so we force append mode
+      if (firstWord.equalsIgnoreCase("call")) {
+        appendComment = true;
       }
     }
 
