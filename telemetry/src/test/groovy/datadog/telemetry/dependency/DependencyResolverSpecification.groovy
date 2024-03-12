@@ -144,6 +144,48 @@ class DependencyResolverSpecification extends DepSpecification {
     dep.source == 'opentracing-util-0.33.0.jar'
   }
 
+  void 'spring boot dependency without trailing slash'() throws IOException {
+    when:
+    String zipPath = Classloader.classLoader.getResource('datadog/telemetry/dependencies/spring-boot-app.jar').path
+    URI uri = new URI("jar:file:$zipPath!/BOOT-INF/lib/opentracing-util-0.33.0.jar!")
+
+    Dependency dep = DependencyResolver.resolve(uri).get(0)
+
+    then:
+    dep != null
+    dep.name == 'io.opentracing:opentracing-util'
+    dep.version == '0.33.0'
+    dep.hash == null
+    dep.source == 'opentracing-util-0.33.0.jar'
+  }
+
+  void 'spring boot dependency without maven metadata'() throws IOException {
+    given:
+    def innerJarData = new ByteArrayOutputStream()
+    ZipOutputStream out = new ZipOutputStream(innerJarData)
+    ZipEntry e = new ZipEntry("META-INF/MANIFEST.MF")
+    out.putNextEntry(e)
+    out.closeEntry()
+    out.close()
+
+    File file = new File(testDir, "app.jar")
+    out = new ZipOutputStream(new FileOutputStream(file))
+    e = new ZipEntry("BOOT-INF/lib/lib-1.0.jar")
+    out.putNextEntry(e)
+    out.write(innerJarData.toByteArray())
+    out.closeEntry()
+    out.close()
+
+    when:
+    URI uri = new URI("jar:file:" + file.getAbsolutePath() + "!/BOOT-INF/lib/lib-1.0.jar!/")
+    List<Dependency> deps = DependencyResolver.resolve(uri)
+
+    then:
+    deps.size() == 1
+    deps[0].source == "lib-1.0.jar"
+    deps[0].hash != null
+  }
+
   void 'fat jar with multiple pom.properties'() throws IOException {
     when:
     URI uri = Classloader.classLoader.getResource('datadog/telemetry/dependencies/budgetapp.jar').toURI()
