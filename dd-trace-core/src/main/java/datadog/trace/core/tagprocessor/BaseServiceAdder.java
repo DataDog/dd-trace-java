@@ -16,7 +16,9 @@ public class BaseServiceAdder implements TagsPostProcessor {
   @Override
   public Map<String, Object> processTags(
       Map<String, Object> unsafeTags, DDSpanContext spanContext) {
-    if (ddService != null && !ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
+    if (ddService != null
+        && spanContext != null
+        && !ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
       unsafeTags.put(DDTags.BASE_SERVICE, ddService);
     }
     return unsafeTags;
