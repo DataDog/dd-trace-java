@@ -15,7 +15,7 @@ cp auto_inject-java.version sources/version
 
 datadog-package create \
     --version=$VERSION \
-    --package=auto_inject-java \
+    --package="datadog-apm-library-java" \
     --archive=true \
-    --archive-path auto_inject-java-$VERSION.tar \
+    --archive-path datadog-apm-library-java-$VERSION.tar \
     ./sources
