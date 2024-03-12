@@ -1,23 +1,21 @@
 package datadog.trace.instrumentation.openlineage;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
+import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.openlineage.client.OpenLineage;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.UUID;
-
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static io.openlineage.client.OpenLineage.RunEvent.EventType.*;
-import static net.bytebuddy.matcher.ElementMatchers.*;
-
+@AutoService(Instrumenter.class)
 public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes {
-
+    implements Instrumenter.ForTypeHierarchy {
 
   public OpenLineageInstrumentation() {
     super("openlineage");
@@ -25,58 +23,39 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return false;
+    return true;
   }
 
   @Override
-  public String[] knownMatchingTypes() {
-    return new String[]{
-        "io.openlineage.client.transports.Transport",
-        "io.openlineage.client.transports.ConsoleTransport",
-        "io.openlineage.client.transports.FileTransport",
-        "io.openlineage.client.transports.HttpTransport",
-        "io.openlineage.client.transports.KafkaTransport",
-        "io.openlineage.client.transports.KinesisTransport",
-        "io.openlineage.client.transports.NoopTransport"
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".OpenLineageDecorator",
     };
   }
 
   @Override
+  public String hierarchyMarkerType() {
+    return "io.openlineage.client.transports.Transport";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return extendsClass(named(hierarchyMarkerType()));
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
-    // TracerProvider OpenTelemetry.getTracerProvider()
     transformer.applyAdvice(
         isMethod()
             .and(named("emit"))
-            .and(takesArgument(0, OpenLineage.RunEvent.class)),
-        OpenLineageInstrumentation.class.getName() + "$RunEmitAdvice");
-
+            .and(takesArgument(0, named("io.openlineage.client.OpenLineage$RunEvent"))),
+        OpenLineageInstrumentation.class.getName() + "$EmitAdvice");
   }
 
-  public static class RunEmitAdvice {
-    private static final Map<UUID, OpenLineage.RunEvent> startedSpans = Collections.emptyMap();
-
+  public static class EmitAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(@Advice.Argument(0) OpenLineage.RunEvent runEvent) {
-      // We may want a spark specific version of this to capture the parent run on app start?
-      if (runEvent.getEventType() == START) {
-        startedSpans.put(runEvent.getRun().getRunId(), runEvent);
-      } else if (runEvent.getEventType() == COMPLETE || runEvent.getEventType() == FAIL || runEvent.getEventType() == ABORT) {
-        AgentSpan span;
-        OpenLineage.RunEvent startEvent = startedSpans.remove(runEvent.getRun().getRunId());
-        if (startEvent == null) {
-          // Create a span with the complete event only, start time will be missing
-          span = startSpan("OpenLineage", "RunEvent", runEvent.getEventTime().getNano())
-              .setTag("uuid", runEvent.getRun().getRunId().toString());
-          // how do I introduce the OL payload
-          span.finish();
-        } else {
-          // Start the span using the start event
-          span = startSpan("OpenLineage", "RunEvent", startEvent.getEventTime().getNano())
-              .setTag("uuid", runEvent.getRun().getRunId().toString());
-          // how do I introduce the OL payload
-          span.finishWithDuration(runEvent.getEventTime().getNano() - startEvent.getEventTime().getNano());
-        }
-      }
+    public static void enter(@Advice.Argument(0) OpenLineage.RunEvent event) {
+      OpenLineageDecorator.onEvent(event);
     }
   }
 }

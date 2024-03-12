@@ -1,11 +1,7 @@
 def openLineageVersion = '1.9.1'
 
 apply from: "$rootDir/gradle/java.gradle"
-configurations.all {
-  resolutionStrategy.deactivateDependencyLocking()
-}
 
 dependencies {
   compileOnly group: 'io.openlineage', name: 'openlineage-java', version: "$openLineageVersion"
-
 }
