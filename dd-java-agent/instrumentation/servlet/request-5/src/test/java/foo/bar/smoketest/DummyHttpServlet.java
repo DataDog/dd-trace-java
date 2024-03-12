@@ -23,7 +23,7 @@ public class DummyHttpServlet extends HttpServlet {
   @Override
   public void service(ServletRequest req, ServletResponse res)
       throws ServletException, IOException {
-    System.out.println("DummyHttpServlet.service called");
+    // do nothing
   }
 
   @Override
