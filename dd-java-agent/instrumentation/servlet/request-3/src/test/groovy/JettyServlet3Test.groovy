@@ -52,7 +52,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
         it.setHost('localhost')
       }
 
-      ServletContextHandler servletContext = new ServletContextHandler(null, "/$context", ServletContextHandler.SESSIONS)
+      ServletContextHandler servletContext = new ServletContextHandler(null, "/$context")
       servletContext.errorHandler = new ErrorHandler() {
           @Override
           void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
