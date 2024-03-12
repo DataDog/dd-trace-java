@@ -79,7 +79,7 @@ public class SQLCommenter {
       // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable statements
       // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
       // TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
-      if (firstWord.startsWith("{") && dbType.equals("postgresql")) {
+      if (firstWord.startsWith("{") && dbType.startsWith("postgres")) {
         return sql;
       }
 
