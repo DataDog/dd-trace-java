@@ -12,7 +12,7 @@ class BaseServiceAdderTest extends DDSpecification {
     def spanContext = Mock(DDSpanContext)
 
     when:
-    def enrichedTags = calculator.processTagsWithContext([:], spanContext)
+    def enrichedTags = calculator.processTags([:], spanContext)
 
     then:
     1 * spanContext.getServiceName() >> serviceName

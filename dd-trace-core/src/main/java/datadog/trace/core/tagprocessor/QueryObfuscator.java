@@ -5,6 +5,7 @@ import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.core.DDSpanContext;
 import datadog.trace.util.Strings;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -55,7 +56,8 @@ public class QueryObfuscator implements TagsPostProcessor {
   }
 
   @Override
-  public Map<String, Object> processTags(Map<String, Object> unsafeTags) {
+  public Map<String, Object> processTags(
+      Map<String, Object> unsafeTags, DDSpanContext spanContext) {
     Object query = unsafeTags.get(DDTags.HTTP_QUERY);
     if (query instanceof CharSequence) {
       query = obfuscate(query.toString());
