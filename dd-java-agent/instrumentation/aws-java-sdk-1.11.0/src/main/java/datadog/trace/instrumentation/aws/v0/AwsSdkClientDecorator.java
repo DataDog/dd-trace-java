@@ -6,6 +6,7 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import com.amazonaws.http.HttpMethodName;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
@@ -20,9 +21,12 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.core.datastreams.TagsProcessor;
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -240,7 +244,59 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
     }
+
+    // S3 lineage using DSM checkpoints
+    if (span.traceConfig().isDataStreamsEnabled()
+        && response.getHttpResponse() != null
+        && response.getHttpResponse().getRequest() != null) {
+
+      Object key = span.getTag(InstrumentationTags.AWS_OBJECT_KEY);
+      Object bucket = span.getTag(InstrumentationTags.AWS_BUCKET_NAME);
+      HttpMethodName httpMethod = response.getHttpResponse().getRequest().getHttpMethod();
+
+      if (key != null && bucket != null && httpMethod != HttpMethodName.HEAD) {
+        long contentLength = 0;
+
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        if (httpMethod == HttpMethodName.GET) {
+          sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
+
+          // Content-length of the response as the direction is in
+          contentLength = getContentLength(response.getHttpResponse().getHeaders());
+        } else {
+          sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_OUT);
+
+          // Content-length of the request as the direction is out
+          contentLength = getContentLength(response.getHttpResponse().getRequest().getHeaders());
+        }
+
+        sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key.toString());
+        sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket.toString());
+        sortedTags.put(TagsProcessor.TOPIC_TAG, bucket.toString());
+        sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .setCheckpoint(span, sortedTags, 0, contentLength);
+      }
+    }
+
     return super.onResponse(span, response);
+  }
+
+  private long getContentLength(Map<String, String> headers) {
+    if (headers == null) {
+      return 0;
+    }
+
+    String contentLengthString = headers.get("Content-Length");
+    if (contentLengthString != null) {
+      try {
+        return Long.parseLong(contentLengthString);
+      } catch (NumberFormatException ignored) {
+      }
+    }
+
+    return 0;
   }
 
   @Override
