@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 
 public class IastServlet3Advice {
