@@ -52,7 +52,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
             handler.handleRequest(exc)
           }
         }
-        .get(BODY_URLENCODED.path) { HttpServerExchange exc ->
+        .post(BODY_URLENCODED.path) { HttpServerExchange exc ->
           def handler = { exchange ->
             controller(BODY_URLENCODED) {
               FormDataParser parser = FormParserFactory.builder().build().createParser(exchange)
