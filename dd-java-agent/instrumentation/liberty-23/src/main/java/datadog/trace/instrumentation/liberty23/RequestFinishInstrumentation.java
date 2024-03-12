@@ -15,7 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RequestFinishInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

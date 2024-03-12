@@ -24,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.tinylog.core.LogEntry;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class LogEntryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public LogEntryInstrumentation() {

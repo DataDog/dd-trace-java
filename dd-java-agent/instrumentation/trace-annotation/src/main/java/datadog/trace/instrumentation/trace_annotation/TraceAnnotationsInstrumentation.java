@@ -18,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.LoggerFactory;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class TraceAnnotationsInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

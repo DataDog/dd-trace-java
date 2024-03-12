@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TerminalSubscriberInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public TerminalSubscriberInstrumentation() {

@@ -23,7 +23,7 @@ import scala.Tuple2;
 import scala.collection.Iterator;
 
 /** Propagates taint from a {@link Uri} to query strings fetched from it. */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class UriInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public UriInstrumentation() {

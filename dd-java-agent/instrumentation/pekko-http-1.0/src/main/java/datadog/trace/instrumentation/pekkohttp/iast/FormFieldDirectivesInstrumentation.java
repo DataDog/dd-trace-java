@@ -28,7 +28,7 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  * @see FormFieldDirectives
  * @see ParameterDirectivesInstrumentation with which most of the implementation is shared
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FormFieldDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 

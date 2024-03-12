@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RenaissanceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   private static final Logger log = LoggerFactory.getLogger(RenaissanceInstrumentation.class);

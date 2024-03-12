@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.pekkohttp.iast;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FormFieldDirectivesImplInstrumentation extends ParameterDirectivesImplInstrumentation {
   @Override
   public String instrumentedType() {

@@ -11,7 +11,7 @@ import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RatpackTypedDataInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public RatpackTypedDataInstrumentation() {

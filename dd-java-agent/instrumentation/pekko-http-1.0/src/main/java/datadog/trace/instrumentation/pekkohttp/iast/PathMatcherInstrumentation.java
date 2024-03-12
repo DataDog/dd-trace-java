@@ -22,7 +22,7 @@ import net.bytebuddy.asm.Advice;
  * Taints request uri parameters by instrumenting the constructor of {@link
  * org.apache.pekko.http.scaladsl.server.PathMatcher.Matched}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PathMatcherInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public PathMatcherInstrumentation() {

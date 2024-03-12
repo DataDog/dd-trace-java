@@ -18,7 +18,7 @@ import io.undertow.servlet.handlers.ServletRequestContext;
 import jakarta.servlet.ServletRequest;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class JakartaServletInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

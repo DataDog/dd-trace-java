@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.apache.logging.log4j.core.ContextDataInjector;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ContextDataInjectorFactoryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ContextDataInjectorFactoryInstrumentation() {

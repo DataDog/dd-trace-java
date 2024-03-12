@@ -24,7 +24,7 @@ import scala.util.Try;
  * only pick up the completing span if the resolved {@code Try} doesn't have a an existing span set
  * from the {@code resolve} method.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class DefaultPromiseInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

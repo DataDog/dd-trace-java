@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
 

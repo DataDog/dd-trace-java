@@ -14,7 +14,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class NioEventLoopInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public NioEventLoopInstrumentation() {

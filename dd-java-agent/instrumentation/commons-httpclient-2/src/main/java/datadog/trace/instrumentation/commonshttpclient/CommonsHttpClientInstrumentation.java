@@ -22,7 +22,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

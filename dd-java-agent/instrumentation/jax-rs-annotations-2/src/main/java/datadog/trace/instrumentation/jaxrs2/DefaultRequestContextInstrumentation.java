@@ -7,7 +7,7 @@ import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DEC
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.JAX_RS_REQUEST_ABORT;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
  * <p>This default instrumentation uses the class name of the filter to create the span. More
  * specific instrumentations may override this value.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class DefaultRequestContextInstrumentation extends AbstractRequestContextInstrumentation {
   public static class ContainerRequestContextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)

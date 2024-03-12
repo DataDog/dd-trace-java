@@ -24,7 +24,7 @@ import org.scalatest.Status;
 import org.scalatest.Suite;
 import org.scalatest.SuperEngine;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ScalatestRetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 

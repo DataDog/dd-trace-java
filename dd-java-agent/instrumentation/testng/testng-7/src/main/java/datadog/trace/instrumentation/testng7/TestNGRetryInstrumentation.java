@@ -17,7 +17,7 @@ import org.testng.IRetryAnalyzer;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TestNGRetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

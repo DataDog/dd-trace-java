@@ -22,7 +22,7 @@ import play.api.http.HttpErrorHandler;
 import play.api.mvc.RequestHeader;
 
 /** @see HttpErrorHandler#onServerError(RequestHeader, Throwable) */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpErrorHandlerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy {
   public HttpErrorHandlerInstrumentation() {

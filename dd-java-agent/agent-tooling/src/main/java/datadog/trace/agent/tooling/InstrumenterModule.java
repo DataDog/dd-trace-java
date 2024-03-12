@@ -60,7 +60,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   protected final String packageName = Strings.getPackageName(getClass().getName());
 
   public InstrumenterModule(final String instrumentationName, final String... additionalNames) {
-    instrumentationId = Instrumenters.currentInstrumentationId();
+    instrumentationId = InstrumenterModules.currentInstrumentationId();
     instrumentationNames = new ArrayList<>(1 + additionalNames.length);
     instrumentationNames.add(instrumentationName);
     addAll(instrumentationNames, additionalNames);

@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class KarateRetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
 

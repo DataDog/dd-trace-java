@@ -23,7 +23,7 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JUnit4CucumberItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 

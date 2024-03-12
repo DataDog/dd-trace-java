@@ -11,7 +11,7 @@ import net.bytebuddy.asm.Advice;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.data.repository.core.support.RepositoryProxyPostProcessor;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class SpringRepositoryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

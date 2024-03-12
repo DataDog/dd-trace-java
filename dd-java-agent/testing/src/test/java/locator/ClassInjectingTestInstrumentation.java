@@ -8,13 +8,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.TestInstrumentation;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ClassInjectingTestInstrumentation extends TestInstrumentation
     implements Instrumenter.WithTypeStructure {
 

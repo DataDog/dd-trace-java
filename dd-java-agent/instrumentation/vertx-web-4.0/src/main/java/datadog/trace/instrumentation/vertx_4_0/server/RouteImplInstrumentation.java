@@ -14,7 +14,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RouteImplInstrumentation extends InstrumenterModule
     implements Instrumenter.ForKnownTypes,
         Instrumenter.HasMethodAdvice,

@@ -74,17 +74,12 @@ public final class CombiningTransformerBuilder
     this.nextSupplementaryId = maxInstrumentationId + 1;
   }
 
-  public void applyInstrumentation(Instrumenter instrumenter) {
-    if (instrumenter instanceof InstrumenterModule) {
-      InstrumenterModule module = (InstrumenterModule) instrumenter;
-      if (module.isEnabled()) {
-        InstrumenterState.registerInstrumentation(module);
-        for (Instrumenter member : module.typeInstrumentations()) {
-          buildInstrumentation(module, member);
-        }
+  public void applyInstrumentation(InstrumenterModule module) {
+    if (module.isEnabled()) {
+      InstrumenterState.registerInstrumentation(module);
+      for (Instrumenter member : module.typeInstrumentations()) {
+        buildInstrumentation(module, member);
       }
-    } else {
-      throw new IllegalArgumentException("Unexpected Instrumenter type");
     }
   }
 
@@ -184,7 +179,7 @@ public final class CombiningTransformerBuilder
   }
 
   @Override
-  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String className) {
+  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
@@ -193,7 +188,7 @@ public final class CombiningTransformerBuilder
         new AgentBuilder.Transformer.ForAdvice(customMapping)
             .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
             .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-            .advice(not(ignoredMethods).and(matcher), className));
+            .advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
   /** Counts the number of distinct context store injections registered with this builder. */

@@ -21,7 +21,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.http.MappingMatch;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ServletInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

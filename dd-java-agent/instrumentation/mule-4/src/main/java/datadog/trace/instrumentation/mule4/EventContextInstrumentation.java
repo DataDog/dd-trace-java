@@ -13,7 +13,7 @@ import java.util.Map;
  * the system. We attach the active span to the concrete implementation of the {@code EventContext}
  * and activate/deactivate the span when mule changes which event it is processing.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class EventContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 

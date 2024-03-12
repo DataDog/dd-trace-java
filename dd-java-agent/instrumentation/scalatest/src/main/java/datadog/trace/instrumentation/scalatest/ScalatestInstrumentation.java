@@ -11,7 +11,7 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.scalatest.events.Event;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

@@ -14,7 +14,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class AddingSpanAttributesInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

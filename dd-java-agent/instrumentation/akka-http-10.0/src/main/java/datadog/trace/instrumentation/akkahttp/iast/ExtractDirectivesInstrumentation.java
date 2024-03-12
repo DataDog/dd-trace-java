@@ -32,7 +32,7 @@ import net.bytebuddy.asm.Advice;
  *     HttpRequest}
  * @see UnmarshallerInstrumentation propagates taint on unmarshalling of {@link HttpRequest}
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ExtractDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public ExtractDirectivesInstrumentation() {

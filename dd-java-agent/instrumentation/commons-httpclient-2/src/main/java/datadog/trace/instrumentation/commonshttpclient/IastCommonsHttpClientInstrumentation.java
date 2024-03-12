@@ -15,7 +15,7 @@ import datadog.trace.api.iast.sink.SsrfModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.commons.httpclient.HttpMethod;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastCommonsHttpClientInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

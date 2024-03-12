@@ -20,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.quartz.JobExecutionContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

@@ -10,7 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -20,7 +20,7 @@ import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.cache.query.Query;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheInstrumentation {
 
   @Override

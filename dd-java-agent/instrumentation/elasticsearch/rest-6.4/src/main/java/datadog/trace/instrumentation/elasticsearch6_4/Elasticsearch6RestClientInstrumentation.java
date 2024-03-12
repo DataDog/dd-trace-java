@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.ResponseListener;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Elasticsearch6RestClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

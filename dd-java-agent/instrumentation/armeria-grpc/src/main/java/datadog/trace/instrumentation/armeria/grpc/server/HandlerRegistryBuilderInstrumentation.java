@@ -12,7 +12,7 @@ import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HandlerRegistryBuilderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public HandlerRegistryBuilderInstrumentation() {

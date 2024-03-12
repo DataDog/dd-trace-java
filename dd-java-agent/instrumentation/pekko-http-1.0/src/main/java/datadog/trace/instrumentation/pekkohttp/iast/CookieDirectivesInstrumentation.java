@@ -20,7 +20,7 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  * <p>These directives are used when fetching a specific cookie by name. For tainting when fetching
  * all the cookies, see {@link CookieHeaderInstrumentation}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public CookieDirectivesInstrumentation() {

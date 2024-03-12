@@ -21,7 +21,7 @@ import javax.ws.rs.core.Form;
 import net.bytebuddy.asm.Advice;
 
 // keep in sync with jersey3 (jakarta packages)
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

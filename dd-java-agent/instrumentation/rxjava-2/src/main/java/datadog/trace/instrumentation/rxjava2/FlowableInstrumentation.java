@@ -20,7 +20,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscriber;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class FlowableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public FlowableInstrumentation() {

@@ -19,7 +19,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.procedure.ProcedureCall;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ProcedureCallInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 

@@ -14,7 +14,7 @@ import org.apache.catalina.connector.CoyoteAdapter;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ResponseInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

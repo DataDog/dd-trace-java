@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ElementTagStructureHandlerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public ElementTagStructureHandlerInstrumentation() {

@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ListenableFutureInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

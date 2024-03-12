@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.support.Delivery;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class BlockingQueueConsumerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public BlockingQueueConsumerInstrumentation() {

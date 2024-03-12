@@ -14,7 +14,7 @@ import java.util.Map;
 import javax.jms.MessageConsumer;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class AbstractPollingMessageListenerContainerInstrumentation
     extends InstrumenterModule.Tracing implements Instrumenter.ForSingleType {
 

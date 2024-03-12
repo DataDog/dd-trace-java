@@ -17,7 +17,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Vertx39HttpServertResponseInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public Vertx39HttpServertResponseInstrumentation() {

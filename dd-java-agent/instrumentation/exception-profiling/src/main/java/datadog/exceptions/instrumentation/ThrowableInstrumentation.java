@@ -8,7 +8,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 
 /** Provides instrumentation of {@linkplain Exception} and {@linkplain Error} constructors. */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ThrowableInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
 

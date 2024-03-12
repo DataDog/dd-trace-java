@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * This instrumentation adds the ServletPathRequestFilter definition to the spring context When the
  * context is created, the filter will be added to the beginning of the filter chain
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public ServletPathRequestFilterInstrumentation() {

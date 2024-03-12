@@ -21,7 +21,7 @@ import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

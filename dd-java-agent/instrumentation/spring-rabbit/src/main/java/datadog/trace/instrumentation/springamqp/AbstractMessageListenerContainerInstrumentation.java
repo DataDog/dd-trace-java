@@ -24,7 +24,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.springframework.amqp.core.Message;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class AbstractMessageListenerContainerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 

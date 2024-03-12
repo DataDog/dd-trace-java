@@ -12,7 +12,7 @@ import net.bytebuddy.asm.Advice;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 /** AWS SDK v2 instrumentation */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   private static final String INSTRUMENTATION_NAME = "aws-sdk";

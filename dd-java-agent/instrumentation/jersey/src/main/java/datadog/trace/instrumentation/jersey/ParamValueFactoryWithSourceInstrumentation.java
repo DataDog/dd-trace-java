@@ -11,7 +11,7 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.SourceTypes;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ParamValueFactoryWithSourceInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

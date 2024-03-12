@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.bson.BsonDocument;
 import org.bson.ByteBuf;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ByteBufBsonDocumentInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
 

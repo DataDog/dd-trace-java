@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public FormUrlEncodedInstrumentation() {
