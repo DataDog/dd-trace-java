@@ -11,6 +11,7 @@ import java.util.Set;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletRequest;
 import javax.servlet.SessionTrackingMode;
+import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 
 public class IastServlet3Advice {
@@ -21,6 +22,9 @@ public class IastServlet3Advice {
     final ApplicationModule applicationModule = InstrumentationBridge.APPLICATION;
     final SessionRewritingModule sessionRewritingModule = InstrumentationBridge.SESSION_REWRITING;
     if (applicationModule == null && sessionRewritingModule == null) {
+      return;
+    }
+    if (!(request instanceof HttpServletRequest)) {
       return;
     }
     final ServletContext context = request.getServletContext();
