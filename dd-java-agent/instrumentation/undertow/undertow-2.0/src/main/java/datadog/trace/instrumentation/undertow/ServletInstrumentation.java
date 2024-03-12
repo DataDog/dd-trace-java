@@ -77,7 +77,7 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
           // higher priority than 404 resource, so it wouldn't be able to set resource 404 later in
           // the onResponse instrumentation.
           HTTP_RESOURCE_DECORATOR.withRoute(
-              undertowSpan, exchange.getRequestMethod().toString(), relativePath, false);
+              undertowSpan, exchange.getRequestMethod().toString(), servletPathMatch.getMatchString(), false);
         }
         // The servlet.path tag is expected even for a non-existing resource.
         undertowSpan.setTag(SERVLET_PATH, relativePath);

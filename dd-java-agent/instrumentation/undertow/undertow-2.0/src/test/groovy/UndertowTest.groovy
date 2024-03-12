@@ -26,18 +26,18 @@ class UndertowTest extends HttpServerTest<Undertow> {
       undertowServer = Undertow.builder()
         .addHttpListener(port, "localhost")
         .setServerOption(UndertowOptions.DECODE_URL, true)
-        .setHandler(Handlers.httpContinueRead(Handlers.path()
-        .addExactPath(SUCCESS.getPath()) { exchange ->
+        .setHandler(Handlers.httpContinueRead(Handlers.routing()
+        .get(SUCCESS.getPath()) { exchange ->
           controller(SUCCESS) {
             exchange.getResponseSender().send(SUCCESS.body)
           }
         }
-        .addExactPath(FORWARDED.getPath()) { exchange ->
+        .get(FORWARDED.getPath()) { exchange ->
           controller(FORWARDED) {
             exchange.getResponseSender().send(exchange.getRequestHeaders().get("x-forwarded-for", 0))
           }
         }
-        .addExactPath(CREATED_IS.path) { exc ->
+        .get(CREATED_IS.path) { exc ->
           def handler = { exchange ->
             controller(CREATED_IS) {
               exchange.responseSender.send(
@@ -52,7 +52,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
             handler.handleRequest(exc)
           }
         }
-        .addExactPath(BODY_URLENCODED.path) { HttpServerExchange exc ->
+        .get(BODY_URLENCODED.path) { HttpServerExchange exc ->
           def handler = { exchange ->
             controller(BODY_URLENCODED) {
               FormDataParser parser = FormParserFactory.builder().build().createParser(exchange)
@@ -75,41 +75,41 @@ class UndertowTest extends HttpServerTest<Undertow> {
             handler.handleRequest(exc)
           }
         }
-        .addExactPath(QUERY_ENCODED_BOTH.getPath()) { exchange ->
+        .get(QUERY_ENCODED_BOTH.getPath()) { exchange ->
           controller(QUERY_ENCODED_BOTH) {
             exchange.getResponseHeaders().put(new HttpString(HttpServerTest.IG_RESPONSE_HEADER), HttpServerTest.IG_RESPONSE_HEADER_VALUE)
             exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
           }
         }
-        .addExactPath(QUERY_ENCODED_QUERY.getPath()) { exchange ->
+        .get(QUERY_ENCODED_QUERY.getPath()) { exchange ->
           controller(QUERY_ENCODED_QUERY) {
             exchange.getResponseSender().send("some=" + exchange.getQueryParameters().get("some").peek())
           }
         }
-        .addExactPath(QUERY_PARAM.getPath()) { exchange ->
+        .get(QUERY_PARAM.getPath()) { exchange ->
           controller(QUERY_PARAM) {
             exchange.getResponseSender().send(exchange.getQueryString())
           }
         }
-        .addExactPath(REDIRECT.getPath()) { exchange ->
+        .get(REDIRECT.getPath()) { exchange ->
           controller(REDIRECT) {
             exchange.setStatusCode(StatusCodes.FOUND)
             exchange.getResponseHeaders().put(Headers.LOCATION, REDIRECT.body)
             exchange.endExchange()
           }
         }
-        .addExactPath(ERROR.getPath()) { exchange ->
+        .get(ERROR.getPath()) { exchange ->
           controller(ERROR) {
             exchange.setStatusCode(ERROR.status)
             exchange.getResponseSender().send(ERROR.body)
           }
         }
-        .addExactPath(EXCEPTION.getPath()) { exchange ->
+        .get(EXCEPTION.getPath()) { exchange ->
           controller(EXCEPTION) {
             throw new Exception(EXCEPTION.body)
           }
         }
-        .addExactPath(USER_BLOCK.getPath()) { exchange ->
+        .get(USER_BLOCK.getPath()) { exchange ->
           controller(USER_BLOCK) {
             // We need to fudge things here a little.
             // If we throw, the dispatch to the blocking handler will not even
