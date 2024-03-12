@@ -91,6 +91,11 @@ class UndertowTest extends HttpServerTest<Undertow> {
             exchange.getResponseSender().send(exchange.getQueryString())
           }
         }
+        .get("/path/{id}/param") { exchange ->
+          controller("/path/{id}/param") {
+            exchange.getResponseSender().send(exchange.getQueryParameters().get("id"))
+          }
+        }
         .get(REDIRECT.getPath()) { exchange ->
           controller(REDIRECT) {
             exchange.setStatusCode(StatusCodes.FOUND)
@@ -169,6 +174,11 @@ class UndertowTest extends HttpServerTest<Undertow> {
   @Override
   boolean testExceptionBody() {
     false
+  }
+
+  @Override
+  boolean testPathParam() {
+    true
   }
 
   @Override
