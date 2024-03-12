@@ -19,18 +19,25 @@ class JarReader {
     final String jarName;
     final Map<String, Properties> pomProperties;
     final Attributes manifest;
+    final boolean isDirectory;
 
     public Extracted(
         final String jarName,
         final Map<String, Properties> pomProperties,
-        final Attributes manifest) {
+        final Attributes manifest,
+        final boolean isDirectory) {
       this.jarName = jarName;
       this.pomProperties = pomProperties;
       this.manifest = manifest;
+      this.isDirectory = isDirectory;
     }
   }
 
   public static Extracted readJarFile(String jarPath) throws IOException {
+    final File jarFile = new File(jarPath);
+    if (jarFile.isDirectory()) {
+      return new Extracted(jarFile.getName(), new HashMap<>(), new Attributes(), true);
+    }
     try (final JarFile jar = new JarFile(jarPath, false /* no verify */)) {
       final Map<String, Properties> pomProperties = new HashMap<>();
       final Enumeration<? extends ZipEntry> entries = jar.entries();
@@ -47,7 +54,7 @@ class JarReader {
       final Manifest manifest = jar.getManifest();
       final Attributes attributes =
           (manifest == null) ? new Attributes() : manifest.getMainAttributes();
-      return new Extracted(new File(jar.getName()).getName(), pomProperties, attributes);
+      return new Extracted(new File(jar.getName()).getName(), pomProperties, attributes, false);
     }
   }
 
@@ -66,6 +73,10 @@ class JarReader {
       if (entry == null) {
         throw new NoSuchFileException("Nested jar not found: " + jarPath);
       }
+      if (entry.isDirectory()) {
+        return new Extracted(
+            new File(innerJarPath).getName(), new HashMap<>(), new Attributes(), true);
+      }
       try (final InputStream is = outerJar.getInputStream(entry);
           final JarInputStream innerJar = new JarInputStream(is, false /* no verify */)) {
         final Map<String, Properties> pomProperties = new HashMap<>();
@@ -80,7 +91,7 @@ class JarReader {
         final Manifest manifest = innerJar.getManifest();
         final Attributes attributes =
             (manifest == null) ? new Attributes() : manifest.getMainAttributes();
-        return new Extracted(new File(innerJarPath).getName(), pomProperties, attributes);
+        return new Extracted(new File(innerJarPath).getName(), pomProperties, attributes, false);
       }
     }
   }
