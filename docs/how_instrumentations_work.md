@@ -109,16 +109,16 @@ The Instrumentation class is where the Instrumentation begins. It will:
 
 Instrumentation classes:
 
-1. Must be annotated with `@AutoService(Instrumenter.class)`
+1. Must be annotated with `@AutoService(InstrumenterModule.class)`
 2. Should extend one of the six abstract TargetSystem `Instrumenter` classes
 3. Should implement one of the `Instrumenter` interfaces
 
 For example:
 
 ```java
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule.class;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RabbitChannelInstrumentation extends Instrumenter.Tracing
         implements Instrumenter.ForTypeHierarchy {/* */
 }
