@@ -40,8 +40,8 @@ include ':dd-java-agent:instrumentation:google-http-client'
 3. Choose an appropriate class name
    like `datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientInstrumentation` (
    see [Naming](./how_instrumentations_work.md#naming))
-4. Include the required `@AutoService(Instrumenter.class) `annotation.
-5. Choose `Instrumenter.Tracing` as the parent class.
+4. Include the required `@AutoService(InstrumenterModule.class) `annotation.
+5. Choose `InstrumenterModule.Tracing` as the parent class.
 6. Since this instrumentation class will only modify one specific type, it can implement
    the `Instrumenter.ForSingleType `interface which provides the `instrumentedType()` method. (
    see [Type Matching](./how_instrumentations_work.md#type-matching))
@@ -49,8 +49,8 @@ include ':dd-java-agent:instrumentation:google-http-client'
 
 ```java
 
-@AutoService(Instrumenter.class)
-public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing implements Instrumenter.ForSingleType {
+@AutoService(InstrumenterModule.class)
+public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing implements Instrumenter.ForSingleType {
     public GoogleHttpClientInstrumentation() {
         super("google-http-client");
     }
