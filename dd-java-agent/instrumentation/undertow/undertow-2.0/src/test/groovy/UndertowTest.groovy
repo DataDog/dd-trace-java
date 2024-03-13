@@ -92,8 +92,8 @@ class UndertowTest extends HttpServerTest<Undertow> {
           }
         }
         .get("/path/{id}/param") { exchange ->
-          controller("/path/{id}/param") {
-            exchange.getResponseSender().send(exchange.getQueryParameters().get("id"))
+          controller(PATH_PARAM) {
+            exchange.getResponseSender().send(exchange.getQueryParameters().get("id").peek())
           }
         }
         .get(REDIRECT.getPath()) { exchange ->
