@@ -578,7 +578,7 @@ public class CapturedSnapshotTest {
     Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
     try {
       Object companion = Reflect.onClass(testClass).get("Companion");
-      int result = Reflect.onClass(companion).call("main", "").get();
+      int result = Reflect.on(companion).call("main", "").get();
       assertEquals(48, result);
       Snapshot snapshot = assertOneSnapshot(listener);
       assertNull(snapshot.getCaptures().getEntry());
