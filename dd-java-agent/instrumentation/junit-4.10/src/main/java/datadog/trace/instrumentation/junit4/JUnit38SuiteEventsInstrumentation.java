@@ -15,7 +15,7 @@ import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
 /** Supports suite started/finished events for {@link TestCase} subclasses. */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JUnit38SuiteEventsInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

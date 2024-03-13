@@ -7,7 +7,7 @@ import datadog.trace.agent.tooling.bytebuddy.profiling.UnwrappingVisitor;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
   public TaskUnwrappingInstrumentation() {

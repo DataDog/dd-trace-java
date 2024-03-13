@@ -22,7 +22,7 @@ import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

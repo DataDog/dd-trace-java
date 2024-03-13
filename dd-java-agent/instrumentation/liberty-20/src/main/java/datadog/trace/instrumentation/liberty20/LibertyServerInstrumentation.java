@@ -31,7 +31,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class LibertyServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

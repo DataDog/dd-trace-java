@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.streams.processor.internals.ProcessorTopology;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class InternalTopologyBuilderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

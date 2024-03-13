@@ -25,7 +25,7 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 import scala.concurrent.Future;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MUnitRetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

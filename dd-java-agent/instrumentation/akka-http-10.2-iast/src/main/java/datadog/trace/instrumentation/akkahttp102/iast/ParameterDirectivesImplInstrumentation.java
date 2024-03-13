@@ -19,7 +19,7 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp102.iast.helpers.TaintParametersFunction;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public ParameterDirectivesImplInstrumentation() {

@@ -22,7 +22,7 @@ import org.glassfish.grizzly.http.HttpHeader;
 import org.glassfish.grizzly.http.io.InputBuffer;
 import org.glassfish.grizzly.http.io.NIOReader;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class GrizzlyCharBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public GrizzlyCharBodyInstrumentation() {

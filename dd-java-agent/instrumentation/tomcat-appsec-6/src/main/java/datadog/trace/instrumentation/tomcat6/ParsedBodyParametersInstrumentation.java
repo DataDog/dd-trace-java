@@ -26,7 +26,7 @@ import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import org.apache.tomcat.util.http.Parameters;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

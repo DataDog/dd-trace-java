@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AkkaPoolMasterActorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public AkkaPoolMasterActorInstrumentation() {

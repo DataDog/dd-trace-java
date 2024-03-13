@@ -48,7 +48,7 @@ import java.util.Map;
  * reactor.core.publisher.Mono} or {@linkplain reactor.core.publisher.Flux} instance is created and
  * reactivating each time they are subscribed.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 

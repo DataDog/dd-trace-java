@@ -13,7 +13,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.dispatch.Envelope;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PekkoEnvelopeInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

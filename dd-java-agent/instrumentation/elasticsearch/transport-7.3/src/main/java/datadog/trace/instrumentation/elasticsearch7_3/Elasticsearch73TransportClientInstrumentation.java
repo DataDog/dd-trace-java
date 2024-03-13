@@ -23,7 +23,7 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 
 /** This class is identical to version 6's instrumentation, except Action is now ActionType. */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Elasticsearch73TransportClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -14,7 +14,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.springframework.amqp.rabbit.support.Delivery;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class DeliveryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public DeliveryInstrumentation() {

@@ -13,7 +13,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JUnit5NodeTestTaskContextInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

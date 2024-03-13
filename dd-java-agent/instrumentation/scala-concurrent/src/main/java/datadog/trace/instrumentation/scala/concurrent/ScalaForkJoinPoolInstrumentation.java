@@ -19,7 +19,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.forkjoin.ForkJoinTask;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ScalaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

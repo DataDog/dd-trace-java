@@ -25,7 +25,7 @@ import io.undertow.server.handlers.form.FormData;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

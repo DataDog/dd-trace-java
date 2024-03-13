@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 import org.restlet.engine.resource.AnnotationInfo;
 import org.restlet.resource.ServerResource;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ResourceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

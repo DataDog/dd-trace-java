@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.SharedSessionContract;
 import org.hibernate.procedure.ProcedureCall;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SessionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 

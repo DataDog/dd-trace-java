@@ -19,7 +19,7 @@ import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class RequestInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

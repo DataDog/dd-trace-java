@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
 /** @see play.api.routing.sird.PathExtractor */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public SirdPathExtractorInstrumentation() {

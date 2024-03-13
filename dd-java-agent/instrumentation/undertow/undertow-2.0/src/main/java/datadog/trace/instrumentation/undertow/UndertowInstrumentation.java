@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import io.undertow.server.HttpServerExchange;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class UndertowInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

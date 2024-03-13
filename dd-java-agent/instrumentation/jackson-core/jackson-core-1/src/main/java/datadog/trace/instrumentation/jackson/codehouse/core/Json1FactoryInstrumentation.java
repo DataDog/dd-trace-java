@@ -20,7 +20,7 @@ import java.io.Reader;
 import java.net.URL;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Json1FactoryInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

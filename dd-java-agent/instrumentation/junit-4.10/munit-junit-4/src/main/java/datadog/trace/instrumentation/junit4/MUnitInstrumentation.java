@@ -16,7 +16,7 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

@@ -28,7 +28,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @SuppressWarnings("unused")
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 

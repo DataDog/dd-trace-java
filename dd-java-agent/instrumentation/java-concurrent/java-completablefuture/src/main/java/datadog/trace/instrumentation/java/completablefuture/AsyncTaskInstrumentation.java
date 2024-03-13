@@ -30,7 +30,7 @@ import net.bytebuddy.asm.Advice;
  * either context. This double instrumentation otherwise leads to excess scope creation and
  * duplicate checkpoint emission.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AsyncTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, ExcludeFilterProvider {
 

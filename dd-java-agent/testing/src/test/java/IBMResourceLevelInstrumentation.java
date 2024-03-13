@@ -5,7 +5,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IBMResourceLevelInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public IBMResourceLevelInstrumentation() {

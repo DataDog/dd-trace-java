@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher.Junction;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes {
   public WrapRunnableAsNewTaskInstrumentation() {

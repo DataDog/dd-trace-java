@@ -19,7 +19,7 @@ import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.server.RequestContext;
 
 /** Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}. */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RequestContextInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public RequestContextInstrumentation() {

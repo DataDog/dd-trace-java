@@ -27,7 +27,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.pool.TypePool;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class DecodedFormParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 

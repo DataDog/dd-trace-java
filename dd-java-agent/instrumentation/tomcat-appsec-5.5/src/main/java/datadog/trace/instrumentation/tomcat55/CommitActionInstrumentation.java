@@ -23,7 +23,7 @@ import org.apache.coyote.Request;
 import org.apache.coyote.Response;
 
 /** @see org.apache.coyote.ActionHook */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CommitActionInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 

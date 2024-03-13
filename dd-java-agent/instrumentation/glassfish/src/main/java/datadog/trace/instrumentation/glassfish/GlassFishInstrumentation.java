@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
  * class as a class (not a resource) will fail because the class is not even tried. We hook into the
  * blocking method to avoid specific namespaces to be blocked.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class GlassFishInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

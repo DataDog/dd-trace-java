@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CommandImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public CommandImplInstrumentation() {

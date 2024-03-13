@@ -17,7 +17,7 @@ import io.undertow.server.HttpServerExchange;
 import net.bytebuddy.asm.Advice;
 import org.xnio.channels.StreamSinkChannel;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public HttpServerExchangeSenderInstrumentation() {

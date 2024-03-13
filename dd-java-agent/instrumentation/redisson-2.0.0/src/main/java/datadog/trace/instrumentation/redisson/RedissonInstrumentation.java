@@ -21,7 +21,7 @@ import org.redisson.client.RedisConnection;
 import org.redisson.client.protocol.CommandData;
 import org.redisson.client.protocol.CommandsData;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class RedissonInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

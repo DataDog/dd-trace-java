@@ -30,7 +30,7 @@ import scala.collection.immutable.Seq;
  *
  * @see MakeTaintableInstrumentation makes {@link HttpRequest} taintable
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public HttpRequestInstrumentation() {

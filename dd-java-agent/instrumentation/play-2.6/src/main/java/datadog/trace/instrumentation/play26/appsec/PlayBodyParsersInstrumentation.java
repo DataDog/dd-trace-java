@@ -21,7 +21,7 @@ import scala.collection.immutable.Map;
 import scala.xml.NodeSeq;
 
 /** @see play.api.mvc.PlayBodyParsers$class#tolerantFormUrlEncoded(PlayBodyParsers, int) */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
   private static final String TRAIT_NAME = "play.api.mvc.PlayBodyParsers";

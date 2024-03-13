@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * Request bodies before servlet 3.1.x are covered by Servlet2RequestBodyInstrumentation from the
  * "request-2" module. Any changes to the behaviour here should also be reflected in "request-2".
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Servlet31RequestBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy {
   public Servlet31RequestBodyInstrumentation() {

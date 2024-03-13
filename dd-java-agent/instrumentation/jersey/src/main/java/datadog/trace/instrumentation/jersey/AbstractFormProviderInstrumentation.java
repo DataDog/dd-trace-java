@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class AbstractFormProviderInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

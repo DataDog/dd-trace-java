@@ -9,7 +9,7 @@ import datadog.trace.api.Config;
 import java.util.Set;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

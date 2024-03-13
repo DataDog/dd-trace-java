@@ -14,7 +14,7 @@ import org.restlet.engine.header.Header;
 import org.restlet.routing.TemplateRoute;
 import org.restlet.util.Series;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class RouteInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -18,7 +18,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import io.vertx.ext.web.Cookie;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CookieImplInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 

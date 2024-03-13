@@ -17,7 +17,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CommonsFileuploadInstrumenter extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 
