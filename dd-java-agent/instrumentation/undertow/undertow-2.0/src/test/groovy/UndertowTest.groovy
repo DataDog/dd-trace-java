@@ -177,7 +177,7 @@ class UndertowTest extends HttpServerTest<Undertow> {
   }
 
   @Override
-  boolean testPathParam() {
+  String testPathParam() {
     true
   }
 
