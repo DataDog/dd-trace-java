@@ -2,7 +2,6 @@ package com.datadog.appsec.gateway;
 
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
-import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -74,6 +73,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean rawReqBodyPublished;
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
+  private boolean pathParamsPublished;
   private Map<String, String> apiSchemas;
 
   // should be guarded by this
@@ -327,7 +327,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public boolean isPathParamsPublished() {
-    return persistentData.containsKey(KnownAddresses.REQUEST_PATH_PARAMS);
+    return pathParamsPublished;
+  }
+
+  public void setPathParamsPublished(boolean pathParamsPublished) {
+    this.pathParamsPublished = pathParamsPublished;
   }
 
   public boolean isRawReqBodyPublished() {
