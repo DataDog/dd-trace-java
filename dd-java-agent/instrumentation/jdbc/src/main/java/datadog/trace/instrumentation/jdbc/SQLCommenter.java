@@ -45,16 +45,15 @@ public class SQLCommenter {
   }
 
   public static String getFirstWord(String sql) {
-    int charIndex = 0;
-    StringBuilder sb = new StringBuilder();
-    while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
-      charIndex++;
+    int beginIndex = 0;
+    while (beginIndex < sql.length() && Character.isWhitespace(sql.charAt(beginIndex))) {
+      beginIndex++;
     }
-    while (charIndex < sql.length() && !Character.isWhitespace(sql.charAt(charIndex))) {
-      sb.append(sql.charAt(charIndex));
-      charIndex++;
+    int endIndex = beginIndex;
+    while (endIndex < sql.length() && !Character.isWhitespace(sql.charAt(endIndex))) {
+      endIndex++;
     }
-    return sb.toString();
+    return sql.substring(beginIndex, endIndex);
   }
 
   public static String inject(

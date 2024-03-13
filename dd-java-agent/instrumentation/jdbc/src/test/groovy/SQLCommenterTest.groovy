@@ -16,8 +16,10 @@ class SQLCommenterTest extends AgentTestRunner {
     sql               | firstWord
     "SELECT *"        | "SELECT"
     "  { "            | "{"
+    "{"               | "{"
     "CALL ( ? )"      | "CALL"
     ""                | ""
+    "   "             | ""
   }
 
 
