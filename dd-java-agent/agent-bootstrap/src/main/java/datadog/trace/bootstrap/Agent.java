@@ -701,6 +701,9 @@ public class Agent {
       return;
     }
 
+    // XXX: Just for debug purposes
+    System.setProperty("POWERWAF_ENABLE_BYTE_BUFFERS", "false");
+
     StaticEventLogger.begin("AppSec");
 
     try {
