@@ -5,8 +5,6 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
-import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.sink.ApplicationModule
 import datadog.trace.api.iast.sink.SessionRewritingModule
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
