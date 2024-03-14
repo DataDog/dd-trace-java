@@ -17,7 +17,7 @@ import java.util.Map;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class IastServlet2Instrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
@@ -52,7 +52,7 @@ public final class IastServlet2Instrumentation extends InstrumenterModule.Iast
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("javax.servlet.ServletContext", String.class.getName());
+    return Collections.singletonMap("javax.servlet.ServletContext", Boolean.class.getName());
   }
 
   @Override

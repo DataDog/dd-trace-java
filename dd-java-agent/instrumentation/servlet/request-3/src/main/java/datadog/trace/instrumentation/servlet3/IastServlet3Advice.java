@@ -23,10 +23,10 @@ public class IastServlet3Advice {
       return;
     }
     final ServletContext context = request.getServletContext();
-    if (InstrumentationContext.get(ServletContext.class, String.class).get(context) != null) {
+    if (InstrumentationContext.get(ServletContext.class, Boolean.class).get(context) != null) {
       return;
     }
-    InstrumentationContext.get(ServletContext.class, String.class).put(context, context.toString());
+    InstrumentationContext.get(ServletContext.class, Boolean.class).put(context, true);
     applicationModule.onRealPath(context.getRealPath("/"));
   }
 }

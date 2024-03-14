@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public IastJakartaServletInstrumentation() {
@@ -40,7 +40,7 @@ public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("jakarta.servlet.ServletContext", String.class.getName());
+    return Collections.singletonMap("jakarta.servlet.ServletContext", Boolean.class.getName());
   }
 
   @Override
@@ -64,11 +64,10 @@ public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
         return;
       }
       final ServletContext context = servlet.getServletContext();
-      if (InstrumentationContext.get(ServletContext.class, String.class).get(context) != null) {
+      if (InstrumentationContext.get(ServletContext.class, Boolean.class).get(context) != null) {
         return;
       }
-      InstrumentationContext.get(ServletContext.class, String.class)
-          .put(context, context.toString());
+      InstrumentationContext.get(ServletContext.class, Boolean.class).put(context, true);
       applicationModule.onRealPath(context.getRealPath("/"));
     }
   }
