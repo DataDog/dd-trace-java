@@ -17,7 +17,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Vertx39HttpServertResponseInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public Vertx39HttpServertResponseInstrumentation() {
@@ -41,6 +41,11 @@ public class Vertx39HttpServertResponseInstrumentation extends InstrumenterModul
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
+  }
+
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
   }
 
   public static class InstrumenterAdvice {

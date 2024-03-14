@@ -18,7 +18,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Maintains an index from known instrumented class names to stable {@link Instrumenter} ids. */
+/** Maintains an index from known instrumented class names to stable instrumentation ids. */
 public final class KnownTypesIndex {
   private static final Logger log = LoggerFactory.getLogger(KnownTypesIndex.class);
 
@@ -94,14 +94,16 @@ public final class KnownTypesIndex {
 
     public void buildIndex() {
       log.debug("Generating KnownTypesIndex");
-      for (Instrumenter instrumenter : Instrumenters.load(Instrumenter.class.getClassLoader())) {
-        int instrumentationId = Instrumenters.currentInstrumentationId();
-        if (instrumenter instanceof Instrumenter.ForSingleType) {
-          String type = ((Instrumenter.ForSingleType) instrumenter).instrumentedType();
-          indexKnownType(instrumenter, type, instrumentationId);
-        } else if (instrumenter instanceof Instrumenter.ForKnownTypes) {
-          for (String type : ((Instrumenter.ForKnownTypes) instrumenter).knownMatchingTypes()) {
-            indexKnownType(instrumenter, type, instrumentationId);
+      for (InstrumenterModule module : InstrumenterModules.load()) {
+        int instrumentationId = InstrumenterModules.currentInstrumentationId();
+        for (Instrumenter member : module.typeInstrumentations()) {
+          if (member instanceof Instrumenter.ForSingleType) {
+            String type = ((Instrumenter.ForSingleType) member).instrumentedType();
+            indexKnownType(member, type, instrumentationId);
+          } else if (member instanceof Instrumenter.ForKnownTypes) {
+            for (String type : ((Instrumenter.ForKnownTypes) member).knownMatchingTypes()) {
+              indexKnownType(member, type, instrumentationId);
+            }
           }
         }
       }

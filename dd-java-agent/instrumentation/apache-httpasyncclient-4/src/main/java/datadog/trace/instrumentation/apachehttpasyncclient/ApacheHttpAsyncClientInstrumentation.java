@@ -22,7 +22,7 @@ import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 

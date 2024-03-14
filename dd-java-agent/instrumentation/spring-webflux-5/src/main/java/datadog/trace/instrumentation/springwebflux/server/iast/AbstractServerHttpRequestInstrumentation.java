@@ -13,7 +13,7 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class AbstractServerHttpRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

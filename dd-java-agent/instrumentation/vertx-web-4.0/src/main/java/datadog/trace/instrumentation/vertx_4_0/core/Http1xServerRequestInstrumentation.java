@@ -5,10 +5,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Http1xServerRequestInstrumentation extends AbstractHttpServerRequestInstrumentation
     implements Instrumenter.ForSingleType {
 

@@ -177,8 +177,12 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       } else if (!sourceType.isResource()) {
         indexingStats.sourceFilesVisited++;
         Path packagePath = packageResolver.getPackage(file);
-        packageTree.add(packagePath);
-        return getSourceRoot(file, packagePath);
+        if (packagePath != null) {
+          packageTree.add(packagePath);
+          return getSourceRoot(file, packagePath);
+        } else {
+          return file.getParent();
+        }
 
       } else {
         indexingStats.resourceFilesVisited++;

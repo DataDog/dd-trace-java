@@ -24,7 +24,7 @@ import net.bytebuddy.asm.Advice;
  * being caught. In short, the method runs too late. Maybe intercept {@link
  * SRTServletResponse#closeResponseOutput()} instead?
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

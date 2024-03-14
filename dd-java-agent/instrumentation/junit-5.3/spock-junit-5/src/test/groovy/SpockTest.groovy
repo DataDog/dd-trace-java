@@ -6,10 +6,15 @@ import org.example.TestFailedParameterizedSpock
 import org.example.TestFailedSpock
 import org.example.TestFailedThenSucceedParameterizedSpock
 import org.example.TestFailedThenSucceedSpock
+import org.example.TestParameterizedSetupSpecSpock
 import org.example.TestParameterizedSpock
+import org.example.TestSucceedAndFailedSpock
+import org.example.TestSucceedSetupSpecSpock
 import org.example.TestSucceedSpock
+import org.example.TestSucceedSpockSlow
 import org.example.TestSucceedSpockUnskippable
 import org.example.TestSucceedSpockUnskippableSuite
+import org.example.TestSucceedSpockVerySlow
 import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
@@ -44,13 +49,21 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName                      | tests                              | expectedTracesCount | skippedTests
-    "test-itr-skipping"               | [TestSucceedSpock]                 | 2                   | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null, null)]
-    "test-itr-skipping-parameterized" | [TestParameterizedSpock]           | 3                   | [
+    testcaseName                                     | tests                              | expectedTracesCount | skippedTests
+    "test-itr-skipping"                              | [TestSucceedSpock]                 | 2                   | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null, null)]
+    "test-itr-skipping-parameterized"                | [TestParameterizedSpock]           | 3                   | [
       new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", '{"metadata":{"test_name":"test add 1 and 2"}}', null)
     ]
-    "test-itr-unskippable"            | [TestSucceedSpockUnskippable]      | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippable", "test success", null, null)]
-    "test-itr-unskippable-suite"      | [TestSucceedSpockUnskippableSuite] | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippableSuite", "test success", null, null)]
+    "test-itr-unskippable"                           | [TestSucceedSpockUnskippable]      | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippable", "test success", null, null)]
+    "test-itr-unskippable-suite"                     | [TestSucceedSpockUnskippableSuite] | 2                   | [new TestIdentifier("org.example.TestSucceedSpockUnskippableSuite", "test success", null, null)]
+    "test-itr-skipping-spec-setup"                   | [TestSucceedSetupSpecSpock]        | 2                   | [
+      new TestIdentifier("org.example.TestSucceedSetupSpecSpock", "test success", null, null),
+      new TestIdentifier("org.example.TestSucceedSetupSpecSpock", "test another success", null, null)
+    ]
+    "test-itr-not-skipping-spec-setup"               | [TestSucceedSetupSpecSpock]        | 2                   | [new TestIdentifier("org.example.TestSucceedSetupSpecSpock", "test success", null, null)]
+    "test-itr-not-skipping-parameterized-spec-setup" | [TestParameterizedSetupSpecSpock]  | 2                   | [
+      new TestIdentifier("org.example.TestParameterizedSetupSpecSpock", "test add 1 and 2", '{"metadata":{"test_name":"test add 1 and 2"}}', null)
+    ]
   }
 
   def "test flaky retries #testcaseName"() {
@@ -75,8 +88,30 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     ]
   }
 
+  def "test early flakiness detection #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                        | tests                       | expectedTracesCount | knownTestsList
+    "test-efd-known-test"               | [TestSucceedSpock]          | 2                   | [new TestIdentifier("org.example.TestSucceedSpock", "test success", null, null)]
+    "test-efd-known-parameterized-test" | [TestParameterizedSpock]    | 3                   | [
+      new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", null, null),
+      new TestIdentifier("org.example.TestParameterizedSpock", "test add 4 and 4", null, null)
+    ]
+    "test-efd-new-test"                 | [TestSucceedSpock]          | 4                   | []
+    "test-efd-new-parameterized-test"   | [TestParameterizedSpock]    | 7                   | []
+    "test-efd-known-tests-and-new-test" | [TestParameterizedSpock]    | 5                   | [new TestIdentifier("org.example.TestParameterizedSpock", "test add 1 and 2", null, null)]
+    "test-efd-new-slow-test"            | [TestSucceedSpockSlow]      | 3                   | [] // is executed only twice
+    "test-efd-new-very-slow-test"       | [TestSucceedSpockVerySlow]  | 2                   | [] // is executed only once
+    "test-efd-faulty-session-threshold" | [TestSucceedAndFailedSpock] | 8                   | []
+  }
+
   private static void runTests(List<Class<?>> classes) {
-    TestEventsHandlerHolder.start()
+    TestEventsHandlerHolder.startForcefully()
 
     DiscoverySelector[] selectors = new DiscoverySelector[classes.size()]
     for (i in 0..<classes.size()) {

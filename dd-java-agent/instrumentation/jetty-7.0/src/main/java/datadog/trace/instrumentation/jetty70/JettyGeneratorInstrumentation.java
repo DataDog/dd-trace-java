@@ -15,7 +15,7 @@ import org.eclipse.jetty.http.Generator;
 import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Response;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class JettyGeneratorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
@@ -19,7 +20,7 @@ import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumentation
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 

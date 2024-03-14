@@ -30,7 +30,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class StatementInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
@@ -103,7 +103,14 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           }
           sql =
               SQLCommenter.inject(
-                  sql, span.getServiceName(), traceParent, injectTraceContext, appendComment);
+                  sql,
+                  span.getServiceName(),
+                  dbInfo.getType(),
+                  dbInfo.getHost(),
+                  dbInfo.getDb(),
+                  traceParent,
+                  injectTraceContext,
+                  appendComment);
         }
         DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
         return activateSpan(span);

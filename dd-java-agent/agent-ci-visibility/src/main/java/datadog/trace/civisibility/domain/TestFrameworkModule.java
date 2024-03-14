@@ -24,7 +24,17 @@ public interface TestFrameworkModule {
   boolean isSkippable(TestIdentifier test);
 
   /**
-   * Checks if a given test can be skipped with Intelligent Test Runner or not. It the test is
+   * Checks if a given test is "new" or not. A test is considered "new" if the backend has no
+   * information about it.
+   *
+   * @param test Test to be checked
+   * @return {@code true} if the test is new, {@code false} if it is an existing test <b>or if the
+   *     list of known tests is not available</b>.
+   */
+  boolean isNew(TestIdentifier test);
+
+  /**
+   * Checks if a given test can be skipped with Intelligent Test Runner or not. If the test is
    * considered skippable, the count of skippable tests is incremented.
    *
    * @param test Test to be checked

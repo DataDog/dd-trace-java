@@ -110,12 +110,11 @@ class DependencyServiceSpecification extends DepSpecification {
     depService.resolveOneDependency()
 
     then:
-    def set = depService.drainDeterminedDependencies() as Set
-    assertThat(set.size(), is(2))
-    assertThat(set.first().name, is('cglib:cglib'))
-    assertThat(set.first().version, is('3.2.4'))
-    assertThat(set.last().name, is('org.yaml:snakeyaml'))
-    assertThat(set.last().version, is('1.17'))
+    def set = depService.drainDeterminedDependencies() as Set<Dependency>
+    set.size() == 2
+    def map = set.collectEntries { [it.name, it] }
+    map['cglib:cglib'].version == '3.2.4'
+    map['org.yaml:snakeyaml'].version == '1.17'
   }
 
   void 'build dependency set from a small fat jar with one incorrect pom.properties'() {
@@ -126,10 +125,10 @@ class DependencyServiceSpecification extends DepSpecification {
     depService.resolveOneDependency()
 
     then:
-    def set = depService.drainDeterminedDependencies() as Set
-    assertThat(set.size(), is(1))
-    assertThat(set.first().name, is('org.yaml:snakeyaml'))
-    assertThat(set.first().version, is('1.17'))
+    def set = depService.drainDeterminedDependencies() as Set<Dependency>
+    set.size() == 1
+    set.first().name == 'org.yaml:snakeyaml'
+    set.first().version == '1.17'
   }
 
   void 'transformer invalid code source'() throws IllegalClassFormatException, MalformedURLException {

@@ -4,11 +4,11 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.SparkContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Spark212Instrumentation extends AbstractSparkInstrumentation {
   @Override
   public String[] helperClassNames() {

@@ -19,7 +19,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 
 /** Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}. */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RequestContextInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public RequestContextInstrumentation() {

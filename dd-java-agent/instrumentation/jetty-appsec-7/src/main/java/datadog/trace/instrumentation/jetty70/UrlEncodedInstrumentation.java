@@ -26,7 +26,7 @@ import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public UrlEncodedInstrumentation() {

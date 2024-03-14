@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RequestExtractParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public RequestExtractParametersInstrumentation() {

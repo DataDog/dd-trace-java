@@ -3,6 +3,8 @@ package datadog.trace.civisibility.events;
 import static datadog.trace.util.Strings.toJson;
 
 import datadog.trace.api.DisableTestTrace;
+import datadog.trace.api.civisibility.DDTest;
+import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
@@ -11,6 +13,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
@@ -19,41 +22,39 @@ import datadog.trace.civisibility.domain.TestSuiteImpl;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.objectweb.asm.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TestEventsHandlerImpl implements TestEventsHandler {
+public class TestEventsHandlerImpl<SuiteKey, TestKey>
+    implements TestEventsHandler<SuiteKey, TestKey> {
 
   private static final Logger log = LoggerFactory.getLogger(TestEventsHandlerImpl.class);
 
   private final CiVisibilityMetricCollector metricCollector;
   private final TestFrameworkSession testSession;
   private final TestFrameworkModule testModule;
-
-  private final ConcurrentMap<TestSuiteDescriptor, Integer> testSuiteNestedCallCounters =
-      new ConcurrentHashMap<>();
-
-  private final ConcurrentMap<TestSuiteDescriptor, TestSuiteImpl> inProgressTestSuites =
-      new ConcurrentHashMap<>();
-
-  private final ConcurrentMap<TestDescriptor, TestImpl> inProgressTests = new ConcurrentHashMap<>();
+  private final ContextStore<SuiteKey, TestSuiteImpl> inProgressTestSuites;
+  private final ContextStore<TestKey, TestImpl> inProgressTests;
 
   public TestEventsHandlerImpl(
       CiVisibilityMetricCollector metricCollector,
       TestFrameworkSession testSession,
-      TestFrameworkModule testModule) {
+      TestFrameworkModule testModule,
+      ContextStore<SuiteKey, DDTestSuite> suiteStore,
+      ContextStore<TestKey, DDTest> testStore) {
     this.metricCollector = metricCollector;
     this.testSession = testSession;
     this.testModule = testModule;
+    this.inProgressTestSuites = (ContextStore) suiteStore;
+    this.inProgressTests = (ContextStore) testStore;
   }
 
   @Override
   public void onTestSuiteStart(
+      final SuiteKey descriptor,
       final String testSuiteName,
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
@@ -62,11 +63,6 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       boolean parallelized,
       TestFrameworkInstrumentation instrumentation) {
     if (skipTrace(testClass)) {
-      return;
-    }
-
-    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    if (!tryTestSuiteStart(descriptor)) {
       return;
     }
 
@@ -88,13 +84,8 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   }
 
   @Override
-  public void onTestSuiteFinish(final String testSuiteName, final @Nullable Class<?> testClass) {
-    if (skipTrace(testClass)) {
-      return;
-    }
-
-    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
-    if (!tryTestSuiteFinish(descriptor)) {
+  public void onTestSuiteFinish(SuiteKey descriptor) {
+    if (skipTrace(descriptor.getClass())) {
       return;
     }
 
@@ -102,39 +93,21 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
     testSuite.end(null);
   }
 
-  private boolean tryTestSuiteStart(TestSuiteDescriptor descriptor) {
-    return testSuiteNestedCallCounters.merge(descriptor, 1, Integer::sum) == 1;
-  }
-
-  private boolean tryTestSuiteFinish(TestSuiteDescriptor descriptor) {
-    return testSuiteNestedCallCounters.merge(descriptor, -1, (a, b) -> a + b > 0 ? a + b : null)
-        == null;
-  }
-
   @Override
-  public void onTestSuiteSkip(String testSuiteName, Class<?> testClass, @Nullable String reason) {
-    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+  public void onTestSuiteSkip(SuiteKey descriptor, @Nullable String reason) {
     TestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
-      log.debug(
-          "Ignoring skip event, could not find test suite with name {} and class {}",
-          testSuiteName,
-          testClass);
+      log.debug("Ignoring skip event, could not find test suite {}", descriptor);
       return;
     }
     testSuite.setSkipReason(reason);
   }
 
   @Override
-  public void onTestSuiteFailure(
-      String testSuiteName, Class<?> testClass, @Nullable Throwable throwable) {
-    TestSuiteDescriptor descriptor = new TestSuiteDescriptor(testSuiteName, testClass);
+  public void onTestSuiteFailure(SuiteKey descriptor, @Nullable Throwable throwable) {
     TestSuiteImpl testSuite = inProgressTestSuites.get(descriptor);
     if (testSuite == null) {
-      log.debug(
-          "Ignoring fail event, could not find test suite with name {} and class {}",
-          testSuiteName,
-          testClass);
+      log.debug("Ignoring fail event, could not find test suite {}", descriptor);
       return;
     }
     testSuite.setErrorInfo(throwable);
@@ -142,23 +115,29 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public void onTestStart(
+      final SuiteKey suiteDescriptor,
+      final TestKey descriptor,
       final String testSuiteName,
       final String testName,
-      final @Nullable Object testQualifier,
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
       final @Nullable Collection<String> categories,
       final @Nullable Class<?> testClass,
       final @Nullable String testMethodName,
-      final @Nullable Method testMethod) {
+      final @Nullable Method testMethod,
+      final boolean isRetry) {
     if (skipTrace(testClass)) {
       return;
     }
 
-    TestSuiteDescriptor suiteDescriptor = new TestSuiteDescriptor(testSuiteName, testClass);
     TestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
     TestImpl test = testSuite.testStart(testName, testMethod, null);
+
+    TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters, null);
+    if (testModule.isNew(thisTest)) {
+      test.setTag(Tags.TEST_IS_NEW, true);
+    }
 
     if (testFramework != null) {
       test.setTag(Tags.TEST_FRAMEWORK, testFramework);
@@ -181,8 +160,6 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
-          TestIdentifier thisTest =
-              new TestIdentifier(testSuiteName, testName, testParameters, null);
           if (testModule.isSkippable(thisTest)) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
             metricCollector.add(CiVisibilityCountMetric.ITR_FORCED_RUN, 1, EventType.TEST);
@@ -192,71 +169,38 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       }
     }
 
-    TestDescriptor descriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+    if (isRetry) {
+      test.setTag(Tags.TEST_IS_RETRY, true);
+    }
+
     inProgressTests.put(descriptor, test);
   }
 
   @Override
-  public void onTestSkip(
-      String testSuiteName,
-      Class<?> testClass,
-      String testName,
-      @Nullable Object testQualifier,
-      @Nullable String testParameters,
-      @Nullable String reason) {
-    TestDescriptor descriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+  public void onTestSkip(TestKey descriptor, @Nullable String reason) {
     TestImpl test = inProgressTests.get(descriptor);
     if (test == null) {
-      log.debug(
-          "Ignoring skip event, could not find test with name {}, suite name{} and class {}",
-          testName,
-          testSuiteName,
-          testClass);
+      log.debug("Ignoring skip event, could not find test {}}", descriptor);
       return;
     }
     test.setSkipReason(reason);
   }
 
   @Override
-  public void onTestFailure(
-      String testSuiteName,
-      Class<?> testClass,
-      String testName,
-      @Nullable Object testQualifier,
-      @Nullable String testParameters,
-      @Nullable Throwable throwable) {
-    TestDescriptor descriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+  public void onTestFailure(TestKey descriptor, @Nullable Throwable throwable) {
     TestImpl test = inProgressTests.get(descriptor);
     if (test == null) {
-      log.debug(
-          "Ignoring fail event, could not find test with name {}, suite name{} and class {}",
-          testName,
-          testSuiteName,
-          testClass);
+      log.debug("Ignoring fail event, could not find test {}", descriptor);
       return;
     }
     test.setErrorInfo(throwable);
   }
 
   @Override
-  public void onTestFinish(
-      final String testSuiteName,
-      final Class<?> testClass,
-      final String testName,
-      final @Nullable Object testQualifier,
-      final @Nullable String testParameters) {
-    TestDescriptor descriptor =
-        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+  public void onTestFinish(TestKey descriptor) {
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
-      log.debug(
-          "Ignoring finish event, could not find test with name {}, suite name{} and class {}",
-          testName,
-          testSuiteName,
-          testClass);
+      log.debug("Ignoring finish event, could not find test {}", descriptor);
       return;
     }
     test.end(null);
@@ -264,9 +208,10 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
 
   @Override
   public void onTestIgnore(
+      final SuiteKey suiteDescriptor,
+      final TestKey testDescriptor,
       final String testSuiteName,
       final String testName,
-      final @Nullable Object testQualifier,
       final @Nullable String testFramework,
       final @Nullable String testFrameworkVersion,
       final @Nullable String testParameters,
@@ -276,18 +221,20 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
       final @Nullable Method testMethod,
       final @Nullable String reason) {
     onTestStart(
+        suiteDescriptor,
+        testDescriptor,
         testSuiteName,
         testName,
-        testQualifier,
         testFramework,
         testFrameworkVersion,
         testParameters,
         categories,
         testClass,
         testMethodName,
-        testMethod);
-    onTestSkip(testSuiteName, testClass, testName, testQualifier, testParameters, reason);
-    onTestFinish(testSuiteName, testClass, testName, testQualifier, testParameters);
+        testMethod,
+        false);
+    onTestSkip(testDescriptor, reason);
+    onTestFinish(testDescriptor);
   }
 
   private static boolean skipTrace(final Class<?> testClass) {
@@ -297,6 +244,11 @@ public class TestEventsHandlerImpl implements TestEventsHandler {
   @Override
   public boolean skip(TestIdentifier test) {
     return testModule.skip(test);
+  }
+
+  @Override
+  public boolean isSkippable(TestIdentifier test) {
+    return testModule.isSkippable(test);
   }
 
   @Override

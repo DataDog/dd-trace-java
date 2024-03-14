@@ -27,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * @see HttpRequestInstrumentation propagates taint from {@link HttpRequest} to the headers, when
  *     they're retrieved
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public HttpHeaderSubclassesInstrumentation() {

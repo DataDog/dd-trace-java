@@ -3,9 +3,9 @@ package com.datadog.debugger.probe;
 import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
-import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -17,8 +17,7 @@ import org.slf4j.LoggerFactory;
 
 public class ExceptionProbe extends LogProbe {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProbe.class);
-  private final String fingerprint;
-  private final transient ClassNameFiltering classNameFiltering;
+  private final ExceptionProbeManager exceptionProbeManager;
 
   public ExceptionProbe(
       ProbeId probeId,
@@ -26,8 +25,7 @@ public class ExceptionProbe extends LogProbe {
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling,
-      String fingerprint,
-      ClassNameFiltering classNameFiltering) {
+      ExceptionProbeManager exceptionProbeManager) {
     super(
         LANGUAGE,
         probeId,
@@ -40,12 +38,7 @@ public class ExceptionProbe extends LogProbe {
         probeCondition,
         capture,
         sampling);
-    this.fingerprint = fingerprint;
-    this.classNameFiltering = classNameFiltering;
-  }
-
-  public String getFingerprint() {
-    return fingerprint;
+    this.exceptionProbeManager = exceptionProbeManager;
   }
 
   @Override
@@ -68,12 +61,14 @@ public class ExceptionProbe extends LogProbe {
     if (methodLocation != MethodLocation.EXIT) {
       return;
     }
-    if (context.getThrowable() == null) {
+    if (context.getCapturedThrowable() == null) {
       return;
     }
-    String currentFingerprint =
-        Fingerprinter.fingerprint(context.getThrowable().getThrowable(), classNameFiltering);
-    if (fingerprint.equals(currentFingerprint)) {
+    String fingerprint =
+        Fingerprinter.fingerprint(
+            context.getCapturedThrowable().getThrowable(),
+            exceptionProbeManager.getClassNameFiltering());
+    if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
       LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
       // capture only on uncaught exception matching the fingerprint
       ((ExceptionProbeStatus) status).setCapture(true);
@@ -86,7 +81,7 @@ public class ExceptionProbe extends LogProbe {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
-    LOGGER.debug("committing exception probe id={}  fingerprint={}", id, fingerprint);
+    LOGGER.debug("committing exception probe id={}", id);
     super.commit(entryContext, exitContext, caughtExceptions);
   }
 

@@ -21,11 +21,11 @@ class PackageResolverImplTest extends Specification {
     def packagePath = packageResolver.getPackage(javaFilePath)
 
     then:
-    packagePath == fileSystem.getPath(expectedPackageName)
+    packagePath == (expectedPackageName != null ? fileSystem.getPath(expectedPackageName) : null)
 
     where:
     path                             | contents                                      | expectedPackageName
-    "/root/src/MyClass.java"         | CLASS_IN_DEFAULT_PACKAGE                      | ""
+    "/root/src/MyClass.java"         | CLASS_IN_DEFAULT_PACKAGE                      | null
     "/root/src/foo/bar/MyClass.java" | CLASS_IN_FOO_BAR_PACKAGE                      | "foo/bar"
     "/root/src/foo/bar/MyClass.java" | BLANK_LINES_BEFORE_PACKAGE                    | "foo/bar"
     "/root/src/foo/bar/MyClass.java" | SPACES_BEFORE_PACKAGE                         | "foo/bar"

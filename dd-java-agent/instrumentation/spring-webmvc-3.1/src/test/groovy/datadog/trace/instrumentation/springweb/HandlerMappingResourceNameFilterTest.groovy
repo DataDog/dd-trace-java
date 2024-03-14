@@ -9,7 +9,6 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.web.AnnotationConfigWebContextLoader
 import org.springframework.test.context.web.WebAppConfiguration
 import org.springframework.web.servlet.config.annotation.EnableWebMvc
-import spock.lang.Unroll
 
 import javax.servlet.FilterChain
 import javax.servlet.http.HttpServletResponse
@@ -32,7 +31,6 @@ class HandlerMappingResourceNameFilterTest extends AgentTestRunner {
   @Autowired
   HandlerMappingResourceNameFilter filter
 
-  @Unroll
   def "test filter doesn't make externally visible changes to request object - url: #url"() {
     given:
     def request = new MockHttpServletRequest("GET", url)

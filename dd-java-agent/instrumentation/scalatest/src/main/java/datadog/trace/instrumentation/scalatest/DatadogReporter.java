@@ -2,7 +2,10 @@ package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.scalatest.retry.SuppressedTestFailedException;
 import java.lang.reflect.Method;
@@ -83,7 +86,7 @@ public class DatadogReporter {
   private static void onSuiteStart(SuiteStarting event) {
     int runStamp = event.ordinal().runStamp();
     RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler eventHandler = context.getEventHandler();
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
@@ -91,6 +94,7 @@ public class DatadogReporter {
     boolean parallelized = true;
 
     eventHandler.onTestSuiteStart(
+        new TestSuiteDescriptor(testSuiteName, testClass),
         testSuiteName,
         TEST_FRAMEWORK,
         TEST_FRAMEWORK_VERSION,
@@ -103,36 +107,37 @@ public class DatadogReporter {
   private static void onSuiteFinish(SuiteCompleted event) {
     int runStamp = event.ordinal().runStamp();
     RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler eventHandler = context.getEventHandler();
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
-    eventHandler.onTestSuiteFinish(testSuiteName, testClass);
+    eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass));
   }
 
   private static void onSuiteAbort(SuiteAborted event) {
     int runStamp = event.ordinal().runStamp();
     RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler eventHandler = context.getEventHandler();
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
     Throwable throwable = event.throwable().getOrElse(null);
-    eventHandler.onTestSuiteFailure(testSuiteName, testClass, throwable);
-    eventHandler.onTestSuiteFinish(testSuiteName, testClass);
+    eventHandler.onTestSuiteFailure(new TestSuiteDescriptor(testSuiteName, testClass), throwable);
+    eventHandler.onTestSuiteFinish(new TestSuiteDescriptor(testSuiteName, testClass));
   }
 
   private static void onTestStart(TestStarting event) {
     int runStamp = event.ordinal().runStamp();
     RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler eventHandler = context.getEventHandler();
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
 
     String testSuiteName = event.suiteId();
     String testName = event.testName();
     Object testQualifier = null;
     String testParameters = null;
     Collection<String> categories;
-    if (context.unskippable(new TestIdentifier(testSuiteName, testName, null, null))) {
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null, null);
+    if (context.unskippable(testIdentifier)) {
       categories = Collections.singletonList(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
     } else {
       categories = Collections.emptyList();
@@ -140,37 +145,42 @@ public class DatadogReporter {
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
     String testMethodName = null;
     Method testMethod = null;
+    TestRetryPolicy retryPolicy = context.popRetryPolicy(testIdentifier);
 
     eventHandler.onTestStart(
+        new TestSuiteDescriptor(testSuiteName, testClass),
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
         testSuiteName,
         testName,
-        testQualifier,
         TEST_FRAMEWORK,
         TEST_FRAMEWORK_VERSION,
         testParameters,
         categories,
         testClass,
         testMethodName,
-        testMethod);
+        testMethod,
+        retryPolicy != null && retryPolicy.currentExecutionIsRetry());
   }
 
   private static void onTestSuccess(TestSucceeded event) {
     int runStamp = event.ordinal().runStamp();
     RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler eventHandler = context.getEventHandler();
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
     String testName = event.testName();
     Object testQualifier = null;
     String testParameters = null;
-    eventHandler.onTestFinish(testSuiteName, testClass, testName, testQualifier, testParameters);
+    TestDescriptor testDescriptor =
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+    eventHandler.onTestFinish(testDescriptor);
   }
 
   private static void onTestFailure(TestFailed event) {
     int runStamp = event.ordinal().runStamp();
     RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler eventHandler = context.getEventHandler();
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
 
     String testSuiteName = event.suiteId();
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
@@ -178,15 +188,16 @@ public class DatadogReporter {
     Object testQualifier = null;
     String testParameters = null;
     Throwable throwable = event.throwable().getOrElse(null);
-    eventHandler.onTestFailure(
-        testSuiteName, testClass, testName, testQualifier, testParameters, throwable);
-    eventHandler.onTestFinish(testSuiteName, testClass, testName, testQualifier, testParameters);
+    TestDescriptor testDescriptor =
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+    eventHandler.onTestFailure(testDescriptor, throwable);
+    eventHandler.onTestFinish(testDescriptor);
   }
 
   private static void onTestIgnore(TestIgnored event) {
     int runStamp = event.ordinal().runStamp();
     RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler eventHandler = context.getEventHandler();
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
 
     String testSuiteName = event.suiteId();
     String testName = event.testName();
@@ -206,9 +217,10 @@ public class DatadogReporter {
     }
 
     eventHandler.onTestIgnore(
+        new TestSuiteDescriptor(testSuiteName, testClass),
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier),
         testSuiteName,
         testName,
-        testQualifier,
         TEST_FRAMEWORK,
         TEST_FRAMEWORK_VERSION,
         testParameters,
@@ -222,7 +234,7 @@ public class DatadogReporter {
   private static void onTestCancel(TestCanceled event) {
     int runStamp = event.ordinal().runStamp();
     RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler eventHandler = context.getEventHandler();
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
 
     String testSuiteName = event.suiteId();
     String testName = event.testName();
@@ -232,21 +244,20 @@ public class DatadogReporter {
     Throwable throwable = event.throwable().getOrElse(null);
     String reason = throwable != null ? throwable.getMessage() : null;
 
+    TestDescriptor testDescriptor =
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
     if (throwable instanceof SuppressedTestFailedException) {
-      eventHandler.onTestFailure(
-          testSuiteName, testClass, testName, testQualifier, testParameters, throwable.getCause());
+      eventHandler.onTestFailure(testDescriptor, throwable.getCause());
     } else {
-      eventHandler.onTestSkip(
-          testSuiteName, testClass, testName, testQualifier, testParameters, reason);
+      eventHandler.onTestSkip(testDescriptor, reason);
     }
-
-    eventHandler.onTestFinish(testSuiteName, testClass, testName, testQualifier, testParameters);
+    eventHandler.onTestFinish(testDescriptor);
   }
 
   private static void onTestPending(TestPending event) {
     int runStamp = event.ordinal().runStamp();
     RunContext context = RunContext.getOrCreate(runStamp);
-    TestEventsHandler eventHandler = context.getEventHandler();
+    TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
 
     String testSuiteName = event.suiteId();
     String testName = event.testName();
@@ -255,8 +266,9 @@ public class DatadogReporter {
     Class<?> testClass = ScalatestUtils.getClass(event.suiteClassName());
     String reason = "pending";
 
-    eventHandler.onTestSkip(
-        testSuiteName, testClass, testName, testQualifier, testParameters, reason);
-    eventHandler.onTestFinish(testSuiteName, testClass, testName, testQualifier, testParameters);
+    TestDescriptor testDescriptor =
+        new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
+    eventHandler.onTestSkip(testDescriptor, reason);
+    eventHandler.onTestFinish(testDescriptor);
   }
 }

@@ -14,7 +14,7 @@ import org.gradle.initialization.ClassLoaderRegistry;
 import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.internal.service.scopes.BuildScopeServices;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class GradleBuildScopeServicesInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

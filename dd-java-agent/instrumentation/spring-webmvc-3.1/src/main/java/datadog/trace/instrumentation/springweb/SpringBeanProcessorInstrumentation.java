@@ -16,7 +16,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
  * a {@link ClassNotFoundException}. This bean is not of interest to Resteasy because it is not a
  * provider or a root resource, so it is safe to skip processing of it in the 'processBean' method.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SpringBeanProcessorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SpringBeanProcessorInstrumentation() {

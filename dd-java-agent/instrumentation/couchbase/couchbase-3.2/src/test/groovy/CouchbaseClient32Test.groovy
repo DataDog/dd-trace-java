@@ -112,8 +112,9 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     }
   }
 
-  def "check basic error spans"() {
+  def "check basic error spans with internal spans enabled #internalEnabled"() {
     setup:
+    injectSysConfig("trace.couchbase.internal-spans.enabled", "$internalEnabled")
     def collection = bucket.defaultCollection()
     Throwable ex = null
 
@@ -128,7 +129,7 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     ex != null
     assertTraces(1) {
       sortSpansByStart()
-      trace(2) {
+      trace(internalEnabled ? 2: 1) {
         assertCouchbaseCall(it, "get", [
           'db.couchbase.collection' : '_default',
           'db.couchbase.document_id': { String },
@@ -138,14 +139,18 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
           'db.name'                 : BUCKET,
           'db.operation'            : 'get'
         ], false, ex)
-        assertCouchbaseDispatchCall(it, span(0), [
-          'db.couchbase.collection'     : '_default',
-          'db.couchbase.document_id'    : { String },
-          'db.couchbase.scope'          : '_default',
-          'db.name'                     : BUCKET
-        ])
+        if (internalEnabled) {
+          assertCouchbaseDispatchCall(it, span(0), [
+            'db.couchbase.collection'     : '_default',
+            'db.couchbase.document_id'    : { String },
+            'db.couchbase.scope'          : '_default',
+            'db.name'                     : BUCKET
+          ])
+        }
       }
     }
+    where:
+    internalEnabled << [true, false]
   }
 
   def "check query spans"() {
@@ -228,10 +233,11 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     adhoc << [true, false]
   }
 
-  def "check multiple async query spans with parent and adhoc false"() {
+  def "check multiple async query spans with parent and adhoc false and internal spans enabled = #internalEnabled"() {
     setup:
-    def query = 'select count(1) from `test-bucket` where (`something` = "wonderful") limit 1'
-    def normalizedQuery = 'select count(?) from `test-bucket` where (`something` = "wonderful") limit ?'
+    injectSysConfig("trace.couchbase.internal-spans.enabled", "$internalEnabled")
+    def query = "select count(1) from `test-bucket` where (`something` = \"$queryArg\") limit 1"
+    def normalizedQuery = "select count(?) from `test-bucket` where (`something` = \"$queryArg\") limit ?"
     int count1 = 0
     int count2 = 0
     def extraPrepare = isLatestDepTest
@@ -252,38 +258,46 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     }
 
     then:
-    count1 == 250
-    count2 == 250
+    count1 == expectedCount
+    count2 == expectedCount
     assertTraces(1) {
-      sortSpansByStart()
-      trace(extraPrepare ? 8 : 7) {
+      trace(internalEnabled ? (extraPrepare ? 8 : 7) : 3) {
+        sortSpansByStart()
         basicSpan(it, 'async.multiple')
         assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query'
         ], span(0))
-        assertCouchbaseCall(it, "PREPARE $normalizedQuery", [
-          'db.couchbase.retries': { Long },
-          'db.couchbase.service': 'query'
-        ], span(1), true)
-        assertCouchbaseDispatchCall(it, span(2))
+        if (internalEnabled) {
+          assertCouchbaseCall(it, "PREPARE $normalizedQuery", [
+            'db.couchbase.retries': { Long },
+            'db.couchbase.service': 'query'
+          ], span(1), true)
+          assertCouchbaseDispatchCall(it, span(2))
+        }
         assertCouchbaseCall(it, normalizedQuery, [
           'db.couchbase.retries'   : { Long },
           'db.couchbase.service'   : 'query'
         ], span(0))
-        if (extraPrepare) {
-          assertCouchbaseCall(it, "PREPARE $normalizedQuery", [
+        if (internalEnabled) {
+          if (extraPrepare) {
+            assertCouchbaseCall(it, "PREPARE $normalizedQuery", [
+              'db.couchbase.retries': { Long },
+              'db.couchbase.service': 'query'
+            ], span(4), true)
+          }
+          assertCouchbaseCall(it, normalizedQuery, [
             'db.couchbase.retries': { Long },
             'db.couchbase.service': 'query'
           ], span(4), true)
+          assertCouchbaseDispatchCall(it, span(extraPrepare ? 6 : 5))
         }
-        assertCouchbaseCall(it, normalizedQuery, [
-          'db.couchbase.retries': { Long },
-          'db.couchbase.service': 'query'
-        ], span(4), true)
-        assertCouchbaseDispatchCall(it, span(extraPrepare ? 6 : 5))
       }
     }
+    where:
+    internalEnabled | queryArg      | expectedCount
+    true            | "wonderful"   | 250
+    false           | "notinternal" | 0             // avoid having the query engine reusing previous prepared query
   }
 
   def "check error query spans with parent"() {

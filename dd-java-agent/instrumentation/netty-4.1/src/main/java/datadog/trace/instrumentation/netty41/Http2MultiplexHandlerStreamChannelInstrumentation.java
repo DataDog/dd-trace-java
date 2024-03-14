@@ -7,7 +7,7 @@ import io.netty.channel.Channel;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatchers;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Http2MultiplexHandlerStreamChannelInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -35,7 +35,7 @@ import org.bson.ByteBuf;
  * important' instrumentation will get to add its {@linkplain CommandListener} instance -
  * effectively overriding the previous instrumentation when necessary.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class MongoClient34Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.WithTypeStructure {
 

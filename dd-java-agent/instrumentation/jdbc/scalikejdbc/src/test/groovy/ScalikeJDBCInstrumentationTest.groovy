@@ -5,7 +5,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
-import spock.lang.Unroll
 
 import javax.sql.DataSource
 
@@ -132,7 +131,6 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  @Unroll
   def "scalikejdbc query test"() {
     setup:
     runUnderTrace("parent") {

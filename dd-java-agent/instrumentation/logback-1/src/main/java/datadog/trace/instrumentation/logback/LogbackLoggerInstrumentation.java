@@ -23,7 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

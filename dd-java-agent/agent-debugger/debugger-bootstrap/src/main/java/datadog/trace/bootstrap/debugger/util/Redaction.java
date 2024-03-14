@@ -24,6 +24,8 @@ public class Redaction {
           "apisecret",
           "apisignature",
           "apikey",
+          "appkey",
+          "applicationkey",
           "auth",
           "authtoken",
           "authorization",

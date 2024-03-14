@@ -2,11 +2,14 @@ package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import javax.annotation.Nullable;
 import scala.Option;
 import scala.Tuple2;
 import scala.collection.Iterator;
@@ -28,11 +31,10 @@ public class RunContext {
   }
 
   private final int runStamp;
-  private final TestEventsHandler eventHandler =
+  private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler =
       InstrumentationBridge.createTestEventsHandler("scalatest");
   private final java.util.Set<TestIdentifier> skippedTests = ConcurrentHashMap.newKeySet();
-  private final java.util.Set<TestIdentifier> unskippableTestIdentifiers =
-      ConcurrentHashMap.newKeySet();
+  private final java.util.Set<TestIdentifier> unskippableTests = ConcurrentHashMap.newKeySet();
   private final java.util.Map<TestIdentifier, TestRetryPolicy> retryPolicies =
       new ConcurrentHashMap<>();
 
@@ -44,7 +46,7 @@ public class RunContext {
     return runStamp;
   }
 
-  public TestEventsHandler getEventHandler() {
+  public TestEventsHandler<TestSuiteDescriptor, TestDescriptor> getEventHandler() {
     return eventHandler;
   }
 
@@ -53,7 +55,7 @@ public class RunContext {
   }
 
   public boolean unskippable(TestIdentifier test) {
-    return unskippableTestIdentifiers.remove(test);
+    return unskippableTests.remove(test);
   }
 
   public scala.collection.immutable.List<Tuple2<String, Boolean>> skip(
@@ -81,7 +83,7 @@ public class RunContext {
     String testName = testNameAndSkipStatus._1();
     TestIdentifier test = new TestIdentifier(suiteId, testName, null, null);
     if (isUnskippable(test, tags)) {
-      unskippableTestIdentifiers.add(test);
+      unskippableTests.add(test);
       return testNameAndSkipStatus;
 
     } else if (eventHandler.skip(test)) {
@@ -95,7 +97,7 @@ public class RunContext {
 
   public boolean skip(TestIdentifier test, Map<String, Set<String>> tags) {
     if (isUnskippable(test, tags)) {
-      unskippableTestIdentifiers.add(test);
+      unskippableTests.add(test);
       return false;
     } else if (eventHandler.skip(test)) {
       skippedTests.add(test);
@@ -114,8 +116,20 @@ public class RunContext {
     return testTags != null && testTags.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
   }
 
-  public TestRetryPolicy retryPolicy(TestIdentifier test) {
-    return retryPolicies.computeIfAbsent(test, eventHandler::retryPolicy);
+  public TestRetryPolicy retryPolicy(TestIdentifier testIdentifier) {
+    return retryPolicies.computeIfAbsent(testIdentifier, eventHandler::retryPolicy);
+  }
+
+  @Nullable
+  public TestRetryPolicy popRetryPolicy(TestIdentifier testIdentifier) {
+    TestRetryPolicy[] holder = new TestRetryPolicy[1];
+    retryPolicies.computeIfPresent(
+        testIdentifier,
+        (ti, retryPolicy) -> {
+          holder[0] = retryPolicy;
+          return retryPolicy.retriesLeft() ? retryPolicy : null;
+        });
+    return holder[0];
   }
 
   public void destroy() {

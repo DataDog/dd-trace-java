@@ -5,6 +5,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
@@ -29,7 +30,8 @@ public class PeerServiceCalculator implements TagsPostProcessor {
   }
 
   @Override
-  public Map<String, Object> processTags(Map<String, Object> unsafeTags) {
+  public Map<String, Object> processTags(
+      Map<String, Object> unsafeTags, DDSpanContext spanContext) {
     Object peerService = unsafeTags.get(Tags.PEER_SERVICE);
     // the user set it
     if (peerService != null) {

@@ -20,7 +20,7 @@ import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseListener;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class OpensearchRestClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

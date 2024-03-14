@@ -1014,6 +1014,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> { pwafAdditive.close() }
+    _ * ctx.increaseTimeouts()
     0 * _
 
     when: 'removing data and override config'
@@ -1036,6 +1037,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     1 * reconf.reloadSubscriptions()
+    _ * ctx.increaseTimeouts()
     0 * _
 
     when: 'data is readded'
@@ -1058,6 +1060,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * flow.setAction({ it.blocking })
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     1 * flow.isBlocking()
+    _ * ctx.increaseTimeouts()
     0 * _
 
     when: 'toggling the rule off'
@@ -1078,6 +1081,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    _ * ctx.increaseTimeouts()
     0 * _
   }
 
@@ -1106,6 +1110,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
+    _ * ctx.increaseTimeouts()
     0 * _
 
     when: 'rule enabled in config a has no effect'
@@ -1128,6 +1133,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
+    _ * ctx.increaseTimeouts()
     0 * _
 
     when: 'rule enabled in config c overrides b'
@@ -1153,6 +1159,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * flow.setAction({ it.blocking })
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
+    _ * ctx.increaseTimeouts()
     0 * _
 
     when: 'removing c restores the state before c was added (rule disabled)'
@@ -1173,6 +1180,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
+    _ * ctx.increaseTimeouts()
     0 * _
   }
 
@@ -1263,6 +1271,44 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     ret.isEmpty()
+  }
+
+  void 'ephemeral and persistent addresses'() {
+    setupWithStubConfigService()
+    ChangeableFlow flow = Mock()
+
+    when:
+    def transientBundle = MapDataBundle.of(
+      KnownAddresses.REQUEST_BODY_OBJECT,
+      '/cybercop'
+      )
+    dataListener.onDataAvailable(flow, ctx, transientBundle, false)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>) >> {
+      it[0].iterator().next().ruleMatches[0].parameters[0].value == '/cybercop'
+    }
+    1 * ctx.getWafMetrics()
+    1 * flow.isBlocking()
+    0 * _
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+    ctx.closeAdditive()
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive }
+    1 * flow.setAction({ it.blocking })
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>) >> {
+      it[0].iterator().next().ruleMatches[0].parameters[0].value == 'user-to-block-1'
+    }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
+    0 * _
   }
 
   /**

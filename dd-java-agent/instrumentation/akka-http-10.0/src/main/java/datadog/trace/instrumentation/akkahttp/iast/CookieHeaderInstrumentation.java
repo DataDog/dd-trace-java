@@ -27,7 +27,7 @@ import scala.collection.immutable.Seq;
  *
  * @see Cookie#getCookies() Java API. Is implemented by delegating to the instrumented method.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public CookieHeaderInstrumentation() {

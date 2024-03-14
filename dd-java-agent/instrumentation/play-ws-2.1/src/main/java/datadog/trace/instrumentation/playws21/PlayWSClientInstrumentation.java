@@ -7,7 +7,7 @@ import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORAT
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS_REQUEST;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.instrumentation.playws.BasePlayWSClientInstrumentation;
@@ -17,7 +17,7 @@ import play.shaded.ahc.org.asynchttpclient.Request;
 import play.shaded.ahc.org.asynchttpclient.handler.StreamedAsyncHandler;
 import play.shaded.ahc.org.asynchttpclient.ws.WebSocketUpgradeHandler;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation {
   public static class ClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)

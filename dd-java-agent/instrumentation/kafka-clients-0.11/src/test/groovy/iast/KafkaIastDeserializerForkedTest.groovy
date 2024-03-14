@@ -1,9 +1,11 @@
 package iast
 
+import com.fasterxml.jackson.core.JsonParser
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable.Source
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -34,7 +36,7 @@ class KafkaIastDeserializerForkedTest extends AgentTestRunner {
 
     then:
     1 * propagationModule.taint(payload, source)
-    1 * codecModule.onStringFromBytes(payload, _, _)
+    1 * codecModule.onStringFromBytes(payload, _, _, _, _)
     0 * _
 
     where:
@@ -81,7 +83,7 @@ class KafkaIastDeserializerForkedTest extends AgentTestRunner {
 
     then:
     1 * propagationModule.taint(payload, source)
-    1 * propagationModule.taintIfTainted(_, payload)
+    1 * propagationModule.taintIfTainted(_, payload, true, VulnerabilityMarks.NOT_MARKED)
     0 * _
 
     where:
@@ -106,7 +108,7 @@ class KafkaIastDeserializerForkedTest extends AgentTestRunner {
 
     then:
     1 * propagationModule.taint(payload, source)
-    1 * propagationModule.taintIfTainted(_, payload)
+    1 * propagationModule.taintIfTainted(_ as JsonParser, payload)
     1 * propagationModule.findSource(_) >> Stub(Source) {
       getOrigin() >> source
       getValue() >> json

@@ -13,7 +13,7 @@ import net.bytebuddy.asm.Advice;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastOkHttp3Instrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

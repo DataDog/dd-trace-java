@@ -4,12 +4,12 @@ import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
-import static com.datadog.iast.IastTag.ANALYZED
-import static com.datadog.iast.IastTag.SKIPPED
+import static com.datadog.iast.IastTag.Enabled.ANALYZED
+import static com.datadog.iast.IastTag.Enabled.SKIPPED
 
 class IastTagTest extends DDSpecification {
 
-  void 'tags are sent on the segment'(final IastTag tag) {
+  void 'tags are sent on the segment'() {
     given:
     final segment = Mock(TraceSegment)
 
@@ -20,12 +20,12 @@ class IastTagTest extends DDSpecification {
     1 * segment.setTagTop(tag.key(), tag.value())
 
     where:
-    tag      | _
+    tag              | _
     ANALYZED | _
-    SKIPPED  | _
+    SKIPPED | _
   }
 
-  void 'tags dont fail with null segment'(final IastTag tag) {
+  void 'tags dont fail with null segment'() {
     when:
     tag.setTagTop(null)
 
@@ -33,12 +33,12 @@ class IastTagTest extends DDSpecification {
     noExceptionThrown()
 
     where:
-    tag      | _
+    tag              | _
     ANALYZED | _
-    SKIPPED  | _
+    SKIPPED | _
   }
 
-  void 'tags are sent on the span'(final IastTag tag) {
+  void 'tags are sent on the span'() {
     given:
     final span = Mock(AgentSpan)
 
@@ -49,12 +49,12 @@ class IastTagTest extends DDSpecification {
     1 * span.setTag(tag.key(), tag.value())
 
     where:
-    tag      | _
+    tag              | _
     ANALYZED | _
-    SKIPPED  | _
+    SKIPPED | _
   }
 
-  void 'tags dont fail with null span'(final IastTag tag) {
+  void 'tags dont fail with null span'() {
     when:
     tag.setTag(null)
 
@@ -62,8 +62,28 @@ class IastTagTest extends DDSpecification {
     noExceptionThrown()
 
     where:
-    tag      | _
+    tag              | _
     ANALYZED | _
-    SKIPPED  | _
+    SKIPPED | _
+  }
+
+  void 'enabled tags are not set if IAST is opt-out'() {
+    given:
+    injectSysConfig('iast.enabled', 'false')
+    final span = Mock(AgentSpan)
+    final segment = Mock(TraceSegment)
+    final tag = IastTag.Enabled.withValue(1)
+
+    when:
+    tag.setTag(span)
+
+    then:
+    0 * _
+
+    when:
+    tag.setTagTop(segment)
+
+    then:
+    0 * _
   }
 }

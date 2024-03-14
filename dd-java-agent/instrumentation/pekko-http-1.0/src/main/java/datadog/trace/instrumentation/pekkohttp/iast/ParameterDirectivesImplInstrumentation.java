@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.server.Directive;
 import org.apache.pekko.http.scaladsl.server.util.Tupler$;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public ParameterDirectivesImplInstrumentation() {

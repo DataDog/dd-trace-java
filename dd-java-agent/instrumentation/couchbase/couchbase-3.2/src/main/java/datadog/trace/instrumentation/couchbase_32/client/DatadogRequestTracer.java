@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.couchbase_32.client;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.instrumentation.couchbase_32.client.CouchbaseClientDecorator.COUCHBASE_CLIENT;
 import static datadog.trace.instrumentation.couchbase_32.client.CouchbaseClientDecorator.OPERATION_NAME;
 
 import com.couchbase.client.core.Core;
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.cnc.RequestTracer;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -39,24 +41,32 @@ public class DatadogRequestTracer implements RequestTracer {
     if (null == parent) {
       parent = tracer.activeSpan();
     }
-    if (null != parent && COUCHBASE_CLIENT.equals(parent.getTag(Tags.COMPONENT))) {
-      spanName = COUCHBASE_INTERNAL;
-      measured = false;
-      seedNodes = parent.getTag(InstrumentationTags.COUCHBASE_SEED_NODES);
-    }
+    DatadogRequestSpan requestSpan = null;
 
-    AgentTracer.SpanBuilder builder = tracer.buildSpan(spanName);
-    if (null != parent) {
-      builder.asChildOf(parent.context());
+    if (null != parent && COUCHBASE_CLIENT.equals(parent.getTag(Tags.COMPONENT))) {
+      if (!Config.get().isCouchbaseInternalSpansEnabled()) {
+        // mute the tracing related to internal spans
+        requestSpan = DatadogRequestSpan.wrap(blackholeSpan(), coreContext);
+      } else {
+        spanName = COUCHBASE_INTERNAL;
+        measured = false;
+        seedNodes = parent.getTag(InstrumentationTags.COUCHBASE_SEED_NODES);
+      }
     }
-    AgentSpan span = builder.start();
-    CouchbaseClientDecorator.DECORATE.afterStart(span);
-    span.setResourceName(requestName);
-    span.setMeasured(measured);
-    if (seedNodes != null) {
-      span.setTag(InstrumentationTags.COUCHBASE_SEED_NODES, seedNodes);
+    if (requestSpan == null) {
+      AgentTracer.SpanBuilder builder = tracer.buildSpan(spanName);
+      if (null != parent) {
+        builder.asChildOf(parent.context());
+      }
+      AgentSpan span = builder.start();
+      CouchbaseClientDecorator.DECORATE.afterStart(span);
+      span.setResourceName(requestName);
+      span.setMeasured(measured);
+      if (seedNodes != null) {
+        span.setTag(InstrumentationTags.COUCHBASE_SEED_NODES, seedNodes);
+      }
+      requestSpan = DatadogRequestSpan.wrap(span, coreContext);
     }
-    DatadogRequestSpan requestSpan = DatadogRequestSpan.wrap(span, coreContext);
     // When Couchbase converts a query to a prepare statement or execute statement,
     // it will not finish the original span
     switch (requestName) {

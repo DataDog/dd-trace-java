@@ -8,7 +8,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Collections;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

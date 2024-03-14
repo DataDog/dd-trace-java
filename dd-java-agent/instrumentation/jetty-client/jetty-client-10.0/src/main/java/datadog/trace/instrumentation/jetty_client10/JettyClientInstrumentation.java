@@ -18,7 +18,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JettyClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
   public JettyClientInstrumentation() {

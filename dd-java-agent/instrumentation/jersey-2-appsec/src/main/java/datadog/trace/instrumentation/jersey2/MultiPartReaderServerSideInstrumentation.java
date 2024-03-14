@@ -30,7 +30,7 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.MultiPart;
 import org.glassfish.jersey.message.internal.MediaTypes;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

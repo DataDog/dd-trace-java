@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Request;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ServerHandleInstrumentation() {

@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class FutureResponseListenerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

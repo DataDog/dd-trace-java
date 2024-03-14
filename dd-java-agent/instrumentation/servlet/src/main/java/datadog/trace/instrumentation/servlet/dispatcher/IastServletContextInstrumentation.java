@@ -22,7 +22,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class IastServletContextInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
@@ -55,6 +55,11 @@ public final class IastServletContextInstrumentation extends InstrumenterModule.
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("getRealPath")).and(takesArguments(String.class)),
         IastServletContextInstrumentation.class.getName() + "$IastContextAdvice");
+  }
+
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
   }
 
   public static class IastContextAdvice {

@@ -9,7 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.kotlin.coroutines.ScopeStateCoroutineContext.ScopeStateCoroutineContextItem;
 import kotlin.coroutines.CoroutineContext;
@@ -17,7 +17,7 @@ import kotlinx.coroutines.AbstractCoroutine;
 import kotlinx.coroutines.Job;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class KotlinCoroutines13Instrumentation extends AbstractCoroutinesInstrumentation {
 
   @Override

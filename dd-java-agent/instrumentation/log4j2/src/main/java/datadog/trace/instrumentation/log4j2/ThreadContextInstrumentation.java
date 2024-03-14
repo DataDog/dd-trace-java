@@ -11,7 +11,7 @@ import datadog.trace.api.WithGlobalTracer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ThreadContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   private static final String TYPE_NAME = "org.apache.logging.log4j.ThreadContext";

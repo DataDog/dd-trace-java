@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** @see org.springframework.http.server.reactive.ServerHttpRequest */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ServerHttpRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public ServerHttpRequestInstrumentation() {

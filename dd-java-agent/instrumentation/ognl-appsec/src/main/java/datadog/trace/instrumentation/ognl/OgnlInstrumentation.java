@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class OgnlInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

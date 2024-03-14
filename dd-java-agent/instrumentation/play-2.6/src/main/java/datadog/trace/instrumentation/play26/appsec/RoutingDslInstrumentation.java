@@ -16,7 +16,7 @@ import play.libs.F;
 import play.routing.RoutingDsl;
 
 /** @see RoutingDsl.Route */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RoutingDslInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public RoutingDslInstrumentation() {

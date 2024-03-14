@@ -16,7 +16,7 @@
       "test.type" : "test",
       "os.architecture" : ${content_meta_os_architecture},
       "test.module" : "cucumber-junit-5",
-      "test.status" : "pass",
+      "test.status" : "skip",
       "runtime.name" : ${content_meta_runtime_name},
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "env" : "none",
@@ -57,7 +57,7 @@
     "meta" : {
       "os.architecture" : ${content_meta_os_architecture},
       "test.module" : "cucumber-junit-5",
-      "test.status" : "pass",
+      "test.status" : "skip",
       "language" : "jvm",
       "runtime.name" : ${content_meta_runtime_name},
       "os.platform" : ${content_meta_os_platform},
@@ -70,11 +70,13 @@
       "runtime-id" : ${content_meta_runtime_id},
       "test.type" : "test",
       "test.traits" : "{\"category\":[\"foo\"]}",
+      "test.skip_reason" : "Skipped by Datadog Intelligent Test Runner",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "env" : "none",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "component" : "junit",
       "_dd.profiling.ctx" : "test",
+      "test.skipped_by_itr" : "true",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.framework" : "cucumber"
     }
@@ -92,13 +94,14 @@
     "error" : 0,
     "metrics" : {
       "process_id" : ${content_metrics_process_id},
-      "test.itr.tests_skipping.count" : 0,
+      "test.itr.tests_skipping.count" : 1,
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0
     },
     "meta" : {
       "os.architecture" : ${content_meta_os_architecture},
-      "test.status" : "pass",
+      "test.status" : "skip",
+      "_dd.ci.itr.tests_skipped" : "true",
       "language" : "jvm",
       "runtime.name" : ${content_meta_runtime_name},
       "os.platform" : ${content_meta_os_platform},
@@ -133,13 +136,14 @@
     "duration" : ${content_duration_4},
     "error" : 0,
     "metrics" : {
-      "test.itr.tests_skipping.count" : 0
+      "test.itr.tests_skipping.count" : 1
     },
     "meta" : {
       "test.type" : "test",
       "os.architecture" : ${content_meta_os_architecture},
       "test.module" : "cucumber-junit-5",
-      "test.status" : "pass",
+      "test.status" : "skip",
+      "_dd.ci.itr.tests_skipped" : "true",
       "runtime.name" : ${content_meta_runtime_name},
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "env" : "none",

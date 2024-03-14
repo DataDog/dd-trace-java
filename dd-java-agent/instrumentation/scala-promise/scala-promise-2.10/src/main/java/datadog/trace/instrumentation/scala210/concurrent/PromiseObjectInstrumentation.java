@@ -23,7 +23,7 @@ import scala.util.Try;
  * to take priority over any spans captured while adding computations to a {@code Future} associated
  * with a {@code Promise}, then we capture the active span when the {@code Try} is resolved.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PromiseObjectInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -32,9 +32,9 @@ public class ClassCallSite {
   @CallSite.Before(
       "java.lang.reflect.Method java.lang.Class.getDeclaredMethod(java.lang.String, java.lang.Class[])")
   public static void beforeMethodReflection(
-      @CallSite.This @Nonnull final Class clazz,
+      @CallSite.This @Nonnull final Class<?> clazz,
       @CallSite.Argument(0) @Nonnull final String methodName,
-      @CallSite.Argument(1) @Nullable final Class... parameterTypes) {
+      @CallSite.Argument(1) @Nullable final Class<?>... parameterTypes) {
     final ReflectionInjectionModule module = InstrumentationBridge.REFLECTION_INJECTION;
     if (module != null) {
       try {
@@ -48,7 +48,7 @@ public class ClassCallSite {
   @CallSite.Before("java.lang.reflect.Field java.lang.Class.getField(java.lang.String)")
   @CallSite.Before("java.lang.reflect.Field java.lang.Class.getDeclaredField(java.lang.String)")
   public static void beforeFieldReflection(
-      @CallSite.This @Nonnull final Class clazz,
+      @CallSite.This @Nonnull final Class<?> clazz,
       @CallSite.Argument(0) @Nonnull final String fieldName) {
     final ReflectionInjectionModule module = InstrumentationBridge.REFLECTION_INJECTION;
     if (module != null) {

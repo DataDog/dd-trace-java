@@ -14,7 +14,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class Servlet3Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public Servlet3Instrumentation() {

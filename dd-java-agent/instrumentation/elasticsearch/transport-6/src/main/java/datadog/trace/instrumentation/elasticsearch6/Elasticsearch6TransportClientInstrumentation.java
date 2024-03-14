@@ -23,7 +23,7 @@ import org.elasticsearch.action.ActionResponse;
  * Most of this class is identical to version 5's instrumentation, but they changed an interface to
  * an abstract class, so the bytecode isn't directly compatible.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Elasticsearch6TransportClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

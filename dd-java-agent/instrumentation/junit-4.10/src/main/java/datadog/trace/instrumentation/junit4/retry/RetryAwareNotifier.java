@@ -27,7 +27,7 @@ public class RetryAwareNotifier extends RunNotifier {
   public void fireTestFailure(Failure failure) {
     this.failed = true;
 
-    if (!retryPolicy.retryPossible() || !retryPolicy.suppressFailures()) {
+    if (!retryPolicy.retriesLeft() || !retryPolicy.suppressFailures()) {
       super.fireTestFailure(failure);
       return;
     }

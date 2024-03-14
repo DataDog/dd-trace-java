@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 import org.junit.Rule
-import spock.lang.Unroll
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
@@ -2080,7 +2079,6 @@ class ConfigTest extends DDSpecification {
     config.getMetricsIgnoredResources() == ["GET /healthcheck", "SELECT foo from bar"].toSet()
   }
 
-  @Unroll
   def "appsec state with sys = #sys env = #env"() {
     setup:
     if (sys != null) {

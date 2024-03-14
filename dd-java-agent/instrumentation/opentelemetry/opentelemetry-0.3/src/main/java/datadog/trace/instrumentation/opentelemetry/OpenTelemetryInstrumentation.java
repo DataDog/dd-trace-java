@@ -13,7 +13,7 @@ import net.bytebuddy.asm.Advice;
 /**
  * This is experimental instrumentation and should only be enabled for evaluation/testing purposes.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public OpenTelemetryInstrumentation() {

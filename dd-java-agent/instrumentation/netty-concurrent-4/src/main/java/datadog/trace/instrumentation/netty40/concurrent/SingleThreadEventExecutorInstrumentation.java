@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForKnownTypes {
   public SingleThreadEventExecutorInstrumentation() {

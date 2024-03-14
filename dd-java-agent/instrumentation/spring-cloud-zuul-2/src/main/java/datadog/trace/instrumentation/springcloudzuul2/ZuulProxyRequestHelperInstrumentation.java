@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Locale;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ZuulProxyRequestHelperInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ZuulProxyRequestHelperInstrumentation() {

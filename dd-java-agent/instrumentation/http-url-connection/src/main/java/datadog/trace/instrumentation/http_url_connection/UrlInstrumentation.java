@@ -17,7 +17,7 @@ import java.net.URL;
 import java.net.URLStreamHandler;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class UrlInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 

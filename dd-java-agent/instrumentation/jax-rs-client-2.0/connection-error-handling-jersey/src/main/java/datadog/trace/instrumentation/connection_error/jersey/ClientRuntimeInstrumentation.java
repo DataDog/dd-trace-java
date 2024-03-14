@@ -13,7 +13,7 @@ import javax.ws.rs.ProcessingException;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.jersey.client.ClientRequest;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ClientRuntimeInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ClientRuntimeInstrumentation() {

@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class JUnitPlatformUtils {
 
+  public static final String RETRY_DESCRIPTOR_ID_SUFFIX = "retry-attempt";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitPlatformUtils.class);
 
   private JUnitPlatformUtils() {}
@@ -90,22 +92,14 @@ public abstract class JUnitPlatformUtils {
     return "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(displayName) + "\"}}";
   }
 
-  public static TestIdentifier toTestIdentifier(
-      TestDescriptor testDescriptor, boolean includeParameters) {
+  public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof MethodSource) {
       MethodSource methodSource = (MethodSource) testSource;
       String testSuiteName = methodSource.getClassName();
       String testName = methodSource.getMethodName();
-
-      String testParameters;
-      if (includeParameters) {
-        String displayName = testDescriptor.getDisplayName();
-        testParameters = getParameters(methodSource, displayName);
-      } else {
-        testParameters = null;
-      }
-
+      String displayName = testDescriptor.getDisplayName();
+      String testParameters = getParameters(methodSource, displayName);
       return new TestIdentifier(testSuiteName, testName, testParameters, null);
 
     } else {
@@ -160,5 +154,19 @@ public abstract class JUnitPlatformUtils {
     UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
     return "class".equals(lastSegment.getType()) // "regular" JUnit test class
         || "nested-class".equals(lastSegment.getType()); // nested JUnit test class
+  }
+
+  public static boolean isRetry(TestDescriptor testDescriptor) {
+    UniqueId uniqueId = testDescriptor.getUniqueId();
+    List<UniqueId.Segment> segments = uniqueId.getSegments();
+    UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
+    return RETRY_DESCRIPTOR_ID_SUFFIX.equals(lastSegment.getType());
+  }
+
+  public static TestDescriptor getSuiteDescriptor(TestDescriptor testDescriptor) {
+    while (testDescriptor != null && !isSuite(testDescriptor)) {
+      testDescriptor = testDescriptor.getParent().orElse(null);
+    }
+    return testDescriptor;
   }
 }

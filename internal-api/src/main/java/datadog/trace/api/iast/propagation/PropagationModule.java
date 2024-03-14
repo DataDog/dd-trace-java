@@ -19,6 +19,18 @@ public interface PropagationModule extends IastModule {
    */
   void taint(@Nullable IastContext ctx, @Nullable Object target, byte origin);
 
+  /** @see #taint(IastContext, Object, byte, int, int) */
+  void taint(@Nullable Object target, byte origin, int start, int length);
+
+  /**
+   * Taints the object with a source with the selected origin, range and no name. If target is a
+   * char sequence it will be used as value.
+   *
+   * <p>If the value is already tainted this method will append a new range.
+   */
+  void taint(
+      @Nullable IastContext ctx, @Nullable Object target, byte origin, int start, int length);
+
   /** @see #taint(IastContext, Object, byte, CharSequence) */
   void taint(@Nullable Object target, byte origin, @Nullable CharSequence name);
 
@@ -49,6 +61,33 @@ public interface PropagationModule extends IastModule {
    * priority source of the input to taint the object.
    */
   void taintIfTainted(@Nullable IastContext ctx, @Nullable Object target, @Nullable Object input);
+
+  /** @see #taintIfTainted(IastContext, Object, Object, int, int, boolean, int) */
+  void taintIfTainted(
+      @Nullable Object target,
+      @Nullable Object input,
+      int start,
+      int length,
+      boolean keepRanges,
+      int mark);
+
+  /**
+   * Taints the object only if the input value has a tainted range that intersects with the
+   * specified range. It will try to reuse sources from the input value according to:
+   *
+   * <ul>
+   *   <li>keepRanges=true will reuse the ranges from the intersection and mark them
+   *   <li>keepRanges=false will use the highest priority source from the intersection and mark it
+   * </ul>
+   */
+  void taintIfTainted(
+      @Nullable IastContext ctx,
+      @Nullable Object target,
+      @Nullable Object input,
+      int start,
+      int length,
+      boolean keepRanges,
+      int mark);
 
   /** @see #taintIfTainted(IastContext, Object, Object, boolean, int) */
   void taintIfTainted(

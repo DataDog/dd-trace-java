@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  *
  * @see datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ReactiveStreamsInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

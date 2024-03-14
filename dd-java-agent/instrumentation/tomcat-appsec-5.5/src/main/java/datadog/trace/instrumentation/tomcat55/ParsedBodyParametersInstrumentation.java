@@ -26,7 +26,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.tomcat.util.http.Parameters;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

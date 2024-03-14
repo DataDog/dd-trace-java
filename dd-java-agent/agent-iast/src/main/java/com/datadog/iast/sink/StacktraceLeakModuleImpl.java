@@ -8,11 +8,11 @@ import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.iast.sink.StacktraceLeakModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class StacktraceLeakModuleImpl extends SinkModuleBase implements StacktraceLeakModule {
 
-  public StacktraceLeakModuleImpl(@NotNull Dependencies dependencies) {
+  public StacktraceLeakModuleImpl(@Nonnull Dependencies dependencies) {
     super(dependencies);
   }
 
@@ -21,7 +21,6 @@ public class StacktraceLeakModuleImpl extends SinkModuleBase implements Stacktra
       Throwable throwable, String moduleName, String className, String methodName) {
     if (throwable != null) {
       final AgentSpan span = AgentTracer.activeSpan();
-
       Evidence evidence =
           new Evidence(
               "ExceptionHandler in "
@@ -29,9 +28,7 @@ public class StacktraceLeakModuleImpl extends SinkModuleBase implements Stacktra
                   + " \r\nthrown "
                   + throwable.getClass().getName());
       Location location = Location.forSpanAndClassAndMethod(span, className, methodName);
-
-      reporter.report(
-          span, new Vulnerability(VulnerabilityType.STACKTRACE_LEAK, location, evidence));
+      report(span, new Vulnerability(VulnerabilityType.STACKTRACE_LEAK, location, evidence));
     }
   }
 }

@@ -14,7 +14,7 @@ import net.bytebuddy.asm.Advice;
  * This instrumentation intercepts the JVM shutdown process and allows calling an arbitrary code
  * before the shutdown hooks are called.<br>
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ShutdownInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 

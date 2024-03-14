@@ -9,7 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ErrorReportValueInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
@@ -25,6 +25,11 @@ public class ErrorReportValueInstrumentation extends InstrumenterModule.Iast
   @Override
   public String instrumentedType() {
     return "org.apache.catalina.valves.ErrorReportValve";
+  }
+
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
   }
 
   @Override
