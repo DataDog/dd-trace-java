@@ -37,7 +37,7 @@ public class SessionRewritingModuleImpl extends SinkModuleBase implements Sessio
         span,
         new Vulnerability(
             VulnerabilityType.SESSION_REWRITING,
-            Location.forSpanAndStack(span, getCurrentStackTrace()),
+            Location.forSpan(span),
             new Evidence(EVIDENCE_VALUE)));
   }
 }
