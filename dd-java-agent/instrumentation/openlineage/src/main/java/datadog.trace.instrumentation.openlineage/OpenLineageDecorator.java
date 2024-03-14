@@ -36,7 +36,11 @@ public class OpenLineageDecorator {
       return;
     }
 
-    addOpenLineageMetadata(span, event);
+    try {
+      addOpenLineageMetadata(span, event);
+    } catch (Exception e) {
+      log.info("Exception while adding open lineage metadata", e);
+    }
     if (event.getEventType() == COMPLETE
         || event.getEventType() == ABORT
         || event.getEventType() == FAIL) {
@@ -49,7 +53,7 @@ public class OpenLineageDecorator {
     span.setTag("openlineage.full_event", OpenLineageClientUtils.toJson(event));
     span.setTag("openlineage.job.run.id", event.getRun().getRunId());
 
-    if (event.getRun().getFacets().getErrorMessage() != null) {
+    if (event.getRun().getFacets() != null && event.getRun().getFacets().getErrorMessage() != null) {
       OpenLineage.ErrorMessageRunFacet error = event.getRun().getFacets().getErrorMessage();
 
       span.setTag("openlineage.job.run.error.message", error.getMessage());
