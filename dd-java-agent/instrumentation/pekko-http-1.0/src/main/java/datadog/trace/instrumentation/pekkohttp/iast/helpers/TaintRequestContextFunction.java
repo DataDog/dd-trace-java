@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.pekkohttp.iast.helpers;
 
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import org.apache.pekko.http.scaladsl.server.RequestContext;
 import scala.Tuple1;
 import scala.compat.java8.JFunction1;
@@ -19,7 +21,11 @@ public class TaintRequestContextFunction
     if (mod == null) {
       return v1;
     }
-    mod.taint(reqCtx, SourceTypes.REQUEST_BODY);
+    IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
+    if (ctx == null) {
+      return v1;
+    }
+    mod.taint(ctx, reqCtx, SourceTypes.REQUEST_BODY);
 
     return v1;
   }

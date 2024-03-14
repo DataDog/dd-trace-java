@@ -11,8 +11,7 @@ public class TaintableEnumeration implements Enumeration<String> {
 
   private static final String CLASS_NAME = TaintableEnumeration.class.getName();
 
-  private volatile IastContext context;
-  private volatile boolean contextFetched;
+  private final IastContext context;
 
   private final PropagationModule module;
 
@@ -25,11 +24,13 @@ public class TaintableEnumeration implements Enumeration<String> {
   private final Enumeration<String> delegate;
 
   private TaintableEnumeration(
+      final IastContext ctx,
       @NonNull final Enumeration<String> delegate,
       @NonNull final PropagationModule module,
       final byte origin,
       @Nullable final CharSequence name,
       final boolean useValueAsName) {
+    this.context = ctx;
     this.delegate = delegate;
     this.module = module;
     this.origin = origin;
@@ -57,19 +58,11 @@ public class TaintableEnumeration implements Enumeration<String> {
       throw e;
     }
     try {
-      module.taint(context(), next, origin, name(next));
+      module.taint(context, next, origin, name(next));
     } catch (final Throwable e) {
       module.onUnexpectedException("Failed to taint enumeration", e);
     }
     return next;
-  }
-
-  private IastContext context() {
-    if (!contextFetched) {
-      contextFetched = true;
-      context = IastContext.Provider.get();
-    }
-    return context;
   }
 
   private CharSequence name(final String value) {
@@ -84,18 +77,20 @@ public class TaintableEnumeration implements Enumeration<String> {
   }
 
   public static Enumeration<String> wrap(
+      final IastContext ctx,
       @NonNull final Enumeration<String> delegate,
       @NonNull final PropagationModule module,
       final byte origin,
       @Nullable final CharSequence name) {
-    return new TaintableEnumeration(delegate, module, origin, name, false);
+    return new TaintableEnumeration(ctx, delegate, module, origin, name, false);
   }
 
   public static Enumeration<String> wrap(
+      final IastContext ctx,
       @NonNull final Enumeration<String> delegate,
       @NonNull final PropagationModule module,
       final byte origin,
       boolean useValueAsName) {
-    return new TaintableEnumeration(delegate, module, origin, null, useValueAsName);
+    return new TaintableEnumeration(ctx, delegate, module, origin, null, useValueAsName);
   }
 }

@@ -11,8 +11,12 @@ import akka.http.javadsl.model.HttpHeader;
 import akka.http.scaladsl.model.headers.Cookie;
 import akka.http.scaladsl.model.headers.HttpCookiePair;
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -50,20 +54,23 @@ public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
         CookieHeaderInstrumentation.class.getName() + "$TaintAllCookiesAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   static class TaintAllCookiesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(
-        @Advice.This HttpHeader cookie, @Advice.Return Seq<HttpCookiePair> cookiePairs) {
+        @Advice.This HttpHeader cookie,
+        @Advice.Return Seq<HttpCookiePair> cookiePairs,
+        @ActiveRequestContext RequestContext reqCtx) {
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
       if (prop == null || cookiePairs == null || cookiePairs.isEmpty()) {
         return;
       }
-      if (!prop.isTainted(cookie)) {
+      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      if (!prop.isTainted(ctx, cookie)) {
         return;
       }
 
-      final IastContext ctx = IastContext.Provider.get();
       Iterator<HttpCookiePair> iterator = cookiePairs.iterator();
       while (iterator.hasNext()) {
         HttpCookiePair pair = iterator.next();

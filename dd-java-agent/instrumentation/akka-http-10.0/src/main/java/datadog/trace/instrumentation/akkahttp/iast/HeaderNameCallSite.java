@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.akkahttp.iast;
 import akka.http.javadsl.model.HttpHeader;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -26,7 +27,11 @@ public class HeaderNameCallSite {
       return result;
     }
     try {
-      module.taintIfTainted(result, header, SourceTypes.REQUEST_HEADER_NAME, result);
+      final IastContext ctx = IastContext.Provider.get();
+      if (ctx == null) {
+        return result;
+      }
+      module.taintIfTainted(ctx, result, header, SourceTypes.REQUEST_HEADER_NAME, result);
     } catch (final Throwable e) {
       module.onUnexpectedException("onHeaderNames threw", e);
     }

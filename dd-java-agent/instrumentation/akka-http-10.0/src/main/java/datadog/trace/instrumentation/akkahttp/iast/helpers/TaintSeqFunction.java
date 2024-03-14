@@ -4,6 +4,7 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
@@ -27,7 +28,10 @@ public class TaintSeqFunction
       return v1;
     }
 
-    final IastContext ctx = IastContext.Provider.get();
+    IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
+    if (ctx == null) {
+      return v1;
+    }
     Iterator<Tuple2<String, String>> iterator = seq.iterator();
     Set<String> seenKeys = Collections.newSetFromMap(new IdentityHashMap<>());
     while (iterator.hasNext()) {
