@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.pekkohttp.iast.helpers;
 
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import org.apache.pekko.http.scaladsl.model.headers.HttpCookiePair;
 import scala.Tuple1;
 import scala.compat.java8.JFunction1;
@@ -19,10 +21,14 @@ public class TaintCookieFunction
     if (mod == null || httpCookiePair == null) {
       return v1;
     }
+    IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
+    if (ctx == null) {
+      return v1;
+    }
     final String name = httpCookiePair.name();
     final String value = httpCookiePair.value();
-    mod.taint(name, SourceTypes.REQUEST_COOKIE_NAME, name);
-    mod.taint(value, SourceTypes.REQUEST_COOKIE_VALUE, name);
+    mod.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+    mod.taint(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
     return v1;
   }
 }

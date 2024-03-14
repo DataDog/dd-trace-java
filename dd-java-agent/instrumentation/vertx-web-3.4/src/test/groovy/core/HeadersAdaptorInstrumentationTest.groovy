@@ -1,9 +1,12 @@
 package core
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import groovy.transform.CompileDynamic
 import io.netty.handler.codec.http.DefaultHttpHeaders
 import io.netty.handler.codec.http2.DefaultHttp2Headers
@@ -15,9 +18,15 @@ import org.junit.Assume
 @CompileDynamic
 class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
 
+  private Object iastCtx
+
   @Override
   protected void configurePreAgent() {
     injectSysConfig('dd.iast.enabled', 'true')
+  }
+
+  void setup() {
+    iastCtx = Stub(IastContext)
   }
 
   void 'test that get() is instrumented'() {
@@ -27,10 +36,10 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     addAll([key: 'value'], headers)
 
     when:
-    headers.get('key')
+    runUnderIastTrace { headers.get('key') }
 
     then:
-    1 * module.taintIfTainted('value', headers, SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taintIfTainted(iastCtx, 'value', headers, SourceTypes.REQUEST_HEADER_VALUE, 'key')
 
     where:
     headers        | _
@@ -45,19 +54,19 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     addAll([[key: 'value1'], [key: 'value2']], headers)
 
     when:
-    headers.getAll('key')
+    runUnderIastTrace { headers.getAll('key') }
 
     then:
-    1 * module.isTainted(headers) >> { false }
+    1 * module.isTainted(iastCtx, headers) >> { false }
     0 * _
 
     when:
-    headers.getAll('key')
+    runUnderIastTrace { headers.getAll('key') }
 
     then:
-    1 * module.isTainted(headers) >> { true }
-    1 * module.taint(_, 'value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
-    1 * module.taint(_, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.isTainted(iastCtx, headers) >> { true }
+    1 * module.taint(iastCtx, 'value1', SourceTypes.REQUEST_HEADER_VALUE, 'key')
+    1 * module.taint(iastCtx, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
 
     where:
     headers        | _
@@ -72,18 +81,18 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     addAll([[key: 'value1'], [key: 'value2']], headers)
 
     when:
-    headers.names()
+    runUnderIastTrace { headers.names() }
 
     then:
-    1 * module.isTainted(headers) >> { false }
+    1 * module.isTainted(iastCtx, headers) >> { false }
     0 * _
 
     when:
-    headers.names()
+    runUnderIastTrace { headers.names() }
 
     then:
-    1 * module.isTainted(headers) >> { true }
-    1 * module.taint(_, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
+    1 * module.isTainted(iastCtx, headers) >> { true }
+    1 * module.taint(iastCtx, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
 
     where:
     headers        | _
@@ -100,28 +109,38 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     addAll([[key: 'value1'], [key: 'value2']], headers)
 
     when:
-    final result = headers.entries()
+    final result = runUnderIastTrace { headers.entries() }
 
     then:
-    1 * module.isTainted(headers) >> { false }
+    1 * module.isTainted(iastCtx, headers) >> { false }
     0 * _
 
     when:
-    headers.entries()
+    runUnderIastTrace { headers.entries() }
 
     then:
-    1 * module.isTainted(headers) >> { true }
+    1 * module.isTainted(iastCtx, headers) >> { true }
     result.collect { it.key }.unique().each {
-      1 * module.taint(_, it, SourceTypes.REQUEST_HEADER_NAME, it)
+      1 * module.taint(iastCtx, it, SourceTypes.REQUEST_HEADER_NAME, it)
     }
     result.each {
-      1 * module.taint(_, it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
+      1 * module.taint(iastCtx, it.value, SourceTypes.REQUEST_HEADER_VALUE, it.key)
     }
 
     where:
     headers        | _
     httpAdaptor()  | _
     http2Adaptor() | _
+  }
+
+  protected <E> E runUnderIastTrace(Closure<E> cl) {
+    final ddctx = new TagContext().withRequestContextDataIast(iastCtx)
+    final span = TEST_TRACER.startSpan("test", "test-iast-span", ddctx)
+    try {
+      return AgentTracer.activateSpan(span).withCloseable(cl)
+    } finally {
+      span.finish()
+    }
   }
 
   private static boolean hasMethod(final Class<?> target, final String name, final Class<?>... types) {
