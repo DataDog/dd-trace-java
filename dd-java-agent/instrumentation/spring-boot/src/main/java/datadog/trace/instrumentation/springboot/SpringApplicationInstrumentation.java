@@ -15,7 +15,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
  * An instrumentation that set the service name according to what defined as
  * `spring.application.name`
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SpringApplicationInstrumentation() {

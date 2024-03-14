@@ -10,8 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.http.scaladsl.model.Uri;
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
@@ -23,7 +27,7 @@ import scala.Tuple2;
 import scala.collection.Iterator;
 
 /** Propagates taint from a {@link Uri} to query strings fetched from it. */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class UriInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public UriInstrumentation() {
@@ -63,34 +67,44 @@ public class UriInstrumentation extends InstrumenterModule.Iast
         UriInstrumentation.class.getName() + "$TaintQueryAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   static class TaintQueryStringAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
-    static void after(@Advice.This Uri uri, @Advice.Return scala.Option<String> ret) {
+    static void after(
+        @Advice.This Uri uri,
+        @Advice.Return scala.Option<String> ret,
+        @ActiveRequestContext RequestContext reqCtx) {
       PropagationModule mod = InstrumentationBridge.PROPAGATION;
       if (mod == null || ret.isEmpty()) {
         return;
       }
-      mod.taintIfTainted(ret.get(), uri);
+      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      mod.taintIfTainted(ctx, ret.get(), uri);
     }
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class TaintQueryAdvice {
     // bind uri to a variable of type Object so that this advice can also
     // be used from FromDataInstrumentaton
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    static void after(@Advice.This /*Uri*/ Object uri, @Advice.Return Uri.Query ret) {
+    static void after(
+        @Advice.This /*Uri*/ Object uri,
+        @Advice.Return Uri.Query ret,
+        @ActiveRequestContext RequestContext reqCtx) {
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
       if (prop == null || ret.isEmpty()) {
         return;
       }
 
-      if (!prop.isTainted(uri)) {
+      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+
+      if (!prop.isTainted(ctx, uri)) {
         return;
       }
 
-      final IastContext ctx = IastContext.Provider.get();
       Iterator<Tuple2<String, String>> iterator = ret.iterator();
       while (iterator.hasNext()) {
         Tuple2<String, String> pair = iterator.next();

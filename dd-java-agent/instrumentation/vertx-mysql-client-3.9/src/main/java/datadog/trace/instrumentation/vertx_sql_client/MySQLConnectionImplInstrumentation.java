@@ -11,7 +11,7 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.util.HashMap;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MySQLConnectionImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public MySQLConnectionImplInstrumentation() {

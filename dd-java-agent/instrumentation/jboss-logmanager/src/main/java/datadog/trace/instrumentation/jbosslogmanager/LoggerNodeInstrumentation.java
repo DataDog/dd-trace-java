@@ -17,7 +17,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.jboss.logmanager.ExtLogRecord;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public LoggerNodeInstrumentation() {

@@ -15,7 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SocketConnectInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForSingleType {
 

@@ -216,14 +216,10 @@ public class GatewayBridge {
           EVENTS.requestPathParams(),
           (ctx_, data) -> {
             AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null) {
+            if (ctx == null || ctx.isPathParamsPublished()) {
               return NoopFlow.INSTANCE;
             }
-
-            if (ctx.isPathParamsPublished()) {
-              log.debug("Second or subsequent publication of request params");
-              return NoopFlow.INSTANCE;
-            }
+            ctx.setPathParamsPublished(true);
 
             while (true) {
               DataSubscriberInfo subInfo = pathParamsSubInfo;

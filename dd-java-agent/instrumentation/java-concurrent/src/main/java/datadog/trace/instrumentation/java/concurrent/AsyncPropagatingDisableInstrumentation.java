@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * it can cause the trace to never be reported. Add matchers below to disable async propagation
  * during this period.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AsyncPropagatingDisableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 

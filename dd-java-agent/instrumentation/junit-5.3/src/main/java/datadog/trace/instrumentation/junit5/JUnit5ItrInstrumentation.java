@@ -23,7 +23,7 @@ import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JUnit5ItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 

@@ -16,7 +16,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpServerRequestInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public HttpServerRequestInstrumentation() {

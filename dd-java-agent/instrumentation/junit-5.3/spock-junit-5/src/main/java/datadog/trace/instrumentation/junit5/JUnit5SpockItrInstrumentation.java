@@ -23,7 +23,7 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 import org.spockframework.runtime.SpecNode;
 import org.spockframework.runtime.SpockNode;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 

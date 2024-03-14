@@ -16,7 +16,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Described in {@link CompletableFutureUniCompletionInstrumentation} */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CompletableFutureUniCompletionSubclassInstrumentation
     extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {

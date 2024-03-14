@@ -18,7 +18,7 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RequestImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
   public RequestImplInstrumentation() {

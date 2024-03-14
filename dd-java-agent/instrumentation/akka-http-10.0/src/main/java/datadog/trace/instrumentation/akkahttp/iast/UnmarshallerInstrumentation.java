@@ -32,7 +32,7 @@ import scala.concurrent.Future;
  * If, on the other hand, the unmarshallers transform input before passing it to their inner
  * unmarshallers, this propagation mechanism will not work.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public UnmarshallerInstrumentation() {

@@ -11,7 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.HashMap;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PreparedStatementImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public PreparedStatementImplInstrumentation() {

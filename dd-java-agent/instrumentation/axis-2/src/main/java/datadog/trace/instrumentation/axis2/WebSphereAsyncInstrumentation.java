@@ -14,7 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class WebSphereAsyncInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

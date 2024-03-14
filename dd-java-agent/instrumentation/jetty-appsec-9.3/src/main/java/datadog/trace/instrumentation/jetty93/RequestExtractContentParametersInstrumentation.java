@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RequestExtractContentParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   private static final String MULTI_MAP_INTERNAL_NAME = "Lorg/eclipse/jetty/util/MultiMap;";

@@ -13,7 +13,7 @@ import net.bytebuddy.matcher.ElementMatchers;
  * war based deployment NB: it could be a ForClassHierarchy but is really unusual to have the method
  * overridden and the base one skipped
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SpringServletInitializerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public SpringServletInitializerInstrumentation() {

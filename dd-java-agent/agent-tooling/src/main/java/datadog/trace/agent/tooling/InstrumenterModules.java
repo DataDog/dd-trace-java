@@ -13,64 +13,65 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Provides a stable sequence of {@link Instrumenters} registered as META-INF services. The id of
- * the {@link Instrumenter} currently being installed is available during iteration by calling
- * {@link #currentInstrumentationId()}.
+ * Provides a stable sequence of {@link InstrumenterModule}s registered as META-INF services. The id
+ * of the instrumentation currently being installed is available during iteration by calling {@link
+ * #currentInstrumentationId()}.
  *
- * <p>Note: it is expected that only one thread will iterate over instrumenters at a time.
+ * <p>Note: it is expected that only one thread will iterate over this sequence at a time.
  */
-public final class Instrumenters implements Iterable<Instrumenter> {
-  static final Logger log = LoggerFactory.getLogger(Instrumenters.class);
+public final class InstrumenterModules implements Iterable<InstrumenterModule> {
+  static final Logger log = LoggerFactory.getLogger(InstrumenterModules.class);
 
   final ClassLoader loader;
   final String[] names;
 
-  final Instrumenter[] instrumenters;
+  final InstrumenterModule[] modules;
   static int currentInstrumentationId;
 
-  public static Instrumenters load(ClassLoader loader) {
-    return new Instrumenters(loader, loadInstrumenterNames(loader));
+  public static InstrumenterModules load() {
+    ClassLoader loader = InstrumenterModule.class.getClassLoader();
+    return new InstrumenterModules(loader, loadModuleNames(loader));
   }
 
-  Instrumenters(ClassLoader loader, String[] names) {
+  InstrumenterModules(ClassLoader loader, String[] names) {
     this.loader = loader;
     this.names = names;
 
-    this.instrumenters = new Instrumenter[names.length];
+    this.modules = new InstrumenterModule[names.length];
   }
 
   public int maxInstrumentationId() {
-    return instrumenters.length;
+    return modules.length;
   }
 
-  /** Returns the id of the {@link Instrumenter} currently being installed. */
+  /** Returns the id of the instrumentation currently being installed. */
   public static int currentInstrumentationId() {
     return currentInstrumentationId;
   }
 
   @Override
-  public Iterator<Instrumenter> iterator() {
-    return new Iterator<Instrumenter>() {
+  public Iterator<InstrumenterModule> iterator() {
+    return new Iterator<InstrumenterModule>() {
       private int index = 0;
 
       @Override
       public boolean hasNext() {
-        while (index < instrumenters.length) {
-          if (null != instrumenters[index]) {
+        while (index < modules.length) {
+          if (null != modules[index]) {
             currentInstrumentationId = index;
             return true;
           }
           String nextName = names[index];
           if (null != nextName) {
             try {
-              currentInstrumentationId = index; // set before loading instrumenter
+              currentInstrumentationId = index; // set before loading the next module
               @SuppressWarnings({"rawtypes", "unchecked"})
-              Class<Instrumenter> nextType = (Class) loader.loadClass(nextName);
-              instrumenters[index] = nextType.getConstructor().newInstance();
+              Class<InstrumenterModule> nextType = (Class) loader.loadClass(nextName);
+              modules[index] = nextType.getConstructor().newInstance();
               return true;
             } catch (Throwable e) {
               log.error("Failed to load - instrumentation.class={}", nextName, e);
-              names[index] = null; // only attempt to load instrumenter once
+              names[index] = null; // only attempt to load each module once
             }
           }
           index++;
@@ -79,9 +80,9 @@ public final class Instrumenters implements Iterable<Instrumenter> {
       }
 
       @Override
-      public Instrumenter next() {
+      public InstrumenterModule next() {
         if (hasNext()) {
-          return instrumenters[index++];
+          return modules[index++];
         } else {
           throw new NoSuchElementException();
         }
@@ -94,11 +95,11 @@ public final class Instrumenters implements Iterable<Instrumenter> {
     };
   }
 
-  private static String[] loadInstrumenterNames(ClassLoader loader) {
+  private static String[] loadModuleNames(ClassLoader loader) {
     Set<String> lines = new LinkedHashSet<>();
     try {
       Enumeration<URL> urls =
-          loader.getResources("META-INF/services/datadog.trace.agent.tooling.Instrumenter");
+          loader.getResources("META-INF/services/datadog.trace.agent.tooling.InstrumenterModule");
       while (urls.hasMoreElements()) {
         try (BufferedReader reader =
             new BufferedReader(

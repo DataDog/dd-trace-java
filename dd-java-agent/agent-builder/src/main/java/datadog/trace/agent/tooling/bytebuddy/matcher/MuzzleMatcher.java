@@ -10,8 +10,8 @@ import net.bytebuddy.utility.JavaModule;
 public final class MuzzleMatcher implements AgentBuilder.RawMatcher {
   private final MuzzleCheck muzzleCheck;
 
-  public MuzzleMatcher(InstrumenterModule instrumenter) {
-    this.muzzleCheck = new MuzzleCheck(instrumenter);
+  public MuzzleMatcher(InstrumenterModule module) {
+    this.muzzleCheck = new MuzzleCheck(module);
   }
 
   @Override

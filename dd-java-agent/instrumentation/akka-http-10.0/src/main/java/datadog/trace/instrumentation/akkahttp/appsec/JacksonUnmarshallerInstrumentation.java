@@ -14,7 +14,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JacksonUnmarshallerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

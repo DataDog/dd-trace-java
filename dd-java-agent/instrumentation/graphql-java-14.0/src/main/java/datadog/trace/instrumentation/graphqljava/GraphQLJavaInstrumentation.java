@@ -12,7 +12,7 @@ import graphql.execution.ValueUnboxer;
 import graphql.execution.instrumentation.Instrumentation;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

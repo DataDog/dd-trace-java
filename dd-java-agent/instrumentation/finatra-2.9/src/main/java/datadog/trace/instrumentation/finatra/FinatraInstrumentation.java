@@ -27,7 +27,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.Some;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FinatraInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public FinatraInstrumentation() {

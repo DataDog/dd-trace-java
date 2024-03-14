@@ -19,7 +19,7 @@ import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration;
  * JAX-RS Client API doesn't define a good point where we can handle connection failures, so we must
  * handle these errors at the implementation level.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ResteasyClientConnectionErrorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

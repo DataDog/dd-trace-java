@@ -8,7 +8,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MonoFluxInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public MonoFluxInstrumentation() {

@@ -23,7 +23,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JavaTimerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
   public JavaTimerInstrumentation() {

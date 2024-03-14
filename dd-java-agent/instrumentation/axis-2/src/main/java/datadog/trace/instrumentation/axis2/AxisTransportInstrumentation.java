@@ -22,7 +22,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AxisTransportInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType {
 

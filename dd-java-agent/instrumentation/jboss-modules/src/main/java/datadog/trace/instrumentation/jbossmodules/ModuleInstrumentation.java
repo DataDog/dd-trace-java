@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleLinkageHelper;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ModuleInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ModuleInstrumentation() {

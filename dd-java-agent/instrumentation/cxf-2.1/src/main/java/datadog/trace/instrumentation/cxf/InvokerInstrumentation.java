@@ -16,7 +16,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.cxf.message.Exchange;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class InvokerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public InvokerInstrumentation() {

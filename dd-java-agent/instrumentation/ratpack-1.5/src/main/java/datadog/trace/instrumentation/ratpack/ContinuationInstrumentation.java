@@ -16,7 +16,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import ratpack.func.Block;
 import ratpack.path.PathBinding;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ContinuationInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

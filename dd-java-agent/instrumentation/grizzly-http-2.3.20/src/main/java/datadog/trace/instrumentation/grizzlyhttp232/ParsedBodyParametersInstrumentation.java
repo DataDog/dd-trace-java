@@ -29,7 +29,7 @@ import org.glassfish.grizzly.http.util.Parameters;
 // tested in GlassFishServerTest
 // TODO: we could maybe test in this proj as well, with a server using
 // org.glassfish.grizzly.http.server.HttpHandler
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

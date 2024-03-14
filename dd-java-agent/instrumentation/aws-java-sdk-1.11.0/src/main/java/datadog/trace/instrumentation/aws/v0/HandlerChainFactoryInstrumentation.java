@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
  * This instrumentation might work with versions before 1.11.0, but this was the first version that
  * is tested. It could possibly be extended earlier.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class HandlerChainFactoryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

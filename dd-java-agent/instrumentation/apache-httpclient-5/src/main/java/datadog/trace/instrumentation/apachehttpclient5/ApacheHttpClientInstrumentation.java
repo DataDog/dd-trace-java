@@ -19,7 +19,7 @@ import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.protocol.HttpContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 

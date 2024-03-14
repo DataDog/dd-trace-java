@@ -18,7 +18,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  * through the unmarshaller tainting mechanism. See {@link MarshallingDirectivesInstrumentation} and
  * {@link UnmarshallerInstrumentation}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FormDataInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public FormDataInstrumentation() {

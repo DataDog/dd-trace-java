@@ -17,7 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.HashMap;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RedisInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public RedisInstrumentation() {

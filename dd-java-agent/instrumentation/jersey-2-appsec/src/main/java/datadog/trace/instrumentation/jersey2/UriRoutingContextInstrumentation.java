@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class UriRoutingContextInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public UriRoutingContextInstrumentation() {

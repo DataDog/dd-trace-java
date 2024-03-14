@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
  * treatment and can't be handled generically despite being a subclass of
  * org.apache.pekko.dispatch.ForkJoinTask, because of its error handling.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class PekkoForkJoinExecutorTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public PekkoForkJoinExecutorTaskInstrumentation() {

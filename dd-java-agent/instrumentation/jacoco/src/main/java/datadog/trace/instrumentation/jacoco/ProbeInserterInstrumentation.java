@@ -25,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.objectweb.asm.Opcodes;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
   public ProbeInserterInstrumentation() {

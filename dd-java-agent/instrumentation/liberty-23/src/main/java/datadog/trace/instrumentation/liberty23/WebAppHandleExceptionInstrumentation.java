@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
  * BlockingException (the response should've been committed already). Also avoids logging the
  * exception at SEVERE level.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class WebAppHandleExceptionInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public WebAppHandleExceptionInstrumentation() {

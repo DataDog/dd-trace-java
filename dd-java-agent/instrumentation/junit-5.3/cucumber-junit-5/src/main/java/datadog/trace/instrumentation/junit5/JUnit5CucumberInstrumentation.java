@@ -21,7 +21,7 @@ import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JUnit5CucumberInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
