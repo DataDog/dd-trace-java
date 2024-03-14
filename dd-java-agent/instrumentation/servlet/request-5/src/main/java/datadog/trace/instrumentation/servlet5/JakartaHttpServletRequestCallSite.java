@@ -7,6 +7,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -30,7 +31,7 @@ public class JakartaHttpServletRequestCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          final IastContext ctx = IastContext.Provider.get();
+          final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
           if (ctx != null) {
             module.taint(ctx, retValue, SourceTypes.REQUEST_PATH);
           }
@@ -52,7 +53,7 @@ public class JakartaHttpServletRequestCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          final IastContext ctx = IastContext.Provider.get();
+          final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
           if (ctx != null) {
             module.taint(ctx, retValue, SourceTypes.REQUEST_URI);
           }

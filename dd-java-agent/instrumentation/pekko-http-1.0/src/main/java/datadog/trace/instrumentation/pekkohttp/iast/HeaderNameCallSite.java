@@ -7,6 +7,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import org.apache.pekko.http.javadsl.model.HttpHeader;
 
 /**
@@ -28,7 +29,7 @@ public class HeaderNameCallSite {
       return result;
     }
     try {
-      final IastContext ctx = IastContext.Provider.get();
+      final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
       if (ctx == null) {
         return result;
       }

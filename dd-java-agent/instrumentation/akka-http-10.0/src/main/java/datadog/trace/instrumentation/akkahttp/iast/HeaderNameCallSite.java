@@ -8,6 +8,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 
 /**
  * Detects when a header name is directly called from user code. This uses call site instrumentation
@@ -27,7 +28,7 @@ public class HeaderNameCallSite {
       return result;
     }
     try {
-      final IastContext ctx = IastContext.Provider.get();
+      final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
       if (ctx == null) {
         return result;
       }
