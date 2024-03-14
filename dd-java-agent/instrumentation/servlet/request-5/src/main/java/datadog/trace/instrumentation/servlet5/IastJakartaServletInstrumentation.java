@@ -21,11 +21,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import datadog.trace.bootstrap.InstrumentationContext;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.http.HttpServlet;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -74,11 +69,10 @@ public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
         return;
       }
       final ServletContext context = servlet.getServletContext();
-      if (InstrumentationContext.get(ServletContext.class, String.class).get(context) != null) {
+      if (InstrumentationContext.get(ServletContext.class, Boolean.class).get(context) != null) {
         return;
       }
-      InstrumentationContext.get(ServletContext.class, String.class)
-          .put(context, true);
+      InstrumentationContext.get(ServletContext.class, Boolean.class).put(context, true);
       if (applicationModule != null) {
         applicationModule.onRealPath(context.getRealPath("/"));
       }
