@@ -1,8 +1,6 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
-import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.sink.ApplicationModule
 import datadog.trace.api.iast.sink.SessionRewritingModule
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
@@ -544,7 +542,7 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
     then:
     0 * appModule.onRealPath(_)
     0 * sessionRewritingModule.checkSessionTrackingModes(_)
-
+    0 * _
   }
 
   void 'test that iast modules are called'() {
