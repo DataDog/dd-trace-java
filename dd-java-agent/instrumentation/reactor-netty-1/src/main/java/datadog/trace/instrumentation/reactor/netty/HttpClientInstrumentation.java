@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
@@ -16,8 +17,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * <p>Based on the OpenTelemetry Reactor Netty instrumentation.
  * https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/instrumentation/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/HttpClientInstrumentation.java
  */
-@AutoService(Instrumenter.class)
-public class HttpClientInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class HttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public HttpClientInstrumentation() {

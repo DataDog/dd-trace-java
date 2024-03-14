@@ -11,6 +11,7 @@ import akka.http.scaladsl.server.directives.BasicDirectives$;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintRequestContextFunction;
@@ -31,8 +32,8 @@ import net.bytebuddy.asm.Advice;
  *     HttpRequest}
  * @see UnmarshallerInstrumentation propagates taint on unmarshalling of {@link HttpRequest}
  */
-@AutoService(Instrumenter.class)
-public class ExtractDirectivesInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class ExtractDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public ExtractDirectivesInstrumentation() {
     super("akka-http");

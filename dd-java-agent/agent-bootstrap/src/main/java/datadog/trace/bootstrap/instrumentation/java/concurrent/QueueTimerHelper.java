@@ -19,7 +19,7 @@ public class QueueTimerHelper {
     // TSC frequency before JFR has set it up properly
     if (task != null && state != null && InstrumentationBasedProfiling.isJFRReady()) {
       QueueTiming timing =
-          (QueueTiming) AgentTracer.get().getTimer().start(Timer.TimerType.QUEUEING);
+          (QueueTiming) AgentTracer.get().getProfilingContext().start(Timer.TimerType.QUEUEING);
       timing.setTask(task);
       timing.setScheduler(schedulerClass);
       state.setTiming(timing);

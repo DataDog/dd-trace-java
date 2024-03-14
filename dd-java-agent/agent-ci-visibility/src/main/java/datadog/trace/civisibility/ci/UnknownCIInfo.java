@@ -67,4 +67,9 @@ class UnknownCIInfo implements CIProviderInfo {
   protected Path getCurrentPath() {
     return currentPath;
   }
+
+  @Override
+  public boolean isSupportedCiProvider() {
+    return false;
+  }
 }

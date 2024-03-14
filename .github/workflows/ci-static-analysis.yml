@@ -1,0 +1,25 @@
+name: "DataDog CI Static Analysis"
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ master ]
+jobs:
+  check-quality:
+    runs-on: ubuntu-latest
+    name: Datadog Static Analyzer
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+      - name: Check code meets quality standards
+        id: datadog-static-analysis
+        uses: DataDog/datadog-static-analyzer-github-action@v1
+        with:
+          dd_app_key: ${{ secrets.DD_APP_KEY }}
+          dd_api_key: ${{ secrets.DD_API_KEY }}
+          dd_site: datad0g.com
+          dd_service: "dd-trace-java"
+          dd_env: "ci"
+          cpu_count: 2
+          enable_performance_statistics: false

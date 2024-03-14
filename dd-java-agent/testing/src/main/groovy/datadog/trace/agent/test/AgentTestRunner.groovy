@@ -7,12 +7,10 @@ import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.monitor.Monitoring
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.checkpoints.TestEndpointCheckpointer
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
-import datadog.trace.agent.test.timer.TestTimer
 import datadog.trace.agent.tooling.AgentInstaller
-import datadog.trace.agent.tooling.Instrumenter
+import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.*
@@ -77,7 +75,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevi
  * This will cause the following to occur before test startup:
  *
  * <ul>
- *   <li>All {@link Instrumenter}s on the test classpath will be applied. Matching preloaded classes
+ *   <li>All {@link InstrumenterModule}s on the test classpath will be applied. Matching preloaded classes
  *       will be retransformed.
  *   <li>{@link AgentTestRunner#TEST_WRITER} will be registered with the global tracer and available
  *       in an initialized state.
@@ -147,10 +145,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger(0)
 
-  @SuppressWarnings('PropertyName')
-  @Shared
-  TestEndpointCheckpointer TEST_CHECKPOINTER = Spy(new TestEndpointCheckpointer())
-
   // don't use mocks because it will break too many exhaustive interaction-verifying tests
   @SuppressWarnings('PropertyName')
   @Shared
@@ -167,10 +161,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @SuppressWarnings('PropertyName')
   @Shared
   AgentDataStreamsMonitoring TEST_DATA_STREAMS_MONITORING
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  TestTimer TEST_TIMER = Spy(new TestTimer())
 
   @Shared
   ClassFileTransformer activeTransformer
@@ -218,6 +208,14 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     @Override
     Double getTraceSampleRate() {
+      return null
+    }
+    @Override
+    Map<String,String> getTracingTags(){
+      return null
+    }
+    @Override
+    String getPreferredServiceName() {
       return null
     }
 
@@ -323,8 +321,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
       .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
       .build())
-    TEST_TRACER.registerTimer(TEST_TIMER)
-    TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
@@ -393,7 +389,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       spiedAgentSpan
     }
 
-    assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
+    assert ServiceLoader.load(InstrumenterModule, AgentTestRunner.getClassLoader())
     .iterator()
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
@@ -438,7 +434,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     def util = new MockUtil()
     util.attachMock(STATS_D_CLIENT, this)
-    util.attachMock(TEST_CHECKPOINTER, this)
 
     originalAppSecRuntimeValue = ActiveSubsystems.APPSEC_ACTIVE
     if (forceAppSecActive) {
@@ -469,7 +464,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     def util = new MockUtil()
     util.detachMock(STATS_D_CLIENT)
-    util.detachMock(TEST_CHECKPOINTER)
 
     ActiveSubsystems.APPSEC_ACTIVE = originalAppSecRuntimeValue
 

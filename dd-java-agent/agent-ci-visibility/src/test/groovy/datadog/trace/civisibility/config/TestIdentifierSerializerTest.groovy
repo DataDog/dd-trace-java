@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.config
 
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.civisibility.ipc.Serializer
 import spock.lang.Specification
 
 import java.util.stream.Collectors
@@ -9,11 +10,15 @@ class TestIdentifierSerializerTest extends Specification {
 
   def "test serialization: #tests"() {
     given:
-    def testsList = tests.stream().map { t -> new TestIdentifier(t[0], t[1], t[2], null) }.collect(Collectors.toList())
+    def testsList = tests.stream().map {
+      t -> new TestIdentifier(t[0], t[1], t[2], null)
+    }.collect(Collectors.toList())
 
     when:
-    def serializedTests = TestIdentifierSerializer.serialize(testsList)
-    def deserializedTests = TestIdentifierSerializer.deserialize(serializedTests)
+    Serializer s = new Serializer()
+    s.write(testsList, TestIdentifierSerializer::serialize)
+    def serializedTests = s.flush()
+    def deserializedTests = Serializer.readList(serializedTests, TestIdentifierSerializer::deserialize)
 
     then:
     deserializedTests == testsList

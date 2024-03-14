@@ -1,8 +1,13 @@
 package datadog.trace.instrumentation.testng;
 
+import datadog.trace.api.civisibility.events.TestDescriptor;
+import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.instrumentation.testng.retry.RetryAnalyzer;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.testng.IConfigurationListener;
+import org.testng.IRetryAnalyzer;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
@@ -26,18 +31,25 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   protected void onBeforeClass(ITestClass testClass, boolean parallelized) {
+    TestSuiteDescriptor suiteDescriptor = TestNGUtils.toSuiteDescriptor(testClass);
     String testSuiteName = testClass.getName();
     Class<?> testSuiteClass = testClass.getRealClass();
     List<String> groups = TestNGUtils.getGroups(testClass);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteStart(
-        testSuiteName, FRAMEWORK_NAME, FRAMEWORK_VERSION, testSuiteClass, groups, parallelized);
+        suiteDescriptor,
+        testSuiteName,
+        FRAMEWORK_NAME,
+        FRAMEWORK_VERSION,
+        testSuiteClass,
+        groups,
+        parallelized,
+        TestFrameworkInstrumentation.TESTNG);
   }
 
   @Override
   protected void onAfterClass(ITestClass testClass) {
-    String testSuiteName = testClass.getName();
-    Class<?> testSuiteClass = testClass.getRealClass();
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(testSuiteName, testSuiteClass);
+    TestSuiteDescriptor suiteDescriptor = TestNGUtils.toSuiteDescriptor(testClass);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
   }
 
   @Override
@@ -48,10 +60,10 @@ public class TracingListener extends TestNGClassListener
   @Override
   public void onConfigurationFailure(ITestResult result) {
     // suite setup or suite teardown failed
-    String testSuiteName = result.getInstanceName();
-    Class<?> testClass = TestNGUtils.getTestClass(result);
+    TestSuiteDescriptor suiteDescriptor =
+        TestNGUtils.toSuiteDescriptor(result.getMethod().getTestClass());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(
-        testSuiteName, testClass, result.getThrowable());
+        suiteDescriptor, result.getThrowable());
   }
 
   @Override
@@ -61,53 +73,53 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onTestStart(final ITestResult result) {
+    TestSuiteDescriptor suiteDescriptor =
+        TestNGUtils.toSuiteDescriptor(result.getMethod().getTestClass());
+    TestDescriptor testDescriptor = TestNGUtils.toTestDescriptor(result);
     String testSuiteName = result.getInstanceName();
     String testName =
         (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
     List<String> groups = TestNGUtils.getGroups(result);
-
     Class<?> testClass = TestNGUtils.getTestClass(result);
     Method testMethod = TestNGUtils.getTestMethod(result);
     String testMethodName = testMethod != null ? testMethod.getName() : null;
-
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
+        suiteDescriptor,
+        testDescriptor,
         testSuiteName,
         testName,
-        result,
         FRAMEWORK_NAME,
         FRAMEWORK_VERSION,
         testParameters,
         groups,
         testClass,
         testMethodName,
-        testMethod);
+        testMethod,
+        isRetry(result));
+  }
+
+  private boolean isRetry(final ITestResult result) {
+    IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
+    if (retryAnalyzer instanceof RetryAnalyzer) {
+      RetryAnalyzer datadogAnalyzer = (RetryAnalyzer) retryAnalyzer;
+      return datadogAnalyzer.currentExecutionIsRetry();
+    }
+    return false;
   }
 
   @Override
   public void onTestSuccess(final ITestResult result) {
-    final String testSuiteName = result.getInstanceName();
-    final Class<?> testClass = TestNGUtils.getTestClass(result);
-    String testName =
-        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
-    String testParameters = TestNGUtils.getParameters(result);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testSuiteName, testClass, testName, result, testParameters);
+    TestDescriptor testDescriptor = TestNGUtils.toTestDescriptor(result);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
   }
 
   @Override
   public void onTestFailure(final ITestResult result) {
-    final String testSuiteName = result.getInstanceName();
-    final Class<?> testClass = TestNGUtils.getTestClass(result);
-    String testName =
-        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
-    String testParameters = TestNGUtils.getParameters(result);
-
-    final Throwable throwable = result.getThrowable();
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(
-        testSuiteName, testClass, testName, result, testParameters, throwable);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testSuiteName, testClass, testName, result, testParameters);
+    TestDescriptor testDescriptor = TestNGUtils.toTestDescriptor(result);
+    Throwable throwable = result.getThrowable();
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
   }
 
   @Override
@@ -117,18 +129,19 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onTestSkipped(final ITestResult result) {
-    final String testSuiteName = result.getInstanceName();
-    final Class<?> testClass = TestNGUtils.getTestClass(result);
-    String testName =
-        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
-    String testParameters = TestNGUtils.getParameters(result);
-
-    // Typically the way of skipping a TestNG test is throwing a SkipException
+    TestDescriptor testDescriptor = TestNGUtils.toTestDescriptor(result);
     Throwable throwable = result.getThrowable();
-    String reason = throwable != null ? throwable.getMessage() : null;
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(
-        testSuiteName, testClass, testName, result, testParameters, reason);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testSuiteName, testClass, testName, result, testParameters);
+    if (TestNGUtils.wasRetried(result)) {
+      // TestNG reports tests retried with IRetryAnalyzer as skipped,
+      // this is done to avoid failing the build when retrying tests.
+      // We want to report such tests as failed to Datadog,
+      // to provide more accurate data (and to enable flakiness detection)
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+    } else {
+      // Typically the way of skipping a TestNG test is throwing a SkipException
+      String reason = throwable != null ? throwable.getMessage() : null;
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason);
+    }
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
   }
 }

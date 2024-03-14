@@ -1,7 +1,5 @@
 package datadog.telemetry.dependency;
 
-import datadog.trace.util.Strings;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
@@ -10,13 +8,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import java.util.jar.Attributes;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -28,7 +24,7 @@ public final class Dependency {
   private static final Logger log = LoggerFactory.getLogger(Dependency.class);
 
   private static final Pattern FILE_REGEX =
-      Pattern.compile("(.+)-(\\d[^/-]+(?:-(?:\\w+))*)?\\.jar$");
+      Pattern.compile("^(.+?)(?:-([0-9][^-]+(?:-\\w+)?))?\\.jar$");
 
   private static final byte[] buf = new byte[8192];
 
@@ -75,59 +71,50 @@ public final class Dependency {
         + '}';
   }
 
-  public static List<Dependency> fromMavenPom(JarFile jar) {
-    if (jar == null) {
+  public static List<Dependency> fromMavenPom(
+      final String jar, Map<String, Properties> pomProperties) {
+    if (pomProperties == null) {
       return Collections.emptyList();
     }
-    List<Dependency> dependencies = new ArrayList<>(1);
-    Enumeration<JarEntry> entries = jar.entries();
-    while (entries.hasMoreElements()) {
-      JarEntry jarEntry = entries.nextElement();
-      String filename = jarEntry.getName();
-      if (filename.endsWith("pom.properties")) {
-        try (InputStream is = jar.getInputStream(jarEntry)) {
-          if (is == null) {
-            return Collections.emptyList();
-          }
-          Properties properties = new Properties();
-          properties.load(is);
-          String groupId = properties.getProperty("groupId");
-          String artifactId = properties.getProperty("artifactId");
-          String version = properties.getProperty("version");
-          String name = groupId + ":" + artifactId;
+    List<Dependency> dependencies = new ArrayList<>(pomProperties.size());
+    for (final Map.Entry<String, Properties> entry : pomProperties.entrySet()) {
+      final Properties properties = entry.getValue();
+      final String groupId = properties.getProperty("groupId");
+      final String artifactId = properties.getProperty("artifactId");
+      final String version = properties.getProperty("version");
+      final String name = groupId + ":" + artifactId;
 
-          if (groupId == null || artifactId == null || version == null) {
-            log.debug(
-                "'pom.properties' does not have all the required properties: "
-                    + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
-                jar.getName(),
-                jarEntry.getName(),
-                groupId,
-                artifactId,
-                version);
-          } else {
-            log.debug(
-                "dependency found in pom.properties: "
-                    + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
-                jar.getName(),
-                jarEntry.getName(),
-                groupId,
-                artifactId,
-                version);
-            dependencies.add(
-                new Dependency(name, version, new File(jar.getName()).getName(), null));
-          }
-        } catch (IOException e) {
-          log.debug("unable to read 'pom.properties' file from {}", jar.getName(), e);
-          return Collections.emptyList();
-        }
+      if (groupId == null || artifactId == null || version == null) {
+        log.debug(
+            "pom.properties does not have all the required properties: "
+                + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
+            jar,
+            entry.getKey(),
+            groupId,
+            artifactId,
+            version);
+      } else {
+        log.debug(
+            "dependency found in pom.properties: "
+                + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
+            jar,
+            entry.getKey(),
+            groupId,
+            artifactId,
+            version);
+        dependencies.add(new Dependency(name, version, jar, null));
       }
     }
     return dependencies;
   }
 
   public static synchronized Dependency guessFallbackNoPom(
-      Manifest manifest, String source, InputStream is) throws IOException {
+      Attributes manifest, String source, InputStream is) throws IOException {
+    final int slashIndex = source.lastIndexOf('/');
+    if (slashIndex >= 0) {
+      source = source.substring(slashIndex + 1);
+    }
+
     String artifactId;
     String groupId = null;
     String version;
@@ -140,12 +127,11 @@ public final class Dependency {
     String bundleVersion = null;
     String implementationVersion = null;
     if (manifest != null) {
-      Attributes mainAttributes = manifest.getMainAttributes();
-      bundleSymbolicName = mainAttributes.getValue("bundle-symbolicname");
-      bundleName = mainAttributes.getValue("bundle-name");
-      bundleVersion = mainAttributes.getValue("bundle-version");
-      implementationTitle = mainAttributes.getValue("implementation-title");
-      implementationVersion = mainAttributes.getValue("implementation-version");
+      bundleSymbolicName = manifest.getValue("bundle-symbolicname");
+      bundleName = manifest.getValue("bundle-name");
+      bundleVersion = manifest.getValue("bundle-version");
+      implementationTitle = manifest.getValue("implementation-title");
+      implementationVersion = manifest.getValue("implementation-version");
     }
 
     // Guess from file name
@@ -156,66 +142,55 @@ public final class Dependency {
       fileNameArtifact = m.group(1);
       fileNameVersion = m.group(2);
     } else {
-      // name without the version?
-      int idx = source.lastIndexOf('.');
-      if (idx > 0) {
-        String nameOnly = source.substring(0, idx); // name without the extension
-        if (isValidArtifactId(nameOnly)) {
-          fileNameArtifact = nameOnly;
-        }
-      }
+      // This code path should not be exercised right now, although it might in the future (e.g.
+      // Knopflerfish uses
+      // a jar storage without .jar extension). We used to strip the extension here, but if we
+      // unexpectedly get here,
+      // it would be better to get something informative even if weird. So just fallback to the full
+      // name.
+      fileNameArtifact = source;
     }
 
     // Find for the most suitable name (based on priority)
-    if (isValidArtifactId(bundleSymbolicName)) {
-      artifactId = bundleSymbolicName;
-    } else if (isValidArtifactId(bundleName)) {
+    if (isValidArtifactId(bundleName)) {
       artifactId = bundleName;
     } else if (isValidArtifactId(implementationTitle)) {
       artifactId = implementationTitle;
-    } else if (fileNameArtifact != null) {
-      artifactId = fileNameArtifact;
     } else {
-      artifactId = bundleSymbolicName;
+      artifactId = fileNameArtifact;
     }
 
-    // Try to get groupId from bundleSymbolicName and bundleName
-    if (isValidGroupId(bundleSymbolicName) && isValidArtifactId(bundleName)) {
-      groupId = parseGroupId(bundleSymbolicName, artifactId);
-      artifactId = bundleName;
-    }
-
-    // Find version string only if any 2 variables are equal
+    // Bundle-Version and Implementation-Version have precedence only if they are equal.
     if (equalsNonNull(bundleVersion, implementationVersion)) {
       version = bundleVersion;
-    } else if (equalsNonNull(implementationVersion, fileNameVersion)) {
-      version = implementationVersion;
-    } else if (equalsNonNull(bundleVersion, fileNameVersion)) {
+    } else if (hasText(fileNameVersion)) {
       version = fileNameVersion;
+    } else if (hasText(bundleVersion)) {
+      version = bundleVersion;
+    } else if (hasText(implementationVersion)) {
+      version = implementationVersion;
     } else {
-      artifactId = source;
-
-      if (implementationVersion != null) {
-        version = implementationVersion;
-      } else if (fileNameVersion != null) {
-        version = fileNameVersion;
-      } else if (bundleVersion != null) {
-        version = bundleVersion;
-      } else {
-        version = "";
-      }
+      version = "";
     }
 
-    String name;
+    // Try to get groupId from bundleSymbolicName and bundleName (or artifact id)
+    if (hasText(bundleSymbolicName)) {
+      groupId = parseGroupId(bundleSymbolicName, fileNameArtifact);
+      if (!isValidGroupId(groupId)) {
+        groupId = parseGroupId(bundleSymbolicName, bundleName);
+        ;
+        if (!isValidGroupId(groupId)) {
+          groupId = null;
+        }
+      }
+    }
+    String name = artifactId;
     if (groupId != null) {
       name = groupId + ":" + artifactId;
-    } else {
-      // no group resolved. use only artifactId
-      name = artifactId;
     }
 
     if (md != null) {
-      // Compute hash for all dependencies that has no pom
+      // Compute hash for all dependencies that have no pom
       // No reliable version calculate hash and use any version
       md.reset();
       is = new DigestInputStream(is, md);
@@ -226,20 +201,18 @@ public final class Dependency {
     return new Dependency(name, version, source, hash);
   }
 
-  /** Check is string is valid artifactId. Should be a non-capital single word. */
   private static boolean isValidArtifactId(String artifactId) {
     return hasText(artifactId)
         && !artifactId.contains(" ")
         && !artifactId.contains(".")
-        && !Character.isUpperCase(artifactId.charAt(0));
+        && artifactId.toLowerCase(Locale.ROOT).equals(artifactId);
   }
 
-  /** Check is string is valid groupId. Should be a non-capital plural-word separated with dot. */
   private static boolean isValidGroupId(String group) {
     return hasText(group)
         && !group.contains(" ")
         && group.contains(".")
-        && !Character.isUpperCase(group.charAt(0));
+        && group.toLowerCase(Locale.ROOT).equals(group);
   }
 
   private static boolean hasText(final String value) {
@@ -251,15 +224,21 @@ public final class Dependency {
   }
 
   private static String parseGroupId(String bundleSymbolicName, String bundleName) {
-    // Usually bundleSymbolicName contains bundleName at the end. Check this
+    // Some tools create Bundle-Symbolicname as `groupId.artifactid`.
+    // We'll try to infer group id based on that.
+    final String bundleNameWithPrefix = "." + bundleName;
+    if (!bundleSymbolicName.endsWith(bundleNameWithPrefix)) {
+      return null;
+    }
 
-    // Bundle name can contain dash, so normalize it
-    String normalizedBundleName = Strings.replace(bundleName, "-", ".");
+    final int truncateLen = bundleSymbolicName.length() - bundleNameWithPrefix.length();
+    final String groupId = bundleSymbolicName.substring(0, truncateLen);
 
-    String bundleNameWithPrefix = "." + normalizedBundleName;
-    if (bundleSymbolicName.endsWith(bundleNameWithPrefix)) {
-      int truncateLen = bundleSymbolicName.length() - bundleNameWithPrefix.length();
-      return bundleSymbolicName.substring(0, truncateLen);
+    // Sometimes this will lead to an incorrect group id, in cases like com.opencsv / opencsv, which
+    // are frequent.
+    // This will trim both single word group ids, as well as prefixes suck as `uk.ac`.
+    if (groupId.contains(".") && groupId.length() > 5) {
+      return groupId;
     }
 
     return null;

@@ -1,6 +1,8 @@
 package datadog.smoketest
 
 import datadog.trace.api.config.IastConfig
+import datadog.trace.test.util.Predicates.IBM8
+import datadog.trace.test.util.Flaky
 import groovy.transform.CompileDynamic
 import okhttp3.Request
 import okhttp3.Response
@@ -41,13 +43,14 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
     hasVulnerabilityInLogs {
       vul ->
       vul.type == 'HARDCODED_SECRET'
-      && vul.location.method == '<init>'
-      && vul.location.path == 'datadog.smoketest.springboot.controller.IastWebController'
-      && vul.location.line == 57
+      && vul.location.method == 'hardcodedSecret'
+      && vul.location.path == 'datadog.smoketest.springboot.controller.HardcodedSecretController'
+      && vul.location.line == 11
       && vul.evidence.value == 'age-secret-key'
     }
   }
 
+  @Flaky(value = 'global context is flaky under IBM8', condition = IBM8)
   static class WithGlobalContext extends IastSpringBootSmokeTest {
     @Override
     protected List<String> iastJvmOpts() {

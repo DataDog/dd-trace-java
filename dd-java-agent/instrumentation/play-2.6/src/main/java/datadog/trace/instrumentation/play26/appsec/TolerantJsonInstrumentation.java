@@ -11,6 +11,7 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.instrumentation.play26.MuzzleReferences;
@@ -18,8 +19,8 @@ import net.bytebuddy.asm.Advice;
 import play.mvc.Http;
 
 /** @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString) */
-@AutoService(Instrumenter.class)
-public class TolerantJsonInstrumentation extends Instrumenter.AppSec
+@AutoService(InstrumenterModule.class)
+public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public TolerantJsonInstrumentation() {
     super("play");

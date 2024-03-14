@@ -2,12 +2,14 @@ package datadog.trace.civisibility;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
+import datadog.trace.civisibility.codeowners.NoCodeowners;
 import datadog.trace.civisibility.communication.BackendApi;
 import datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ConfigurationApi;
@@ -44,6 +46,7 @@ public class CiVisibilityRepoServices {
   final String repoRoot;
   final String moduleName;
   final Map<String, String> ciTags;
+  final boolean supportedCiProvider;
 
   final GitDataUploader gitDataUploader;
   final RepoIndexProvider repoIndexProvider;
@@ -57,10 +60,12 @@ public class CiVisibilityRepoServices {
     repoRoot = ciInfo.getCiWorkspace();
     moduleName = getModuleName(services.config, path, ciInfo);
     ciTags = new CITagsProvider().getCiTags(ciInfo);
+    supportedCiProvider = ciProviderInfo.isSupportedCiProvider();
 
     gitDataUploader =
         buildGitDataUploader(
             services.config,
+            services.metricCollector,
             services.gitInfoProvider,
             services.gitClientFactory,
             services.backendApi,
@@ -75,7 +80,12 @@ public class CiVisibilityRepoServices {
     } else {
       moduleExecutionSettingsFactory =
           buildModuleExecutionSettingsFactory(
-              services.config, services.backendApi, gitDataUploader, repoIndexProvider, repoRoot);
+              services.config,
+              services.metricCollector,
+              services.backendApi,
+              gitDataUploader,
+              repoIndexProvider,
+              repoRoot);
     }
   }
 
@@ -112,6 +122,7 @@ public class CiVisibilityRepoServices {
 
   private static ModuleExecutionSettingsFactory buildModuleExecutionSettingsFactory(
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       BackendApi backendApi,
       GitDataUploader gitDataUploader,
       RepoIndexProvider repoIndexProvider,
@@ -122,7 +133,7 @@ public class CiVisibilityRepoServices {
           "Remote config and skippable tests requests will be skipped since backend API client could not be created");
       configurationApi = ConfigurationApi.NO_OP;
     } else {
-      configurationApi = new ConfigurationApiImpl(backendApi);
+      configurationApi = new ConfigurationApiImpl(backendApi, metricCollector);
     }
     return new CachingModuleExecutionSettingsFactory(
         config,
@@ -132,6 +143,7 @@ public class CiVisibilityRepoServices {
 
   private static GitDataUploader buildGitDataUploader(
       Config config,
+      CiVisibilityMetricCollector metricCollector,
       GitInfoProvider gitInfoProvider,
       GitClient.Factory gitClientFactory,
       BackendApi backendApi,
@@ -153,10 +165,10 @@ public class CiVisibilityRepoServices {
     }
 
     String remoteName = config.getCiVisibilityGitRemoteName();
-    GitDataApi gitDataApi = new GitDataApi(backendApi);
+    GitDataApi gitDataApi = new GitDataApi(backendApi, metricCollector);
     GitClient gitClient = gitClientFactory.create(repoRoot);
     return new GitDataUploaderImpl(
-        config, gitDataApi, gitClient, gitInfoProvider, repoRoot, remoteName);
+        config, metricCollector, gitDataApi, gitClient, gitInfoProvider, repoRoot, remoteName);
   }
 
   private static SourcePathResolver buildSourcePathResolver(
@@ -175,7 +187,7 @@ public class CiVisibilityRepoServices {
     if (repoRoot != null) {
       return new CodeownersProvider().build(repoRoot);
     } else {
-      return path -> null;
+      return NoCodeowners.INSTANCE;
     }
   }
 }

@@ -9,14 +9,15 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.netty41.AttributeKeys;
 import io.vertx.core.http.impl.HttpClientStream;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class HttpClientRequestBaseInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   static final String[] CONCRETE_TYPES = {
     "io.vertx.core.http.impl.HttpClientRequestImpl",

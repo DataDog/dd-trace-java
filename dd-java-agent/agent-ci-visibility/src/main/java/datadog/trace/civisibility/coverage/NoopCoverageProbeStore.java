@@ -18,7 +18,9 @@ public class NoopCoverageProbeStore implements CoverageProbeStore {
   public void recordNonCodeResource(String absolutePath) {}
 
   @Override
-  public void report(Long testSessionId, Long testSuiteId, long spanId) {}
+  public boolean report(Long testSessionId, Long testSuiteId, long spanId) {
+    return true;
+  }
 
   @Nullable
   @Override

@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -14,8 +15,8 @@ import net.bytebuddy.asm.Advice;
 import org.hibernate.Query;
 import org.hibernate.SharedSessionContract;
 
-@AutoService(Instrumenter.class)
-public class IastQueryInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class IastQueryInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public IastQueryInstrumentation() {

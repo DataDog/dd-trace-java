@@ -6,7 +6,6 @@ import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
-import com.datadog.appsec.event.data.SingletonDataBundle
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
 import datadog.trace.api.internal.TraceSegment
@@ -381,8 +380,10 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'path params is not published twice'() {
     Flow flow
 
+    setup:
+    pathParamsCB.apply(ctx, [a: 'b'])
+
     when:
-    arCtx.addAll(new SingletonDataBundle(KnownAddresses.REQUEST_PATH_PARAMS, [a: 'b']))
     flow = pathParamsCB.apply(ctx, [c: 'd'])
 
     then:

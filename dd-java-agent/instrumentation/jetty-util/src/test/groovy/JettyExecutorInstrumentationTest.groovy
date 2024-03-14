@@ -35,7 +35,7 @@ class JettyExecutorInstrumentationTest extends AgentTestRunner {
   @Shared
   def invokeAny = { e, c -> e.invokeAny([(Callable) c]) }
 
-  def "#poolImpl '#name' propagates"() {
+  def "#poolName '#name' propagates"() {
     setup:
     assumeTrue(poolImpl != null) // skip for Java 7 CompletableFuture, non-Linux Netty EPoll
     def pool = poolImpl
@@ -74,5 +74,6 @@ class JettyExecutorInstrumentationTest extends AgentTestRunner {
     "execute Runnable"       | executeRunnable     | new MonitoredQueuedThreadPool(8)
     "execute Runnable"       | executeRunnable     | new QueuedThreadPool(8)
     "execute Runnable"       | executeRunnable     | new ReservedThreadExecutor(delegate(), 1)
+    poolName = poolImpl.class.simpleName
   }
 }

@@ -12,7 +12,6 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
-  public static final String LEGACY_INSTALLER_ENABLED = "legacy.installer.enabled";
 
   public static final String INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME =
       "integration.synapse.legacy-operation-name";
@@ -61,12 +60,16 @@ public final class TraceInstrumentationConfig {
   public static final String HTTP_URL_CONNECTION_CLASS_NAME =
       "trace.http.url.connection.class.name";
 
+  public static final String AXIS_TRANSPORT_CLASS_NAME = "trace.axis.transport.class.name";
+
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
   public static final String SERIALVERSIONUID_FIELD_INJECTION =
       "trace.serialversionuid.field.injection";
 
-  public static final String LOGS_INJECTION_ENABLED = "logs.injection";
+  public static final String LOGS_INJECTION_ENABLED = "logs.injection.enabled";
+  public static final String LOGS_INJECTION = "logs.injection";
+
   public static final String TRACE_128_BIT_TRACEID_LOGGING_ENABLED =
       "trace.128.bit.traceid.logging.enabled";
 
@@ -120,21 +123,26 @@ public final class TraceInstrumentationConfig {
 
   public static final String RESOLVER_CACHE_CONFIG = "resolver.cache.config";
   public static final String RESOLVER_CACHE_DIR = "resolver.cache.dir";
+  public static final String RESOLVER_SIMPLE_METHOD_GRAPH = "resolver.simple.method.graph";
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
   public static final String RESOLVER_USE_URL_CACHES = "resolver.use.url.caches";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
   public static final String RESOLVER_NAMES_ARE_UNIQUE = "resolver.names.are.unique";
-
+  public static final String COUCHBASE_INTERNAL_SPANS_ENABLED =
+      "trace.couchbase.internal-spans.enabled";
   public static final String ELASTICSEARCH_BODY_ENABLED = "trace.elasticsearch.body.enabled";
   public static final String ELASTICSEARCH_PARAMS_ENABLED = "trace.elasticsearch.params.enabled";
   public static final String ELASTICSEARCH_BODY_AND_PARAMS_ENABLED =
       "trace.elasticsearch.body-and-params.enabled";
 
   public static final String SPARK_TASK_HISTOGRAM_ENABLED = "spark.task-histogram.enabled";
+  public static final String SPARK_APP_NAME_AS_SERVICE = "spark.app-name-as-service";
 
   public static final String JAX_RS_EXCEPTION_AS_ERROR_ENABLED =
       "trace.jax-rs.exception-as-error.enabled";
   public static final String JAX_RS_ADDITIONAL_ANNOTATIONS = "trace.jax-rs.additional.annotations";
+  /** If set, the instrumentation will set its resource name on the local root too. */
+  public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
 
   private TraceInstrumentationConfig() {}
 }

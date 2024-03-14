@@ -12,11 +12,8 @@ import org.junit.Assume;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class DatadogProfilerRecordingTest {
-  private static final Logger log = LoggerFactory.getLogger(DatadogProfilerRecordingTest.class);
 
   private DatadogProfiler profiler;
   private DatadogProfilerRecording recording;
@@ -24,17 +21,11 @@ class DatadogProfilerRecordingTest {
   @BeforeEach
   void setup() throws Exception {
     Assume.assumeTrue(Platform.isLinux());
+    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
     profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
-    log.info(
-        "Datadog Profiler: available={}, active={}", profiler.isAvailable(), profiler.isActive());
-    if (profiler.isAvailable()) {
-      Assume.assumeFalse(profiler.isActive());
-
-      recording = (DatadogProfilerRecording) profiler.start();
-      Assume.assumeTrue(recording != null);
-    } else {
-      // Datadog profiler not available
-    }
+    Assume.assumeFalse(profiler.isActive());
+    recording = (DatadogProfilerRecording) profiler.start();
+    Assume.assumeTrue(recording != null);
   }
 
   @AfterEach
@@ -48,10 +39,7 @@ class DatadogProfilerRecordingTest {
 
   @Test
   void testClose() throws Exception {
-    if (!profiler.isAvailable()) {
-      log.warn("Datadog Profiler not available. Skipping test.");
-      return;
-    }
+    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
     assertTrue(Files.exists(recording.getRecordingFile()));
     recording.close();
     assertFalse(Files.exists(recording.getRecordingFile()));
@@ -59,10 +47,7 @@ class DatadogProfilerRecordingTest {
 
   @Test
   void testStop() throws Exception {
-    if (!profiler.isAvailable()) {
-      log.warn("Datadog Profiler not available. Skipping test.");
-      return;
-    }
+    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
     RecordingData data = recording.stop();
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));
@@ -70,10 +55,7 @@ class DatadogProfilerRecordingTest {
 
   @Test
   void testSnapshot() throws Exception {
-    if (!profiler.isAvailable()) {
-      log.warn("Datadog Profiler not available. Skipping test.");
-      return;
-    }
+    Assume.assumeNoException("Profiler not available", JavaProfilerLoader.REASON_NOT_LOADED);
     RecordingData data = recording.snapshot(Instant.now());
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));

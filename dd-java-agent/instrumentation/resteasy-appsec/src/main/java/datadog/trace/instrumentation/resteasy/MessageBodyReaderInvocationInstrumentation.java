@@ -11,6 +11,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -20,8 +21,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class MessageBodyReaderInvocationInstrumentation extends Instrumenter.AppSec
+@AutoService(InstrumenterModule.class)
+public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 
   public MessageBodyReaderInvocationInstrumentation() {

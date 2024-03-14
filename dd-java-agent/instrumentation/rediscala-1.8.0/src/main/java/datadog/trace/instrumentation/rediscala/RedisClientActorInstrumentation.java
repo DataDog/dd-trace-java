@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import akka.actor.ActorRef;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.Map;
@@ -15,8 +16,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import redis.RedisClientActorLike;
 
-@AutoService(Instrumenter.class)
-public class RedisClientActorInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class RedisClientActorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public RedisClientActorInstrumentation() {
     super("rediscala", "redis", "rediscala-connection");

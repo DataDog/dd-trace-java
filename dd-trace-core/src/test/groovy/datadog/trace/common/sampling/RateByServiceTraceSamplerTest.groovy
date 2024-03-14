@@ -17,10 +17,13 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
     String response = '{"rate_by_service": {"service:,env:":' + rate + '}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
+
     expect:
-    serviceSampler.serviceRates.getSampler(RateByServiceTraceSampler.EnvAndService.DEFAULT).sampleRate == expectedRate
+    serviceSampler.serviceRates.getSampler(RateByServiceTraceSampler.EnvAndService.FALLBACK).sampleRate == expectedRate
+    serviceSampler.serviceRates.getSampler("not", "found").sampleRate == expectedRate
 
     where:
+    // these values are all precisely represented in floating point
     rate | expectedRate
     null | 1
     1    | 1
@@ -28,6 +31,54 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     -5   | 1
     5    | 1
     0.5  | 0.5
+  }
+
+  def "rate selection"() {
+    setup:
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
+    String response = '{"rate_by_service": {"service:foo,env:bar":0.8, "service:,env:":0.20}}'
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    when:
+    def sampler = serviceSampler.serviceRates.getSampler(env, service)
+
+    then:
+    sampler.sampleRate > expectedRate - 0.01
+    sampler.sampleRate < expectedRate + 0.01
+
+    where:
+    service | env     | expectedRate
+    "foo"   | "bar"   | 0.8
+    "Foo"   | "BAR"   | 0.8
+    "FOO"   | "BAR"   | 0.8
+    "not"   | "found" | 0.2
+    "foo"   | "baz"   | 0.2
+    "fu"    | "bar"   | 0.2
+  }
+
+  def "rate partial & full collisions"() {
+    // case insensitive equivalence -- undefined behavior, first one wins
+    setup:
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
+    String response = '{"rate_by_service": {"service:foo,env:bar":0.8, "service:FOO,env:BAR":0.2, "service:FOO,env:BAZ": 0.3, "service:quux,env:BAZ": 0.4}}'
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    when:
+    def sampler = serviceSampler.serviceRates.getSampler(env, service)
+
+    then:
+    sampler.sampleRate > expectedRate - 0.01
+    sampler.sampleRate < expectedRate + 0.01
+
+    where:
+    service | env     | expectedRate
+    "foo"   | "bar"   | 0.8
+    "foo"   | "Bar"   | 0.8
+    "Foo"   | "BAR"   | 0.8
+    "FOO"   | "BAR"   | 0.8
+    "foo"   | "baz"   | 0.3
+    "FOO"   | "BAZ"   | 0.3
+    "quux"  | "baz"   | 0.4
   }
 
   def "rate by service name"() {
@@ -50,8 +101,10 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     serviceSampler.sample(span1)
 
     when:
-    response = '{"rate_by_service": {"service:spock,env:test":1.0}}'
+    // case-insensitive equivalence - undefined in spec, but implemented as first one wins
+    response = '{"rate_by_service": {"service:spock,env:test":1.0, "service:SPOCK,env:Test": 0.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
+
     DDSpan span2 = tracer.buildSpan("fakeOperation")
       .withServiceName("spock")
       .withTag("env", "test")
@@ -61,6 +114,29 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     then:
     span2.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     serviceSampler.sample(span2)
+
+    cleanup:
+    tracer.close()
+  }
+
+  def "rate by service name - case-insensitive"() {
+    setup:
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def response = '{"rate_by_service": {"service:spock,env:test":1.0}}'
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    DDSpan span = tracer.buildSpan("fakeOperation")
+      .withServiceName("SPOCK")
+      .withTag("env", "Test")
+      .ignoreActiveSpan().start()
+    serviceSampler.setSamplingPriority(span)
+
+    then:
+    span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
+    serviceSampler.sample(span)
 
     cleanup:
     tracer.close()

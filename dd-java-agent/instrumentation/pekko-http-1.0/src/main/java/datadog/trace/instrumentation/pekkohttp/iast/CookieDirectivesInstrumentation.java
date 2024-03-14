@@ -4,6 +4,7 @@ import static datadog.trace.instrumentation.pekkohttp.iast.TraitMethodMatchers.i
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.pekkohttp.iast.helpers.TaintCookieFunction;
@@ -19,8 +20,8 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  * <p>These directives are used when fetching a specific cookie by name. For tainting when fetching
  * all the cookies, see {@link CookieHeaderInstrumentation}.
  */
-@AutoService(Instrumenter.class)
-public class CookieDirectivesInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public CookieDirectivesInstrumentation() {
     super("pekko-http");

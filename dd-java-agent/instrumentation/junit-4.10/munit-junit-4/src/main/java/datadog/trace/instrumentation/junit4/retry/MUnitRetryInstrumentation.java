@@ -5,15 +5,19 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.MUnitUtils;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import munit.MUnitRunner;
 import net.bytebuddy.asm.Advice;
@@ -21,8 +25,8 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 import scala.concurrent.Future;
 
-@AutoService(Instrumenter.class)
-public class MUnitRetryInstrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class MUnitRetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
   private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
@@ -33,7 +37,7 @@ public class MUnitRetryInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityFlakyRetryEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
   }
 
   @Override
@@ -51,6 +55,12 @@ public class MUnitRetryInstrumentation extends Instrumenter.CiVisibility
       parentPackageName + ".TestEventsHandlerHolder",
       packageName + ".RetryAwareNotifier"
     };
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.junit.runner.Description", TestRetryPolicy.class.getName());
   }
 
   @Override
@@ -73,19 +83,24 @@ public class MUnitRetryInstrumentation extends Instrumenter.CiVisibility
       }
 
       Description description = MUnitUtils.createDescription(runner, test);
-      TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description, false);
+      TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description);
       TestRetryPolicy retryPolicy =
           TestEventsHandlerHolder.TEST_EVENTS_HANDLER.retryPolicy(testIdentifier);
-      if (!retryPolicy.retryPossible()) {
+      if (!retryPolicy.retriesLeft()) {
         // retries not applicable, run original method
         return null;
       }
 
+      InstrumentationContext.get(Description.class, TestRetryPolicy.class)
+          .put(description, retryPolicy);
+
       Future<?> result = Future.successful(false);
 
       RetryAwareNotifier retryAwareNotifier = new RetryAwareNotifier(retryPolicy, notifier);
+      long duration;
       boolean testFailed;
       do {
+        long startTimestamp = System.currentTimeMillis();
         try {
           runTest.setAccessible(true);
           result = (Future<?>) runTest.invoke(runner, retryAwareNotifier, test);
@@ -93,7 +108,8 @@ public class MUnitRetryInstrumentation extends Instrumenter.CiVisibility
         } catch (Throwable throwable) {
           testFailed = true;
         }
-      } while (retryPolicy.retry(!testFailed));
+        duration = System.currentTimeMillis() - startTimestamp;
+      } while (retryPolicy.retry(!testFailed, duration));
 
       // skip original method
       return result;

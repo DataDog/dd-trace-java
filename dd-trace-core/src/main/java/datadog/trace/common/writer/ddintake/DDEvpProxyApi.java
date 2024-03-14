@@ -1,14 +1,16 @@
 package datadog.trace.common.writer.ddintake;
 
-import static datadog.trace.api.intake.TrackType.NOOP;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.Locale;
@@ -34,7 +36,7 @@ public class DDEvpProxyApi extends RemoteApi {
 
   public static class DDEvpProxyApiBuilder {
     private String apiVersion = DEFAULT_INTAKE_VERSION;
-    private TrackType trackType = TrackType.NOOP;
+    @NonNull private TrackType trackType = TrackType.NOOP;
     private long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
 
     HttpUrl agentUrl = null;
@@ -42,7 +44,7 @@ public class DDEvpProxyApi extends RemoteApi {
     String evpProxyEndpoint;
     boolean compressionEnabled;
 
-    public DDEvpProxyApiBuilder trackType(final TrackType trackType) {
+    public DDEvpProxyApiBuilder trackType(@NonNull final TrackType trackType) {
       this.trackType = trackType;
       return this;
     }
@@ -78,8 +80,7 @@ public class DDEvpProxyApi extends RemoteApi {
     }
 
     public DDEvpProxyApi build() {
-      final String trackName =
-          (trackType != null ? trackType.name() : NOOP.name()).toLowerCase(Locale.ROOT);
+      final String trackName = trackType.name().toLowerCase(Locale.ROOT);
       final String subdomain = String.format("%s-intake", trackName);
 
       final HttpUrl evpProxyUrl = agentUrl.resolve(evpProxyEndpoint);
@@ -95,22 +96,27 @@ public class DDEvpProxyApi extends RemoteApi {
 
       log.debug("proxiedApiUrl: {}", proxiedApiUrl);
       return new DDEvpProxyApi(
-          client, proxiedApiUrl, subdomain, retryPolicyFactory, compressionEnabled);
+          trackType, client, proxiedApiUrl, subdomain, retryPolicyFactory, compressionEnabled);
     }
   }
 
+  private final TelemetryListener telemetryListener;
+  private final TrackType trackType;
   private final OkHttpClient httpClient;
   private final HttpUrl proxiedApiUrl;
   private final String subdomain;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
 
   private DDEvpProxyApi(
+      TrackType trackType,
       OkHttpClient httpClient,
       HttpUrl proxiedApiUrl,
       String subdomain,
       HttpRetryPolicy.Factory retryPolicyFactory,
       boolean compressionEnabled) {
     super(compressionEnabled);
+    this.telemetryListener = new TelemetryListener(trackType.endpoint);
+    this.trackType = trackType;
     this.httpClient = httpClient;
     this.proxiedApiUrl = proxiedApiUrl;
     this.subdomain = subdomain;
@@ -122,7 +128,10 @@ public class DDEvpProxyApi extends RemoteApi {
     final int sizeInBytes = payload.sizeInBytes();
 
     Request.Builder builder =
-        new Request.Builder().url(proxiedApiUrl).addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain);
+        new Request.Builder()
+            .url(proxiedApiUrl)
+            .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
+            .tag(OkHttpUtils.CustomListener.class, telemetryListener);
 
     if (isCompressionEnabled()) {
       builder.addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE);
@@ -139,15 +148,21 @@ public class DDEvpProxyApi extends RemoteApi {
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         return Response.success(response.code());
       } else {
+        InstrumentationBridge.getMetricCollector()
+            .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
         countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
         return Response.failed(response.code());
       }
 
     } catch (ConnectException e) {
+      InstrumentationBridge.getMetricCollector()
+          .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, null);
       return Response.failed(e);
 
     } catch (IOException e) {
+      InstrumentationBridge.getMetricCollector()
+          .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_DROPPED, 1, trackType.endpoint);
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }

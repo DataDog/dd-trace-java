@@ -27,9 +27,7 @@ import scala.collection.immutable.HashMap
 import scala.collection.immutable.Seq
 
 import scala.collection.JavaConverters
-import spock.lang.Unroll
 
-@Unroll
 abstract class AbstractSparkListenerTest extends AgentTestRunner {
 
   protected abstract SparkListener getTestDatadogSparkListener()

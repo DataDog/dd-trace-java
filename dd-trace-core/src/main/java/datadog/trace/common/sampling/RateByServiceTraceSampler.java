@@ -65,24 +65,36 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
   public void onResponse(
       final String endpoint, final Map<String, Map<String, Number>> responseJson) {
     final Map<String, Number> newServiceRates = responseJson.get("rate_by_service");
-    if (null != newServiceRates) {
-      log.debug("Update service sampler rates: {} -> {}", endpoint, responseJson);
-      final Map<String, Map<String, RateSampler>> updatedEnvServiceRates =
-          new HashMap<>(newServiceRates.size() * 2);
-      for (final Map.Entry<String, Number> entry : newServiceRates.entrySet()) {
-        if (entry.getValue() != null) {
-          EnvAndService envAndService = EnvAndService.fromString(entry.getKey());
-          Map<String, RateSampler> serviceRates =
-              updatedEnvServiceRates.computeIfAbsent(
-                  envAndService.env, env -> new HashMap<>(newServiceRates.size() * 2));
-          serviceRates.computeIfAbsent(
-              envAndService.service,
-              service ->
-                  RateByServiceTraceSampler.createRateSampler(entry.getValue().doubleValue()));
-        }
-      }
-      serviceRates = new RateSamplersByEnvAndService(updatedEnvServiceRates);
+
+    if (null == newServiceRates) {
+      return;
     }
+
+    log.debug("Update service sampler rates: {} -> {}", endpoint, responseJson);
+    final Map<String, Map<String, RateSampler>> updatedEnvServiceRates =
+        new HashMap<>(newServiceRates.size() * 2);
+
+    RateSampler fallbackSampler = RateSamplersByEnvAndService.DEFAULT_SAMPLER;
+    for (final Map.Entry<String, Number> entry : newServiceRates.entrySet()) {
+      if (entry.getValue() == null) {
+        continue;
+      }
+      double rate = entry.getValue().doubleValue();
+
+      EnvAndService envAndService = EnvAndService.fromString(entry.getKey());
+      if (envAndService.isFallback()) {
+        fallbackSampler = RateByServiceTraceSampler.createRateSampler(rate);
+      } else {
+        Map<String, RateSampler> serviceRates =
+            updatedEnvServiceRates.computeIfAbsent(
+                envAndService.lowerEnv, env -> new HashMap<>(newServiceRates.size() * 2));
+
+        serviceRates.computeIfAbsent(
+            envAndService.lowerService,
+            service -> RateByServiceTraceSampler.createRateSampler(rate));
+      }
+    }
+    serviceRates = new RateSamplersByEnvAndService(updatedEnvServiceRates, fallbackSampler);
   }
 
   private static RateSampler createRateSampler(final double sampleRate) {
@@ -100,35 +112,45 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
   }
 
   private static final class RateSamplersByEnvAndService {
-    private static final RateSampler DEFAULT = createRateSampler(DEFAULT_RATE);
+    private static final RateSampler DEFAULT_SAMPLER = createRateSampler(DEFAULT_RATE);
 
     private final Map<String, Map<String, RateSampler>> envServiceRates;
+    private final RateSampler fallbackSampler;
 
     RateSamplersByEnvAndService() {
-      this(new HashMap<>(0));
+      this(new HashMap<>(0), DEFAULT_SAMPLER);
     }
 
-    RateSamplersByEnvAndService(Map<String, Map<String, RateSampler>> envServiceRates) {
+    RateSamplersByEnvAndService(
+        Map<String, Map<String, RateSampler>> envServiceRates, RateSampler fallbackSampler) {
       this.envServiceRates = envServiceRates;
+      this.fallbackSampler = fallbackSampler;
     }
 
     // used in tests only
     RateSampler getSampler(EnvAndService envAndService) {
-      return getSampler(envAndService.env, envAndService.service);
+      return getSamplerImpl(envAndService.lowerEnv, envAndService.lowerService);
     }
 
     public RateSampler getSampler(String env, String service) {
-      Map<String, RateSampler> serviceRates = envServiceRates.get(env);
-      if (serviceRates == null) {
-        return DEFAULT;
+      return getSamplerImpl(env.toLowerCase(), service.toLowerCase());
+    }
+
+    private RateSampler getSamplerImpl(String lowerEnv, String lowerService) {
+      if (EnvAndService.isFallback(lowerEnv, lowerService)) {
+        return fallbackSampler;
       }
-      RateSampler sampler = serviceRates.get(service);
-      return null == sampler ? DEFAULT : sampler;
+
+      Map<String, RateSampler> serviceRates = envServiceRates.get(lowerEnv);
+      if (serviceRates == null) {
+        return fallbackSampler;
+      }
+      RateSampler sampler = serviceRates.get(lowerService);
+      return null == sampler ? fallbackSampler : sampler;
     }
   }
 
   private static final class EnvAndService {
-
     private static final DDCache<String, EnvAndService> CACHE = DDCaches.newFixedSizeCache(32);
 
     private static final Function<String, EnvAndService> PARSE =
@@ -140,29 +162,42 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
             int serviceStart = key.indexOf(':') + 1;
             int serviceEnd = key.indexOf(',', serviceStart);
             int envStart = key.indexOf(':', serviceEnd) + 1;
+            int envEnd = key.length();
+
             // both empty or at least one invalid
-            if ((serviceStart == serviceEnd && envStart == key.length())
+            if ((serviceStart == serviceEnd && envStart == envEnd)
                 || (serviceStart | serviceEnd | envStart) < 0) {
-              return DEFAULT;
+              return FALLBACK;
             }
+
             String service = key.substring(serviceStart, serviceEnd);
             String env = key.substring(envStart);
+
+            // EnvAndService will toLower the values
             return new EnvAndService(env, service);
           }
         };
 
-    static final EnvAndService DEFAULT = new EnvAndService("", "");
+    static final EnvAndService FALLBACK = new EnvAndService("", "");
 
     public static EnvAndService fromString(String key) {
       return CACHE.computeIfAbsent(key, PARSE);
     }
 
-    private final String env;
-    private final String service;
+    private final String lowerEnv;
+    private final String lowerService;
 
     private EnvAndService(String env, String service) {
-      this.env = env;
-      this.service = service;
+      lowerEnv = env.toLowerCase();
+      lowerService = service.toLowerCase();
+    }
+
+    boolean isFallback() {
+      return isFallback(lowerEnv, lowerService);
+    }
+
+    private static final boolean isFallback(String env, String service) {
+      return env.isEmpty() && service.isEmpty();
     }
   }
 }

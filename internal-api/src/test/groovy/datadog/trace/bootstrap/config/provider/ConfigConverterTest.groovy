@@ -99,30 +99,34 @@ class ConfigConverterTest extends DDSpecification {
     // spotless:on
   }
 
-  def "render a single interval bitset"() {
-    def set = new BitSet()
-    set.set(200, 299)
+  def "test parseMapWithOptionalMappings"() {
+    when:
+    def result = ConfigConverter.parseMapWithOptionalMappings(mapString, "test", "", lowercaseKeys)
 
-    expect:
-    ConfigConverter.renderIntegerRange(set) == "200-299"
-  }
+    then:
+    result == expected
 
-  def "render a single value bitset"() {
-    def set = new BitSet()
-    set.set(33)
+    where:
+    mapString                     | expected                               | lowercaseKeys
+    "header1:one,header2:two"     | [header1: "one", header2: "two"]       | false
+    "header1:one, header2:two"    | [header1: "one", header2: "two"]       | false
+    "header1,header2:two"         | [header1: "header1", header2: "two"]   | false
+    "Header1:one,header2:two"     | [header1: "one", header2: "two"]       | true
+    "\"header1:one,header2:two\"" | ["\"header1": "one", header2: "two\""] | true
+    "header1"                     | [header1: "header1"]                   | true
+    ",header1:tag"                | [header1: "tag"]                       | true
+    "header1:tag,"                | [header1: "tag"]                       | true
+    "header:tag:value"            | [header: "tag:value"]                  | true
+    ""                            | [:]                                    | true
+    null                          | [:]                                    | true
 
-    expect:
-    ConfigConverter.renderIntegerRange(set) == "33"
-  }
-
-  def "render bitset intervals"() {
-    def set = new BitSet()
-    set.set(33)
-    set.set(200, 300)
-    set.set(303)
-    set.set(400, 500)
-
-    expect:
-    ConfigConverter.renderIntegerRange(set) == "33,200-300,303,400-500"
+    // logs warning: Illegal key only tag starting with non letter '1header'
+    "1header,header2:two"         | [:]                                    | true
+    // logs warning: Illegal tag starting with non letter for key 'header'
+    "header::tag"                 | [:]                                    | true
+    // logs warning: Illegal empty key at position 0
+    ":tag"                        | [:]                                    | true
+    // logs warning: Illegal empty key at position 11
+    "header:tag,:tag"             | [:]                                    | true
   }
 }

@@ -11,7 +11,6 @@ import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import spock.lang.Requires
 import spock.lang.Shared
-import spock.lang.Unroll
 
 import javax.sql.DataSource
 import java.sql.CallableStatement
@@ -20,6 +19,7 @@ import java.sql.Driver
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Statement
+import java.sql.Types
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -179,7 +179,6 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     mysql?.close()
   }
 
-  @Unroll
   def "basic statement with #connection.getClass().getCanonicalName() on #driver generates spans"() {
     setup:
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
@@ -243,7 +242,6 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
   }
 
-  @Unroll
   def "prepared statement execute on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     PreparedStatement statement = connection.prepareStatement(query)
@@ -304,7 +302,6 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
-  @Unroll
   def "prepared statement query on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     PreparedStatement statement = connection.prepareStatement(query)
@@ -363,7 +360,6 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
-  @Unroll
   def "prepared call on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     CallableStatement statement = connection.prepareCall(query)
@@ -421,7 +417,6 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
-  @Unroll
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     Statement statement = connection.createStatement()
@@ -484,6 +479,103 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
+
+
+  def "prepared procedure call with return value on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+    setup:
+    injectSysConfig("dd.dbm.propagation.mode", "full")
+
+    CallableStatement upperProc = connection.prepareCall(query)
+    upperProc.registerOutParameter(1, Types.VARCHAR)
+    upperProc.setString(2, "hello world")
+    when:
+    runUnderTrace("parent") {
+      return upperProc.execute()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    assert upperProc.getString(1) == "HELLO WORLD"
+    cleanup:
+    upperProc.close()
+    connection.close()
+
+    where:
+    driver       | connection                                              | query
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | " { ? = call upper( ? ) }"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | " { ? = call upper( ? ) }"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
+  }
+
+  def "prepared procedure call on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+    setup:
+
+    String createSql
+    if (driver == "postgresql") {
+      createSql =
+        """
+    CREATE OR REPLACE PROCEDURE dummy(inout res integer)
+    LANGUAGE SQL
+    AS \$\$
+        SELECT 1;
+    \$\$;
+    """
+    } else if (driver == "mysql") {
+      createSql =
+        """
+    CREATE PROCEDURE IF NOT EXISTS dummy(inout res int)
+    BEGIN
+        SELECT 1;
+    END
+    """
+    } else {
+      assert false
+    }
+
+    if (driver.equals("postgresql") && connection.getMetaData().getDatabaseMajorVersion() <= 11) {
+      // Skip test for older versions of PG that don't support out on procedure
+      return
+    }
+
+
+    connection.prepareCall(createSql).execute()
+
+    injectSysConfig("dd.dbm.propagation.mode", "full")
+    CallableStatement proc = connection.prepareCall(query)
+    proc.setInt(1,1)
+    proc.registerOutParameter(1, Types.INTEGER)
+    when:
+    runUnderTrace("parent") {
+      return proc.execute()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    assert proc.getInt(1) == 1
+
+    cleanup:
+    if (proc != null) {
+      proc.close()
+    }
+    connection.close()
+
+    where:
+    driver       | connection                                              | query
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "   CALL dummy(?)"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "  CALL dummy(?)"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | " CALL dummy(?)"
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "CALL dummy(?)"
+  }
+
 
   Driver driverFor(String db) {
     return newDriver(jdbcDriverClassNames.get(db))

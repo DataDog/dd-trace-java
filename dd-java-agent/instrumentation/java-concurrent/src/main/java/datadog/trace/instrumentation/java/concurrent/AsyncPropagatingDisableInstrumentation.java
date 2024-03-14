@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -21,8 +22,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * it can cause the trace to never be reported. Add matchers below to disable async propagation
  * during this period.
  */
-@AutoService(Instrumenter.class)
-public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class AsyncPropagatingDisableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
 
   public AsyncPropagatingDisableInstrumentation() {

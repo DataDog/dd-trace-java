@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import org.apache.pekko.http.scaladsl.model.FormData;
 import org.apache.pekko.http.scaladsl.model.Uri;
 
@@ -17,8 +18,8 @@ import org.apache.pekko.http.scaladsl.model.Uri;
  * through the unmarshaller tainting mechanism. See {@link MarshallingDirectivesInstrumentation} and
  * {@link UnmarshallerInstrumentation}.
  */
-@AutoService(Instrumenter.class)
-public class FormDataInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class FormDataInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public FormDataInstrumentation() {
     super("pekko-http");

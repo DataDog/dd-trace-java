@@ -18,6 +18,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -36,8 +37,8 @@ import scala.concurrent.forkjoin.ForkJoinTask;
  * <p>Note: There are quite a few separate implementations of {@code ForkJoinTask}/{@code
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Scala version.
  */
-@AutoService(Instrumenter.class)
-public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class ScalaForkJoinTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   public ScalaForkJoinTaskInstrumentation() {

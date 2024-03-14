@@ -28,7 +28,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.controller.UnsupportedEnvironmentException;
+import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
@@ -49,7 +49,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,16 +68,11 @@ public final class OpenJdkController implements Controller {
 
   private final ConfigProvider configProvider;
   private final Map<String, String> recordingSettings;
+  private final boolean jfrStackDepthApplied;
 
-  private final AtomicBoolean shouldCleanup = new AtomicBoolean(false);
-
-  public static Controller instance(ConfigProvider configProvider) {
-    try {
-      return new OpenJdkController(configProvider);
-    } catch (ConfigurationException | ClassNotFoundException e) {
-      log.debug("Unable to create OpenJDK controller", e);
-      return new MisconfiguredController(e);
-    }
+  public static Controller instance(ConfigProvider configProvider)
+      throws ConfigurationException, ClassNotFoundException {
+    return new OpenJdkController(configProvider);
   }
 
   /**
@@ -91,11 +85,7 @@ public final class OpenJdkController implements Controller {
       throws ConfigurationException, ClassNotFoundException {
     // configure the JFR stackdepth before we try to load any JFR classes
     int requestedStackDepth = getConfiguredStackDepth(configProvider);
-    if (JFRAccess.instance().setStackDepth(requestedStackDepth)) {
-      // if we successfully set the stack depth, mark it as applied
-      // this will allow emitting the settings event with the current stack depth
-      JfrProfilerSettings.instance().markJfrStackDepthApplied();
-    }
+    this.jfrStackDepthApplied = JFRAccess.instance().setStackDepth(requestedStackDepth);
     boolean shouldCleanupJfrRepository =
         configProvider.getBoolean(
             PROFILING_DEBUG_CLEANUP_REPO, PROFILING_DEBUG_CLEANUP_REPO_DEFAULT);
@@ -271,10 +261,16 @@ public final class OpenJdkController implements Controller {
   }
 
   @Override
-  public OpenJdkOngoingRecording createRecording(final String recordingName)
-      throws UnsupportedEnvironmentException {
+  public OpenJdkOngoingRecording createRecording(
+      final String recordingName, ControllerContext.Snapshot context) {
     return new OpenJdkOngoingRecording(
-        recordingName, recordingSettings, getMaxSize(), RECORDING_MAX_AGE, configProvider);
+        recordingName,
+        recordingSettings,
+        getMaxSize(),
+        RECORDING_MAX_AGE,
+        configProvider,
+        context,
+        jfrStackDepthApplied);
   }
 
   private static void disableEvent(

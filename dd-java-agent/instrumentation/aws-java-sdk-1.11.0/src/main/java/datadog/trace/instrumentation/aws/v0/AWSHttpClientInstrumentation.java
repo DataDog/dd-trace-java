@@ -11,6 +11,7 @@ import com.amazonaws.Request;
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -21,8 +22,8 @@ import net.bytebuddy.asm.Advice;
  * {@link AmazonClientException} (for example an error thrown by another handler). In these cases
  * {@link RequestHandler2#afterError} is not called.
  */
-@AutoService(Instrumenter.class)
-public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class AWSHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public AWSHttpClientInstrumentation() {
@@ -78,7 +79,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing
    * Due to a change in the AmazonHttpClient class, this instrumentation is needed to support newer
    * versions. The above class should cover older versions.
    */
-  @AutoService(Instrumenter.class)
+  @AutoService(InstrumenterModule.class)
   public static final class RequestExecutorInstrumentation extends AWSHttpClientInstrumentation {
 
     @Override

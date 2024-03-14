@@ -1,5 +1,6 @@
 package com.datadog.debugger.exception;
 
+import com.datadog.debugger.util.ClassNameFiltering;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import org.slf4j.Logger;
@@ -10,7 +11,7 @@ public class Fingerprinter {
   private static final Logger LOGGER = LoggerFactory.getLogger(Fingerprinter.class);
 
   // compute fingerprint of the Throwable based on the stacktrace and exception type
-  public static String fingerprint(Throwable t) {
+  public static String fingerprint(Throwable t, ClassNameFiltering classNameFiltering) {
     t = getInnerMostThrowable(t);
     if (t == null) {
       LOGGER.debug("Unable to find root cause of exception");
@@ -31,13 +32,9 @@ public class Fingerprinter {
     StackTraceElement[] stackTrace = t.getStackTrace();
     for (StackTraceElement stackTraceElement : stackTrace) {
       String className = stackTraceElement.getClassName();
-      if (className.startsWith("java.")
-          || className.startsWith("jdk.")
-          || className.startsWith("sun.")
-          || className.startsWith("com.sun.")) {
+      if (classNameFiltering.apply(className)) {
         continue;
       }
-      // TODO filter out thirdparty code
       digest.update(stackTraceElement.toString().getBytes());
     }
     byte[] bytes = digest.digest();

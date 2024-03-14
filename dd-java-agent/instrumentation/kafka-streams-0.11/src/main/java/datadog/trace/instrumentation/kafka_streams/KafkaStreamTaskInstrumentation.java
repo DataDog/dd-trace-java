@@ -30,6 +30,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -47,8 +48,8 @@ import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 import org.apache.kafka.streams.processor.internals.StreamTask;
 
-@AutoService(Instrumenter.class)
-public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public KafkaStreamTaskInstrumentation() {

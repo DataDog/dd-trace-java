@@ -41,6 +41,7 @@ import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.SerializerWithLimits;
+import com.datadog.debugger.util.TestSnapshotListener;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
@@ -128,12 +129,21 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void bridgeMethods() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "BridgeMethods";
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "process", null);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    String result = Reflect.onClass(testClass).call("main").get();
+    assertEquals("hello world", result);
+    assertEquals(1, listener.snapshots.size());
+  }
+
+  @Test
   public void methodNotFound() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "foobar", null);
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "foobar", null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
     verify(probeStatusSink)
         .addError(eq(PROBE_ID), eq("Cannot find method CapturedSnapshot01::foobar"));
@@ -142,10 +152,10 @@ public class CapturedSnapshotTest {
   @Test
   public void methodProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertNotNull(snapshot.getCaptures().getEntry());
@@ -160,10 +170,10 @@ public class CapturedSnapshotTest {
   @Test
   public void singleLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbeAtExit(CLASS_NAME, "main", "int (java.lang.String)", "8");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertNull(snapshot.getCaptures().getEntry());
@@ -178,12 +188,12 @@ public class CapturedSnapshotTest {
   @Test
   public void resolutionFails() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installSingleProbe(CLASS_NAME, "main", "int (java.lang.String)", "8");
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver((encodedProbeId) -> null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(0, listener.snapshots.size());
   }
@@ -193,15 +203,14 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     LogProbe lineProbe = createProbe(PROBE_ID1, CLASS_NAME, "main", "int (java.lang.String)", "8");
     LogProbe methodProbe = createProbe(PROBE_ID2, CLASS_NAME, "main", "int (java.lang.String)");
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, lineProbe, methodProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, lineProbe, methodProbe);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(
         (encodedProbeId) -> {
           throw new IllegalArgumentException("oops");
         });
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(0, listener.snapshots.size());
   }
@@ -209,10 +218,9 @@ public class CapturedSnapshotTest {
   @Test
   public void constructor() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "<init>", "(String, Object)");
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "<init>", "(String, Object)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "f").get();
+    int result = Reflect.onClass(testClass).call("main", "f").get();
     assertEquals(42, result);
     assertOneSnapshot(listener);
   }
@@ -220,10 +228,9 @@ public class CapturedSnapshotTest {
   @Test
   public void overloadedConstructor() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "<init>", "()");
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "<init>", "()");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "f").get();
+    int result = Reflect.onClass(testClass).call("main", "f").get();
     assertEquals(42, result);
     assertOneSnapshot(listener);
   }
@@ -231,8 +238,7 @@ public class CapturedSnapshotTest {
   @Test
   public void veryOldClassFile() throws Exception {
     final String CLASS_NAME = "antlr.Token"; // compiled with jdk 1.2
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "<init>", "()");
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "<init>", "()");
     Class<?> testClass = Class.forName(CLASS_NAME);
     assertNotNull(testClass);
     testClass.newInstance();
@@ -242,11 +248,10 @@ public class CapturedSnapshotTest {
   @Test
   public void oldJavacBug() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.classfiles.JavacBug"; // compiled with jdk 1.6
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "main", null);
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "main", null);
     Class<?> testClass = Class.forName(CLASS_NAME);
     assertNotNull(testClass);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(45, result);
     assertEquals(0, listener.snapshots.size());
   }
@@ -254,10 +259,9 @@ public class CapturedSnapshotTest {
   @Test
   public void nestedConstructor() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot02";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "<init>", "(Throwable)");
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "<init>", "(Throwable)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "init").get();
+    int result = Reflect.onClass(testClass).call("main", "init").get();
     assertEquals(42, result);
     assertOneSnapshot(listener);
   }
@@ -265,10 +269,9 @@ public class CapturedSnapshotTest {
   @Test
   public void nestedConstructor2() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot13";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "<init>", "(int)");
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "<init>", "(int)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
   }
@@ -276,10 +279,9 @@ public class CapturedSnapshotTest {
   @Test
   public void nestedConstructor3() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot14";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "<init>", "(int, int, int)");
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "<init>", "(int, int, int)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
   }
@@ -287,10 +289,9 @@ public class CapturedSnapshotTest {
   @Test
   public void inheritedConstructor() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot06";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME + "$Inherited", "<init>", null);
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME + "$Inherited", "<init>", null);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureFields(
@@ -304,13 +305,13 @@ public class CapturedSnapshotTest {
   @Test
   public void largeStackInheritedConstructor() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot15";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
             createProbe(PROBE_ID1, CLASS_NAME, "<init>", "()"),
             createProbe(PROBE_ID2, CLASS_NAME, "<init>", "(String, long, String)"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    long result = Reflect.on(testClass).call("main", "").get();
+    long result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(4_000_000_001L, result);
     assertSnapshots(listener, 2, PROBE_ID2, PROBE_ID1);
   }
@@ -318,13 +319,13 @@ public class CapturedSnapshotTest {
   @Test
   public void multiMethods() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
             createProbe(PROBE_ID1, CLASS_NAME, "f1", "(int)"),
             createProbe(PROBE_ID2, CLASS_NAME, "f2", "(int)"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(48, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 2, PROBE_ID1, PROBE_ID2);
     Snapshot snapshot0 = snapshots.get(0);
@@ -340,10 +341,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot03";
     LogProbe probe = createProbe(PROBE_ID1, CLASS_NAME, "f1", "(int)");
     LogProbe probe2 = createProbe(PROBE_ID2, CLASS_NAME, "f1", "(int)");
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, probe, probe2);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(48, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 2, PROBE_ID1, PROBE_ID2);
     Snapshot snapshot0 = snapshots.get(0);
@@ -355,9 +355,7 @@ public class CapturedSnapshotTest {
   }
 
   private List<Snapshot> assertSnapshots(
-      DebuggerTransformerTest.TestSnapshotListener listener,
-      int expectedCount,
-      ProbeId... probeIds) {
+      TestSnapshotListener listener, int expectedCount, ProbeId... probeIds) {
     assertEquals(expectedCount, listener.snapshots.size());
     for (int i = 0; i < probeIds.length; i++) {
       assertEquals(probeIds[i].getId(), listener.snapshots.get(i).getProbe().getId());
@@ -368,10 +366,10 @@ public class CapturedSnapshotTest {
   @Test
   public void catchBlock() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "f", "()"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "f").get();
+    int result = Reflect.onClass(testClass).call("main", "f").get();
     assertEquals(42, result);
     assertOneSnapshot(listener);
   }
@@ -382,13 +380,13 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot02";
     final int LINE_START = 46;
     final int LINE_END = 48;
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
             createProbe(
                 PROBE_ID, CLASS_NAME, "synchronizedBlock", "(int)", LINE_START + "-" + LINE_END));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "synchronizedBlock").get();
+    int result = Reflect.onClass(testClass).call("main", "synchronizedBlock").get();
     assertEquals(76, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 10);
     int count = 31;
@@ -410,13 +408,13 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot02";
     final int LINE_START = 45;
     final int LINE_END = 49;
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
             createProbe(
                 PROBE_ID, CLASS_NAME, "synchronizedBlock", "(int)", LINE_START + "-" + LINE_END));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "synchronizedBlock").get();
+    int result = Reflect.onClass(testClass).call("main", "synchronizedBlock").get();
     assertEquals(76, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertNull(snapshot.getCaptures().getEntry());
@@ -429,10 +427,10 @@ public class CapturedSnapshotTest {
   @Test
   public void sourceFileProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot03";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".java", 4));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(48, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertNull(snapshot.getCaptures().getEntry());
@@ -446,10 +444,10 @@ public class CapturedSnapshotTest {
   @Test
   public void simpleSourceFileProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, "CapturedSnapshot10.java", 11));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertNull(snapshot.getCaptures().getEntry());
@@ -464,12 +462,12 @@ public class CapturedSnapshotTest {
   public void sourceFileProbeFullPath() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
     String DIR_CLASS_NAME = CLASS_NAME.replace('.', '/');
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
             createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", 11));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertNull(snapshot.getCaptures().getEntry());
@@ -484,12 +482,12 @@ public class CapturedSnapshotTest {
   public void sourceFileProbeFullPathTopLevelClass() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
     String DIR_CLASS_NAME = CLASS_NAME.replace('.', '/');
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(
             "com.datadog.debugger.TopLevel01",
             createSourceFileProbe(PROBE_ID, "src/main/java/" + DIR_CLASS_NAME + ".java", 21));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(42 * 42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertNull(snapshot.getCaptures().getEntry());
@@ -505,13 +503,13 @@ public class CapturedSnapshotTest {
   public void methodProbeLineProbeMix() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot11";
     String DIR_CLASS_NAME = CLASS_NAME.replace('.', '/');
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(
             CLASS_NAME,
             createSourceFileProbe(PROBE_ID1, "src/main/java/" + DIR_CLASS_NAME + ".java", 10),
             createProbe(PROBE_ID2, CLASS_NAME, "main", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 2, PROBE_ID1, PROBE_ID2);
     Snapshot snapshot0 = snapshots.get(0);
@@ -535,11 +533,11 @@ public class CapturedSnapshotTest {
   public void sourceFileProbeScala() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot101";
     final String FILE_NAME = CLASS_NAME + ".scala";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, FILE_NAME, 3));
     String source = getFixtureContent("/" + FILE_NAME);
     Class<?> testClass = ScalaHelper.compileAndLoad(source, CLASS_NAME, FILE_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(48, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertNull(snapshot.getCaptures().getEntry());
@@ -553,12 +551,12 @@ public class CapturedSnapshotTest {
   @Test
   public void sourceFileProbeGroovy() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot201";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".groovy", 4));
     String source = getFixtureContent("/" + CLASS_NAME + ".groovy");
     GroovyClassLoader groovyClassLoader = new GroovyClassLoader();
     Class<?> testClass = groovyClassLoader.parseClass(source);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(48, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertNull(snapshot.getCaptures().getEntry());
@@ -572,14 +570,14 @@ public class CapturedSnapshotTest {
   @Test
   public void sourceFileProbeKotlin() {
     final String CLASS_NAME = "CapturedSnapshot301";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createSourceFileProbe(PROBE_ID, CLASS_NAME + ".kt", 4));
     URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
     assertNotNull(resource);
     List<File> filesToDelete = new ArrayList<>();
     Class<?> testClass = KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
     try {
-      Object companion = Reflect.on(testClass).get("Companion");
+      Object companion = Reflect.onClass(testClass).get("Companion");
       int result = Reflect.on(companion).call("main", "").get();
       assertEquals(48, result);
       Snapshot snapshot = assertOneSnapshot(listener);
@@ -601,10 +599,9 @@ public class CapturedSnapshotTest {
     LogProbe simpleDataProbe = builder.capture(1, 100, 255, Limits.DEFAULT_FIELD_COUNT).build();
     builder = createProbeBuilder(PROBE_ID2, CLASS_NAME, "createCompositeData", "()");
     LogProbe compositeDataProbe = builder.capture(1, 3, 255, Limits.DEFAULT_FIELD_COUNT).build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, simpleDataProbe, compositeDataProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, simpleDataProbe, compositeDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(143, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 2, PROBE_ID1, PROBE_ID2);
     Snapshot simpleSnapshot = snapshots.get(0);
@@ -633,10 +630,9 @@ public class CapturedSnapshotTest {
     LogProbe.Builder builder =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "createCompositeData", "()");
     LogProbe compositeDataProbe = builder.capture(2, 3, 255, Limits.DEFAULT_FIELD_COUNT).build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, compositeDataProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, compositeDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext.CapturedValue returnValue =
@@ -658,10 +654,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     LogProbe.Builder builder = createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
     LogProbe simpleDataProbe = builder.capture(1, 100, 2, Limits.DEFAULT_FIELD_COUNT).build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, simpleDataProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, simpleDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, String> expectedFields = new HashMap<>();
@@ -677,10 +672,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     LogProbe.Builder builder = createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
     LogProbe simpleDataProbe = builder.capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, simpleDataProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, simpleDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext.CapturedValue simpleData =
@@ -695,10 +689,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     LogProbe.Builder builder = createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
     LogProbe simpleDataProbe = builder.capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, simpleDataProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, simpleDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext.CapturedValue simpleData =
@@ -714,10 +707,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot04";
     LogProbe.Builder builder = createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
     LogProbe simpleDataProbe = builder.capture(1, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, simpleDataProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, simpleDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext.CapturedValue simpleData =
@@ -735,10 +727,9 @@ public class CapturedSnapshotTest {
     LogProbe.Builder builder =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "createCompositeData", "()");
     LogProbe compositeDataProbe = builder.capture(2, 3, 255, 2).build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, compositeDataProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, compositeDataProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(143, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext.CapturedValue returnValue =
@@ -770,12 +761,12 @@ public class CapturedSnapshotTest {
   @Test
   public void uncaughtException() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot05";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(
             CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "triggerUncaughtException", "()"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     try {
-      Reflect.on(testClass).call("main", "triggerUncaughtException").get();
+      Reflect.onClass(testClass).call("main", "triggerUncaughtException").get();
       Assertions.fail("should not reach this code");
     } catch (ReflectException ex) {
       assertEquals("oops", ex.getCause().getCause().getMessage());
@@ -820,10 +811,10 @@ public class CapturedSnapshotTest {
                     "@exception instanceof \"CapturedSnapshot05$CustomException\" and @exception.detailMessage == 'oops' and @exception.additionalMsg == 'I did it again'"))
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     try {
-      Reflect.on(testClass).call("main", "triggerUncaughtException").get();
+      Reflect.onClass(testClass).call("main", "triggerUncaughtException").get();
       Assertions.fail("should not reach this code");
     } catch (ReflectException ex) {
       assertEquals("oops", ex.getCause().getCause().getMessage());
@@ -841,11 +832,11 @@ public class CapturedSnapshotTest {
   @Test
   public void caughtException() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot05";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(
             CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "triggerCaughtException", "()"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "triggerCaughtException").get();
+    int result = Reflect.onClass(testClass).call("main", "triggerCaughtException").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureThrowable(
@@ -862,10 +853,9 @@ public class CapturedSnapshotTest {
     LogProbe probe1 = createProbe(PROBE_ID1, CLASS_NAME, "triggerSwallowedException", null, "26");
     LogProbe probe2 = createProbe(PROBE_ID2, CLASS_NAME, "triggerSwallowedException", null, "29");
     LogProbe probe3 = createProbe(PROBE_ID3, CLASS_NAME, "triggerSwallowedException", null, "32");
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, probe1, probe2, probe3);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1, probe2, probe3);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "triggerSwallowedException").get();
+    int result = Reflect.onClass(testClass).call("main", "triggerSwallowedException").get();
     assertEquals(-1, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 3, PROBE_ID1, PROBE_ID2, PROBE_ID3);
     Snapshot snapshot0 = snapshots.get(0);
@@ -907,9 +897,9 @@ public class CapturedSnapshotTest {
                     "not(isDefined(@exception))"))
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
     Snapshot snapshot = assertOneSnapshot(listener);
   }
@@ -924,10 +914,10 @@ public class CapturedSnapshotTest {
             .where(CLASS_NAME, 8)
             .sampling(new LogProbe.Sampling(1))
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 100; i++) {
-      int result = Reflect.on(testClass).call("main", "1").get();
+      int result = Reflect.onClass(testClass).call("main", "1").get();
       assertEquals(3, result);
     }
     assertTrue(listener.snapshots.size() < 20);
@@ -944,10 +934,10 @@ public class CapturedSnapshotTest {
             .addLogProbes(Arrays.asList(probe1, probe2))
             .add(new LogProbe.Sampling(1))
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, config);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, config);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 100; i++) {
-      int result = Reflect.on(testClass).call("main", "").get();
+      int result = Reflect.onClass(testClass).call("main", "").get();
       assertEquals(48, result);
     }
     assertTrue(listener.snapshots.size() < 20, "actual snapshots: " + listener.snapshots.size());
@@ -979,10 +969,10 @@ public class CapturedSnapshotTest {
                     "(fld == 11 && typed.fld.fld.msg == \"hello\") && (arg == '5' && @duration >= 0)"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 100; i++) {
-      int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
+      int result = Reflect.onClass(testClass).call("main", String.valueOf(i)).get();
       assertTrue((i == 2 && result == 2) || result == 3);
     }
     assertEquals(1, listener.snapshots.size());
@@ -1013,10 +1003,10 @@ public class CapturedSnapshotTest {
                             DSL.eq(DSL.ref("arg"), DSL.value("5")))),
                     "(fld == 11 && typed.fld.fld.msg == \"hello\") && arg == '5'"))
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 100; i++) {
-      int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
+      int result = Reflect.onClass(testClass).call("main", String.valueOf(i)).get();
       assertTrue((i == 2 && result == 2) || result == 3);
     }
     assertEquals(1, listener.snapshots.size());
@@ -1034,9 +1024,9 @@ public class CapturedSnapshotTest {
                     DSL.when(DSL.eq(DSL.ref("strField"), DSL.value("foo"))), "strField == 'foo'"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "0").get();
+    int result = Reflect.onClass(testClass).call("main", "0").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, CapturedContext.CapturedValue> staticFields =
@@ -1057,9 +1047,9 @@ public class CapturedSnapshotTest {
                 new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("5"))), "arg == '5'"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "0").get();
+    int result = Reflect.onClass(testClass).call("main", "0").get();
     assertEquals(3, result);
     assertEquals(0, listener.snapshots.size());
   }
@@ -1079,9 +1069,9 @@ public class CapturedSnapshotTest {
                             DSL.value("hello"))),
                     "nullTyped.fld.fld.msg == 'hello'"))
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(1, listener.snapshots.size());
     List<EvaluationError> evaluationErrors = listener.snapshots.get(0).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
@@ -1102,9 +1092,9 @@ public class CapturedSnapshotTest {
                             DSL.getMember(DSL.ref("maybeStr"), "value"), DSL.value("maybe foo"))),
                     "maybeStr.value == 'maybe foo'"))
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext.CapturedValue maybeStrField =
@@ -1166,10 +1156,9 @@ public class CapturedSnapshotTest {
         createProbeBuilder(PROBE_ID2, CLASS_NAME, "doit", "int (java.lang.String)")
             .when(probeCondition2)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, probe1, probe2);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(expectedSnapshots, listener.snapshots.size());
     return listener.snapshots;
@@ -1272,10 +1261,9 @@ public class CapturedSnapshotTest {
                     DSL.when(DSL.ge(DSL.ref("@duration"), DSL.value(0))), "@duration >= 0"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, probe1, probe2);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     Assertions.assertEquals(3, result);
     Assertions.assertEquals(2, listener.snapshots.size());
     assertNull(listener.snapshots.get(0).getEvaluationErrors());
@@ -1285,10 +1273,10 @@ public class CapturedSnapshotTest {
   @Test
   public void fields() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "f", "()"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "f").get();
+    int result = Reflect.onClass(testClass).call("main", "f").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 7); // +2 for correlation ids
@@ -1326,10 +1314,9 @@ public class CapturedSnapshotTest {
                     DSL.when(DSL.eq(DSL.ref("intValue"), DSL.value(24))), "intValue == 24"))
             .evaluateAt(MethodLocation.ENTRY)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(INHERITED_CLASS_NAME, probe);
+    TestSnapshotListener listener = installProbes(INHERITED_CLASS_NAME, probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "inherited").get();
+    int result = Reflect.onClass(testClass).call("main", "inherited").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     // Only Declared fields in the current class are captured, not inherited fields
@@ -1346,10 +1333,9 @@ public class CapturedSnapshotTest {
   @Test
   public void staticFields() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot15";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "<init>", "()");
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "<init>", "()");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    long result = Reflect.on(testClass).call("main", "").get();
+    long result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(4_000_000_001L, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, CapturedContext.CapturedValue> staticFields =
@@ -1371,10 +1357,9 @@ public class CapturedSnapshotTest {
                     DSL.when(DSL.eq(DSL.ref("intValue"), DSL.value(48))), "intValue == 48"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(INHERITED_CLASS_NAME, logProbe);
+    TestSnapshotListener listener = installProbes(INHERITED_CLASS_NAME, logProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "inherited").get();
+    int result = Reflect.onClass(testClass).call("main", "inherited").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, CapturedContext.CapturedValue> staticFields =
@@ -1393,10 +1378,10 @@ public class CapturedSnapshotTest {
     CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
     setCorrelationSingleton(spyCorrelationAccess);
     doReturn(true).when(spyCorrelationAccess).isAvailable();
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "33"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "static", "email@address").get();
+    int result = Reflect.onClass(testClass).call("main", "static", "email@address").get();
     assertEquals(8, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext context = snapshot.getCaptures().getLines().get(33);
@@ -1410,10 +1395,10 @@ public class CapturedSnapshotTest {
     CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
     setCorrelationSingleton(spyCorrelationAccess);
     doReturn(true).when(spyCorrelationAccess).isAvailable();
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "44"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "capturing", "email@address").get();
+    int result = Reflect.onClass(testClass).call("main", "capturing", "email@address").get();
     assertEquals(8, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext context = snapshot.getCaptures().getLines().get(44);
@@ -1426,8 +1411,7 @@ public class CapturedSnapshotTest {
   public void tracerInstrumentedClass() throws Exception {
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     final String CLASS_NAME = "com.datadog.debugger.jaxrs.MyResource";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbe(CLASS_NAME, "createResource", null);
+    TestSnapshotListener listener = installSingleProbe(CLASS_NAME, "createResource", null);
     // load a class file that was previously instrumented by the DD tracer as JAX-RS resource
     Class<?> testClass =
         loadClass(CLASS_NAME, getClass().getResource("/MyResource.class").getFile());
@@ -1454,10 +1438,10 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot09";
     LogProbe nativeMethodProbe = createProbe(PROBE_ID1, CLASS_NAME, "nativeMethod", "()");
     LogProbe abstractMethodProbe = createProbe(PROBE_ID2, CLASS_NAME, "abstractMethod", "()");
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, nativeMethodProbe, abstractMethodProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(1, result);
     ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
     ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
@@ -1477,8 +1461,7 @@ public class CapturedSnapshotTest {
     // @1f7ef9ea, parent loader 'app')
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot12";
     LogProbe abstractMethodProbe = createProbe(PROBE_ID, CLASS_NAME, "<init>", null);
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, abstractMethodProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, abstractMethodProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     assertNotNull(testClass);
   }
@@ -1486,10 +1469,10 @@ public class CapturedSnapshotTest {
   @Test
   public void overloadedMethods() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot16";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "overload", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(63, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 4, PROBE_ID, PROBE_ID, PROBE_ID, PROBE_ID);
     assertCaptureReturnValue(snapshots.get(0).getCaptures().getReturn(), "int", "42");
@@ -1501,11 +1484,11 @@ public class CapturedSnapshotTest {
   @Test
   public void noDebugInfoEmptyMethod() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot03";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "empty", null));
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.NONE, "8");
     Class<?> testClass = loadClass(CLASS_NAME, classFileBuffers);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(48, result);
     assertOneSnapshot(listener);
   }
@@ -1514,15 +1497,14 @@ public class CapturedSnapshotTest {
   public void instrumentTheWorld() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        setupInstrumentTheWorldTransformer(null);
+    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(null);
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
     } finally {
       instr.removeTransformer(currentTransformer);
     }
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
     assertEquals(1, listener.snapshots.size());
     ProbeImplementation probeImplementation = listener.snapshots.get(0).getProbe();
@@ -1536,15 +1518,14 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> classFileBuffers = compile(CLASS_NAME);
     URL resource = getClass().getResource(excludeFileName);
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        setupInstrumentTheWorldTransformer(resource.getPath());
+    TestSnapshotListener listener = setupInstrumentTheWorldTransformer(resource.getPath());
     Class<?> testClass;
     try {
       testClass = loadClass(CLASS_NAME, classFileBuffers);
     } finally {
       instr.removeTransformer(currentTransformer);
     }
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
     assertEquals(0, listener.snapshots.size());
   }
@@ -1552,10 +1533,10 @@ public class CapturedSnapshotTest {
   @Test
   public void objectDynamicType() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot17";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "processWithArg", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(50, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureArgs(snapshot.getCaptures().getEntry(), "obj", "java.lang.Integer", "42");
@@ -1568,10 +1549,10 @@ public class CapturedSnapshotTest {
   @Test
   public void exceptionAsLocalVariable() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot18";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "14"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     Map<String, String> expectedFields = new HashMap<>();
@@ -1592,9 +1573,9 @@ public class CapturedSnapshotTest {
                 new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("1"))), "arg == '1'"))
             .evaluateAt(MethodLocation.ENTRY)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertOneSnapshot(listener);
   }
@@ -1609,9 +1590,9 @@ public class CapturedSnapshotTest {
                     DSL.when(DSL.eq(DSL.ref("@return"), DSL.value(3))), "@return == 3"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertOneSnapshot(listener);
   }
@@ -1626,9 +1607,9 @@ public class CapturedSnapshotTest {
                     DSL.when(DSL.eq(DSL.ref("@return"), DSL.value(0))), "@return == 0"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(0, listener.snapshots.size());
     assertTrue(listener.skipped);
@@ -1643,10 +1624,10 @@ public class CapturedSnapshotTest {
             .when(new ProbeCondition(DSL.when(DSL.gt(DSL.ref("after"), DSL.value(0))), "after > 0"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     try {
-      Reflect.on(testClass).call("main", "triggerUncaughtException").get();
+      Reflect.onClass(testClass).call("main", "triggerUncaughtException").get();
       Assertions.fail("should not reach this code");
     } catch (ReflectException ex) {
       assertEquals("oops", ex.getCause().getCause().getMessage());
@@ -1669,10 +1650,10 @@ public class CapturedSnapshotTest {
   public void enumConstructorArgs() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
     final String ENUM_CLASS = CLASS_NAME + "$MyEnum";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(ENUM_CLASS, createProbe(PROBE_ID, ENUM_CLASS, "<init>", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(2, result);
     assertSnapshots(listener, 3, PROBE_ID);
     Map<String, CapturedContext.CapturedValue> arguments =
@@ -1686,10 +1667,10 @@ public class CapturedSnapshotTest {
   @Test
   public void enumValues() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "convert", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "2").get();
+    int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureReturnValue(
@@ -1702,10 +1683,10 @@ public class CapturedSnapshotTest {
   public void recursiveCapture() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot24";
     final String INNER_CLASS = CLASS_NAME + "$Holder";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(INNER_CLASS, createProbe(PROBE_ID, INNER_CLASS, "size", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(1, result);
   }
 
@@ -1713,11 +1694,11 @@ public class CapturedSnapshotTest {
   public void recursiveCaptureException() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot24";
     final String INNER_CLASS = CLASS_NAME + "$HolderWithException";
-    DebuggerTransformerTest.TestSnapshotListener listener =
+    TestSnapshotListener listener =
         installProbes(INNER_CLASS, createProbe(PROBE_ID, INNER_CLASS, "size", null));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     try {
-      Reflect.on(testClass).call("main", "exception").get();
+      Reflect.onClass(testClass).call("main", "exception").get();
       Assertions.fail("should not reach this code");
     } catch (ReflectException ex) {
       assertEquals("not supported", ex.getCause().getCause().getMessage());
@@ -1749,9 +1730,9 @@ public class CapturedSnapshotTest {
                 new ProbeCondition(
                     DSL.when(DSL.ge(DSL.len(DSL.ref("holder")), DSL.value(0))), "len(holder) >= 0"))
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "").get();
+    int result = Reflect.onClass(testClass).call("main", "").get();
     Assertions.assertEquals(1, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(1, snapshot.getEvaluationErrors().size());
@@ -1762,10 +1743,9 @@ public class CapturedSnapshotTest {
   @Test
   public void beforeForLoopLineProbe() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installSingleProbeAtExit(CLASS_NAME, null, null, "46");
+    TestSnapshotListener listener = installSingleProbeAtExit(CLASS_NAME, null, null, "46");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "synchronizedBlock").get();
+    int result = Reflect.onClass(testClass).call("main", "synchronizedBlock").get();
     assertEquals(76, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureLocals(snapshot.getCaptures().getLines().get(46), "count", "int", "31");
@@ -1785,10 +1765,9 @@ public class CapturedSnapshotTest {
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, probe1, probe2);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 2, PROBE_ID1, PROBE_ID2);
     for (Snapshot snapshot : snapshots) {
@@ -1807,9 +1786,9 @@ public class CapturedSnapshotTest {
             .captureSnapshot(true)
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "secret123").get();
+    int result = Reflect.onClass(testClass).call("main", "secret123").get();
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
@@ -1867,10 +1846,9 @@ public class CapturedSnapshotTest {
             .captureSnapshot(true)
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, probe1, probe2, probe3);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1, probe2, probe3);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "secret123").get();
+    int result = Reflect.onClass(testClass).call("main", "secret123").get();
     Assertions.assertEquals(42, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 3, PROBE_ID1, PROBE_ID2, PROBE_ID3);
     assertEquals(1, snapshots.get(0).getEvaluationErrors().size());
@@ -1898,9 +1876,9 @@ public class CapturedSnapshotTest {
             .captureSnapshot(true)
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "secret123").get();
+    int result = Reflect.onClass(testClass).call("main", "secret123").get();
     Assertions.assertEquals(42, result);
     assertEquals(0, listener.snapshots.size());
     InstrumentationResult instrumentationResult =
@@ -1923,9 +1901,9 @@ public class CapturedSnapshotTest {
             .captureSnapshot(true)
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "secret123").get();
+    int result = Reflect.onClass(testClass).call("main", "secret123").get();
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
@@ -1986,10 +1964,9 @@ public class CapturedSnapshotTest {
             .captureSnapshot(true)
             .evaluateAt(MethodLocation.EXIT)
             .build();
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        installProbes(CLASS_NAME, probe1, probe2, probe3);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1, probe2, probe3);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    int result = Reflect.on(testClass).call("main", "secret123").get();
+    int result = Reflect.onClass(testClass).call("main", "secret123").get();
     Assertions.assertEquals(42, result);
     List<Snapshot> snapshots = assertSnapshots(listener, 3, PROBE_ID1, PROBE_ID2, PROBE_ID3);
     assertEquals(1, snapshots.get(0).getEvaluationErrors().size());
@@ -2062,9 +2039,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
     final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
     LogProbe probe1 = createProbeAtExit(PROBE_ID, RECORD_NAME, "age", null);
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(RECORD_NAME, probe1);
+    TestSnapshotListener listener = installProbes(RECORD_NAME, probe1);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureReturnValue(snapshot.getCaptures().getReturn(), "int", "42");
@@ -2082,9 +2059,9 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
     final String RECORD_NAME = "com.datadog.debugger.MyRecord2";
     LogProbe probe1 = createProbe(PROBE_ID, RECORD_NAME, null, null, "29");
-    DebuggerTransformerTest.TestSnapshotListener listener = installProbes(RECORD_NAME, probe1);
+    TestSnapshotListener listener = installProbes(RECORD_NAME, probe1);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext capturedContext = snapshot.getCaptures().getLines().get(29);
@@ -2100,7 +2077,7 @@ public class CapturedSnapshotTest {
   public void allProbesSameMethod() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
     final String METRIC_NAME = "count";
-    Where where = new Where().typeName(CLASS_NAME).methodName("main");
+    Where where = Where.convertLineToMethod(CLASS_NAME, "main", null);
     Configuration configuration =
         Configuration.builder()
             .add(
@@ -2134,14 +2111,13 @@ public class CapturedSnapshotTest {
         new SpanDecorationProbeInstrumentationTest.TestTraceInterceptor();
     tracer.addTraceInterceptor(traceInterceptor);
     try {
-      DebuggerTransformerTest.TestSnapshotListener snapshotListener =
-          installProbes(CLASS_NAME, configuration);
+      TestSnapshotListener snapshotListener = installProbes(CLASS_NAME, configuration);
       DebuggerContext.initTracer(new DebuggerTracer(mock(ProbeStatusSink.class)));
       MetricProbesInstrumentationTest.MetricForwarderListener metricListener =
           new MetricProbesInstrumentationTest.MetricForwarderListener();
       DebuggerContext.initMetricForwarder(metricListener);
       Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-      int result = Reflect.on(testClass).call("main", "1").get();
+      int result = Reflect.onClass(testClass).call("main", "1").get();
       // log probe
       assertEquals(3, result);
       assertEquals(1, snapshotListener.snapshots.size());
@@ -2165,8 +2141,7 @@ public class CapturedSnapshotTest {
     }
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener setupInstrumentTheWorldTransformer(
-      String excludeFileName) {
+  private TestSnapshotListener setupInstrumentTheWorldTransformer(String excludeFileName) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
@@ -2176,8 +2151,7 @@ public class CapturedSnapshotTest {
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerUploadBatchSize()).thenReturn(100);
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        new DebuggerTransformerTest.TestSnapshotListener(config, mock(ProbeStatusSink.class));
+    TestSnapshotListener listener = new TestSnapshotListener(config, mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
     currentTransformer =
         DebuggerAgent.setupInstrumentTheWorldTransformer(
@@ -2204,26 +2178,26 @@ public class CapturedSnapshotTest {
     }
   }
 
-  private Snapshot assertOneSnapshot(DebuggerTransformerTest.TestSnapshotListener listener) {
+  private Snapshot assertOneSnapshot(TestSnapshotListener listener) {
     assertEquals(1, listener.snapshots.size());
     Snapshot snapshot = listener.snapshots.get(0);
     assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
     return snapshot;
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener installSingleProbe(
+  private TestSnapshotListener installSingleProbe(
       String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbes = createProbe(PROBE_ID, typeName, methodName, signature, lines);
     return installProbes(typeName, logProbes);
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener installSingleProbeAtExit(
+  private TestSnapshotListener installSingleProbeAtExit(
       String typeName, String methodName, String signature, String... lines) {
     LogProbe logProbes = createProbeAtExit(PROBE_ID, typeName, methodName, signature, lines);
     return installProbes(typeName, logProbes);
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener installProbes(
+  private TestSnapshotListener installProbes(
       String expectedClassName, Configuration configuration) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
@@ -2235,8 +2209,7 @@ public class CapturedSnapshotTest {
     Collection<LogProbe> logProbes = configuration.getLogProbes();
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
-    DebuggerTransformerTest.TestSnapshotListener listener =
-        new DebuggerTransformerTest.TestSnapshotListener(config, probeStatusSink);
+    TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
     currentTransformer =
         new DebuggerTransformer(config, configuration, instrumentationListener, listener);
     instr.addTransformer(currentTransformer);
@@ -2278,8 +2251,7 @@ public class CapturedSnapshotTest {
     return null;
   }
 
-  private DebuggerTransformerTest.TestSnapshotListener installProbes(
-      String expectedClassName, LogProbe... logProbes) {
+  private TestSnapshotListener installProbes(String expectedClassName, LogProbe... logProbes) {
     return installProbes(
         expectedClassName,
         Configuration.builder()
@@ -2379,7 +2351,7 @@ public class CapturedSnapshotTest {
 
   private void assertCaptureThrowable(
       CapturedContext context, String typeName, String message, String methodName, int lineNumber) {
-    CapturedContext.CapturedThrowable throwable = context.getThrowable();
+    CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
     assertCaptureThrowable(throwable, typeName, message, methodName, lineNumber);
   }
 

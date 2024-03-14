@@ -7,17 +7,23 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Collections;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.ExecutionRequest;
+import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
-@AutoService(Instrumenter.class)
-public class JUnit5Instrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5Instrumentation() {
@@ -49,6 +55,11 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap("org.junit.platform.engine.TestDescriptor", "java.lang.Object");
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("execute").and(takesArgument(0, named("org.junit.platform.engine.ExecutionRequest"))),
@@ -56,7 +67,6 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
   }
 
   public static class JUnit5Advice {
-
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
         justification = "executionRequest is the argument of the original method")
@@ -83,6 +93,12 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility
         // as a separate module
         return;
       }
+
+      ContextStore<TestDescriptor, Object> contextStore =
+          InstrumentationContext.get(TestDescriptor.class, Object.class);
+      TestEventsHandlerHolder.setContextStores(
+          (ContextStore) contextStore, (ContextStore) contextStore);
+      TestEventsHandlerHolder.start();
 
       TracingListener tracingListener = new TracingListener(testEngine);
       EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();

@@ -32,7 +32,6 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Unroll
 
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
@@ -890,7 +889,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container?.stop()
   }
 
-  @Unroll
   def "test kafka client header propagation manual config"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())

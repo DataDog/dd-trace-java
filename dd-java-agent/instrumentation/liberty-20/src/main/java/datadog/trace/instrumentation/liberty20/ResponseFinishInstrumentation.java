@@ -12,6 +12,7 @@ import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.wsspi.webcontainer.WebContainerRequestState;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedRequest;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
@@ -23,8 +24,8 @@ import net.bytebuddy.asm.Advice;
  * being caught. In short, the method runs too late. Maybe intercept {@link
  * SRTServletResponse#closeResponseOutput()} instead?
  */
-@AutoService(Instrumenter.class)
-public class ResponseFinishInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public ResponseFinishInstrumentation() {

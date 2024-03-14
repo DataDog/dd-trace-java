@@ -16,14 +16,15 @@ import com.hazelcast.core.DistributedObject;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.spi.discovery.DiscoveryStrategy;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class DistributedObjectInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class DistributedObjectInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 
   private static final String PROXY_PACKAGE = "com.hazelcast.client.proxy";

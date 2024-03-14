@@ -4,6 +4,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.function.Predicate;
 import org.junit.jupiter.api.Tag;
 
 /**
@@ -22,4 +23,18 @@ public @interface Flaky {
    * test is flaky only when run in a subclass.
    */
   String[] suites() default {};
+
+  /**
+   * Closure with a predicate to test at runtime if the actual spec is flaky (e.g. check the JVM
+   * vendor), the parameter is the actual name of the spec under test
+   */
+  Class<? extends Predicate<String>> condition() default True.class;
+
+  class True implements Predicate<String> {
+
+    @Override
+    public boolean test(final String spec) {
+      return true;
+    }
+  }
 }

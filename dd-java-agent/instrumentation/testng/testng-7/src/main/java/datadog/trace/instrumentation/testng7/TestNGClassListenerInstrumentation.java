@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.instrumentation.testng.TestNGClassListener;
 import datadog.trace.instrumentation.testng.TestNGUtils;
 import datadog.trace.util.Strings;
@@ -16,8 +17,8 @@ import org.testng.annotations.CustomAttribute;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlTest;
 
-@AutoService(Instrumenter.class)
-public class TestNGClassListenerInstrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
 
   private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());

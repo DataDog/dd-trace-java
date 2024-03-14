@@ -14,7 +14,10 @@ import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
 import software.amazon.awssdk.services.ec2.Ec2AsyncClient
 import software.amazon.awssdk.services.ec2.Ec2Client
 import software.amazon.awssdk.services.kinesis.KinesisClient
@@ -130,6 +133,9 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
               if (operation == "PutObject") {
                 "aws.storage.class" "GLACIER"
               }
+              if (operation == "PutObject" || operation == "GetObject") {
+                "aws.object.key" "somekey"
+              }
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
               "queuename" "somequeue"
@@ -177,6 +183,8 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
     "S3"       | "GetObject"         | "java-aws-sdk" | "GET"  | "/somebucket/somekey" | "UNKNOWN"                              | S3Client.builder()       | { c -> c.getObject(GetObjectRequest.builder().bucket("somebucket").key("somekey").build()) }                                                                    | ""
     "S3"       | "PutObject"         | "java-aws-sdk" | "PUT"  | "/somebucket/somekey" | "UNKNOWN"                              | S3Client.builder()       | { c -> c.putObject(PutObjectRequest.builder().bucket("somebucket").key("somekey").storageClass(StorageClass.GLACIER).build(), RequestBody.fromString("body")) } | "body"
     "DynamoDb" | "CreateTable"       | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                                                             | ""
+    "DynamoDb" | "GetItem"           | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.getItem(GetItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }                 | ""
+    "DynamoDb" | "UpdateItem"        | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbClient.builder() | { c -> c.updateItem(UpdateItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }           | ""
     "Kinesis"  | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                                                         | ""
     "Sqs"      | "CreateQueue"       | "java-aws-sdk" | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                                                             | """
         <CreateQueueResponse>
@@ -265,6 +273,9 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             if (service == "S3") {
               "aws.bucket.name" "somebucket"
               "bucketname" "somebucket"
+              if (operation == "PutObject" || operation == "GetObject") {
+                "aws.object.key" "somekey"
+              }
             } else if (service == "Sqs" && operation == "CreateQueue") {
               "aws.queue.name" "somequeue"
               "queuename" "somequeue"
@@ -315,6 +326,8 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
     "S3"       | "CreateBucket"      | "java-aws-sdk" | "PUT"  | "/somebucket"         | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("somebucket").build()) }                                              | ""
     "S3"       | "GetObject"         | "java-aws-sdk" | "GET"  | "/somebucket/somekey" | "UNKNOWN"                              | S3AsyncClient.builder()       | { c -> c.getObject(GetObjectRequest.builder().bucket("somebucket").key("somekey").build(), AsyncResponseTransformer.toBytes()) } | "1234567890"
     "DynamoDb" | "CreateTable"       | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("sometable").build()) }                                              | ""
+    "DynamoDb" | "GetItem"           | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.getItem(GetItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) }       | ""
+    "DynamoDb" | "UpdateItem"        | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | DynamoDbAsyncClient.builder() | { c -> c.updateItem(UpdateItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build()) } | ""
     // Kinesis seems to expect an http2 response which is incompatible with our test server.
     // "Kinesis"  | "DeleteStream"      | "java-aws-sdk" | "POST" | "/"                   | "UNKNOWN"                              | KinesisAsyncClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("somestream").build()) }                                          | ""
     "Sqs"      | "CreateQueue"       | "java-aws-sdk" | "POST" | "/"                   | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SqsAsyncClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("somequeue").build()) }                                              | """
@@ -400,6 +413,7 @@ class LegacyAws2ClientForkedTest extends AgentTestRunner {
             "aws.agent" "java-aws-sdk"
             "aws.bucket.name" "somebucket"
             "bucketname" "somebucket"
+            "aws.object.key" "somekey"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
             defaultTags()
           }

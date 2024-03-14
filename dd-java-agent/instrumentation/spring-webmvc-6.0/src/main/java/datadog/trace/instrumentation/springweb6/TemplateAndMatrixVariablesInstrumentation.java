@@ -9,15 +9,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Obtain template and matrix variables for RequestMappingInfoHandlerMapping. */
-@AutoService(Instrumenter.class)
-public class TemplateAndMatrixVariablesInstrumentation extends Instrumenter.Default
-    implements Instrumenter.ForSingleType, Instrumenter.WithPostProcessor {
+@AutoService(InstrumenterModule.class)
+public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModule
+    implements Instrumenter.ForSingleType,
+        Instrumenter.HasMethodAdvice,
+        Instrumenter.WithPostProcessor {
 
   private Advice.PostProcessor.Factory postProcessorFactory;
 

@@ -14,6 +14,7 @@ public class LongRunningTracesTracker {
   private long lastFlushMilli = 0;
 
   private final int maxTrackedTraces;
+  private final int initialFlushPeriodMilli;
   private final int flushPeriodMilli;
   private final long maxTrackedDurationMilli = TimeUnit.HOURS.toMillis(12);
   private final List<PendingTrace> traceArray = new ArrayList<>(1 << 4);
@@ -34,6 +35,8 @@ public class LongRunningTracesTracker {
       SharedCommunicationObjects sharedCommunicationObjects,
       HealthMetrics healthMetrics) {
     this.maxTrackedTraces = maxTrackedTraces;
+    this.initialFlushPeriodMilli =
+        (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceInitialFlushInterval());
     this.flushPeriodMilli =
         (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceFlushInterval());
     this.features = sharedCommunicationObjects.featuresDiscovery(config);
@@ -108,10 +111,15 @@ public class LongRunningTracesTracker {
   }
 
   private boolean shouldFlush(long nowMilli, PendingTrace trace) {
-    return nowMilli
-            - TimeUnit.NANOSECONDS.toMillis(
-                Math.max(trace.getRunningTraceStartTime(), trace.getLastWriteTime()))
-        > flushPeriodMilli;
+    long traceStartTimeNano = trace.getRunningTraceStartTime();
+    long lastWriteTimeNano = trace.getLastWriteTime();
+
+    // Initial flush
+    if (lastWriteTimeNano <= traceStartTimeNano) {
+      return nowMilli - TimeUnit.NANOSECONDS.toMillis(traceStartTimeNano) > initialFlushPeriodMilli;
+    }
+
+    return nowMilli - TimeUnit.NANOSECONDS.toMillis(lastWriteTimeNano) > flushPeriodMilli;
   }
 
   private void cleanSlot(int index) {

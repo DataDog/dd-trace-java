@@ -12,14 +12,15 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.restlet.engine.resource.AnnotationInfo;
 import org.restlet.resource.ServerResource;
 
-@AutoService(Instrumenter.class)
-public final class ResourceInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class ResourceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   private static final String RESTLET_HTTP_OPERATION_NAME = "restlet.request";

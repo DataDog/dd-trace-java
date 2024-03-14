@@ -100,12 +100,15 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     Map<String, String> serviceMapping;
     Map<String, String> requestHeaderTags;
     Map<String, String> responseHeaderTags;
+    Map<String, String> tracingTags;
     Map<String, String> baggageMapping;
 
     List<? extends SpanSamplingRule> spanSamplingRules;
     List<? extends TraceSamplingRule> traceSamplingRules;
 
     Double traceSampleRate;
+
+    String preferredServiceName;
 
     Builder() {}
 
@@ -121,6 +124,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.baggageMapping = snapshot.baggageMapping;
 
       this.traceSampleRate = snapshot.traceSampleRate;
+      this.tracingTags = snapshot.tracingTags;
+      this.preferredServiceName = snapshot.preferredServiceName;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
@@ -189,6 +194,16 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setTraceSamplingRules(List<? extends TraceSamplingRule> traceSamplingRules) {
       this.traceSamplingRules = traceSamplingRules;
+      return this;
+    }
+
+    public Builder setTracingTags(Map<String, String> tracingTags) {
+      this.tracingTags = tracingTags;
+      return this;
+    }
+
+    public Builder setPreferredServiceName(String preferredServiceName) {
+      this.preferredServiceName = preferredServiceName;
       return this;
     }
 
@@ -288,6 +303,9 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final List<? extends TraceSamplingRule> traceSamplingRules;
 
     final Double traceSampleRate;
+    final Map<String, String> tracingTags;
+
+    final String preferredServiceName;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
@@ -304,6 +322,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.spanSamplingRules = builder.spanSamplingRules;
       this.traceSamplingRules = builder.traceSamplingRules;
+      this.tracingTags = builder.tracingTags;
+      this.preferredServiceName = builder.preferredServiceName;
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
@@ -351,6 +371,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     @Override
+    public String getPreferredServiceName() {
+      return preferredServiceName;
+    }
+
+    @Override
     public List<? extends SpanSamplingRule> getSpanSamplingRules() {
       return spanSamplingRules;
     }
@@ -358,6 +383,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     @Override
     public List<? extends TraceSamplingRule> getTraceSamplingRules() {
       return traceSamplingRules;
+    }
+
+    @Override
+    public Map<String, String> getTracingTags() {
+      return tracingTags;
     }
 
     @Override
@@ -385,6 +415,10 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
           + traceSamplingRules
           + ", traceSampleRate="
           + traceSampleRate
+          + ", tracingTags="
+          + tracingTags
+          + ", preferredServiceName="
+          + preferredServiceName
           + '}';
     }
   }

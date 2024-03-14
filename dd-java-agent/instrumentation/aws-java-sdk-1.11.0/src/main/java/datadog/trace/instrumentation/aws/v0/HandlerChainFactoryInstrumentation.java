@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
 import java.util.Map;
@@ -15,8 +16,8 @@ import net.bytebuddy.asm.Advice;
  * This instrumentation might work with versions before 1.11.0, but this was the first version that
  * is tested. It could possibly be extended earlier.
  */
-@AutoService(Instrumenter.class)
-public final class HandlerChainFactoryInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class HandlerChainFactoryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public HandlerChainFactoryInstrumentation() {

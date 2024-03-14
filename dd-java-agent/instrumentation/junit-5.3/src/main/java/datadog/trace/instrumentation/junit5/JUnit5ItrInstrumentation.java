@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -22,8 +23,8 @@ import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 
-@AutoService(Instrumenter.class)
-public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class JUnit5ItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5ItrInstrumentation() {
@@ -95,7 +96,7 @@ public class JUnit5ItrInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      TestIdentifier test = JUnitPlatformUtils.toTestIdentifier(testDescriptor, true);
+      TestIdentifier test = JUnitPlatformUtils.toTestIdentifier(testDescriptor);
       if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
       }

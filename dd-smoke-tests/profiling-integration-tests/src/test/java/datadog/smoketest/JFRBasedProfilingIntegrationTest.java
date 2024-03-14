@@ -349,6 +349,11 @@ class JFRBasedProfilingIntegrationTest {
     }
   }
 
+  private static void verifyJdkEventsDisabled(IItemCollection events) {
+    assertFalse(events.apply(ItemFilters.type("jdk.ExecutionSample")).hasItems());
+    assertFalse(events.apply(ItemFilters.type("jdk.ThreadPark")).hasItems());
+  }
+
   private static void verifyDatadogEventsNotCorrupt(IItemCollection events) {
     // if we emit any of these events during the test they mustn't have corrupted context
     for (String eventName :
@@ -596,6 +601,7 @@ class JFRBasedProfilingIntegrationTest {
       }
     }
     if (asyncProfilerEnabled) {
+      verifyJdkEventsDisabled(events);
       verifyDatadogEventsNotCorrupt(events);
       assertEquals(
           Platform.isJavaVersionAtLeast(11),

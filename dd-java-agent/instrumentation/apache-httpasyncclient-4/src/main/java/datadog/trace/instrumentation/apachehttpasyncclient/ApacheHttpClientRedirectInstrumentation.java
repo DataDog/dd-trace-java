@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Locale;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -20,8 +21,8 @@ import org.apache.http.HttpRequest;
  * manually. Inspired by
  * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-plugins/apm-apache-httpclient-plugin/src/main/java/co/elastic/apm/agent/httpclient/ApacheHttpAsyncClientRedirectInstrumentation.java
  */
-@AutoService(Instrumenter.class)
-public class ApacheHttpClientRedirectInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class ApacheHttpClientRedirectInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public ApacheHttpClientRedirectInstrumentation() {

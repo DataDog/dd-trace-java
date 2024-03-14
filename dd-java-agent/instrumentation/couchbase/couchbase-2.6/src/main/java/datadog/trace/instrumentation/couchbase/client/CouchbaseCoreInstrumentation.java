@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.couchbase.client.core.message.CouchbaseRequest;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -17,8 +18,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class CouchbaseCoreInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class CouchbaseCoreInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public CouchbaseCoreInstrumentation() {

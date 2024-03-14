@@ -11,6 +11,7 @@ import com.ibm.ws.http.channel.internal.inbound.HttpInboundServiceContextImpl;
 import com.ibm.wsspi.bytebuffer.WsByteBuffer;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -19,8 +20,8 @@ import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class HttpInboundServiceContextImplInstrumentation extends Instrumenter.AppSec
+@AutoService(InstrumenterModule.class)
+public class HttpInboundServiceContextImplInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public static final String REQUEST_MSG_TYPE =
       "com.ibm.ws.http.channel.internal.HttpRequestMessageImpl";

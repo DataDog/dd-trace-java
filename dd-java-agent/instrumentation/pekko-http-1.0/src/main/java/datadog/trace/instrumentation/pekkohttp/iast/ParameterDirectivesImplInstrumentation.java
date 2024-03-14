@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -18,8 +19,8 @@ import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.server.Directive;
 import org.apache.pekko.http.scaladsl.server.util.Tupler$;
 
-@AutoService(Instrumenter.class)
-public class ParameterDirectivesImplInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public ParameterDirectivesImplInstrumentation() {
     super("pekko-http");

@@ -52,7 +52,7 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
   @Shared
   def scheduleCallable = { e, c -> e.schedule((Callable) c, 10, TimeUnit.MILLISECONDS) }
 
-  def "#poolImpl '#name' propagates"() {
+  def "#poolName '#name' propagates"() {
     setup:
     assumeTrue(poolImpl != null) // skip for non-Linux Netty EPoll
     def pool = poolImpl
@@ -195,9 +195,10 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable"      | scheduleRunnable    | localEventLoopGroup
     "schedule Callable"      | scheduleCallable    | localEventLoopGroup
 
+    poolName = poolImpl.class.simpleName
   }
 
-  def "#poolImpl '#name' reports after canceled jobs"() {
+  def "#poolName '#name' reports after canceled jobs"() {
     setup:
     assumeTrue(poolImpl != null) // skip for non-Linux Netty EPoll
     def pool = poolImpl
@@ -272,6 +273,8 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     "submit Callable"        | submitCallable      | localEventLoopGroup.next()
     "schedule Runnable"      | scheduleRunnable    | localEventLoopGroup.next()
     "schedule Callable"      | scheduleCallable    | localEventLoopGroup.next()
+
+    poolName = poolImpl.class.simpleName
   }
 
   def epollExecutor() {

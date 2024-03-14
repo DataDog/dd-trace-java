@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.List;
 import junit.framework.TestCase;
 import net.bytebuddy.asm.Advice;
@@ -14,8 +15,8 @@ import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
 /** Supports suite started/finished events for {@link TestCase} subclasses. */
-@AutoService(Instrumenter.class)
-public class JUnit38SuiteEventsInstrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class JUnit38SuiteEventsInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public JUnit38SuiteEventsInstrumentation() {

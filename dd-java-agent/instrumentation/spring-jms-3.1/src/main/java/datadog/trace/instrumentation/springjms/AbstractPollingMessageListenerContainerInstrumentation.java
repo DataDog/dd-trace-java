@@ -7,15 +7,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import java.util.Map;
 import javax.jms.MessageConsumer;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class AbstractPollingMessageListenerContainerInstrumentation extends Instrumenter.Tracing
-    implements Instrumenter.ForSingleType {
+@AutoService(InstrumenterModule.class)
+public class AbstractPollingMessageListenerContainerInstrumentation
+    extends InstrumenterModule.Tracing implements Instrumenter.ForSingleType {
 
   public AbstractPollingMessageListenerContainerInstrumentation() {
     super("spring-jms", "jms");

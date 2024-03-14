@@ -28,6 +28,10 @@ public class DistributionSeries {
     return this;
   }
 
+  public void addPoint(int point) {
+    points.add(point);
+  }
+
   public List<String> getTags() {
     return tags;
   }

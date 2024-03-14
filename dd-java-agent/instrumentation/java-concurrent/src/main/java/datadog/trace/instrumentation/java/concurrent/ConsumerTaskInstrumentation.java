@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -17,8 +18,8 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class ConsumerTaskInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class ConsumerTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
   public ConsumerTaskInstrumentation() {
     super(EXEC_NAME, "consumer-task");

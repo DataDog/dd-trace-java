@@ -28,6 +28,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.Strings;
@@ -73,6 +74,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo graphqlServerRequestMsgSubInfo;
+  private volatile DataSubscriberInfo requestEndSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -109,6 +111,8 @@ public class GatewayBridge {
           if (ctx == null) {
             return NoopFlow.INSTANCE;
           }
+
+          maybeExtractSchemas(ctx);
 
           // WAF call
           ctx.closeAdditive();
@@ -175,6 +179,14 @@ public class GatewayBridge {
             if (!ctx.commitApiSchemas(traceSeg)) {
               log.debug("Unable to commit, api security schemas and will be skipped");
             }
+
+            if (ctx.isBlocked()) {
+              WafMetricCollector.get().wafRequestBlocked();
+            } else if (!collectedEvents.isEmpty()) {
+              WafMetricCollector.get().wafRequestTriggered();
+            } else {
+              WafMetricCollector.get().wafRequest();
+            }
           }
 
           ctx.close();
@@ -205,14 +217,10 @@ public class GatewayBridge {
           EVENTS.requestPathParams(),
           (ctx_, data) -> {
             AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null) {
+            if (ctx == null || ctx.isPathParamsPublished()) {
               return NoopFlow.INSTANCE;
             }
-
-            if (ctx.isPathParamsPublished()) {
-              log.debug("Second or subsequent publication of request params");
-              return NoopFlow.INSTANCE;
-            }
+            ctx.setPathParamsPublished(true);
 
             while (true) {
               DataSubscriberInfo subInfo = pathParamsSubInfo;
@@ -577,18 +585,10 @@ public class GatewayBridge {
 
     ctx.setRespDataPublished(true);
 
-    boolean extractSchema = false;
-    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
-      extractSchema = requestSampler.sampleRequest();
-    }
-
     MapDataBundle bundle =
         MapDataBundle.of(
             KnownAddresses.RESPONSE_STATUS, String.valueOf(ctx.getResponseStatus()),
-            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders(),
-            // Extract api schema on response stage
-            KnownAddresses.WAF_CONTEXT_PROCESSOR,
-                Collections.singletonMap("extract-schema", extractSchema));
+            KnownAddresses.RESPONSE_HEADERS_NO_COOKIES, ctx.getResponseHeaders());
 
     while (true) {
       DataSubscriberInfo subInfo = respDataSubInfo;
@@ -603,6 +603,39 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, false);
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
+      }
+    }
+  }
+
+  private void maybeExtractSchemas(AppSecRequestContext ctx) {
+    boolean extractSchema = false;
+    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
+      extractSchema = requestSampler.sampleRequest();
+    }
+
+    if (!extractSchema) {
+      return;
+    }
+
+    while (true) {
+      DataSubscriberInfo subInfo = requestEndSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
+        requestEndSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return;
+      }
+
+      DataBundle bundle =
+          new SingletonDataBundle<>(
+              KnownAddresses.WAF_CONTEXT_PROCESSOR,
+              Collections.singletonMap("extract-schema", true));
+      try {
+        producerService.publishDataEvent(subInfo, ctx, bundle, false);
+        return;
+      } catch (ExpiredSubscriberInfoException e) {
+        requestEndSubInfo = null;
       }
     }
   }

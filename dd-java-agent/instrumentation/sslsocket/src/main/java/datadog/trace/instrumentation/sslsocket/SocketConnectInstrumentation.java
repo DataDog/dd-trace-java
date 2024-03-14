@@ -8,14 +8,15 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class SocketConnectInstrumentation extends Instrumenter.Profiling
+@AutoService(InstrumenterModule.class)
+public class SocketConnectInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForSingleType {
 
   public SocketConnectInstrumentation() {

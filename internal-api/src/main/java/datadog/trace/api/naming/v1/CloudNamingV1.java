@@ -29,6 +29,8 @@ public class CloudNamingV1 implements NamingSchema.ForCloud {
         return SpanNaming.instance().namingSchema().messaging().inboundOperation("sqs");
       case "Sns.Publish":
       case "SNS.Publish":
+      case "Sns.PublishBatch":
+      case "SNS.PublishBatch":
         return SpanNaming.instance().namingSchema().messaging().outboundOperation("sns");
       default:
         final String lowercaseService = cloudService.toLowerCase(Locale.ROOT);

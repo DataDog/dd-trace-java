@@ -14,6 +14,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -26,8 +27,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
-public class HttpMessageConverterInstrumentation extends Instrumenter.AppSec
+@AutoService(InstrumenterModule.class)
+public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy {
 
   public HttpMessageConverterInstrumentation() {

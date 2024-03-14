@@ -21,7 +21,9 @@ public final class AppSecConfig {
       "appsec.http.blocked.template.json";
   public static final String APPSEC_AUTOMATED_USER_EVENTS_TRACKING =
       "appsec.automated-user-events-tracking";
-  public static final String API_SECURITY_ENABLED = "experimental.api-security.enabled";
+  public static final String API_SECURITY_ENABLED = "api-security.enabled";
+  public static final String API_SECURITY_ENABLED_EXPERIMENTAL =
+      "experimental.api-security.enabled";
   public static final String API_SECURITY_REQUEST_SAMPLE_RATE = "api-security.request.sample.rate";
 
   private AppSecConfig() {}

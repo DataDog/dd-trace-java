@@ -5,13 +5,19 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.bootstrap.InstrumentationContext;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
-@AutoService(Instrumenter.class)
-public class MUnitInstrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class MUnitInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public MUnitInstrumentation() {
@@ -29,9 +35,16 @@ public class MUnitInstrumentation extends Instrumenter.CiVisibility
       packageName + ".TestEventsHandlerHolder",
       packageName + ".SkippedByItr",
       packageName + ".JUnit4Utils",
+      packageName + ".MUnitUtils",
       packageName + ".TracingListener",
       packageName + ".MUnitTracingListener",
     };
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.junit.runner.Description", TestRetryPolicy.class.getName());
   }
 
   @Override
@@ -60,7 +73,9 @@ public class MUnitInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      replacedNotifier.addListener(new MUnitTracingListener());
+      replacedNotifier.addListener(
+          new MUnitTracingListener(
+              InstrumentationContext.get(Description.class, TestRetryPolicy.class)));
       runNotifier = replacedNotifier;
     }
   }

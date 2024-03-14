@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.pekkohttp.iast.helpers.TaintSingleParameterFunction;
@@ -27,8 +28,8 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  * @see FormFieldDirectives
  * @see ParameterDirectivesInstrumentation with which most of the implementation is shared
  */
-@AutoService(Instrumenter.class)
-public class FormFieldDirectivesInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class FormFieldDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 
   private static final String TRAIT_CLASS =

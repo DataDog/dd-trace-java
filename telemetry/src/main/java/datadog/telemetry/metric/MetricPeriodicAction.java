@@ -2,6 +2,7 @@ package datadog.telemetry.metric;
 
 import datadog.telemetry.TelemetryRunnable;
 import datadog.telemetry.TelemetryService;
+import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Metric;
 import datadog.trace.api.telemetry.MetricCollector;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -16,6 +17,10 @@ public abstract class MetricPeriodicAction implements TelemetryRunnable.Telemetr
     final Collection<MetricCollector.Metric> rawMetrics = collector().drain();
     // Convert raw metrics to telemetry metrics and join points of common metrics
     toTelemetryMetrics(rawMetrics).forEach(service::addMetric);
+
+    Collection<MetricCollector.DistributionSeriesPoint> rawDistributionSeriesPoints =
+        collector().drainDistributionSeries();
+    toDistributionSeries(rawDistributionSeriesPoints).forEach(service::addDistributionSeries);
   }
 
   @NonNull
@@ -52,5 +57,26 @@ public abstract class MetricPeriodicAction implements TelemetryRunnable.Telemetr
       }
     }
     throw new IllegalArgumentException("Invalid metric type value: " + value);
+  }
+
+  private Collection<DistributionSeries> toDistributionSeries(
+      Collection<MetricCollector.DistributionSeriesPoint> rawDistributionSeriesPoints) {
+    Map<MetricCollector.DistributionSeriesPoint, DistributionSeries> distributionSeries =
+        new HashMap<>();
+    for (MetricCollector.DistributionSeriesPoint point : rawDistributionSeriesPoints) {
+      distributionSeries
+          .computeIfAbsent(point, this::convertToDistributionSeries)
+          .addPoint(point.value);
+    }
+    return distributionSeries.values();
+  }
+
+  private DistributionSeries convertToDistributionSeries(
+      MetricCollector.DistributionSeriesPoint point) {
+    return new DistributionSeries()
+        .namespace(point.namespace)
+        .metric(point.metricName)
+        .common(point.common)
+        .tags(point.tags);
   }
 }

@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.muzzle;
 
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.InstrumenterState;
 import java.util.List;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -16,10 +16,10 @@ public class MuzzleCheck implements ElementMatcher<ClassLoader> {
 
   private ReferenceMatcher muzzle;
 
-  public MuzzleCheck(Instrumenter.Default instrumenter) {
-    this.instrumentationId = instrumenter.instrumentationId();
-    this.instrumentationClass = instrumenter.getClass().getName();
-    this.runtimeMuzzleReferences = instrumenter.runtimeMuzzleReferences();
+  public MuzzleCheck(InstrumenterModule module) {
+    this.instrumentationId = module.instrumentationId();
+    this.instrumentationClass = module.getClass().getName();
+    this.runtimeMuzzleReferences = module.runtimeMuzzleReferences();
   }
 
   public boolean matches(ClassLoader classLoader) {
@@ -54,7 +54,7 @@ public class MuzzleCheck implements ElementMatcher<ClassLoader> {
   private ReferenceMatcher muzzle() {
     if (null == muzzle) {
       muzzle =
-          Instrumenter.Default.loadStaticMuzzleReferences(
+          InstrumenterModule.loadStaticMuzzleReferences(
                   getClass().getClassLoader(), instrumentationClass)
               .withReferenceProvider(runtimeMuzzleReferences);
     }

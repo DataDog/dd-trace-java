@@ -6,10 +6,12 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
+import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.uploader.ProfileUploader;
+import com.datadog.profiling.utils.Timestamper;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
@@ -116,7 +118,9 @@ public class ProfilingAgent {
 
       try {
         JFRAccess.setup(inst);
-        final Controller controller = ControllerFactory.createController(configProvider);
+        Timestamper.override(JFRAccess.instance());
+        ControllerContext context = new ControllerContext();
+        final Controller controller = CompositeController.build(configProvider, context);
 
         String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);
         DataDumper dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
@@ -134,6 +138,7 @@ public class ProfilingAgent {
             new ProfilingSystem(
                 configProvider,
                 controller,
+                context.snapshot(),
                 dumper == null
                     ? uploader::upload
                     : (type, data, sync) -> {

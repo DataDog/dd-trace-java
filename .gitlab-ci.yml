@@ -28,7 +28,7 @@ variables:
   tags: [ "runner:main", "size:large" ]
 
 .docker: &docker
-  tags: [ "runner:docker", "size:large" ]
+  tags: [ "arch:amd64", "size:large" ]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:20.10.13
   cache:
     key: no-cache
@@ -55,13 +55,15 @@ build: &build
       when: never
     - when: on_success
   script:
-    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
     - echo "BUILD_JOB_ID=$CI_JOB_ID" >> build.env
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
+      - 'workspace/dd-trace-api/build/libs/*.jar'
+      - 'workspace/dd-trace-ot/build/libs/*.jar'
       - 'upstream.env'
     reports:
       dotenv: build.env
@@ -92,6 +94,40 @@ package-arm:
 .release-package:
   stage: deploy
   variables:
+    PRODUCT_NAME: auto_inject-java
+
+package-oci:
+  stage: package
+  extends: .package-oci
+  when: on_success # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
+  script:
+    - ../.gitlab/build_java_package_oci.sh
+
+release-staging-repo-oci-package:
+  stage: deploy
+  extends: .release-oci-package
+  variables:
+    TARGET_REPO: staging
+    TARGET_BRANCH: beta
+    AUTO_RELEASE: $AUTO_RELEASE_STAGING
+    PRODUCT_NAME: auto_inject-java
+
+release-prod-beta-repo-oci-package:
+  stage: deploy
+  extends: .release-oci-package
+  variables:
+    TARGET_REPO: prod
+    TARGET_BRANCH: beta
+    AUTO_RELEASE: $AUTO_RELEASE_PROD_BETA
+    PRODUCT_NAME: auto_inject-java
+
+release-prod-repo-oci-package:
+  stage: deploy
+  extends: .release-oci-package
+  variables:
+    TARGET_REPO: prod
+    TARGET_BRANCH: stable
+    AUTO_RELEASE: $AUTO_RELEASE_PROD_STABLE
     PRODUCT_NAME: auto_inject-java
 
 deploy_to_reliability_env:
@@ -137,27 +173,6 @@ deploy_to_profiling_backend:
     UPSTREAM_TAG: $CI_COMMIT_TAG
     FORCE_TRIGGER: $FORCE_TRIGGER
 
-deploy_to_di_backend:automatic:
-  stage: deploy
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: on_success
-    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
-      when: on_success
-  trigger:
-    project: DataDog/debugger-demos
-    branch: main
-  variables:
-    UPSTREAM_PACKAGE_JOB: build
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-    UPSTREAM_TAG: $CI_COMMIT_TAG
-    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
- 
 deploy_to_di_backend:manual:
   stage: deploy
   rules:
@@ -194,9 +209,32 @@ deploy_to_sonatype:
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository --max-workers=1 --build-cache --stacktrace --no-daemon
 
+deploy_artifacts_to_github:
+  stage: deploy
+  image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
+  tags: [ "arch:amd64" ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v.*/'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  script:
+    - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
+    - gh auth login --with-token < github-token.txt
+    - gh auth status  # Maybe helpful to have this output in logs?
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # we upload two filenames
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/*.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/*.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/*.jar
+    
 deploy_to_docker_registries:
   stage: deploy
   rules:
+    - if: '$CI_COMMIT_TAG =~ /.*-[Rr][Cc].*/'
+      when: manual
+      allow_failure: true
     - if: '$POPULATE_CACHE'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^v.*/'
@@ -215,6 +253,9 @@ deploy_to_docker_registries:
 deploy_latest_tag_to_docker_registries:
   stage: deploy
   rules:
+    - if: '$CI_COMMIT_TAG =~ /.*-[Rr][Cc].*/'
+      when: manual
+      allow_failure: true
     - if: '$POPULATE_CACHE'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^v1\..*/'
@@ -233,8 +274,8 @@ deploy_latest_tag_to_docker_registries:
 create_key:
   stage: generate-signing-key
   when: manual
-  needs: []
-  tags: [ "runner:docker", "size:large" ]
+  needs: [ ]
+  tags: [ "arch:amd64", "size:large" ]
   variables:
     PROJECT_NAME: "dd-trace-java"
     EXPORT_TO_KEYSERVER: "true"
@@ -255,12 +296,12 @@ tracer-base-image-release:
     - if: '$CI_COMMIT_TAG =~ /^v1\..*/'
       when: on_success
   dependencies:
-  - build
+    - build
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
-    - docker build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest  
+    - docker buildx build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest -f ./tooling/ci/Dockerfile .
+    - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest
 
 tracer-base-image-snapshot:
   extends: .ci_authenticated_job
@@ -271,9 +312,9 @@ tracer-base-image-snapshot:
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
   dependencies:
-  - build
+    - build
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - mkdir -p ./tooling/ci/binaries/ && cp workspace/dd-java-agent/build/libs/*.jar ./tooling/ci/binaries/dd-java-agent.jar
-    - docker build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
+    - docker buildx build -t ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot -f ./tooling/ci/Dockerfile .
     - docker push ghcr.io/datadog/dd-trace-java/dd-trace-java:latest_snapshot  

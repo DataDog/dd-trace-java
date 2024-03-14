@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import net.bytebuddy.asm.Advice;
@@ -18,8 +19,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * This adds the filter class name to the request properties. The class name is used by <code>
  * DefaultRequestContextInstrumentation</code>
  */
-@AutoService(Instrumenter.class)
-public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class ContainerRequestFilterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public ContainerRequestFilterInstrumentation() {

@@ -54,9 +54,6 @@ import org.xml.sax.SAXException;
 @RestController
 public class IastWebController {
 
-  private final String HARDCODED_SECRET =
-      "AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ";
-
   private final Resource xml;
   private final Hasher hasher;
   private final Random random;
@@ -66,11 +63,6 @@ public class IastWebController {
     hasher.sha1();
     random = new Random();
     xml = resource;
-  }
-
-  @RequestMapping("/hardcodedSecret")
-  public String hardcodedSecret() {
-    return HARDCODED_SECRET;
   }
 
   @RequestMapping("/greeting")
@@ -328,6 +320,12 @@ public class IastWebController {
     response.addHeader("X-Content-Type-Options", "dosniff");
     response.setStatus(HttpStatus.OK.value());
     return "ok";
+  }
+
+  @GetMapping(value = "/insecureAuthProtocol")
+  public String insecureAuthProtocol(HttpServletRequest request) {
+    String authorization = request.getHeader("Authorization");
+    return authorization;
   }
 
   @PostMapping("/multipart")

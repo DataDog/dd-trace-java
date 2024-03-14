@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.model.HttpResponse;
@@ -17,8 +18,8 @@ import scala.concurrent.Future;
  * Http2 support in pekko-http is handled by a separate {@code Http2} extension that only supports
  * {@code bindAndHandleAsync}.
  */
-@AutoService(Instrumenter.class)
-public final class PekkoHttp2ServerInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public PekkoHttp2ServerInstrumentation() {
     super("pekko-http2", "pekko-http", "pekko-http-server");

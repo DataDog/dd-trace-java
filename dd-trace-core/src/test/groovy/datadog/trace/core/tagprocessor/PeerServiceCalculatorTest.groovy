@@ -13,7 +13,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
     setup:
     def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Collections.emptyMap())
     when:
-    def enrichedTags = calculator.processTags(tags)
+    def enrichedTags = calculator.processTags(tags, null)
     then:
     // tags are not modified
     assert enrichedTags == tags
@@ -33,7 +33,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
     def calculator = new PeerServiceCalculator(new NamingSchemaV1().peerService(), Collections.emptyMap())
     when:
     tags.put(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
-    def calculated = calculator.processTags(tags)
+    def calculated = calculator.processTags(tags, null)
 
     then:
     calculated.get(DDTags.PEER_SERVICE_SOURCE) == provenance
@@ -56,7 +56,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
     injectSysConfig(TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true")
     def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Collections.emptyMap())
     when:
-    def calculated = calculator.processTags(["span.kind": "client", "peer.hostname": "test"])
+    def calculated = calculator.processTags(["span.kind": "client", "peer.hostname": "test"], null)
     then:
     assert calculated.get(Tags.PEER_SERVICE) == "test"
   }
@@ -70,7 +70,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
     def tags = ["span.kind": kind, "peer.hostname": "test"]
 
     then:
-    assert calculator.processTags(tags).containsKey(Tags.PEER_SERVICE) == calculate
+    assert calculator.processTags(tags, null).containsKey(Tags.PEER_SERVICE) == calculate
 
     where:
     kind       | calculate
@@ -87,7 +87,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
     def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Config.get().getPeerServiceMapping())
 
     when:
-    def calculated = calculator.processTags(tags)
+    def calculated = calculator.processTags(tags, null)
 
     then:
     assert calculated.get(Tags.PEER_SERVICE) == expected
@@ -108,7 +108,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
     def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Config.get().getPeerServiceComponentOverrides())
 
     when:
-    def calculated = calculator.processTags(tags)
+    def calculated = calculator.processTags(tags, null)
 
     then:
     assert calculated.get(Tags.PEER_SERVICE) == expected

@@ -1,6 +1,7 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.api.Platform
 import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.test.agent.decoder.DecodedMessage
@@ -86,25 +87,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
   }
 
   @Shared
-  protected String[] defaultJavaProperties = [
-    "${getMaxMemoryArgumentForFork()}",
-    "${getMinMemoryArgumentForFork()}",
-    "-javaagent:${shadowJarPath}",
-    isIBM ? "-Xdump:directory=/tmp" : "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-    "-Ddd.trace.agent.port=${server.address.port}",
-    "-Ddd.service.name=${SERVICE_NAME}",
-    "-Ddd.env=${ENV}",
-    "-Ddd.version=${VERSION}",
-    "-Ddd.profiling.enabled=true",
-    "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
-    "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
-    "-Ddd.profiling.url=${getProfilingUrl()}",
-    "-Ddd.profiling.ddprof.enabled=true",
-    "-Ddd.profiling.ddprof.alloc.enabled=true",
-    "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
-    "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
-    "-Ddd.site="
-  ]
+  protected String[] defaultJavaProperties = javaProperties()
 
   @Shared
   protected String[] nativeJavaProperties = [
@@ -115,6 +98,41 @@ abstract class AbstractSmokeTest extends ProcessManager {
     "-Ddd.env=${ENV}",
     "-Ddd.version=${VERSION}"
   ]
+
+
+  def javaProperties() {
+    def ret = [
+      "${getMaxMemoryArgumentForFork()}",
+      "${getMinMemoryArgumentForFork()}",
+      "-javaagent:${shadowJarPath}",
+      isIBM ? "-Xdump:directory=/tmp" : "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+      "-Ddd.trace.agent.port=${server.address.port}",
+      "-Ddd.env=${ENV}",
+      "-Ddd.version=${VERSION}",
+      "-Ddd.profiling.enabled=true",
+      "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
+      "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
+      "-Ddd.profiling.url=${getProfilingUrl()}",
+      "-Ddd.profiling.ddprof.enabled=${isDdprofSafe()}",
+      "-Ddd.profiling.ddprof.alloc.enabled=${isDdprofSafe()}",
+      "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
+      "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
+      "-Ddd.site="
+    ]
+    if (inferServiceName())  {
+      ret += "-Ddd.service.name=${SERVICE_NAME}"
+    }
+    ret as String[]
+  }
+
+  def inferServiceName() {
+    true
+  }
+
+  private static boolean isDdprofSafe() {
+    // currently the J9 handling of jmethodIDs will cause frequent crashes
+    return !Platform.isJ9()
+  }
 
   def setup() {
     traceCount.set(0)

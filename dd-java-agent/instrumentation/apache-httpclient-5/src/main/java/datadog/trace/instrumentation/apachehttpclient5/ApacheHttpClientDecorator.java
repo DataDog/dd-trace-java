@@ -17,7 +17,14 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"httpclient5", "apache-httpclient5", "apache-http-client5"};
+    return new String[] {
+      "httpclient5",
+      "apache-httpclient5",
+      "apache-http-client5",
+      "httpclient",
+      "apache-httpclient",
+      "apache-http-client"
+    };
   }
 
   @Override

@@ -32,6 +32,7 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
   @Nullable private volatile String xContentTypeOptions;
   @Nullable private volatile String xForwardedProto;
   @Nullable private volatile String contentType;
+  @Nullable private volatile String authorization;
 
   /**
    * Use {@link IastRequestContext#IastRequestContext(TaintedObjects)} instead as we require more
@@ -87,6 +88,15 @@ public class IastRequestContext implements IastContext, HasMetricCollector {
 
   public void setContentType(final String contentType) {
     this.contentType = contentType;
+  }
+
+  @Nullable
+  public String getAuthorization() {
+    return authorization;
+  }
+
+  public void setAuthorization(final String authorization) {
+    this.authorization = authorization;
   }
 
   public OverheadContext getOverheadContext() {

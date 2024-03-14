@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -19,8 +20,8 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
  * This instrumentation adds the ServletPathRequestFilter definition to the spring context When the
  * context is created, the filter will be added to the beginning of the filter chain
  */
-@AutoService(Instrumenter.class)
-public class ServletPathRequestFilterInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public ServletPathRequestFilterInstrumentation() {
     super("spring-web", "spring-path-filter");

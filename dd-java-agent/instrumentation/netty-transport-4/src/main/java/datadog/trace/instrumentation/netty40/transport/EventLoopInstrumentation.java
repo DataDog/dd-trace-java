@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 
@@ -13,8 +14,8 @@ import net.bytebuddy.asm.Advice;
  * This instrumentation ensures that threads netty may initiate syscalls from is wallclock-profiled,
  * whether spans propagate to the event loop or not.
  */
-@AutoService(Instrumenter.class)
-public class EventLoopInstrumentation extends Instrumenter.Profiling
+@AutoService(InstrumenterModule.class)
+public class EventLoopInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForKnownTypes {
   public EventLoopInstrumentation() {
     super("netty-transport", "netty-eventloop");

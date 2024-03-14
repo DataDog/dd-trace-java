@@ -9,6 +9,7 @@ import akka.http.scaladsl.unmarshalling.PredefinedFromEntityUnmarshallers;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 import scala.collection.Seq;
@@ -17,8 +18,8 @@ import scala.collection.Seq;
  * @see PredefinedFromEntityUnmarshallers#urlEncodedFormDataUnmarshaller(Seq)
  * @see PredefinedFromEntityUnmarshallers#stringUnmarshaller()
  */
-@AutoService(Instrumenter.class)
-public class PredefinedFromEntityUnmarshallersInstrumentation extends Instrumenter.AppSec
+@AutoService(InstrumenterModule.class)
+public class PredefinedFromEntityUnmarshallersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 
   private static final String TRAIT_NAME =

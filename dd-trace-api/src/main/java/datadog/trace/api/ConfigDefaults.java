@@ -155,7 +155,7 @@ public final class ConfigDefaults {
       "5c4ece41241a1bb513f6e3e5df74ab7d5183dfffbd71bfd43127920d880569fd";
   static final String DEFAULT_REMOTE_CONFIG_TARGETS_KEY =
       "e3f1f98c9da02a93bb547f448b472d727e14b22455235796fe49863856252508";
-
+  static final int DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES = 64;
   static final boolean DEFAULT_DEBUGGER_ENABLED = false;
   static final int DEFAULT_DEBUGGER_UPLOAD_TIMEOUT = 30; // seconds
   static final int DEFAULT_DEBUGGER_UPLOAD_FLUSH_INTERVAL = 0; // ms, 0 = dynamic
@@ -200,6 +200,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_TELEMETRY_METRICS_INTERVAL = 10; // in seconds
   static final boolean DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED = false;
+  static final int DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE = 100000;
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = false;
@@ -209,15 +210,18 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH = false;
   static final boolean DEFAULT_TRACE_LONG_RUNNING_ENABLED = false;
+  static final long DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL = 20; // seconds
   static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 120; // seconds -> 2 minutes
 
   static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
 
+  static final boolean DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
   static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
+  static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
 

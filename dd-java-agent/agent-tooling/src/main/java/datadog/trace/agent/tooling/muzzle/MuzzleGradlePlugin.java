@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.co
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import java.io.File;
@@ -28,7 +28,7 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
   private final File targetDir;
 
   public MuzzleGradlePlugin(File targetDir) {
-    super(concreteClass().and(extendsClass(named(Instrumenter.Default.class.getName()))));
+    super(concreteClass().and(extendsClass(named(InstrumenterModule.class.getName()))));
     this.targetDir = targetDir;
   }
 

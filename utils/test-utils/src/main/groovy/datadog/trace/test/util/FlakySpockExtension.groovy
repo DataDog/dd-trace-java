@@ -4,6 +4,8 @@ import org.spockframework.runtime.extension.AbstractGlobalExtension
 import org.spockframework.runtime.model.NodeInfo
 import org.spockframework.runtime.model.SpecInfo
 
+import java.util.function.Predicate
+
 /** Handle tests marked as {@link Flaky}. */
 class FlakySpockExtension extends AbstractGlobalExtension {
 
@@ -23,7 +25,7 @@ class FlakySpockExtension extends AbstractGlobalExtension {
       }
     } else {
       if (shouldRunFlakyTestsOnly()) {
-        if (!spec.getAllFeatures().any {isFlakyTest(it.featureMethod) }) {
+        if (!spec.getAllFeatures().any { isFlakyTest(it.featureMethod) }) {
           skip(spec)
         } else {
           spec.getAllFeatures().each { feature ->
@@ -55,6 +57,10 @@ class FlakySpockExtension extends AbstractGlobalExtension {
     if (flaky == null) {
       return false
     }
+    final condition = flaky.condition()
+    if (!isFlakySpec(node, condition)) {
+      return false
+    }
     final suites = flaky.suites()
     if (suites == null || suites.length == 0) {
       return true
@@ -84,5 +90,13 @@ class FlakySpockExtension extends AbstractGlobalExtension {
 
   private static boolean shouldRunFlakyTestsOnly() {
     return "true" == System.getProperty(RUN_FLAKY_TESTS_KEY)
+  }
+
+  private static boolean isFlakySpec(final NodeInfo node, final Class<? extends Predicate<String>> condition) {
+    if (condition == null || condition === Flaky.True) {
+      return true
+    }
+    final closure = condition.newInstance()
+    return closure.test(node.name)
   }
 }

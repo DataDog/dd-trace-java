@@ -11,6 +11,7 @@ import akka.stream.javadsl.BidiFlow;
 import akka.stream.scaladsl.Flow;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.instrumentation.akkahttp.appsec.ScalaListCollectorMuzzleReferences;
 import net.bytebuddy.asm.Advice;
@@ -48,8 +49,8 @@ import net.bytebuddy.asm.Advice;
  * closed by cleanup code in the message processing instrumentation for the {@code Actor} and its
  * {@code Mailbox}.
  */
-@AutoService(Instrumenter.class)
-public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class AkkaHttpServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public AkkaHttpServerInstrumentation() {
     super("akka-http", "akka-http-server");

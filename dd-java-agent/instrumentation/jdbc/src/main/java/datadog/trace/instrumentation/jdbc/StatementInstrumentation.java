@@ -15,6 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -29,8 +30,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
-public final class StatementInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class StatementInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public StatementInstrumentation() {
@@ -102,7 +103,14 @@ public final class StatementInstrumentation extends Instrumenter.Tracing
           }
           sql =
               SQLCommenter.inject(
-                  sql, span.getServiceName(), traceParent, injectTraceContext, appendComment);
+                  sql,
+                  span.getServiceName(),
+                  dbInfo.getType(),
+                  dbInfo.getHost(),
+                  dbInfo.getDb(),
+                  traceParent,
+                  injectTraceContext,
+                  appendComment);
         }
         DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
         return activateSpan(span);

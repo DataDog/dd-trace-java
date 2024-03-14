@@ -1,6 +1,6 @@
 package com.datadog.iast;
 
-import static com.datadog.iast.IastTag.ANALYZED;
+import static com.datadog.iast.IastTag.Enabled.ANALYZED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.iast.model.Vulnerability;

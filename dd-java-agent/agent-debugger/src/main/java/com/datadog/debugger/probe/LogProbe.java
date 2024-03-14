@@ -11,6 +11,7 @@ import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.Json;
@@ -33,8 +34,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -362,20 +361,9 @@ public class LogProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      ClassLoader classLoader,
-      ClassNode classNode,
-      MethodNode methodNode,
-      List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
     return new CapturedContextInstrumentor(
-            this,
-            classLoader,
-            classNode,
-            methodNode,
-            diagnostics,
-            probeIds,
-            isCaptureSnapshot(),
-            toLimits(getCapture()))
+            this, methodInfo, diagnostics, probeIds, isCaptureSnapshot(), toLimits(getCapture()))
         .instrument();
   }
 
@@ -392,7 +380,7 @@ public class LogProbe extends ProbeDefinition {
       sample(logStatus, methodLocation);
     }
     logStatus.setCondition(evaluateCondition(context, logStatus));
-    CapturedContext.CapturedThrowable throwable = context.getThrowable();
+    CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
     if (logStatus.hasConditionErrors() && throwable != null) {
       logStatus.addError(
           new EvaluationError(
@@ -487,7 +475,7 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (entryStatus.shouldReportError()) {
-      if (entryContext.getThrowable() != null) {
+      if (entryContext.getCapturedThrowable() != null) {
         // report also uncaught exception
         snapshot.setEntry(entryContext);
       }
@@ -495,7 +483,7 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (exitStatus.shouldReportError()) {
-      if (exitContext.getThrowable() != null) {
+      if (exitContext.getCapturedThrowable() != null) {
         // report also uncaught exception
         snapshot.setExit(exitContext);
       }

@@ -21,7 +21,7 @@ class ExecutorLambdaTest extends AgentTestRunner {
   @Shared
   def scheduleCallable = { e, c -> e.schedule((Callable) c, 10, TimeUnit.MILLISECONDS) }
 
-  def "#poolImpl '#name' wrap lambdas"() {
+  def "#poolName '#name' wrap lambdas"() {
     setup:
     def pool = poolImpl
     def m = method
@@ -61,5 +61,7 @@ class ExecutorLambdaTest extends AgentTestRunner {
     "execute Runnable"  | executeRunnable  | { LambdaGenerator.wrapRunnable(it) } | new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
     "submit Runnable"   | submitRunnable   | { LambdaGenerator.wrapRunnable(it) } | new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
     "submit Callable"   | submitCallable   | { LambdaGenerator.wrapCallable(it) } | new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
+
+    poolName = poolImpl.class.simpleName
   }
 }

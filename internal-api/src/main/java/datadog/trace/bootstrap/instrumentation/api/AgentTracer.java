@@ -19,7 +19,6 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
@@ -264,15 +263,6 @@ public class AgentTracer {
      */
     void addScopeListener(ScopeListener listener);
 
-    /**
-     * Registers the checkpointer
-     *
-     * @param checkpointer
-     */
-    void registerCheckpointer(EndpointCheckpointer checkpointer);
-
-    void registerTimer(Timer timer);
-
     SubscriptionService getSubscriptionService(RequestContextSlot slot);
 
     CallbackProvider getCallbackProvider(RequestContextSlot slot);
@@ -285,8 +275,6 @@ public class AgentTracer {
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
-    Timer getTimer();
-
     String getTraceId(AgentSpan span);
 
     String getSpanId(AgentSpan span);
@@ -296,6 +284,13 @@ public class AgentTracer {
     ProfilingContextIntegration getProfilingContext();
 
     AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins);
+
+    /**
+     * Sets the new service name to be used as a default
+     *
+     * @param serviceName
+     */
+    void updatePreferredServiceName(String serviceName);
   }
 
   public interface SpanBuilder {
@@ -474,12 +469,6 @@ public class AgentTracer {
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
-    public void registerCheckpointer(EndpointCheckpointer checkpointer) {}
-
-    @Override
-    public void registerTimer(Timer timer) {}
-
-    @Override
     public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
       return SubscriptionService.SubscriptionServiceNoop.INSTANCE;
     }
@@ -521,11 +510,6 @@ public class AgentTracer {
     }
 
     @Override
-    public Timer getTimer() {
-      return Timer.NoOp.INSTANCE;
-    }
-
-    @Override
     public TraceConfig captureTraceConfig() {
       return NoopTraceConfig.INSTANCE;
     }
@@ -533,6 +517,11 @@ public class AgentTracer {
     @Override
     public AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins) {
       return NoopAgentHistogram.INSTANCE;
+    }
+
+    @Override
+    public void updatePreferredServiceName(String serviceName) {
+      // no ops
     }
   }
 
@@ -1257,6 +1246,16 @@ public class AgentTracer {
 
     @Override
     public Double getTraceSampleRate() {
+      return null;
+    }
+
+    @Override
+    public Map<String, String> getTracingTags() {
+      return Collections.emptyMap();
+    }
+
+    @Override
+    public String getPreferredServiceName() {
       return null;
     }
 

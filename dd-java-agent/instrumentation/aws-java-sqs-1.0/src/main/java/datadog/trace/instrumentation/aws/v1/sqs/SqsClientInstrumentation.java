@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
@@ -14,8 +15,8 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 /** AWS SDK v1 instrumentation */
-@AutoService(Instrumenter.class)
-public final class SqsClientInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   private static final String INSTRUMENTATION_NAME = "aws-sdk";
 

@@ -12,6 +12,7 @@ import com.intuit.karate.core.Scenario;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.StepResult;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -20,8 +21,8 @@ import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class KarateRetryInstrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class KarateRetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
 
   public KarateRetryInstrumentation() {
@@ -30,7 +31,7 @@ public class KarateRetryInstrumentation extends Instrumenter.CiVisibility
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityFlakyRetryEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestRetryEnabled();
   }
 
   @Override
@@ -75,7 +76,8 @@ public class KarateRetryInstrumentation extends Instrumenter.CiVisibility
     @Advice.OnMethodEnter
     public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
       InstrumentationContext.get(Scenario.class, RetryContext.class)
-          .computeIfAbsent(scenarioRuntime.scenario, RetryContext::create);
+          .computeIfAbsent(scenarioRuntime.scenario, RetryContext::create)
+          .setStartTimestamp(System.currentTimeMillis());
     }
 
     @Advice.OnMethodExit
@@ -88,9 +90,11 @@ public class KarateRetryInstrumentation extends Instrumenter.CiVisibility
       }
 
       TestRetryPolicy retryPolicy = retryContext.getRetryPolicy();
-      if (retryPolicy.retry(!retryContext.getAndResetFailed())) {
+      long duration = System.currentTimeMillis() - retryContext.getStartTimestamp();
+      if (retryPolicy.retry(!retryContext.getAndResetFailed(), duration)) {
         ScenarioRuntime retry =
             new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
+        retry.magicVariables.put(KarateUtils.RETRY_MAGIC_VARIABLE, true);
         retry.run();
         retry.featureRuntime.result.addResult(retry.result);
       }
@@ -119,7 +123,7 @@ public class KarateRetryInstrumentation extends Instrumenter.CiVisibility
         retryContext.setFailed(true);
 
         TestRetryPolicy retryPolicy = retryContext.getRetryPolicy();
-        if (retryPolicy.suppressFailures() && retryPolicy.retryPossible()) {
+        if (retryPolicy.suppressFailures() && retryPolicy.retriesLeft()) {
           stepResult = new StepResult(stepResult.getStep(), KarateUtils.abortedResult());
           stepResult.setFailedReason(result.getError());
           stepResult.setErrorIgnored(true);

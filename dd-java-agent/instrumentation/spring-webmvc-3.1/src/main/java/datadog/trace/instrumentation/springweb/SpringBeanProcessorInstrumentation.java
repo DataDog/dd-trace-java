@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.springframework.beans.factory.config.BeanDefinition;
 
@@ -15,8 +16,8 @@ import org.springframework.beans.factory.config.BeanDefinition;
  * a {@link ClassNotFoundException}. This bean is not of interest to Resteasy because it is not a
  * provider or a root resource, so it is safe to skip processing of it in the 'processBean' method.
  */
-@AutoService(Instrumenter.class)
-public class SpringBeanProcessorInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class SpringBeanProcessorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SpringBeanProcessorInstrumentation() {
     super("spring-web");

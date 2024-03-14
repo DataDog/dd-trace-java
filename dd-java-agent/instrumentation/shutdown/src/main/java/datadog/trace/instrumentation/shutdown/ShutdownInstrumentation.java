@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.shutdown.ShutdownHelper;
 import net.bytebuddy.asm.Advice;
 
@@ -13,8 +14,8 @@ import net.bytebuddy.asm.Advice;
  * This instrumentation intercepts the JVM shutdown process and allows calling an arbitrary code
  * before the shutdown hooks are called.<br>
  */
-@AutoService(Instrumenter.class)
-public class ShutdownInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class ShutdownInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
   public ShutdownInstrumentation() {

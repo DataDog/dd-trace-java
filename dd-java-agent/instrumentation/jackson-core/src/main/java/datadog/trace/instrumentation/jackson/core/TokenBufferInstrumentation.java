@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -20,8 +21,8 @@ import net.bytebuddy.asm.Advice;
  * @see TokenBuffer#asParser(ObjectCodec codec)
  * @see TokenBuffer#asParser(JsonParser codec)
  */
-@AutoService(Instrumenter.class)
-public class TokenBufferInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class TokenBufferInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public TokenBufferInstrumentation() {
     super("jackson-core");

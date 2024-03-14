@@ -9,6 +9,7 @@ import akka.http.scaladsl.model.HttpResponse;
 import akka.stream.Materializer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.instrumentation.akkahttp.appsec.ScalaListCollectorMuzzleReferences;
 import net.bytebuddy.asm.Advice;
@@ -19,8 +20,8 @@ import scala.concurrent.Future;
  * Http2 support in akka-http is handled by a separate {@code Http2} extension that only supports
  * {@code bindAndHandleAsync}.
  */
-@AutoService(Instrumenter.class)
-public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class AkkaHttp2ServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public AkkaHttp2ServerInstrumentation() {
     super("akka-http2", "akka-http", "akka-http-server");

@@ -116,6 +116,7 @@ public class ShellCommandExecutor {
         int exitValue = p.exitValue();
         if (exitValue != 0) {
           throw new ShellCommandFailedException(
+              exitValue,
               "Command '"
                   + Strings.join(" ", command)
                   + "' failed with exit code "
@@ -195,8 +196,15 @@ public class ShellCommandExecutor {
   }
 
   public static final class ShellCommandFailedException extends IOException {
-    public ShellCommandFailedException(String message) {
+    private final int exitCode;
+
+    public ShellCommandFailedException(int exitCode, String message) {
       super(message);
+      this.exitCode = exitCode;
+    }
+
+    public int getExitCode() {
+      return exitCode;
     }
   }
 }

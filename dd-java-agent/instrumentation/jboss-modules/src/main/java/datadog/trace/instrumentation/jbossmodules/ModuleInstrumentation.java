@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.AgentClassLoading;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,8 +16,8 @@ import net.bytebuddy.asm.Advice;
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleLinkageHelper;
 
-@AutoService(Instrumenter.class)
-public final class ModuleInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class ModuleInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ModuleInstrumentation() {
     super("classloading", "jboss-modules");

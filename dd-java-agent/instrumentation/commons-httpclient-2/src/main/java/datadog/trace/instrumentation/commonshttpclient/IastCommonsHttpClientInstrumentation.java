@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
@@ -14,8 +15,8 @@ import datadog.trace.api.iast.sink.SsrfModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.commons.httpclient.HttpMethod;
 
-@AutoService(Instrumenter.class)
-public class IastCommonsHttpClientInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class IastCommonsHttpClientInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
   public IastCommonsHttpClientInstrumentation() {

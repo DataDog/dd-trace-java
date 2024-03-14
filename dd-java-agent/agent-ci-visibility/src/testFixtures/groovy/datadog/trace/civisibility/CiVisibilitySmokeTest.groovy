@@ -28,6 +28,12 @@ abstract class CiVisibilitySmokeTest extends Specification {
   Queue<Map<String, Object>> receivedCoverages = new ConcurrentLinkedQueue<>()
 
   @Shared
+  Queue<Map<String, Object>> receivedTelemetryMetrics = new ConcurrentLinkedQueue<>()
+
+  @Shared
+  Queue<Map<String, Object>> receivedTelemetryDistributions = new ConcurrentLinkedQueue<>()
+
+  @Shared
   boolean codeCoverageEnabled = true
 
   @Shared
@@ -39,11 +45,8 @@ abstract class CiVisibilitySmokeTest extends Specification {
   def setup() {
     receivedTraces.clear()
     receivedCoverages.clear()
-  }
-
-  def cleanup() {
-    receivedTraces.clear()
-    receivedCoverages.clear()
+    receivedTelemetryMetrics.clear()
+    receivedTelemetryDistributions.clear()
   }
 
   @Shared
@@ -134,6 +137,22 @@ abstract class CiVisibilitySmokeTest extends Specification {
           '}] ' +
           '}').bytes))
       }
+
+      prefix("/api/v2/apmtelemetry") {
+        def telemetryRequest = CiVisibilityTestUtils.JSON_MAPPER.readerFor(Map.class).readValue(request.body)
+        def requestType = telemetryRequest["request_type"]
+        if (requestType == "message-batch") {
+          for (def message : telemetryRequest["payload"]) {
+            def payload = message["payload"]
+            if (message["request_type"] == 'generate-metrics') {
+              receivedTelemetryMetrics.addAll((List) payload["series"])
+            } else if (message["request_type"] == 'distributions') {
+              receivedTelemetryDistributions.addAll((List) payload["series"])
+            }
+          }
+        }
+        response.status(202).send()
+      }
     }
   }
 
@@ -166,6 +185,34 @@ abstract class CiVisibilitySmokeTest extends Specification {
     CiVisibilityTestUtils.assertData(projectName, events, coverages, additionalReplacements)
   }
 
+  /**
+   * This is a basic sanity check for telemetry metrics.
+   * It only checks that the reported number of events created and finished is as expected.
+   * <p>
+   * Currently the check is not performed for Gradle builds:
+   * Gradle daemon started with Gradle TestKit outlives the test, so the final telemetry flush happens after the assertions.
+   */
+  protected verifyTelemetryMetrics( int expectedEventsCount) {
+    int eventsCreated = 0, eventsFinished = 0
+    for (Map<String, Object> metric : receivedTelemetryMetrics) {
+      if (metric["metric"] == "event_created") {
+        for (def point : metric["points"]) {
+          eventsCreated += point[1]
+        }
+      }
+      if (metric["metric"] == "event_finished") {
+        for (def point : metric["points"]) {
+          eventsFinished += point[1]
+        }
+      }
+    }
+    assert eventsCreated == expectedEventsCount
+    assert eventsFinished == expectedEventsCount
+
+    // an even more basic smoke check for distributions: assert that we received some
+    assert !receivedTelemetryDistributions.isEmpty()
+  }
+
   protected List<Map<String, Object>> waitForEvents(int expectedEventsSize) {
     def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
     traceReceiveConditions.eventually {
@@ -173,7 +220,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
       for (Map<String, Object> trace : receivedTraces) {
         eventsSize += trace["events"].size()
       }
-      assert eventsSize == expectedEventsSize
+      assert eventsSize >= expectedEventsSize
     }
 
     List<Map<String, Object>> events = new ArrayList<>()

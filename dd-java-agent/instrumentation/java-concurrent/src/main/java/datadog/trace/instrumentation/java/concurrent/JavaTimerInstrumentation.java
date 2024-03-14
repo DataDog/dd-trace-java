@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -22,8 +23,8 @@ import java.util.Timer;
 import java.util.TimerTask;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public class JavaTimerInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class JavaTimerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
   public JavaTimerInstrumentation() {
     super("java_timer", "java_concurrent", "runnable");

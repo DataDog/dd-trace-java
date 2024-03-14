@@ -11,14 +11,15 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.tinylog.core.LogEntry;
 
-@AutoService(Instrumenter.class)
-public class TinylogLoggingProviderInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public TinylogLoggingProviderInstrumentation() {
     super("tinylog");

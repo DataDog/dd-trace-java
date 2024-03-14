@@ -12,20 +12,21 @@ public class TelemetryRouter {
 
   private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery;
   private final TelemetryClient agentClient;
-
   private final TelemetryClient intakeClient;
-
+  private final boolean useIntakeClientByDefault;
   private TelemetryClient currentClient;
   private boolean errorReported;
 
   public TelemetryRouter(
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
       TelemetryClient agentClient,
-      @Nullable TelemetryClient intakeClient) {
+      @Nullable TelemetryClient intakeClient,
+      boolean useIntakeClientByDefault) {
     this.ddAgentFeaturesDiscovery = ddAgentFeaturesDiscovery;
     this.agentClient = agentClient;
     this.intakeClient = intakeClient;
-    this.currentClient = agentClient;
+    this.useIntakeClientByDefault = useIntakeClientByDefault;
+    this.currentClient = useIntakeClientByDefault ? intakeClient : agentClient;
   }
 
   public TelemetryClient.Result sendRequest(TelemetryRequest request) {
@@ -49,12 +50,12 @@ public class TelemetryRouter {
       if (requestFailed) {
         reportErrorOnce(currentClient.getUrl(), result);
       }
-      if (agentSupportsTelemetryProxy || requestFailed) {
+      if ((agentSupportsTelemetryProxy && !useIntakeClientByDefault) || requestFailed) {
         errorReported = false;
-        if (agentSupportsTelemetryProxy) {
-          log.info("Agent Telemetry endpoint is now available. Telemetry will be sent to Agent.");
-        } else {
+        if (requestFailed) {
           log.info("Intake Telemetry endpoint failed. Telemetry will be sent to Agent.");
+        } else {
+          log.info("Agent Telemetry endpoint is now available. Telemetry will be sent to Agent.");
         }
         currentClient = agentClient;
       }

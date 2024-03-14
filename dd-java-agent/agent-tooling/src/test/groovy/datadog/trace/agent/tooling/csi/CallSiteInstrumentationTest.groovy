@@ -1,6 +1,5 @@
 package datadog.trace.agent.tooling.csi
 
-import datadog.trace.agent.tooling.Instrumenter
 import net.bytebuddy.asm.AsmVisitorWrapper
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
@@ -25,19 +24,6 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
     then:
     result == builder
     1 * builder.visit(_ as AsmVisitorWrapper) >> builder
-  }
-
-  def 'test instrumentation adds no method advice'() {
-    setup:
-    final advice = mockCallSites(Mock(InvokeAdvice), stringConcatPointcut())
-    final instrumentation = buildInstrumentation([advice])
-    final mock = Mock(Instrumenter.MethodTransformer)
-
-    when:
-    instrumentation.methodAdvice(mock)
-
-    then:
-    0 * mock._
   }
 
   def 'test fetch advices from spi with custom class'() {

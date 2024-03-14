@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -42,8 +43,8 @@ import sun.rmi.transport.Connection;
  * that instruction will essentially be garbage data and will cause the parsing loop to throw
  * exception and shutdown the connection which we do not want
  */
-@AutoService(Instrumenter.class)
-public class RmiClientContextInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class RmiClientContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public RmiClientContextInstrumentation() {

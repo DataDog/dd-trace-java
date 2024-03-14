@@ -1,5 +1,6 @@
 package com.datadog.iast.propagation;
 
+import static com.datadog.iast.model.Source.PROPAGATION_PLACEHOLDER;
 import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
@@ -11,11 +12,13 @@ import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.taint.Tainteds;
 import com.datadog.iast.util.ObjectVisitor;
+import com.datadog.iast.util.Ranged;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Array;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -57,6 +60,27 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Override
   public void taint(
+      @Nullable final Object target, final byte origin, final int start, final int length) {
+    taint(LazyContext.build(), target, origin, start, length);
+  }
+
+  @Override
+  public void taint(
+      @Nullable final IastContext ctx,
+      @Nullable final Object target,
+      final byte origin,
+      final int start,
+      final int length) {
+    if (!canBeTainted(target) || length == 0) {
+      return;
+    }
+    final Range range =
+        new Range(start, length, newSource(target, origin, null, target), NOT_MARKED);
+    internalTaint(ctx, target, new Range[] {range}, NOT_MARKED);
+  }
+
+  @Override
+  public void taint(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       final byte origin,
@@ -74,7 +98,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (!canBeTainted(target)) {
       return;
     }
-    internalTaint(ctx, target, newSource(origin, name, value), NOT_MARKED);
+    internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
   }
 
   @Override
@@ -113,6 +137,45 @@ public class PropagationModuleImpl implements PropagationModule {
       internalTaint(ctx, target, getRanges(ctx, input), mark);
     } else {
       internalTaint(ctx, target, highestPrioritySource(ctx, input), mark);
+    }
+  }
+
+  @Override
+  public void taintIfTainted(
+      @Nullable final Object target,
+      @Nullable final Object input,
+      final int start,
+      final int length,
+      boolean keepRanges,
+      int mark) {
+    taintIfTainted(LazyContext.build(), target, input, start, length, keepRanges, mark);
+  }
+
+  @Override
+  public void taintIfTainted(
+      @Nullable final IastContext ctx,
+      @Nullable final Object target,
+      @Nullable final Object input,
+      final int start,
+      final int length,
+      boolean keepRanges,
+      int mark) {
+    if (!canBeTainted(target) || !canBeTainted(input) || length == 0) {
+      return;
+    }
+    final Range[] ranges = getRanges(ctx, input);
+    if (ranges == null || ranges.length == 0) {
+      return;
+    }
+    final Range[] intersection = Ranges.intersection(Ranged.build(start, length), ranges);
+    if (intersection == null || intersection.length == 0) {
+      return;
+    }
+    if (keepRanges) {
+      internalTaint(ctx, target, intersection, mark);
+    } else {
+      final Range range = highestPriorityRange(intersection);
+      internalTaint(ctx, target, range.getSource(), mark);
     }
   }
 
@@ -175,7 +238,7 @@ public class PropagationModuleImpl implements PropagationModule {
       return;
     }
     if (isTainted(ctx, input)) {
-      internalTaint(ctx, target, newSource(origin, name, value), NOT_MARKED);
+      internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
     }
   }
 
@@ -250,7 +313,7 @@ public class PropagationModuleImpl implements PropagationModule {
       return 0;
     }
     if (target instanceof CharSequence) {
-      internalTaint(ctx, target, newSource(origin, null, target), NOT_MARKED);
+      internalTaint(ctx, target, newSource(target, origin, null, target), NOT_MARKED);
       return 1;
     } else {
       final TaintingVisitor visitor = new TaintingVisitor(to, origin);
@@ -290,18 +353,25 @@ public class PropagationModuleImpl implements PropagationModule {
    * properties
    */
   private static Source newSource(
-      final byte origin, @Nullable final CharSequence name, @Nullable final Object value) {
-    return new Source(origin, sourceString(name), sourceString(value));
+      @Nonnull final Object tainted,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final Object value) {
+    final Object sourceValue = sourceReference(tainted, value, true);
+    final Object sourceName = name == value ? sourceValue : sourceReference(tainted, name, false);
+    return new Source(origin, sourceName, sourceValue);
   }
 
   /**
-   * This method will prevent the code from creating a strong reference to what should remain soft
+   * This method will prevent the code from creating a strong reference to what should remain weakly
    * reachable
    */
   @Nullable
-  private static Object sourceString(@Nullable final Object target) {
+  private static Object sourceReference(
+      @Nonnull final Object tainted, @Nullable final Object target, final boolean value) {
     if (target instanceof String) {
-      return new SoftReference<>(target);
+      // weak reference if it's a value or matches the tainted value
+      return value || tainted == target ? new WeakReference<>(target) : target;
     } else if (target instanceof CharSequence) {
       // char-sequences can mutate so we have to keep a snapshot
       CharSequence charSequence = (CharSequence) target;
@@ -310,7 +380,8 @@ public class PropagationModuleImpl implements PropagationModule {
       }
       return charSequence.toString();
     }
-    return null; // ignore non char-sequence instances (e.g. byte buffers)
+    // ignore non char-sequence instances (e.g. byte buffers)
+    return value ? PROPAGATION_PLACEHOLDER : null;
   }
 
   @Contract("null -> false")
@@ -320,6 +391,9 @@ public class PropagationModuleImpl implements PropagationModule {
     }
     if (target instanceof CharSequence) {
       return Tainteds.canBeTainted((CharSequence) target);
+    }
+    if (target.getClass().isArray()) {
+      return Array.getLength(target) > 0;
     }
     return true;
   }
@@ -393,7 +467,7 @@ public class PropagationModuleImpl implements PropagationModule {
   private static void internalTaint(
       @Nullable final IastContext ctx,
       @Nonnull final Object value,
-      @Nullable final Source source,
+      @Nullable Source source,
       int mark) {
     if (source == null) {
       return;
@@ -406,6 +480,7 @@ public class PropagationModuleImpl implements PropagationModule {
         return;
       }
       if (value instanceof CharSequence) {
+        source = source.attachValue((CharSequence) value);
         to.taint(value, Ranges.forCharSequence((CharSequence) value, source, mark));
       } else {
         to.taint(value, Ranges.forObject(source, mark));
@@ -416,18 +491,32 @@ public class PropagationModuleImpl implements PropagationModule {
   private static void internalTaint(
       @Nullable final IastContext ctx,
       @Nonnull final Object value,
-      @Nullable final Range[] ranges,
+      @Nullable Range[] ranges,
       final int mark) {
     if (ranges == null || ranges.length == 0) {
       return;
     }
     if (value instanceof Taintable) {
-      ((Taintable) value).$$DD$setSource(ranges[0].getSource());
+      final Taintable taintable = (Taintable) value;
+      if (!taintable.$DD$isTainted()) {
+        taintable.$$DD$setSource(ranges[0].getSource());
+      }
     } else {
       final TaintedObjects to = getTaintedObjects(ctx);
       if (to != null) {
-        final Range[] markedRanges = markRanges(ranges, mark);
-        to.taint(value, markedRanges);
+        if (value instanceof CharSequence) {
+          ranges = attachSourceValue(ranges, (CharSequence) value);
+        }
+        ranges = markRanges(ranges, mark);
+        final TaintedObject tainted = to.get(value);
+        if (tainted == null) {
+          // taint new value
+          to.taint(value, ranges);
+        } else {
+          // append ranges
+          final Range[] newRanges = Ranges.mergeRangesSorted(tainted.getRanges(), ranges);
+          tainted.setRanges(newRanges);
+        }
       }
     }
   }
@@ -444,6 +533,20 @@ public class PropagationModuleImpl implements PropagationModule {
       result[i] = new Range(range.getStart(), range.getLength(), range.getSource(), newMark);
     }
     return result;
+  }
+
+  private static Range[] attachSourceValue(
+      @Nonnull final Range[] ranges, @Nonnull final CharSequence value) {
+    // unbound sources can only occur when there's a single range in the array
+    if (ranges.length != 1) {
+      return ranges;
+    }
+    final Range range = ranges[0];
+    final Source source = range.getSource();
+    final Source newSource = range.getSource().attachValue(value);
+    return newSource == source
+        ? ranges
+        : Ranges.forCharSequence(value, newSource, range.getMarks());
   }
 
   private static class LazyContext implements IastContext {
@@ -490,7 +593,7 @@ public class PropagationModuleImpl implements PropagationModule {
       if (value instanceof CharSequence) {
         final CharSequence charSequence = (CharSequence) value;
         if (canBeTainted(charSequence)) {
-          final Source source = newSource(origin, path, charSequence);
+          final Source source = newSource(charSequence, origin, path, charSequence);
           count++;
           taintedObjects.taint(
               charSequence, Ranges.forCharSequence(charSequence, source, NOT_MARKED));

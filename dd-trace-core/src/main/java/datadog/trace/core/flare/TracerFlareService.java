@@ -22,6 +22,9 @@ import java.lang.management.ThreadMXBean;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -57,6 +60,7 @@ final class TracerFlareService {
   private final CoreTracer tracer;
 
   private boolean logLevelOverridden;
+  private volatile long flareStartMillis;
 
   private Scheduled<Runnable> scheduledCleanup;
 
@@ -105,9 +109,10 @@ final class TracerFlareService {
             if (!Files.isDirectory(triagePath)) {
               Files.createDirectories(triagePath);
             }
-            Path reportPath = triagePath.resolve(getFlareName());
+            long flareEndMillis = System.currentTimeMillis();
+            Path reportPath = triagePath.resolve(getFlareName(flareEndMillis));
             log.info("Writing triage report to {}", reportPath);
-            Files.write(reportPath, buildFlareZip(true));
+            Files.write(reportPath, buildFlareZip(flareStartMillis, flareEndMillis, true));
           } catch (Throwable e) {
             log.info("Problem writing triage report", e);
           } finally {
@@ -129,6 +134,7 @@ final class TracerFlareService {
       // already preparing, just cancel old schedule in favour of new one
       oldSchedule.cancel();
     } else {
+      flareStartMillis = System.currentTimeMillis();
       log.debug("Preparing for tracer flare, logLevel={}", logLevel);
       TracerFlare.prepareForFlare();
     }
@@ -150,6 +156,7 @@ final class TracerFlareService {
         // ignore clean-up requests from tasks which aren't currently scheduled
         return;
       }
+      flareStartMillis = 0;
       scheduledCleanup = null;
       log.debug("Cleaning up after tracer flare");
       TracerFlare.cleanupAfterFlare();
@@ -168,7 +175,11 @@ final class TracerFlareService {
   void doSend(String caseId, String email, String hostname, boolean dumpThreads) {
     log.debug("Sending tracer flare");
     try {
-      RequestBody report = RequestBody.create(OCTET_STREAM, buildFlareZip(dumpThreads));
+      long flareEndMillis = System.currentTimeMillis();
+
+      RequestBody report =
+          RequestBody.create(
+              OCTET_STREAM, buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
 
       RequestBody form =
           new MultipartBody.Builder()
@@ -177,7 +188,7 @@ final class TracerFlareService {
               .addFormDataPart("case_id", caseId)
               .addFormDataPart("email", email)
               .addFormDataPart("hostname", hostname)
-              .addFormDataPart("flare_file", getFlareName(), report)
+              .addFormDataPart("flare_file", getFlareName(flareEndMillis), report)
               .build();
 
       Request flareRequest =
@@ -198,14 +209,16 @@ final class TracerFlareService {
     }
   }
 
-  private String getFlareName() {
-    return REPORT_PREFIX + config.getRuntimeId() + "-" + System.currentTimeMillis() + ".zip";
+  private String getFlareName(long endMillis) {
+    return REPORT_PREFIX + config.getRuntimeId() + "-" + endMillis + ".zip";
   }
 
-  private byte[] buildFlareZip(boolean dumpThreads) throws IOException {
+  private byte[] buildFlareZip(long startMillis, long endMillis, boolean dumpThreads)
+      throws IOException {
     try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         ZipOutputStream zip = new ZipOutputStream(bytes)) {
 
+      addPrelude(zip, startMillis, endMillis);
       addConfig(zip);
       addRuntime(zip);
       tracer.addTracerReportToFlare(zip);
@@ -219,8 +232,13 @@ final class TracerFlareService {
     }
   }
 
-  private void addConfig(ZipOutputStream zip) throws IOException {
+  private void addPrelude(ZipOutputStream zip, long startMillis, long endMillis)
+      throws IOException {
+    TracerFlare.addText(zip, "flare_info.txt", flareInfo(startMillis, endMillis));
     TracerFlare.addText(zip, "tracer_version.txt", DDTraceCoreInfo.VERSION);
+  }
+
+  private void addConfig(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
     TracerFlare.addText(zip, "dynamic_config.txt", dynamicConfig.toString());
   }
@@ -238,6 +256,18 @@ final class TracerFlareService {
     } catch (RuntimeException e) {
       TracerFlare.addText(zip, "classpath.txt", System.getProperty("java.class.path"));
     }
+  }
+
+  private String flareInfo(long startMillis, long endMillis) {
+    StringBuilder buf = new StringBuilder();
+    if (startMillis > 0) {
+      buf.append("Requested: ").append(toDateTime(startMillis)).append('\n');
+    }
+    return buf.append("Completed: ").append(toDateTime(endMillis)).toString();
+  }
+
+  private static ZonedDateTime toDateTime(long millis) {
+    return ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
   }
 
   private void addThreadDump(ZipOutputStream zip) throws IOException {

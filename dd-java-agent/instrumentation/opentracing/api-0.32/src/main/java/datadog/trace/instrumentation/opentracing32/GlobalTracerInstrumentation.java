@@ -4,6 +4,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.ReferenceCreator;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentracing.util.GlobalTracer;
@@ -14,8 +15,8 @@ import net.bytebuddy.asm.Advice;
  * to work correctly since it relies on the {@link ReferenceCreator#REFERENCE_CREATION_PACKAGE}
  * prefix.
  */
-@AutoService(Instrumenter.class)
-public class GlobalTracerInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class GlobalTracerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public GlobalTracerInstrumentation() {
     super("opentracing", "opentracing-globaltracer");

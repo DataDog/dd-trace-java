@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
@@ -24,8 +25,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.objectweb.asm.Opcodes;
 
-@AutoService(Instrumenter.class)
-public class ProbeInserterInstrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
   public ProbeInserterInstrumentation() {
     super("jacoco");

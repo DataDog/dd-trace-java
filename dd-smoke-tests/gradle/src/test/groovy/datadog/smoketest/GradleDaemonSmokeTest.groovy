@@ -25,7 +25,6 @@ import org.gradle.wrapper.WrapperConfiguration
 import org.junit.jupiter.api.Assumptions
 import spock.lang.Shared
 import spock.lang.TempDir
-import spock.lang.Unroll
 import spock.util.environment.Jvm
 
 import java.nio.file.FileVisitResult
@@ -35,7 +34,6 @@ import java.nio.file.Paths
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 
-@Unroll
 class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
 
   private static final String LATEST_GRADLE_VERSION = getLatestGradleVersion()
@@ -94,20 +92,20 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     "4.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
     "5.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
     "6.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
-    "7.6.3"               | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
+    "7.6.4"               | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
     "8.3"                 | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
     "8.3"                 | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
-    "7.6.3"               | "test-succeed-multi-module-legacy-instrumentation" | false              | true            | false        | 7              | 2
+    "7.6.4"               | "test-succeed-multi-module-legacy-instrumentation" | false              | true            | false        | 7              | 2
     LATEST_GRADLE_VERSION | "test-succeed-multi-module-new-instrumentation"    | false              | true            | false        | 7              | 2
-    "7.6.3"               | "test-succeed-multi-forks-legacy-instrumentation"  | false              | true            | false        | 6              | 2
+    "7.6.4"               | "test-succeed-multi-forks-legacy-instrumentation"  | false              | true            | false        | 6              | 2
     LATEST_GRADLE_VERSION | "test-succeed-multi-forks-new-instrumentation"     | false              | true            | false        | 6              | 2
-    "7.6.3"               | "test-skip-legacy-instrumentation"                 | false              | true            | false        | 2              | 0
+    "7.6.4"               | "test-skip-legacy-instrumentation"                 | false              | true            | false        | 2              | 0
     LATEST_GRADLE_VERSION | "test-skip-new-instrumentation"                    | false              | true            | false        | 2              | 0
-    "7.6.3"               | "test-failed-legacy-instrumentation"               | false              | false           | false        | 4              | 0
+    "7.6.4"               | "test-failed-legacy-instrumentation"               | false              | false           | false        | 4              | 0
     LATEST_GRADLE_VERSION | "test-failed-new-instrumentation"                  | false              | false           | false        | 4              | 0
-    "7.6.3"               | "test-corrupted-config-legacy-instrumentation"     | false              | false           | false        | 1              | 0
+    "7.6.4"               | "test-corrupted-config-legacy-instrumentation"     | false              | false           | false        | 1              | 0
     LATEST_GRADLE_VERSION | "test-corrupted-config-new-instrumentation"        | false              | false           | false        | 1              | 0
     LATEST_GRADLE_VERSION | "test-succeed-junit-5"                             | false              | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-failed-flaky-retries"                        | false              | false           | true         | 8              | 0

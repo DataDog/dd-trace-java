@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -26,8 +27,8 @@ import org.apache.pekko.http.scaladsl.model.HttpRequest;
  * @see HttpRequestInstrumentation propagates taint from {@link HttpRequest} to the headers, when
  *     they're retrieved
  */
-@AutoService(Instrumenter.class)
-public class HttpHeaderSubclassesInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public HttpHeaderSubclassesInstrumentation() {
     super("pekko-http");

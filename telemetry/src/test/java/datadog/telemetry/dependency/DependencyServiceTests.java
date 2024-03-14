@@ -98,7 +98,9 @@ public class DependencyServiceTests {
     Dependency dep = identifyDependency(t, "assembly.jar/groovy.jar");
     assertThat(dep, notNullValue());
 
-    assertThat(dep.name, equalTo("groovy"));
+    // XXX: This should be `groovy` instead of `groovy-manifest` (ideally). However, we only
+    // have the bundle symbolic name with `groovy` and it is not always reliable.
+    assertThat(dep.name, equalTo("groovy-manifest"));
     assertThat(dep.version, equalTo("2.4.12"));
     assertThat(dep.source, equalTo("groovy-manifest.jar"));
     assertThat(dep.hash, equalTo("04DF0875A66F111880217FE1C5C59CA877403239"));

@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
@@ -14,8 +14,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-@AutoService(Instrumenter.class)
-public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class ExcludeFilterTestInstrumentation extends InstrumenterModule.Tracing
     implements ExcludeFilterProvider {
 
   public ExcludeFilterTestInstrumentation() {

@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -14,8 +15,8 @@ import org.eclipse.jetty.http.Generator;
 import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Response;
 
-@AutoService(Instrumenter.class)
-public final class JettyGeneratorInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class JettyGeneratorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public JettyGeneratorInstrumentation() {

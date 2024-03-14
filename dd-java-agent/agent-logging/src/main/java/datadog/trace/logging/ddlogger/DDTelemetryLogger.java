@@ -37,6 +37,9 @@ public class DDTelemetryLogger extends DDLogger {
   }
 
   private void telemetryLog(LogLevel level, Marker marker, String msgOrgFormat, Throwable t) {
+    if (marker == LogCollector.EXCLUDE_TELEMETRY) {
+      return;
+    }
     // Report only messages with Throwable or explicitly marked with SEND_TELEMETRY.
     // This might be extended to error level without throwable.
     if (t == null && marker != LogCollector.SEND_TELEMETRY) {

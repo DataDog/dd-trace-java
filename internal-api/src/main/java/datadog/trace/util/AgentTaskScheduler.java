@@ -149,6 +149,18 @@ public class AgentTaskScheduler implements Executor {
     weakScheduleAtFixedRate(RunnableTask.INSTANCE, target, initialDelay, period, unit);
   }
 
+  public <T> Scheduled<T> scheduleWithFixedDelay(
+      Task<T> task, T target, long initialDelay, long period, TimeUnit unit) {
+    final Scheduled<T> scheduled = new Scheduled<>(target);
+    scheduleTarget(task, scheduled, initialDelay, -period, unit);
+    return scheduled;
+  }
+
+  public Scheduled<Runnable> scheduleWithFixedDelay(
+      Runnable target, long initialDelay, long period, TimeUnit unit) {
+    return scheduleWithFixedDelay(RunnableTask.INSTANCE, target, initialDelay, period, unit);
+  }
+
   @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
   private <T> void scheduleTarget(
       final Task<T> task,
@@ -303,6 +315,10 @@ public class AgentTaskScheduler implements Executor {
     public boolean reschedule() {
       if (period > 0 && target.get() != null) {
         nextFireTime += period;
+        return true;
+      }
+      if (period < 0 && target.get() != null) {
+        nextFireTime = System.nanoTime() - period;
         return true;
       }
       return false;

@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;
 
 /**
@@ -12,8 +13,8 @@ import java.util.Map;
  * the system. We attach the active span to the concrete implementation of the {@code EventContext}
  * and activate/deactivate the span when mule changes which event it is processing.
  */
-@AutoService(Instrumenter.class)
-public final class EventContextInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class EventContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 
   public EventContextInstrumentation() {

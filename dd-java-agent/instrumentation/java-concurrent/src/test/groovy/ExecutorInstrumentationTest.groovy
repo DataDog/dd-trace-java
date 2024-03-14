@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
 import org.apache.tomcat.util.threads.TaskQueue
 import spock.lang.Shared
-import spock.lang.Unroll
 
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ArrayBlockingQueue
@@ -68,8 +67,7 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     injectSysConfig("trace.thread-pool-executors.exclude", "ExecutorInstrumentationTest\$ToBeIgnoredExecutor")
   }
 
-  @Unroll
-  def "#poolImpl '#name' propagates"() {
+  def "#poolName '#name' propagates"() {
     setup:
     assumeTrue(poolImpl != null) // skip for Java 7 CompletableFuture, non-Linux Netty EPoll
     def pool = poolImpl
@@ -237,10 +235,10 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable"      | scheduleRunnable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     "schedule Callable"      | scheduleCallable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     // spotless:on
+    poolName = poolImpl.class.simpleName
   }
 
-  @Unroll
-  def "#poolImpl '#name' doesn't propagate"() {
+  def "#poolName '#name' doesn't propagate"() {
     setup:
     def pool = poolImpl
     def m = method
@@ -304,6 +302,7 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "schedule at fixed rate"    | scheduleAtFixedRate    | new ScheduledThreadPoolExecutor(1)
     "schedule with fixed delay" | scheduleWithFixedDelay | new ScheduledThreadPoolExecutor(1)
     // spotless:on
+    poolName = poolImpl.class.simpleName
   }
 
   def "excluded ToBeIgnoredExecutor doesn't propagate"() {
@@ -353,8 +352,7 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  @Unroll
-  def "#poolImpl '#name' wraps"() {
+  def "#poolName '#name' wraps"() {
     setup:
     def pool = poolImpl
     def m = method
@@ -388,10 +386,10 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     "execute Runnable"  | executeRunnable  | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
     "submit Runnable"   | submitRunnable   | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
     "schedule Runnable" | scheduleRunnable | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
+    poolName = poolImpl.class.simpleName
   }
 
-  @Unroll
-  def "#poolImpl '#name' reports after canceled jobs"() {
+  def "#poolName '#name' reports after canceled jobs"() {
     setup:
     assumeTrue(poolImpl != null) // skip for non-Linux Netty EPoll
     def pool = poolImpl
@@ -481,6 +479,8 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     //    "submit Callable"     | submitCallable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     //    "schedule Runnable"   | scheduleRunnable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     //    "schedule Callable"   | scheduleCallable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+
+    poolName = poolImpl.class.simpleName
   }
 
   static class ToBeIgnoredExecutor extends ThreadPoolExecutor {

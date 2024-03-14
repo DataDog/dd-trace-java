@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.rmi.ContextDispatcher;
 import net.bytebuddy.asm.Advice;
@@ -16,8 +17,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import sun.rmi.transport.Target;
 
-@AutoService(Instrumenter.class)
-public class RmiServerContextInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class RmiServerContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public RmiServerContextInstrumentation() {

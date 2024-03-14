@@ -7,22 +7,24 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.Collection;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.junit.platform.engine.TestTag;
+import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
+import org.spockframework.runtime.SpecNode;
 import org.spockframework.runtime.SpockNode;
 
-@AutoService(Instrumenter.class)
-public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
   public JUnit5SpockItrInstrumentation() {
@@ -73,6 +75,11 @@ public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
    */
   public static class JUnit5ItrAdvice {
 
+    @Advice.OnMethodEnter
+    public static void beforeSkipCheck() {
+      CallDepthThreadLocalMap.incrementCallDepth(SpockNode.class);
+    }
+
     @SuppressFBWarnings(
         value = "UC_USELESS_OBJECT",
         justification = "skipResult is the return value of the instrumented method")
@@ -80,6 +87,11 @@ public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
     public static void shouldBeSkipped(
         @Advice.This SpockNode<?> spockNode,
         @Advice.Return(readOnly = false) Node.SkipResult skipResult) {
+      if (CallDepthThreadLocalMap.decrementCallDepth(SpockNode.class) > 0) {
+        // nested call
+        return;
+      }
+
       if (skipResult.isSkipped()) {
         return;
       }
@@ -90,16 +102,38 @@ public class JUnit5SpockItrInstrumentation extends Instrumenter.CiVisibility
         return;
       }
 
-      Collection<TestTag> tags = SpockUtils.getTags(spockNode);
-      for (TestTag tag : tags) {
-        if (InstrumentationBridge.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
-          return;
-        }
+      if (SpockUtils.isUnskippable(spockNode)) {
+        return;
       }
 
-      TestIdentifier test = SpockUtils.toTestIdentifier(spockNode, true);
-      if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
+      if (spockNode instanceof SpecNode) {
+        // suite
+        SpecNode specNode = (SpecNode) spockNode;
+        Set<? extends TestDescriptor> features = specNode.getChildren();
+        for (TestDescriptor feature : features) {
+          if (feature instanceof SpockNode && SpockUtils.isUnskippable((SpockNode<?>) feature)) {
+            return;
+          }
+
+          TestIdentifier featureIdentifier = SpockUtils.toTestIdentifier(feature);
+          if (featureIdentifier == null
+              || !TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(featureIdentifier)) {
+            return;
+          }
+        }
+
+        // all children are skippable
+        for (TestDescriptor feature : features) {
+          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(SpockUtils.toTestIdentifier(feature));
+        }
         skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
+
+      } else {
+        // individual test case
+        TestIdentifier test = SpockUtils.toTestIdentifier(spockNode);
+        if (test != null && TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
+          skipResult = Node.SkipResult.skip(InstrumentationBridge.ITR_SKIP_REASON);
+        }
       }
     }
 

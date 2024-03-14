@@ -170,7 +170,8 @@ public class SnapshotSerializationTest {
             Arrays.asList(
                 new CapturedStackFrame("f1", 12),
                 new CapturedStackFrame("f2", 23),
-                new CapturedStackFrame("f3", 34))));
+                new CapturedStackFrame("f3", 34)),
+            null));
     String buffer = adapter.toJson(snapshot);
 
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);

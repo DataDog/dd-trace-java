@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.iast.IastContext;
@@ -24,7 +25,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class MultiMapInstrumentation extends Instrumenter.Iast {
+public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
+    implements Instrumenter.HasTypeAdvice {
 
   private final String className = MultiMapInstrumentation.class.getName();
 

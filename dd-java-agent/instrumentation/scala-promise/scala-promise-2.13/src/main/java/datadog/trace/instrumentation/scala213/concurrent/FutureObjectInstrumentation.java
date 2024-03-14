@@ -6,6 +6,7 @@ import static scala.concurrent.impl.Promise.Transformation;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
@@ -19,8 +20,8 @@ import scala.util.Try;
  * every {@code Future} created via one of the static methods like {@code map} would always pick up
  * that context and propagate it forward, which is quite unexpected and not very relevant.
  */
-@AutoService(Instrumenter.class)
-public class FutureObjectInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class FutureObjectInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public FutureObjectInstrumentation() {

@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -19,8 +20,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * Request bodies before servlet 3.1.x are covered by Servlet2RequestBodyInstrumentation from the
  * "request-2" module. Any changes to the behaviour here should also be reflected in "request-2".
  */
-@AutoService(Instrumenter.class)
-public class Servlet31RequestBodyInstrumentation extends Instrumenter.AppSec
+@AutoService(InstrumenterModule.class)
+public class Servlet31RequestBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy {
   public Servlet31RequestBodyInstrumentation() {
     super("servlet-request-body");

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.cxf;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
@@ -15,8 +16,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.cxf.message.Exchange;
 
-@AutoService(Instrumenter.class)
-public class InvokerInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class InvokerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public InvokerInstrumentation() {
     super("cxf", "cxf-invoker");

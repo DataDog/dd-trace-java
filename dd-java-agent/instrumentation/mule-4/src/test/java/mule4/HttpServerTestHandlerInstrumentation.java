@@ -5,14 +5,15 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 
 /**
  * Test instrumentation to make the {@code testHandle} method in {@code HttpServerTestHandler} call
  * the {@code testHandle} method in the {@code HttpServerTestHandlerBridge}, that can interact with
  * the test code in {@code HttpServerTest}.
  */
-@AutoService(Instrumenter.class)
-public class HttpServerTestHandlerInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class HttpServerTestHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public HttpServerTestHandlerInstrumentation() {

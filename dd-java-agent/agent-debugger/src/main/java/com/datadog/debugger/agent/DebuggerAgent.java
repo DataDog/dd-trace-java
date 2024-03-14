@@ -1,14 +1,16 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
-import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
+import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -61,6 +63,8 @@ public class DebuggerAgent {
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     DebuggerSink debuggerSink = new DebuggerSink(config, probeStatusSink);
     debuggerSink.start();
+    // TODO filtering out thirdparty code
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(emptyList());
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
@@ -78,8 +82,9 @@ public class DebuggerAgent {
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerExceptionEnabled()) {
-      DebuggerContext.initExceptionDebugger(
-          new DefaultExceptionDebugger(new ExceptionProbeManager()));
+      DefaultExceptionDebugger defaultExceptionDebugger =
+          new DefaultExceptionDebugger(configurationUpdater, classNameFiltering);
+      DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
@@ -153,7 +158,7 @@ public class DebuggerAgent {
           DebuggerProductChangesListener.Adapter.deserializeConfiguration(
               outputStream.toByteArray());
       LOGGER.debug("Probe definitions loaded from file {}", probeFilePath);
-      configurationUpdater.accept(configuration);
+      configurationUpdater.accept(REMOTE_CONFIG, configuration.getDefinitions());
     } catch (IOException ex) {
       LOGGER.error("Unable to load config file {}: {}", probeFilePath, ex);
     }

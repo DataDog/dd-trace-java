@@ -23,7 +23,7 @@ public class ConfigCollector {
   }
 
   public void put(String key, Object value, ConfigOrigin origin) {
-    ConfigSetting setting = new ConfigSetting(key, value, origin);
+    ConfigSetting setting = ConfigSetting.of(key, value, origin);
     collected.put(key, setting);
   }
 
@@ -32,7 +32,7 @@ public class ConfigCollector {
     Map<String, ConfigSetting> merged =
         new ConcurrentHashMap<>(keysAndValues.size() + collected.size());
     for (Map.Entry<String, Object> entry : keysAndValues.entrySet()) {
-      ConfigSetting setting = new ConfigSetting(entry.getKey(), entry.getValue(), origin);
+      ConfigSetting setting = ConfigSetting.of(entry.getKey(), entry.getValue(), origin);
       merged.put(entry.getKey(), setting);
     }
     while (true) {

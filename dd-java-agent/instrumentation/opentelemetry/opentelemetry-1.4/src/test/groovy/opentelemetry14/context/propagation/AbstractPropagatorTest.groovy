@@ -6,12 +6,8 @@ import datadog.trace.api.DDTraceId
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ThreadLocalContextStorage
-import io.opentelemetry.context.propagation.TextMapGetter
 import io.opentelemetry.context.propagation.TextMapPropagator
-import io.opentelemetry.context.propagation.TextMapSetter
 import spock.lang.Subject
-
-import javax.annotation.Nullable
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 
@@ -69,7 +65,7 @@ abstract class AbstractPropagatorTest extends AgentTestRunner {
     def expectedSampled = sampling == SAMPLER_KEEP
 
     when:
-    def context = propagator.extract(Context.root(), headers, new TextMap())
+    def context = propagator.extract(Context.root(), headers, TextMap.INSTANCE)
 
     then:
     context != Context.root()
@@ -116,22 +112,5 @@ abstract class AbstractPropagatorTest extends AgentTestRunner {
     assert Context.current() == Context.root()
     // Safely reset OTel context storage
     ThreadLocalContextStorage.THREAD_LOCAL_STORAGE.remove()
-  }
-
-  static class TextMap implements TextMapGetter<Map<String, String>>, TextMapSetter<Map<String, String>> {
-    @Override
-    Iterable<String> keys(Map<String, String> carrier) {
-      return carrier.keySet()
-    }
-
-    @Override
-    String get(@Nullable Map<String, String> carrier, String key) {
-      return carrier.get(key)
-    }
-
-    @Override
-    void set(@Nullable Map<String, String> carrier, String key, String value) {
-      carrier.put(key, value)
-    }
   }
 }

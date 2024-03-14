@@ -4,6 +4,7 @@ import net.bytebuddy.build.Plugin
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.ClassFileLocator
 import net.bytebuddy.dynamic.scaffold.inline.MethodNameTransformer.Suffixing
+import net.bytebuddy.utility.StreamDrainer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -43,7 +44,7 @@ class InstrumentingPlugin {
       Plugin.Engine.Summary summary =
         engine
           .with(Plugin.Engine.PoolStrategy.Default.FAST)
-          .with(ClassFileLocator.ForClassLoader.of(instrumentingLoader))
+          .with(new NonCachingClassFileLocator(instrumentingLoader))
           .with(new LoggingAdapter())
           .withErrorHandlers(
             Plugin.Engine.ErrorHandler.Enforcing.ALL_TYPES_RESOLVED,
@@ -71,5 +72,29 @@ class InstrumentingPlugin {
     void onError(TypeDescription typeDescription, Plugin plugin, Throwable throwable) {
       log.warn("Failed to transform {} using {}", typeDescription, plugin, throwable)
     }
+  }
+
+  static class NonCachingClassFileLocator implements ClassFileLocator {
+    ClassLoader loader
+
+    NonCachingClassFileLocator(ClassLoader loader) {
+      this.loader = loader
+    }
+
+    @Override
+    Resolution locate(String name) throws IOException {
+      URL url = loader.getResource(name.replace('.', '/') + '.class')
+      if (null == url) {
+        return new Resolution.Illegal(name)
+      }
+      URLConnection uc = url.openConnection()
+      uc.setUseCaches(false) // avoid caching class-file resources in build-workers
+      try (InputStream is = uc.getInputStream()) {
+        return new Resolution.Explicit(StreamDrainer.DEFAULT.drain(is))
+      }
+    }
+
+    @Override
+    void close() {}
   }
 }

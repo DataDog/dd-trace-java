@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -12,8 +13,8 @@ import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
 
 // keep in sync with jersey2 (javax packages)
-@AutoService(Instrumenter.class)
-public class ReaderInterceptorExecutorInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public class ReaderInterceptorExecutorInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public ReaderInterceptorExecutorInstrumentation() {
     super("jersey");

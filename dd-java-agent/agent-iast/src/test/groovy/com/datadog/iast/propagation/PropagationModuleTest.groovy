@@ -4,6 +4,7 @@ import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.taint.Ranges
+
 import com.datadog.iast.taint.TaintedObject
 import datadog.trace.api.Config
 import datadog.trace.api.iast.SourceTypes
@@ -14,6 +15,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import org.junit.Assume
 import spock.lang.Shared
 
+import java.lang.ref.Reference
+
 import static com.datadog.iast.taint.Ranges.highestPriorityRange
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 
@@ -23,7 +26,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   private static int maxValueLength = Config.get().iastTruncationMaxValueLength
 
   private PropagationModule module
-
 
   void setup() {
     module = new PropagationModuleImpl()
@@ -56,12 +58,15 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint'             | [null, SourceTypes.REQUEST_PARAMETER_VALUE]
     'taint'             | [null, SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
     'taint'             | [null, SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
+    'taint'             | [null, SourceTypes.REQUEST_PARAMETER_VALUE, 0, 10]
     'taintIfTainted'    | [null, 'test']
     'taintIfTainted'    | ['test', null]
     'taintIfTainted'    | [null, 'test', false, NOT_MARKED]
     'taintIfTainted'    | ['test', null, false, NOT_MARKED]
     'taintIfTainted'    | [null, 'test']
     'taintIfTainted'    | ['test', null]
+    'taintIfTainted'    | [null, 'test', 0, 4, false, NOT_MARKED]
+    'taintIfTainted'    | ['test', null, 0, 4, false, NOT_MARKED]
     'taintIfTainted'    | [null, 'test', SourceTypes.REQUEST_PARAMETER_VALUE]
     'taintIfTainted'    | ['test', null, SourceTypes.REQUEST_PARAMETER_VALUE]
     'taintIfTainted'    | [null, 'test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
@@ -95,7 +100,9 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE]
     'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
     'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
+    'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 0, 10]
     'taintIfTainted'    | ['test', 'test']
+    'taintIfTainted'    | ['test', 'test', 0, 4, false, NOT_MARKED]
     'taintIfTainted'    | ['test', 'test', false, NOT_MARKED]
     'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE]
     'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
@@ -137,6 +144,27 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     taintable()                    | true
   }
 
+  void 'test taint with range'() {
+    given:
+    final value = (target instanceof CharSequence) ? target.toString() : null
+    final source = new Source(SourceTypes.REQUEST_PARAMETER_VALUE, null, value)
+    final ranges = [new Range(start, length, source, NOT_MARKED)] as Range[]
+
+    when:
+    module.taint(target, source.origin, start, length)
+
+    then:
+    final tainted = getTaintedObject(target)
+    assertTainted(tainted, ranges)
+
+    where:
+    target                         | start | length
+    string('string')               | 0     | 2
+    stringBuilder('stringBuilder') | 0     | 2
+    date()                         | 0     | 2
+    taintable()                    | 0     | 2
+  }
+
   void 'test taintIfTainted keeping ranges'() {
     given:
     def (target, input) = suite
@@ -160,6 +188,49 @@ class PropagationModuleTest extends IastModuleImplTestBase {
       assertTainted(tainted, [taintedFrom.ranges[0]] as Range[])
     } else {
       assertTainted(tainted, taintedFrom.ranges)
+    }
+
+    where:
+    suite << taintIfSuite()
+  }
+
+  void 'test taintIfTainted with ranges'() {
+    given:
+    def (target, input) = suite
+    final source = taintedSource()
+    final ranges = [new Range(0, 2, source, NOT_MARKED)] as Range[]
+
+    when: 'input is not tainted'
+    module.taintIfTainted(target, input, 0, 2, false, NOT_MARKED)
+
+    then:
+    assert getTaintedObject(target) == null
+
+    when: 'input tainted but range does not overlap'
+    final firstTaintedForm = taintObject(input, ranges)
+    module.taintIfTainted(target, input, 4, 3, false, NOT_MARKED)
+
+    then:
+    final firstTainted = getTaintedObject(target)
+    if (input instanceof Taintable) {
+      // Taintable has no ranges so it will always overlap
+      assertTainted(firstTainted, [firstTaintedForm.ranges[0]] as Range[])
+    } else {
+      assert firstTainted == null
+    }
+
+    when: 'input is tainted and range overlaps'
+    ctx.taintedObjects.clear()
+    final secondTaintedFrom = taintObject(input, ranges)
+    module.taintIfTainted(target, input, 0, 2, false, NOT_MARKED)
+
+    then:
+    final secondTainted = getTaintedObject(target)
+    if (target instanceof Taintable) {
+      // only first range is kept
+      assertTainted(secondTainted, [secondTaintedFrom.ranges[0]] as Range[])
+    } else {
+      assertTainted(secondTainted, secondTaintedFrom.ranges)
     }
 
     where:
@@ -437,23 +508,76 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     stringBuilder((0..maxValueLength * 2).join('')) | true  // we create a copy
   }
 
-  void 'test that source names should not make a strong reference over the value'() {
+  void 'test that source names/values should not make a strong reference over the value'() {
     when:
-    module.taint(name, SourceTypes.REQUEST_PARAMETER_NAME, (CharSequence) name)
+    module.taint(toTaint, SourceTypes.REQUEST_PARAMETER_NAME, name, value)
 
     then:
-    final tainted = ctx.getTaintedObjects().get(name)
-    final taintedName = tainted.ranges[0].source.name
-    if (reference) {
-      assert taintedName.is(name): 'We should create a reference to the original value'
+    final tainted = ctx.getTaintedObjects().get(toTaint)
+    final source = tainted.ranges.first().source
+    final sourceName = source.@name
+    final sourceValue = source.@value
+
+    assert sourceName !== toTaint: 'Source name should never be a strong reference to the tainted value'
+    assert sourceValue !== toTaint: 'Source value should never be a strong reference to the tainted value'
+
+    switch (value.class) {
+      case String:
+        assert sourceValue instanceof Reference
+        assert (sourceValue as Reference).get() === value
+        break
+      case CharSequence:
+        assert sourceValue instanceof String
+        assert sourceValue == value.toString()
+        break
+      default:
+        assert sourceValue === Source.PROPAGATION_PLACEHOLDER
+        break
+    }
+    if (name === value) {
+      assert sourceName === sourceValue
     } else {
-      assert !taintedName.is(name): 'We should create a copy of the original value'
+      assert sourceName !== sourceValue
+      assert sourceName === name
     }
 
     where:
-    name                  | reference
-    string('name')        | true // a reference to the string is created
-    stringBuilder('name') | false // we create a copy
+    name           | value                 | toTaint
+    string('name') | name                  | string('name')
+    string('name') | stringBuilder('name') | stringBuilder('name')
+    string('name') | date()                | date()
+    string('name') | name                  | value
+    string('name') | stringBuilder('name') | value
+    string('name') | date()                | value
+  }
+
+  void 'test propagation of the source value for non char sequences'() {
+    given:
+    final toTaint = 'hello'
+    final baos = toTaint.bytes
+
+    when: 'tainting a non char sequence object'
+    module.taint(baos, SourceTypes.KAFKA_MESSAGE_KEY)
+
+    then:
+    with(ctx.taintedObjects.get(baos)) {
+      assert ranges.length == 1
+      final source = ranges.first().source
+      assert source.origin == SourceTypes.KAFKA_MESSAGE_KEY
+      assert source.@value === Source.PROPAGATION_PLACEHOLDER
+      assert source.value == null
+    }
+
+    when: 'the object is propagated'
+    module.taintIfTainted(toTaint, baos)
+
+    then:
+    with(ctx.taintedObjects.get(toTaint)) {
+      assert ranges.length == 1
+      final source = ranges.first().source
+      assert source.origin == SourceTypes.KAFKA_MESSAGE_KEY
+      assert source.value == toTaint
+    }
   }
 
   private List<Tuple<Object>> taintIfSuite() {

@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.net.InetSocketAddress;
@@ -14,8 +15,8 @@ import net.bytebuddy.asm.Advice;
 import net.spy.memcached.MemcachedNode;
 import net.spy.memcached.internal.OperationFuture;
 
-@AutoService(Instrumenter.class)
-public class MemcachedConnectionInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class MemcachedConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public MemcachedConnectionInstrumentation() {

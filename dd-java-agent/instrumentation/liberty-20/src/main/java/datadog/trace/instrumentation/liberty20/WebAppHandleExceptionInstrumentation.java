@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -17,8 +18,8 @@ import net.bytebuddy.asm.Advice;
  * BlockingException (the response should've been committed already). Also avoids logging the
  * exception at SEVERE level.
  */
-@AutoService(Instrumenter.class)
-public class WebAppHandleExceptionInstrumentation extends Instrumenter.AppSec
+@AutoService(InstrumenterModule.class)
+public class WebAppHandleExceptionInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public WebAppHandleExceptionInstrumentation() {
     super("liberty");

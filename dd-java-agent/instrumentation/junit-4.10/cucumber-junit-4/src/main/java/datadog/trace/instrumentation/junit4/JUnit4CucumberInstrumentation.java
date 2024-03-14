@@ -5,15 +5,21 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.bootstrap.InstrumentationContext;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import org.junit.runner.Description;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 
-@AutoService(Instrumenter.class)
-public class JUnit4CucumberInstrumentation extends Instrumenter.CiVisibility
+@AutoService(InstrumenterModule.class)
+public class JUnit4CucumberInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
   public JUnit4CucumberInstrumentation() {
@@ -35,6 +41,12 @@ public class JUnit4CucumberInstrumentation extends Instrumenter.CiVisibility
       packageName + ".TracingListener",
       packageName + ".CucumberTracingListener",
     };
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.junit.runner.Description", TestRetryPolicy.class.getName());
   }
 
   @Override
@@ -70,7 +82,9 @@ public class JUnit4CucumberInstrumentation extends Instrumenter.CiVisibility
         }
       }
 
-      replacedNotifier.addListener(new CucumberTracingListener(children));
+      replacedNotifier.addListener(
+          new CucumberTracingListener(
+              InstrumentationContext.get(Description.class, TestRetryPolicy.class), children));
       runNotifier = replacedNotifier;
     }
   }

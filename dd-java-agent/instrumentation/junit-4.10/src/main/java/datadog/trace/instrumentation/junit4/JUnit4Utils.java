@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestDescriptor;
+import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
@@ -16,11 +18,16 @@ import junit.framework.TestCase;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.Description;
+import org.junit.runner.RunWith;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class JUnit4Utils {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(JUnit4Utils.class);
 
   private static final String SYNCHRONIZED_LISTENER =
       "org.junit.runner.notification.SynchronizedRunListener";
@@ -90,17 +97,18 @@ public abstract class JUnit4Utils {
       return null;
     }
 
-    int actualMethodNameStart, actualMethodNameEnd;
-    if ((actualMethodNameStart = methodName.indexOf('(')) > 0
-        && (actualMethodNameEnd = methodName.indexOf(')', actualMethodNameStart)) > 0) {
+    RunWith runWith = testClass.getAnnotation(RunWith.class);
+    boolean isJunitParamsTestCase =
+        runWith != null && "junitparams.JUnitParamsRunner".equals(runWith.value().getName());
+    int junitParamsStartIdx;
+    if (isJunitParamsTestCase && (junitParamsStartIdx = methodName.indexOf('(')) >= 0) {
       // assuming this is a parameterized test case that uses use pl.pragmatists.JUnitParams
       // in that case method name will have the following structure:
-      // [test case number] param1, param2, param3 (methodName)
-      // e.g. [0] 2, 2, 4 (shouldReturnCorrectSum)
+      // methodName(param1, param2, param3) [test case number]
+      // e.g. test_parameterized(1, 2, 3) [0]
 
       int parameterCount = countCharacter(methodName, ',') + 1;
-
-      methodName = methodName.substring(actualMethodNameStart + 1, actualMethodNameEnd);
+      methodName = methodName.substring(0, junitParamsStartIdx);
 
       // below is a best-effort attempt to find a matching method with the information we have
       // this is not terribly efficient, but this case should be rare
@@ -127,6 +135,8 @@ public abstract class JUnit4Utils {
     try {
       return testClass.getMethod(methodName);
     } catch (NoSuchMethodException e) {
+      LOGGER.debug("Could not get method named {} in class {}", methodName, testClass, e);
+      LOGGER.warn("Could not get test method", e);
       return null;
     }
   }
@@ -280,12 +290,26 @@ public abstract class JUnit4Utils {
     return Description.createTestDescription(testClass, name, updatedAnnotations);
   }
 
-  public static TestIdentifier toTestIdentifier(
-      Description description, boolean includeParameters) {
+  public static TestIdentifier toTestIdentifier(Description description) {
     Method testMethod = JUnit4Utils.getTestMethod(description);
     String suite = description.getClassName();
     String name = JUnit4Utils.getTestName(description, testMethod);
-    String parameters = includeParameters ? JUnit4Utils.getParameters(description) : null;
+    String parameters = JUnit4Utils.getParameters(description);
     return new TestIdentifier(suite, name, parameters, null);
+  }
+
+  public static TestDescriptor toTestDescriptor(Description description) {
+    Class<?> testClass = description.getTestClass();
+    Method testMethod = JUnit4Utils.getTestMethod(description);
+    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
+    String testName = JUnit4Utils.getTestName(description, testMethod);
+    String testParameters = JUnit4Utils.getParameters(description);
+    return new TestDescriptor(testSuiteName, testClass, testName, testParameters, null);
+  }
+
+  public static TestSuiteDescriptor toSuiteDescriptor(Description description) {
+    Class<?> testClass = description.getTestClass();
+    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
+    return new TestSuiteDescriptor(testSuiteName, testClass);
   }
 }

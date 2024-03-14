@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.Constants;
 import net.bytebuddy.asm.Advice;
 
@@ -17,8 +18,8 @@ import net.bytebuddy.asm.Advice;
  * class as a class (not a resource) will fail because the class is not even tried. We hook into the
  * blocking method to avoid specific namespaces to be blocked.
  */
-@AutoService(Instrumenter.class)
-public final class GlassFishInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class GlassFishInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public GlassFishInstrumentation() {

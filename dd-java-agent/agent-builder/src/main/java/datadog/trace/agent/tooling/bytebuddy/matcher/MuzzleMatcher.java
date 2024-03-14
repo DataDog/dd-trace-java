@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.MuzzleCheck;
 import java.security.ProtectionDomain;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -10,8 +10,8 @@ import net.bytebuddy.utility.JavaModule;
 public final class MuzzleMatcher implements AgentBuilder.RawMatcher {
   private final MuzzleCheck muzzleCheck;
 
-  public MuzzleMatcher(Instrumenter.Default instrumenter) {
-    this.muzzleCheck = new MuzzleCheck(instrumenter);
+  public MuzzleMatcher(InstrumenterModule module) {
+    this.muzzleCheck = new MuzzleCheck(module);
   }
 
   @Override

@@ -15,7 +15,6 @@ import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
@@ -33,7 +32,6 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
-import datadog.trace.api.profiling.Timer;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -92,7 +90,10 @@ public class Agent {
     PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
     APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
     IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
-    REMOTE_CONFIG(propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
+    REMOTE_CONFIG(
+        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED), true),
+    DEPRECATED_REMOTE_CONFIG(
+        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
     CWS(propertyNameToSystemPropertyName(CwsConfig.CWS_ENABLED), false),
     CIVISIBILITY(propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED), false),
     CIVISIBILITY_AGENTLESS(
@@ -137,6 +138,7 @@ public class Agent {
   private static boolean appSecFullyDisabled;
   private static boolean remoteConfigEnabled = true;
   private static boolean iastEnabled = false;
+  private static boolean iastFullyDisabled;
   private static boolean cwsEnabled = false;
   private static boolean ciVisibilityEnabled = false;
   private static boolean usmEnabled = false;
@@ -205,11 +207,14 @@ public class Agent {
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
     profilingEnabled = isFeatureEnabled(AgentFeature.PROFILING);
-    iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     usmEnabled = isFeatureEnabled(AgentFeature.USM);
     appSecEnabled = isFeatureEnabled(AgentFeature.APPSEC);
-    appSecFullyDisabled = isAppSecFullyDisabled();
-    remoteConfigEnabled = isFeatureEnabled(AgentFeature.REMOTE_CONFIG);
+    appSecFullyDisabled = isFullyDisabled(AgentFeature.APPSEC);
+    iastEnabled = isFeatureEnabled(AgentFeature.IAST);
+    iastFullyDisabled = isIastFullyDisabled(appSecEnabled);
+    remoteConfigEnabled =
+        isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
+            || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
@@ -736,7 +741,7 @@ public class Agent {
   }
 
   private static void maybeStartIast(Class<?> scoClass, Object o) {
-    if (iastEnabled) {
+    if (iastEnabled || !iastFullyDisabled) {
 
       StaticEventLogger.begin("IAST");
 
@@ -914,42 +919,8 @@ public class Agent {
             new WithGlobalTracer.Callback() {
               @Override
               public void withTracer(TracerAPI tracer) {
-                // TODO simplify this by reworking module boundaries
                 log.debug("Initializing profiler tracer integrations");
-                String checkpointerClassName =
-                    Config.get().isDatadogProfilerEnabled()
-                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerCheckpointer"
-                        : Platform.isOracleJDK8() || Platform.isJ9()
-                            ? null
-                            : "com.datadog.profiling.controller.openjdk.JFRCheckpointer";
-                String timerClassName =
-                    Config.get().isDatadogProfilerEnabled()
-                        ? "com.datadog.profiling.controller.ddprof.DatadogProfilerTimer"
-                        : null;
-                try {
-                  if (checkpointerClassName != null) {
-                    tracer.registerCheckpointer(
-                        (EndpointCheckpointer)
-                            AGENT_CLASSLOADER
-                                .loadClass(checkpointerClassName)
-                                .getDeclaredConstructor()
-                                .newInstance());
-                  }
-                  if (timerClassName != null) {
-                    tracer.registerTimer(
-                        (Timer)
-                            AGENT_CLASSLOADER
-                                .loadClass(timerClassName)
-                                .getDeclaredConstructor()
-                                .newInstance());
-                  }
-                  tracer.getProfilingContext().onStart();
-                } catch (Throwable e) {
-                  if (e instanceof InvocationTargetException) {
-                    e = e.getCause();
-                  }
-                  log.debug("Profiling code hotspots are not available. {}", e.getMessage());
-                }
+                tracer.getProfilingContext().onStart();
               }
             });
       }
@@ -1093,9 +1064,9 @@ public class Agent {
   }
 
   /** @see datadog.trace.api.ProductActivation#fromString(String) */
-  private static boolean isAppSecFullyDisabled() {
+  private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = AgentFeature.APPSEC.systemProp;
+    final String featureEnabledSysprop = feature.systemProp;
     String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
     if (settingValue == null) {
       settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
@@ -1107,6 +1078,14 @@ public class Agent {
         || settingValue.equalsIgnoreCase("true")
         || settingValue.equalsIgnoreCase("1")
         || settingValue.equalsIgnoreCase("inactive"));
+  }
+
+  /** IAST will be enabled in opt-out if it's not actively disabled and AppSec is enabled */
+  private static boolean isIastFullyDisabled(final boolean isAppSecEnabled) {
+    if (isFullyDisabled(AgentFeature.IAST)) {
+      return true;
+    }
+    return !isAppSecEnabled;
   }
 
   private static String getNullIfEmpty(final String value) {

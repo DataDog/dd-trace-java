@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -21,8 +22,8 @@ import org.elasticsearch.action.support.ThreadedActionListener;
  * Captures context at the point a request is made, and ensures it propagates into asynchronous
  * actions.
  */
-@AutoService(Instrumenter.class)
-public final class ThreadedActionListenerInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class ThreadedActionListenerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public ThreadedActionListenerInstrumentation() {

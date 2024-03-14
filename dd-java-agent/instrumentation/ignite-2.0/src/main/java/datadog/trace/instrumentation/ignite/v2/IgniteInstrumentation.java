@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collection;
 import java.util.Collections;
@@ -20,8 +21,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 
-@AutoService(Instrumenter.class)
-public class IgniteInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class IgniteInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public IgniteInstrumentation() {

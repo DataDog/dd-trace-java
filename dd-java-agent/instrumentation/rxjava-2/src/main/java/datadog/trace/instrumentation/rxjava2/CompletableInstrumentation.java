@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,8 +20,8 @@ import io.reactivex.CompletableObserver;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
-public final class CompletableInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public final class CompletableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public CompletableInstrumentation() {
     super("rxjava");

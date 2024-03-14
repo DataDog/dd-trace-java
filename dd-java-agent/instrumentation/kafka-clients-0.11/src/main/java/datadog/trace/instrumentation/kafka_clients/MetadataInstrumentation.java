@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -18,8 +19,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.requests.MetadataResponse;
 
-@AutoService(Instrumenter.class)
-public class MetadataInstrumentation extends Instrumenter.Tracing
+@AutoService(InstrumenterModule.class)
+public class MetadataInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   public MetadataInstrumentation() {

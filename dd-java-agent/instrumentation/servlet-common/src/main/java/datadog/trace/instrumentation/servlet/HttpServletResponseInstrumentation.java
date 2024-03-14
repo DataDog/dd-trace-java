@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Sink;
@@ -23,8 +24,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
-public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
+@AutoService(InstrumenterModule.class)
+public final class HttpServletResponseInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public HttpServletResponseInstrumentation() {
     super("servlet", "servelet-response");
@@ -44,6 +45,11 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
         .and(not(extendsClass(named("javax.servlet.http.HttpServletResponseWrapper"))));
+  }
+
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
   }
 
   @Override
@@ -71,7 +77,12 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Iast
       if (null != cookie) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {
-          mod.onCookie(Cookie.named(cookie.getName()).secure(cookie.getSecure()).build());
+          mod.onCookie(
+              Cookie.named(cookie.getName())
+                  .value(cookie.getValue())
+                  .secure(cookie.getSecure())
+                  .maxAge(cookie.getMaxAge())
+                  .build());
         }
       }
     }

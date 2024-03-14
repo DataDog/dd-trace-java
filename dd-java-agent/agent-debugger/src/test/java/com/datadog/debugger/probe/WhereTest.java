@@ -1,12 +1,16 @@
 package com.datadog.debugger.probe;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import java.io.IOException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.tree.MethodNode;
 
 public class WhereTest {
   @Test
@@ -80,19 +84,24 @@ public class WhereTest {
   @Test
   public void methodMatching() {
     Where where = new Where("String", "substring", "(int,int)", new String[0], null);
-    assertTrue(where.isMethodMatching("substring", "(II)Ljava/lang/String;"));
+    assertTrue(
+        where.isMethodMatching(createMethodNode("substring", "(II)Ljava/lang/String;"), null));
     where = new Where("String", "replaceAll", "(String,String)", new String[0], null);
     assertTrue(
         where.isMethodMatching(
-            "replaceAll", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"));
+            createMethodNode(
+                "replaceAll", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"),
+            null));
     where = new Where("HashMap", "<init>", "(Map)", new String[0], null);
-    assertTrue(where.isMethodMatching("<init>", "(Ljava/util/Map;)V"));
+    assertTrue(where.isMethodMatching(createMethodNode("<init>", "(Ljava/util/Map;)V"), null));
     where = new Where("ArrayList", "removeIf", "(Predicate)", new String[0], null);
-    assertTrue(where.isMethodMatching("removeIf", "(Ljava/util/function/Predicate;)Z"));
+    assertTrue(
+        where.isMethodMatching(
+            createMethodNode("removeIf", "(Ljava/util/function/Predicate;)Z"), null));
     where = new Where("String", "concat", "", new String[0], null);
-    assertTrue(where.isMethodMatching("concat", "String (String)"));
+    assertTrue(where.isMethodMatching(createMethodNode("concat", "String (String)"), null));
     where = new Where("String", "concat", " \t", new String[0], null);
-    assertTrue(where.isMethodMatching("concat", "String (String)"));
+    assertTrue(where.isMethodMatching(createMethodNode("concat", "String (String)"), null));
     where =
         new Where(
             "Inner",
@@ -101,9 +110,23 @@ public class WhereTest {
             new String[0],
             null);
     assertTrue(
-        where.isMethodMatching("innerMethod", "(Lcom/datadog/debugger/probe/Outer$Inner;)V"));
+        where.isMethodMatching(
+            createMethodNode("innerMethod", "(Lcom/datadog/debugger/probe/Outer$Inner;)V"), null));
     where = new Where("Inner", "innerMethod", "(Outer$Inner)", new String[0], null);
     assertTrue(
-        where.isMethodMatching("innerMethod", "(Lcom/datadog/debugger/probe/Outer$Inner;)V"));
+        where.isMethodMatching(
+            createMethodNode("innerMethod", "(Lcom/datadog/debugger/probe/Outer$Inner;)V"), null));
+    where = new Where("MyClass", "myMethod", null, new String[] {"42"}, null);
+    ClassFileLines classFileLines = mock(ClassFileLines.class);
+    MethodNode myMethodNode = createMethodNode("myMethod", "()V");
+    when(classFileLines.getMethodByLine(42)).thenReturn(myMethodNode);
+    assertTrue(where.isMethodMatching(myMethodNode, classFileLines));
+  }
+
+  private MethodNode createMethodNode(String name, String desc) {
+    MethodNode methodNode = new MethodNode();
+    methodNode.name = name;
+    methodNode.desc = desc;
+    return methodNode;
   }
 }
