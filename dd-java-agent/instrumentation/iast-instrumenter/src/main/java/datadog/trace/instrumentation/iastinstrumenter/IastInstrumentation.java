@@ -7,6 +7,8 @@ import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier;
 import datadog.trace.agent.tooling.csi.CallSites;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.instrumentation.iastinstrumenter.telemetry.TelemetryCallSiteSupplier;
@@ -30,7 +32,8 @@ public class IastInstrumentation extends CallSiteInstrumentation {
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
     return enabledSystems.contains(TargetSystem.IAST)
-        || (isOptOutEnabled() && enabledSystems.contains(TargetSystem.APPSEC));
+        || (isOptOutEnabled()
+            && InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED);
   }
 
   @Override
