@@ -9,9 +9,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -51,6 +56,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   protected abstract ElementMatcher.Junction<MethodDescription> attributesFilter();
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class ParamsAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
@@ -64,17 +70,20 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Local("beforeParams") final Object beforeParams,
-        @Advice.Return final Object multiMap) {
+        @Advice.Return final Object multiMap,
+        @ActiveRequestContext RequestContext reqCtx) {
       // only taint the map the first time
       if (beforeParams != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
+          IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+          module.taint(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class AttributesAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
@@ -88,25 +97,30 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Local("beforeAttributes") final Object beforeAttributes,
-        @Advice.Return final Object multiMap) {
+        @Advice.Return final Object multiMap,
+        @ActiveRequestContext RequestContext reqCtx) {
       // only taint the map the first time
       if (beforeAttributes != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taint(multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
+          IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+          module.taint(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class DataAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
-    public static void onExit(@Advice.Argument(0) final Object data) {
+    public static void onExit(
+        @Advice.Argument(0) final Object data, @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(data, SourceTypes.REQUEST_BODY);
+        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        module.taint(ctx, data, SourceTypes.REQUEST_BODY);
       }
     }
   }

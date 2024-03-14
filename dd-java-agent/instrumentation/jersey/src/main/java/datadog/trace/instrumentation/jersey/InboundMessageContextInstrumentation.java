@@ -5,8 +5,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -41,13 +45,16 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
     return "org.glassfish.jersey.message.internal.InboundMessageContext";
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class InstrumenterAdviceGetHeaders {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
-    public static void onExit(@Advice.Return Map<String, List<String>> headers) {
+    public static void onExit(
+        @Advice.Return Map<String, List<String>> headers,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule prop = InstrumentationBridge.PROPAGATION;
       if (prop != null && headers != null && !headers.isEmpty()) {
-        final IastContext ctx = IastContext.Provider.get();
+        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
           final String name = entry.getKey();
           prop.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
@@ -59,13 +66,15 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
     }
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class InstrumenterAdviceGetRequestCookies {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
-    public static void onExit(@Advice.Return Map<String, Object> cookies) {
+    public static void onExit(
+        @Advice.Return Map<String, Object> cookies, @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null && cookies != null && !cookies.isEmpty()) {
-        final IastContext ctx = IastContext.Provider.get();
+        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         for (Map.Entry<String, Object> entry : cookies.entrySet()) {
           final String name = entry.getKey();
           module.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
