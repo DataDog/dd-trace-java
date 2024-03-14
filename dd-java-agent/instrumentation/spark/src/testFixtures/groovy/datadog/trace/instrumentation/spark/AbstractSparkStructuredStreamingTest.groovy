@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDTags
 import datadog.trace.api.Platform
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
@@ -33,25 +34,10 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
 
   def "generate spark structured streaming batches"() {
     setup:
-    def sparkSession = SparkSession.builder()
-      .config("spark.master", "local[2]")
-      .config("spark.sql.shuffle.partitions", "2") // Small parallelism to speed up tests
-      .appName("Sample Streaming Application")
-      .getOrCreate()
+    def sparkSession = TestSparkComputation.createSparkSession("Sample Streaming Application")
 
     def inputStream = memoryStream(sparkSession)
-
-    def query = inputStream
-      .toDS()
-      .selectExpr("value", "current_timestamp() as event_time")
-      .withWatermark("event_time", "0 seconds")
-      .groupBy("value")
-      .count()
-      .writeStream()
-      .queryName("test-query")
-      .outputMode("complete")
-      .format("console")
-      .start()
+    def query = TestSparkComputation.generateTestStreamingComputation(inputStream.toDS())
 
     inputStream.addData(JavaConverters.asScalaBuffer(["foo", "foo", "bar"]).toSeq() as Seq<String>)
     query.processAllAvailable()
@@ -206,14 +192,9 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
 
   def "handle failure during streaming processing"() {
     setup:
-    def sparkSession = SparkSession.builder()
-      .config("spark.master", "local[2]")
-      .config("spark.sql.shuffle.partitions", "2") // Small parallelism to speed up tests
-      .appName("Failing Streaming Application")
-      .getOrCreate()
+    def sparkSession = TestSparkComputation.createSparkSession("Failing Streaming Application")
 
     def inputStream = memoryStream(sparkSession)
-
     def query = TestSparkComputation.generateTestFailingStreamingComputation(inputStream.toDS())
 
     try {
@@ -256,6 +237,109 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
           spanType "spark"
           errored true
           childOf(span(2))
+        }
+      }
+    }
+  }
+
+  def "add span links from spark.streaming_batch to databricks.task.execution if applicable"() {
+    setup:
+    def sparkSession = TestSparkComputation.createDatabricksWorkflowsSparkSession("Example App")
+
+    def inputStream = memoryStream(sparkSession)
+    def query = TestSparkComputation.generateTestStreamingComputation(inputStream.toDS())
+
+    inputStream.addData(JavaConverters.asScalaBuffer(["foo", "foo", "bar"]).toSeq() as Seq<String>)
+    query.processAllAvailable()
+
+    query.stop()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(5) {
+        span {
+          operationName "spark.streaming_batch"
+          resourceName "test-query"
+          spanType "spark"
+          parent()
+          assert span.tags.containsKey(DDTags.SPAN_LINKS)
+          assert span.tags[DDTags.SPAN_LINKS] != null
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+      }
+    }
+  }
+
+  def "do not add span links for streaming batch span if not applicable"() {
+    setup:
+    def sparkSession = TestSparkComputation.createSparkSession("Example Application")
+
+    def inputStream = memoryStream(sparkSession)
+    def query = TestSparkComputation.generateTestStreamingComputation(inputStream.toDS())
+
+    inputStream.addData(JavaConverters.asScalaBuffer(["foo", "foo", "bar"]).toSeq() as Seq<String>)
+    query.processAllAvailable()
+
+    query.stop()
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(5) {
+        span {
+          operationName "spark.streaming_batch"
+          resourceName "test-query"
+          spanType "spark"
+          parent()
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
         }
       }
     }
