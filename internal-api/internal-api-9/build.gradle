@@ -9,6 +9,16 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+}
+
+tasks.withType(Javadoc) {
+  javadocTool.set(javaToolchains.javadocToolFor(java.toolchain))
+}
+
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
     setJavaVersion(it, 11)
