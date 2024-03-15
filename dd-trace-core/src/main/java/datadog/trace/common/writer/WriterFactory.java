@@ -3,6 +3,7 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_AGENT_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_INTAKE_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_NATIVE_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
@@ -63,7 +64,8 @@ public class WriterFactory {
     }
 
     if (!DD_AGENT_WRITER_TYPE.equals(configuredType)
-        && !DD_INTAKE_WRITER_TYPE.equals(configuredType)) {
+        && !DD_INTAKE_WRITER_TYPE.equals(configuredType)
+        && !DD_NATIVE_WRITER_TYPE.equals(configuredType)) {
       log.warn(
           "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
       configuredType = datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
@@ -113,6 +115,19 @@ public class WriterFactory {
 
       remoteWriter = builder.build();
 
+    } else if (DD_NATIVE_WRITER_TYPE.equals(configuredType)) {
+      log.debug("Creating DDNativeWriter");
+      remoteWriter =
+          DDNativeWriter.builder()
+              .agentHost(config.getAgentHost())
+              .traceAgentPort(config.getAgentPort())
+              .healthMetrics(healthMetrics)
+              .sampler(sampler)
+              .monitoring(commObjects.monitoring)
+              .singleSpanSampler(singleSpanSampler)
+              .prioritization(prioritization)
+              .flushTimeoutMillis(flushIntervalMilliseconds)
+              .build();
     } else { // configuredType == DDAgentWriter
       boolean alwaysFlush = false;
       if (config.isAgentConfiguredUsingDefault()

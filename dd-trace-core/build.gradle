@@ -63,6 +63,8 @@ dependencies {
 
   implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
 
+  implementation group: 'com.datadoghq', name: 'dd-data-pipline', version: '0.0.1'
+
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this

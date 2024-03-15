@@ -47,7 +47,7 @@ public class DDAgentApi extends RemoteApi {
   private final Recording sendPayloadTimer;
   private final Counter agentErrorCounter;
 
-  private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
+  public static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
       new Moshi.Builder()
           .build()
           .adapter(
