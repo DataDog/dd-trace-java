@@ -14,8 +14,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class SessionRewritingModuleImpl extends SinkModuleBase implements SessionRewritingModule {
 
-  static final String EVIDENCE_VALUE =
-      "URL rewriting may be used by the container for session tracking";
+  static final String EVIDENCE_VALUE = "Servlet URL Session Tracking Mode";
 
   public SessionRewritingModuleImpl(final Dependencies dependencies) {
     super(dependencies);
