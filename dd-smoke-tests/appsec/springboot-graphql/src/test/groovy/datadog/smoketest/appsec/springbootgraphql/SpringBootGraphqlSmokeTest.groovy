@@ -100,10 +100,14 @@ class SpringBootGraphqlSmokeTest extends AbstractAppSecServerSmokeTest {
     }
   }
 
-  def 'test graphql query'() {
+  def 'test detect #description'() {
     setup:
 
-    def query = '''query {
+    def garbageBytes = "Q" * garbageLength
+
+    def query = """query {
+                # This is a garbage ${garbageBytes}
+                
                 bookById(id: "bodyfindme-graphqlfindme-book-1") {
                     id
                     name
@@ -114,7 +118,7 @@ class SpringBootGraphqlSmokeTest extends AbstractAppSecServerSmokeTest {
                         lastName
                     }
                 }
-            }'''
+            }"""
 
     Query queryObj = new Query(query)
     ObjectMapper mapper = new ObjectMapper()
@@ -141,10 +145,18 @@ class SpringBootGraphqlSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(1) == 1
     rootSpans.size() == 1
     def graphqlRootSpan = rootSpans.find { it.triggers }
-    graphqlRootSpan.triggers[0]['rule']['tags']['type'] == 'test'
-    graphqlRootSpan.triggers[0]['rule_matches'][0]['parameters']['address'][0] == 'server.request.body'
 
-    graphqlRootSpan.triggers[1]['rule']['tags']['type'] == 'test'
-    graphqlRootSpan.triggers[1]['rule_matches'][0]['parameters']['address'][0] == 'graphql.server.all_resolvers'
+    graphqlRootSpan.triggers[0]['rule']['tags']['type'] == type
+    graphqlRootSpan.triggers[0]['rule_matches'][0]['parameters']['address'][0] == address
+
+    where:
+    description            | type   | address                        | garbageLength
+
+    // normal graphql detected as body attack
+    'request body attack'  | 'test' | 'server.request.body'          | 0
+
+    // 4KB allow to bypass WAF but detected as graphql attack
+    'graphql attack'       | 'test' | 'graphql.server.all_resolvers' | 4096
+
   }
 }
