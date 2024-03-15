@@ -63,6 +63,11 @@ public class Tags {
   public static final String TEST_TOOLCHAIN = "test.toolchain";
   public static final String TEST_EXECUTION = "test.execution";
   public static final String TEST_GRADLE_NESTED_BUILD = "test.gradle.nested_build";
+  public static final String TEST_IS_RUM_ACTIVE = "test.is_rum_active";
+  public static final String TEST_BROWSER_DRIVER = "test.browser.driver";
+  public static final String TEST_BROWSER_DRIVER_VERSION = "test.browser.driver_version";
+  public static final String TEST_BROWSER_NAME = "test.browser.name";
+  public static final String TEST_BROWSER_VERSION = "test.browser.version";
 
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";

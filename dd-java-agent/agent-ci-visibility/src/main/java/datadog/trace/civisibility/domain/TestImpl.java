@@ -11,8 +11,10 @@ import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
+import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -229,7 +231,11 @@ public class TestImpl implements DDTest {
         1,
         instrumentation,
         EventType.TEST,
-        span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null);
+        span.getTag(Tags.TEST_IS_NEW) != null ? IsNew.TRUE : null,
+        span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
+        CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
+            ? BrowserDriver.SELENIUM
+            : null);
   }
 
   /**
@@ -251,8 +257,8 @@ public class TestImpl implements DDTest {
     while ((scope = AgentTracer.activeScope()) != null) {
       AgentSpan span = scope.span();
 
-      if (TestDecorator.TEST_TYPE.equals(span.getTag(Tags.TEST_TYPE))) {
-        // encountered a CI Visibility span (test, suite, module, session)
+      if (span == this.span || span.getTag(Tags.TEST_SESSION_ID) != null) {
+        // encountered this span or another CI Visibility span (test, suite, module, session)
         break;
       }
 

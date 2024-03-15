@@ -186,6 +186,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NAME;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RESOURCE_FOLDER_NAMES;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SESSION_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
@@ -785,6 +786,7 @@ public class Config {
   private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
   private final String ciVisibilityModuleName;
   private final boolean ciVisibilityTelemetryEnabled;
+  private final long ciVisibilityRumFlushWaitMillis;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1785,6 +1787,8 @@ public class Config {
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
+    ciVisibilityRumFlushWaitMillis =
+        configProvider.getLong(CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS, 500);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -3033,6 +3037,10 @@ public class Config {
 
   public boolean isCiVisibilityTelemetryEnabled() {
     return ciVisibilityTelemetryEnabled;
+  }
+
+  public long getCiVisibilityRumFlushWaitMillis() {
+    return ciVisibilityRumFlushWaitMillis;
   }
 
   public String getAppSecRulesFile() {
