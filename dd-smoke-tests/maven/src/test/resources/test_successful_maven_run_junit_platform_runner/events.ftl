@@ -37,7 +37,7 @@
       "test.toolchain" : ${content_meta_test_toolchain},
       "test.itr.tests_skipping.type" : "test",
       "test.command" : "mvn -B test",
-      "test.framework_version" : "2.3.0-groovy-4.0",
+      "test.framework_version" : "2.4.0-M2-groovy-4.0",
       "test.framework" : "spock"
     }
   }
@@ -76,7 +76,7 @@
       "test.itr.tests_skipping.type" : "test",
       "runtime.version" : ${content_meta_runtime_version},
       "test.command" : "mvn -B test",
-      "test.framework_version" : "2.3.0-groovy-4.0",
+      "test.framework_version" : "2.4.0-M2-groovy-4.0",
       "test.framework" : "spock",
       "test.itr.tests_skipping.enabled" : "true"
     }
@@ -118,7 +118,7 @@
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
-      "test.framework_version" : "2.3.0-groovy-4.0",
+      "test.framework_version" : "2.4.0-M2-groovy-4.0",
       "test.framework" : "spock"
     }
   }
@@ -164,7 +164,7 @@
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
-      "test.framework_version" : "2.3.0-groovy-4.0",
+      "test.framework_version" : "2.4.0-M2-groovy-4.0",
       "test.framework" : "spock"
     }
   }
