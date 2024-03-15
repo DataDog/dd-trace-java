@@ -7,10 +7,14 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import io.openlineage.client.OpenLineage;
 import io.openlineage.client.OpenLineageClientUtils;
+
 import java.util.HashMap;
 import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,5 +76,14 @@ public class OpenLineageDecorator {
 
     // Force keeping all those spans for now
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
+
+    // Set parent run if exists
+    if (event.getRun().getFacets() != null && event.getRun().getFacets().getParent() != null) {
+      UUID parentRunId = event.getRun().getFacets().getParent().getRun().getRunId();
+      AgentSpan jobTraceSpan = spans.get(parentRunId);
+      if (jobTraceSpan != null) {
+        jobTraceSpan.addLink(SpanLink.from(span.context()));
+      }
+    }
   }
 }
