@@ -55,6 +55,18 @@ public class OpenLineageDecorator {
       AgentTracer.get()
           .getDataStreamsMonitoring()
           .setCheckpoint(span, sortedTags, 0, 0);
+
+
+      if( input.getFacets() != null && input.getFacets().getSchema() != null ) {
+        AgentSpan outputDatasetSpan = startSpan("openlineage", "openlineage.dataset", span.context(), timeMicros);
+        outputDatasetSpan.setTag("schema.definition", OpenLineageClientUtils.toJson(input.getFacets().getSchema().getFields()));
+        outputDatasetSpan.setTag("schema.id", input.getFacets().getSchema().hashCode());
+        outputDatasetSpan.setTag("schema.name", input.getName());
+        outputDatasetSpan.setTag("schema.operation", "deserialization");
+        outputDatasetSpan.setTag("schema.type", input.getNamespace());
+        outputDatasetSpan.setTag("schema.weight", 1);
+        outputDatasetSpan.finish();
+      }
     }
 
     for (OpenLineage.OutputDataset output : event.getOutputs()) {
@@ -69,6 +81,17 @@ public class OpenLineageDecorator {
       AgentTracer.get()
           .getDataStreamsMonitoring()
           .setCheckpoint(span, sortedTags, 0, 0);
+
+      if( output.getFacets() != null && output.getFacets().getSchema() != null ) {
+        AgentSpan outputDatasetSpan = startSpan("openlineage", "openlineage.dataset", span.context(), timeMicros);
+        outputDatasetSpan.setTag("schema.definition", OpenLineageClientUtils.toJson(output.getFacets().getSchema().getFields()));
+        outputDatasetSpan.setTag("schema.id", output.getFacets().getSchema().hashCode());
+        outputDatasetSpan.setTag("schema.name", output.getName());
+        outputDatasetSpan.setTag("schema.operation", "serialization");
+        outputDatasetSpan.setTag("schema.type", output.getNamespace());
+        outputDatasetSpan.setTag("schema.weight", 1);
+        outputDatasetSpan.finish();
+      }
     }
 
     if (span == null) {
