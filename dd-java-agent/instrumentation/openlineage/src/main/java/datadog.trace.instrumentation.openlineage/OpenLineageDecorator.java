@@ -38,6 +38,8 @@ public class OpenLineageDecorator {
       } else {
         span = startSpan("openlineage", "openlineage.job", timeMicros);
       }
+      // hack to retain 100%
+      span.setTag("iast","foo");
       spans.put(runId, span);
     } else {
       span = spans.get(runId);
@@ -56,16 +58,17 @@ public class OpenLineageDecorator {
           .getDataStreamsMonitoring()
           .setCheckpoint(span, sortedTags, 0, 0);
 
-
       if( input.getFacets() != null && input.getFacets().getSchema() != null ) {
-        AgentSpan outputDatasetSpan = startSpan("openlineage", "openlineage.dataset", span.context(), timeMicros);
-        outputDatasetSpan.setTag("schema.definition", OpenLineageClientUtils.toJson(input.getFacets().getSchema().getFields()));
-        outputDatasetSpan.setTag("schema.id", input.getFacets().getSchema().hashCode());
-        outputDatasetSpan.setTag("schema.name", input.getName());
-        outputDatasetSpan.setTag("schema.operation", "deserialization");
-        outputDatasetSpan.setTag("schema.type", input.getNamespace());
-        outputDatasetSpan.setTag("schema.weight", 1);
-        outputDatasetSpan.finish();
+        AgentSpan inputDatasetSpan = startSpan("openlineage", "openlineage.dataset", span.context(), timeMicros);
+        // hack to retain 100%
+        inputDatasetSpan.setTag("iast","foo");
+        inputDatasetSpan.setTag("schema.definition", OpenLineageClientUtils.toJson(input.getFacets().getSchema().getFields()));
+        inputDatasetSpan.setTag("schema.id", input.getFacets().getSchema().hashCode());
+        inputDatasetSpan.setTag("schema.name", input.getName());
+        inputDatasetSpan.setTag("schema.operation", "deserialization");
+        inputDatasetSpan.setTag("schema.type", input.getNamespace());
+        inputDatasetSpan.setTag("schema.weight", 1);
+        inputDatasetSpan.finish();
       }
     }
 
@@ -84,6 +87,8 @@ public class OpenLineageDecorator {
 
       if( output.getFacets() != null && output.getFacets().getSchema() != null ) {
         AgentSpan outputDatasetSpan = startSpan("openlineage", "openlineage.dataset", span.context(), timeMicros);
+        // hack to retain 100%
+        outputDatasetSpan.setTag("iast","foo");
         outputDatasetSpan.setTag("schema.definition", OpenLineageClientUtils.toJson(output.getFacets().getSchema().getFields()));
         outputDatasetSpan.setTag("schema.id", output.getFacets().getSchema().hashCode());
         outputDatasetSpan.setTag("schema.name", output.getName());
