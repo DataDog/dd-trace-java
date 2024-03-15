@@ -67,7 +67,7 @@ public class OpenLineageDecorator {
         inputDatasetSpan.setTag(
             "schema.definition",
             OpenLineageClientUtils.toJson(input.getFacets().getSchema().getFields()));
-        inputDatasetSpan.setTag("schema.id", input.getFacets().getSchema().hashCode());
+        inputDatasetSpan.setTag("schema.id", input.getFacets().getSchema().toString().hashCode());
         inputDatasetSpan.setTag("schema.name", input.getName());
         inputDatasetSpan.setTag("schema.topic", input.getNamespace());
         inputDatasetSpan.setTag("schema.operation", "deserialization");
@@ -101,7 +101,7 @@ public class OpenLineageDecorator {
         outputDatasetSpan.setTag(
             "schema.definition",
             OpenLineageClientUtils.toJson(output.getFacets().getSchema().getFields()));
-        outputDatasetSpan.setTag("schema.id", output.getFacets().getSchema().hashCode());
+        outputDatasetSpan.setTag("schema.id", output.getFacets().getSchema().toString().hashCode());
         outputDatasetSpan.setTag("schema.name", output.getName());
         outputDatasetSpan.setTag("schema.topic", output.getNamespace());
         outputDatasetSpan.setTag("schema.operation", "serialization");
