@@ -75,6 +75,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     // "expectedEvents" count for this test case does not include the spans that correspond to Cucumber steps
     "test_successful_maven_run_with_cucumber"           | "3.9.6"              | 4              | 1                 | true          | false        | true
     "test_failed_maven_run_flaky_retries"               | "3.9.6"              | 8              | 1                 | false         | true         | true
+    "test_successful_maven_run_junit_platform_runner"   | "3.9.6"              | 4              | 0                 | true          | false        | false
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
