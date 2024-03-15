@@ -7,8 +7,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
-import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import io.openlineage.client.OpenLineage;
 import io.openlineage.client.OpenLineageClientUtils;
 
@@ -28,9 +26,15 @@ public class OpenLineageDecorator {
     UUID runId = event.getRun().getRunId();
     long timeMicros = event.getEventTime().toInstant().toEpochMilli() * 1000;
 
+    AgentSpan parentSpan = getParentIfExists( event );
     AgentSpan span;
     if (event.getEventType() == START) {
-      span = startSpan("openlineage", "openlineage.job", timeMicros);
+      if( parentSpan != null ) {
+        span = startSpan("openlineage", "openlineage.job", parentSpan.context(), timeMicros);
+//        parentSpan.setTag("foo", new Object());
+      } else {
+        span = startSpan("openlineage", "openlineage.job", timeMicros);
+      }
       spans.put(runId, span);
     } else {
       span = spans.get(runId);
@@ -77,13 +81,15 @@ public class OpenLineageDecorator {
     // Force keeping all those spans for now
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
 
+
+  }
+
+  private static AgentSpan getParentIfExists(OpenLineage.RunEvent event) {
     // Set parent run if exists
     if (event.getRun().getFacets() != null && event.getRun().getFacets().getParent() != null) {
       UUID parentRunId = event.getRun().getFacets().getParent().getRun().getRunId();
-      AgentSpan jobTraceSpan = spans.get(parentRunId);
-      if (jobTraceSpan != null) {
-        jobTraceSpan.addLink(SpanLink.from(span.context()));
-      }
+      return spans.get(parentRunId);
     }
+    return null;
   }
 }
