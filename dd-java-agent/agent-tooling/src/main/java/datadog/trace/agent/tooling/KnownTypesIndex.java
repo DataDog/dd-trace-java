@@ -37,17 +37,29 @@ public final class KnownTypesIndex {
     this.knownTypesTrie = knownTypesTrie;
   }
 
-  public void apply(String name, BitSet mask, BitSet instrumentationIds) {
+  public boolean contains(String name, int expectedId) {
+    int instrumentationId = knownTypesTrie.apply(name);
+    if (instrumentationId >= 0 && (instrumentationId & MULTIPLE_ID_MARKER) != 0) {
+      for (int id : multipleIdTable[instrumentationId & ~MULTIPLE_ID_MARKER]) {
+        if (id == expectedId) {
+          return true;
+        }
+      }
+    }
+    return instrumentationId == expectedId;
+  }
+
+  public void apply(String name, BitSet mask, BitSet matchedIds) {
     int instrumentationId = knownTypesTrie.apply(name);
     if (instrumentationId >= 0) {
       if ((instrumentationId & MULTIPLE_ID_MARKER) != 0) {
         for (int id : multipleIdTable[instrumentationId & ~MULTIPLE_ID_MARKER]) {
           if (mask.get(id)) {
-            instrumentationIds.set(id);
+            matchedIds.set(id);
           }
         }
       } else if (mask.get(instrumentationId)) {
-        instrumentationIds.set(instrumentationId);
+        matchedIds.set(instrumentationId);
       }
     }
   }

@@ -20,12 +20,13 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
   static final ThreadLocal<BitSet> recordedMatches =
       ThreadLocal.withInitial(() -> new BitSet(MAX_COMBINED_ID_HINT));
 
+  private final KnownTypesIndex knownTypesIndex;
   private final BitSet knownTypesMask;
   private final MatchRecorder[] matchers;
 
-  private static final KnownTypesIndex knownTypesIndex = KnownTypesIndex.readIndex();
-
-  CombiningMatcher(BitSet knownTypesMask, List<MatchRecorder> matchers) {
+  CombiningMatcher(
+      KnownTypesIndex knownTypesIndex, BitSet knownTypesMask, List<MatchRecorder> matchers) {
+    this.knownTypesIndex = knownTypesIndex;
     this.knownTypesMask = knownTypesMask;
     this.matchers = matchers.toArray(new MatchRecorder[0]);
   }

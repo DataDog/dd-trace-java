@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
@@ -44,6 +45,8 @@ public final class CombiningTransformerBuilder
       not(
           declaresAnnotation(
               namedOneOf("javax.decorator.Decorator", "jakarta.decorator.Decorator")));
+
+  private static final KnownTypesIndex knownTypesIndex = KnownTypesIndex.readIndex();
 
   /** Associates context stores with the class-loader matchers to activate them. */
   private final Map<Map.Entry<String, String>, ElementMatcher<ClassLoader>> contextStoreInjection =
@@ -102,9 +105,20 @@ public final class CombiningTransformerBuilder
 
   private void buildInstrumentationMatcher(InstrumenterModule module, Instrumenter member, int id) {
 
-    if (member instanceof Instrumenter.ForSingleType
-        || member instanceof Instrumenter.ForKnownTypes) {
-      knownTypesMask.set(id);
+    if (member instanceof Instrumenter.ForSingleType) {
+      String name = ((Instrumenter.ForSingleType) member).instrumentedType();
+      if (knownTypesIndex.contains(name, id)) {
+        knownTypesMask.set(id);
+      } else {
+        matchers.add(new MatchRecorder.ForType(id, named(name)));
+      }
+    } else if (member instanceof Instrumenter.ForKnownTypes) {
+      String[] names = ((Instrumenter.ForKnownTypes) member).knownMatchingTypes();
+      if (knownTypesIndex.contains(names[0], id)) {
+        knownTypesMask.set(id);
+      } else {
+        matchers.add(new MatchRecorder.ForType(id, namedOneOf(names)));
+      }
     } else if (member instanceof Instrumenter.ForTypeHierarchy) {
       matchers.add(new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) member));
     } else if (member instanceof Instrumenter.ForCallSite) {
@@ -259,7 +273,7 @@ public final class CombiningTransformerBuilder
     }
 
     return agentBuilder
-        .type(new CombiningMatcher(knownTypesMask, matchers))
+        .type(new CombiningMatcher(knownTypesIndex, knownTypesMask, matchers))
         .and(NOT_DECORATOR_MATCHER)
         .transform(defaultTransformers())
         .transform(new SplittingTransformer(transformers))
