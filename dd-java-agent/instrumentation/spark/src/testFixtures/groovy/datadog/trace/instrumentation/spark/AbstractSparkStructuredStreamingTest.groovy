@@ -5,9 +5,11 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.Platform
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.streaming.StreamingQuery
 import scala.Option
 import scala.collection.JavaConverters
 import scala.collection.immutable.Seq
@@ -24,6 +26,26 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
     injectSysConfig("dd.integration.spark.enabled", "true")
   }
 
+  private SparkSession createSparkSession(String appName) {
+    return SparkSession.builder()
+      .appName(appName)
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+  }
+
+  private SparkSession createDatabricksSparkSession(String appName) {
+    return SparkSession.builder()
+      .appName(appName)
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .config("spark.databricks.sparkContextId", "3291395623902517763")
+      .config("spark.databricks.job.id", "3822225623902514353")
+      .config("spark.databricks.job.parentRunId", "3851395623902519743")
+      .config("spark.databricks.job.runId", "3851395623902519743")
+      .getOrCreate()
+  }
+
   private memoryStream(SparkSession sparkSession) {
     if (TestSparkComputation.sparkVersion >= '3') {
       return new MemoryStream<String>(1, sparkSession.sqlContext(), Option.empty(), Encoders.STRING())
@@ -32,12 +54,25 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
     return new MemoryStream<String>(1, sparkSession.sqlContext(), Encoders.STRING())
   }
 
+  private StreamingQuery generateTestStreamingComputation(Dataset<String> dataSet) {
+    return dataSet
+      .selectExpr("value", "current_timestamp() as event_time")
+      .withWatermark("event_time", "0 seconds")
+      .groupBy("value")
+      .count()
+      .writeStream()
+      .queryName("test-query")
+      .outputMode("complete")
+      .format("console")
+      .start()
+  }
+
   def "generate spark structured streaming batches"() {
     setup:
-    def sparkSession = TestSparkComputation.createSparkSession("Sample Streaming Application")
+    def sparkSession = createSparkSession("Sample Streaming Application")
 
     def inputStream = memoryStream(sparkSession)
-    def query = TestSparkComputation.generateTestStreamingComputation(inputStream.toDS())
+    def query = generateTestStreamingComputation(inputStream.toDS())
 
     inputStream.addData(JavaConverters.asScalaBuffer(["foo", "foo", "bar"]).toSeq() as Seq<String>)
     query.processAllAvailable()
@@ -88,6 +123,8 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
             if (TestSparkComputation.sparkVersion >= '3') {
               "spark.latest_offset_duration" Long
             }
+            // In non-databricks running environment, SpanLinks should be absent.
+            assert tag(DDTags.SPAN_LINKS) == null
 
             // Regular spark tags
             "spark.available_executor_time" Long
@@ -192,7 +229,7 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
 
   def "handle failure during streaming processing"() {
     setup:
-    def sparkSession = TestSparkComputation.createSparkSession("Failing Streaming Application")
+    def sparkSession = createSparkSession("Failing Streaming Application")
 
     def inputStream = memoryStream(sparkSession)
     def query = TestSparkComputation.generateTestFailingStreamingComputation(inputStream.toDS())
@@ -244,10 +281,10 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
 
   def "add span links from spark.streaming_batch to databricks.task.execution if applicable"() {
     setup:
-    def sparkSession = TestSparkComputation.createDatabricksWorkflowsSparkSession("Example App")
+    def sparkSession = createDatabricksSparkSession("Example App")
 
     def inputStream = memoryStream(sparkSession)
-    def query = TestSparkComputation.generateTestStreamingComputation(inputStream.toDS())
+    def query = generateTestStreamingComputation(inputStream.toDS())
 
     inputStream.addData(JavaConverters.asScalaBuffer(["foo", "foo", "bar"]).toSeq() as Seq<String>)
     query.processAllAvailable()
@@ -265,57 +302,6 @@ class AbstractSparkStructuredStreamingTest extends AgentTestRunner {
           parent()
           assert span.tags.containsKey(DDTags.SPAN_LINKS)
           assert span.tags[DDTags.SPAN_LINKS] != null
-        }
-        span {
-          operationName "spark.sql"
-          spanType "spark"
-          childOf(span(0))
-          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
-        }
-        span {
-          operationName "spark.job"
-          spanType "spark"
-          childOf(span(1))
-          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
-        }
-        span {
-          operationName "spark.stage"
-          spanType "spark"
-          childOf(span(2))
-          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
-        }
-        span {
-          operationName "spark.stage"
-          spanType "spark"
-          childOf(span(2))
-          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
-        }
-      }
-    }
-  }
-
-  def "do not add span links for streaming batch span if not applicable"() {
-    setup:
-    def sparkSession = TestSparkComputation.createSparkSession("Example Application")
-
-    def inputStream = memoryStream(sparkSession)
-    def query = TestSparkComputation.generateTestStreamingComputation(inputStream.toDS())
-
-    inputStream.addData(JavaConverters.asScalaBuffer(["foo", "foo", "bar"]).toSeq() as Seq<String>)
-    query.processAllAvailable()
-
-    query.stop()
-    sparkSession.stop()
-
-    expect:
-    assertTraces(1) {
-      trace(5) {
-        span {
-          operationName "spark.streaming_batch"
-          resourceName "test-query"
-          spanType "spark"
-          parent()
-          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
         }
         span {
           operationName "spark.sql"

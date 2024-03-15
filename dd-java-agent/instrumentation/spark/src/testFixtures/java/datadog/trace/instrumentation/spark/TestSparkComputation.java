@@ -38,19 +38,6 @@ public class TestSparkComputation {
         .start();
   }
 
-  public static StreamingQuery generateTestStreamingComputation(Dataset<String> dataSet) {
-    return dataSet
-        .selectExpr("value", "current_timestamp() as event_time")
-        .withWatermark("event_time", "0 seconds")
-        .groupBy("value")
-        .count()
-        .writeStream()
-        .queryName("test-query")
-        .outputMode("complete")
-        .format("console")
-        .start();
-  }
-
   static class IdentityMapFunction implements MapFunction<String, String> {
     @Override
     public String call(String s) {
@@ -64,25 +51,5 @@ public class TestSparkComputation {
 
   public static String getSparkVersion() {
     return org.apache.spark.package$.MODULE$.SPARK_VERSION();
-  }
-
-  public static SparkSession createSparkSession(String appName) {
-    return SparkSession.builder()
-        .appName(appName)
-        .config("spark.master", "local[2]")
-        .config("spark.sql.shuffle.partitions", "2")
-        .getOrCreate();
-  }
-
-  public static SparkSession createDatabricksWorkflowsSparkSession(String appName) {
-    return SparkSession.builder()
-        .appName(appName)
-        .config("spark.master", "local[2]")
-        .config("spark.sql.shuffle.partitions", "2")
-        .config("spark.databricks.sparkContextId", "3291395623902517763")
-        .config("spark.databricks.job.id", "3822225623902514353")
-        .config("spark.databricks.job.parentRunId", "3851395623902519743")
-        .config("spark.databricks.job.runId", "3851395623902519743")
-        .getOrCreate();
   }
 }
