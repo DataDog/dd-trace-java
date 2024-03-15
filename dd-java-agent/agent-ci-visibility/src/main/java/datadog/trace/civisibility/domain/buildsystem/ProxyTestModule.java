@@ -59,7 +59,8 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final LongAdder testsSkipped = new LongAdder();
   private final Collection<TestIdentifier> skippableTests;
-  private final Collection<TestIdentifier> flakyTests;
+  private final boolean flakyTestRetriesEnabled;
+  @Nullable private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestIdentifier> knownTests;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
@@ -93,7 +94,10 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.itrCorrelationId = executionSettings.getItrCorrelationId();
     this.skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
-    this.flakyTests = new HashSet<>(executionSettings.getFlakyTests(moduleName));
+
+    this.flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
+    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
+    this.flakyTests = flakyTests != null ? new HashSet<>(flakyTests) : null;
 
     Collection<TestIdentifier> moduleKnownTests = executionSettings.getKnownTests(moduleName);
     this.knownTests = moduleKnownTests != null ? new HashSet<>(moduleKnownTests) : null;
@@ -130,7 +134,8 @@ public class ProxyTestModule implements TestFrameworkModule {
           && !earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.incrementAndGet())) {
         return new RetryNTimes(earlyFlakeDetectionSettings);
       }
-      if (flakyTests.contains(test.withoutParameters())) {
+      if (flakyTestRetriesEnabled
+          && (flakyTests == null || flakyTests.contains(test.withoutParameters()))) {
         return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount());
       }
     }

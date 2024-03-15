@@ -29,7 +29,7 @@ public class ModuleExecutionSettings {
   private final Map<String, String> systemProperties;
   private final String itrCorrelationId;
   private final Map<String, Collection<TestIdentifier>> skippableTestsByModule;
-  private final Collection<TestIdentifier> flakyTests;
+  @Nullable private final Collection<TestIdentifier> flakyTests;
   @Nullable private final Map<String, Collection<TestIdentifier>> knownTestsByModule;
   private final List<String> coverageEnabledPackages;
 
@@ -102,6 +102,7 @@ public class ModuleExecutionSettings {
     return skippableTestsByModule.getOrDefault(moduleName, Collections.emptyList());
   }
 
+  @Nullable
   public Collection<TestIdentifier> getFlakyTests(String moduleName) {
     // backend does not store module info for flaky tests yet
     return flakyTests;
