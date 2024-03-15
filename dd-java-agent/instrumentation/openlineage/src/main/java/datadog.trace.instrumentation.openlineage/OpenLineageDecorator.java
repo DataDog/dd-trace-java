@@ -7,10 +7,13 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.core.datastreams.TagsProcessor;
 import io.openlineage.client.OpenLineage;
 import io.openlineage.client.OpenLineageClientUtils;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -38,6 +41,34 @@ public class OpenLineageDecorator {
       spans.put(runId, span);
     } else {
       span = spans.get(runId);
+    }
+
+    for (OpenLineage.InputDataset input : event.getInputs()) {
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+      sortedTags.put("ds.name", input.getName());
+      sortedTags.put("ds.namespace", input.getNamespace());
+      sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
+      sortedTags.put(TagsProcessor.TOPIC_TAG, input.getNamespace()+input.getName());
+      sortedTags.put(TagsProcessor.TYPE_TAG, "openlineage");
+
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .setCheckpoint(span, sortedTags, 0, 0);
+    }
+
+    for (OpenLineage.OutputDataset output : event.getOutputs()) {
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+      sortedTags.put("ds.name", output.getName());
+      sortedTags.put("ds.namespace", output.getNamespace());
+      sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_OUT);
+      sortedTags.put(TagsProcessor.TOPIC_TAG, output.getNamespace()+output.getName());
+      sortedTags.put(TagsProcessor.TYPE_TAG, "openlineage");
+
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .setCheckpoint(span, sortedTags, 0, 0);
     }
 
     if (span == null) {
