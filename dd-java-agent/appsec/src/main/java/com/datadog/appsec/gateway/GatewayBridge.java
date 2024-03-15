@@ -73,6 +73,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
+  private volatile DataSubscriberInfo graphqlServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo requestEndSubInfo;
 
   public GatewayBridge(
@@ -388,6 +389,33 @@ public class GatewayBridge {
               return producerService.publishDataEvent(subInfo, ctx, bundle, true);
             } catch (ExpiredSubscriberInfoException e) {
               grpcServerRequestMsgSubInfo = null;
+            }
+          }
+        });
+
+    subscriptionService.registerCallback(
+        EVENTS.graphqlServerRequestMessage(),
+        (RequestContext ctx_, Map<String, ?> data) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null) {
+            return NoopFlow.INSTANCE;
+          }
+          while (true) {
+            DataSubscriberInfo subInfo = graphqlServerRequestMsgSubInfo;
+            if (subInfo == null) {
+              subInfo =
+                  producerService.getDataSubscribers(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS);
+              graphqlServerRequestMsgSubInfo = subInfo;
+            }
+            if (subInfo == null || subInfo.isEmpty()) {
+              return NoopFlow.INSTANCE;
+            }
+            DataBundle bundle =
+                new SingletonDataBundle<>(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS, data);
+            try {
+              return producerService.publishDataEvent(subInfo, ctx, bundle, true);
+            } catch (ExpiredSubscriberInfoException e) {
+              graphqlServerRequestMsgSubInfo = null;
             }
           }
         });
