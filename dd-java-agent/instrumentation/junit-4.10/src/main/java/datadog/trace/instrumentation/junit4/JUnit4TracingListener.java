@@ -60,6 +60,11 @@ public class JUnit4TracingListener extends TracingListener {
 
   @Override
   public void testStarted(final Description description) {
+    if (JUnit4Utils.isJUnitPlatformRunnerTest(description)) {
+      // should be handled by JUnit 5 instrumentation
+      return;
+    }
+
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
     Class<?> testClass = description.getTestClass();
@@ -87,6 +92,11 @@ public class JUnit4TracingListener extends TracingListener {
 
   @Override
   public void testFinished(final Description description) {
+    if (JUnit4Utils.isJUnitPlatformRunnerTest(description)) {
+      // should be handled by JUnit 5 instrumentation
+      return;
+    }
+
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
   }
@@ -95,6 +105,11 @@ public class JUnit4TracingListener extends TracingListener {
   @Override
   public void testFailure(final Failure failure) {
     Description description = failure.getDescription();
+    if (JUnit4Utils.isJUnitPlatformRunnerTest(description)) {
+      // should be handled by JUnit 5 instrumentation
+      return;
+    }
+
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
       Throwable throwable = failure.getException();
@@ -117,6 +132,11 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     Description description = failure.getDescription();
+    if (JUnit4Utils.isJUnitPlatformRunnerTest(description)) {
+      // should be handled by JUnit 5 instrumentation
+      return;
+    }
+
     if (JUnit4Utils.isTestSuiteDescription(description)) {
       TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, reason);
@@ -133,6 +153,11 @@ public class JUnit4TracingListener extends TracingListener {
 
   @Override
   public void testIgnored(final Description description) {
+    if (JUnit4Utils.isJUnitPlatformRunnerTest(description)) {
+      // should be handled by JUnit 5 instrumentation
+      return;
+    }
+
     final Ignore ignore = description.getAnnotation(Ignore.class);
     final String reason = ignore != null ? ignore.value() : null;
 
@@ -168,6 +193,11 @@ public class JUnit4TracingListener extends TracingListener {
   }
 
   private void testIgnored(Description description, Method testMethod, String reason) {
+    if (JUnit4Utils.isJUnitPlatformRunnerTest(description)) {
+      // should be handled by JUnit 5 instrumentation
+      return;
+    }
+
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
     Class<?> testClass = description.getTestClass();

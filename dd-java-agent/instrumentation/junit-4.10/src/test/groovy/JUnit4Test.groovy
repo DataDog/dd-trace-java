@@ -1,6 +1,7 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.IsolatedClassLoader
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder
 import junit.runner.Version
 import org.example.TestAssumption
@@ -31,6 +32,8 @@ import org.example.TestSucceedUnskippableSuite
 import org.example.TestSucceedVerySlow
 import org.example.TestSucceedWithCategories
 import org.junit.runner.JUnitCore
+
+import java.util.stream.Collectors
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit4Test extends CiVisibilityInstrumentationTest {

@@ -1,6 +1,7 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.IsolatedClassLoader
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
@@ -36,6 +37,8 @@ import org.junit.platform.engine.DiscoverySelector
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
+
+import java.util.stream.Collectors
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
@@ -138,30 +141,35 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
   }
 
   private static void runTests(List<Class<?>> tests) {
-    TestEventsHandlerHolder.startForcefully()
+    String[] testNames = tests.stream().map(Class::getName).collect(Collectors.toList()).toArray()
 
-    DiscoverySelector[] selectors = new DiscoverySelector[tests.size()]
-    for (i in 0..<tests.size()) {
-      selectors[i] = selectClass(tests[i])
-    }
+    IsolatedClassLoader.run(["org.junit", "org.example"], { String[] it ->
+      TestEventsHandlerHolder.startForcefully()
 
-    def launcherReq = LauncherDiscoveryRequestBuilder.request()
-      .selectors(selectors)
-      .build()
+      DiscoverySelector[] selectors = new DiscoverySelector[it.size()]
+      for (i in 0..<it.size()) {
+        selectors[i] = selectClass(it[i])
+      }
 
-    def launcherConfig = LauncherConfig
-      .builder()
-      .enableTestEngineAutoRegistration(false)
-      .addTestEngines(new JupiterTestEngine())
-      .build()
+      def launcherReq = LauncherDiscoveryRequestBuilder.request()
+        .selectors(selectors)
+        .build()
 
-    def launcher = LauncherFactory.create(launcherConfig)
-    try {
-      launcher.execute(launcherReq)
-    } catch (Throwable ignored) {
-    }
+      def launcherConfig = LauncherConfig
+        .builder()
+        .enableTestEngineAutoRegistration(false)
+        .addTestEngines(new JupiterTestEngine())
+        .build()
 
-    TestEventsHandlerHolder.stop()
+      def launcher = LauncherFactory.create(launcherConfig)
+      try {
+        launcher.execute(launcherReq)
+      } catch (Throwable ignored) {
+      }
+
+      TestEventsHandlerHolder.stop()
+
+    }, testNames)
   }
 
   @Override

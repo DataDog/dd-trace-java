@@ -6,6 +6,7 @@ def isTestingInstrumentation(Project project) {
     "junit-4.10",
     "cucumber-junit-4",
     "munit-junit-4",
+    "spock-junit-4",
     "junit-5.3",
     "cucumber-junit-5",
     "spock-junit-5",

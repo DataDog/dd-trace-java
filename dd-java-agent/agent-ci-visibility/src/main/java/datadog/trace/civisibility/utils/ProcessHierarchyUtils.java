@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.utils;
 
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.util.ShadowUtils;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
 import javax.annotation.Nullable;
@@ -15,8 +16,7 @@ public abstract class ProcessHierarchyUtils {
    * we are in the tests JVM and the build system is not instrumented.
    */
   public static boolean isChild() {
-    return System.getProperty(
-            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID))
+    return System.getProperty(Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(CiVisibilityConfig.CIVISIBILITY_SESSION_ID)))
         != null;
   }
 
@@ -45,8 +45,7 @@ public abstract class ProcessHierarchyUtils {
     // System.getProperty is used rather than Config,
     // because system variables can be set after config was initialized
     String systemProp =
-        System.getProperty(
-            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
+        System.getProperty(Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(CiVisibilityConfig.CIVISIBILITY_SESSION_ID)));
     if (systemProp == null) {
       throw new IllegalStateException("Parent session ID not available");
     }
@@ -57,8 +56,7 @@ public abstract class ProcessHierarchyUtils {
     // System.getProperty is used rather than Config,
     // because system variables can be set after config was initialized
     String systemProp =
-        System.getProperty(
-            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
+        System.getProperty(Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(CiVisibilityConfig.CIVISIBILITY_MODULE_ID)));
     if (systemProp == null) {
       throw new IllegalStateException("Parent module ID not available");
     }
@@ -69,14 +67,8 @@ public abstract class ProcessHierarchyUtils {
   public static InetSocketAddress getSignalServerAddress() {
     // System.getProperty is used rather than Config,
     // because system variables can be set after config was initialized
-    String host =
-        System.getProperty(
-            Strings.propertyNameToSystemPropertyName(
-                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST));
-    String port =
-        System.getProperty(
-            Strings.propertyNameToSystemPropertyName(
-                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT));
+    String host = System.getProperty(Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST)));
+    String port = System.getProperty(Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT)));
     if (host != null && port != null) {
       return new InetSocketAddress(host, Integer.parseInt(port));
     } else {

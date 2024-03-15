@@ -70,13 +70,14 @@ public final class AgentBootstrap {
           agentClass.getMethod("start", Instrumentation.class, URL.class, String.class);
       startMethod.invoke(null, inst, agentJarURL, agentArgs);
     } catch (final Throwable ex) {
-      if (exceptionCauseChainContains(
-          ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
-        throw new Error(ex);
-      }
-      // Don't rethrow.  We don't have a log manager here, so just print.
-      System.err.println("ERROR " + thisClass.getName());
-      ex.printStackTrace();
+//      if (exceptionCauseChainContains(
+//          ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
+//        throw new Error(ex);
+//      }
+//      // Don't rethrow.  We don't have a log manager here, so just print.
+//      System.err.println("ERROR " + thisClass.getName());
+//      ex.printStackTrace();
+      throw new RuntimeException(ex); // FIXME nikita: remove
     }
   }
 

@@ -12,6 +12,7 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
+import datadog.trace.util.ShadowUtils;
 import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -208,30 +209,31 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     }
 
     propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED),
+        Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(
+            CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED)),
         Boolean.toString(codeCoverageEnabled));
 
     propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED),
+        Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(
+            CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED)),
         Boolean.toString(itrEnabled));
 
     propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED),
+        Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(
+            CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED)),
         Boolean.toString(flakyTestRetriesEnabled));
 
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
     // and we don't want to show those as if they were regular build executions
     propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED),
+        Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(
+            CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED)),
         Boolean.toString(false));
 
     propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION),
+        Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(
+            CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION)),
         TracerVersion.TRACER_VERSION);
 
     return propagatedSystemProperties;

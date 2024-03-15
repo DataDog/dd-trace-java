@@ -1,6 +1,7 @@
 package datadog.trace.util.stacktrace;
 
 import datadog.trace.api.Platform;
+import datadog.trace.util.ShadowUtils;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Objects;
 import java.util.function.Supplier;

@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.util.ShadowUtils;
 import datadog.trace.util.Strings;
 import java.io.File;
 import java.nio.file.Path;
@@ -160,7 +161,7 @@ public class GradleBuildListener extends BuildAdapter {
     }
 
     private String arg(String propertyName, Object value) {
-      return "-D" + Strings.propertyNameToSystemPropertyName(propertyName) + "=" + value;
+      return "-D" + Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(propertyName)) + "=" + value;
     }
 
     @Override

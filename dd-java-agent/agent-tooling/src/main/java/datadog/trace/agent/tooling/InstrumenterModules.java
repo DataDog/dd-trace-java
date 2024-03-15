@@ -98,8 +98,9 @@ public final class InstrumenterModules implements Iterable<InstrumenterModule> {
   private static String[] loadModuleNames(ClassLoader loader) {
     Set<String> lines = new LinkedHashSet<>();
     try {
-      Enumeration<URL> urls =
-          loader.getResources("META-INF/services/datadog.trace.agent.tooling.InstrumenterModule");
+      // className has to be a separate variable for shadowing to work
+      String className = "datadog.trace.agent.tooling.InstrumenterModule";
+      Enumeration<URL> urls = loader.getResources("META-INF/services/" + className);
       while (urls.hasMoreElements()) {
         try (BufferedReader reader =
             new BufferedReader(

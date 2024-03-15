@@ -40,6 +40,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+import datadog.trace.util.ShadowUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
@@ -82,36 +83,31 @@ public class Agent {
   private static final Logger log;
 
   private enum AgentFeature {
-    TRACING(propertyNameToSystemPropertyName(TraceInstrumentationConfig.TRACE_ENABLED), true),
-    JMXFETCH(propertyNameToSystemPropertyName(JmxFetchConfig.JMX_FETCH_ENABLED), true),
-    STARTUP_LOGS(
-        propertyNameToSystemPropertyName(GeneralConfig.STARTUP_LOGS_ENABLED),
-        DEFAULT_STARTUP_LOGS_ENABLED),
-    PROFILING(propertyNameToSystemPropertyName(ProfilingConfig.PROFILING_ENABLED), false),
-    APPSEC(propertyNameToSystemPropertyName(AppSecConfig.APPSEC_ENABLED), false),
-    IAST(propertyNameToSystemPropertyName(IastConfig.IAST_ENABLED), false),
-    REMOTE_CONFIG(
-        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED), true),
-    DEPRECATED_REMOTE_CONFIG(
-        propertyNameToSystemPropertyName(RemoteConfigConfig.REMOTE_CONFIG_ENABLED), true),
-    CWS(propertyNameToSystemPropertyName(CwsConfig.CWS_ENABLED), false),
-    CIVISIBILITY(propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED), false),
-    CIVISIBILITY_AGENTLESS(
-        propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED), false),
-    USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
-    TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
-    DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false);
+    TRACING(TraceInstrumentationConfig.TRACE_ENABLED, true),
+    JMXFETCH(JmxFetchConfig.JMX_FETCH_ENABLED, true),
+    STARTUP_LOGS(GeneralConfig.STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED),
+    PROFILING(ProfilingConfig.PROFILING_ENABLED, false),
+    APPSEC(AppSecConfig.APPSEC_ENABLED, false),
+    IAST(IastConfig.IAST_ENABLED, false),
+    REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED, true),
+    DEPRECATED_REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIG_ENABLED, true),
+    CWS(CwsConfig.CWS_ENABLED, false),
+    CIVISIBILITY(CiVisibilityConfig.CIVISIBILITY_ENABLED, false),
+    CIVISIBILITY_AGENTLESS(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, false),
+    USM(UsmConfig.USM_ENABLED, false),
+    TELEMETRY(GeneralConfig.TELEMETRY_ENABLED, true),
+    DEBUGGER(DebuggerConfig.DEBUGGER_ENABLED, false);
 
-    private final String systemProp;
+    private final String prop;
     private final boolean enabledByDefault;
 
-    AgentFeature(final String systemProp, final boolean enabledByDefault) {
-      this.systemProp = systemProp;
+    AgentFeature(final String prop, final boolean enabledByDefault) {
+      this.prop = prop;
       this.enabledByDefault = enabledByDefault;
     }
 
-    public String getSystemProp() {
-      return systemProp;
+    public String getProp() {
+      return prop;
     }
 
     public boolean isEnabledByDefault() {
@@ -167,30 +163,27 @@ public class Agent {
     }
 
     // Retro-compatibility for the old way to configure CI Visibility
-    if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
-        || "true".equals(ddGetProperty("dd.integration.testng.enabled"))) {
-      setSystemPropertyDefault(AgentFeature.CIVISIBILITY.getSystemProp(), "true");
+    if ("true".equals(ddGetProperty("integration.junit.enabled", false))
+        || "true".equals(ddGetProperty("integration.testng.enabled", false))) {
+      setPropertyDefault(AgentFeature.CIVISIBILITY.getProp(), "true");
     }
 
     ciVisibilityEnabled = isFeatureEnabled(AgentFeature.CIVISIBILITY);
     if (ciVisibilityEnabled) {
       // if CI Visibility is enabled, all the other features are disabled by default
       // unless the user had explicitly enabled them.
-      setSystemPropertyDefault(AgentFeature.JMXFETCH.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.PROFILING.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.IAST.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.REMOTE_CONFIG.getSystemProp(), "false");
-      setSystemPropertyDefault(AgentFeature.CWS.getSystemProp(), "false");
+      setPropertyDefault(AgentFeature.JMXFETCH.getProp(), "false");
+      setPropertyDefault(AgentFeature.PROFILING.getProp(), "false");
+      setPropertyDefault(AgentFeature.APPSEC.getProp(), "false");
+      setPropertyDefault(AgentFeature.IAST.getProp(), "false");
+      setPropertyDefault(AgentFeature.REMOTE_CONFIG.getProp(), "false");
+      setPropertyDefault(AgentFeature.CWS.getProp(), "false");
 
       /*if CI Visibility is enabled, the PrioritizationType should be {@code Prioritization.ENSURE_TRACE} */
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TracerConfig.PRIORITIZATION_TYPE), "ENSURE_TRACE");
+      setPropertyDefault(TracerConfig.PRIORITIZATION_TYPE, "ENSURE_TRACE");
 
       try {
-        setSystemPropertyDefault(
-            propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI),
-            agentJarURL.toURI().toString());
+        setPropertyDefault(CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI, agentJarURL.toURI().toString());
       } catch (URISyntaxException e) {
         throw new IllegalArgumentException(
             "Could not create URI from agent JAR URL: " + agentJarURL, e);
@@ -202,7 +195,7 @@ public class Agent {
           "OS and architecture ({}/{}) not supported by AppSec, dd.appsec.enabled will default to false",
           System.getProperty("os.name"),
           System.getProperty("os.arch"));
-      setSystemPropertyDefault(AgentFeature.APPSEC.getSystemProp(), "false");
+      setPropertyDefault(AgentFeature.APPSEC.getProp(), "false");
     }
 
     jmxFetchEnabled = isFeatureEnabled(AgentFeature.JMXFETCH);
@@ -335,7 +328,8 @@ public class Agent {
           agentArgsInjectorClass.getMethod("injectAgentArgsConfig", String.class);
       registerCallbackMethod.invoke(null, agentArgs);
     } catch (final Exception ex) {
-      log.error("Error injecting agent args config {}", agentArgs, ex);
+//      log.error("Error injecting agent args config {}", agentArgs, ex);
+      throw new RuntimeException("Error injecting agent args config " + agentArgs, ex); // FIXME nikita: remove
     }
   }
 
@@ -380,6 +374,7 @@ public class Agent {
       registerCallbackMethod.invoke(null, "java.util.logging.LogManager", callback);
     } catch (final Exception ex) {
       log.error("Error registering callback for {}", callback.agentThread(), ex);
+      throw new RuntimeException("Error registering callback for " +  callback.agentThread(), ex); // FIXME nikita: remove
     }
   }
 
@@ -391,6 +386,7 @@ public class Agent {
       registerCallbackMethod.invoke(null, "javax.management.MBeanServerBuilder", callback);
     } catch (final Exception ex) {
       log.error("Error registering callback for {}", callback.agentThread(), ex);
+      throw new RuntimeException("Error registering callback for " +  callback.agentThread(), ex); // FIXME nikita: remove
     }
   }
 
@@ -412,6 +408,7 @@ public class Agent {
                     execute();
                   } catch (final Exception e) {
                     log.error("Failed to run {}", agentThread(), e);
+                    throw new RuntimeException("Failed to run {}" + agentThread(), e);  // FIXME nikita: remove
                   }
                 }
               });
@@ -519,6 +516,7 @@ public class Agent {
         AGENT_CLASSLOADER = new DatadogClassLoader(agentJarURL, parent);
       } catch (final Throwable ex) {
         log.error("Throwable thrown creating agent classloader", ex);
+        throw new RuntimeException("Throwable thrown creating agent classloader", ex); // FIXME nikita: remove
       }
     }
   }
@@ -562,6 +560,7 @@ public class Agent {
         agentInstallerMethod.invoke(null, inst);
       } catch (final Throwable ex) {
         log.error("Throwable thrown while installing the Datadog Agent", ex);
+        throw new RuntimeException("Throwable thrown while installing the Datadog Agent", ex); // FIXME nikita: remove
       }
 
       StaticEventLogger.end("BytebuddyAgent");
@@ -589,6 +588,7 @@ public class Agent {
       throw ex;
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
+      throw new RuntimeException("Throwable thrown while installing the Datadog Tracer", ex); // FIXME nikita: remove
     }
 
     StaticEventLogger.end("GlobalTracer");
@@ -779,6 +779,7 @@ public class Agent {
         ciVisibilityInstallerMethod.invoke(null, inst, sco);
       } catch (final Throwable e) {
         log.warn("Not starting CI Visibility subsystem", e);
+        throw new RuntimeException("Not starting CI Visibility subsystem", e); // FIXME nikita: remove
       }
 
       StaticEventLogger.end("CI Visibility");
@@ -998,8 +999,7 @@ public class Agent {
 
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
-    setSystemPropertyDefault(
-        SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
+    setSystemPropertyDefault(SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
 
     if (isDebugMode()) {
       setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, "DEBUG");
@@ -1008,9 +1008,15 @@ public class Agent {
     }
   }
 
-  private static void setSystemPropertyDefault(final String property, final String value) {
-    if (System.getProperty(property) == null && ddGetEnv(property) == null) {
-      System.setProperty(property, value);
+  private static void setPropertyDefault(String property, String value) {
+    property = ShadowUtils.shadowPropertyNameIfNeeded(property);
+    property = propertyNameToSystemPropertyName(property);
+    setSystemPropertyDefault(property, value);
+  }
+
+  private static void setSystemPropertyDefault(String systemProperty, String value) {
+    if (System.getProperty(systemProperty) == null && ddGetEnv(systemProperty) == null) {
+      System.setProperty(systemProperty, value);
     }
   }
 
@@ -1030,7 +1036,7 @@ public class Agent {
    * @return true if we should
    */
   private static boolean isDebugMode() {
-    final String tracerDebugLevelSysprop = "dd.trace.debug";
+    final String tracerDebugLevelSysprop = propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded("trace.debug"));
     final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
 
     if (tracerDebugLevelProp != null) {
@@ -1048,11 +1054,7 @@ public class Agent {
   /** @return {@code true} if the agent feature is enabled */
   private static boolean isFeatureEnabled(AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = feature.getSystemProp();
-    String featureEnabled = System.getProperty(featureEnabledSysprop);
-    if (featureEnabled == null) {
-      featureEnabled = ddGetEnv(featureEnabledSysprop);
-    }
+    String featureEnabled = ddGetProperty(feature.getProp(), false);
 
     if (feature.isEnabledByDefault()) {
       // true unless it's explicitly set to "false"
@@ -1066,12 +1068,7 @@ public class Agent {
   /** @see datadog.trace.api.ProductActivation#fromString(String) */
   private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
-    final String featureEnabledSysprop = feature.systemProp;
-    String settingValue = getNullIfEmpty(System.getProperty(featureEnabledSysprop));
-    if (settingValue == null) {
-      settingValue = getNullIfEmpty(ddGetEnv(featureEnabledSysprop));
-      settingValue = settingValue != null && settingValue.isEmpty() ? null : settingValue;
-    }
+    String settingValue = ddGetProperty(feature.getProp(), true);
 
     // defaults to inactive
     return !(settingValue == null
@@ -1097,9 +1094,9 @@ public class Agent {
 
   /** @return configured JMX start delay in seconds */
   private static int getJmxStartDelay() {
-    String startDelay = ddGetProperty("dd.dogstatsd.start-delay");
+    String startDelay = ddGetProperty("dogstatsd.start-delay", false);
     if (startDelay == null) {
-      startDelay = ddGetProperty("dd.jmxfetch.start-delay");
+      startDelay = ddGetProperty("jmxfetch.start-delay", false);
     }
     if (startDelay != null) {
       try {
@@ -1118,7 +1115,7 @@ public class Agent {
    * @return true if we detect a custom log manager being used.
    */
   private static boolean isAppUsingCustomLogManager(final EnumSet<Library> libraries) {
-    final String tracerCustomLogManSysprop = "dd.app.customlogmanager";
+    final String tracerCustomLogManSysprop = propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded("app.customlogmanager"));
     final String customLogManagerProp = System.getProperty(tracerCustomLogManSysprop);
     final String customLogManagerEnv = ddGetEnv(tracerCustomLogManSysprop);
 
@@ -1156,7 +1153,7 @@ public class Agent {
    * @return true if we detect a custom JMX builder being used.
    */
   private static boolean isAppUsingCustomJMXBuilder(final EnumSet<Library> libraries) {
-    final String tracerCustomJMXBuilderSysprop = "dd.app.customjmxbuilder";
+    final String tracerCustomJMXBuilderSysprop = propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded("app.customjmxbuilder"));
     final String customJMXBuilderProp = System.getProperty(tracerCustomJMXBuilderSysprop);
     final String customJMXBuilderEnv = ddGetEnv(tracerCustomJMXBuilderSysprop);
 
@@ -1188,10 +1185,20 @@ public class Agent {
   }
 
   /** Looks for the "dd." system property first then the "DD_" environment variable equivalent. */
-  private static String ddGetProperty(final String sysProp) {
+  private static String ddGetProperty(String prop, boolean returnNullIfEmpty) {
+    prop = ShadowUtils.shadowPropertyNameIfNeeded(prop);
+    String sysProp = propertyNameToSystemPropertyName(prop);
+
     String value = System.getProperty(sysProp);
+    if (returnNullIfEmpty) {
+      value = getNullIfEmpty(value);
+    }
+
     if (null == value) {
       value = ddGetEnv(sysProp);
+      if (returnNullIfEmpty) {
+        value = getNullIfEmpty(value);
+      }
     }
     return value;
   }

@@ -90,7 +90,7 @@ abstract class DDSpecification extends Specification {
 
   void setupSpec() {
     assert !configModificationFailed: "Config class modification failed.  Ensure all test classes extend DDSpecification"
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert envVarsExceptAllowed().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (getDDThreads().isEmpty()) {
@@ -106,7 +106,7 @@ abstract class DDSpecification extends Specification {
   void cleanupSpec() {
     restoreProperties()
 
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert envVarsExceptAllowed().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
@@ -123,13 +123,18 @@ abstract class DDSpecification extends Specification {
       'dd.integration.grizzly-filterchain.enabled',
     ]
     System.getProperties()
-      .findAll { key, value -> !allowlist.contains(key as String) }
+      .findAll { key, value -> !allowlist.contains(key as String) && !(key as String).startsWith("dd.shadow") }
+  }
+
+  private static Map<String, String> envVarsExceptAllowed() {
+    System.getenv()
+      .findAll { key, value -> !(key as String).startsWith("DD_SHADOW") }
   }
 
   void setup() {
     restoreProperties()
 
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert envVarsExceptAllowed().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
@@ -140,7 +145,7 @@ abstract class DDSpecification extends Specification {
   void cleanup() {
     restoreProperties()
 
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert envVarsExceptAllowed().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {

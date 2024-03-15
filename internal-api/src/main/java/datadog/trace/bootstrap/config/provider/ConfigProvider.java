@@ -4,6 +4,7 @@ import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigOrigin;
+import datadog.trace.util.ShadowUtils;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -36,6 +37,14 @@ public final class ConfigProvider {
   }
 
   private ConfigProvider(boolean collectConfig, ConfigProvider.Source... sources) {
+    if (ShadowUtils.isShadowedTracer()) {
+      ConfigProvider.Source[] shadowedSources = new ConfigProvider.Source[sources.length];
+      for (int i = 0; i < sources.length; i++) {
+        shadowedSources[i] = new ShadowedConfigSource(sources[i]);
+      }
+      sources = shadowedSources;
+    }
+
     this.collectConfig = collectConfig;
     this.sources = sources;
   }
@@ -415,9 +424,9 @@ public final class ConfigProvider {
   /**
    * Loads the optional configuration properties file into the global {@link Properties} object.
    *
-   * @return The {@link Properties} object. the returned instance might be empty of file does not
-   *     exist or if it is in a wrong format.
    * @param configProvider
+   * @return The {@link Properties} object. the returned instance might be empty of file does not
+   * exist or if it is in a wrong format.
    */
   @SuppressForbidden
   private static Properties loadConfigurationFile(ConfigProvider configProvider) {

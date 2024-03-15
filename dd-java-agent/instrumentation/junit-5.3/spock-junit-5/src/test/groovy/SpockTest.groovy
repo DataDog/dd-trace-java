@@ -1,6 +1,7 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.civisibility.IsolatedClassLoader
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
 import org.example.TestFailedParameterizedSpock
 import org.example.TestFailedSpock
@@ -21,6 +22,8 @@ import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
 import org.spockframework.runtime.SpockEngine
 import org.spockframework.util.SpockReleaseInfo
+
+import java.util.stream.Collectors
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
@@ -110,28 +113,33 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     "test-efd-faulty-session-threshold" | [TestSucceedAndFailedSpock] | 8                   | []
   }
 
-  private static void runTests(List<Class<?>> classes) {
-    TestEventsHandlerHolder.startForcefully()
+  private static void runTests(List<Class<?>> tests) {
+    String[] testNames = tests.stream().map(Class::getName).collect(Collectors.toList()).toArray()
 
-    DiscoverySelector[] selectors = new DiscoverySelector[classes.size()]
-    for (i in 0..<classes.size()) {
-      selectors[i] = selectClass(classes[i])
-    }
+    IsolatedClassLoader.run(["org.junit", "org.spockframework", "org.example", "datadog.trace.test", "org.codehaus", "groovy.lang"], { String[] it ->
+      TestEventsHandlerHolder.startForcefully()
 
-    def launcherReq = LauncherDiscoveryRequestBuilder.request()
-      .selectors(selectors)
-      .build()
+      DiscoverySelector[] selectors = new DiscoverySelector[it.size()]
+      for (i in 0..<it.size()) {
+        selectors[i] = selectClass("org.example.TestSucceedSpock")
+      }
 
-    def launcherConfig = LauncherConfig
-      .builder()
-      .enableTestEngineAutoRegistration(false)
-      .addTestEngines(new SpockEngine())
-      .build()
+      def launcherReq = LauncherDiscoveryRequestBuilder.request()
+        .selectors(selectors)
+        .build()
 
-    def launcher = LauncherFactory.create(launcherConfig)
-    launcher.execute(launcherReq)
+      def launcherConfig = LauncherConfig
+        .builder()
+        .enableTestEngineAutoRegistration(false)
+        .addTestEngines(new SpockEngine())
+        .build()
 
-    TestEventsHandlerHolder.stop()
+      def launcher = LauncherFactory.create(launcherConfig)
+      launcher.execute(launcherReq)
+
+      TestEventsHandlerHolder.stop()
+
+    }, testNames)
   }
 
   @Override

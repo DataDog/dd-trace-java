@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.maven3;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.ShadowUtils;
 import datadog.trace.util.Strings;
 import java.io.File;
 import java.util.Collection;
@@ -110,10 +111,10 @@ public class MavenExecutionListener extends AbstractExecutionListener {
         // set session/module ID props to let tests instrumentation code know
         // that it shouldn't create its own module event
         System.setProperty(
-            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID),
+            Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(CiVisibilityConfig.CIVISIBILITY_SESSION_ID)),
             String.valueOf(moduleInfo.sessionId));
         System.setProperty(
-            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID),
+            Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(CiVisibilityConfig.CIVISIBILITY_MODULE_ID)),
             String.valueOf(moduleInfo.moduleId));
       }
     }
@@ -124,7 +125,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     String argLine =
         MavenUtils.getConfigurationValue(configuration, "argLine")
             + " -D"
-            + Strings.propertyNameToSystemPropertyName(propertyName)
+            + Strings.propertyNameToSystemPropertyName(ShadowUtils.shadowPropertyNameIfNeeded(propertyName))
             + '='
             + propertyValue;
     return MavenUtils.setConfigurationValue(argLine, configuration, "argLine");
