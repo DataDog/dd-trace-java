@@ -22,7 +22,7 @@ import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
