@@ -112,18 +112,18 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   public AgentSpan onSdkRequest(
-      final AgentSpan span, final SdkRequest request, final ExecutionAttributes attributes) {
+      final AgentSpan span, final SdkRequest request, final SdkHttpRequest httpRequest, final ExecutionAttributes attributes) {
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
-    if (Objects.equals(awsServiceName, "s3")) {
-      System.out.printf("### S3 request %s", awsOperationName);
-      for (SdkField<?> field : request.sdkFields()) {
-        System.out.printf(" ### field %s", field);
-      }
+    if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
+      request
+          .getValueForField("Key", String.class)
+          .ifPresent(key -> span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key));
+      span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(httpRequest));
     }
 
     getRequestKey(request).ifPresent(key -> setObjectKey(span, key));
@@ -349,30 +349,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         }
       }
 
-      if (span.traceConfig().isDataStreamsEnabled() && "s3".equalsIgnoreCase(awsServiceName)) {
-        System.out.printf("### Got S3 response(v2, %s, %s)", response.getClass().getName(), awsOperationName);
-
-        try {
-          for(Map.Entry<String, Object> tag : span.getTags().entrySet()) {
-            System.out.printf(" ### tag: %s=%s\n", tag.getKey(), tag.getValue());
-          }
-
-          Field field = attributes.getClass().getDeclaredField("attributes");
-          field.setAccessible(true);
-          Map<ExecutionAttribute<?>, Object> map = (Map<ExecutionAttribute<?>, Object>)field.get(attributes);
-          for (Map.Entry<ExecutionAttribute<?>, Object> entry : map.entrySet()) {
-            System.out.printf(" ### attr %s=%s\n", entry.getKey().toString(), entry.getValue().toString());
-          }
-
-          for(Entry<String, List<String>> header : response.sdkHttpResponse().headers().entrySet()) {
-            System.out.printf(" ### http header %s=%s\n", header.getKey(), header.getValue());
-          }
-        } catch (Exception e)
-        {
-          for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-            System.out.println(ste + "\n");
-          }
-        }
+      if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
+        span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, getResponseContentLength(response.sdkHttpResponse()));
       }
     }
     return span;

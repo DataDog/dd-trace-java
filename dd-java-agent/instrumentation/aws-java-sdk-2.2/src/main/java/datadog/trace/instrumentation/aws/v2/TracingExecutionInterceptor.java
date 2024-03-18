@@ -58,7 +58,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     if (span != null) {
       try (AgentScope ignored = activateSpan(span)) {
         DECORATE.onRequest(span, context.httpRequest());
-        DECORATE.onSdkRequest(span, context.request(), executionAttributes);
+        DECORATE.onSdkRequest(span, context.request(), context.httpRequest(), executionAttributes);
       }
     }
   }

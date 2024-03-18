@@ -131,4 +131,38 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         .client()
         .operationForComponent(component().toString());
   }
+
+  public long getRequestContentLength(final REQUEST request) {
+    if (request == null) {
+      return 0;
+    }
+
+    String contentLengthStr = getRequestHeader(request, "Content-Length");
+    if (contentLengthStr != null) {
+      try {
+        System.out.println("### Got content length " + contentLengthStr);
+        return Long.parseLong(contentLengthStr);
+      } catch (NumberFormatException ignored) {
+      }
+    }
+
+    return 0;
+  }
+
+  public long getResponseContentLength(final RESPONSE response) {
+    if (response == null) {
+      return 0;
+    }
+
+    String contentLengthStr = getResponseHeader(response, "Content-Length");
+    if (contentLengthStr != null) {
+      try {
+        System.out.println("### Got content length " + contentLengthStr);
+        return Long.parseLong(contentLengthStr);
+      } catch (NumberFormatException ignored) {
+      }
+    }
+
+    return 0;
+  }
 }

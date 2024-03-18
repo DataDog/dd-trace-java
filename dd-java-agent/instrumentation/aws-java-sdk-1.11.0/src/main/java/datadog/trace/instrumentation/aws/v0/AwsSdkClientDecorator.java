@@ -102,17 +102,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperation.getSimpleName());
     span.setTag(InstrumentationTags.AWS_ENDPOINT, request.getEndpoint().toString());
 
-    if (Objects.equals(awsServiceName, "s3")) {
-      System.out.printf("### S3 request %s", awsOperation.getSimpleName());
-
-      for (Object header : request.getHeaders().entrySet()) {
-        System.out.printf(" ### header %s", header);
-      }
-    }
-
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
 
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
+
+    if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
+      span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
+    }
 
     switch (awsRequestName.toString()) {
       case "SQS.SendMessage":
@@ -258,26 +254,19 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     return span;
   }
 
+  public AgentSpan onServiceResponse(final AgentSpan span, final String awsService, final Response response) {
+    if (Objects.equals(awsService, "s3") && span.traceConfig().isDataStreamsEnabled()) {
+      span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, getResponseContentLength(response));
+    }
+
+    return span;
+  }
+
   @Override
   public AgentSpan onResponse(final AgentSpan span, final Response response) {
     if (response.getAwsResponse() instanceof AmazonWebServiceResponse) {
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
-    }
-
-    try {
-      System.out.println("### Got S3 response(v1, " + response.getAwsResponse().getClass().getName() + ")");
-      for(Map.Entry<String, String> header : response.getHttpResponse().getHeaders().entrySet()) {
-        System.out.printf(" ### header: %s=%s\n", header.getKey(), header.getValue());
-      }
-
-      for(Map.Entry<String, Object> tag : span.getTags().entrySet()) {
-        System.out.printf(" ### tag: %s=%s\n", tag.getKey(), tag.getValue());
-      }
-    } catch (Exception e) {
-      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-        System.out.println(ste + "\n");
-      }
     }
 
     return super.onResponse(span, response);
