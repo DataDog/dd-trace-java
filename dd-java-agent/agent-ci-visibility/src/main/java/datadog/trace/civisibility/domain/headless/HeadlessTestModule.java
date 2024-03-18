@@ -44,7 +44,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final LongAdder testsSkipped = new LongAdder();
   private final String itrCorrelationId;
   private final Collection<TestIdentifier> skippableTests;
-  private final Collection<TestIdentifier> flakyTests;
+  private final boolean flakyTestRetriesEnabled;
+  @Nullable private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestIdentifier> knownTests;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
@@ -63,7 +64,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory,
-      ModuleExecutionSettings moduleExecutionSettings,
+      ModuleExecutionSettings executionSettings,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -80,16 +81,19 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         coverageProbeStoreFactory,
         onSpanFinish);
 
-    codeCoverageEnabled = moduleExecutionSettings.isCodeCoverageEnabled();
-    itrEnabled = moduleExecutionSettings.isItrEnabled();
-    itrCorrelationId = moduleExecutionSettings.getItrCorrelationId();
-    skippableTests = new HashSet<>(moduleExecutionSettings.getSkippableTests(moduleName));
-    flakyTests = new HashSet<>(moduleExecutionSettings.getFlakyTests(moduleName));
+    codeCoverageEnabled = executionSettings.isCodeCoverageEnabled();
+    itrEnabled = executionSettings.isItrEnabled();
+    itrCorrelationId = executionSettings.getItrCorrelationId();
+    skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
 
-    Collection<TestIdentifier> moduleKnownTests = moduleExecutionSettings.getKnownTests(moduleName);
+    flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
+    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
+    this.flakyTests = flakyTests != null ? new HashSet<>(flakyTests) : null;
+
+    Collection<TestIdentifier> moduleKnownTests = executionSettings.getKnownTests(moduleName);
     knownTests = moduleKnownTests != null ? new HashSet<>(moduleKnownTests) : null;
 
-    earlyFlakeDetectionSettings = moduleExecutionSettings.getEarlyFlakeDetectionSettings();
+    earlyFlakeDetectionSettings = executionSettings.getEarlyFlakeDetectionSettings();
   }
 
   @Override
@@ -121,7 +125,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
           && !earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.incrementAndGet())) {
         return new RetryNTimes(earlyFlakeDetectionSettings);
       }
-      if (flakyTests.contains(test.withoutParameters())) {
+      if (flakyTestRetriesEnabled
+          && (flakyTests == null || flakyTests.contains(test.withoutParameters()))) {
         return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount());
       }
     }

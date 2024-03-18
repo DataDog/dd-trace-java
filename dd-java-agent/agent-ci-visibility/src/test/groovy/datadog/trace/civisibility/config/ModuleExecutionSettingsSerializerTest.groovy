@@ -17,7 +17,7 @@ class ModuleExecutionSettingsSerializerTest extends Specification {
 
     where:
     settings << [
-      new ModuleExecutionSettings(false, false, false, EarlyFlakeDetectionSettings.DEFAULT, [:], null, [:], [], [:], []),
+      new ModuleExecutionSettings(false, false, false, EarlyFlakeDetectionSettings.DEFAULT, [:], null, [:], null, [:], []),
       new ModuleExecutionSettings(true, false, true,
       new EarlyFlakeDetectionSettings(true, [], 10),
       ["a": "b", "propName": "propValue"],
