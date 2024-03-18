@@ -9,8 +9,9 @@
   <script>
     window.DD_RUM = {
       stopSession: function() {
-        if (window['dd_ci_visibility_test_context']) {
-          const data = window['dd_ci_visibility_test_context'];
+        const testExecutionId = window.sessionStorage.getItem('dd_ci_visibility_test_execution_id')
+        if (!!testExecutionId) {
+          const data = {test_execution_id: testExecutionId};
           const jsonData = JSON.stringify(data);
           const url = `{{RUM_DATA_VERIFICATION_URL_PLACEHOLDER}}`;
 
@@ -19,7 +20,7 @@
           xhr.setRequestHeader('Content-Type', 'application/json');
           xhr.send(jsonData);
 
-          window['dd_ci_visibility_test_context'] = undefined
+          window.sessionStorage.removeItem('dd_ci_visibility_test_execution_id');
         }
       }
     };

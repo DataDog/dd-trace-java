@@ -45,9 +45,7 @@ public abstract class SeleniumUtils {
         js.executeScript(
             String.format(
                 "if (!!window.DD_RUM) {"
-                    + "  window.dd_ci_visibility_test_context = {"
-                    + "    test_execution_id: %s"
-                    + "  };"
+                    + "  window.sessionStorage.setItem('dd_ci_visibility_test_execution_id', '%s');"
                     + "  return true; "
                     + "} else {"
                     + "  return false; "

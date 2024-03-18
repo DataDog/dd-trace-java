@@ -81,7 +81,7 @@ abstract class AbstractSeleniumTest extends CiVisibilityInstrumentationTest {
     int testCaseIdx = 0
     while (++testCaseIdx <= expectedTestCases) {
       def suffix = (testCaseIdx > 1) ? "_$testCaseIdx" : ""
-      assertEquals(dynamicData["content_trace_id$suffix"], rumData.poll()["test_execution_id"])
+      assertEquals(String.valueOf(dynamicData["content_trace_id$suffix"]), rumData.poll()["test_execution_id"])
     }
   }
 
