@@ -551,12 +551,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       check()
       return delegate.getDataCurrent(key)
     }
-
-    @Override
-    void setRequiresPostProcessing(boolean postProcessing) {
-      check()
-      delegate.setRequiresPostProcessing(postProcessing)
-    }
   }
 
   /** Override to clean up things after the agent is removed */
