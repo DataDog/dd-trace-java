@@ -32,6 +32,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -118,6 +119,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
+    if (Objects.equals(awsServiceName, "s3")) {
+      System.out.printf("### S3 request %s", awsOperationName);
+      for (SdkField<?> field : request.sdkFields()) {
+        System.out.printf(" ### field %s", field);
+      }
+    }
+
     getRequestKey(request).ifPresent(key -> setObjectKey(span, key));
     request
         .getValueForField("StorageClass", String.class)
@@ -361,7 +369,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
           }
         } catch (Exception e)
         {
-          System.out.println(" ### " + e.toString());
           for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
             System.out.println(ste + "\n");
           }

@@ -1,6 +1,11 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_BUCKET_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_OBJECT_KEY;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_OPERATION;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_SERVICE;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
@@ -12,6 +17,7 @@ import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.http.HttpMethodName;
+import com.amazonaws.transform.MapEntry;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
@@ -32,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -94,6 +101,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, simplifyServiceName(awsServiceName));
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperation.getSimpleName());
     span.setTag(InstrumentationTags.AWS_ENDPOINT, request.getEndpoint().toString());
+
+    if (Objects.equals(awsServiceName, "s3")) {
+      System.out.printf("### S3 request %s", awsOperation.getSimpleName());
+
+      for (Object header : request.getHeaders().entrySet()) {
+        System.out.printf(" ### header %s", header);
+      }
+    }
 
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
 
@@ -248,7 +263,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if (response.getAwsResponse() instanceof AmazonWebServiceResponse) {
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
-      System.out.println("### Got S3 response(v1, " + awsResp.getClass().getName() + ")");
     }
 
     try {
@@ -261,7 +275,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         System.out.printf(" ### tag: %s=%s\n", tag.getKey(), tag.getValue());
       }
     } catch (Exception e) {
-      System.out.println(" ### " + e.toString());
       for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
         System.out.println(ste + "\n");
       }
