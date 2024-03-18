@@ -14,7 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.vertx.core.Handler;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class VertxImplInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public VertxImplInstrumentation() {

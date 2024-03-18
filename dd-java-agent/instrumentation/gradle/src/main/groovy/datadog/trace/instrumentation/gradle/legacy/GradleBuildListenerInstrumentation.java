@@ -13,7 +13,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.gradle.invocation.DefaultGradle;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

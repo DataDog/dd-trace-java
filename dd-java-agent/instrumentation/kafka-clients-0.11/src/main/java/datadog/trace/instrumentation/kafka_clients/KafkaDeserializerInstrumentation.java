@@ -21,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.common.serialization.Deserializer;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 

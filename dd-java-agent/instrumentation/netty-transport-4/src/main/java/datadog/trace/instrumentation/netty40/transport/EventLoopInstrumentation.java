@@ -14,7 +14,7 @@ import net.bytebuddy.asm.Advice;
  * This instrumentation ensures that threads netty may initiate syscalls from is wallclock-profiled,
  * whether spans propagate to the event loop or not.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class EventLoopInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForKnownTypes {
   public EventLoopInstrumentation() {

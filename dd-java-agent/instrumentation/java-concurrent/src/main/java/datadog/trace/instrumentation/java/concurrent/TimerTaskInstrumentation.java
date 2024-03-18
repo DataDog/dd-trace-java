@@ -24,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * <p>Only the cancel part is handled here because the execution is handled by the {@link
  * RunnableInstrumentation}
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class TimerTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 

@@ -7,7 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -16,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestInstrumentation {
 
   @Override
@@ -37,6 +42,7 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
         HttpServerRequestInstrumentation.class.getName() + "$HeadersAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class HeadersAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
@@ -50,12 +56,14 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(
         @Advice.Local("beforeHeaders") final Object beforeHeaders,
-        @Advice.Return final Object multiMap) {
+        @Advice.Return final Object multiMap,
+        @ActiveRequestContext RequestContext reqCtx) {
       // only taint the map the first time
       if (beforeHeaders != multiMap) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          module.taint(multiMap, SourceTypes.REQUEST_HEADER_VALUE);
+          final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+          module.taint(ctx, multiMap, SourceTypes.REQUEST_HEADER_VALUE);
         }
       }
     }

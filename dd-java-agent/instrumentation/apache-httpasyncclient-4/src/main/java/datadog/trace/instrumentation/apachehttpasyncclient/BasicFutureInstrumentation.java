@@ -16,7 +16,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.concurrent.BasicFuture;
 import org.apache.http.concurrent.FutureCallback;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class BasicFutureInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure {
   public BasicFutureInstrumentation() {

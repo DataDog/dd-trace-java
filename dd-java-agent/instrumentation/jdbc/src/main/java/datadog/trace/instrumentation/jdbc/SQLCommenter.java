@@ -44,6 +44,18 @@ public class SQLCommenter {
     return inject(sql, dbService, dbType, hostname, dbName, null, false, false);
   }
 
+  public static String getFirstWord(String sql) {
+    int beginIndex = 0;
+    while (beginIndex < sql.length() && Character.isWhitespace(sql.charAt(beginIndex))) {
+      beginIndex++;
+    }
+    int endIndex = beginIndex;
+    while (endIndex < sql.length() && !Character.isWhitespace(sql.charAt(endIndex))) {
+      endIndex++;
+    }
+    return sql.substring(beginIndex, endIndex);
+  }
+
   public static String inject(
       final String sql,
       final String dbService,
@@ -52,7 +64,7 @@ public class SQLCommenter {
       final String dbName,
       final String traceParent,
       final boolean injectTrace,
-      final boolean appendComment) {
+      boolean appendComment) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
@@ -60,17 +72,20 @@ public class SQLCommenter {
       return sql;
     }
 
-    if (dbType != null && dbType.startsWith("postgres")) {
-      //      The Postgres JDBC parser doesn't allow SQL comments anywhere in a callable statement
-      //
+    if (dbType != null) {
+      final String firstWord = getFirstWord(sql);
+
+      // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable statements
       // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
-      //      TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
-      int charIndex = 0;
-      while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
-        charIndex++;
-      }
-      if (charIndex < sql.length() && sql.charAt(charIndex) == '{') {
+      // TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+      if (firstWord.startsWith("{") && dbType.startsWith("postgres")) {
         return sql;
+      }
+
+      // Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
+      // invocation but they seem ok with it after so we force append mode
+      if (firstWord.equalsIgnoreCase("call")) {
+        appendComment = true;
       }
     }
 

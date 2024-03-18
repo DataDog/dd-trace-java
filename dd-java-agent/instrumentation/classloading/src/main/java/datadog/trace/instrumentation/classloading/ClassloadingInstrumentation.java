@@ -30,7 +30,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * This instrumentation forces all class loaders to delegate to the bootstrap class loader
  * for the classes that we have put in the bootstrap class loader.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ClassloadingInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
   public ClassloadingInstrumentation() {

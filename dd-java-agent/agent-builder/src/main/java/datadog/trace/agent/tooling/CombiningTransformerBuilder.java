@@ -50,15 +50,22 @@ public final class CombiningTransformerBuilder
       new HashMap<>();
 
   private final AgentBuilder agentBuilder;
+  private int nextSupplementaryId;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
   private final BitSet knownTypesMask;
   private AdviceStack[] transformers;
-  private int nextSupplementaryId;
+
+  // module defined matchers and transformers, shared across members
+  private ElementMatcher<? super MethodDescription> ignoredMethods;
+  private ElementMatcher<ClassLoader> classLoaderMatcher;
+  private Map<String, String> contextStore;
+  private AgentBuilder.Transformer contextRequestRewriter;
+  private HelperTransformer helperTransformer;
+  private MuzzleCheck muzzle;
 
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
-  private ElementMatcher<? super MethodDescription> ignoredMethods;
 
   /**
    * Post processor to be applied to instrumenter advices if they implement {@link
@@ -68,27 +75,49 @@ public final class CombiningTransformerBuilder
 
   public CombiningTransformerBuilder(AgentBuilder agentBuilder, int maxInstrumentationId) {
     this.agentBuilder = agentBuilder;
-    int maxInstrumentationCount = maxInstrumentationId + 1;
-    this.knownTypesMask = new BitSet(maxInstrumentationCount);
-    this.transformers = new AdviceStack[maxInstrumentationCount];
-    this.nextSupplementaryId = maxInstrumentationId + 1;
+    int transformationCount = maxInstrumentationId + 1;
+    this.nextSupplementaryId = transformationCount;
+    this.knownTypesMask = new BitSet(transformationCount);
+    this.transformers = new AdviceStack[transformationCount];
   }
 
-  public void applyInstrumentation(Instrumenter instrumenter) {
-    if (instrumenter instanceof InstrumenterModule) {
-      InstrumenterModule module = (InstrumenterModule) instrumenter;
-      if (module.isEnabled()) {
-        InstrumenterState.registerInstrumentation(module);
-        for (Instrumenter member : module.typeInstrumentations()) {
-          buildInstrumentation(module, member);
-        }
+  /** Builds matchers and transformers for an instrumentation module and its members. */
+  public void applyInstrumentation(InstrumenterModule module) {
+    if (module.isEnabled()) {
+      InstrumenterState.registerInstrumentation(module);
+      prepareInstrumentation(module);
+      for (Instrumenter member : module.typeInstrumentations()) {
+        buildTypeInstrumentation(module, member);
       }
-    } else {
-      throw new IllegalArgumentException("Unexpected Instrumenter type");
     }
   }
 
-  private void buildInstrumentation(InstrumenterModule module, Instrumenter member) {
+  /** Prepares shared matchers and transformers defined by an instrumentation module. */
+  private void prepareInstrumentation(InstrumenterModule module) {
+    ignoredMethods = module.methodIgnoreMatcher();
+    classLoaderMatcher = module.classLoaderMatcher();
+    contextStore = module.contextStore();
+
+    contextRequestRewriter =
+        !contextStore.isEmpty()
+            ? new VisitingTransformer(
+                new FieldBackedContextRequestRewriter(contextStore, module.name()))
+            : null;
+
+    String[] helperClassNames = module.helperClassNames();
+    if (module.injectHelperDependencies()) {
+      helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
+    }
+    helperTransformer =
+        helperClassNames.length > 0
+            ? new HelperTransformer(module.getClass().getSimpleName(), helperClassNames)
+            : null;
+
+    muzzle = new MuzzleCheck(module);
+  }
+
+  /** Builds a type-specific transformer, controlled by one or more matchers. */
+  private void buildTypeInstrumentation(InstrumenterModule module, Instrumenter member) {
 
     int id = module.instrumentationId();
     if (module != member) {
@@ -101,11 +130,11 @@ public final class CombiningTransformerBuilder
       }
     }
 
-    buildInstrumentationMatcher(module, member, id);
-    buildInstrumentationAdvice(module, member, id);
+    buildTypeMatcher(member, id);
+    buildTypeAdvice(member, id);
   }
 
-  private void buildInstrumentationMatcher(InstrumenterModule module, Instrumenter member, int id) {
+  private void buildTypeMatcher(Instrumenter member, int id) {
 
     if (member instanceof Instrumenter.ForSingleType
         || member instanceof Instrumenter.ForKnownTypes) {
@@ -129,7 +158,6 @@ public final class CombiningTransformerBuilder
       matchers.add(new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) member));
     }
 
-    ElementMatcher<ClassLoader> classLoaderMatcher = module.classLoaderMatcher();
     if (classLoaderMatcher != ANY_CLASS_LOADER) {
       matchers.add(new MatchRecorder.NarrowLocation(id, classLoaderMatcher));
     }
@@ -140,42 +168,35 @@ public final class CombiningTransformerBuilder
               id, ((Instrumenter.WithTypeStructure) member).structureMatcher()));
     }
 
-    matchers.add(new MatchRecorder.NarrowLocation(id, new MuzzleCheck(module)));
+    matchers.add(new MatchRecorder.NarrowLocation(id, muzzle));
   }
 
-  private void buildInstrumentationAdvice(InstrumenterModule module, Instrumenter member, int id) {
+  private void buildTypeAdvice(Instrumenter member, int id) {
 
     postProcessor =
         member instanceof WithPostProcessor ? ((WithPostProcessor) member).postProcessor() : null;
 
-    String[] helperClassNames = module.helperClassNames();
-    if (module.injectHelperDependencies()) {
-      helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
-    }
-    if (helperClassNames.length > 0) {
-      advice.add(new HelperTransformer(module.getClass().getSimpleName(), helperClassNames));
+    if (null != helperTransformer) {
+      advice.add(helperTransformer);
     }
 
-    Map<String, String> contextStore = module.contextStore();
-    if (!contextStore.isEmpty()) {
+    if (null != contextRequestRewriter) {
+      registerContextStoreInjection(member, contextStore);
       // rewrite context store access to call FieldBackedContextStores with assigned store-id
-      advice.add(
-          new VisitingTransformer(
-              new FieldBackedContextRequestRewriter(contextStore, module.name())));
-
-      registerContextStoreInjection(module, member, contextStore);
+      advice.add(contextRequestRewriter);
     }
 
-    ignoredMethods = module.methodIgnoreMatcher();
     if (member instanceof Instrumenter.HasTypeAdvice) {
       ((Instrumenter.HasTypeAdvice) member).typeAdvice(this);
     }
     if (member instanceof Instrumenter.HasMethodAdvice) {
       ((Instrumenter.HasMethodAdvice) member).methodAdvice(this);
     }
+
+    // record the advice collected for this type instrumentation
     transformers[id] = new AdviceStack(advice);
 
-    advice.clear();
+    advice.clear(); // reset for next type instrumentation
   }
 
   @Override
@@ -184,7 +205,7 @@ public final class CombiningTransformerBuilder
   }
 
   @Override
-  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String className) {
+  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
@@ -193,7 +214,7 @@ public final class CombiningTransformerBuilder
         new AgentBuilder.Transformer.ForAdvice(customMapping)
             .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
             .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-            .advice(not(ignoredMethods).and(matcher), className));
+            .advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
   /** Counts the number of distinct context store injections registered with this builder. */
@@ -208,7 +229,7 @@ public final class CombiningTransformerBuilder
 
   /** Tracks which class-loader matchers are associated with each store request. */
   private void registerContextStoreInjection(
-      InstrumenterModule module, Instrumenter member, Map<String, String> contextStore) {
+      Instrumenter member, Map<String, String> contextStore) {
     ElementMatcher<ClassLoader> activation;
 
     if (member instanceof Instrumenter.ForBootstrap) {
@@ -224,7 +245,7 @@ public final class CombiningTransformerBuilder
       activation = ANY_CLASS_LOADER;
     }
 
-    activation = requireBoth(activation, module.classLoaderMatcher());
+    activation = requireBoth(activation, classLoaderMatcher);
 
     for (Map.Entry<String, String> storeEntry : contextStore.entrySet()) {
       ElementMatcher<ClassLoader> oldActivation = contextStoreInjection.get(storeEntry);

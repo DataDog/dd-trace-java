@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
 // TODO: move to separate module and have better support
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SprayUnmarshallerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 

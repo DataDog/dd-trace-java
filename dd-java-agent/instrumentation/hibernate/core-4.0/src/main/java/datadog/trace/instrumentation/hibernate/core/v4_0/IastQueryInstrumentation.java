@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 import org.hibernate.Query;
 import org.hibernate.SharedSessionContract;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastQueryInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

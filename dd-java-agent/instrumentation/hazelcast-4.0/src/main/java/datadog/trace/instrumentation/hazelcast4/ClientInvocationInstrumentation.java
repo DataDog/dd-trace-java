@@ -18,7 +18,7 @@ import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ClientInvocationInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

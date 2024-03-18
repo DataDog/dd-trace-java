@@ -25,7 +25,7 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Cucumber4RetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

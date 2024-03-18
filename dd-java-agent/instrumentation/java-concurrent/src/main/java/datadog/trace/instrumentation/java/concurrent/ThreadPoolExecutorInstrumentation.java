@@ -57,7 +57,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  *               <- + close AgentScope if available
  * }</pre>
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 

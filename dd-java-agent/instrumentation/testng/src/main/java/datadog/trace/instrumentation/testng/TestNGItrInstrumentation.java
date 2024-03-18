@@ -17,7 +17,7 @@ import net.bytebuddy.asm.Advice;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TestNGItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
   public TestNGItrInstrumentation() {

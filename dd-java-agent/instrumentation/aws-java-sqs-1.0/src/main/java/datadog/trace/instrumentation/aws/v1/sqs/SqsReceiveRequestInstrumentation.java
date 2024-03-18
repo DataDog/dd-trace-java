@@ -7,11 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SqsReceiveRequestInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType {
 

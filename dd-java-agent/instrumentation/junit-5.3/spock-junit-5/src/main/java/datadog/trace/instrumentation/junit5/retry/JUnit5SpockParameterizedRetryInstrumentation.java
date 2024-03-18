@@ -20,7 +20,7 @@ import org.junit.platform.engine.TestDescriptor;
  * Applies a patch to Spock's parameterized tests executor, needed to support retries for
  * parameterized tests
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JUnit5SpockParameterizedRetryInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

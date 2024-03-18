@@ -89,7 +89,7 @@ public class AgentInstaller {
   }
 
   /**
-   * Install the core bytebuddy agent along with all implementations of {@link Instrumenter}.
+   * Install the core bytebuddy agent along with all registered {@link InstrumenterModule}s.
    *
    * @return the agent's class transformer
    */
@@ -167,24 +167,23 @@ public class AgentInstaller {
       agentBuilder = agentBuilder.with(listener);
     }
 
-    Instrumenters instrumenters = Instrumenters.load(AgentInstaller.class.getClassLoader());
-    int maxInstrumentationId = instrumenters.maxInstrumentationId();
+    InstrumenterModules modules = InstrumenterModules.load();
+    int maxInstrumentationId = modules.maxInstrumentationId();
 
     // pre-size state before registering instrumentations to reduce number of allocations
     InstrumenterState.setMaxInstrumentationId(maxInstrumentationId);
 
-    // This needs to be a separate loop through all the instrumenters before we start adding
+    // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
     // immediately and we don't have the ability to express dependencies between different
-    // instrumenters to control the load order.
-    for (Instrumenter instrumenter : instrumenters) {
-      if (instrumenter instanceof ExcludeFilterProvider) {
-        ExcludeFilterProvider provider = (ExcludeFilterProvider) instrumenter;
+    // instrumentations to control the load order.
+    for (InstrumenterModule module : modules) {
+      if (module instanceof ExcludeFilterProvider) {
+        ExcludeFilterProvider provider = (ExcludeFilterProvider) module;
         ExcludeFilter.add(provider.excludedClasses());
         if (DEBUG) {
           log.debug(
-              "Adding filtered classes - instrumentation.class={}",
-              instrumenter.getClass().getName());
+              "Adding filtered classes - instrumentation.class={}", module.getClass().getName());
         }
       }
     }
@@ -193,23 +192,21 @@ public class AgentInstaller {
         new CombiningTransformerBuilder(agentBuilder, maxInstrumentationId);
 
     int installedCount = 0;
-    for (Instrumenter instrumenter : instrumenters) {
-      if (instrumenter instanceof InstrumenterModule
-          && !((InstrumenterModule) instrumenter).isApplicable(enabledSystems)) {
+    for (InstrumenterModule module : modules) {
+      if (!module.isApplicable(enabledSystems)) {
         if (DEBUG) {
-          log.debug("Not applicable - instrumentation.class={}", instrumenter.getClass().getName());
+          log.debug("Not applicable - instrumentation.class={}", module.getClass().getName());
         }
         continue;
       }
       if (DEBUG) {
-        log.debug("Loading - instrumentation.class={}", instrumenter.getClass().getName());
+        log.debug("Loading - instrumentation.class={}", module.getClass().getName());
       }
       try {
-        transformerBuilder.applyInstrumentation(instrumenter);
+        transformerBuilder.applyInstrumentation(module);
         installedCount++;
       } catch (Exception | LinkageError e) {
-        log.error(
-            "Failed to load - instrumentation.class={}", instrumenter.getClass().getName(), e);
+        log.error("Failed to load - instrumentation.class={}", module.getClass().getName(), e);
       }
     }
     if (DEBUG) {

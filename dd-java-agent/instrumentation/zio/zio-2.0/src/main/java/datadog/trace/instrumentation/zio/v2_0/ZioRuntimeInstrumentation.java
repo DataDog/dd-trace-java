@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import zio.Fiber;
 import zio.Supervisor;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ZioRuntimeInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 

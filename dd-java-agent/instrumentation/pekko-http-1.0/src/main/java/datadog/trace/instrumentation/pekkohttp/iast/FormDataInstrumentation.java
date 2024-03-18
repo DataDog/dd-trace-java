@@ -18,7 +18,7 @@ import org.apache.pekko.http.scaladsl.model.Uri;
  * through the unmarshaller tainting mechanism. See {@link MarshallingDirectivesInstrumentation} and
  * {@link UnmarshallerInstrumentation}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FormDataInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public FormDataInstrumentation() {

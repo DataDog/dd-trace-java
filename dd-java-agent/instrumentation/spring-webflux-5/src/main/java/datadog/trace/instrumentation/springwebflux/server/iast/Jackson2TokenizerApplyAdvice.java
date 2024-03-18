@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.springwebflux.server.iast;
 
 import com.fasterxml.jackson.databind.util.TokenBuffer;
+import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -17,14 +20,16 @@ class Jackson2TokenizerApplyAdvice {
   @Source(SourceTypes.REQUEST_BODY)
   public static void after(
       @Advice.Argument(0) DataBuffer dataBuffer,
-      @Advice.Return(readOnly = false) Flux<TokenBuffer> flux) {
+      @Advice.Return(readOnly = false) Flux<TokenBuffer> flux,
+      @ActiveRequestContext RequestContext reqCtx) {
     PropagationModule propagation = InstrumentationBridge.PROPAGATION;
     if (propagation == null || flux == null || dataBuffer == null) {
       return;
     }
-    if (!propagation.isTainted(dataBuffer)) {
+    IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+    if (!propagation.isTainted(ctx, dataBuffer)) {
       return;
     }
-    flux = flux.map(new TaintFluxElementsFunction<>(propagation));
+    flux = flux.map(new TaintFluxElementsFunction<>(ctx, propagation));
   }
 }

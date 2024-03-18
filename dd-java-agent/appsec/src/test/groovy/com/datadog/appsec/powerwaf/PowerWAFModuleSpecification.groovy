@@ -1273,6 +1273,44 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ret.isEmpty()
   }
 
+  void 'ephemeral and persistent addresses'() {
+    setupWithStubConfigService()
+    ChangeableFlow flow = Mock()
+
+    when:
+    def transientBundle = MapDataBundle.of(
+      KnownAddresses.REQUEST_BODY_OBJECT,
+      '/cybercop'
+      )
+    dataListener.onDataAvailable(flow, ctx, transientBundle, false)
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive() }
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>) >> {
+      it[0].iterator().next().ruleMatches[0].parameters[0].value == '/cybercop'
+    }
+    1 * ctx.getWafMetrics()
+    1 * flow.isBlocking()
+    0 * _
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
+    ctx.closeAdditive()
+
+    then:
+    1 * ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive }
+    1 * flow.setAction({ it.blocking })
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>) >> {
+      it[0].iterator().next().ruleMatches[0].parameters[0].value == 'user-to-block-1'
+    }
+    1 * ctx.getWafMetrics()
+    1 * ctx.closeAdditive()
+    1 * flow.isBlocking()
+    0 * _
+  }
+
   /**
    * This test simulates double REQUEST_END with increasing interval
    * The race condition shouldn't happen when closing Additive

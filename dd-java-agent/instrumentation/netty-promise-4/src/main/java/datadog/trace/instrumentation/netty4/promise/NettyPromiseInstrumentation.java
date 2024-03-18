@@ -10,7 +10,7 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class NettyPromiseInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

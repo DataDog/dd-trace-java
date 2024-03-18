@@ -13,7 +13,7 @@ import java.util.Map;
  * being processed on this {@code Thread}. We activate/deactivate the span associated to that {@code
  * Event} via its {@code EventContext}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class PrivilegedEventInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

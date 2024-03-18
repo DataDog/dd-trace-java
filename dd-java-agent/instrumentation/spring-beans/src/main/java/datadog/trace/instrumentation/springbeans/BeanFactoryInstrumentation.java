@@ -25,7 +25,7 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
  * <p>This can't be done at BeanDefinition construction time because Spring heavy use of clone()
  * which sometimes only copies the classname
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class BeanFactoryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public BeanFactoryInstrumentation() {

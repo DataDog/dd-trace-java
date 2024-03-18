@@ -481,9 +481,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   }
 
 
-  def "prepared call with storedproc on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+  def "prepared procedure call with return value on #driver with #connection.getClass().getCanonicalName() does not hang"() {
     setup:
     injectSysConfig("dd.dbm.propagation.mode", "full")
+
     CallableStatement upperProc = connection.prepareCall(query)
     upperProc.registerOutParameter(1, Types.VARCHAR)
     upperProc.setString(2, "hello world")
@@ -505,10 +506,74 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
     "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | " { ? = call upper( ? ) }"
     "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "{ ? = call upper( ? ) }"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | " { ? = call upper( ? ) }"
     "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
     "postgresql" | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
     "mysql"      | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
+  }
+
+  def "prepared procedure call on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+    setup:
+
+    String createSql
+    if (driver == "postgresql") {
+      createSql =
+        """
+    CREATE OR REPLACE PROCEDURE dummy(inout res integer)
+    LANGUAGE SQL
+    AS \$\$
+        SELECT 1;
+    \$\$;
+    """
+    } else if (driver == "mysql") {
+      createSql =
+        """
+    CREATE PROCEDURE IF NOT EXISTS dummy(inout res int)
+    BEGIN
+        SELECT 1;
+    END
+    """
+    } else {
+      assert false
+    }
+
+    if (driver.equals("postgresql") && connection.getMetaData().getDatabaseMajorVersion() <= 11) {
+      // Skip test for older versions of PG that don't support out on procedure
+      return
+    }
+
+
+    connection.prepareCall(createSql).execute()
+
+    injectSysConfig("dd.dbm.propagation.mode", "full")
+    CallableStatement proc = connection.prepareCall(query)
+    proc.setInt(1,1)
+    proc.registerOutParameter(1, Types.INTEGER)
+    when:
+    runUnderTrace("parent") {
+      return proc.execute()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    assert proc.getInt(1) == 1
+
+    cleanup:
+    if (proc != null) {
+      proc.close()
+    }
+    connection.close()
+
+    where:
+    driver       | connection                                              | query
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "   CALL dummy(?)"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "  CALL dummy(?)"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | " CALL dummy(?)"
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "CALL dummy(?)"
   }
 
 

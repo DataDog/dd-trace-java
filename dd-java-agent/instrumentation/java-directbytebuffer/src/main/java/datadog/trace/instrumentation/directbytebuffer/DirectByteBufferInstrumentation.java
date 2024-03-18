@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class DirectByteBufferInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 

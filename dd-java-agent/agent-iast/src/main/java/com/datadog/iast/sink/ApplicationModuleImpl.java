@@ -295,8 +295,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     private final Set<Path> folders = new HashSet<>();
 
     @Override
-    public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs)
-        throws IOException {
+    public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs) {
       final String folder = dir.getFileName().toString();
       if (endsWithIgnoreCase(folder, WEB_INF)) {
         return FileVisitResult.SKIP_SUBTREE;
@@ -305,8 +304,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
 
     @Override
-    public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs)
-        throws IOException {
+    public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
       final String fileName = file.getFileName().toString();
       if (endsWithIgnoreCase(fileName, ".jsp") || endsWithIgnoreCase(fileName, ".jspx")) {
         folders.add(file.getParent());
@@ -316,14 +314,12 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
 
     @Override
-    public FileVisitResult visitFileFailed(final Path file, final IOException exc)
-        throws IOException {
+    public FileVisitResult visitFileFailed(final Path file, final IOException exc) {
       return FileVisitResult.CONTINUE;
     }
 
     @Override
-    public FileVisitResult postVisitDirectory(final Path dir, final IOException exc)
-        throws IOException {
+    public FileVisitResult postVisitDirectory(final Path dir, final IOException exc) {
       return FileVisitResult.CONTINUE;
     }
   }

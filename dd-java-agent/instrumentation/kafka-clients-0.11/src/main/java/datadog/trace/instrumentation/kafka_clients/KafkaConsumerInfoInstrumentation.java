@@ -28,7 +28,7 @@ import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
  * This instrumentation saves additional information from the KafkaConsumer, such as consumer group
  * and cluster ID, in the context store for later use.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

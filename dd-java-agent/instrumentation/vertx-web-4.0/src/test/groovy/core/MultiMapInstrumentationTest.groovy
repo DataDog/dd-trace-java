@@ -1,10 +1,13 @@
 package core
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import groovy.transform.CompileDynamic
 import io.netty.handler.codec.http.DefaultHttpHeaders
 import io.netty.handler.codec.http2.DefaultHttp2Headers
@@ -19,11 +22,16 @@ import static datadog.trace.api.iast.SourceTypes.namedSource
 @CompileDynamic
 class MultiMapInstrumentationTest extends AgentTestRunner {
 
+  private Object iastCtx
+
   @Override
   protected void configurePreAgent() {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
+  void setup() {
+    iastCtx = Stub(IastContext)
+  }
 
   void 'test that get() is instrumented'() {
     given:
@@ -33,18 +41,18 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    instance.get('key')
+    runUnderIastTrace { instance.get('key') }
 
     then:
-    1 * module.findSource(instance) >> { null }
+    1 * module.findSource(iastCtx, instance) >> { null }
     0 * _
 
     when:
-    instance.get('key')
+    runUnderIastTrace { instance.get('key') }
 
     then:
-    1 * module.findSource(instance) >> { mockedSource(origin) }
-    1 * module.taint('value', origin, 'key')
+    1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
+    1 * module.taint(iastCtx, 'value', origin, 'key')
 
     where:
     instance << multiMaps()
@@ -58,19 +66,19 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    instance.getAll('key')
+    runUnderIastTrace { instance.getAll('key') }
 
     then:
-    1 * module.findSource(instance) >> { null }
+    1 * module.findSource(iastCtx, instance) >> { null }
     0 * _
 
     when:
-    instance.getAll('key')
+    runUnderIastTrace { instance.getAll('key') }
 
     then:
-    1 * module.findSource(instance) >> { mockedSource(origin) }
-    1 * module.taint(_, 'value1', origin, 'key')
-    1 * module.taint(_, 'value2', origin, 'key')
+    1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
+    1 * module.taint(iastCtx, 'value1', origin, 'key')
+    1 * module.taint(iastCtx, 'value2', origin, 'key')
 
     where:
     instance << multiMaps()
@@ -84,18 +92,18 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    instance.names()
+    runUnderIastTrace { instance.names() }
 
     then:
-    1 * module.findSource(instance) >> { null }
+    1 * module.findSource(iastCtx, instance) >> { null }
     0 * _
 
     when:
-    instance.names()
+    runUnderIastTrace { instance.names() }
 
     then:
-    1 * module.findSource(instance) >> { mockedSource(origin) }
-    1 * module.taint(_, 'key', namedSource(origin), 'key')
+    1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
+    1 * module.taint(iastCtx, 'key', namedSource(origin), 'key')
 
     where:
     instance << multiMaps()
@@ -111,23 +119,33 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    instance.entries()
+    runUnderIastTrace { instance.entries() }
 
     then:
-    1 * module.findSource(instance) >> { null }
+    1 * module.findSource(iastCtx, instance) >> { null }
     0 * _
 
     when:
-    instance.entries()
+    runUnderIastTrace { instance.entries() }
 
     then:
-    1 * module.findSource(instance) >> { mockedSource(origin) }
-    1 * module.taint(_, 'key', namedSource(origin), 'key')
-    1 * module.taint(_, 'value1', origin, 'key')
-    1 * module.taint(_, 'value2', origin, 'key')
+    1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
+    1 * module.taint(iastCtx, 'key', namedSource(origin), 'key')
+    1 * module.taint(iastCtx, 'value1', origin, 'key')
+    1 * module.taint(iastCtx, 'value2', origin, 'key')
 
     where:
     instance << multiMaps()
+  }
+
+  protected <E> E runUnderIastTrace(Closure<E> cl) {
+    final ddctx = new TagContext().withRequestContextDataIast(iastCtx)
+    final span = TEST_TRACER.startSpan("test", "test-iast-span", ddctx)
+    try {
+      return AgentTracer.activateSpan(span).withCloseable(cl)
+    } finally {
+      span.finish()
+    }
   }
 
   private mockedSource(final byte origin) {

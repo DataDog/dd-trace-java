@@ -8,13 +8,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.amazon.sqs.javamessaging.message.SQSMessage;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import java.util.Map;
 import javax.jms.JMSException;
 import net.bytebuddy.asm.Advice;
 import software.amazon.awssdk.services.sqs.model.Message;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SqsJmsMessageInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType {
 

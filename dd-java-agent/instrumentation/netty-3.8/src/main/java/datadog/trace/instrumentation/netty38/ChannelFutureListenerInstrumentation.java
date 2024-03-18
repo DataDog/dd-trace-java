@@ -25,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

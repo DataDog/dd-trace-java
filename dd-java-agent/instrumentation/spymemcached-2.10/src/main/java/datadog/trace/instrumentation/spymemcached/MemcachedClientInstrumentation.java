@@ -21,7 +21,7 @@ import net.spy.memcached.internal.BulkFuture;
 import net.spy.memcached.internal.GetFuture;
 import net.spy.memcached.internal.OperationFuture;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class MemcachedClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

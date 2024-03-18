@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 import play.mvc.Http;
 
 /** @see play.mvc.BodyParser.FormUrlEncoded#parse(Http.RequestHeader, ByteString) */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public FormUrlEncodedInstrumentation() {

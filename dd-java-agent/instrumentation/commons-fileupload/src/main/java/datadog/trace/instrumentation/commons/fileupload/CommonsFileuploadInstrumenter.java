@@ -7,8 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -17,7 +21,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CommonsFileuploadInstrumenter extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 
@@ -44,14 +48,16 @@ public class CommonsFileuploadInstrumenter extends InstrumenterModule.Iast
     };
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class ParseAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
-    public static Map<String, String> onExit(@Advice.Return final Map<String, String> map) {
+    public static Map<String, String> onExit(
+        @Advice.Return final Map<String, String> map, @ActiveRequestContext RequestContext reqCtx) {
       if (!map.isEmpty()) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
-          final IastContext ctx = IastContext.Provider.get();
+          final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
           for (final Map.Entry<String, String> entry : map.entrySet()) {
             if (entry.getValue() != null) {
               module.taint(

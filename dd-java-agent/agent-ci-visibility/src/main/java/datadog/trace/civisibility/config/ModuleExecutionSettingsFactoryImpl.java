@@ -95,7 +95,9 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     }
 
     Collection<TestIdentifier> flakyTests =
-        flakyTestRetriesEnabled ? getFlakyTests(tracerEnvironment) : Collections.emptyList();
+        flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
+            ? getFlakyTests(tracerEnvironment)
+            : null;
 
     Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
         earlyFlakeDetectionEnabled ? getKnownTests(tracerEnvironment) : null;
@@ -169,9 +171,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       }
 
     } catch (Exception e) {
-      LOGGER.warn(
-          "Could not obtain CI Visibility settings, will default to disabled code coverage and tests skipping");
-      LOGGER.debug("Error while obtaining CI Visibility settings", e);
+      LOGGER.warn("Error while obtaining CI Visibility settings", e);
       return CiVisibilitySettings.DEFAULT;
     }
   }

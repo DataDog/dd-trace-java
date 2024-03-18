@@ -48,7 +48,7 @@ import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 import org.apache.kafka.streams.processor.internals.StreamTask;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

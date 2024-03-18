@@ -21,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.osgi.framework.BundleReference;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class BundleReferenceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public BundleReferenceInstrumentation() {

@@ -23,7 +23,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import net.bytebuddy.asm.Advice;
 import org.jboss.resteasy.spi.HttpRequest;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MethodExpressionInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

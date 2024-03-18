@@ -21,7 +21,7 @@ import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 import org.spockframework.runtime.SpockEngine;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 

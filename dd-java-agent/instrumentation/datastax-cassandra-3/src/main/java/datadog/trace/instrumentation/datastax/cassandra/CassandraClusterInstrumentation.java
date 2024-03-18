@@ -18,7 +18,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CassandraClusterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

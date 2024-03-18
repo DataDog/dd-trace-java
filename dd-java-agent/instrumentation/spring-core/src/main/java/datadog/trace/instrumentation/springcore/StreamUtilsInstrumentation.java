@@ -18,7 +18,7 @@ import java.nio.charset.Charset;
 import net.bytebuddy.asm.Advice;
 import org.springframework.util.StreamUtils;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.MethodNode;
 
 /** Stores probe location definition */
@@ -112,7 +113,8 @@ public class Where {
     String targetName = methodNode.name;
     String targetMethodDescriptor = methodNode.desc;
     // try exact matching: name + FQN signature
-    if (!isMethodNameMatching(targetName)) {
+    if (!isMethodNameMatching(targetName)
+        || ((methodNode.access & Opcodes.ACC_BRIDGE) == Opcodes.ACC_BRIDGE)) {
       return false;
     }
     if (signature == null) {

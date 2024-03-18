@@ -17,7 +17,7 @@ import org.springframework.web.server.ServerWebExchange;
  * @see RequestHeaderMapMethodArgumentResolver#resolveArgumentValue(MethodParameter, BindingContext,
  *     ServerWebExchange)
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RequestHeaderMapResolverInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public RequestHeaderMapResolverInstrumentation() {

@@ -8,7 +8,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class QueuedThreadPoolInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public QueuedThreadPoolInstrumentation() {
