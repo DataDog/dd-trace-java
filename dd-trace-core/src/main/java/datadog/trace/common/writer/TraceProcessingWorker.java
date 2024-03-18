@@ -17,10 +17,11 @@ import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.postprocessor.AppSecPostProcessor;
 import datadog.trace.core.postprocessor.TracePostProcessor;
-import datadog.trace.util.AgentThreadFactory;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
+
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
@@ -317,25 +318,13 @@ public class TraceProcessingWorker implements AutoCloseable {
         return;
       }
 
-      Thread thread =
-          AgentThreadFactory.newAgentThread(
-              AgentThreadFactory.AgentThread.TRACE_POST_PROCESSOR,
-              () -> {
-                // do a trace post-processing work
-                tracePostProcessor.process(trace, context);
-              });
-      thread.start();
+      long timeout = Config.get().getTracePostProcessingTimeout();
+      long deadline = System.currentTimeMillis() + timeout;
+      BooleanSupplier timeoutCheck =
+          () -> System.currentTimeMillis() > deadline;
 
-      try {
-        long timeout = Config.get().getTracePostProcessingTimeout();
-        thread.join(timeout);
-        if (thread.isAlive()) {
-          thread.interrupt();
-        }
-      } catch (InterruptedException e) {
-        if (log.isDebugEnabled()) {
-          log.debug("Trace post-processing is interrupted.", e);
-        }
+      if (!tracePostProcessor.process(trace, context, timeoutCheck)) {
+        log.debug("Trace post-processing is interrupted due to timeout.");
       }
     }
   }
