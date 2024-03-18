@@ -53,7 +53,6 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
 
-  private final int instrumentationId;
   private final List<String> instrumentationNames;
   private final String instrumentationPrimaryName;
   private final boolean enabled;
@@ -61,17 +60,12 @@ public abstract class InstrumenterModule implements Instrumenter {
   protected final String packageName = Strings.getPackageName(getClass().getName());
 
   public InstrumenterModule(final String instrumentationName, final String... additionalNames) {
-    instrumentationId = InstrumenterModules.currentInstrumentationId();
     instrumentationNames = new ArrayList<>(1 + additionalNames.length);
     instrumentationNames.add(instrumentationName);
     addAll(instrumentationNames, additionalNames);
     instrumentationPrimaryName = instrumentationName;
 
     enabled = InstrumenterConfig.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
-  }
-
-  public int instrumentationId() {
-    return instrumentationId;
   }
 
   public String name() {

@@ -41,16 +41,15 @@ public final class InstrumenterState {
   private InstrumenterState() {}
 
   /** Pre-sizes internal structures to accommodate the highest expected id. */
-  public static void setMaxInstrumentationId(int maxInstrumentationId) {
-    instrumentationNames = Arrays.copyOf(instrumentationNames, maxInstrumentationId + 1);
+  public static void initialize(int instrumentationCount) {
+    instrumentationNames = Arrays.copyOf(instrumentationNames, instrumentationCount);
     instrumentationClasses = Arrays.copyOf(instrumentationClasses, instrumentationNames.length);
   }
 
   /** Registers an instrumentation's details. */
-  public static void registerInstrumentation(InstrumenterModule module) {
-    int instrumentationId = module.instrumentationId();
+  public static void registerInstrumentation(InstrumenterModule module, int instrumentationId) {
     if (instrumentationId >= instrumentationNames.length) {
-      // note: setMaxInstrumentationId pre-sizes array to avoid repeated allocations here
+      // note: the 'initialize' method pre-sizes these arrays to avoid repeated allocations here
       instrumentationNames = Arrays.copyOf(instrumentationNames, instrumentationId + 16);
       instrumentationClasses = Arrays.copyOf(instrumentationClasses, instrumentationNames.length);
     }
@@ -65,10 +64,10 @@ public final class InstrumenterState {
 
   /** Resets the default instrumentation state so nothing is blocked or applied. */
   public static void resetDefaultState() {
-    int maxInstrumentationCount = instrumentationNames.length;
+    int instrumentationCount = instrumentationNames.length;
 
     int wordsPerClassLoaderState =
-        ((maxInstrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
+        ((instrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
 
     if (defaultState.length > 0) { // optimization: skip clear if there's no old state
       classLoaderStates.clear();
