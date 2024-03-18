@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
-
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
@@ -305,10 +304,6 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private void maybeTracePostProcessing(List<DDSpan> trace) {
-      if (!Config.get().isTracePostProcessingEnabled()) {
-        return;
-      }
-
       if (trace == null || trace.isEmpty()) {
         return;
       }
@@ -320,8 +315,7 @@ public class TraceProcessingWorker implements AutoCloseable {
 
       long timeout = Config.get().getTracePostProcessingTimeout();
       long deadline = System.currentTimeMillis() + timeout;
-      BooleanSupplier timeoutCheck =
-          () -> System.currentTimeMillis() > deadline;
+      BooleanSupplier timeoutCheck = () -> System.currentTimeMillis() > deadline;
 
       if (!tracePostProcessor.process(trace, context, timeoutCheck)) {
         log.debug("Trace post-processing is interrupted due to timeout.");
