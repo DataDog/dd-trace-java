@@ -32,15 +32,18 @@ public class OpenLineageDecorator {
     if (event.getEventType() == START) {
       if (parentSpan != null) {
         span = startSpan("openlineage", "openlineage.step", parentSpan.context(), timeMicros);
-        //        parentSpan.setTag("foo", new Object());
       } else {
         span = startSpan("openlineage", "openlineage.job", timeMicros);
       }
       // hack to retain 100%
-      span.setTag("iast", "foo");
+      span.setTag("iast", "quick way to retain 100% of spans for now");
       spans.put(runId, span);
     } else {
       span = spans.get(runId);
+    }
+
+    if (span == null) {
+      return;
     }
 
     for (OpenLineage.InputDataset input : event.getInputs()) {
@@ -55,7 +58,7 @@ public class OpenLineageDecorator {
       AgentSpan inputDatasetSpan =
           startSpan("openlineage", "openlineage.dataset", span.context(), timeMicros);
       // hack to retain 100%
-      inputDatasetSpan.setTag("iast", "foo");
+      inputDatasetSpan.setTag("iast", "quick way to retain 100% of spans for now");
       inputDatasetSpan.setTag("namespace", input.getNamespace());
       inputDatasetSpan.setTag("name", input.getName());
 
@@ -64,10 +67,10 @@ public class OpenLineageDecorator {
           .setCheckpoint(inputDatasetSpan, sortedTags, 0, 0);
 
       if (input.getFacets() != null && input.getFacets().getSchema() != null) {
-        inputDatasetSpan.setTag(
-            "schema.definition",
-            OpenLineageClientUtils.toJson(input.getFacets().getSchema().getFields()));
-        inputDatasetSpan.setTag("schema.id", OpenLineageClientUtils.toJson(input.getFacets().getSchema()).hashCode());
+        String schemaDefinition = OpenLineageClientUtils.toJson(input.getFacets().getSchema().getFields());
+
+        inputDatasetSpan.setTag("schema.definition", schemaDefinition);
+        inputDatasetSpan.setTag("schema.id", schemaDefinition.hashCode());
         inputDatasetSpan.setTag("schema.name", input.getName());
         inputDatasetSpan.setTag("schema.topic", input.getNamespace());
         inputDatasetSpan.setTag("schema.operation", "deserialization");
@@ -89,7 +92,7 @@ public class OpenLineageDecorator {
       AgentSpan outputDatasetSpan =
           startSpan("openlineage", "openlineage.dataset", span.context(), timeMicros);
       // hack to retain 100%
-      outputDatasetSpan.setTag("iast", "foo");
+      outputDatasetSpan.setTag("iast", "quick way to retain 100% of spans for now");
 
       outputDatasetSpan.setTag("namespace", output.getNamespace());
       outputDatasetSpan.setTag("name", output.getName());
@@ -98,10 +101,10 @@ public class OpenLineageDecorator {
           .setCheckpoint(outputDatasetSpan, sortedTags, 0, 0);
 
       if (output.getFacets() != null && output.getFacets().getSchema() != null) {
-        outputDatasetSpan.setTag(
-            "schema.definition",
-            OpenLineageClientUtils.toJson(output.getFacets().getSchema().getFields()));
-        outputDatasetSpan.setTag("schema.id", OpenLineageClientUtils.toJson(output.getFacets().getSchema()).hashCode());
+        String schemaDefinition = OpenLineageClientUtils.toJson(output.getFacets().getSchema().getFields());
+
+        outputDatasetSpan.setTag("schema.definition", schemaDefinition);
+        outputDatasetSpan.setTag("schema.id", schemaDefinition.hashCode());
         outputDatasetSpan.setTag("schema.name", output.getName());
         outputDatasetSpan.setTag("schema.topic", output.getNamespace());
         outputDatasetSpan.setTag("schema.operation", "serialization");
@@ -109,10 +112,6 @@ public class OpenLineageDecorator {
         outputDatasetSpan.setTag("schema.weight", 1);
         outputDatasetSpan.finish();
       }
-    }
-
-    if (span == null) {
-      return;
     }
 
     try {
