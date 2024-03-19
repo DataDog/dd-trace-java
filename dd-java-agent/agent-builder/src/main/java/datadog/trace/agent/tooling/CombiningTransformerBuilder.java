@@ -58,7 +58,9 @@ public final class CombiningTransformerBuilder
   private final BitSet knownTypesMask;
   private AdviceStack[] transformers;
 
-  private int nextSupplementaryId;
+  // used to allocate ids to instrumentations not known at build-time
+  private int nextRuntimeInstrumentationId;
+  private int nextRuntimeTransformationId;
 
   // module defined matchers and transformers, shared across members
   private ElementMatcher<? super MethodDescription> ignoredMethods;
@@ -81,16 +83,22 @@ public final class CombiningTransformerBuilder
       AgentBuilder agentBuilder, InstrumenterIndex instrumenterIndex) {
     this.agentBuilder = agentBuilder;
     this.instrumenterIndex = instrumenterIndex;
+    int knownInstrumentationCount = instrumenterIndex.instrumentationCount();
     this.knownTransformationCount = instrumenterIndex.transformationCount();
     this.knownTypesMask = new BitSet(knownTransformationCount);
     this.transformers = new AdviceStack[knownTransformationCount];
-    this.nextSupplementaryId = knownTransformationCount;
+    this.nextRuntimeInstrumentationId = knownInstrumentationCount;
+    this.nextRuntimeTransformationId = knownTransformationCount;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
   public void applyInstrumentation(InstrumenterModule module) {
     if (module.isEnabled()) {
       int instrumentationId = instrumenterIndex.instrumentationId(module);
+      if (instrumentationId < 0) {
+        // this is a non-indexed instrumentation configured at runtime
+        instrumentationId = nextRuntimeInstrumentationId++;
+      }
       InstrumenterState.registerInstrumentation(module, instrumentationId);
       prepareInstrumentation(module, instrumentationId);
       for (Instrumenter member : module.typeInstrumentations()) {
@@ -128,10 +136,9 @@ public final class CombiningTransformerBuilder
 
     int transformationId = instrumenterIndex.transformationId(member);
     if (transformationId < 0) {
-      // this is an additional transformation configured at runtime, e.g. "dd.trace.methods"
-      // (a separate transformation is created for each class listed in "dd.trace.methods")
-      // allocate a distinct supplementary id to each transformation for matching purposes
-      transformationId = nextSupplementaryId++;
+      // this is a non-indexed transformation configured at runtime, e.g. "dd.trace.methods"
+      // allocate a distinct runtime id to each extra transformation for matching purposes
+      transformationId = nextRuntimeTransformationId++;
       if (transformers.length <= transformationId) {
         transformers = Arrays.copyOf(transformers, transformationId + 1);
       }
@@ -310,7 +317,7 @@ public final class CombiningTransformerBuilder
         new FieldBackedContextInjector(keyClassName, contextClassName);
 
     // transformers array has already been expanded to fit in 'applyContextStoreInjection()'
-    int transformationId = nextSupplementaryId++;
+    int transformationId = nextRuntimeTransformationId++;
 
     matchers.add(new MatchRecorder.ForContextStore(transformationId, activation, contextMatcher));
     transformers[transformationId] = new AdviceStack(new VisitingTransformer(contextAdvice));
