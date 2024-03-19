@@ -49,7 +49,7 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '5.+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'
 
-  latestDepTestImplementation group: 'org.springframework.data', name: 'spring-data-commons', version: '2.+'
-  latestDepTestImplementation group: 'org.springframework.data', name: 'spring-data-jpa', version: '2.3.+'
+  latestDepTestImplementation group: 'org.springframework.data', name: 'spring-data-commons', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.data', name: 'spring-data-jpa', version: '3.+'
 }
 
