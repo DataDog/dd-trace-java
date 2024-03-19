@@ -14,8 +14,8 @@ cp ../workspace/dd-java-agent/build/libs/*.jar sources/dd-java-agent.jar
 cp auto_inject-java.version sources/version
 
 datadog-package create \
-    --version=$VERSION \
-    --package=auto_inject-java \
+    --version="$VERSION" \
+    --package="datadog-apm-library-java" \
     --archive=true \
-    --archive-path auto_inject-java-$VERSION.tar \
+    --archive-path="datadog-apm-library-java-$VERSION.tar" \
     ./sources
