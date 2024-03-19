@@ -9,6 +9,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.Config;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.common.writer.RemoteResponseListener;
@@ -46,6 +47,8 @@ public class DDAgentApi extends RemoteApi {
 
   private final Recording sendPayloadTimer;
   private final Counter agentErrorCounter;
+  private int failureCount = 0;
+  private okio.Buffer failureBuffer = new okio.Buffer();
 
   private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
       new Moshi.Builder()
@@ -86,6 +89,7 @@ public class DDAgentApi extends RemoteApi {
     }
   }
 
+  @Override
   public Response sendSerializedTraces(final Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
     String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
@@ -111,12 +115,22 @@ public class DDAgentApi extends RemoteApi {
                   metricsEnabled && featuresDiscovery.supportsMetrics() ? "true" : "")
               .put(payload.toRequest())
               .build();
+      if (failureCount < 10) {
+        payload.writeTo(failureBuffer);
+      }
       this.totalTraces += payload.traceCount();
       this.receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();
           final okhttp3.Response response = httpClient.newCall(request).execute()) {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
         if (response.code() != 200) {
+          if (failureCount < 10) {
+            log.debug(
+                "isTraceAgentV05Enabled:{} \nFailed Payload: {}",
+                Config.get().isTraceAgentV05Enabled(),
+                okioBufferToHex(failureBuffer));
+            failureCount++;
+          }
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
           countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
           return Response.failed(response.code());
@@ -159,5 +173,16 @@ public class DDAgentApi extends RemoteApi {
 
   public void setHeader(String k, String v) {
     this.headers.put(k, v);
+  }
+
+  public String okioBufferToHex(okio.Buffer buffer) {
+    byte[] bytes = buffer.readByteArray();
+
+    StringBuffer hex = new StringBuffer();
+    for (byte b : bytes) {
+      hex.append(String.format("%02x", b));
+    }
+
+    return hex.toString();
   }
 }
