@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
@@ -51,11 +52,13 @@ public final class CombiningTransformerBuilder
 
   private final AgentBuilder agentBuilder;
   private final InstrumenterIndex instrumenterIndex;
-  private int nextSupplementaryId;
+  private final int knownTransformationCount;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
   private final BitSet knownTypesMask;
   private AdviceStack[] transformers;
+
+  private int nextSupplementaryId;
 
   // module defined matchers and transformers, shared across members
   private ElementMatcher<? super MethodDescription> ignoredMethods;
@@ -78,10 +81,10 @@ public final class CombiningTransformerBuilder
       AgentBuilder agentBuilder, InstrumenterIndex instrumenterIndex) {
     this.agentBuilder = agentBuilder;
     this.instrumenterIndex = instrumenterIndex;
-    int transformationCount = instrumenterIndex.transformationCount();
-    this.nextSupplementaryId = transformationCount;
-    this.knownTypesMask = new BitSet(transformationCount);
-    this.transformers = new AdviceStack[transformationCount];
+    this.knownTransformationCount = instrumenterIndex.transformationCount();
+    this.knownTypesMask = new BitSet(knownTransformationCount);
+    this.transformers = new AdviceStack[knownTransformationCount];
+    this.nextSupplementaryId = knownTransformationCount;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
@@ -140,9 +143,20 @@ public final class CombiningTransformerBuilder
 
   private void buildTypeMatcher(Instrumenter member, int transformationId) {
 
-    if (member instanceof Instrumenter.ForSingleType
-        || member instanceof Instrumenter.ForKnownTypes) {
-      knownTypesMask.set(transformationId);
+    if (member instanceof Instrumenter.ForSingleType) {
+      if (transformationId < knownTransformationCount) {
+        knownTypesMask.set(transformationId);
+      } else {
+        String name = ((Instrumenter.ForSingleType) member).instrumentedType();
+        matchers.add(new MatchRecorder.ForType(transformationId, named(name)));
+      }
+    } else if (member instanceof Instrumenter.ForKnownTypes) {
+      if (transformationId < knownTransformationCount) {
+        knownTypesMask.set(transformationId);
+      } else {
+        String[] names = ((Instrumenter.ForKnownTypes) member).knownMatchingTypes();
+        matchers.add(new MatchRecorder.ForType(transformationId, namedOneOf(names)));
+      }
     } else if (member instanceof Instrumenter.ForTypeHierarchy) {
       matchers.add(
           new MatchRecorder.ForHierarchy(transformationId, (Instrumenter.ForTypeHierarchy) member));
