@@ -42,6 +42,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.SerializerWithLimits;
 import com.datadog.debugger.util.TestSnapshotListener;
+import com.datadog.debugger.util.TestTraceInterceptor;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
@@ -2107,8 +2108,7 @@ public class CapturedSnapshotTest {
 
     CoreTracer tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
-    SpanDecorationProbeInstrumentationTest.TestTraceInterceptor traceInterceptor =
-        new SpanDecorationProbeInstrumentationTest.TestTraceInterceptor();
+    TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
     tracer.addTraceInterceptor(traceInterceptor);
     try {
       TestSnapshotListener snapshotListener = installProbes(CLASS_NAME, configuration);
