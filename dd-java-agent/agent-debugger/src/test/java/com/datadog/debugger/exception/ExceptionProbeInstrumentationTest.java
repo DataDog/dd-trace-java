@@ -27,6 +27,7 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.core.CoreTracer;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -100,6 +101,9 @@ public class ExceptionProbeInstrumentationTest {
     assertProbeId(probeIdsByMethodName, "processWithException", snapshot0.getProbe().getId());
     assertEquals("oops", snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
     assertTrue(snapshot0.getCaptures().getReturn().getLocals().containsKey("@exception"));
+    ProbeLocation location = snapshot0.getProbe().getLocation();
+    assertEquals(
+        location.getType() + "." + location.getMethod(), snapshot0.getStack().get(0).getFunction());
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals(snapshot0.getExceptionId(), span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
     assertEquals(Boolean.TRUE, span.getTags().get(ERROR_DEBUG_INFO_CAPTURED));

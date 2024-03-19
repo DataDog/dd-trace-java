@@ -85,7 +85,15 @@ public class ExceptionProbe extends LogProbe {
     Snapshot snapshot = createSnapshot();
     boolean shouldCommit = fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot);
     if (shouldCommit) {
-      snapshot.recordStackTrace(5);
+      /*
+       * Record stack trace having the caller of this method as 'top' frame.
+       * For this it is necessary to discard:
+       * - Thread.currentThread().getStackTrace()
+       * - Snapshot.recordStackTrace()
+       * - ExceptionProbe.commit()
+       * - DebuggerContext.commit()
+       */
+      snapshot.recordStackTrace(4);
       // add snapshot for later to wait for triggering point (ExceptionDebugger::handleException)
       exceptionProbeManager.addSnapshot(snapshot);
       LOGGER.debug(
