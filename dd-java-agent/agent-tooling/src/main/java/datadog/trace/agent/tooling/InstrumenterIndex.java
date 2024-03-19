@@ -136,9 +136,7 @@ final class InstrumenterIndex {
 
   InstrumenterModule nextModule() {
     while (memberCount > 0) {
-      memberCount--;
-      transformationId++;
-      skipName();
+      skipMember();
     }
     InstrumenterModule module = modules[++instrumentationId];
     if (null != module) {
@@ -175,6 +173,12 @@ final class InstrumenterIndex {
     memberCount--;
     transformationId++;
     memberName = readName();
+  }
+
+  private void skipMember() {
+    memberCount--;
+    transformationId++;
+    skipName();
   }
 
   /** Reads a single-byte-encoded string from the packed name sequence. */
