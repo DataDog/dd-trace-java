@@ -934,6 +934,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    * @param trace a list of the spans related to the same trace
    */
   void write(final List<DDSpan> trace) {
+    if (trace.isEmpty() || !trace.get(0).traceConfig().isTraceEnabled()) {
+      return;
+    }
     List<DDSpan> writtenTrace = interceptCompleteTrace(trace);
     if (writtenTrace.isEmpty()) {
       return;
