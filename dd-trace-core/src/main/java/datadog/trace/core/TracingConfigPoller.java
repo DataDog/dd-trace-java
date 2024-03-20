@@ -47,8 +47,7 @@ final class TracingConfigPoller {
   public void start(Config config, SharedCommunicationObjects sco) {
     this.startupLogsEnabled = config.isStartupLogsEnabled();
     ConfigurationPoller configPoller = sco.configurationPoller(config);
-    // TODO: Add CAPABILITY_APM_TRACING_TRACING_ENABLED flag when tracing_enabled is implemented for
-    // Remote config
+
     if (configPoller != null) {
       configPoller.addCapabilities(
           CAPABILITY_APM_TRACING_TRACING_ENABLED
@@ -86,6 +85,14 @@ final class TracingConfigPoller {
       }
     }
 
+    public String bytesToHex(byte[] bytes) {
+      StringBuilder builder = new StringBuilder();
+      for (byte b : bytes) {
+        builder.append(String.format("%02x", b));
+      }
+      return builder.toString();
+    }
+
     @Override
     public void accept(ParsedConfigKey configKey, byte[] content, PollingRateHinter hinter)
         throws IOException {
@@ -94,6 +101,8 @@ final class TracingConfigPoller {
           CONFIG_OVERRIDES_ADAPTER.fromJson(
               Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
 
+      System.out.println("\n\n\n\n\nContent:");
+      System.out.println(bytesToHex(content));
       if (null != overrides && null != overrides.libConfig) {
         ServiceTarget serviceTarget = overrides.serviceTarget;
         if (serviceTarget != null) {
@@ -113,9 +122,14 @@ final class TracingConfigPoller {
             throw new IllegalArgumentException("env mismatch");
           }
         }
-
+        // remove this
+        System.out.println(
+            "Before override:" + dynamicConfig.captureTraceConfig().isTraceEnabled());
         receivedOverrides = true;
         applyConfigOverrides(overrides.libConfig);
+        // remove this
+        System.out.println("after override:" + dynamicConfig.captureTraceConfig().isTraceEnabled());
+
         if (log.isDebugEnabled()) {
           log.debug(
               "Applied APM_TRACING overrides: {}", CONFIG_OVERRIDES_ADAPTER.toJson(overrides));
