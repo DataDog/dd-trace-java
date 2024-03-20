@@ -48,7 +48,7 @@ class SignalServerRunnable implements Runnable {
         LOGGER.error("Error while executing signal server polling loop", e);
       }
     }
-    LOGGER.info("Signal server stopped");
+    LOGGER.debug("Signal server stopped");
   }
 
   private void processSelectableKeys() throws IOException {

@@ -59,7 +59,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   }
 
   private RepoIndex doGetIndex() {
-    log.warn("Building index of source files in {}, repo root is {}", scanRoot, repoRoot);
+    log.debug("Building index of source files in {}, repo root is {}", scanRoot, repoRoot);
 
     Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
     Path scanRootPath = toRealPath(fileSystem.getPath(scanRoot));
@@ -80,7 +80,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     long duration = System.currentTimeMillis() - startTime;
     RepoIndexingStats stats = repoIndexingFileVisitor.indexingStats;
     RepoIndex index = repoIndexingFileVisitor.getIndex();
-    log.info(
+    log.debug(
         "Indexing took {} ms. Files visited: {}, source files visited: {}, resource files visited: {}, source roots found: {}, root packages found: {}",
         duration,
         stats.filesVisited,

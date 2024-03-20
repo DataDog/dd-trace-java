@@ -71,7 +71,7 @@ public abstract class CoverageUtils {
   public static void dumpCoverageReport(
       IBundleCoverage coverageBundle, RepoIndex repoIndex, String repoRoot, File reportFolder) {
     if (!reportFolder.exists() && !reportFolder.mkdirs()) {
-      LOGGER.info("Skipping report generation, could not create report dir: {}", reportFolder);
+      LOGGER.debug("Skipping report generation, could not create report dir: {}", reportFolder);
       return;
     }
     try {

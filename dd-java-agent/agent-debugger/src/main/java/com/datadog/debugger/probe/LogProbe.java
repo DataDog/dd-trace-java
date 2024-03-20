@@ -440,6 +440,26 @@ public class LogProbe extends ProbeDefinition {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
+    Snapshot snapshot = createSnapshot();
+    boolean shouldCommit = fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot);
+    DebuggerSink sink = DebuggerAgent.getSink();
+    if (shouldCommit) {
+      commitSnapshot(snapshot, sink);
+    } else {
+      sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
+    }
+  }
+
+  protected Snapshot createSnapshot() {
+    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
+    return new Snapshot(Thread.currentThread(), this, maxDepth);
+  }
+
+  protected boolean fillSnapshot(
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions,
+      Snapshot snapshot) {
     LogStatus entryStatus = convertStatus(entryContext.getStatus(probeId.getEncodedId()));
     LogStatus exitStatus = convertStatus(exitContext.getStatus(probeId.getEncodedId()));
     String message = null;
@@ -458,10 +478,7 @@ public class LogProbe extends ProbeDefinition {
         spanId = exitContext.getSpanId();
         break;
     }
-    DebuggerSink sink = DebuggerAgent.getSink();
     boolean shouldCommit = false;
-    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
       snapshot.setTraceId(traceId);
       snapshot.setSpanId(spanId);
@@ -490,11 +507,7 @@ public class LogProbe extends ProbeDefinition {
       snapshot.addEvaluationErrors(exitStatus.getErrors());
       shouldCommit = true;
     }
-    if (shouldCommit) {
-      commitSnapshot(snapshot, sink);
-    } else {
-      sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
-    }
+    return shouldCommit;
   }
 
   private LogStatus convertStatus(CapturedContext.Status status) {
@@ -507,7 +520,7 @@ public class LogProbe extends ProbeDefinition {
     return (LogStatus) status;
   }
 
-  private void commitSnapshot(Snapshot snapshot, DebuggerSink sink) {
+  protected void commitSnapshot(Snapshot snapshot, DebuggerSink sink) {
     /*
      * Record stack trace having the caller of this method as 'top' frame.
      * For this it is necessary to discard:
@@ -528,8 +541,7 @@ public class LogProbe extends ProbeDefinition {
       return;
     }
     DebuggerSink sink = DebuggerAgent.getSink();
-    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
+    Snapshot snapshot = createSnapshot();
     boolean shouldCommit = false;
     if (status.shouldSend()) {
       snapshot.setTraceId(lineContext.getTraceId());

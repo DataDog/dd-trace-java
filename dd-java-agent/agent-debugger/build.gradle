@@ -17,7 +17,10 @@ excludedClassesCoverage += [
   'com.datadog.debugger.agent.DebuggerAgent',
   // too old for this coverage (JDK 1.2)
   'antlr.*',
-  'com.datadog.debugger.util.MoshiSnapshotHelper' // only static classes
+  // only static classes
+  'com.datadog.debugger.util.MoshiSnapshotHelper',
+  // based on JDK WeakHashMap
+  'com.datadog.debugger.util.WeakIdentityHashMap*'
 ]
 
 dependencies {

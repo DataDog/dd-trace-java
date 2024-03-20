@@ -186,9 +186,6 @@ public class ASMHelper {
         returnType,
         targetType,
         Types.STRING_TYPE);
-    if (sort == org.objectweb.asm.Type.OBJECT || sort == org.objectweb.asm.Type.ARRAY) {
-      insnList.add(new TypeInsnNode(Opcodes.CHECKCAST, fieldType.getMainType().getInternalName()));
-    }
     // stack: [field_value]
   }
 

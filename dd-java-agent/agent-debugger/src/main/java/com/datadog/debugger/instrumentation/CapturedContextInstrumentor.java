@@ -889,7 +889,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
               ldc(insnList, fieldNode.name);
               // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
               // this, string]
-              ASMHelper.emitReflectiveCall(
+              emitReflectiveCall(
                   insnList, new ASMHelper.Type(Type.getType(fieldNode.desc)), OBJECT_TYPE);
               // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
               // this, string]
