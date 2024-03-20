@@ -202,7 +202,8 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
       String propertyName = (String) e.getKey();
       Object propertyValue = e.getValue();
-      if ((propertyName.startsWith(Config.PREFIX) || propertyName.startsWith("datadog."))
+      if ((propertyName.startsWith(Config.PREFIX)
+              || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
           && propertyValue != null) {
         propagatedSystemProperties.put(propertyName, propertyValue.toString());
       }
