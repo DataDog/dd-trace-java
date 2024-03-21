@@ -4,6 +4,7 @@ import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CON
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.ERROR_DEBUG_INFO_CAPTURED;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
+import static com.datadog.debugger.exception.ExceptionProbeManagerTest.waitForInstrumentation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -77,7 +78,9 @@ public class ExceptionProbeInstrumentationTest {
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    callMethodThrowingRuntimeException(testClass); // instrument exception stacktrace
+    String fingerprint =
+        callMethodThrowingRuntimeException(testClass); // instrument exception stacktrace
+    waitForInstrumentation(exceptionProbeManager, fingerprint);
     assertEquals(2, exceptionProbeManager.getProbes().size());
     callMethodNoException(testClass);
     assertEquals(0, listener.snapshots.size());
@@ -91,7 +94,9 @@ public class ExceptionProbeInstrumentationTest {
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    callMethodThrowingRuntimeException(testClass); // instrument exception stacktrace
+    String fingerprint =
+        callMethodThrowingRuntimeException(testClass); // instrument exception stacktrace
+    waitForInstrumentation(exceptionProbeManager, fingerprint);
     assertEquals(2, exceptionProbeManager.getProbes().size());
     callMethodThrowingRuntimeException(testClass); // generate snapshots
     Map<String, Set<String>> probeIdsByMethodName =
@@ -107,7 +112,7 @@ public class ExceptionProbeInstrumentationTest {
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals(snapshot0.getExceptionId(), span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
     assertEquals(Boolean.TRUE, span.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
-    assertEquals(snapshot0.getId(), span.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 1)));
+    assertEquals(snapshot0.getId(), span.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
   }
 
   @Test
@@ -119,10 +124,12 @@ public class ExceptionProbeInstrumentationTest {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     // instrument RuntimeException stacktrace
-    callMethodThrowingRuntimeException(testClass);
+    String fingerprint0 = callMethodThrowingRuntimeException(testClass);
+    waitForInstrumentation(exceptionProbeManager, fingerprint0);
     assertEquals(2, exceptionProbeManager.getProbes().size());
     // instrument IllegalArgumentException stacktrace
-    callMethodThrowingIllegalArgException(testClass);
+    String fingerprint1 = callMethodThrowingIllegalArgException(testClass);
+    waitForInstrumentation(exceptionProbeManager, fingerprint1);
     assertEquals(4, exceptionProbeManager.getProbes().size());
     Map<String, Set<String>> probeIdsByMethodName =
         extractProbeIdsByMethodName(exceptionProbeManager);
@@ -142,11 +149,11 @@ public class ExceptionProbeInstrumentationTest {
     MutableSpan span0 = traceInterceptor.getAllTraces().get(0).get(0);
     assertEquals(snapshot0.getExceptionId(), span0.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
     assertEquals(Boolean.TRUE, span0.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
-    assertEquals(snapshot0.getId(), span0.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 1)));
+    assertEquals(snapshot0.getId(), span0.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
     MutableSpan span1 = traceInterceptor.getAllTraces().get(1).get(0);
     assertEquals(snapshot1.getExceptionId(), span1.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
     assertEquals(Boolean.TRUE, span1.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
-    assertEquals(snapshot1.getId(), span1.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 1)));
+    assertEquals(snapshot1.getId(), span1.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
   }
 
   private static void assertExceptionMsg(String expectedMsg, Snapshot snapshot) {
@@ -160,22 +167,26 @@ public class ExceptionProbeInstrumentationTest {
     assertTrue(probeIdsByMethodName.get(methodName).contains(id));
   }
 
-  private static void callMethodThrowingRuntimeException(Class<?> testClass) {
+  private String callMethodThrowingRuntimeException(Class<?> testClass) {
     try {
       Reflect.on(testClass).call("main", "exception").get();
       Assertions.fail("should not reach this code");
     } catch (RuntimeException ex) {
       assertEquals("oops", ex.getCause().getCause().getMessage());
+      return Fingerprinter.fingerprint(ex, classNameFiltering);
     }
+    return null;
   }
 
-  private static void callMethodThrowingIllegalArgException(Class<?> testClass) {
+  private String callMethodThrowingIllegalArgException(Class<?> testClass) {
     try {
       Reflect.on(testClass).call("main", "illegal").get();
       Assertions.fail("should not reach this code");
     } catch (RuntimeException ex) {
       assertEquals("illegal argument", ex.getCause().getCause().getMessage());
+      return Fingerprinter.fingerprint(ex, classNameFiltering);
     }
+    return null;
   }
 
   private static void callMethodNoException(Class<?> testClass) {

@@ -11,6 +11,7 @@ import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,9 +67,13 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     } else {
       exceptionProbeManager.createProbesForException(
           fingerprint, innerMostException.getStackTrace());
-      // TODO make it async
-      configurationUpdater.accept(EXCEPTION, exceptionProbeManager.getProbes());
+      AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
     }
+  }
+
+  private void applyExceptionConfiguration(String fingerprint) {
+    configurationUpdater.accept(EXCEPTION, exceptionProbeManager.getProbes());
+    exceptionProbeManager.addFingerprint(fingerprint);
   }
 
   private static void processSnapshotsAndSetTags(

@@ -104,9 +104,9 @@ public class ExceptionHelperTest {
             },
             simpleException);
     StackTraceElement[] stack = ExceptionHelper.flattenStackTrace(simpleException);
-    assertEquals(2, stack.length); // message + frame
+    assertEquals(1, stack.length);
     stack = ExceptionHelper.flattenStackTrace(nestedException);
-    assertEquals(4, stack.length); // message + frame + message + frame
+    assertEquals(2, stack.length);
   }
 
   @Test

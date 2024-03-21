@@ -56,6 +56,9 @@ public class ExceptionProbeManager {
       ExceptionProbe probe = createMethodProbe(this, where);
       probes.putIfAbsent(probe.getId(), probe);
     }
+  }
+
+  void addFingerprint(String fingerprint) {
     fingerprints.add(fingerprint);
   }
 
@@ -75,10 +78,6 @@ public class ExceptionProbeManager {
   }
 
   public boolean shouldCaptureException(String fingerprint) {
-    return fingerprints.contains(fingerprint);
-  }
-
-  boolean containsFingerprint(String fingerprint) {
     return fingerprints.contains(fingerprint);
   }
 

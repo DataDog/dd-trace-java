@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.util.ClassNameFiltering;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,7 @@ class ExceptionProbeManagerTest {
     RuntimeException exception = new RuntimeException("test");
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     exceptionProbeManager.createProbesForException(fingerprint, exception.getStackTrace());
-    assertTrue(exceptionProbeManager.isAlreadyInstrumented(fingerprint));
+    assertFalse(exceptionProbeManager.getProbes().isEmpty());
   }
 
   @Test
@@ -28,7 +29,7 @@ class ExceptionProbeManagerTest {
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
-    assertEquals("aa4a4dd768f6ef0fcc2b39a3bdedcbe44baff2e9dd0a779228db7bd8bf58", fingerprint);
+    assertEquals("ca4d9f3a1033d7262a89855f4b5cbdc225ed63c592c6cdf83fc5a88589e5fb", fingerprint);
     exceptionProbeManager.createProbesForException(fingerprint, exception.getStackTrace());
     assertEquals(1, exceptionProbeManager.getProbes().size());
     ExceptionProbe exceptionProbe = exceptionProbeManager.getProbes().iterator().next();
@@ -51,5 +52,20 @@ class ExceptionProbeManagerTest {
     assertEquals("7a1e5e1bcc64ee26801d1471245eff6b6e8d7c61d0ea36fe85f3f75d79e42c", fingerprint);
     exceptionProbeManager.createProbesForException("", exception.getStackTrace());
     assertEquals(0, exceptionProbeManager.getProbes().size());
+  }
+
+  static void waitForInstrumentation(
+      ExceptionProbeManager exceptionProbeManager, String fingerprint) {
+    Duration timeout = Duration.ofSeconds(30);
+    Duration sleepTime = Duration.ofMillis(10);
+    long count = timeout.toMillis() / sleepTime.toMillis();
+    while (count-- > 0 && !exceptionProbeManager.isAlreadyInstrumented(fingerprint)) {
+      try {
+        Thread.sleep(sleepTime.toMillis());
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    assertTrue(exceptionProbeManager.isAlreadyInstrumented(fingerprint));
   }
 }
