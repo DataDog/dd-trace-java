@@ -96,14 +96,11 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     List<Snapshot> snapshots = state.getSnapshots();
     for (int i = 0; i < snapshots.size(); i++) {
       Snapshot snapshot = snapshots.get(i);
-      String className = snapshot.getProbe().getLocation().getType();
-      String methodName = snapshot.getProbe().getLocation().getMethod();
-      while (currentIdx < innerTrace.length
-          && !innerTrace[currentIdx].getClassName().equals(className)
-          && !innerTrace[currentIdx].getMethodName().equals(methodName)) {
-        currentIdx++;
+      currentIdx = innerTrace.length - snapshot.getStack().size();
+      if (!sanityCheckSnapshotAssignment(snapshot, innerTrace, currentIdx)) {
+        continue;
       }
-      int frameIndex = mapping[currentIdx++];
+      int frameIndex = mapping[currentIdx];
       if (frameIndex == -1) {
         continue;
       }
@@ -122,6 +119,18 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
           state.getExceptionId());
       span.setTag(ERROR_DEBUG_INFO_CAPTURED, true);
     }
+  }
+
+  private static boolean sanityCheckSnapshotAssignment(
+      Snapshot snapshot, StackTraceElement[] innerTrace, int currentIdx) {
+    String className = snapshot.getProbe().getLocation().getType();
+    String methodName = snapshot.getProbe().getLocation().getMethod();
+    if (!className.equals(innerTrace[currentIdx].getClassName())
+        || !methodName.equals(innerTrace[currentIdx].getMethodName())) {
+      LOGGER.warn("issue when assigning snapshot to frame: {} {}", className, methodName);
+      return false;
+    }
+    return true;
   }
 
   ExceptionProbeManager getExceptionProbeManager() {
