@@ -32,6 +32,7 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.core.datastreams.TagsProcessor;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -105,11 +106,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
 
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
-
-    System.out.printf("### v1 req, service: %s, operation: %s, dsm: %b\n", awsServiceName, awsOperation.getSimpleName(), span.traceConfig().isDataStreamsEnabled());
     if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
-      System.out.println("### Operation name on request v1 " + awsOperation.getSimpleName());
     }
 
     switch (awsRequestName.toString()) {
@@ -258,8 +256,48 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   public AgentSpan onServiceResponse(final AgentSpan span, final String awsService, final Response response) {
     if ("s3".equalsIgnoreCase(awsService) && span.traceConfig().isDataStreamsEnabled()) {
-      span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, getResponseContentLength(response));
-      System.out.println("### Operation name on response v1 " + span.getTag(InstrumentationTags.AWS_OPERATION));
+      long responseSize = getResponseContentLength(response);
+      span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
+
+      Object key = span.getTag(InstrumentationTags.AWS_OBJECT_KEY);
+      Object bucket = span.getTag(InstrumentationTags.AWS_BUCKET_NAME);
+      Object awsOperation = span.getTag(InstrumentationTags.AWS_OPERATION);
+
+      if (key != null && bucket != null && awsOperation != null) {
+        if ("GetObject".equalsIgnoreCase(awsOperation.toString())) {
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+          sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
+          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key.toString());
+          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket.toString());
+          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket.toString());
+          sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, 0, responseSize);
+        }
+
+        if ("PutObject".equalsIgnoreCase(awsOperation.toString())) {
+          Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
+          long payloadSize = 0;
+          if (requestSize != null) {
+            payloadSize = (long)requestSize;
+          }
+
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+          sortedTags.put(TagsProcessor.DIRECTION_TAG, DIRECTION_OUT);
+          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key.toString());
+          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket.toString());
+          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket.toString());
+          sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, 0, payloadSize);
+        }
+      }
     }
 
     return span;
