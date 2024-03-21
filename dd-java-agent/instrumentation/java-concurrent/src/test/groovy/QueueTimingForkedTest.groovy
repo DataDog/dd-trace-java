@@ -12,7 +12,7 @@ class QueueTimingForkedTest extends AgentTestRunner {
   protected void configurePreAgent() {
     // required for enabling the unwrapping instrumentation to get the relevant non-carrier class names
     injectSysConfig("dd.profiling.enabled", "true")
-    injectSysConfig("dd.profiling.experimental.queueing.time.enabled", "true")
+    injectSysConfig("dd.profiling.queueing.time.enabled", "true")
     InstrumentationBasedProfiling.enableInstrumentationBasedProfiling()
     super.configurePreAgent()
   }

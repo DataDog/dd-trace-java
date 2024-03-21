@@ -505,6 +505,6 @@ class ExecutorInstrumentationLegacyForkedTest extends ExecutorInstrumentationTes
 class ExecutorInstrumentationQueueTimeForkedTest extends ExecutorInstrumentationTest {
   def setupSpec() {
     System.setProperty("dd.profiling.enabled", "true")
-    System.setProperty("dd.profiling.experimental.queueing.time.enabled", "true")
+    System.setProperty("dd.profiling.queueing.time.enabled", "true")
   }
 }
