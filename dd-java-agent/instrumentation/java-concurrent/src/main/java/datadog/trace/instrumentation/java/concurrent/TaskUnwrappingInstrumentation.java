@@ -40,6 +40,8 @@ public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
     "runnable",
     "java.util.concurrent.ForkJoinTask$RunnableExecuteAction",
     "runnable",
+    "java.util.concurrent.ForkJoinTask$AdaptedInterruptibleCallable",
+    "callable",
     // netty
     "io.netty.util.concurrent.PromiseTask$RunnableAdapter",
     "task",
