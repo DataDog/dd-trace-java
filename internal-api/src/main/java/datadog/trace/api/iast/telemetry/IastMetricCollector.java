@@ -30,8 +30,11 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
 
   private static final Verbosity VERBOSITY = Config.get().getIastTelemetryVerbosity();
 
-  private static final IastMetricCollector INSTANCE =
-      VERBOSITY != Verbosity.OFF ? new IastMetricCollector() : new NoOpInstance();
+  private static IastMetricCollector INSTANCE = new NoOpInstance();
+
+  public static void register(final IastMetricCollector collector) {
+    INSTANCE = collector;
+  }
 
   public static IastMetricCollector get() {
     return INSTANCE;

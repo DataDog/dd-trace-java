@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
@@ -240,7 +241,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.IAST)
-          || (isOptOutEnabled() && enabledSystems.contains(TargetSystem.APPSEC));
+          || (isOptOutEnabled()
+              && InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED);
     }
 
     /**
