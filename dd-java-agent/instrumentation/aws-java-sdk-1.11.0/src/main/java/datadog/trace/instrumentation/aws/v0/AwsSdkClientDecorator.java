@@ -108,6 +108,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
     if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
+      System.out.println("### Operation name on request v1 " + awsOperation.getSimpleName());
     }
 
     switch (awsRequestName.toString()) {
@@ -257,6 +258,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   public AgentSpan onServiceResponse(final AgentSpan span, final String awsService, final Response response) {
     if (Objects.equals(awsService, "s3") && span.traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, getResponseContentLength(response));
+      System.out.println("### Operation name on response v1 " + span.getTag(InstrumentationTags.AWS_OPERATION));
     }
 
     return span;

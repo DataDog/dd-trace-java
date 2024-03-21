@@ -124,6 +124,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
           .getValueForField("Key", String.class)
           .ifPresent(key -> span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key));
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(httpRequest));
+      System.out.println("### Operation name on request " + awsOperationName);
     }
 
     getRequestKey(request).ifPresent(key -> setObjectKey(span, key));
@@ -350,7 +351,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
 
       if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
-        span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, getResponseContentLength(response.sdkHttpResponse()));
+        long responseLength = getResponseContentLength(response.sdkHttpResponse());
+        span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseLength);
+
+        System.out.println("### Operation name on response v2 " + awsOperationName);
       }
     }
     return span;
