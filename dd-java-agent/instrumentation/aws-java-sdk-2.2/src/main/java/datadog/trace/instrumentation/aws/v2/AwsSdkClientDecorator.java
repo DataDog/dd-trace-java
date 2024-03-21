@@ -120,12 +120,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     System.out.printf("### v2 req, service: %s, operation: %s, dsm: %b\n", awsServiceName, awsOperationName, span.traceConfig().isDataStreamsEnabled());
-    if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
+    if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
       request
           .getValueForField("Key", String.class)
           .ifPresent(key -> span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key));
-      span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(httpRequest));
       System.out.println("### Operation name on request " + awsOperationName);
+      span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(httpRequest));
     }
 
     getRequestKey(request).ifPresent(key -> setObjectKey(span, key));
@@ -352,11 +352,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
 
       System.out.printf("### v2 resp, service: %s, operation: %s, dsm: %b\n", awsServiceName, awsOperationName, span.traceConfig().isDataStreamsEnabled());
-      if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
+      if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
         long responseLength = getResponseContentLength(response.sdkHttpResponse());
         span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseLength);
-
-        System.out.println("### Operation name on response v2 " + awsOperationName);
       }
     }
     return span;
