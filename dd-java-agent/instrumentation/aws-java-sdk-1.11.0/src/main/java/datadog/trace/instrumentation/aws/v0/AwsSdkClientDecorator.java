@@ -106,6 +106,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
 
+    System.out.printf("### v1 req, service: %s, operation: %s, dsm: %b\n", awsServiceName, awsOperation.getSimpleName(), span.traceConfig().isDataStreamsEnabled());
     if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
       System.out.println("### Operation name on request v1 " + awsOperation.getSimpleName());

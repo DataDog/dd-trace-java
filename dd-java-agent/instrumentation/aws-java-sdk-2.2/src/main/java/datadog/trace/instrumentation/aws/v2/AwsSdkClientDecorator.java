@@ -119,6 +119,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
+    System.out.printf("### v2 req, service: %s, operation: %s, dsm: %b\n", awsServiceName, awsOperationName, span.traceConfig().isDataStreamsEnabled());
     if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
       request
           .getValueForField("Key", String.class)
@@ -350,6 +351,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         }
       }
 
+      System.out.printf("### v2 resp, service: %s, operation: %s, dsm: %b\n", awsServiceName, awsOperationName, span.traceConfig().isDataStreamsEnabled());
       if (Objects.equals(awsServiceName, "s3") && span.traceConfig().isDataStreamsEnabled()) {
         long responseLength = getResponseContentLength(response.sdkHttpResponse());
         span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseLength);
