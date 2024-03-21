@@ -19,14 +19,17 @@ public class StatsBucket {
   }
 
   public void addPoint(StatsPoint statsPoint) {
-    StatsGroup statsGroup = hashToGroup.get(statsPoint.getHash());
+    // we want to perform aggregation per dataset, to allow
+    // lower-level granularity and unblock dataset name manipulations on the backend
+    // without affecting the precision.
+    StatsGroup statsGroup = hashToGroup.get(statsPoint.getDataSetHash());
 
     // FIXME Java 7
     if (statsGroup == null) {
       statsGroup =
           new StatsGroup(
-              statsPoint.getEdgeTags(), statsPoint.getHash(), statsPoint.getParentHash());
-      hashToGroup.put(statsPoint.getHash(), statsGroup);
+              statsPoint.getEdgeTags(), statsPoint.getDataSetHash(), statsPoint.getParentHash());
+      hashToGroup.put(statsPoint.getDataSetHash(), statsGroup);
     }
 
     statsGroup.add(

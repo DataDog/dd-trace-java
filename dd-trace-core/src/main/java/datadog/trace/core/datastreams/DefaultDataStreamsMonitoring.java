@@ -53,9 +53,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
 
   private static final StatsPoint REPORT =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0, 0);
   private static final StatsPoint POISON_PILL =
-      new StatsPoint(Collections.emptyList(), 0, 0, 0, 0, 0, 0);
+      new StatsPoint(Collections.emptyList(), 0,0, 0, 0, 0, 0, 0);
 
   private final Map<Long, StatsBucket> timeToBucket = new HashMap<>();
   private final BlockingQueue<InboxItem> inbox = new MpscBlockingConsumerArrayQueue<>(1024);

@@ -194,6 +194,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                 saved.getEdgeTags(),
                 saved.getHash(),
                 saved.getParentHash(),
+                saved.getDataSetHash(),
                 saved.getTimestampNanos(),
                 saved.getPathwayLatencyNano(),
                 saved.getEdgeLatencyNano(),
