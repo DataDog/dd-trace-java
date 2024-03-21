@@ -1,7 +1,7 @@
 package com.datadog.debugger.exception;
 
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
-import static com.datadog.debugger.exception.ExceptionProbeManagerTest.waitForInstrumentation;
+import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -62,7 +63,9 @@ class DefaultExceptionDebuggerTest {
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     AgentSpan span = mock(AgentSpan.class);
     exceptionDebugger.handleException(exception, span);
-    waitForInstrumentation(exceptionDebugger.getExceptionProbeManager(), fingerprint);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
     exceptionDebugger.handleException(exception, span);
     verify(configurationUpdater).accept(eq(ConfigurationAcceptor.Source.EXCEPTION), any());
   }

@@ -73,7 +73,6 @@ public class ExceptionHelper {
 
   public static StackTraceElement[] flattenStackTrace(Throwable t) {
     List<StackTraceElement> result = new ArrayList<>();
-    // result.add(null); // add a stack frame representing the exception message
     result.addAll(Arrays.asList(t.getStackTrace()));
     if (t.getCause() != null) {
       internalFlattenStackTrace(t.getCause(), t.getStackTrace(), result);
