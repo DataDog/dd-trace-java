@@ -73,7 +73,6 @@ public class ExceptionHelper {
 
   public static StackTraceElement[] flattenStackTrace(Throwable t) {
     List<StackTraceElement> result = new ArrayList<>();
-    result.add(null); // add a stack frame representing the exception message
     result.addAll(Arrays.asList(t.getStackTrace()));
     if (t.getCause() != null) {
       internalFlattenStackTrace(t.getCause(), t.getStackTrace(), result);
@@ -90,12 +89,8 @@ public class ExceptionHelper {
       m--;
       n--;
     }
-    elements.add(null); // add a stack frame representing the exception message
     for (int i = 0; i <= m; i++) {
       elements.add(trace[i]);
-    }
-    if (trace.length - 1 - m > 0) {
-      elements.add(null); // add a stack frame representing number of common frames ("... n more")
     }
     if (t.getCause() != null) {
       internalFlattenStackTrace(t.getCause(), trace, elements);

@@ -1,6 +1,7 @@
 package com.datadog.debugger.exception;
 
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
+import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,6 +31,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -61,8 +63,10 @@ class DefaultExceptionDebuggerTest {
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     AgentSpan span = mock(AgentSpan.class);
     exceptionDebugger.handleException(exception, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
     exceptionDebugger.handleException(exception, span);
-    assertTrue(exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint));
     verify(configurationUpdater).accept(eq(ConfigurationAcceptor.Source.EXCEPTION), any());
   }
 
@@ -95,7 +99,7 @@ class DefaultExceptionDebuggerTest {
         listener.snapshots.stream().collect(toMap(Snapshot::getId, Function.identity()));
     List<String> lines = parseStackTrace(exception);
     int expectedFrameIndex =
-        findLine(
+        findFrameIndex(
             lines,
             "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createNestException");
     assertSnapshot(
@@ -105,7 +109,7 @@ class DefaultExceptionDebuggerTest {
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "createNestException");
     expectedFrameIndex =
-        findLine(
+        findFrameIndex(
             lines, "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.nestedException");
     assertSnapshot(
         tags,
@@ -114,7 +118,7 @@ class DefaultExceptionDebuggerTest {
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "nestedException");
     expectedFrameIndex =
-        findLine(
+        findFrameIndex(
             lines,
             "com.datadog.debugger.exception.DefaultExceptionDebuggerTest.createTest1Exception");
     assertSnapshot(
@@ -125,7 +129,7 @@ class DefaultExceptionDebuggerTest {
         "createTest1Exception");
   }
 
-  private static int findLine(List<String> lines, String str) {
+  private static int findFrameIndex(List<String> lines, String str) {
     for (int i = 0; i < lines.size(); i++) {
       if (lines.get(i).contains(str)) {
         return i;
@@ -143,7 +147,9 @@ class DefaultExceptionDebuggerTest {
     try {
       String line;
       while ((line = reader.readLine()) != null) {
-        results.add(line);
+        if (line.startsWith("\tat ")) {
+          results.add(line);
+        }
       }
     } catch (IOException e) {
       e.printStackTrace();
