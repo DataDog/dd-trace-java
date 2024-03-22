@@ -106,7 +106,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
 
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
-    if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
+    if ("Amazon S3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
     }
 
@@ -255,7 +255,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   public AgentSpan onServiceResponse(final AgentSpan span, final String awsService, final Response response) {
-    if ("s3".equalsIgnoreCase(awsService) && span.traceConfig().isDataStreamsEnabled()) {
+    System.out.println("### onServiceResponse -> " + awsService);
+    if ("Amazon S3".equalsIgnoreCase(awsService) && span.traceConfig().isDataStreamsEnabled()) {
       long responseSize = getResponseContentLength(response);
       span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
 
@@ -264,7 +265,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       Object awsOperation = span.getTag(InstrumentationTags.AWS_OPERATION);
 
       if (key != null && bucket != null && awsOperation != null) {
-        if ("GetObject".equalsIgnoreCase(awsOperation.toString())) {
+        if ("GetObjectRequest".equalsIgnoreCase(awsOperation.toString())) {
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
 
           sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
@@ -278,7 +279,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               .setCheckpoint(span, sortedTags, 0, responseSize);
         }
 
-        if ("PutObject".equalsIgnoreCase(awsOperation.toString())) {
+        if ("PutObjectRequest".equalsIgnoreCase(awsOperation.toString())) {
           Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
           long payloadSize = 0;
           if (requestSize != null) {

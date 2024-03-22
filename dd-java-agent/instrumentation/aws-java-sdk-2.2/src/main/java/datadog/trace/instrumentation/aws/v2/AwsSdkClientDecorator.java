@@ -124,7 +124,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       request
           .getValueForField("Key", String.class)
           .ifPresent(key -> span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key));
-      System.out.println("### Operation name on request " + awsOperationName);
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(httpRequest));
     }
 

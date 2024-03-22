@@ -135,12 +135,13 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   public long getRequestContentLength(final REQUEST request) {
     System.out.println("### getRequestContentLength called");
     if (request == null) {
+      System.out.println("### getRequestContentLength done, request is null");
       return 0;
     }
 
-    System.out.println("### request is not null");
+    System.out.println("  ### request is not null");
     String contentLengthStr = getRequestHeader(request, "Content-Length");
-    System.out.println("### got header " + contentLengthStr);
+    System.out.println("  ### got header " + contentLengthStr);
     if (contentLengthStr != null) {
       try {
         return Long.parseLong(contentLengthStr);
@@ -148,19 +149,21 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       }
     }
 
+    System.out.println("### getRequestContentLength done");
     return 0;
   }
 
   public long getResponseContentLength(final RESPONSE response) {
     System.out.println("### getResponseContentLength called");
     if (response == null) {
+      System.out.println("### getResponseContentLength done, response is null");
       return 0;
     }
 
-    System.out.println("### response is not null");
+    System.out.println("  ### response is not null");
     String contentLengthStr = getResponseHeader(response, "Content-Length");
 
-    System.out.println("### got header " + contentLengthStr);
+    System.out.println("  ### got header " + contentLengthStr);
     if (contentLengthStr != null) {
       try {
         return Long.parseLong(contentLengthStr);
@@ -168,6 +171,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       }
     }
 
+    System.out.println("### getResponseContentLength done");
     return 0;
   }
 }
