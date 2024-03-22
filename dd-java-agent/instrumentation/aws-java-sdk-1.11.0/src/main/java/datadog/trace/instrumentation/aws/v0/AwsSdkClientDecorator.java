@@ -273,7 +273,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       }
 
       if (key != null && bucket != null && awsOperation != null) {
-        if ("GetObjectRequest".equalsIgnoreCase(awsOperation.toString())) {
+        // GetObjectMetadataRequest may return the object if it's not "HEAD"
+        if ("GET".equals(span.getTag(Tags.HTTP_METHOD)) &&
+            ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation.toString()) ||
+            "GetObjectRequest".equalsIgnoreCase(awsOperation.toString()))) {
+          System.out.println("### Downloading the object");
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
 
           sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
@@ -287,7 +291,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               .setCheckpoint(span, sortedTags, 0, responseSize);
         }
 
-        if ("PutObjectRequest".equalsIgnoreCase(awsOperation.toString())) {
+        if ("PutObjectRequest".equalsIgnoreCase(awsOperation.toString()) ||
+            "UploadPartRequest".equalsIgnoreCase(awsOperation.toString())) {
           Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
           long payloadSize = 0;
           if (requestSize != null) {
