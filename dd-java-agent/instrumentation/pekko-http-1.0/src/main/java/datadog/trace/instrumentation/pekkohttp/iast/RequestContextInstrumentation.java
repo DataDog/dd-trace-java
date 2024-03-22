@@ -8,8 +8,12 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -43,18 +47,27 @@ public class RequestContextInstrumentation extends InstrumenterModule.Iast
   }
 
   @SuppressFBWarnings("BC_IMPOSSIBLE_INSTANCEOF")
+  @RequiresRequestContext(RequestContextSlot.IAST)
   static class GetRequestAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     static void onExit(
-        @Advice.This RequestContext requestContext, @Advice.Return HttpRequest request) {
+        @Advice.This RequestContext requestContext,
+        @Advice.Return HttpRequest request,
+        @ActiveRequestContext datadog.trace.api.gateway.RequestContext reqCtx) {
 
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation == null || propagation.isTainted(request)) {
+      if (propagation == null) {
         return;
       }
 
-      propagation.taintIfTainted(request, requestContext);
+      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+
+      if (propagation.isTainted(ctx, request)) {
+        return;
+      }
+
+      propagation.taintIfTainted(ctx, request, requestContext);
     }
   }
 }

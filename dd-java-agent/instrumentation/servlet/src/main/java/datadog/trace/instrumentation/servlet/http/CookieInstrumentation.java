@@ -5,9 +5,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -42,15 +47,19 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
         getClass().getName() + "$GetValueAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetNameAdvice {
     @Advice.OnMethodExit
     @Source(SourceTypes.REQUEST_COOKIE_NAME)
     public static void afterGetName(
-        @Advice.This final Object self, @Advice.Return final String result) {
+        @Advice.This final Object self,
+        @Advice.Return final String result,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
+          IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+          module.taintIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_NAME, result);
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetName threw", e);
         }
@@ -58,6 +67,7 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
     }
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetValueAdvice {
 
     @Advice.OnMethodExit
@@ -65,11 +75,13 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
     public static void afterGetValue(
         @Advice.This final Object self,
         @Advice.FieldValue("name") final String name,
-        @Advice.Return final String result) {
+        @Advice.Return final String result,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfTainted(result, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
+          IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+          module.taintIfTainted(ctx, result, self, SourceTypes.REQUEST_COOKIE_VALUE, name);
         } catch (final Throwable e) {
           module.onUnexpectedException("getValue threw", e);
         }

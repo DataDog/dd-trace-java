@@ -95,7 +95,9 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     }
 
     Collection<TestIdentifier> flakyTests =
-        flakyTestRetriesEnabled ? getFlakyTests(tracerEnvironment) : Collections.emptyList();
+        flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
+            ? getFlakyTests(tracerEnvironment)
+            : null;
 
     Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
         earlyFlakeDetectionEnabled ? getKnownTests(tracerEnvironment) : null;
@@ -158,7 +160,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     try {
       CiVisibilitySettings settings = configurationApi.getSettings(tracerEnvironment);
       if (settings.isGitUploadRequired()) {
-        LOGGER.info("Git data upload needs to finish before remote settings can be retrieved");
+        LOGGER.debug("Git data upload needs to finish before remote settings can be retrieved");
         gitDataUploader
             .startOrObserveGitDataUpload()
             .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
@@ -169,9 +171,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       }
 
     } catch (Exception e) {
-      LOGGER.warn(
-          "Could not obtain CI Visibility settings, will default to disabled code coverage and tests skipping");
-      LOGGER.debug("Error while obtaining CI Visibility settings", e);
+      LOGGER.warn("Error while obtaining CI Visibility settings", e);
       return CiVisibilitySettings.DEFAULT;
     }
   }
@@ -202,7 +202,9 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
       String propertyName = (String) e.getKey();
       Object propertyValue = e.getValue();
-      if (propertyName.startsWith(Config.PREFIX) && propertyValue != null) {
+      if ((propertyName.startsWith(Config.PREFIX)
+              || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
+          && propertyValue != null) {
         propagatedSystemProperties.put(propertyName, propertyValue.toString());
       }
     }
@@ -247,7 +249,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
           .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
 
       SkippableTests skippableTests = configurationApi.getSkippableTests(tracerEnvironment);
-      LOGGER.info(
+      LOGGER.debug(
           "Received {} skippable tests in total for {}",
           skippableTests.getIdentifiers().size(),
           repositoryRoot);
@@ -282,7 +284,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   private Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {
     try {
       Collection<TestIdentifier> flakyTests = configurationApi.getFlakyTests(tracerEnvironment);
-      LOGGER.info("Received {} flaky tests in total for {}", flakyTests.size(), repositoryRoot);
+      LOGGER.debug("Received {} flaky tests in total for {}", flakyTests.size(), repositoryRoot);
       return flakyTests;
 
     } catch (Exception e) {
@@ -297,7 +299,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     try {
       Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
           configurationApi.getKnownTestsByModuleName(tracerEnvironment);
-      LOGGER.info(
+      LOGGER.debug(
           "Received known tests for {} modules for {}",
           knownTestsByModuleName.size(),
           repositoryRoot);

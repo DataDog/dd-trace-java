@@ -28,10 +28,10 @@ import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.TestTraceInterceptor;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -41,9 +41,7 @@ import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
@@ -665,38 +663,5 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
       }
     }
     return null;
-  }
-
-  static class TestTraceInterceptor implements TraceInterceptor {
-    private Collection<? extends MutableSpan> currentTrace;
-    private List<List<? extends MutableSpan>> allTraces = new ArrayList<>();
-
-    @Override
-    public Collection<? extends MutableSpan> onTraceComplete(
-        Collection<? extends MutableSpan> trace) {
-      currentTrace = trace;
-      allTraces.add(new ArrayList<>(trace));
-      return trace;
-    }
-
-    @Override
-    public int priority() {
-      return 0;
-    }
-
-    public Collection<? extends MutableSpan> getTrace() {
-      return currentTrace;
-    }
-
-    public MutableSpan getFirstSpan() {
-      if (currentTrace == null) {
-        return null;
-      }
-      return currentTrace.iterator().next();
-    }
-
-    public List<List<? extends MutableSpan>> getAllTraces() {
-      return allTraces;
-    }
   }
 }

@@ -91,11 +91,6 @@ package-arm:
   script:
     - ../.gitlab/build_java_package.sh
 
-.release-package:
-  stage: deploy
-  variables:
-    PRODUCT_NAME: auto_inject-java
-
 package-oci:
   stage: package
   extends: .package-oci
@@ -103,31 +98,9 @@ package-oci:
   script:
     - ../.gitlab/build_java_package_oci.sh
 
-release-staging-repo-oci-package:
+.release-package:
   stage: deploy
-  extends: .release-oci-package
   variables:
-    TARGET_REPO: staging
-    TARGET_BRANCH: beta
-    AUTO_RELEASE: $AUTO_RELEASE_STAGING
-    PRODUCT_NAME: auto_inject-java
-
-release-prod-beta-repo-oci-package:
-  stage: deploy
-  extends: .release-oci-package
-  variables:
-    TARGET_REPO: prod
-    TARGET_BRANCH: beta
-    AUTO_RELEASE: $AUTO_RELEASE_PROD_BETA
-    PRODUCT_NAME: auto_inject-java
-
-release-prod-repo-oci-package:
-  stage: deploy
-  extends: .release-oci-package
-  variables:
-    TARGET_REPO: prod
-    TARGET_BRANCH: stable
-    AUTO_RELEASE: $AUTO_RELEASE_PROD_STABLE
     PRODUCT_NAME: auto_inject-java
 
 deploy_to_reliability_env:

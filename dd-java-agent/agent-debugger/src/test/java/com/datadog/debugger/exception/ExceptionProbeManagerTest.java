@@ -18,7 +18,7 @@ class ExceptionProbeManagerTest {
     RuntimeException exception = new RuntimeException("test");
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     exceptionProbeManager.createProbesForException(fingerprint, exception.getStackTrace());
-    assertTrue(exceptionProbeManager.isAlreadyInstrumented(fingerprint));
+    assertFalse(exceptionProbeManager.getProbes().isEmpty());
   }
 
   @Test

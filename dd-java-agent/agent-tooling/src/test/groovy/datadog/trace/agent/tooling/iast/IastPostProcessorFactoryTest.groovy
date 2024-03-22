@@ -12,8 +12,12 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner
 import net.bytebuddy.jar.asm.MethodVisitor
 import net.bytebuddy.jar.asm.Opcodes
 import net.bytebuddy.jar.asm.Type
+import spock.lang.Shared
 
 class IastPostProcessorFactoryTest extends DDSpecification {
+
+  @Shared
+  protected static final IastMetricCollector ORIGINAL_COLLECTOR = IastMetricCollector.INSTANCE
 
   private static final Type COLLECTOR_TYPE = Type.getType(IastMetricCollector)
   private static final Type METRIC_TYPE = Type.getType(IastMetric)
@@ -21,6 +25,14 @@ class IastPostProcessorFactoryTest extends DDSpecification {
   static class NonAnnotatedAdvice {
     @Advice.OnMethodExit
     static void exit() {}
+  }
+
+  void setup() {
+    IastMetricCollector.register(new IastMetricCollector())
+  }
+
+  void cleanup() {
+    IastMetricCollector.register(ORIGINAL_COLLECTOR)
   }
 
   void 'test factory for non annotated'() {
