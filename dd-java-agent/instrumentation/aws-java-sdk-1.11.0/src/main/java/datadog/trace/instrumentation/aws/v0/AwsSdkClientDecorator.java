@@ -39,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -108,6 +109,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
     if ("Amazon S3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
+
+      for (Object entry : request.getHeaders().entrySet()) {
+        System.out.printf("### request header v1 %s (%s)\n", entry.toString(), awsOperation);
+      }
     }
 
     switch (awsRequestName.toString()) {
@@ -255,7 +260,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   public AgentSpan onServiceResponse(final AgentSpan span, final String awsService, final Response response) {
-    System.out.println("### onServiceResponse -> " + awsService);
     if ("Amazon S3".equalsIgnoreCase(awsService) && span.traceConfig().isDataStreamsEnabled()) {
       long responseSize = getResponseContentLength(response);
       span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
@@ -263,6 +267,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       Object key = span.getTag(InstrumentationTags.AWS_OBJECT_KEY);
       Object bucket = span.getTag(InstrumentationTags.AWS_BUCKET_NAME);
       Object awsOperation = span.getTag(InstrumentationTags.AWS_OPERATION);
+
+      for ( Entry<String, String> entry : response.getHttpResponse().getHeaders().entrySet()) {
+        System.out.printf("### response header v1 %s=%s (%s)\n", entry.getKey(), entry.getValue(), awsOperation);
+      }
 
       if (key != null && bucket != null && awsOperation != null) {
         if ("GetObjectRequest".equalsIgnoreCase(awsOperation.toString())) {
