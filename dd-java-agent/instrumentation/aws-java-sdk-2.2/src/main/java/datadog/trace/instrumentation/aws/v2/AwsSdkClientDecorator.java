@@ -121,9 +121,20 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
-      for ( Entry<String, List<String>> entry : httpRequest.headers().entrySet()) {
-        System.out.printf("### request header v2 %s=%s (%s)\n", entry.getKey(), String.join(",", entry.getValue()), awsOperationName);
+      if (httpRequest.headers() != null) {
+        for ( Entry<String, List<String>> entry : httpRequest.headers().entrySet()) {
+          if (entry == null || entry.getKey() == null || entry.getValue() == null) {
+            continue;
+          }
+
+          System.out.printf(
+              "### request header v2 %s=%s (%s)\n",
+              entry.getKey(),
+              String.join(",", entry.getValue()), awsOperationName
+          );
+        }
       }
+
 
       request
           .getValueForField("Key", String.class)
@@ -362,8 +373,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         Object bucket = span.getTag(InstrumentationTags.AWS_BUCKET_NAME);
         Object awsOperation = span.getTag(InstrumentationTags.AWS_OPERATION);
 
-        for ( Entry<String, List<String>> entry : response.sdkHttpResponse().headers().entrySet()) {
-          System.out.printf("### response header v2 %s=%s (%s)\n", entry.getKey(), String.join(",", entry.getValue()), awsOperation);
+        SdkHttpResponse httpResponse = response.sdkHttpResponse();
+        if (httpResponse != null && httpResponse.headers() != null) {
+          for ( Entry<String, List<String>> entry : httpResponse.headers().entrySet()) {
+            if (entry == null || entry.getKey() == null || entry.getValue() == null) {
+              continue;
+            }
+            System.out.printf("### response header v2 %s=%s (%s)\n", entry.getKey(), String.join(",", entry.getValue()), awsOperation);
+          }
         }
 
         if (key != null && bucket != null && awsOperation != null) {

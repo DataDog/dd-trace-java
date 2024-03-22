@@ -274,7 +274,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
       if (key != null && bucket != null && awsOperation != null) {
         // GetObjectMetadataRequest may return the object if it's not "HEAD"
-        if ("GET".equals(span.getTag(Tags.HTTP_METHOD)) &&
+        if (HttpMethodName.GET.name().equals(span.getTag(Tags.HTTP_METHOD)) &&
             ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation.toString()) ||
             "GetObjectRequest".equalsIgnoreCase(awsOperation.toString()))) {
           System.out.println("### Downloading the object");
