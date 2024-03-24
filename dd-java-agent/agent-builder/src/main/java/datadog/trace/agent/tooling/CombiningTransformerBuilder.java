@@ -35,7 +35,12 @@ import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
-/** Builds multiple instrumentations into a single combining-matcher and splitting-transformer. */
+/**
+ * Builds {@link InstrumenterModule}s into a single combining-matcher and splitting-transformer.
+ *
+ * <p>Each transformation defined by a module is allocated a unique {@code transformationId} used to
+ * combine match results in a bitset. This bitset determines the transformations to apply to a type.
+ */
 public final class CombiningTransformerBuilder
     implements Instrumenter.TypeTransformer, Instrumenter.MethodTransformer {
 
@@ -152,14 +157,14 @@ public final class CombiningTransformerBuilder
 
     if (member instanceof Instrumenter.ForSingleType) {
       if (transformationId < knownTransformationCount) {
-        knownTypesMask.set(transformationId);
+        knownTypesMask.set(transformationId); // can use known-types index
       } else {
         String name = ((Instrumenter.ForSingleType) member).instrumentedType();
         matchers.add(new MatchRecorder.ForType(transformationId, named(name)));
       }
     } else if (member instanceof Instrumenter.ForKnownTypes) {
       if (transformationId < knownTransformationCount) {
-        knownTypesMask.set(transformationId);
+        knownTypesMask.set(transformationId); // can use known-types index
       } else {
         String[] names = ((Instrumenter.ForKnownTypes) member).knownMatchingTypes();
         matchers.add(new MatchRecorder.ForType(transformationId, namedOneOf(names)));

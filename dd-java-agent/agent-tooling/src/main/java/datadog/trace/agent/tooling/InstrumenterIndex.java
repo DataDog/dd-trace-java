@@ -29,12 +29,18 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Maintains an index . */
+/**
+ * Maintains an index of known {@link InstrumenterModule}s and their expected transformations.
+ *
+ * <p>This index is not thread-safe; it expects only one thread to iterate over it at a time. It
+ * also assumes indexed types have simple ASCII names which are less than 256 characters long.
+ */
 final class InstrumenterIndex {
   private static final Logger log = LoggerFactory.getLogger(InstrumenterIndex.class);
 
   private static final String INSTRUMENTER_INDEX_NAME = "instrumenter.index";
 
+  // Special memberCount that indicates a module contains itself as a transformation
   private static final int SELF_MEMBERSHIP = 0xFF;
 
   private static final ClassLoader loader = Instrumenter.class.getClassLoader();
@@ -97,14 +103,17 @@ final class InstrumenterIndex {
     }
   }
 
+  /** Maximum known count of {@link InstrumenterModule} instrumentations. */
   public int instrumentationCount() {
     return instrumentationCount;
   }
 
+  /** Maximum known count of {@link Instrumenter} transformations. */
   public int transformationCount() {
     return transformationCount;
   }
 
+  /** Returns the id allocated to the instrumentation; {@code -1} if unknown. */
   public int instrumentationId(InstrumenterModule module) {
     if (module.getClass().getName().equals(moduleName)) {
       return instrumentationId;
@@ -112,17 +121,19 @@ final class InstrumenterIndex {
     return -1;
   }
 
+  /** Returns the id allocated to the transformation; {@code -1} if unknown. */
   public int transformationId(Instrumenter member) {
     if (null == memberName && memberCount > 0) {
-      nextMember();
+      nextMember(); // move through expected members as transformations are applied
     }
     if (null != memberName && member.getClass().getName().endsWith(memberName)) {
-      memberName = null;
+      memberName = null; // mark member as used for this iteration
       return transformationId;
     }
     return -1;
   }
 
+  /** Resets the iteration to the start of the index. */
   void restart() {
     nameIndex = 0;
     instrumentationId = -1;
@@ -130,16 +141,19 @@ final class InstrumenterIndex {
     memberCount = 0;
   }
 
+  /** Is there another known {@link InstrumenterModule} left in the index? */
   boolean hasNextModule() {
     return instrumentationCount - instrumentationId > 1;
   }
 
+  /** Returns the next {@link InstrumenterModule} in the index. */
   InstrumenterModule nextModule() {
     while (memberCount > 0) {
-      skipMember();
+      skipMember(); // skip past unmatched members from previous module
     }
     InstrumenterModule module = modules[++instrumentationId];
     if (null != module) {
+      // use data from previously loaded module
       moduleName = module.getClass().getName();
       skipName();
     } else {
@@ -164,17 +178,19 @@ final class InstrumenterIndex {
       Class<InstrumenterModule> nextType = (Class) loader.loadClass(moduleName);
       return nextType.getConstructor().newInstance();
     } catch (Throwable e) {
-      log.error("Failed to load instrumentation module {}", moduleName, e);
+      log.error("Failed to build instrumentation module {}", moduleName, e);
       return null;
     }
   }
 
+  /** Moves onto the next member in the expected sequence. */
   private void nextMember() {
     memberCount--;
     transformationId++;
     memberName = readName();
   }
 
+  /** Skips past the next member in the expected sequence. */
   private void skipMember() {
     memberCount--;
     transformationId++;

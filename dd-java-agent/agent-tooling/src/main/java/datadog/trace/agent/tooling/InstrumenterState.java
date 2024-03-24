@@ -8,7 +8,13 @@ import java.util.concurrent.atomic.AtomicLongArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Tracks instrumentation state, such as where it was applied and where it was blocked. */
+/**
+ * Tracks instrumentation state, such as where it was applied and where it was blocked.
+ *
+ * <p>Each {@link InstrumenterModule} is allocated a unique {@code instrumentationId} by {@code
+ * AgentInstaller} which it registers with {@link InstrumenterState} and uses to apply or block the
+ * instrumentation per-class-loader, for example if {@code MuzzleCheck} detects an incompatibility.
+ */
 public final class InstrumenterState {
   private static final Logger log = LoggerFactory.getLogger(InstrumenterState.class);
 
