@@ -497,8 +497,6 @@ class CoreTracerTest extends DDCoreSpecification {
       .build()
 
     then:
-    println("ServiceName: "+Config.get().serviceName)
-    println("EnvName: "+Config.get().env)
 
     1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
       updater = it[1] // capture config updater for further testing
