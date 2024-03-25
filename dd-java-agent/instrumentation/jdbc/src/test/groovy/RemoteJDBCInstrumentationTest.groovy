@@ -164,6 +164,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
 
+
     prepareConnectionPoolDatasources()
   }
 
@@ -512,7 +513,61 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "mysql"      | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
   }
 
-  def "prepared procedure call on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+  def "prepared JDBC syntax procedure call without return value on #driver with #connection.getClass().getCanonicalName() does not hang"() {
+    setup:
+
+    String createSql
+    if (driver == "postgresql") {
+      createSql =
+        """
+    CREATE OR REPLACE PROCEDURE dummy(res integer)
+    LANGUAGE SQL
+    AS \$\$
+        SELECT 1;
+    \$\$;
+    """
+    } else if (driver == "mysql") {
+      createSql =
+        """
+    CREATE PROCEDURE IF NOT EXISTS dummy(res int)
+    BEGIN
+        SELECT 1;
+    END
+    """
+    } else {
+      assert false
+    }
+
+
+    connection.prepareCall(createSql).execute()
+
+    injectSysConfig("dd.dbm.propagation.mode", "full")
+    CallableStatement proc = connection.prepareCall(query)
+    proc.setInt(1,1)
+    when:
+    runUnderTrace("parent") {
+      return proc.execute()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    assert true
+
+    cleanup:
+    if (proc != null) {
+      proc.close()
+    }
+    connection.close()
+
+    where:
+    driver       | connection                                              | query
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "{CALL dummy(?)}"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "{CALL dummy(?)}"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "{CALL dummy(?)}"
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "{CALL dummy(?)}"
+  }
+
+  def "prepared procedure call with return value on #driver with #connection.getClass().getCanonicalName() does not hang"() {
     setup:
 
     String createSql
