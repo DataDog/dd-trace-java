@@ -103,25 +103,20 @@ public class IastMetricCollector implements MetricCollector<IastMetricCollector.
   }
 
   public void addMetric(final IastMetric metric, final byte tagValue, final int value) {
-    final Tag tag = metric.getTag();
-    if (tag != null) {
-      final byte[] unwrapped = tag.unwrap(tagValue);
-      if (unwrapped != null) {
-        // e.g.: VulnerabilityTypes.RESPONSE_HEADER
-        for (final byte unwrappedValue : unwrapped) {
-          increment(metric.getIndex(unwrappedValue), value);
-        }
-      } else {
-        increment(metric.getIndex(tagValue), value);
-      }
-    } else {
-      increment(metric.getIndex(tagValue), value);
-    }
-  }
-
-  private void increment(final int index, final int value) {
+    final int index = metric.getIndex(tagValue);
     if (index >= 0) {
       counters.getAndAdd(index, value);
+    } else if (tagValue < 0) {
+      final Tag tag = metric.getTag();
+      final byte[] unwrapped = tag == null ? null : tag.unwrap(tagValue);
+      if (unwrapped != null) {
+        for (byte unwrappedValue : unwrapped) {
+          final int unwrappedIndex = metric.getIndex(unwrappedValue);
+          if (unwrappedIndex >= 0) {
+            counters.getAndAdd(unwrappedIndex, value);
+          }
+        }
+      }
     }
   }
 
