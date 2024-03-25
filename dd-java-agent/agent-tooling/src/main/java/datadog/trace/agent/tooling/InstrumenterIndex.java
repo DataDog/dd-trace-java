@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -256,6 +257,8 @@ final class InstrumenterIndex {
         log.error("Failed to load instrumentation module {}", moduleName, e);
       }
     }
+    // enforce module ordering (lowest-value first) before indexing
+    modules.sort(Comparator.comparing(InstrumenterModule::order));
     return modules;
   }
 
