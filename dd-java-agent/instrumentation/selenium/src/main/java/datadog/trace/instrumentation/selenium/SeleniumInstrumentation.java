@@ -59,12 +59,25 @@ public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   public static class GetPageAdvice {
-    @Advice.OnMethodExit
-    public static void onPageLoadFinish(@Advice.This WebDriver driver) {
-      if (!(driver instanceof JavascriptExecutor)) {
+    @Advice.OnMethodEnter
+    public static void beforePageLoad(@Advice.This WebDriver driver) {
+      AgentSpan span = activeSpan();
+      if (span == null) {
+        // no active span
         return;
       }
 
+      String spanType = span.getSpanType();
+      if (spanType == null || !spanType.contentEquals(InternalSpanTypes.TEST)) {
+        // not in a test
+        return;
+      }
+
+      SeleniumUtils.injectRumContext(driver, span);
+    }
+
+    @Advice.OnMethodExit
+    public static void afterPageLoad(@Advice.This WebDriver driver) {
       AgentSpan span = activeSpan();
       if (span == null) {
         // no active span
@@ -92,7 +105,7 @@ public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
         span.setTag(Tags.TEST_BROWSER_VERSION, browserVersion);
       }
 
-      if (SeleniumUtils.injectRumContext((JavascriptExecutor) driver, span)) {
+      if (driver instanceof JavascriptExecutor && SeleniumUtils.isRumAvailable((JavascriptExecutor) driver)) {
         span.setTag(Tags.TEST_IS_RUM_ACTIVE, true);
       }
     }

@@ -7,21 +7,40 @@
   <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <script>
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2){
+        return parts.pop().split(';').shift();
+      }
+    }
+
     window.DD_RUM = {
       stopSession: function() {
-        const testExecutionId = window.sessionStorage.getItem('dd_ci_visibility_test_execution_id')
-        if (!!testExecutionId) {
-          const data = {test_execution_id: testExecutionId};
-          const jsonData = JSON.stringify(data);
-          const url = `{{RUM_DATA_VERIFICATION_URL_PLACEHOLDER}}`;
+        // const testExecutionId = getCookie('dd_ci_visibility_test_execution_id')
+        // if (!!testExecutionId) {
+        //   const data = {test_execution_id: testExecutionId};
+        //   const jsonData = JSON.stringify(data);
+        //   const url = `{{RUM_DATA_VERIFICATION_URL_PLACEHOLDER}}`;
+        //
+        //   var xhr = new XMLHttpRequest();
+        //   xhr.open('POST', url, true);
+        //   xhr.setRequestHeader('Content-Type', 'application/json');
+        //   xhr.send(jsonData);
+        //
+        //   window.sessionStorage.removeItem('dd_ci_visibility_test_execution_id');
+        // }
 
-          var xhr = new XMLHttpRequest();
-          xhr.open('POST', url, true); // "true" means the request is asynchronous
-          xhr.setRequestHeader('Content-Type', 'application/json');
-          xhr.send(jsonData);
+        // FIXME nikita
+        const value = `; ${document.cookie}`;
+        const data = { v: value };
+        const jsonData = JSON.stringify(data);
+        const url = `{{RUM_DATA_VERIFICATION_URL_PLACEHOLDER}}`;
 
-          window.sessionStorage.removeItem('dd_ci_visibility_test_execution_id');
-        }
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url, false);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(jsonData);
       }
     };
   </script>

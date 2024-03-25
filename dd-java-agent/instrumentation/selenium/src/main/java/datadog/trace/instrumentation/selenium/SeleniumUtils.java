@@ -7,6 +7,7 @@ import java.net.URL;
 import java.util.Properties;
 import javax.annotation.Nullable;
 import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.Cookie;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -40,17 +41,17 @@ public abstract class SeleniumUtils {
     }
   }
 
-  public static boolean injectRumContext(JavascriptExecutor js, AgentSpan span) {
-    return (boolean)
-        js.executeScript(
-            String.format(
-                "if (!!window.DD_RUM) {"
-                    + "  window.sessionStorage.setItem('dd_ci_visibility_test_execution_id', '%s');"
-                    + "  return true; "
-                    + "} else {"
-                    + "  return false; "
-                    + "}",
-                span.getTraceId().toLong()));
+  public static void injectRumContext(WebDriver driver, AgentSpan span) {
+    WebDriver.Options options = driver.manage();
+    if (options != null) {
+      // options can be null if the driver is not finished initialization yet
+      // (which is the case when the driver's home page is opened)
+      options.addCookie(new Cookie("dd_ci_visibility_test_execution_id", span.getTraceId().toString()));
+    }
+  }
+
+  public static boolean isRumAvailable(JavascriptExecutor js) {
+    return (boolean) js.executeScript("return !!window.DD_RUM;");
   }
 
   public static void stopRumSession(JavascriptExecutor js) {
