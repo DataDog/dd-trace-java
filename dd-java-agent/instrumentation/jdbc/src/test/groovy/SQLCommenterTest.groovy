@@ -1,7 +1,7 @@
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.instrumentation.jdbc.SQLCommenter
+import datadog.trace.test.util.DDSpecification
 
-class SQLCommenterTest extends AgentTestRunner {
+class SQLCommenterTest extends DDSpecification {
 
   def "test find first word"() {
     setup:
