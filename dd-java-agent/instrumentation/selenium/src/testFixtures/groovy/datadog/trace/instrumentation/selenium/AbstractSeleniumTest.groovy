@@ -36,7 +36,8 @@ abstract class AbstractSeleniumTest extends CiVisibilityInstrumentationTest {
       }
 
       post(RUM_DATA_PATH) {
-        rumData.offer(jsonMapper.readerFor(Map).readValue(request.body))
+        def req = jsonMapper.readerFor(Map).readValue(request.body)
+        rumData.offer(req)
       }
     }
   }
