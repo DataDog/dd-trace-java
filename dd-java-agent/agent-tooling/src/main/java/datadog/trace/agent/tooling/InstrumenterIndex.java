@@ -277,7 +277,7 @@ final class InstrumenterIndex {
     return lines.toArray(new String[0]);
   }
 
-  /** Generates an index. */
+  /** Generates an index from known {@link InstrumenterModule}s on the build class-path. */
   static final class IndexGenerator {
     final ByteArrayOutputStream packedNames = new ByteArrayOutputStream();
 
