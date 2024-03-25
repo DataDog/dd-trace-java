@@ -164,7 +164,6 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
 
-
     prepareConnectionPoolDatasources()
   }
 
@@ -562,9 +561,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     where:
     driver       | connection                                              | query
     "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "{CALL dummy(?)}"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "{CALL dummy(?)}"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "{CALL dummy(?)}"
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "{CALL dummy(?)}"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "{ CALL dummy(?)}"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | " { CALL dummy(?)}"
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | " {CALL dummy(?)}"
   }
 
   def "prepared procedure call with return value on #driver with #connection.getClass().getCanonicalName() does not hang"() {

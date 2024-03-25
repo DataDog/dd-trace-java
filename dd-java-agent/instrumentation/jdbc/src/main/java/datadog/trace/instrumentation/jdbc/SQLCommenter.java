@@ -44,6 +44,26 @@ public class SQLCommenter {
     return inject(sql, dbService, dbType, hostname, dbName, null, false, false);
   }
 
+  public static boolean isProcedureCall(final String sql) {
+    if (sql.isEmpty()) return false;
+    int beginIndex = 0;
+    while (beginIndex < sql.length()
+        && (Character.isWhitespace(sql.charAt(beginIndex)) || sql.charAt(beginIndex) == '{')) {
+      beginIndex++;
+    }
+    return beginIndex + 3 < sql.length()
+        && sql.substring(beginIndex, beginIndex + 4).equalsIgnoreCase("call");
+  }
+
+  public static boolean isJDBCStatement(final String sql) {
+    if (sql.isEmpty()) return false;
+    int charIndex = 0;
+    while (charIndex < sql.length() && Character.isWhitespace(sql.charAt(charIndex))) {
+      charIndex++;
+    }
+    return charIndex < sql.length() && sql.charAt(charIndex) == '{';
+  }
+
   public static String inject(
       final String sql,
       final String dbService,
@@ -61,20 +81,16 @@ public class SQLCommenter {
     }
 
     if (dbType != null) {
-      final String trimmedSql = sql.trim().toLowerCase();
-
       // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable statements
       // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
       // TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
-      if (trimmedSql.startsWith("{") && dbType.startsWith("postgres")) {
+      if (isJDBCStatement(sql) && dbType.startsWith("postgres")) {
         return sql;
       }
 
       // Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
       // invocation but they seem ok with it after so we force append mode
-      if (trimmedSql.startsWith("call")
-          || trimmedSql.startsWith("{call")
-          || trimmedSql.startsWith("{ call")) {
+      if (isProcedureCall(sql)) {
         appendComment = true;
       }
     }

@@ -3,6 +3,49 @@ import datadog.trace.instrumentation.jdbc.SQLCommenter
 
 class SQLCommenterTest extends AgentTestRunner {
 
+  def "test isProcedureCall"() {
+    setup:
+
+    when:
+    boolean isCall = SQLCommenter.isProcedureCall(sql)
+
+    then:
+    isCall == isProcedureCall
+
+    where:
+    sql               | isProcedureCall
+    "SELECT *"        | false
+    "  { "            | false
+    "{"               | false
+    "{call"           | true
+    "{  call"         | true
+    "CALL ( ? )"      | true
+    ""                | false
+    "   "             | false
+  }
+
+
+  def "test isJDBCStatement"() {
+    setup:
+
+    when:
+    boolean isJDBC = SQLCommenter.isJDBCStatement(sql)
+
+    then:
+    isJDBC == isJDBCStatement
+
+    where:
+    sql               | isJDBCStatement
+    "SELECT *"        | false
+    "  { "            | true
+    "{"               | true
+    "{call"           | true
+    "{  call"         | true
+    "CALL ( ? )"      | false
+    ""                | false
+    "   "             | false
+  }
+
   def "test encode Sql Comment"() {
     setup:
     injectSysConfig("dd.service", ddService)
@@ -30,11 +73,11 @@ class SQLCommenterTest extends AgentTestRunner {
     query                                                                                                         | ddService      | ddEnv  | dbService    | dbType     | host | dbName | ddVersion     | injectTrace | appendComment | traceParent                                               | expected
     "SELECT * FROM foo"                                                                                           | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | true          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "SELECT * FROM foo /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
     "SELECT * FROM foo"                                                                                           | "SqlCommenter" | "Test" | "my-service" | "postgres" | "h"  | "n"    | "TestVersion" | true        | true          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "SELECT * FROM foo /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
-    "{ call dogshelterProc(?, ?)}"                                                                                | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | false         | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "{ call dogshelterProc(?, ?)} /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
-    "{call dogshelterProc(?, ?)}"                                                                                 | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | false         | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "{call dogshelterProc(?, ?)} /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
-    "{call dogshelterProc(?, ?)}"                                                                                 | "SqlCommenter" | "Test" | "my-service" | "postgres" | "h"  | "n"    | "TestVersion" | true        | false         | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "{call dogshelterProc(?, ?)}"
-    "CALL dogshelterProc(?, ?)"                                                                                   | "SqlCommenter" | "Test" | "my-service" | "postgres" | "h"  | "n"    | "TestVersion" | true        | false         | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "CALL dogshelterProc(?, ?) /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
-    "CALL dogshelterProc(?, ?)"                                                                                   | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | false         | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "CALL dogshelterProc(?, ?) /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+    "{ call dogshelterProc(?, ?)}"                                                                                | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | false          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "{ call dogshelterProc(?, ?)} /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+    "{  call dogshelterProc(?, ?)}"                                                                                 | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | false          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "{  call dogshelterProc(?, ?)} /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+    "{call dogshelterProc(?, ?)}"                                                                                 | "SqlCommenter" | "Test" | "my-service" | "postgres" | "h"  | "n"    | "TestVersion" | true        | false          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "{call dogshelterProc(?, ?)}"
+    "CALL dogshelterProc(?, ?)"                                                                                   | "SqlCommenter" | "Test" | "my-service" | "postgres" | "h"  | "n"    | "TestVersion" | true        | false          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "CALL dogshelterProc(?, ?) /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+    "CALL dogshelterProc(?, ?)"                                                                                   | "SqlCommenter" | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | false          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "CALL dogshelterProc(?, ?) /*ddps='SqlCommenter',dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
     "SELECT * FROM foo"                                                                                           | ""             | "Test" | ""           | "mysql"    | "h"  | "n"    | "TestVersion" | true        | true          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "SELECT * FROM foo /*ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
     "SELECT * FROM foo"                                                                                           | ""             | "Test" | "my-service" | "mysql"    | "h"  | "n"    | "TestVersion" | true        | true          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "SELECT * FROM foo /*dddbs='my-service',ddh='h',dddb='n',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
     "SELECT * FROM foo"                                                                                           | "SqlCommenter" | "Test" | "my-service" | "mysql"    | ""   | ""     | "TestVersion" | true        | true          | "00-00000000000000007fffffffffffffff-000000024cb016ea-00" | "SELECT * FROM foo /*ddps='SqlCommenter',dddbs='my-service',dde='Test',ddpv='TestVersion',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
