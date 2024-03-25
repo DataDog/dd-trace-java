@@ -28,11 +28,10 @@ variables:
     value: "false"
     description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
-.common: &common
-  tags: [ "runner:main", "size:large" ]
+default:
+  tags: [ "arch:amd64" ]
 
 .docker: &docker
-  tags: [ "arch:amd64", "size:large" ]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:20.10.13
   cache:
     key: no-cache
@@ -57,10 +56,10 @@ cache:
     paths:
       - .gradle/caches/8.4 # must match gradle-wrapper.properties
       - workspace/.gradle
+      - workspace/**/build/**
     policy: $BUILD_CACHE_POLICY
 
 .gradle_build: &gradle_build
-  <<: *common
   image: ghcr.io/datadog/dd-trace-java-docker-build:v23.10-base
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
@@ -78,6 +77,7 @@ build: &build
   stage: build
   variables:
     BUILD_CACHE_POLICY: push
+    DEPENDENCY_CACHE_POLICY: pull
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -213,7 +213,6 @@ deploy_to_sonatype:
 deploy_artifacts_to_github:
   stage: deploy
   image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
-  tags: [ "arch:amd64" ]
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -276,7 +275,6 @@ create_key:
   stage: generate-signing-key
   when: manual
   needs: [ ]
-  tags: [ "arch:amd64", "size:large" ]
   variables:
     PROJECT_NAME: "dd-trace-java"
     EXPORT_TO_KEYSERVER: "true"
