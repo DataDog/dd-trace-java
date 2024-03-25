@@ -32,7 +32,7 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  *     HttpRequest}
  * @see UnmarshallerInstrumentation propagates taint on unmarshalling of {@link HttpRequest}
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ExtractDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public ExtractDirectivesInstrumentation() {

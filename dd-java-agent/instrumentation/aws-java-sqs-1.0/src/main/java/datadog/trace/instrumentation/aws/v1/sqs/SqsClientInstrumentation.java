@@ -15,7 +15,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 /** AWS SDK v1 instrumentation */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   private static final String INSTRUMENTATION_NAME = "aws-sdk";

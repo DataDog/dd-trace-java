@@ -20,7 +20,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JsonReaderInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

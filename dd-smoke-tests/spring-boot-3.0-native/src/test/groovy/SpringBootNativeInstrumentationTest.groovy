@@ -1,7 +1,12 @@
 import datadog.smoketest.AbstractServerSmokeTest
 import okhttp3.Request
+import org.openjdk.jmc.common.item.IItemCollection
+import org.openjdk.jmc.common.item.ItemFilters
+import org.openjdk.jmc.flightrecorder.internal.InvalidJfrFileException
 import spock.lang.Shared
 import spock.lang.TempDir
+
+import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
 
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -9,6 +14,7 @@ import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.LockSupport
 
 class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
   @Shared
@@ -32,7 +38,8 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
       "--server.port=${httpPort}",
       '-Ddd.profiling.upload.period=1',
       '-Ddd.profiling.start-force-first=true',
-      "-Ddd.profiling.debug.dump_path=${testJfrDir}"
+      "-Ddd.profiling.debug.dump_path=${testJfrDir}",
+      "-Ddd.integration.spring-boot.enabled=true"
     ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -56,12 +63,18 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     def response = client.newCall(new Request.Builder().url(url).get().build()).execute()
 
     then:
+    def ts = System.nanoTime()
     def responseBodyStr = response.body().string()
     responseBodyStr != null
     responseBodyStr.contains("Hello world")
     waitForTraceCount(1)
 
     // sanity test for profiler generating JFR files
+    // the recording is collected after 1 second of execution
+    // make sure the app has been up and running for at least 1.5 seconds
+    while (System.nanoTime() - ts < 1_500_000_000L) {
+      LockSupport.parkNanos(1_000_000)
+    }
     countJfrs() > 0
 
     when:
@@ -88,7 +101,15 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
         @Override
         FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
           if (file.toString().endsWith(".jfr")) {
-            jfrCount.incrementAndGet()
+            try {
+              IItemCollection events = JfrLoaderToolkit.loadEvents(file.toFile())
+              if (events.apply(ItemFilters.type("jdk.ExecutionSample")).hasItems()) {
+                jfrCount.incrementAndGet()
+                return FileVisitResult.SKIP_SIBLINGS
+              }
+            } catch (InvalidJfrFileException ignored) {
+              // the recording captured at process exit might be incomplete
+            }
           }
           return FileVisitResult.CONTINUE
         }

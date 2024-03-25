@@ -20,7 +20,7 @@ import scala.concurrent.Future;
  * Http2 support in akka-http is handled by a separate {@code Http2} extension that only supports
  * {@code bindAndHandleAsync}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AkkaHttp2ServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public AkkaHttp2ServerInstrumentation() {

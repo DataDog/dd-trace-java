@@ -22,7 +22,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.Future;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public AkkaHttpSingleRequestInstrumentation() {

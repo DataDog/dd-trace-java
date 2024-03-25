@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
@@ -60,7 +61,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   protected final String packageName = Strings.getPackageName(getClass().getName());
 
   public InstrumenterModule(final String instrumentationName, final String... additionalNames) {
-    instrumentationId = Instrumenters.currentInstrumentationId();
+    instrumentationId = InstrumenterModules.currentInstrumentationId();
     instrumentationNames = new ArrayList<>(1 + additionalNames.length);
     instrumentationNames.add(instrumentationName);
     addAll(instrumentationNames, additionalNames);
@@ -239,7 +240,9 @@ public abstract class InstrumenterModule implements Instrumenter {
 
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.IAST);
+      return enabledSystems.contains(TargetSystem.IAST)
+          || (isOptOutEnabled()
+              && InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED);
     }
 
     /**
@@ -266,6 +269,10 @@ public abstract class InstrumenterModule implements Instrumenter {
     @Override
     public Advice.PostProcessor.Factory postProcessor() {
       return IastPostProcessorFactory.INSTANCE;
+    }
+
+    protected boolean isOptOutEnabled() {
+      return false;
     }
   }
 

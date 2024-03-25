@@ -187,13 +187,12 @@ public final class ProfilingConfig {
   public static final String PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED =
       "profiling.context.attributes.resource.name.enabled";
 
-  public static final String PROFILING_QUEUEING_TIME_ENABLED =
-      "profiling.experimental.queueing.time.enabled";
+  public static final String PROFILING_QUEUEING_TIME_ENABLED = "profiling.queueing.time.enabled";
 
-  public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = false;
+  public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
-      "profiling.experimental.queueing.time.threshold.millis";
+      "profiling.queueing.time.threshold.millis";
 
   public static final long PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT = 50;
 

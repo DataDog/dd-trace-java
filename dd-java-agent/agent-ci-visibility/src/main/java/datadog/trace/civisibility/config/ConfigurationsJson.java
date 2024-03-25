@@ -59,7 +59,9 @@ public final class ConfigurationsJson {
     this.custom = custom;
   }
 
-  public static final class ConfigurationsJsonAdapter {
+  public static final class JsonAdapter {
+    public static final JsonAdapter INSTANCE = new JsonAdapter();
+
     @FromJson
     public Configurations fromJson(ConfigurationsJson configurationsJson) {
       return new Configurations(

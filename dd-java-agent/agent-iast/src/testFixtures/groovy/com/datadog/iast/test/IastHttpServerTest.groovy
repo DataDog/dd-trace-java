@@ -7,7 +7,7 @@ import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.iast.IastContext
+import datadog.trace.api.gateway.RequestContextSlot
 import groovy.json.JsonBuilder
 import groovy.transform.CompileStatic
 
@@ -29,11 +29,11 @@ abstract class IastHttpServerTest<SERVER> extends WithHttpServer<SERVER> impleme
   protected Closure getRequestEndAction() {
     { RequestContext requestContext, IGSpanInfo igSpanInfo ->
       // request end action
-      IastRequestContext iastRequestContext = IastContext.Provider.get(requestContext)
+      IastRequestContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST)
       if (iastRequestContext) {
         TaintedObjects taintedObjects = iastRequestContext.getTaintedObjects()
         TAINTED_OBJECTS.offer(new TaintedObjectCollection(taintedObjects))
-        List<Vulnerability> vulns = iastRequestContext.getVulnerabilityBatch().getVulnerabilities()
+        List<Vulnerability> vulns = iastRequestContext.getVulnerabilityBatch().getVulnerabilities() ?: []
         VULNERABILITIES.offer(vulns)
       }
     }

@@ -62,25 +62,13 @@ public interface IastContext {
       return INSTANCE.resolve();
     }
 
-    /**
-     * Gets the current IAST context associated with the request context inside the span
-     *
-     * @see #get(RequestContext)
-     */
+    /** Gets the current IAST context associated with the request context inside the span */
     @Nullable
     public static IastContext get(@Nullable final AgentSpan span) {
       if (span == null) {
         return null;
       }
-      return get(span.getRequestContext());
-    }
-
-    /**
-     * Gets the current IAST context associated with the request context, if the request context is
-     * {@code null} then it returns {@code null}
-     */
-    @Nullable
-    public static IastContext get(@Nullable final RequestContext reqCtx) {
+      final RequestContext reqCtx = span.getRequestContext();
       if (reqCtx == null) {
         return null;
       }

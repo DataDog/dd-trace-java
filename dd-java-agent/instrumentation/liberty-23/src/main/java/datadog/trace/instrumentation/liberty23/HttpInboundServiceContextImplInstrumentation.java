@@ -20,7 +20,7 @@ import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpInboundServiceContextImplInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public static final String REQUEST_MSG_TYPE =

@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.HttpChannel;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ArmeriaJettyInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ArmeriaJettyInstrumentation() {

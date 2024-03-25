@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import redis.clients.jedis.Connection;
 import redis.clients.jedis.Protocol.Command;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class JedisInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -14,7 +14,7 @@ import io.vertx.ext.web.impl.RoutingContextImpl;
  * @see RoutingContextImpl#getBodyAsJson(int)
  * @see RoutingContextImpl#getBodyAsJsonArray(int)
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

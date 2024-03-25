@@ -14,7 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ZuulSendForwardFilterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ZuulSendForwardFilterInstrumentation() {

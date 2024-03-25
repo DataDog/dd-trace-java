@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.debugger;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -63,7 +64,7 @@ public class DebuggerContext {
   }
 
   public interface ExceptionDebugger {
-    void handleException(Throwable t);
+    void handleException(Throwable t, AgentSpan span);
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -322,7 +323,7 @@ public class DebuggerContext {
         } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
           probeImplementation = exitStatus.probeImplementation;
         } else {
-          throw new IllegalStateException("no probe details");
+          throw new IllegalStateException("no probe details for " + encodedProbeId);
         }
         probeImplementation.commit(entryContext, exitContext, caughtExceptions);
       }
@@ -331,11 +332,15 @@ public class DebuggerContext {
     }
   }
 
-  public static void handleException(Throwable t) {
-    ExceptionDebugger exDebugger = exceptionDebugger;
-    if (exDebugger == null) {
-      return;
+  public static void handleException(Throwable t, AgentSpan span) {
+    try {
+      ExceptionDebugger exDebugger = exceptionDebugger;
+      if (exDebugger == null) {
+        return;
+      }
+      exDebugger.handleException(t, span);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in handleException: ", ex);
     }
-    exDebugger.handleException(t);
   }
 }

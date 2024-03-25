@@ -5,8 +5,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -16,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class AbstractFormProviderInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
@@ -36,15 +40,18 @@ public class AbstractFormProviderInstrumentation extends InstrumenterModule.Iast
     return "org.glassfish.jersey.message.internal.AbstractFormProvider";
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class InstrumenterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    public static void onExit(@Advice.Return Map<String, List<String>> result) {
+    public static void onExit(
+        @Advice.Return Map<String, List<String>> result,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule prop = InstrumentationBridge.PROPAGATION;
       if (prop == null || result == null || result.isEmpty()) {
         return;
       }
-      final IastContext ctx = IastContext.Provider.get();
+      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
       for (Map.Entry<String, List<String>> entry : result.entrySet()) {
         final String name = entry.getKey();
         prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);

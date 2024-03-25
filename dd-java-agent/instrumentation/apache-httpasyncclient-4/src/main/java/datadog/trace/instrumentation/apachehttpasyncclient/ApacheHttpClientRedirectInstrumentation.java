@@ -21,7 +21,7 @@ import org.apache.http.HttpRequest;
  * manually. Inspired by
  * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-plugins/apm-apache-httpclient-plugin/src/main/java/co/elastic/apm/agent/httpclient/ApacheHttpAsyncClientRedirectInstrumentation.java
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ApacheHttpClientRedirectInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

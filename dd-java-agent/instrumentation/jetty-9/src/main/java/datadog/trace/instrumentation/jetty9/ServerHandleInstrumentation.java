@@ -27,7 +27,7 @@ import org.eclipse.jetty.server.Request;
  * <p>One possibility for detecting these is using HttpChannel.Listener's onBeforeDispatch/
  * onDispatchFailure/onAfterDispatch. These are only available starting in 9.4 though.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ServerHandleInstrumentation() {

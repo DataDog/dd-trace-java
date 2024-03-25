@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.ApplicationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
@@ -517,4 +519,49 @@ class JettyServlet3ServeFromAsyncTimeout extends JettyServlet3Test {
   boolean testException() {
     false
   }
+}
+
+class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('dd.iast.enabled', 'true')
+  }
+
+  void 'test no calls if no modules registered'() {
+    given:
+    final appModule = Mock(ApplicationModule)
+    def request = request(SUCCESS, "GET", null).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    0 * appModule.onRealPath(_)
+    0 * _
+
+  }
+
+  void 'test that iast module is called'() {
+    given:
+    final appModule = Mock(ApplicationModule)
+    InstrumentationBridge.registerIastModule(appModule)
+    def request = request(SUCCESS, "GET", null).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    1 *  appModule.onRealPath(_)
+    0 * _
+
+    when:
+    client.newCall(request).execute()
+
+    then: //Only call once per application context
+    0 *  appModule.onRealPath(_)
+    0 * _
+  }
+
 }

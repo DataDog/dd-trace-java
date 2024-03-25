@@ -6,6 +6,7 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.api.intake.TrackType
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.common.writer.Payload

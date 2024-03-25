@@ -24,7 +24,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-import static com.datadog.iast.IastTag.ANALYZED
+import static com.datadog.iast.IastTag.Enabled.ANALYZED
 import static com.datadog.iast.test.TaintedObjectsUtils.noOpTaintedObjects
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 

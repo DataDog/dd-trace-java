@@ -18,7 +18,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class PartitionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public PartitionInstrumentation() {

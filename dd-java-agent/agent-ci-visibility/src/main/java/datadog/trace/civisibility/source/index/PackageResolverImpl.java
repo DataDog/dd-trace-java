@@ -7,6 +7,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import javax.annotation.Nullable;
 
 public class PackageResolverImpl implements PackageResolver {
 
@@ -26,7 +27,10 @@ public class PackageResolverImpl implements PackageResolver {
    * <p>It simply looks for a line, that contains the <code>package</code> keyword and extracts the
    * part that goes after it and until the nearest <code>;</code> character, then verifies that the
    * extracted part looks plausible by checking the actual file path.
+   *
+   * @return the package path or <code>null</code> if the file is in the default package
    */
+  @Nullable
   @Override
   public Path getPackage(Path sourceFile) throws IOException {
     Path folder = sourceFile.getParent();
@@ -65,6 +69,6 @@ public class PackageResolverImpl implements PackageResolver {
     }
 
     // apparently there is no package declaration - class is located in the default package
-    return fileSystem.getPath("");
+    return null;
   }
 }

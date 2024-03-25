@@ -23,7 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** See https://github.com/akka/akka-http/issues/4304 */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Bug4304Instrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure {
   public Bug4304Instrumentation() {

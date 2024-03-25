@@ -22,7 +22,7 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.http.nio.NHttpClientConnection;
 import org.apache.synapse.transport.passthru.TargetContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class SynapseClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

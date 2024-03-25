@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  * the {@code testHandle} method in the {@code HttpServerTestHandlerBridge}, that can interact with
  * the test code in {@code HttpServerTest}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpServerTestHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

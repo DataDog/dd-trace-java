@@ -27,7 +27,7 @@ import net.bytebuddy.asm.Advice;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

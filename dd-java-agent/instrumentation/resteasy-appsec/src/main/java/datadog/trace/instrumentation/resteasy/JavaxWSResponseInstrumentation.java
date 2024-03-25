@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JavaxWSResponseInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
@@ -44,6 +44,11 @@ public class JavaxWSResponseInstrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(hierarchyMarkerType()));
+  }
+
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
   }
 
   public static class HeaderAdvice {

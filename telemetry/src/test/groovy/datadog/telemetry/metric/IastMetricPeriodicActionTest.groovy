@@ -6,10 +6,22 @@ import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
 import groovy.transform.CompileDynamic
+import spock.lang.Shared
 import spock.lang.Specification
 
 @CompileDynamic
 class IastMetricPeriodicActionTest extends Specification {
+
+  @Shared
+  protected static final IastMetricCollector ORIGINAL_COLLECTOR = IastMetricCollector.INSTANCE
+
+  void setup() {
+    IastMetricCollector.register(new IastMetricCollector())
+  }
+
+  void cleanup() {
+    IastMetricCollector.register(ORIGINAL_COLLECTOR)
+  }
 
   void 'test metric'() {
     given:

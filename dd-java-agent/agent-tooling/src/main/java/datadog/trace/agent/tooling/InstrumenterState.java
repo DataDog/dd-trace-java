@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Tracks {@link Instrumenter} state, such as where it was applied and where it was blocked. */
+/** Tracks instrumentation state, such as where it was applied and where it was blocked. */
 public final class InstrumenterState {
   private static final Logger log = LoggerFactory.getLogger(InstrumenterState.class);
 
@@ -47,15 +47,15 @@ public final class InstrumenterState {
   }
 
   /** Registers an instrumentation's details. */
-  public static void registerInstrumentation(InstrumenterModule instrumenter) {
-    int instrumentationId = instrumenter.instrumentationId();
+  public static void registerInstrumentation(InstrumenterModule module) {
+    int instrumentationId = module.instrumentationId();
     if (instrumentationId >= instrumentationNames.length) {
       // note: setMaxInstrumentationId pre-sizes array to avoid repeated allocations here
       instrumentationNames = Arrays.copyOf(instrumentationNames, instrumentationId + 16);
       instrumentationClasses = Arrays.copyOf(instrumentationClasses, instrumentationNames.length);
     }
-    instrumentationNames[instrumentationId] = instrumenter.names();
-    instrumentationClasses[instrumentationId] = instrumenter.getClass().getName();
+    instrumentationNames[instrumentationId] = module.names();
+    instrumentationClasses[instrumentationId] = module.getClass().getName();
   }
 
   /** Registers an observer to be notified whenever an instrumentation is applied. */

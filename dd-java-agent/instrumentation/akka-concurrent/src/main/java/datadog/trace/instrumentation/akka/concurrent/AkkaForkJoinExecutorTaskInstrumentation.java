@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
  * be handled generically despite being a subclass of akka.dispatch.ForkJoinTask, because of its
  * error handling.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinExecutorTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public AkkaForkJoinExecutorTaskInstrumentation() {

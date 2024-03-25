@@ -25,6 +25,7 @@ import org.apache.axis2.transport.http.SimpleHTTPServer
 import org.apache.axis2.transport.local.LocalTransportReceiver
 import org.apache.axis2.transport.local.LocalTransportSender
 import spock.lang.Shared
+import test.TestService
 
 import javax.xml.namespace.QName
 

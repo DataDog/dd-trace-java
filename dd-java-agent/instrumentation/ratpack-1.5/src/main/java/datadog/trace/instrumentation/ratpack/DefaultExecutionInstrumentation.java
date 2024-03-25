@@ -15,7 +15,7 @@ import ratpack.exec.internal.Continuation;
 import ratpack.func.Action;
 import ratpack.path.PathBinding;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class DefaultExecutionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

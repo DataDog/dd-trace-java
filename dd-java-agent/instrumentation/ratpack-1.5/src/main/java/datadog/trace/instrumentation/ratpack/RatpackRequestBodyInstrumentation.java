@@ -9,7 +9,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import ratpack.server.internal.RequestBody;
 
 /** @see RequestBody#readStream() the instrumented method */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RatpackRequestBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public RatpackRequestBodyInstrumentation() {

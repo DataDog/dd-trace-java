@@ -26,7 +26,7 @@ import org.glassfish.grizzly.http.io.InputBuffer;
 import org.glassfish.grizzly.http.io.NIOInputStream;
 import org.glassfish.grizzly.utils.Charsets;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class GrizzlyByteBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public GrizzlyByteBodyInstrumentation() {

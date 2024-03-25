@@ -21,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ExecutionContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching {
   public ExecutionContextInstrumentation() {

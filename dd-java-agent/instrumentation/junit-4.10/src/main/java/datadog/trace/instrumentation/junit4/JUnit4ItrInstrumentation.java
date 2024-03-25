@@ -25,7 +25,7 @@ import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.ParentRunner;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JUnit4ItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
@@ -98,7 +98,7 @@ public class JUnit4ItrInstrumentation extends InstrumenterModule.CiVisibility
         }
       }
 
-      TestIdentifier test = JUnit4Utils.toTestIdentifier(description, true);
+      TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(test)) {
         Description skippedDescription = JUnit4Utils.getSkippedDescription(description);
         notifier.fireTestIgnored(skippedDescription);

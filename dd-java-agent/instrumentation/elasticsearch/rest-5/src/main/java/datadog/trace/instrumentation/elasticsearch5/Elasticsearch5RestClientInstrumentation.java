@@ -18,7 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.elasticsearch.client.ResponseListener;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Elasticsearch5RestClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 import spark.route.HttpMethod;
 import spark.routematch.RouteMatch;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RoutesInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

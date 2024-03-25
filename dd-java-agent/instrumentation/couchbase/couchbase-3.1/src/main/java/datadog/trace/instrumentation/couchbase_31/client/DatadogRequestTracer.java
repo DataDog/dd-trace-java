@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.couchbase_31.client;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.instrumentation.couchbase_31.client.CouchbaseClientDecorator.COUCHBASE_CLIENT;
 
 import com.couchbase.client.core.Core;
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.cnc.RequestTracer;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -37,7 +39,12 @@ public class DatadogRequestTracer implements RequestTracer {
     if (null == parent) {
       parent = tracer.activeSpan();
     }
+
     if (null != parent && COUCHBASE_CLIENT.equals(parent.getTag(Tags.COMPONENT))) {
+      if (!Config.get().isCouchbaseInternalSpansEnabled()) {
+        // mute the tracing related to internal spans
+        return DatadogRequestSpan.wrap(blackholeSpan(), coreContext);
+      }
       spanName = COUCHBASE_INTERNAL;
       measured = false;
       seedNodes = parent.getTag(InstrumentationTags.COUCHBASE_SEED_NODES);

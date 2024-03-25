@@ -26,12 +26,12 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
@@ -106,6 +106,7 @@ public class InstrumenterConfig {
   private final String jdbcConnectionClassName;
 
   private final String httpURLConnectionClassName;
+  private final String axisTransportClassName;
 
   private final boolean directAllocationProfilingEnabled;
 
@@ -131,8 +132,6 @@ public class InstrumenterConfig {
   private final Map<String, Set<String>> measureMethods;
 
   private final boolean internalExitOnFailure;
-
-  private final boolean legacyInstallerEnabled;
 
   private final Collection<String> additionalJaxRsAnnotations;
 
@@ -183,6 +182,7 @@ public class InstrumenterConfig {
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
+    axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
 
     directAllocationProfilingEnabled =
         configProvider.getBoolean(
@@ -226,7 +226,6 @@ public class InstrumenterConfig {
             configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
-    legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
   }
@@ -304,6 +303,10 @@ public class InstrumenterConfig {
 
   public String getHttpURLConnectionClassName() {
     return httpURLConnectionClassName;
+  }
+
+  public String getAxisTransportClassName() {
+    return axisTransportClassName;
   }
 
   public boolean isDirectAllocationProfilingEnabled() {
@@ -416,10 +419,6 @@ public class InstrumenterConfig {
     return internalExitOnFailure;
   }
 
-  public boolean isLegacyInstallerEnabled() {
-    return legacyInstallerEnabled;
-  }
-
   public boolean isLegacyInstrumentationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
     return configProvider.isEnabled(
@@ -474,6 +473,9 @@ public class InstrumenterConfig {
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
         + '\''
+        + ", axisTransportClassName='"
+        + axisTransportClassName
+        + '\''
         + ", excludedClasses="
         + excludedClasses
         + ", excludedClassesFile="
@@ -513,8 +515,6 @@ public class InstrumenterConfig {
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure
-        + ", legacyInstallerEnabled="
-        + legacyInstallerEnabled
         + ", additionalJaxRsAnnotations="
         + additionalJaxRsAnnotations
         + '}';

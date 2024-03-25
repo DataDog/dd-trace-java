@@ -24,7 +24,7 @@ import scala.util.Try;
  * every {@code Future} created via one of the static methods like {@code map} would always pick up
  * that context and propagate it forward, which is quite unexpected and not very relevant.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FutureObjectInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

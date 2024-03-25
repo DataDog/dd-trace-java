@@ -22,7 +22,7 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseListener;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Elasticsearch7RestClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

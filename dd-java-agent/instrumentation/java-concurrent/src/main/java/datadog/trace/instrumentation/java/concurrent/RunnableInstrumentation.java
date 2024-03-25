@@ -24,7 +24,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument {@link Runnable} */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class RunnableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 

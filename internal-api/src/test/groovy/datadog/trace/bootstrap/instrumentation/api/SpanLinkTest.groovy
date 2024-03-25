@@ -39,6 +39,18 @@ class SpanLinkTest extends DDSpecification {
     sampled << [true, false]
   }
 
+  def "test span links api"() {
+    when:
+    def link = new SpanLink(null, 0L, 0 as byte, null, null)
+
+    then:
+    link.traceId() == DDTraceId.ZERO
+    link.traceState() != null
+    link.traceState().isEmpty()
+    link.attributes() != null
+    link.attributes().isEmpty()
+  }
+
   def "test span link attributes api"() {
     when:
     def attributes = SpanLinkAttributes.builder().build()

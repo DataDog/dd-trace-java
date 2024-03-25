@@ -43,7 +43,6 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import spock.lang.Unroll
 
 import javax.annotation.Nonnull
 import java.util.function.BiFunction
@@ -88,7 +87,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static java.nio.charset.StandardCharsets.UTF_8
 import static org.junit.Assume.assumeTrue
 
-@Unroll
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("http-server")

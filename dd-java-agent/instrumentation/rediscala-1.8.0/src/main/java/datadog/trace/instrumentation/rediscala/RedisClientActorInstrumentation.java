@@ -16,7 +16,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import redis.RedisClientActorLike;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RedisClientActorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public RedisClientActorInstrumentation() {

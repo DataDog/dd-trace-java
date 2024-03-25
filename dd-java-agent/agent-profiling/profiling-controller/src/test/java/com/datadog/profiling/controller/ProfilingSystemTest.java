@@ -76,6 +76,8 @@ public class ProfilingSystemTest {
   @Mock private ThreadLocalRandom threadLocalRandom;
   @Mock private ConfigProvider configProvider;
   @Mock private Controller controller;
+
+  @Mock private ControllerContext.Snapshot context;
   @Mock private OngoingRecording recording;
   @Mock private RecordingData recordingData;
   @Mock private RecordingDataListener listener;
@@ -85,7 +87,7 @@ public class ProfilingSystemTest {
   @SuppressWarnings("unchecked")
   @BeforeEach
   public void setup() throws Exception {
-    when(controller.createRecording(ProfilingSystem.RECORDING_NAME)).thenReturn(recording);
+    when(controller.createRecording(ProfilingSystem.RECORDING_NAME, context)).thenReturn(recording);
     when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
     when(recordingData.getEnd()).thenAnswer(mockInvocation -> Instant.now());
 
@@ -117,13 +119,14 @@ public class ProfilingSystemTest {
   @Test
   void testInvalidOracleJdk() throws Exception {
     // Simulate the message part
-    when(controller.createRecording(ProfilingSystem.RECORDING_NAME))
+    when(controller.createRecording(ProfilingSystem.RECORDING_NAME, context))
         .thenThrow(
             new RuntimeException(new RuntimeException("com.oracle.jrockit:type=FlightRecorder")));
     final ProfilingSystem system =
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
@@ -138,12 +141,13 @@ public class ProfilingSystemTest {
   @Test
   void testRuntimeException() throws Exception {
     // Simulate the message part
-    when(controller.createRecording(ProfilingSystem.RECORDING_NAME))
+    when(controller.createRecording(ProfilingSystem.RECORDING_NAME, context))
         .thenThrow(new RuntimeException(new RuntimeException()));
     final ProfilingSystem system =
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
@@ -155,12 +159,13 @@ public class ProfilingSystemTest {
   @Test
   void testOtherException() throws Exception {
     // Simulate the message part
-    when(controller.createRecording(ProfilingSystem.RECORDING_NAME))
+    when(controller.createRecording(ProfilingSystem.RECORDING_NAME, context))
         .thenThrow(new IllegalArgumentException());
     final ProfilingSystem system =
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
@@ -175,6 +180,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ZERO,
@@ -183,7 +189,7 @@ public class ProfilingSystemTest {
             scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
-    verify(controller).createRecording(any());
+    verify(controller).createRecording(any(), any());
     system.shutdown();
 
     verify(recording).close();
@@ -196,6 +202,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ZERO,
@@ -204,7 +211,7 @@ public class ProfilingSystemTest {
             scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
-    verify(controller).createRecording(any());
+    verify(controller).createRecording(any(), any());
     system.shutdown();
 
     verify(recording).close();
@@ -218,6 +225,7 @@ public class ProfilingSystemTest {
             new ProfilingSystem(
                 configProvider,
                 controller,
+                context,
                 listener,
                 Duration.ofMillis(10),
                 Duration.ZERO,
@@ -230,7 +238,7 @@ public class ProfilingSystemTest {
 
     when(system.createSnapshotRecording(any())).thenReturn(snapshotRecording);
     startProfilingSystem(system);
-    verify(controller).createRecording(any());
+    verify(controller).createRecording(any(), any());
     system.shutdown(true);
 
     verify(snapshotRecording).snapshot(true);
@@ -244,6 +252,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ZERO,
@@ -253,7 +262,7 @@ public class ProfilingSystemTest {
             threadLocalRandom);
     system.start();
     assertTrue(system.isStarted());
-    verify(controller).createRecording(any());
+    verify(controller).createRecording(any(), any());
   }
 
   @Test
@@ -279,6 +288,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
@@ -288,7 +298,7 @@ public class ProfilingSystemTest {
             threadLocalRandom);
     startProfilingSystem(system);
     // Make sure we actually started the recording before terminating
-    verify(controller, timeout(300)).createRecording(any());
+    verify(controller, timeout(300)).createRecording(any(), any());
     system.shutdown();
     assertTrue(true, "Shutdown exited cleanly after interruption");
   }
@@ -299,6 +309,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
@@ -316,6 +327,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
@@ -323,7 +335,7 @@ public class ProfilingSystemTest {
             false);
     Thread.sleep(50);
     system.shutdown();
-    verify(controller, never()).createRecording(any());
+    verify(controller, never()).createRecording(any(), any());
     verify(listener, never()).onNewData(any(), any(), anyBoolean());
   }
 
@@ -335,6 +347,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
@@ -354,6 +367,7 @@ public class ProfilingSystemTest {
           new ProfilingSystem(
               configProvider,
               controller,
+              context,
               listener,
               Duration.ofMillis(-10),
               Duration.ZERO,
@@ -370,6 +384,7 @@ public class ProfilingSystemTest {
           new ProfilingSystem(
               configProvider,
               controller,
+              context,
               listener,
               Duration.ofMillis(10),
               Duration.ofMillis(-20),
@@ -386,6 +401,7 @@ public class ProfilingSystemTest {
           new ProfilingSystem(
               configProvider,
               controller,
+              context,
               listener,
               Duration.ofMillis(10),
               Duration.ofMillis(20),
@@ -407,6 +423,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
@@ -436,6 +453,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
@@ -466,6 +484,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             startupDelay,
             startupDelayRandomRange,
@@ -487,6 +506,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             startupDelay,
             Duration.ZERO,
@@ -500,7 +520,7 @@ public class ProfilingSystemTest {
 
   @Test
   public void testEarlyShutdownException() throws Exception {
-    when(controller.createRecording(any()))
+    when(controller.createRecording(any(), any()))
         .thenThrow(new IllegalStateException("Shutdown in progress"));
 
     final Duration startupDelay = Duration.ofMillis(1);
@@ -509,6 +529,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             configProvider,
             controller,
+            context,
             listener,
             startupDelay,
             Duration.ZERO,

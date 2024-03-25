@@ -17,7 +17,7 @@ import net.bytebuddy.asm.Advice;
 // BlockingException when decoding the urlencoded POST body is not relayed to the
 // exception handling mechanism implemented in
 // HttpServerRequestInstrumentation/BlockingExceptionHandler
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class VertxHandlerInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public VertxHandlerInstrumentation() {

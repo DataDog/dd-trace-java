@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MySQLDriverInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

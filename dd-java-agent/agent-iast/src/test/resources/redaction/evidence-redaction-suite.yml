@@ -1959,6 +1959,177 @@ suite:
       } 
 
   - type: 'VULNERABILITIES'
+    description: 'Mongodb json query with sensitive source'
+    input: >
+      [
+        {
+          "type": "NOSQL_MONGODB_INJECTION",
+          "evidence": {
+            "value": "{\n  \"password\": \"1234\"\n}",
+            "ranges": [
+              { "start" : 17, "length" : 4, "source": { "origin": "http.request.parameter", "name": "password", "value": "1234" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "password", "redacted": true, "pattern": "abcd" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "NOSQL_MONGODB_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "{\n  \"password\": \"" },
+                { "source": 0, "redacted": true, "pattern": "abcd"},
+                { "value": "\"\n}" }
+              ]
+            }
+          }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
+    description: 'Mongodb json query with non sensitive source'
+    input: >
+      [
+        {
+          "type": "NOSQL_MONGODB_INJECTION",
+          "evidence": {
+            "value": "{\n  \"username\": \"user\"\n}",
+            "ranges": [
+              { "start" : 17, "length" : 4, "source": { "origin": "http.request.parameter", "name": "username", "value": "user" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "username", "redacted": true, "pattern": "abcd" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "NOSQL_MONGODB_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "{\n  \"username\": \"" },
+                { "source": 0, "redacted": true, "pattern": "abcd"},
+                { "value": "\"\n}" }
+              ]
+            }
+          }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
+    description: 'Mongodb json query with partial non sensitive source'
+    input: >
+      [
+        {
+          "type": "NOSQL_MONGODB_INJECTION",
+          "evidence": {
+            "value": "{\n  \"username\": \"user\"\n}",
+            "ranges": [
+              { "start" : 17, "length" : 4, "source": { "origin": "http.request.parameter", "name": "username", "value": "PREFIX_user" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "username", "redacted": true, "pattern": "abcdefghijk" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "NOSQL_MONGODB_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "{\n  \"username\": \"" },
+                { "source": 0, "redacted": true, "pattern": "hijk"},
+                { "value": "\"\n}" }
+              ]
+            }
+          }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
+    description: 'Mongodb json query with non sensitive source and other fields'
+    input: >
+      [
+        {
+          "type": "NOSQL_MONGODB_INJECTION",
+          "evidence": {
+            "value": "{\n  \"username\": \"user\",\n  \"secret\": \"SECRET_VALUE\"\n}",
+            "ranges": [
+              { "start" : 17, "length" : 4, "source": { "origin": "http.request.parameter", "name": "username", "value": "user" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "username", "redacted": true, "pattern": "abcd" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "NOSQL_MONGODB_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "{\n  \"username\": \"" },
+                { "source": 0, "redacted": true, "pattern": "abcd"},
+                { "value": "\",\n  \"secret\": \"" },
+                { "redacted": true },
+                { "value": "\"\n}" }
+              ]
+            }
+          }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
+    description: 'Mongodb json query with sensitive value in a key'
+    input: >
+      [
+        {
+          "type": "NOSQL_MONGODB_INJECTION",
+          "evidence": {
+            "value": "{\n  \"username\": \"user\",\n  \"token_usage\": {\n    \"bearer zss8dR9QP81A\": 10\n  }\n}",
+            "ranges": [
+              { "start" : 17, "length" : 4, "source": { "origin": "http.request.parameter", "name": "username", "value": "user" } }
+            ]
+          }
+        }
+      ]
+    expected: >
+      {
+        "sources": [
+          { "origin": "http.request.parameter", "name": "username", "redacted": true, "pattern": "abcd" }
+        ],
+        "vulnerabilities": [
+          {
+            "type": "NOSQL_MONGODB_INJECTION",
+            "evidence": {
+              "valueParts": [
+                { "value": "{\n  \"username\": \"" },
+                { "source": 0, "redacted": true, "pattern": "abcd"},
+                { "value": "\",\n  \"token_usage\": {\n    \"" },
+                { "redacted": true },
+                { "value": "\": " },
+                { "redacted": true },
+                { "value": "\n  }\n}" }
+              ]
+            }
+          }
+        ]
+      }
+
+  - type: 'VULNERABILITIES'
     description: 'Redacted source that needs to be truncated'
     input: >
       [

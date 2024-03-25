@@ -22,7 +22,7 @@ import net.bytebuddy.asm.Advice;
  * {@link AmazonClientException} (for example an error thrown by another handler). In these cases
  * {@link RequestHandler2#afterError} is not called.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class AWSHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
@@ -79,7 +79,7 @@ public class AWSHttpClientInstrumentation extends InstrumenterModule.Tracing
    * Due to a change in the AmazonHttpClient class, this instrumentation is needed to support newer
    * versions. The above class should cover older versions.
    */
-  @AutoService(Instrumenter.class)
+  @AutoService(InstrumenterModule.class)
   public static final class RequestExecutorInstrumentation extends AWSHttpClientInstrumentation {
 
     @Override

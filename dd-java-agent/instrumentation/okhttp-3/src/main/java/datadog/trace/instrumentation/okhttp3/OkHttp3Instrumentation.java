@@ -11,7 +11,7 @@ import net.bytebuddy.asm.Advice;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class OkHttp3Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

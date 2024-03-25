@@ -2,14 +2,12 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
 import datadog.trace.core.test.DDCoreSpecification
-import spock.lang.Unroll
 
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 
 class DatadogPropagationTagsTest extends DDCoreSpecification {
 
-  @Unroll
   def "create propagation tags from header value '#headerValue'"() {
     setup:
     def config = Mock(Config)

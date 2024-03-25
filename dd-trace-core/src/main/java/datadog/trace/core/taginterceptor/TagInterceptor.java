@@ -23,6 +23,7 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.normalize.HttpResourceNames;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -217,7 +218,9 @@ public class TagInterceptor {
   private boolean interceptServiceName(
       RuleFlags.Feature feature, DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(feature)) {
-      span.setServiceName(String.valueOf(value));
+      String serviceName = String.valueOf(value);
+      span.setServiceName(serviceName);
+      ServiceNameCollector.get().addService(serviceName);
       return true;
     }
     return false;
@@ -253,15 +256,20 @@ public class TagInterceptor {
     }
     String contextName = String.valueOf(value).trim();
     if (!contextName.isEmpty()) {
+      String serviceName = null;
       if (contextName.equals("/")) {
-        span.setServiceName(Config.get().getRootContextServiceName());
+        serviceName = Config.get().getRootContextServiceName();
+        span.setServiceName(serviceName);
       } else if (contextName.charAt(0) == '/') {
         if (contextName.length() > 1) {
-          span.setServiceName(contextName.substring(1));
+          serviceName = contextName.substring(1);
+          span.setServiceName(serviceName);
         }
       } else {
-        span.setServiceName(contextName);
+        serviceName = contextName;
+        span.setServiceName(serviceName);
       }
+      ServiceNameCollector.get().addService(serviceName);
     }
     return false;
   }

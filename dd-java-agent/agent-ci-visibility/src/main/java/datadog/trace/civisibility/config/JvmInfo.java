@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.config;
 
+import datadog.trace.civisibility.ipc.Serializer;
+import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class JvmInfo {
@@ -64,5 +66,16 @@ public class JvmInfo {
         + vendor
         + '\''
         + '}';
+  }
+
+  public static void serialize(Serializer serializer, JvmInfo jvmInfo) {
+    serializer.write(jvmInfo.name);
+    serializer.write(jvmInfo.version);
+    serializer.write(jvmInfo.vendor);
+  }
+
+  public static JvmInfo deserialize(ByteBuffer buf) {
+    return new JvmInfo(
+        Serializer.readString(buf), Serializer.readString(buf), Serializer.readString(buf));
   }
 }

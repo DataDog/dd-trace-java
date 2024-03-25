@@ -37,7 +37,7 @@ import scala.concurrent.forkjoin.ForkJoinTask;
  * <p>Note: There are quite a few separate implementations of {@code ForkJoinTask}/{@code
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Scala version.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ScalaForkJoinTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 

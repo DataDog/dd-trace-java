@@ -18,7 +18,7 @@ import scala.collection.Seq;
  * @see PredefinedFromEntityUnmarshallers#urlEncodedFormDataUnmarshaller(Seq)
  * @see PredefinedFromEntityUnmarshallers#stringUnmarshaller()
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PredefinedFromEntityUnmarshallersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 

@@ -349,6 +349,11 @@ class JFRBasedProfilingIntegrationTest {
     }
   }
 
+  private static void verifyJdkEventsDisabled(IItemCollection events) {
+    assertFalse(events.apply(ItemFilters.type("jdk.ExecutionSample")).hasItems());
+    assertFalse(events.apply(ItemFilters.type("jdk.ThreadPark")).hasItems());
+  }
+
   private static void verifyDatadogEventsNotCorrupt(IItemCollection events) {
     // if we emit any of these events during the test they mustn't have corrupted context
     for (String eventName :
@@ -596,6 +601,7 @@ class JFRBasedProfilingIntegrationTest {
       }
     }
     if (asyncProfilerEnabled) {
+      verifyJdkEventsDisabled(events);
       verifyDatadogEventsNotCorrupt(events);
       assertEquals(
           Platform.isJavaVersionAtLeast(11),
@@ -757,8 +763,8 @@ class JFRBasedProfilingIntegrationTest {
             "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
             "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
             "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
-            "-Ddd.profiling.experimental.queueing.time.enabled=true",
-            "-Ddd.profiling.experimental.queueing.time.threshold.millis=0",
+            "-Ddd.profiling.queueing.time.enabled=true",
+            "-Ddd.profiling.queueing.time.threshold.millis=0",
             "-Ddd.profiling.experimental.jmethodid_cache.enabled=" + jmethodIdCacheEnabled,
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Ddd.profiling.context.attributes=foo,bar",

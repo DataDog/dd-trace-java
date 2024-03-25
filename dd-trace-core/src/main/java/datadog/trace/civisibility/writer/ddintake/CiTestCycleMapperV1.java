@@ -7,6 +7,10 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.Endpoint;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -41,7 +45,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span");
 
   private static final Collection<String> DEFAULT_TOP_LEVEL_TAGS =
-      Arrays.asList(Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID);
+      Arrays.asList(
+          Tags.TEST_SESSION_ID, Tags.TEST_MODULE_ID, Tags.TEST_SUITE_ID, Tags.ITR_CORRELATION_ID);
 
   private final WellKnownTags wellKnownTags;
   private final Collection<String> topLevelTags;
@@ -50,6 +55,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   private final MsgPackWriter headerWriter;
   private final boolean compressionEnabled;
   private int eventCount = 0;
+  private int serializationTimeMillis = 0;
 
   public CiTestCycleMapperV1(WellKnownTags wellKnownTags, boolean compressionEnabled) {
     this(wellKnownTags, DEFAULT_TOP_LEVEL_TAGS, 5 << 20, compressionEnabled);
@@ -70,6 +76,8 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
 
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
+    long serializationStartTimestamp = System.currentTimeMillis();
+
     for (final CoreSpan<?> span : trace) {
       int topLevelTagsCount = 0;
       for (String topLevelTag : topLevelTags) {
@@ -191,6 +199,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
     }
     eventCount += trace.size();
+    serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
   }
 
   private static boolean equals(CharSequence a, CharSequence b) {
@@ -228,6 +237,17 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   @Override
   public Payload newPayload() {
     writeHeader();
+
+    CiVisibilityMetricCollector metricCollector = InstrumentationBridge.getMetricCollector();
+    metricCollector.add(
+        CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_EVENTS_COUNT,
+        eventCount,
+        Endpoint.TEST_CYCLE);
+    metricCollector.add(
+        CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_EVENTS_SERIALIZATION_MS,
+        serializationTimeMillis,
+        Endpoint.TEST_CYCLE);
+
     return new PayloadV1(compressionEnabled).withHeader(headerBuffer.slice());
   }
 
@@ -239,6 +259,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   @Override
   public void reset() {
     eventCount = 0;
+    serializationTimeMillis = 0;
   }
 
   @Override

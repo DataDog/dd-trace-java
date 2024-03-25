@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.HashMap;
 import java.util.Map;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RedisAPIInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public RedisAPIInstrumentation() {

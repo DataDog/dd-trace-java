@@ -15,7 +15,7 @@ import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import rx.Observable;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CouchbaseClusterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 

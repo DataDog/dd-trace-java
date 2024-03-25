@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 
 /** Helps propagate parent spans over 'passthru' mechanism to synapse-client instrumentation. */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class SynapsePassthruInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

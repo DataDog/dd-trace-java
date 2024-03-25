@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
  * to work correctly since it relies on the {@link ReferenceCreator#REFERENCE_CREATION_PACKAGE}
  * prefix.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class GlobalTracerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public GlobalTracerInstrumentation() {

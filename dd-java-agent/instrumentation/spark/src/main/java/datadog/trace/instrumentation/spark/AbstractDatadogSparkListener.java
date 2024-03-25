@@ -9,6 +9,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -260,12 +261,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("databricks_job_run_id", databricksJobRunId);
       builder.withTag("databricks_task_run_id", databricksTaskRunId);
 
-      if (withParentContext) {
-        AgentSpan.Context parentContext =
-            new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
+      AgentSpan.Context parentContext =
+          new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
 
-        if (parentContext.getTraceId() != DDTraceId.ZERO) {
+      if (parentContext.getTraceId() != DDTraceId.ZERO) {
+        if (withParentContext) {
           builder.asChildOf(parentContext);
+        } else {
+          builder.withLink(SpanLink.from(parentContext));
         }
       }
     }

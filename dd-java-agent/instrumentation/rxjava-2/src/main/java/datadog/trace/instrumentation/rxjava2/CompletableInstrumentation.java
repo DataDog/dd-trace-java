@@ -20,7 +20,7 @@ import io.reactivex.CompletableObserver;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class CompletableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public CompletableInstrumentation() {

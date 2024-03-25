@@ -21,7 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 

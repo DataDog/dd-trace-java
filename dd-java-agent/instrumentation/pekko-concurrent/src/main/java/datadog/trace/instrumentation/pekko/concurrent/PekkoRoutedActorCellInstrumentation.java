@@ -17,7 +17,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.pekko.dispatch.Envelope;
 import org.apache.pekko.routing.RoutedActorCell;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PekkoRoutedActorCellInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

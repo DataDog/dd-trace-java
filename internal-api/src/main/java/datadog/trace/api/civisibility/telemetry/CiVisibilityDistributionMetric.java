@@ -27,7 +27,7 @@ public enum CiVisibilityDistributionMetric {
   GIT_REQUESTS_OBJECTS_PACK_MS("git_requests.objects_pack_ms"),
   /** The sum of the sizes of the object pack files inside a single payload */
   GIT_REQUESTS_OBJECTS_PACK_BYTES("git_requests.objects_pack_bytes"),
-  /** The number of files sent in the object pack payload */
+  /** The number of pack files created in a test session */
   GIT_REQUESTS_OBJECTS_PACK_FILES("git_requests.objects_pack_files"),
   /** The time it takes to get the response of the settings endpoint request in ms */
   GIT_REQUESTS_SETTINGS_MS("git_requests.settings_ms"),
@@ -36,7 +36,13 @@ public enum CiVisibilityDistributionMetric {
   /** The number of bytes received by the skippable tests endpoint */
   ITR_SKIPPABLE_TESTS_RESPONSE_BYTES("itr_skippable_tests.response_bytes"),
   /** The number of files covered inside a coverage payload */
-  CODE_COVERAGE_FILES("code_coverage.files");
+  CODE_COVERAGE_FILES("code_coverage.files"),
+  /* The time it takes to get the response of the known tests endpoint request in ms */
+  EFD_REQUEST_MS("early_flake_detection.request_ms"),
+  /** The number of bytes received by the known tests endpoint */
+  EFD_RESPONSE_BYTES("early_flake_detection.response_bytes"),
+  /** The number of tests received by the known tests endpoint */
+  EFD_RESPONSE_TESTS("early_flake_detection.response_tests");
 
   private static final String NAMESPACE = "civisibility";
 

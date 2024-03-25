@@ -22,7 +22,7 @@ import org.opensearch.action.support.ThreadedActionListener;
  * Captures context at the point a request is made, and ensures it propagates into asynchronous
  * actions.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ThreadedActionListenerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

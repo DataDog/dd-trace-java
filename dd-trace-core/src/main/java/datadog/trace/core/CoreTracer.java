@@ -20,8 +20,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
-import datadog.trace.api.EndpointCheckpointer;
-import datadog.trace.api.EndpointCheckpointerHolder;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
@@ -40,7 +38,7 @@ import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.api.profiling.Timer;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
@@ -59,6 +57,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.ScopeState;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
+import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
@@ -185,15 +184,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
-  private final EndpointCheckpointerHolder endpointCheckpointer;
   private final DataStreamsMonitoring dataStreamsMonitoring;
   private final ExternalAgentLauncher externalAgentLauncher;
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
   private boolean injectBaggageAsTags;
-
-  private Timer timer = Timer.NoOp.INSTANCE;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -233,6 +229,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void updatePreferredServiceName(String serviceName) {
     dynamicConfig.current().setPreferredServiceName(serviceName).apply();
+    ServiceNameCollector.get().addService(serviceName);
   }
 
   PropagationTags.Factory getPropagationTagsFactory() {
@@ -241,12 +238,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
-    endpointCheckpointer.onRootSpanFinished(root, tracker);
+    profilingContextIntegration.onRootSpanFinished(root, tracker);
   }
 
   @Override
   public EndpointTracker onRootSpanStarted(AgentSpan root) {
-    return endpointCheckpointer.onRootSpanStarted(root);
+    return profilingContextIntegration.onRootSpanStarted(root);
   }
 
   @Override
@@ -521,7 +518,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     clockSyncPeriod = Math.max(1_000_000L, SECONDS.toNanos(config.getClockSyncPeriod()));
     lastSyncTicks = startNanoTicks;
 
-    endpointCheckpointer = EndpointCheckpointerHolder.create();
     this.serviceName = serviceName;
 
     this.initialConfig = config;
@@ -686,6 +682,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           // CI Test Cycle protocol is not available
           addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
         }
+      }
+
+      if (config.isCiVisibilityTelemetryEnabled()) {
+        addTraceInterceptor(new CiVisibilityTelemetryInterceptor());
       }
     }
 
@@ -920,11 +920,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return dataStreamsMonitoring;
   }
 
-  @Override
-  public Timer getTimer() {
-    return timer;
-  }
-
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
 
   /**
@@ -1067,16 +1062,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (scopeManager instanceof ContinuableScopeManager) {
       ((ContinuableScopeManager) scopeManager).addScopeListener(listener);
     }
-  }
-
-  @Override
-  public void registerCheckpointer(EndpointCheckpointer implementation) {
-    endpointCheckpointer.register(implementation);
-  }
-
-  @Override
-  public void registerTimer(Timer timer) {
-    this.timer = timer;
   }
 
   @Override

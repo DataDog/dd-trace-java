@@ -96,8 +96,14 @@ public abstract class CucumberUtils {
     return "feature".equals(lastSegment.getType());
   }
 
-  public static TestIdentifier toTestIdentifier(
-      TestDescriptor testDescriptor, boolean includeParameters) {
+  public static TestDescriptor getFeatureDescriptor(TestDescriptor testDescriptor) {
+    while (testDescriptor != null && !isFeature(testDescriptor.getUniqueId())) {
+      testDescriptor = testDescriptor.getParent().orElse(null);
+    }
+    return testDescriptor;
+  }
+
+  public static TestIdentifier toTestIdentifier(TestDescriptor testDescriptor) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof ClasspathResourceSource) {
       ClasspathResourceSource classpathResourceSource = (ClasspathResourceSource) testSource;

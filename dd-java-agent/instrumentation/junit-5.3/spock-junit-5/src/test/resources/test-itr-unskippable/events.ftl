@@ -43,6 +43,7 @@
     "test_session_id" : ${content_test_session_id},
     "test_module_id" : ${content_test_module_id},
     "test_suite_id" : ${content_test_suite_id},
+    "itr_correlation_id" : "itrCorrelationId",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "name" : "junit.test",
     "resource" : "org.example.TestSucceedSpockUnskippable.test success",

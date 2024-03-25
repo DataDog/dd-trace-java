@@ -16,7 +16,7 @@ import datadog.trace.instrumentation.netty41.AttributeKeys;
 import io.vertx.core.http.impl.HttpClientStream;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   static final String[] CONCRETE_TYPES = {

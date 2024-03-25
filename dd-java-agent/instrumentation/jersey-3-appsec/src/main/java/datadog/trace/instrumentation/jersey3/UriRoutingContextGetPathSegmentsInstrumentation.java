@@ -12,7 +12,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class UriRoutingContextGetPathSegmentsInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public UriRoutingContextGetPathSegmentsInstrumentation() {
