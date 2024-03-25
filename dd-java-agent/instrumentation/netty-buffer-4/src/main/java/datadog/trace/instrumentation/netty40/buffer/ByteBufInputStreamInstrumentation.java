@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -47,17 +48,16 @@ public class ByteBufInputStreamInstrumentation extends InstrumenterModule.Iast
 
   public static class ConstructorAdvice {
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
     @Propagation
     public static void onExit(
         @Advice.This final Object self, @Advice.Argument(0) final Object buffer) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      try {
-        if (module != null) {
-          module.taintIfTainted(self, buffer);
+      if (buffer != null && module != null) {
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, self, buffer);
         }
-      } catch (final Throwable e) {
-        module.onUnexpectedException("ByteBufInputStream ctor threw", e);
       }
     }
   }

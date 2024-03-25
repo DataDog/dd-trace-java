@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -76,8 +77,11 @@ public class IastHttpUrlInstrumentation extends InstrumenterModule.Iast
     public static void onParse(
         @Advice.Argument(0) final Object arg, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintIfTainted(result, arg);
+      if (result != null && module != null) {
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, result, arg);
+        }
       }
     }
   }

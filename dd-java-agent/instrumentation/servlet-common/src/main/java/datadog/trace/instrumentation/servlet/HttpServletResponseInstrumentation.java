@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Sink;
@@ -120,9 +121,10 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
     @Propagation
     public static void onExit(@Advice.Argument(0) final String url, @Advice.Return String encoded) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        if (null != url && !url.isEmpty() && null != encoded && !encoded.isEmpty()) {
-          module.taintIfTainted(encoded, url);
+      if (encoded != null && module != null) {
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, encoded, url);
         }
       }
     }

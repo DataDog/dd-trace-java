@@ -1,21 +1,15 @@
 package core
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable
 import datadog.trace.api.iast.propagation.PropagationModule
-import groovy.transform.CompileDynamic
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.buffer.impl.BufferImpl
 
-@CompileDynamic
-class BufferInstrumentationTest extends AgentTestRunner {
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig('dd.iast.enabled', 'true')
-  }
+class BufferInstrumentationTest extends IastAgentTestRunner {
 
   void 'test that toString() is instrumented'() {
     given:
@@ -24,10 +18,10 @@ class BufferInstrumentationTest extends AgentTestRunner {
     final buffer = taintedInstance(SourceTypes.REQUEST_BODY)
 
     when:
-    method.call(buffer)
+    runUnderIastTrace { method.call(buffer) }
 
     then:
-    1 * module.taintIfTainted(_, buffer)
+    1 * module.taintIfTainted(_ as IastContext, _, buffer)
 
     where:
     _ | method
@@ -43,10 +37,10 @@ class BufferInstrumentationTest extends AgentTestRunner {
     final tainted = taintedInstance(SourceTypes.REQUEST_BODY)
 
     when:
-    method.call(buffer, tainted)
+    runUnderIastTrace { method.call(buffer, tainted) }
 
     then:
-    1 * module.taintIfTainted(buffer, tainted)
+    1 * module.taintIfTainted(_ as IastContext, buffer, tainted)
 
     where:
     _ | method

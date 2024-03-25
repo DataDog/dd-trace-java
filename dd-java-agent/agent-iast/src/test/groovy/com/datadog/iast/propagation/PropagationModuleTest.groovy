@@ -40,12 +40,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
   }
 
   void '#method(#args) not taintable'() {
-    when: 'there is no context by default'
-    module.&"$method".call(args.toArray())
-
-    then: 'no mock calls should happen'
-    0 * _
-
     when: 'there is a context'
     args.add(0, ctx)
     module.&"$method".call(args.toArray())
@@ -87,38 +81,6 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     'isTainted'         | [null]
   }
 
-  void '#method without span'() {
-    when:
-    module.&"$method".call(args.toArray())
-
-    then:
-    1 * tracer.activeSpan() >> null
-    0 * _
-
-    where:
-    method              | args
-    'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE]
-    'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
-    'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
-    'taint'             | ['test', SourceTypes.REQUEST_PARAMETER_VALUE, 0, 10]
-    'taintIfTainted'    | ['test', 'test']
-    'taintIfTainted'    | ['test', 'test', 0, 4, false, NOT_MARKED]
-    'taintIfTainted'    | ['test', 'test', false, NOT_MARKED]
-    'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE]
-    'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name']
-    'taintIfTainted'    | ['test', 'test', SourceTypes.REQUEST_PARAMETER_VALUE, 'name', 'value']
-    'taintIfAnyTainted' | ['test', ['test']]
-    'taintDeeply'       | [
-      'test',
-      SourceTypes.REQUEST_PARAMETER_VALUE,
-      {
-        true
-      }
-    ]
-    'findSource'        | ['test']
-    'isTainted'         | ['test']
-  }
-
   void 'test taint'() {
     given:
     final value = (target instanceof CharSequence) ? target.toString() : null
@@ -126,7 +88,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final ranges = Ranges.forObject(source)
 
     when:
-    module.taint(target, source.origin, source.name, source.value)
+    module.taint(ctx, target, source.origin, source.name, source.value)
 
     then:
     final tainted = getTaintedObject(target)
@@ -151,7 +113,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final ranges = [new Range(start, length, source, NOT_MARKED)] as Range[]
 
     when:
-    module.taint(target, source.origin, start, length)
+    module.taint(ctx, target, source.origin, start, length)
 
     then:
     final tainted = getTaintedObject(target)
@@ -172,14 +134,14 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final ranges = [new Range(0, 1, source, NOT_MARKED), new Range(1, 1, source, NOT_MARKED)] as Range[]
 
     when: 'input is not tainted'
-    module.taintIfTainted(target, input, true, NOT_MARKED)
+    module.taintIfTainted(ctx, target, input, true, NOT_MARKED)
 
     then:
     assert getTaintedObject(target) == null
 
     when: 'input is tainted'
     final taintedFrom = taintObject(input, ranges)
-    module.taintIfTainted(target, input, true, NOT_MARKED)
+    module.taintIfTainted(ctx, target, input, true, NOT_MARKED)
 
     then:
     final tainted = getTaintedObject(target)
@@ -201,14 +163,14 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final ranges = [new Range(0, 2, source, NOT_MARKED)] as Range[]
 
     when: 'input is not tainted'
-    module.taintIfTainted(target, input, 0, 2, false, NOT_MARKED)
+    module.taintIfTainted(ctx, target, input, 0, 2, false, NOT_MARKED)
 
     then:
     assert getTaintedObject(target) == null
 
     when: 'input tainted but range does not overlap'
     final firstTaintedForm = taintObject(input, ranges)
-    module.taintIfTainted(target, input, 4, 3, false, NOT_MARKED)
+    module.taintIfTainted(ctx, target, input, 4, 3, false, NOT_MARKED)
 
     then:
     final firstTainted = getTaintedObject(target)
@@ -222,7 +184,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     when: 'input is tainted and range overlaps'
     ctx.taintedObjects.clear()
     final secondTaintedFrom = taintObject(input, ranges)
-    module.taintIfTainted(target, input, 0, 2, false, NOT_MARKED)
+    module.taintIfTainted(ctx, target, input, 0, 2, false, NOT_MARKED)
 
     then:
     final secondTainted = getTaintedObject(target)
@@ -246,14 +208,14 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final mark = VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK
 
     when: 'input is not tainted'
-    module.taintIfTainted(target, input, true, mark)
+    module.taintIfTainted(ctx, target, input, true, mark)
 
     then:
     assert getTaintedObject(target) == null
 
     when: 'input is tainted'
     final taintedFrom = taintObject(input, ranges)
-    module.taintIfTainted(target, input, true, mark)
+    module.taintIfTainted(ctx, target, input, true, mark)
 
     then:
     final tainted = getTaintedObject(target)
@@ -270,14 +232,14 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final ranges = [new Range(0, 1, source, NOT_MARKED), new Range(1, 1, source, NOT_MARKED)] as Range[]
 
     when: 'input is not tainted'
-    module.taintIfTainted(target, input, false, NOT_MARKED)
+    module.taintIfTainted(ctx, target, input, false, NOT_MARKED)
 
     then:
     assert getTaintedObject(target) == null
 
     when: 'input is tainted'
     final taintedFrom = taintObject(input, ranges)
-    module.taintIfTainted(target, input, false, NOT_MARKED)
+    module.taintIfTainted(ctx, target, input, false, NOT_MARKED)
 
     then:
     final tainted = getTaintedObject(target)
@@ -296,14 +258,14 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final mark = VulnerabilityMarks.LDAP_INJECTION_MARK
 
     when: 'input is not tainted'
-    module.taintIfTainted(target, input, false, mark)
+    module.taintIfTainted(ctx, target, input, false, mark)
 
     then:
     assert getTaintedObject(target) == null
 
     when: 'input is tainted'
     final taintedFrom = taintObject(input, ranges)
-    module.taintIfTainted(target, input, false, mark)
+    module.taintIfTainted(ctx, target, input, false, mark)
 
     then:
     final tainted = getTaintedObject(target)
@@ -321,14 +283,14 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final ranges = [new Range(0, 1, source, NOT_MARKED), new Range(1, 1, source, NOT_MARKED)] as Range[]
 
     when: 'input is not tainted'
-    module.taintIfAnyTainted(target, inputs, true, NOT_MARKED)
+    module.taintIfAnyTainted(ctx, target, inputs, true, NOT_MARKED)
 
     then:
     assert getTaintedObject(target) == null
 
     when: 'input is tainted'
     final taintedFrom = taintObject(input, ranges)
-    module.taintIfAnyTainted(target, inputs, true, NOT_MARKED)
+    module.taintIfAnyTainted(ctx, target, inputs, true, NOT_MARKED)
 
     then:
     final tainted = getTaintedObject(target)
@@ -353,14 +315,14 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final mark = VulnerabilityMarks.UNVALIDATED_REDIRECT_MARK
 
     when: 'input is not tainted'
-    module.taintIfAnyTainted(target, inputs, true, mark)
+    module.taintIfAnyTainted(ctx, target, inputs, true, mark)
 
     then:
     assert getTaintedObject(target) == null
 
     when: 'input is tainted'
     final taintedFrom = taintObject(input, ranges)
-    module.taintIfAnyTainted(target, inputs, true, mark)
+    module.taintIfAnyTainted(ctx, target, inputs, true, mark)
 
     then:
     final tainted = getTaintedObject(target)
@@ -378,14 +340,14 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final ranges = [new Range(0, 1, source, NOT_MARKED), new Range(1, 1, source, NOT_MARKED)] as Range[]
 
     when: 'input is not tainted'
-    module.taintIfAnyTainted(target, inputs, false, NOT_MARKED)
+    module.taintIfAnyTainted(ctx, target, inputs, false, NOT_MARKED)
 
     then:
     assert getTaintedObject(target) == null
 
     when: 'input is tainted'
     final taintedFrom = taintObject(input, ranges)
-    module.taintIfAnyTainted(target, inputs, false, NOT_MARKED)
+    module.taintIfAnyTainted(ctx, target, inputs, false, NOT_MARKED)
 
     then:
     final tainted = getTaintedObject(target)
@@ -405,14 +367,14 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final mark = VulnerabilityMarks.LDAP_INJECTION_MARK
 
     when: 'input is not tainted'
-    module.taintIfAnyTainted(target, inputs, false, mark)
+    module.taintIfAnyTainted(ctx, target, inputs, false, mark)
 
     then:
     assert getTaintedObject(target) == null
 
     when: 'input is tainted'
     final taintedFrom = taintObject(input, ranges)
-    module.taintIfAnyTainted(target, inputs, false, mark)
+    module.taintIfAnyTainted(ctx, target, inputs, false, mark)
 
     then:
     final tainted = getTaintedObject(target)
@@ -427,7 +389,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final target = [Hello: " World!", Age: 25]
 
     when:
-    module.taintDeeply(target, SourceTypes.GRPC_BODY, { true })
+    module.taintDeeply(ctx, target, SourceTypes.GRPC_BODY, { true })
 
     then:
     final taintedObjects = ctx.taintedObjects
@@ -443,7 +405,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final target = stringBuilder('taint me')
 
     when:
-    module.taintDeeply(target, SourceTypes.GRPC_BODY, { true })
+    module.taintDeeply(ctx, target, SourceTypes.GRPC_BODY, { true })
 
     then:
     final taintedObjects = ctx.taintedObjects
@@ -462,13 +424,13 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     }
 
     when:
-    final tainted = module.isTainted(target)
+    final tainted = module.isTainted(ctx, target)
 
     then:
     tainted == (source != null)
 
     when:
-    final foundSource = module.findSource(target)
+    final foundSource = module.findSource(ctx, target)
 
     then:
     foundSource == source
@@ -490,7 +452,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     assert target.length() > maxValueLength
 
     when:
-    module.taint(target, SourceTypes.REQUEST_PARAMETER_VALUE)
+    module.taint(ctx, target, SourceTypes.REQUEST_PARAMETER_VALUE)
 
     then:
     final tainted = ctx.getTaintedObjects().get(target)
@@ -510,7 +472,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
 
   void 'test that source names/values should not make a strong reference over the value'() {
     when:
-    module.taint(toTaint, SourceTypes.REQUEST_PARAMETER_NAME, name, value)
+    module.taint(ctx, toTaint, SourceTypes.REQUEST_PARAMETER_NAME, name, value)
 
     then:
     final tainted = ctx.getTaintedObjects().get(toTaint)
@@ -557,7 +519,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     final baos = toTaint.bytes
 
     when: 'tainting a non char sequence object'
-    module.taint(baos, SourceTypes.KAFKA_MESSAGE_KEY)
+    module.taint(ctx, baos, SourceTypes.KAFKA_MESSAGE_KEY)
 
     then:
     with(ctx.taintedObjects.get(baos)) {
@@ -569,7 +531,7 @@ class PropagationModuleTest extends IastModuleImplTestBase {
     }
 
     when: 'the object is propagated'
-    module.taintIfTainted(toTaint, baos)
+    module.taintIfTainted(ctx, toTaint, baos)
 
     then:
     with(ctx.taintedObjects.get(toTaint)) {

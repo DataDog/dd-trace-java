@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.java.net;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.VulnerabilityMarks;
@@ -32,7 +33,10 @@ public class URLEncoderCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfTainted(result, value, false, VulnerabilityMarks.XSS_MARK);
+          final IastContext ctx = IastContext.Provider.get();
+          if (ctx != null) {
+            module.taintIfTainted(ctx, result, value, false, VulnerabilityMarks.XSS_MARK);
+          }
         } catch (final Throwable e) {
           module.onUnexpectedException("afterEncode threw", e);
         }

@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -37,8 +38,11 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
     public static void afterCtor(
         @Advice.This final Object self, @Advice.Argument(0) final Object argument) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintIfTainted(self, argument);
+      if (argument != null && module != null) {
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, self, argument);
+        }
       }
     }
   }

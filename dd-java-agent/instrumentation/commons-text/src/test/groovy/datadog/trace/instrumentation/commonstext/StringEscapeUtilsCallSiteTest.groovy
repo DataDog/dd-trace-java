@@ -1,19 +1,13 @@
 package datadog.trace.instrumentation.commonstext
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestStringEscapeUtilsSuite
-import groovy.transform.CompileDynamic
 
-@CompileDynamic
-class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
+class StringEscapeUtilsCallSiteTest extends IastAgentTestRunner {
 
   void 'test #method with XSS mark'() {
     given:
@@ -21,11 +15,11 @@ class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestStringEscapeUtilsSuite.&"$method".call(args)
+    def result = computeUnderIastTrace { TestStringEscapeUtilsSuite.&"$method".call(args) }
 
     then:
     result == expected
-    1 * module.taintIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
+    1 * module.taintIfTainted(_ as IastContext, _ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
     0 * _
 
     where:
@@ -44,11 +38,11 @@ class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestStringEscapeUtilsSuite.&"$method".call(args)
+    def result = computeUnderIastTrace { TestStringEscapeUtilsSuite.&"$method".call(args) }
 
     then:
     result == expected
-    1 * module.taintIfTainted(_ as String, args[0])
+    1 * module.taintIfTainted(_ as IastContext, _ as String, args[0])
     0 * _
 
     where:

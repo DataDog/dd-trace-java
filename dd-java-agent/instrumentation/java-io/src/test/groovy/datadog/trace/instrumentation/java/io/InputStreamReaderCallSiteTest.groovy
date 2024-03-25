@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.java.io
 
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestInputStreamReaderSuite
@@ -14,10 +15,10 @@ class InputStreamReaderCallSiteTest extends  BaseIoCallSiteTest{
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
-    TestInputStreamReaderSuite.init(new ByteArrayInputStream("test".getBytes()), Charset.defaultCharset())
+    runUnderIastTrace { TestInputStreamReaderSuite.init(new ByteArrayInputStream("test".getBytes()), Charset.defaultCharset()) }
 
     then:
-    1 * iastModule.taintIfTainted(_ as InputStreamReader, _ as InputStream)
+    1 * iastModule.taintIfTainted(_ as IastContext, _ as InputStreamReader, _ as InputStream)
     0 * _
   }
 }

@@ -17,7 +17,7 @@ public class TaintUriFunction implements JFunction1<Tuple1<Uri>, Tuple1<Uri>> {
     Uri uri = v1._1();
 
     PropagationModule mod = InstrumentationBridge.PROPAGATION;
-    if (mod == null) {
+    if (mod == null || uri == null) {
       return v1;
     }
     IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());

@@ -26,4 +26,5 @@ dependencies {
 
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: jacksonVersion)
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion)
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 }

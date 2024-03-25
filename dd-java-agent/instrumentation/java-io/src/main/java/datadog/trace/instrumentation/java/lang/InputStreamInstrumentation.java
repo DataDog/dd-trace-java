@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -50,17 +51,21 @@ public class InputStreamInstrumentation extends InstrumenterModule.Iast
 
   public static class InputStreamAdvice {
 
+    /** This method cannot suppress throwable due to being applied to a constructor */
     @Advice.OnMethodExit
     @Propagation
     public static void onExit(
         @Advice.This final InputStream self, @Advice.Argument(0) final InputStream param) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      try {
-        if (module != null) {
-          module.taintIfTainted(self, param);
+      if (param != null && module != null) {
+        try {
+          final IastContext ctx = IastContext.Provider.get();
+          if (ctx != null) {
+            module.taintIfTainted(ctx, self, param);
+          }
+        } catch (final Throwable e) {
+          module.onUnexpectedException("InputStreamAdvice onExit threw", e);
         }
-      } catch (final Throwable e) {
-        module.onUnexpectedException("InputStreamAdvice onExit threw", e);
       }
     }
   }

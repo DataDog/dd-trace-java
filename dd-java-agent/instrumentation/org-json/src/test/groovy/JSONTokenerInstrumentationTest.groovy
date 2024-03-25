@@ -1,13 +1,10 @@
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.json.JSONTokener
 
-class JSONTokenerInstrumentationTest extends AgentTestRunner {
-
-  @Override void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
+class JSONTokenerInstrumentationTest extends IastAgentTestRunner {
 
   void 'test JSONTokener string constructor'() {
     given:
@@ -16,10 +13,10 @@ class JSONTokenerInstrumentationTest extends AgentTestRunner {
     final json = '{"name": "nameTest", "value" : "valueTest"}'
 
     when:
-    new JSONTokener(json)
+    runUnderIastTrace { new JSONTokener(json) }
 
     then:
-    1 * module.taintIfTainted(_ as JSONTokener, json)
+    1 * module.taintIfTainted(_ as IastContext, _ as JSONTokener, json)
     0 * _
   }
 }

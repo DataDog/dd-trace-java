@@ -15,6 +15,7 @@ dependencies {
   compileOnly group: 'org.apache.httpcomponents', name: 'httpcore', version: '4.0'
 
   testImplementation group: 'org.apache.httpcomponents', name: 'httpcore', version: '4.0'
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
   latestDepTestImplementation group: 'org.apache.httpcomponents', name: 'httpcore', version: '+'
 }

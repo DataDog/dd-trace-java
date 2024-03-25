@@ -1,16 +1,12 @@
 package datadog.trace.instrumentation.apachehttpcore
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.apache.http.HttpHost
 
-class IastHttpHostInstrumentationTest extends AgentTestRunner {
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig('dd.iast.enabled', 'true')
-  }
+class IastHttpHostInstrumentationTest extends IastAgentTestRunner {
 
   void 'test'(){
     given:
@@ -18,15 +14,15 @@ class IastHttpHostInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    HttpHost.newInstance(*args)
+    runUnderIastTrace { HttpHost.newInstance(*args) }
 
     then:
-    1 * module.taintIfTainted( _ as HttpHost, 'localhost')
+    1 * module.taintIfTainted(_ as IastContext, _ as HttpHost, 'localhost')
 
     where:
-    args | _
-    ['localhost'] | _
-    ['localhost', 8080] | _
+    args                        | _
+    ['localhost']               | _
+    ['localhost', 8080]         | _
     ['localhost', 8080, 'http'] | _
   }
 }

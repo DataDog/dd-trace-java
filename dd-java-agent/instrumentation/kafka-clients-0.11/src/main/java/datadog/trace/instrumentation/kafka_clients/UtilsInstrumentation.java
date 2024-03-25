@@ -9,6 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -58,12 +59,16 @@ public class UtilsInstrumentation extends InstrumenterModule.Iast
       if (propagation == null) {
         return;
       }
+      final IastContext ctx = IastContext.Provider.get();
+      if (ctx == null) {
+        return;
+      }
       int start = buffer.position() + offset;
       if (buffer.hasArray()) {
         start += buffer.arrayOffset();
       }
       // create a new range shifted to the result byte array coordinates
-      propagation.taintIfTainted(bytes, buffer, start, length, false, NOT_MARKED);
+      propagation.taintIfTainted(ctx, bytes, buffer, start, length, false, NOT_MARKED);
     }
   }
 
@@ -79,7 +84,11 @@ public class UtilsInstrumentation extends InstrumenterModule.Iast
       if (propagation == null) {
         return;
       }
-      propagation.taintIfTainted(buffer, bytes, true, NOT_MARKED);
+      final IastContext ctx = IastContext.Provider.get();
+      if (ctx == null) {
+        return;
+      }
+      propagation.taintIfTainted(ctx, buffer, bytes, true, NOT_MARKED);
     }
   }
 }

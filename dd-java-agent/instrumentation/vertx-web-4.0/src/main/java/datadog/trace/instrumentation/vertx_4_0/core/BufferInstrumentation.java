@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -62,9 +63,16 @@ public class BufferInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void get(@Advice.This final Object self, @Advice.Return final String result) {
+      if (result == null) {
+        return;
+      }
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintIfTainted(result, self);
+      if (module == null) {
+        return;
+      }
+      final IastContext ctx = IastContext.Provider.get();
+      if (ctx != null) {
+        module.taintIfTainted(ctx, result, self);
       }
     }
   }
@@ -73,9 +81,16 @@ public class BufferInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void get(@Advice.This final Object self, @Advice.Return final Object result) {
+      if (result == null) {
+        return;
+      }
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintIfTainted(result, self);
+      if (module == null) {
+        return;
+      }
+      final IastContext ctx = IastContext.Provider.get();
+      if (ctx != null) {
+        module.taintIfTainted(ctx, result, self);
       }
     }
   }
@@ -85,9 +100,16 @@ public class BufferInstrumentation extends InstrumenterModule.Iast
     @Propagation
     public static void get(
         @Advice.Argument(0) final Object buffer, @Advice.Return final Object result) {
+      if (result == null) {
+        return;
+      }
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintIfTainted(result, buffer);
+      if (module == null) {
+        return;
+      }
+      final IastContext ctx = IastContext.Provider.get();
+      if (ctx != null) {
+        module.taintIfTainted(ctx, result, buffer);
       }
     }
   }

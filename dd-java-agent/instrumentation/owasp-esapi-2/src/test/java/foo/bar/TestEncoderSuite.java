@@ -7,7 +7,7 @@ public class TestEncoderSuite {
 
   private Encoder encoder;
 
-  TestEncoderSuite(Encoder encoder) {
+  public TestEncoderSuite(Encoder encoder) {
     this.encoder = encoder;
   }
 

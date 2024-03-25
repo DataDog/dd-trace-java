@@ -23,20 +23,16 @@ public class HeaderParamInjectorAdvice {
     if (result instanceof String || result instanceof Collection) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        try {
-          IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          if (result instanceof Collection) {
-            Collection<?> collection = (Collection<?>) result;
-            for (Object o : collection) {
-              if (o instanceof String) {
-                module.taint(ctx, o, SourceTypes.REQUEST_HEADER_VALUE, paramName);
-              }
+        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        if (result instanceof Collection) {
+          Collection<?> collection = (Collection<?>) result;
+          for (Object o : collection) {
+            if (o instanceof String) {
+              module.taint(ctx, (String) o, SourceTypes.REQUEST_HEADER_VALUE, paramName);
             }
-          } else {
-            module.taint(ctx, result, SourceTypes.REQUEST_HEADER_VALUE, paramName);
           }
-        } catch (final Throwable e) {
-          module.onUnexpectedException("HeaderParamInjectorAdvice.onExit threw", e);
+        } else {
+          module.taint(ctx, (String) result, SourceTypes.REQUEST_HEADER_VALUE, paramName);
         }
       }
     }

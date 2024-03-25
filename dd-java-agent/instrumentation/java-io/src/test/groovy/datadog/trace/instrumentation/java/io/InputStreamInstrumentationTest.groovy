@@ -1,17 +1,12 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestInputStreamSuite
 
-class InputStreamInstrumentationTest extends AgentTestRunner {
-
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
+class InputStreamInstrumentationTest extends IastAgentTestRunner {
 
   def 'test constructor with IS as arg()'() {
     setup:
@@ -20,9 +15,9 @@ class InputStreamInstrumentationTest extends AgentTestRunner {
     final is = Mock(InputStream)
 
     when:
-    TestInputStreamSuite.pushbackInputStreamFromIS(is)
+    runUnderIastTrace { TestInputStreamSuite.pushbackInputStreamFromIS(is) }
 
     then:
-    (1.._) * propagationModule.taintIfTainted(_ as InputStream, is)
+    (1.._) * propagationModule.taintIfTainted(_ as IastContext, _ as InputStream, is)
   }
 }

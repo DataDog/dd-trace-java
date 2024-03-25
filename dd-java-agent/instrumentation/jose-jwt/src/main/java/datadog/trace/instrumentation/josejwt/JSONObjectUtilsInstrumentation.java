@@ -56,7 +56,7 @@ public class JSONObjectUtilsInstrumentation extends InstrumenterModule.Iast
           if (value instanceof String) {
             // TODO: We could represent this source more accurately, perhaps tracking the original
             // source, or using a special name.
-            module.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+            module.taint(ctx, (String) value, SourceTypes.REQUEST_HEADER_VALUE, name);
           }
         }
       }

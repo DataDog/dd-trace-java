@@ -1,23 +1,17 @@
 package datadog.trace.instrumentation.java.lang
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.propagation.StringModule
 import foo.bar.TestStringSuite
-import groovy.transform.CompileDynamic
 
 import java.nio.charset.Charset
 
-@CompileDynamic
-class StringCallSiteTest extends AgentTestRunner {
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
+class StringCallSiteTest extends IastAgentTestRunner {
 
   def 'test string concat call site'() {
     setup:
@@ -272,11 +266,11 @@ class StringCallSiteTest extends AgentTestRunner {
     final string = 'test'
 
     when:
-    final char[] result = TestStringSuite.toCharArray(string)
+    final char[] result = computeUnderIastTrace { TestStringSuite.toCharArray(string) }
 
     then:
     result != null && result.length > 0
-    1 * module.taintIfTainted(_ as char[], string, true, VulnerabilityMarks.NOT_MARKED)
+    1 * module.taintIfTainted(_ as IastContext, _ as char[], string, true, VulnerabilityMarks.NOT_MARKED)
     0 * _
   }
 

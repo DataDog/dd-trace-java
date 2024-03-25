@@ -14,6 +14,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.json', name: 'json', version: '20230227'
   testImplementation group: 'org.json', name: 'json', version: '20230227'
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 

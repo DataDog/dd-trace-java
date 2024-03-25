@@ -1,21 +1,15 @@
 package datadog.trace.instrumentation.commonslang
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestStringEscapeUtilsSuite
-import groovy.transform.CompileDynamic
 
 import static datadog.trace.api.iast.VulnerabilityMarks.SQL_INJECTION_MARK
 import static datadog.trace.api.iast.VulnerabilityMarks.XSS_MARK
 
-@CompileDynamic
-class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
+class StringEscapeUtilsCallSiteTest extends IastAgentTestRunner {
 
   void 'test #method'() {
     given:
@@ -23,11 +17,11 @@ class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestStringEscapeUtilsSuite.&"$method".call(args)
+    def result = computeUnderIastTrace { TestStringEscapeUtilsSuite.&"$method".call(args) }
 
     then:
     result == expected
-    1 * module.taintIfTainted(_ as String, args[0], false, mark)
+    1 * module.taintIfTainted(_ as IastContext, _ as String, args[0], false, mark)
     0 * _
 
     where:

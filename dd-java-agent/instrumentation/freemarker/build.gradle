@@ -16,6 +16,7 @@ dependencies {
   compileOnly group: 'org.freemarker', name: 'freemarker', version: '2.3.32'
 
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.32'
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 

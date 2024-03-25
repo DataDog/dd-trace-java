@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -49,8 +50,11 @@ public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
     public static void checkReturnedObject(
         @Advice.Return String string, @Advice.Argument(0) final InputStream in) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (in != null && string != null && !string.isEmpty()) {
-        module.taintIfTainted(string, in);
+      if (string != null && module != null) {
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, string, in);
+        }
       }
     }
 

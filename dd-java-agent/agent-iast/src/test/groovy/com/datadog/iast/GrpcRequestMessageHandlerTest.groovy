@@ -3,16 +3,12 @@ package com.datadog.iast
 import com.datadog.iast.propagation.PropagationModuleImpl
 import com.datadog.iast.protobuf.Test2
 import com.datadog.iast.protobuf.Test3
-import com.datadog.iast.taint.TaintedObjects
 import com.datadog.iast.util.ObjectVisitor
-import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
-import datadog.trace.test.util.DDSpecification
 import foo.bar.VisitableClass
 
 import java.util.function.Predicate

@@ -1,16 +1,12 @@
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 
-class JSONArrayInstrumentationTest extends AgentTestRunner {
-
-  @Override
-  void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
+class JSONArrayInstrumentationTest extends IastAgentTestRunner {
 
   void 'test JSONObject returning an array'() {
     given:
@@ -27,17 +23,19 @@ class JSONArrayInstrumentationTest extends AgentTestRunner {
     }}"""
 
     when:
-    final jsonObject = new JSONObject(json)
-    final name = jsonObject.getJSONObject("menu").getJSONArray("labels").get(0)
+    final name = computeUnderIastTrace {
+      final jsonObject = new JSONObject(json)
+      return jsonObject.getJSONObject("menu").getJSONArray("labels").get(0)
+    }
 
     then:
     name == "File"
-    1 * module.taintIfTainted(_ as JSONObject, json)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONObject)
-    1 * module.taintIfTainted(_ as JSONTokener, json)
-    2 * module.taintIfTainted(_ as JSONArray, _ as JSONObject)
-    2 * module.taintIfTainted("File", _ as JSONArray)
+    1 * module.taintIfTainted(_ as IastContext, _ as JSONObject, json)
+    2 * module.taintIfTainted(_ as IastContext, _ as JSONObject, _ as JSONTokener)
+    2 * module.taintIfTainted(_ as IastContext, _ as JSONObject, _ as JSONObject)
+    1 * module.taintIfTainted(_ as IastContext, _ as JSONTokener, json)
+    2 * module.taintIfTainted(_ as IastContext, _ as JSONArray, _ as JSONObject)
+    2 * module.taintIfTainted(_ as IastContext, "File", _ as JSONArray)
     0 * _
   }
 
@@ -56,17 +54,19 @@ class JSONArrayInstrumentationTest extends AgentTestRunner {
     }}"""
 
     when:
-    final jsonObject = new JSONObject(json)
-    final name = jsonObject.getJSONObject("menu").getJSONArray("labels").optString(0, "defaultvalue")
+    final name = computeUnderIastTrace {
+      final jsonObject = new JSONObject(json)
+      return jsonObject.getJSONObject("menu").getJSONArray("labels").optString(0, "defaultvalue")
+    }
 
     then:
     name == "File"
-    1 * module.taintIfTainted(_ as JSONObject, json)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONTokener)
-    2 * module.taintIfTainted(_ as JSONObject, _ as JSONObject)
-    1 * module.taintIfTainted(_ as JSONTokener, json)
-    2 * module.taintIfTainted(_ as JSONArray, _ as JSONObject)
-    1 * module.taintIfTainted("File", _ as JSONArray)
+    1 * module.taintIfTainted(_ as IastContext, _ as JSONObject, json)
+    2 * module.taintIfTainted(_ as IastContext, _ as JSONObject, _ as JSONTokener)
+    2 * module.taintIfTainted(_ as IastContext, _ as JSONObject, _ as JSONObject)
+    1 * module.taintIfTainted(_ as IastContext, _ as JSONTokener, json)
+    2 * module.taintIfTainted(_ as IastContext, _ as JSONArray, _ as JSONObject)
+    1 * module.taintIfTainted(_ as IastContext, "File", _ as JSONArray)
     0 * _
   }
 }

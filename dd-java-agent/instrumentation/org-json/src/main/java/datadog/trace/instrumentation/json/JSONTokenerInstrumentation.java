@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -37,7 +38,10 @@ public class JSONTokenerInstrumentation extends InstrumenterModule.Iast
     public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final Object input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
-        iastModule.taintIfTainted(self, input);
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          iastModule.taintIfTainted(ctx, self, input);
+        }
       }
     }
   }

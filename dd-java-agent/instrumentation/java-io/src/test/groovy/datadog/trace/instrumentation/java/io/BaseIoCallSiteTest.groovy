@@ -1,18 +1,13 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
-abstract class BaseIoCallSiteTest extends AgentTestRunner {
+abstract class BaseIoCallSiteTest extends IastAgentTestRunner {
 
   @Rule
   TemporaryFolder temporaryFolder = new TemporaryFolder(parentFolder())
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
 
   protected File newFile(final String name) {
     return temporaryFolder.newFile(name)

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.java.net;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Sink;
@@ -32,7 +33,10 @@ public class URLCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfAnyTainted(result, args);
+          final IastContext ctx = IastContext.Provider.get();
+          if (ctx != null) {
+            module.taintIfAnyTainted(ctx, result, args);
+          }
         } catch (final Throwable e) {
           module.onUnexpectedException("ctor threw", e);
         }
@@ -47,9 +51,12 @@ public class URLCallSite {
   public static String afterToString(
       @CallSite.This final URL url, @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (result != null && module != null) {
       try {
-        module.taintIfTainted(result, url);
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, result, url);
+        }
       } catch (final Throwable e) {
         module.onUnexpectedException("After toString threw", e);
       }
@@ -61,9 +68,12 @@ public class URLCallSite {
   @CallSite.After("java.net.URI java.net.URL.toURI()")
   public static URI afterToURI(@CallSite.This final URL url, @CallSite.Return final URI result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (result != null && module != null) {
       try {
-        module.taintIfTainted(result, url);
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, result, url);
+        }
       } catch (final Throwable e) {
         module.onUnexpectedException("After toURI threw", e);
       }

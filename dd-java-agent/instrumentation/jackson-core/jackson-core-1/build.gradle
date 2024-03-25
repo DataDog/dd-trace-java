@@ -16,4 +16,5 @@ dependencies {
   compileOnly(group: 'org.codehaus.jackson', name: 'jackson-core-asl', version: jacksonVersion)
 
   testImplementation(group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: jacksonVersion)
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 }

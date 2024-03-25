@@ -1,5 +1,6 @@
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -11,7 +12,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
-class Json1FactoryInstrumentationTest extends AgentTestRunner {
+class Json1FactoryInstrumentationTest extends IastAgentTestRunner {
 
   @Shared
   @AutoCleanup
@@ -25,11 +26,6 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
     }
   }
 
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
-
   void 'test createParser(String)'() {
     setup:
     final propagationModule = Mock(PropagationModule)
@@ -37,11 +33,11 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
     final content = '{"key":"value"}'
 
     when:
-    final result = new JsonFactory().createJsonParser(content)
+    final result = computeUnderIastTrace { new JsonFactory().createJsonParser(content) }
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, content)
+    1 * propagationModule.taintIfTainted(_ as IastContext, _ as JsonParser, content)
     0 * _
   }
 
@@ -52,11 +48,11 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
     final is = Mock(InputStream)
 
     when:
-    final result = new JsonFactory().createJsonParser(is)
+    final result = computeUnderIastTrace { new JsonFactory().createJsonParser(is) }
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, is)
+    1 * propagationModule.taintIfTainted(_ as IastContext, _ as JsonParser, is)
     2 * is.read(_, _, _)
     0 * _
   }
@@ -68,12 +64,12 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
     final reader = Mock(Reader)
 
     when:
-    final result = new JsonFactory().createJsonParser(reader)
+    final result = computeUnderIastTrace { new JsonFactory().createJsonParser(reader) }
 
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, reader)
+    1 * propagationModule.taintIfTainted(_ as IastContext, _ as JsonParser, reader)
     0 * _
   }
 
@@ -85,11 +81,11 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
     final url = new URL("${clientServer.address}/json")
 
     when:
-    final parser = new JsonFactory().createJsonParser(url)
+    final parser = computeUnderIastTrace { new JsonFactory().createJsonParser(url) }
 
     then:
     parser != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, url)
+    1 * propagationModule.taintIfTainted(_ as IastContext, _ as JsonParser, url)
     1 * ssrfModule.onURLConnection(url)
     0 * _
   }
@@ -102,12 +98,12 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
     final bytes = '{}'.bytes
 
     when:
-    final result = new JsonFactory().createJsonParser(bytes)
+    final result = computeUnderIastTrace{ new JsonFactory().createJsonParser(bytes) }
 
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, bytes)
+    1 * propagationModule.taintIfTainted(_ as IastContext, _ as JsonParser, bytes)
     0 * _
   }
 
@@ -118,11 +114,11 @@ class Json1FactoryInstrumentationTest extends AgentTestRunner {
     final bytes = '{}'.bytes
 
     when:
-    final parser = new JsonFactory().createJsonParser(bytes, 0, 2)
+    final parser = computeUnderIastTrace { new JsonFactory().createJsonParser(bytes, 0, 2) }
 
     then:
     parser != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, bytes, 0, 2, false, VulnerabilityMarks.NOT_MARKED)
+    1 * propagationModule.taintIfTainted(_ as IastContext, _ as JsonParser, bytes, 0, 2, false, VulnerabilityMarks.NOT_MARKED)
     0 * _
   }
 }

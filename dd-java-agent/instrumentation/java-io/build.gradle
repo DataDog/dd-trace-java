@@ -12,4 +12,5 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testImplementation group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '9.0.56'
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 }

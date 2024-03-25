@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -38,7 +39,10 @@ public class JSONCookieInstrumentation extends InstrumenterModule.Iast
         @Advice.Return Object retValue, @Advice.Argument(0) final String input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
-        iastModule.taintIfTainted(retValue, input);
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          iastModule.taintIfTainted(ctx, retValue, input);
+        }
       }
     }
   }
