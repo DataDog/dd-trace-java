@@ -7,6 +7,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import spock.lang.Requires
@@ -496,6 +497,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
     then:
     assert upperProc.getString(1) == "HELLO WORLD"
+
     cleanup:
     upperProc.close()
     connection.close()
@@ -550,6 +552,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     TEST_WRITER.waitForTraces(1)
 
     then:
+    List<DDSpan> trace = TEST_WRITER.firstTrace()
     assert true
 
     cleanup:
@@ -573,7 +576,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     if (driver == "postgresql") {
       createSql =
         """
-    CREATE OR REPLACE PROCEDURE dummy(inout res integer)
+    CREATE OR REPLACE PROCEDURE dummy2(inout res integer)
     LANGUAGE SQL
     AS \$\$
         SELECT 1;
@@ -582,7 +585,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     } else if (driver == "mysql") {
       createSql =
         """
-    CREATE PROCEDURE IF NOT EXISTS dummy(inout res int)
+    CREATE PROCEDURE IF NOT EXISTS dummy2(inout res int)
     BEGIN
         SELECT 1;
     END
@@ -620,14 +623,14 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
     where:
     driver       | connection                                              | query
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "   CALL dummy(?)"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "  CALL dummy(?)"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | " CALL dummy(?)"
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "CALL dummy(?)"
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy2(?)"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy2(?)"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "   CALL dummy2(?)"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy2(?)"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "  CALL dummy2(?)"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy2(?)"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | " CALL dummy2(?)"
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "CALL dummy2(?)"
   }
 
 
