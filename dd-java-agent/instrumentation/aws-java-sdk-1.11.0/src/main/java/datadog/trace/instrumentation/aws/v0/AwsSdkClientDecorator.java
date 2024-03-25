@@ -109,10 +109,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
     if ("Amazon S3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
-
-      for (Object entry : request.getHeaders().entrySet()) {
-        System.out.printf("### request header v1 %s (%s)\n", entry.toString(), awsOperation);
-      }
     }
 
     switch (awsRequestName.toString()) {
@@ -151,6 +147,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(InstrumentationTags.BUCKET_NAME, bucketName);
       bestPrecursor = InstrumentationTags.AWS_BUCKET_NAME;
       bestPeerService = bucketName;
+
+      System.out.printf("#### -> Operation %s. Got bucket name %s, key %s",
+          awsOperation.getSimpleName(),
+          bucketName,
+          key);
     }
     String queueUrl = access.getQueueUrl(originalRequest);
     if (null != queueUrl) {
@@ -268,16 +269,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       Object bucket = span.getTag(InstrumentationTags.AWS_BUCKET_NAME);
       Object awsOperation = span.getTag(InstrumentationTags.AWS_OPERATION);
 
-      for ( Entry<String, String> entry : response.getHttpResponse().getHeaders().entrySet()) {
-        System.out.printf("### response header v1 %s=%s (%s)\n", entry.getKey(), entry.getValue(), awsOperation);
-      }
-
       if (key != null && bucket != null && awsOperation != null) {
         // GetObjectMetadataRequest may return the object if it's not "HEAD"
         if (HttpMethodName.GET.name().equals(span.getTag(Tags.HTTP_METHOD)) &&
             ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation.toString()) ||
             "GetObjectRequest".equalsIgnoreCase(awsOperation.toString()))) {
-          System.out.println("### Downloading the object");
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
 
           sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);

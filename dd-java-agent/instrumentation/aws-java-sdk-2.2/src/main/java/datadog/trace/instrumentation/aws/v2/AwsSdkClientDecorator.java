@@ -121,21 +121,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
-      if (httpRequest.headers() != null) {
-        for ( Entry<String, List<String>> entry : httpRequest.headers().entrySet()) {
-          if (entry == null || entry.getKey() == null || entry.getValue() == null) {
-            continue;
-          }
-
-          System.out.printf(
-              "### request header v2 %s=%s (%s)\n",
-              entry.getKey(),
-              String.join(",", entry.getValue()), awsOperationName
-          );
-        }
-      }
-
-
       request
           .getValueForField("Key", String.class)
           .ifPresent(key -> span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key));
@@ -309,7 +294,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   public AgentSpan onSdkResponse(
-      final AgentSpan span, final SdkResponse response, final ExecutionAttributes attributes) {
+      final AgentSpan span, final SdkResponse response, final SdkHttpResponse httpResponse, final ExecutionAttributes attributes) {
     if (response instanceof AwsResponse) {
       span.setTag(
           InstrumentationTags.AWS_REQUEST_ID,
@@ -366,14 +351,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
 
       if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
-        long responseSize = getResponseContentLength(response.sdkHttpResponse());
+        long responseSize = getResponseContentLength(httpResponse);
         span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
 
         Object key = span.getTag(InstrumentationTags.AWS_OBJECT_KEY);
         Object bucket = span.getTag(InstrumentationTags.AWS_BUCKET_NAME);
         Object awsOperation = span.getTag(InstrumentationTags.AWS_OPERATION);
 
-        SdkHttpResponse httpResponse = response.sdkHttpResponse();
         if (httpResponse != null && httpResponse.headers() != null) {
           for ( Entry<String, List<String>> entry : httpResponse.headers().entrySet()) {
             if (entry == null || entry.getKey() == null || entry.getValue() == null) {
