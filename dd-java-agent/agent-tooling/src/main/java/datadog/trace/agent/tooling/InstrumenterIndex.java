@@ -43,7 +43,7 @@ final class InstrumenterIndex {
   // Special memberCount that indicates a module contains itself as a transformation
   private static final int SELF_MEMBERSHIP = 0xFF;
 
-  private static final ClassLoader loader = Instrumenter.class.getClassLoader();
+  static final ClassLoader instrumenterClassLoader = Instrumenter.class.getClassLoader();
 
   private final int instrumentationCount;
   private final int transformationCount;
@@ -175,7 +175,7 @@ final class InstrumenterIndex {
   private InstrumenterModule buildNodule() {
     try {
       @SuppressWarnings({"rawtypes", "unchecked"})
-      Class<InstrumenterModule> nextType = (Class) loader.loadClass(moduleName);
+      Class<InstrumenterModule> nextType = (Class) instrumenterClassLoader.loadClass(moduleName);
       return nextType.getConstructor().newInstance();
     } catch (Throwable e) {
       log.error("Failed to build instrumentation module {}", moduleName, e);
@@ -217,7 +217,6 @@ final class InstrumenterIndex {
   }
 
   public static InstrumenterIndex readIndex() {
-    ClassLoader instrumenterClassLoader = Instrumenter.class.getClassLoader();
     URL indexResource = instrumenterClassLoader.getResource(INSTRUMENTER_INDEX_NAME);
     if (null != indexResource) {
       try (DataInputStream in =
@@ -288,7 +287,7 @@ final class InstrumenterIndex {
     public void buildIndex() {
       log.debug("Generating InstrumenterIndex");
       try (DataOutputStream out = new DataOutputStream(packedNames)) {
-        for (InstrumenterModule module : loadModules(Instrumenter.class.getClassLoader())) {
+        for (InstrumenterModule module : loadModules(instrumenterClassLoader)) {
           String moduleName = module.getClass().getName();
           instrumentationCount++;
           out.writeByte(moduleName.length());
