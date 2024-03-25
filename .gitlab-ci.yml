@@ -19,6 +19,8 @@ stages:
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   SONATYPE_USERNAME: robot-sonatype-apm-java
+  DEPENDENCY_CACHE_POLICY: pull
+  BUILD_CACHE_POLICY: pull
   DOWNSTREAM_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -36,12 +38,26 @@ variables:
     key: no-cache
     policy: pull
 
-cache: &default_cache
-  key: '$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
-  paths:
-    - .gradle/wrapper
-    - .gradle/caches
-  policy: pull
+cache:
+  - key: '$CI_SERVER_VERSION' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
+    paths:
+      # Cached dependencies and wrappers for gradle
+      - .gradle/wrapper
+      - .gradle/caches
+      # Cached dependencies for maven
+      - .m2
+      # Cached launchers and compilers for sbt
+      - .sbt
+      # Cached dependencies for sbt handled by ivy
+      - .ivy2
+      # Cached dependencies for sbt handled by coursier
+      - .cache/coursier
+    policy: $DEPENDENCY_CACHE_POLICY
+  - key: $CI_PIPELINE_ID # Incremental build cache. Shared by all jobs in the pipeline
+    paths:
+      - .gradle/caches/8.4 # must match gradle-wrapper.properties
+      - workspace/.gradle
+    policy: $BUILD_CACHE_POLICY
 
 .gradle_build: &gradle_build
   <<: *common
@@ -60,6 +76,8 @@ cache: &default_cache
 build: &build
   <<: *gradle_build
   stage: build
+  variables:
+    BUILD_CACHE_POLICY: push
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -80,14 +98,14 @@ build: &build
 
 build_with_cache:
   <<: *build
+  variables:
+    BUILD_CACHE_POLICY: push
+    DEPENDENCY_CACHE_POLICY: push
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success
     - when: manual
       allow_failure: true
-  cache:
-    <<: *default_cache
-    policy: push
 
 package:
   extends: .package
