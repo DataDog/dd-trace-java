@@ -207,7 +207,7 @@ abstract class UndertowDispatcherTest extends HttpServerTest<Undertow> {
   }
 }
 
-class UndertowDispatcherV0ForkedTest extends UndertowDispatcherTest {
+class UndertowDispatcherV0Test extends UndertowDispatcherTest {
   @Override
   int version() {
     return 0
