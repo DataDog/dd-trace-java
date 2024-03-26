@@ -7,8 +7,10 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
@@ -45,6 +47,7 @@ public class TestImpl implements DDTest {
   private final long sessionId;
   private final long suiteId;
   private final Consumer<AgentSpan> onSpanFinish;
+  private final TestContext context;
 
   public TestImpl(
       long sessionId,
@@ -76,12 +79,14 @@ public class TestImpl implements DDTest {
     CoverageProbeStore probeStore = coverageProbeStoreFactory.create(sourcePathResolver);
     CoverageBridge.setThreadLocalCoverageProbeStore(probeStore);
 
+    this.context = new TestContextImpl(probeStore);
+
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(testDecorator.component() + ".test")
             .ignoreActiveSpan()
             .asChildOf(null)
-            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, probeStore);
+            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -208,9 +213,11 @@ public class TestImpl implements DDTest {
               + span);
     }
 
+    InstrumentationTestBridge.fireBeforeTestEnd(context);
+
     CoverageBridge.removeThreadLocalCoverageProbeStore();
-    CoverageProbeStore probes = span.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
-    boolean coveragesGathered = probes.report(sessionId, suiteId, span.getSpanId());
+    boolean coveragesGathered =
+        context.getCoverageProbeStore().report(sessionId, suiteId, span.getSpanId());
     if (!coveragesGathered && !CIConstants.TEST_SKIP.equals(span.getTag(Tags.TEST_STATUS))) {
       // test is not skipped, but no coverages were gathered
       metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
