@@ -65,26 +65,16 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      matrix:
-        lib-injection-connection: [ 'network','uds']
-        lib-injection-use-admission-controller: ['', 'use-admission-controller']
-        weblog-variant: [ 'dd-lib-java-init-test-app']
-      fail-fast: false
     env:
       TEST_LIBRARY: java
-      WEBLOG_VARIANT: ${{ matrix.weblog-variant }}
-      LIBRARY_INJECTION_CONNECTION: ${{ matrix.lib-injection-connection }}
-      LIBRARY_INJECTION_ADMISSION_CONTROLLER: ${{ matrix.lib-injection-use-admission-controller }}
+      WEBLOG_VARIANT: dd-lib-java-init-test-app
       DOCKER_REGISTRY_IMAGES_PATH: ghcr.io/datadog
       DOCKER_IMAGE_TAG: ${{ github.sha }}
-      MODE: manual
-    steps:     
-      - name: lib-injection test runner
-        id: lib-injection-test-runner
-        uses: DataDog/system-tests/lib-injection/runner@89d754340046eafcc72dc5c5fd6ea651ca7b920e # main
-        with:
-          docker-registry: ghcr.io
-          docker-registry-username: ${{ github.repository_owner }}
-          docker-registry-password: ${{ secrets.GITHUB_TOKEN }}
-          test-script: ./lib-injection/run-manual-lib-injection.sh
+      BUILDX_PLATFORMS: linux/amd64
+    steps:
+    - name: Checkout system tests
+      uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
+      with:
+          repository: 'DataDog/system-tests'
+    - name: Run K8s Lib Injection Tests
+      run: ./run.sh K8S_LIB_INJECTION 
