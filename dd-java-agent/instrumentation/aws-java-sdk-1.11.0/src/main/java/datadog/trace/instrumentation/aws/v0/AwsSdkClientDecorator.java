@@ -33,10 +33,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 
-  public static final boolean AWS_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+  public static final boolean AWS_LEGACY_TRACING = Config.get().isAwsLegacyTracingEnabled();
 
-  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isSqsLegacyTracingEnabled();
 
   private static final String SQS_SERVICE_NAME =
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
