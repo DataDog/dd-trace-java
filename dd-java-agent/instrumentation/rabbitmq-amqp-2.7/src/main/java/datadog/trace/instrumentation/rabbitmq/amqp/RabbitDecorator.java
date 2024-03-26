@@ -46,7 +46,8 @@ public class RabbitDecorator extends MessagingClientDecorator {
   public static final CharSequence RABBITMQ_AMQP = UTF8BytesString.create("rabbitmq-amqp");
 
   public static final boolean RABBITMQ_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(true, "rabbit", "rabbitmq");
+      SpanNaming.instance().namingSchema().allowInferredServices()
+          && Config.get().isLegacyTracingEnabled(true, "rabbit", "rabbitmq");
 
   public static final boolean TIME_IN_QUEUE_ENABLED =
       Config.get().isTimeInQueueEnabled(!RABBITMQ_LEGACY_TRACING, "rabbit", "rabbitmq");

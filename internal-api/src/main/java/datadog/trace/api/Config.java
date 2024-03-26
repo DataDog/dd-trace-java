@@ -3753,9 +3753,28 @@ public class Config {
 
   public boolean isLegacyTracingEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
+    return configProvider.isEnabled(
+        Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
+  }
+
+  public boolean isSqsLegacyTracingEnabled() {
     return SpanNaming.instance().namingSchema().allowInferredServices()
-        && configProvider.isEnabled(
-            Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
+        && isLegacyTracingEnabled(true, "sqs");
+  }
+
+  public boolean isAwsLegacyTracingEnabled() {
+    return SpanNaming.instance().namingSchema().allowInferredServices()
+        && isLegacyTracingEnabled(false, "aws-sdk");
+  }
+
+  public boolean isJmsLegacyTracingEnabled() {
+    return SpanNaming.instance().namingSchema().allowInferredServices()
+        && isLegacyTracingEnabled(true, "jms");
+  }
+
+  public boolean isKafkaLegacyTracingEnabled() {
+    return SpanNaming.instance().namingSchema().allowInferredServices()
+        && isLegacyTracingEnabled(true, "kafka");
   }
 
   public boolean isTimeInQueueEnabled(
