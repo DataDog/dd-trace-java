@@ -2,12 +2,12 @@ package datadog.trace.core.postprocessor;
 
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
-import java.util.List;
 import java.util.function.BooleanSupplier;
 
-public class AppSecPostProcessor implements TracePostProcessor {
+public class AppSecPostProcessor implements SpanPostProcessor {
+
   @Override
-  public boolean process(List<DDSpan> trace, DDSpanContext context, BooleanSupplier timeoutCheck) {
+  public boolean process(DDSpan span, DDSpanContext context, BooleanSupplier timeoutCheck) {
     // Do AppSec post-processing
     return true;
   }

@@ -16,7 +16,7 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.postprocessor.AppSecPostProcessor;
-import datadog.trace.core.postprocessor.TracePostProcessor;
+import datadog.trace.core.postprocessor.SpanPostProcessor;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -210,7 +210,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
-    private final TracePostProcessor tracePostProcessor;
+    private final SpanPostProcessor spanPostProcessor;
 
     public TraceSerializingHandler(
         final MpscBlockingConsumerArrayQueue<Object> primaryQueue,
@@ -230,7 +230,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       } else {
         this.ticksRequiredToFlush = Long.MAX_VALUE;
       }
-      this.tracePostProcessor = new AppSecPostProcessor();
+      this.spanPostProcessor = new AppSecPostProcessor();
     }
 
     @SuppressWarnings("unchecked")
@@ -308,17 +308,24 @@ public class TraceProcessingWorker implements AutoCloseable {
         return;
       }
 
-      DDSpanContext context = trace.get(0).context();
-      if (context == null || !context.isRequiresPostProcessing()) {
-        return;
-      }
-
       long timeout = Config.get().getTracePostProcessingTimeout();
       long deadline = System.currentTimeMillis() + timeout;
       BooleanSupplier timeoutCheck = () -> System.currentTimeMillis() > deadline;
 
-      if (!tracePostProcessor.process(trace, context, timeoutCheck)) {
-        log.debug("Trace post-processing is interrupted due to timeout.");
+      for (DDSpan span : trace) {
+        if (timeoutCheck.getAsBoolean()) {
+          log.debug("Span post-processing is interrupted due to timeout.");
+          break;
+        }
+
+        DDSpanContext context = span.context();
+        if (context == null) {
+          continue;
+        }
+
+        if (context.isRequiresPostProcessing()) {
+          spanPostProcessor.process(span, context, timeoutCheck);
+        }
       }
     }
   }
