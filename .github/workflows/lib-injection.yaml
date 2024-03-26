@@ -76,5 +76,7 @@ jobs:
       uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # 2.3.4
       with:
           repository: 'DataDog/system-tests'
+    - name: Install runner
+      uses: ./.github/actions/install_runner   
     - name: Run K8s Lib Injection Tests
       run: ./run.sh K8S_LIB_INJECTION 
