@@ -76,14 +76,23 @@ abstract class AbstractSeleniumTest extends CiVisibilityInstrumentationTest {
     TestEventsHandlerHolder.stop()
   }
 
-  protected void assertRumData(int expectedTestCases, Map<String, String> dynamicData) {
+  protected void assertRumData(int expectedTestCasesCount, Map<String, String> dynamicData) {
     // verify that test execution ID injected into RUM is the same as trace ID received over test data intake
-    assertEquals(expectedTestCases, rumData.size())
+    List<String> expectedTraceIds = []
     int testCaseIdx = 0
-    while (++testCaseIdx <= expectedTestCases) {
+    while (++testCaseIdx <= expectedTestCasesCount) {
       def suffix = (testCaseIdx > 1) ? "_$testCaseIdx" : ""
-      assertEquals(String.valueOf(dynamicData["content_trace_id$suffix"]), rumData.poll()["test_execution_id"])
+      expectedTraceIds += String.valueOf(dynamicData["content_trace_id$suffix"])
     }
+    expectedTraceIds.sort()
+
+    List<String> rumTraceIds = []
+    while (!rumData.empty) {
+      rumTraceIds += rumData.poll()["test_execution_id"]
+    }
+    rumTraceIds.sort()
+
+    assertEquals(expectedTraceIds, rumTraceIds)
   }
 
   @Override

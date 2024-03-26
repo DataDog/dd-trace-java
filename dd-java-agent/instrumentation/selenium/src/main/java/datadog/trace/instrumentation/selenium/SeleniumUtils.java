@@ -1,9 +1,19 @@
 package datadog.trace.instrumentation.selenium;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+
+import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Optional;
 import java.util.Properties;
 import javax.annotation.Nullable;
 import org.openqa.selenium.Capabilities;
@@ -15,6 +25,8 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 public abstract class SeleniumUtils {
 
   public static final String SELENIUM_VERSION = getSeleniumVersion();
+
+  private static final String RUM_CONTEXT_COOKIE_NAME = "datadog-ci-visibility-test-execution-id";
 
   private SeleniumUtils() {}
 
@@ -41,26 +53,124 @@ public abstract class SeleniumUtils {
     }
   }
 
-  public static void injectRumContext(WebDriver driver, AgentSpan span) {
+  public static void afterPageOpen(WebDriver driver) {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      // no active span
+      return;
+    }
+
+    String spanType = span.getSpanType();
+    if (spanType == null || !spanType.contentEquals(InternalSpanTypes.TEST)) {
+      // not in a test
+      return;
+    }
+
+    injectRumContext(driver, span.getTraceId());
+  }
+
+  private static void injectRumContext(WebDriver driver, DDTraceId traceId) {
     WebDriver.Options options = driver.manage();
+    // options can be null if the driver is not finished initialization yet
+    // (which is the case when the driver's home page is opened)
     if (options != null) {
-      // options can be null if the driver is not finished initialization yet
-      // (which is the case when the driver's home page is opened)
-      options.addCookie(new Cookie("dd_ci_visibility_test_execution_id", span.getTraceId().toString()));
+      String domain = getCookieDomain(driver.getCurrentUrl());
+      options.addCookie(new Cookie(RUM_CONTEXT_COOKIE_NAME, traceId.toString(), domain, "/", null));
     }
   }
 
-  public static boolean isRumAvailable(JavascriptExecutor js) {
-    return (boolean) js.executeScript("return !!window.DD_RUM;");
+  private static void clearRumContext(WebDriver driver) {
+    WebDriver.Options options = driver.manage();
+    // options can be null if the driver is not finished initialization yet
+    // (which is the case when the driver's home page is opened)
+    if (options != null) {
+      options.deleteCookieNamed(RUM_CONTEXT_COOKIE_NAME);
+    }
   }
 
-  public static void stopRumSession(JavascriptExecutor js) {
-    js.executeScript(
-        "if (window.DD_RUM && window.DD_RUM.stopSession) { window.DD_RUM.stopSession(); }");
+  @SuppressForbidden
+  static String getCookieDomain(String urlString) {
+    try {
+      URL url = new URL(urlString);
+      String host = url.getHost();
+      if (isIPV4Address(host)) {
+        return null;
+      }
+
+      int idx = host.length();
+      int tokenCount = 0;
+      while (tokenCount < 2 && idx > 0) {
+        idx = host.lastIndexOf('.', idx - 1);
+        tokenCount++;
+      }
+      return idx == -1 ? null : host.substring(idx + 1);
+
+    } catch (MalformedURLException e) {
+      return null;
+    }
+  }
+
+  @SuppressForbidden
+  static boolean isIPV4Address(String host) {
+    if (host == null) {
+      return false;
+    }
+    String[] tokens = host.split("\\.");
+    if (tokens.length != 4) {
+      return false;
+    }
+    for (String token : tokens) {
+      try {
+        int value = Integer.parseInt(token);
+        if (value < 0 || value > 255) {
+          return false;
+        }
+      } catch (NumberFormatException e) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public static void beforePageClose(WebDriver driver) {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      // no active span
+      return;
+    }
+
+    String spanType = span.getSpanType();
+    if (spanType == null || !spanType.contentEquals(InternalSpanTypes.TEST)) {
+      // not in a test
+      return;
+    }
+
+    span.setTag(Tags.TEST_TYPE, "browser");
+    span.setTag(Tags.TEST_BROWSER_DRIVER, CIConstants.SELENIUM_BROWSER_DRIVER);
+    span.setTag(Tags.TEST_BROWSER_DRIVER_VERSION, SeleniumUtils.SELENIUM_VERSION);
+
+    Capabilities capabilities = SeleniumUtils.getCapabilities(driver);
+    if (capabilities != null) {
+      String browserName = capabilities.getBrowserName();
+      String browserVersion =
+          String.valueOf(
+              Optional.ofNullable(capabilities.getCapability("browserVersion"))
+                  .orElse(Optional.ofNullable(capabilities.getCapability("version")).orElse("")));
+      span.setTag(Tags.TEST_BROWSER_NAME, browserName);
+      span.setTag(Tags.TEST_BROWSER_VERSION, browserVersion);
+    }
+
+    if (driver instanceof JavascriptExecutor
+        && SeleniumUtils.isRumAvailable((JavascriptExecutor) driver)) {
+      span.setTag(Tags.TEST_IS_RUM_ACTIVE, true);
+      stopRumSession((JavascriptExecutor) driver);
+    }
+
+    clearRumContext(driver);
   }
 
   @Nullable
-  public static Capabilities getCapabilities(WebDriver driver) {
+  private static Capabilities getCapabilities(WebDriver driver) {
     if (driver instanceof RemoteWebDriver) {
       return ((RemoteWebDriver) driver).getCapabilities();
     }
@@ -71,6 +181,20 @@ public abstract class SeleniumUtils {
 
     } catch (Exception e) {
       return null;
+    }
+  }
+
+  private static boolean isRumAvailable(JavascriptExecutor js) {
+    return (boolean) js.executeScript("return !!window.DD_RUM;");
+  }
+
+  private static void stopRumSession(JavascriptExecutor js) {
+    js.executeScript(
+        "if (window.DD_RUM && window.DD_RUM.stopSession) { window.DD_RUM.stopSession(); }");
+    try {
+      Thread.sleep(Config.get().getCiVisibilityRumFlushWaitMillis());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
   }
 }
