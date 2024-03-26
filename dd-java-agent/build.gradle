@@ -58,11 +58,11 @@ ext.generalShadowJarConfig = {
 
   if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
     // shadow OT impl to prevent casts to implementation
-    relocate 'datadog.trace.common', 'datadog.trace.agent.common'
-    relocate 'datadog.trace.core', 'datadog.trace.agent.core'
-    relocate 'datadog.opentracing', 'datadog.trace.agent.ot'
+//    relocate 'datadog.trace.common', 'datadog.trace.agent.common'
+//    relocate 'datadog.trace.core', 'datadog.trace.agent.core'
+//    relocate 'datadog.opentracing', 'datadog.trace.agent.ot'
     // shadow things in internal API that has slf4j in the API and is accessed from core
-    relocate 'datadog.trace.relocate', 'datadog.trace.agent.relocate'
+//    relocate 'datadog.trace.relocate', 'datadog.trace.agent.relocate'
   }
 }
 
@@ -83,11 +83,13 @@ def includeShadowJar(TaskProvider<ShadowJar> shadowJarTask, String jarname) {
       }
     }
 
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     from(zipTree(shadowJarTask.get().archiveFile)) {
-      into jarname
-      rename '(^.*)\\.class$', '$1.classdata'
-      // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
-      rename '^LICENSE$', 'LICENSE.renamed'
+//      into jarname
+//      rename '(^.*)\\.class$', '$1.classdata'
+//      // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
+//      rename '^LICENSE$', 'LICENSE.renamed'
     }
   }
 
