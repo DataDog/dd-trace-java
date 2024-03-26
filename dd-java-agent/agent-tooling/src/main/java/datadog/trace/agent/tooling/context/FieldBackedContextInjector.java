@@ -260,19 +260,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         int injectedStoreId = injectedStoreIds.nextSetBit(0);
         while (injectedStoreId >= 0) {
           int nextStoreId = injectedStoreIds.nextSetBit(injectedStoreId + 1);
-
-          // optimization: if we know the superclass hierarchy doesn't have any context store
-          // (injected or weak-map) then we can skip the id check and go straight to the field
-          Label nextStoreLabel = null;
-          if (hasMoreStores || nextStoreId >= 0) {
-            nextStoreLabel = compareStoreId(mv, injectedStoreId);
-          }
+          Label nextStoreLabel = compareStoreId(mv, injectedStoreId);
 
           getStoreField(mv, instrumentedName, injectedStoreId);
 
-          if (null != nextStoreLabel) {
-            beginNextStore(mv, nextStoreLabel);
-          }
+          beginNextStore(mv, nextStoreLabel);
           injectedStoreId = nextStoreId;
         }
 
@@ -305,6 +297,10 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           }
 
           invokeWeakGet(mv);
+        } else {
+          // ignore unexpected access (i.e. for a store that was explicitly excluded from this type)
+          mv.visitInsn(Opcodes.ACONST_NULL);
+          mv.visitInsn(Opcodes.ARETURN);
         }
 
         mv.visitMaxs(0, 0);
@@ -325,19 +321,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         int injectedStoreId = injectedStoreIds.nextSetBit(0);
         while (injectedStoreId >= 0) {
           int nextStoreId = injectedStoreIds.nextSetBit(injectedStoreId + 1);
-
-          // optimization: if we know the superclass hierarchy doesn't have any context store
-          // (injected or weak-map) then we can skip the id check and go straight to the field
-          Label nextStoreLabel = null;
-          if (hasMoreStores || nextStoreId >= 0) {
-            nextStoreLabel = compareStoreId(mv, injectedStoreId);
-          }
+          Label nextStoreLabel = compareStoreId(mv, injectedStoreId);
 
           putStoreField(mv, instrumentedName, injectedStoreId);
 
-          if (null != nextStoreLabel) {
-            beginNextStore(mv, nextStoreLabel);
-          }
+          beginNextStore(mv, nextStoreLabel);
           injectedStoreId = nextStoreId;
         }
 
@@ -370,6 +358,9 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           }
 
           invokeWeakPut(mv);
+        } else {
+          // ignore unexpected access (i.e. for a store that was explicitly excluded from this type)
+          mv.visitInsn(Opcodes.RETURN);
         }
 
         mv.visitMaxs(0, 0);
