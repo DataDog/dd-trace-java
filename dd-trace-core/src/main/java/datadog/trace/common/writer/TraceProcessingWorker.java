@@ -17,7 +17,6 @@ import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.postprocessor.AppSecPostProcessor;
 import datadog.trace.core.postprocessor.SpanPostProcessor;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
