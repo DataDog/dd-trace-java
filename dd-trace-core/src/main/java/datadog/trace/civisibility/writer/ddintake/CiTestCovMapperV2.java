@@ -11,6 +11,7 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.coverage.TestReportHolder;
+import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Endpoint;
@@ -136,10 +137,13 @@ public class CiTestCovMapperV2 implements RemoteMapper {
 
   private static TestReport getTestReport(CoreSpan<?> span) {
     if (span instanceof AgentSpan) {
-      TestReportHolder probes =
+      TestContext test =
           ((AgentSpan) span).getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
-      if (probes != null) {
-        return probes.getReport();
+      if (test != null) {
+        TestReportHolder probes = test.getCoverageProbeStore();
+        if (probes != null) {
+          return probes.getReport();
+        }
       }
     }
     return null;

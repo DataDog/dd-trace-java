@@ -1,10 +1,7 @@
 package datadog.trace.api.civisibility.coverage;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.api.civisibility.InstrumentationTestBridge;
+import datadog.trace.api.civisibility.domain.TestContext;
 
 public abstract class CoverageBridge {
   /*
@@ -84,14 +81,11 @@ public abstract class CoverageBridge {
    * is propagated from the original test thread to another thread.
    */
   private static CoverageProbeStore getCurrentCoverageProbeStore() {
-    AgentSpan span = activeSpan();
-    if (span == null) {
+    TestContext currentTest = InstrumentationTestBridge.getCurrentTestContext();
+    if (currentTest != null) {
+      return currentTest.getCoverageProbeStore();
+    } else {
       return null;
     }
-    RequestContext requestContext = span.getRequestContext();
-    if (requestContext == null) {
-      return null;
-    }
-    return requestContext.getData(RequestContextSlot.CI_VISIBILITY);
   }
 }
