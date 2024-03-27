@@ -5,6 +5,7 @@ import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_LOGS_INJECTION;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_SAMPLE_RATE;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_TRACING_ENABLED;
 
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
@@ -46,11 +47,11 @@ final class TracingConfigPoller {
   public void start(Config config, SharedCommunicationObjects sco) {
     this.startupLogsEnabled = config.isStartupLogsEnabled();
     ConfigurationPoller configPoller = sco.configurationPoller(config);
-    // TODO: Add CAPABILITY_APM_TRACING_TRACING_ENABLED flag when tracing_enabled is implemented for
-    // Remote config
+
     if (configPoller != null) {
       configPoller.addCapabilities(
-          CAPABILITY_APM_TRACING_SAMPLE_RATE
+          CAPABILITY_APM_TRACING_TRACING_ENABLED
+              | CAPABILITY_APM_TRACING_SAMPLE_RATE
               | CAPABILITY_APM_LOGS_INJECTION
               | CAPABILITY_APM_HTTP_HEADER_TAGS
               | CAPABILITY_APM_CUSTOM_TAGS
@@ -111,7 +112,6 @@ final class TracingConfigPoller {
             throw new IllegalArgumentException("env mismatch");
           }
         }
-
         receivedOverrides = true;
         applyConfigOverrides(overrides.libConfig);
         if (log.isDebugEnabled()) {
@@ -156,7 +156,7 @@ final class TracingConfigPoller {
     } else {
       GlobalLogLevelSwitcher.get().restore();
     }
-
+    maybeOverride(builder::setTracingEnabled, libConfig.tracingEnabled);
     maybeOverride(builder::setRuntimeMetricsEnabled, libConfig.runtimeMetricsEnabled);
     maybeOverride(builder::setLogsInjectionEnabled, libConfig.logsInjectionEnabled);
     maybeOverride(builder::setDataStreamsEnabled, libConfig.dataStreamsEnabled);
@@ -218,6 +218,9 @@ final class TracingConfigPoller {
   }
 
   static final class LibConfig {
+    @Json(name = "tracing_enabled")
+    public Boolean tracingEnabled;
+
     @Json(name = "tracing_debug")
     public Boolean debugEnabled;
 
