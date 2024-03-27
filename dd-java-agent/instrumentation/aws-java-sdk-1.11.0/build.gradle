@@ -91,8 +91,10 @@ dependencies {
   dsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '1.12.366'
   // no batch publish before v1.12
   dsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '1.12.366'
+  dsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '1.12.366'
   latestDsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '+'
   latestDsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '+'
+  latestDsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '+'
 
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-rds', version: '+'

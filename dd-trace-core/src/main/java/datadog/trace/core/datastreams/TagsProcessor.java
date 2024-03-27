@@ -69,6 +69,9 @@ public class TagsProcessor {
   private static final Function<String, String> KAFKA_CLUSTER_ID_TAG_PREFIX =
       new StringPrefix("kafka_cluster_id:");
 
+  public static final String DATASET_NAME_TAG = "ds.name";
+  public static final String DATASET_NAMESPACE_TAG = "ds.namespace";
+
   private static final Map<String, DDCache<String, String>> TAG_TO_CACHE = createTagToCacheMap();
   private static final Map<String, Function<String, String>> TAG_TO_PREFIX = createTagToPrefixMap();
 
