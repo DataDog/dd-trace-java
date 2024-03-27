@@ -2044,7 +2044,9 @@ public class Config {
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
     }
 
-    this.tracePostProcessingTimeout = configProvider.getLong(TRACE_POST_PROCESSING_TIMEOUT, 1000);
+    this.tracePostProcessingTimeout =
+        configProvider.getLong(
+            TRACE_POST_PROCESSING_TIMEOUT, ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
 
     if (isCiVisibilityEnabled()
         && ciVisibilityAgentlessEnabled
