@@ -474,7 +474,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     int i = 0;
     while (iterator.hasNext()) {
       RDDInfo next = iterator.next();
-      span.setTag("spark.debug.rdd_" + i, next.name() + " -> " + next);
+      span.setTag("spark.debug.rdd_" + i + ".details", next.name() + " -> " + next);
+
+      scala.Option<org.apache.spark.rdd.RDDOperationScope> scope = next.scope();
+      if (scope != null) {
+        span.setTag("spark.debug.rdd_" + i + ".scope_json", scope.get().toJson());
+      }
+
       System.out.println("### Got spark RDD info: " + next.name() + " -> " + next);
     }
 
