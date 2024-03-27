@@ -215,6 +215,8 @@ public final class ConfigDefaults {
 
   static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
 
+  static final long DEFAULT_TRACE_POST_PROCESSING_TIMEOUT = 1000; // 1 second
+
   static final boolean DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
   static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;
