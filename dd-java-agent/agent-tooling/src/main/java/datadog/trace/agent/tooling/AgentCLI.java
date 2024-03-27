@@ -37,7 +37,7 @@ public final class AgentCLI {
   /** Prints all known integrations in alphabetical order. */
   public static void printIntegrationNames() {
     Set<String> names = new TreeSet<>();
-    for (InstrumenterModule module : InstrumenterModules.load()) {
+    for (InstrumenterModule module : InstrumenterIndex.readIndex().modules()) {
       names.add(module.name());
     }
     for (String name : names) {

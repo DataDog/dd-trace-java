@@ -16,8 +16,8 @@ public class MuzzleCheck implements ElementMatcher<ClassLoader> {
 
   private ReferenceMatcher muzzle;
 
-  public MuzzleCheck(InstrumenterModule module) {
-    this.instrumentationId = module.instrumentationId();
+  public MuzzleCheck(InstrumenterModule module, int instrumentationId) {
+    this.instrumentationId = instrumentationId;
     this.instrumentationClass = module.getClass().getName();
     this.runtimeMuzzleReferences = module.runtimeMuzzleReferences();
   }

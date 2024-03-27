@@ -43,6 +43,9 @@ ext.generalShadowJarConfig = {
   exclude '**/liblz4-java.so'
   exclude '**/liblz4-java.dylib'
 
+  // Replaced by 'instrumenter.index', no need to include original service file
+  exclude '**/META-INF/services/datadog.trace.agent.tooling.InstrumenterModule'
+
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
   // rewrite dependencies calling Logger.getLogger

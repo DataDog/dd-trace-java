@@ -167,17 +167,16 @@ public class AgentInstaller {
       agentBuilder = agentBuilder.with(listener);
     }
 
-    InstrumenterModules modules = InstrumenterModules.load();
-    int maxInstrumentationId = modules.maxInstrumentationId();
+    InstrumenterIndex instrumenterIndex = InstrumenterIndex.readIndex();
 
     // pre-size state before registering instrumentations to reduce number of allocations
-    InstrumenterState.setMaxInstrumentationId(maxInstrumentationId);
+    InstrumenterState.initialize(instrumenterIndex.instrumentationCount());
 
     // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
     // immediately and we don't have the ability to express dependencies between different
     // instrumentations to control the load order.
-    for (InstrumenterModule module : modules) {
+    for (InstrumenterModule module : instrumenterIndex.modules()) {
       if (module instanceof ExcludeFilterProvider) {
         ExcludeFilterProvider provider = (ExcludeFilterProvider) module;
         ExcludeFilter.add(provider.excludedClasses());
@@ -189,10 +188,10 @@ public class AgentInstaller {
     }
 
     CombiningTransformerBuilder transformerBuilder =
-        new CombiningTransformerBuilder(agentBuilder, maxInstrumentationId);
+        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex);
 
     int installedCount = 0;
-    for (InstrumenterModule module : modules) {
+    for (InstrumenterModule module : instrumenterIndex.modules()) {
       if (!module.isApplicable(enabledSystems)) {
         if (DEBUG) {
           log.debug("Not applicable - instrumentation.class={}", module.getClass().getName());
