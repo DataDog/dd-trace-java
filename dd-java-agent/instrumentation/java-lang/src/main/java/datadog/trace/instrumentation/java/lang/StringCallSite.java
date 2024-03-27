@@ -4,6 +4,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.CodecModule;
@@ -17,6 +18,7 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+@SuppressWarnings("unused")
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringCallSite {
@@ -123,7 +125,7 @@ public class StringCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-        module.onStringJoin(result, delimiter, copy.toArray(new CharSequence[copy.size()]));
+        module.onStringJoin(result, delimiter, copy.toArray(new CharSequence[0]));
       } catch (final Throwable e) {
         module.onUnexpectedException("afterSubSequence threw", e);
       }
@@ -384,7 +386,10 @@ public class StringCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfTainted(result, self, true, NOT_MARKED);
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, result, self, true, NOT_MARKED);
+        }
       } catch (final Throwable e) {
         module.onUnexpectedException("afterToCharArray threw", e);
       }
@@ -412,7 +417,7 @@ public class StringCallSite {
   public static String[] afterSplitWithLimit(
       @CallSite.This @Nonnull final String self,
       @CallSite.Argument(0) @Nonnull final String regex,
-      @CallSite.Argument(1) @Nonnull final int pos,
+      @CallSite.Argument(1) final int pos,
       @CallSite.Return @Nonnull final String[] result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {

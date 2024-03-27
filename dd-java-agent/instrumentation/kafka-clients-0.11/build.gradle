@@ -30,6 +30,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:java-io')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
   // Include latest version of kafka itself along with latest version of client libs.
   // This seems to help with jar compatibility hell.

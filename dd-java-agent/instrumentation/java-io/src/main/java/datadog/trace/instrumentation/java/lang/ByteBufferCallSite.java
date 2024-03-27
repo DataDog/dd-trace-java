@@ -4,6 +4,7 @@ import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -26,7 +27,10 @@ public class ByteBufferCallSite {
       return result;
     }
     try {
-      module.taintIfTainted(result, bytes, true, NOT_MARKED); // keep ranges
+      final IastContext ctx = IastContext.Provider.get();
+      if (ctx != null) {
+        module.taintIfTainted(ctx, result, bytes, true, NOT_MARKED); // keep ranges
+      }
     } catch (final Throwable e) {
       module.onUnexpectedException("beforeConstructor threw", e);
     }
@@ -44,7 +48,10 @@ public class ByteBufferCallSite {
       return bytes;
     }
     try {
-      module.taintIfTainted(bytes, buffer, true, NOT_MARKED); // keep ranges
+      final IastContext ctx = IastContext.Provider.get();
+      if (ctx != null) {
+        module.taintIfTainted(ctx, bytes, buffer, true, NOT_MARKED); // keep ranges
+      }
     } catch (final Throwable e) {
       module.onUnexpectedException("afterArray threw", e);
     }

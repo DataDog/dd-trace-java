@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Sink;
@@ -58,10 +59,13 @@ public class Json1FactoryInstrumentation extends InstrumenterModule.Iast
     @Sink(VulnerabilityTypes.SSRF) // SSRF takes priority over the propagation one
     public static void onExit(
         @Advice.Argument(0) final Object input, @Advice.Return final Object parser) {
-      if (input != null) {
+      if (parser != null) {
         final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
         if (propagation != null) {
-          propagation.taintIfTainted(parser, input);
+          final IastContext ctx = IastContext.Provider.get();
+          if (ctx != null) {
+            propagation.taintIfTainted(ctx, parser, input);
+          }
         }
         if (input instanceof URL) {
           final SsrfModule ssrf = InstrumentationBridge.SSRF;
@@ -82,10 +86,13 @@ public class Json1FactoryInstrumentation extends InstrumenterModule.Iast
         @Advice.Argument(1) final int offset,
         @Advice.Argument(2) final int length,
         @Advice.Return final Object parser) {
-      if (input != null || length <= 0) {
+      if (parser != null) {
         final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
         if (propagation != null) {
-          propagation.taintIfTainted(parser, input, offset, length, false, NOT_MARKED);
+          final IastContext ctx = IastContext.Provider.get();
+          if (ctx != null) {
+            propagation.taintIfTainted(ctx, parser, input, offset, length, false, NOT_MARKED);
+          }
         }
       }
     }

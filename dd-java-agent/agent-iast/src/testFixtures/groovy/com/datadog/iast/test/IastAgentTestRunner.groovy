@@ -45,18 +45,25 @@ class IastAgentTestRunner extends AgentTestRunner implements IastRequestContextP
   }
 
   protected DDSpan runUnderIastTrace(Closure cl) {
-    CallbackProvider iastCbp = TEST_TRACER.getCallbackProvider(RequestContextSlot.IAST)
-    Supplier<Flow<Object>> reqStartCb = iastCbp.getCallback(Events.EVENTS.requestStarted())
+    return withIastTrace(cl).v1
+  }
 
-    def iastCtx = reqStartCb.get().result
-    def ddctx = new TagContext().withRequestContextDataIast(iastCtx)
-    AgentSpan span = TEST_TRACER.startSpan("test", "test-iast-span", ddctx)
+  protected <E> E computeUnderIastTrace(Closure<E> cl) {
+    return withIastTrace(cl).v2
+  }
+
+  private <E> Tuple2<DDSpan, E> withIastTrace(Closure<E> cl) {
+    final iastCbp = TEST_TRACER.getCallbackProvider(RequestContextSlot.IAST)
+    final reqStartCb = iastCbp.getCallback(Events.EVENTS.requestStarted())
+
+    final iastCtx = reqStartCb.get().result
+    final ddctx = new TagContext().withRequestContextDataIast(iastCtx)
+    final span = TEST_TRACER.startSpan("test", "test-iast-span", ddctx)
     try {
-      AgentTracer.activateSpan(span).withCloseable cl
+      final E result = AgentTracer.activateSpan(span).withCloseable cl
+      return Tuple.tuple(span, result)
     } finally {
       span.finish()
     }
-
-    span
   }
 }

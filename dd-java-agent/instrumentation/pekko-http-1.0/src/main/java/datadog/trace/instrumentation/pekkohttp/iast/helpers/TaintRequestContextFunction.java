@@ -18,7 +18,7 @@ public class TaintRequestContextFunction
     RequestContext reqCtx = v1._1();
 
     PropagationModule mod = InstrumentationBridge.PROPAGATION;
-    if (mod == null) {
+    if (mod == null || reqCtx == null) {
       return v1;
     }
     IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());

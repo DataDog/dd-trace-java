@@ -131,7 +131,7 @@ class IastSourceTest extends IastVertx34Server {
 
     then:
     1 * module.taint(_ as IastContext, _ as Buffer, SourceTypes.REQUEST_BODY)
-    1 * module.taintIfTainted('{ "my_key": "my_value" }', _ as Buffer)
+    1 * module.taintIfTainted(_ as IastContext, '{ "my_key": "my_value" }', _ as Buffer)
   }
 
 

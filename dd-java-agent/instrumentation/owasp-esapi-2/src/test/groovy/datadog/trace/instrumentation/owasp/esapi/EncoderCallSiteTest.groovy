@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.owasp.esapi
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -8,24 +9,24 @@ import foo.bar.TestEncoderSuite
 import org.owasp.esapi.Encoder
 import org.owasp.esapi.codecs.Codec
 
-class EncoderCallSiteTest extends AgentTestRunner {
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
+class EncoderCallSiteTest extends IastAgentTestRunner {
 
   void 'test #method propagation with mark #mark'() {
     given:
     final module = Mock(PropagationModule)
-    final testSuite = new TestEncoderSuite(Mock(Encoder))
+    final encoder = Stub(Encoder) {
+      "$method"(_) >> {
+        return it[0] + "Encoded"
+      }
+    }
+    final testSuite = new TestEncoderSuite(encoder)
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    testSuite.&"$method".call(args)
+    runUnderIastTrace { testSuite.&"$method".call(args) }
 
     then:
-    1 * module.taintIfTainted(_, _, false, mark)
+    1 * module.taintIfTainted(_ as IastContext, _, _, false, mark)
     0 * module._
 
     where:
@@ -35,7 +36,7 @@ class EncoderCallSiteTest extends AgentTestRunner {
     'canonicalize'  | ['Ø-This is a quote', true]        | VulnerabilityMarks.XSS_MARK
     'canonicalize'  | ['Ø-This is a quote', true, true]  | VulnerabilityMarks.XSS_MARK
     'encodeForLDAP' | ['Ø-This is a quote']              | VulnerabilityMarks.LDAP_INJECTION_MARK
-    'encodeForOS'   | [Mock(Codec), 'Ø-This is a quote'] | VulnerabilityMarks.COMMAND_INJECTION_MARK
-    'encodeForSQL'  | [Mock(Codec), 'Ø-This is a quote'] | VulnerabilityMarks.SQL_INJECTION_MARK
+    'encodeForOS'   | [Stub(Codec), 'Ø-This is a quote'] | VulnerabilityMarks.COMMAND_INJECTION_MARK
+    'encodeForSQL'  | [Stub(Codec), 'Ø-This is a quote'] | VulnerabilityMarks.SQL_INJECTION_MARK
   }
 }

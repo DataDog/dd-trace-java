@@ -28,11 +28,11 @@ public class PathParamInjectorAdvice {
           Collection<?> collection = (Collection<?>) result;
           for (Object o : collection) {
             if (o instanceof String) {
-              module.taint(ctx, o, SourceTypes.REQUEST_PATH_PARAMETER, paramName);
+              module.taint(ctx, (String) o, SourceTypes.REQUEST_PATH_PARAMETER, paramName);
             }
           }
         } else {
-          module.taint(ctx, result, SourceTypes.REQUEST_PATH_PARAMETER, paramName);
+          module.taint(ctx, (String) result, SourceTypes.REQUEST_PATH_PARAMETER, paramName);
         }
       }
     }

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.commonslang3;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.VulnerabilityMarks;
@@ -25,9 +26,12 @@ public class StringEscapeUtilsCallSite {
   public static String afterEscape(
       @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (result != null && module != null) {
       try {
-        module.taintIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, result, input, false, VulnerabilityMarks.XSS_MARK);
+        }
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEscape threw", e);
       }
@@ -40,9 +44,12 @@ public class StringEscapeUtilsCallSite {
   public static String afterEscapeJson(
       @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (result != null && module != null) {
       try {
-        module.taintIfTainted(result, input);
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx != null) {
+          module.taintIfTainted(ctx, result, input);
+        }
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEscapeJson threw", e);
       }

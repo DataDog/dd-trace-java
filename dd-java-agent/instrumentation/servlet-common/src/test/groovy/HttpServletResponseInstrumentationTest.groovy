@@ -1,9 +1,12 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.api.iast.util.Cookie as IastCookie
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import foo.bar.DummyResponse
 
 import javax.servlet.http.Cookie
@@ -178,11 +181,11 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     final response = new DummyResponse()
 
     when:
-    response.encodeRedirectURL("http://dummy.url.com")
+    runUnderIastTrace { response.encodeRedirectURL("http://dummy.url.com") }
 
     then:
     noExceptionThrown()
-    1 * module.taintIfTainted(_, "http://dummy.url.com")
+    1 * module.taintIfTainted(_ as IastContext, _, "http://dummy.url.com")
     0 * _
   }
 
@@ -193,11 +196,11 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
     final response = new DummyResponse()
 
     when:
-    response.encodeURL("http://dummy.url.com")
+    runUnderIastTrace { response.encodeURL("http://dummy.url.com") }
 
     then:
     noExceptionThrown()
-    1 * module.taintIfTainted(_, "http://dummy.url.com")
+    1 * module.taintIfTainted(_ as IastContext, _, "http://dummy.url.com")
     0 * _
   }
 
@@ -224,5 +227,15 @@ class HttpServletResponseInstrumentationTest extends AgentTestRunner {
 
     then:
     0 * _
+  }
+
+  protected <E> E runUnderIastTrace(Closure<E> cl) {
+    final ddctx = new TagContext().withRequestContextDataIast(Stub(IastContext))
+    final span = TEST_TRACER.startSpan("test", "test-iast-span", ddctx)
+    try {
+      return AgentTracer.activateSpan(span).withCloseable(cl)
+    } finally {
+      span.finish()
+    }
   }
 }

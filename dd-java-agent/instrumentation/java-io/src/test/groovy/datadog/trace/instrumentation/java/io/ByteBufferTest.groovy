@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
@@ -8,12 +9,7 @@ import foo.bar.TestByteBufferSuite
 
 import java.nio.ByteBuffer
 
-class ByteBufferTest extends AgentTestRunner {
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig('dd.iast.enabled', 'true')
-  }
+class ByteBufferTest extends IastAgentTestRunner {
 
   void 'test wrap method'() {
     given:
@@ -22,10 +18,10 @@ class ByteBufferTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    TestByteBufferSuite.wrap(message)
+    runUnderIastTrace { TestByteBufferSuite.wrap(message) }
 
     then:
-    1 * module.taintIfTainted(_ as ByteBuffer, message, true, VulnerabilityMarks.NOT_MARKED)
+    1 * module.taintIfTainted(_ as IastContext, _ as ByteBuffer, message, true, VulnerabilityMarks.NOT_MARKED)
   }
 
   void 'test array method'() {
@@ -35,10 +31,10 @@ class ByteBufferTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestByteBufferSuite.array(message)
+    final result = computeUnderIastTrace { TestByteBufferSuite.array(message) }
 
     then:
     result == message.array()
-    1 * module.taintIfTainted(_ as byte[], message, true, VulnerabilityMarks.NOT_MARKED)
+    1 * module.taintIfTainted(_ as IastContext, _ as byte[], message, true, VulnerabilityMarks.NOT_MARKED)
   }
 }

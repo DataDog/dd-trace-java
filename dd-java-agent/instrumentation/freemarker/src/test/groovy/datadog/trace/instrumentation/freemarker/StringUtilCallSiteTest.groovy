@@ -1,17 +1,13 @@
 package datadog.trace.instrumentation.freemarker
 
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestStringUtilSuite
 
-class StringUtilCallSiteTest extends AgentTestRunner {
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
+class StringUtilCallSiteTest extends IastAgentTestRunner {
 
   void 'test #method'() {
     given:
@@ -19,11 +15,11 @@ class StringUtilCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    final result = TestStringUtilSuite.&"$method".call(args)
+    def result = computeUnderIastTrace { TestStringUtilSuite.&"$method".call(args) }
 
     then:
     result == expected
-    1 * module.taintIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
+    1 * module.taintIfTainted(_ as IastContext, _ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
     0 * _
 
     where:
@@ -42,10 +38,10 @@ class StringUtilCallSiteTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     when:
-    TestStringUtilSuite.&"$method".call(null)
+    runUnderIastTrace { TestStringUtilSuite.&"$method".call(null) }
 
     then:
-    def thrownException = thrown (Exception)
+    def thrownException = thrown(Exception)
     assert  thrownException.stackTrace[0].getClassName().startsWith('freemarker')
     0 * _
 

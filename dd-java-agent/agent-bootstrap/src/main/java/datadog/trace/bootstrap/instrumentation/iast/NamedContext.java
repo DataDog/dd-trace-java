@@ -28,9 +28,10 @@ public abstract class NamedContext {
     }
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
-      final Source source = module.findSource(target);
-      if (source != null) {
-        result = new NamedContextImpl(module, source);
+      final IastContext ctx = IastContext.Provider.get();
+      final Source source;
+      if (ctx != null && (source = module.findSource(ctx, target)) != null) {
+        result = new NamedContextImpl(module, ctx, source);
       }
     }
     result = result == null ? NoOp.INSTANCE : result;
@@ -51,20 +52,22 @@ public abstract class NamedContext {
 
   private static class NamedContextImpl extends NamedContext {
     @Nonnull private final PropagationModule module;
+    @Nonnull private final IastContext ctx;
     @Nonnull private final Source source;
     @Nullable private String currentName;
 
-    private boolean fetched;
-    @Nullable private IastContext context;
-
-    public NamedContextImpl(@Nonnull final PropagationModule module, @Nonnull final Source source) {
+    public NamedContextImpl(
+        @Nonnull final PropagationModule module,
+        @Nonnull final IastContext ctx,
+        @Nonnull final Source source) {
       this.module = module;
+      this.ctx = ctx;
       this.source = source;
     }
 
     @Override
     public void taintValue(@Nullable final String value) {
-      module.taint(iastCtx(), value, source.getOrigin(), currentName, source.getValue());
+      module.taint(ctx, value, source.getOrigin(), currentName, source.getValue());
     }
 
     @Override
@@ -74,16 +77,8 @@ public abstract class NamedContext {
       // prevent tainting the same name more than once
       if (currentName != name) {
         currentName = name;
-        module.taint(iastCtx(), name, source.getOrigin(), name, source.getValue());
+        module.taint(ctx, name, source.getOrigin(), name, source.getValue());
       }
-    }
-
-    private IastContext iastCtx() {
-      if (!fetched) {
-        fetched = true;
-        context = IastContext.Provider.get();
-      }
-      return context;
     }
   }
 }

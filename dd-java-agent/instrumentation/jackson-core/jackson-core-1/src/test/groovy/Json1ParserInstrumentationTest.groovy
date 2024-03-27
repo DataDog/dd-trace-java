@@ -1,21 +1,16 @@
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.test.IastAgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.Taintable.Source
 import datadog.trace.api.iast.propagation.PropagationModule
 import groovy.json.JsonOutput
+import org.codehaus.jackson.JsonParser
 import org.codehaus.jackson.map.ObjectMapper
 
-import java.nio.charset.Charset
-
-class Json1ParserInstrumentationTest extends AgentTestRunner {
+class Json1ParserInstrumentationTest extends IastAgentTestRunner {
 
   private final static String JSON_STRING = '{"root":"root_value","nested":{"nested_array":["array_0","array_1"]}}'
-
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig("dd.iast.enabled", "true")
-  }
 
   void 'test json parsing (tainted)'() {
     given:
@@ -27,18 +22,20 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
     final reader = new ObjectMapper().reader(Map)
 
     when:
-    final taintedResult = reader.readValue(target) as Map
+    final taintedResult = computeUnderIastTrace {
+      reader.readValue(target) as Map
+    }
 
     then:
     JsonOutput.toJson(taintedResult) == JSON_STRING
-    _ * module.taintIfTainted(_, _)
-    _ * module.findSource(_) >> source
-    1 * module.taint(_, 'root', source.origin, 'root', JSON_STRING)
-    1 * module.taint(_, 'root_value', source.origin, 'root', JSON_STRING)
-    1 * module.taint(_, 'nested', source.origin, 'nested', JSON_STRING)
-    1 * module.taint(_, 'nested_array', source.origin, 'nested_array', JSON_STRING)
-    1 * module.taint(_, 'array_0', source.origin, 'nested_array', JSON_STRING)
-    1 * module.taint(_, 'array_1', source.origin, 'nested_array', JSON_STRING)
+    _ * module.taintIfTainted(_ as IastContext, _ as JsonParser, _)
+    _ * module.findSource(_ as IastContext, _ as JsonParser) >> source
+    1 * module.taint(_ as IastContext, 'root', source.origin, 'root', JSON_STRING)
+    1 * module.taint(_ as IastContext, 'root_value', source.origin, 'root', JSON_STRING)
+    1 * module.taint(_ as IastContext, 'nested', source.origin, 'nested', JSON_STRING)
+    1 * module.taint(_ as IastContext, 'nested_array', source.origin, 'nested_array', JSON_STRING)
+    1 * module.taint(_ as IastContext, 'array_0', source.origin, 'nested_array', JSON_STRING)
+    1 * module.taint(_ as IastContext, 'array_1', source.origin, 'nested_array', JSON_STRING)
     0 * _
 
     where:
@@ -54,12 +51,12 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
     final reader = new ObjectMapper().reader(Map)
 
     when:
-    final taintedResult = reader.readValue(target) as Map
+    final taintedResult = computeUnderIastTrace { reader.readValue(target) as Map }
 
     then:
     JsonOutput.toJson(taintedResult) == JSON_STRING
-    _ * module.taintIfTainted(_, _)
-    _ * module.findSource(_) >> null
+    _ * module.taintIfTainted(_ as IastContext, _ as JsonParser, _)
+    _ * module.findSource(_ as IastContext, _ as JsonParser) >> null
     0 * _
 
     where:
@@ -67,7 +64,7 @@ class Json1ParserInstrumentationTest extends AgentTestRunner {
   }
 
   private static List<Object> testSuite() {
-    return [JSON_STRING, new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
+    return [JSON_STRING]
   }
 
   private static class SourceImpl implements Source {

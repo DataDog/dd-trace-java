@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.springwebflux.server.iast;
 
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -18,6 +19,9 @@ public class DataBufferAsInputStreamAdvice {
       return;
     }
 
-    mod.taintIfTainted(is, dataBuffer);
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx != null) {
+      mod.taintIfTainted(ctx, is, dataBuffer);
+    }
   }
 }

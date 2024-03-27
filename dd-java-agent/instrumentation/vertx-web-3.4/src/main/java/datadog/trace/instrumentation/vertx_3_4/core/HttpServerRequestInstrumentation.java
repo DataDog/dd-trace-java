@@ -59,7 +59,7 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
         @Advice.Return final Object multiMap,
         @ActiveRequestContext RequestContext reqCtx) {
       // only taint the map the first time
-      if (beforeHeaders != multiMap) {
+      if (beforeHeaders != multiMap && multiMap != null) {
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);

@@ -16,6 +16,7 @@ dependencies {
   compileOnly group: 'org.apache.commons', name: 'commons-lang3', version: '3.5'
 
   testImplementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.5'
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 

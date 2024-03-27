@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.kafka_clients;
 import static datadog.trace.api.iast.SourceTypes.KAFKA_MESSAGE_KEY;
 import static datadog.trace.api.iast.SourceTypes.KAFKA_MESSAGE_VALUE;
 
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -36,8 +37,12 @@ public class KafkaIastHelper {
     if (module == null) {
       return;
     }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
     final byte source = getSource(store, deserializer);
-    module.taint(data, source);
+    module.taint(ctx, data, source);
   }
 
   public static void taint(
@@ -54,12 +59,16 @@ public class KafkaIastHelper {
     if (module == null) {
       return;
     }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
     final byte source = getSource(store, deserializer);
     int start = data.position();
     if (data.hasArray()) {
       start += data.arrayOffset();
     }
-    module.taint(data, source, start, data.remaining());
+    module.taint(ctx, data, source, start, data.remaining());
   }
 
   public static void afterDeserialize() {

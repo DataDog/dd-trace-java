@@ -30,9 +30,11 @@ public class TaintUnmarshaller<A, B> implements Unmarshaller<A, B> {
 
   @Override
   public Future<B> apply(A value, ExecutionContext ec, Materializer materializer) {
-    IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-    if (ctx != null) {
-      propagationModule.taint(ctx, value, SourceTypes.REQUEST_BODY);
+    if (value != null) {
+      IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
+      if (ctx != null) {
+        propagationModule.taint(ctx, value, SourceTypes.REQUEST_BODY);
+      }
     }
     return delegate.apply(value, ec, materializer);
   }

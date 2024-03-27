@@ -21,7 +21,7 @@ public class AbstractStringReaderAdvice {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, result, SourceTypes.REQUEST_PARAMETER_VALUE);
+        module.taint(ctx, (String) result, SourceTypes.REQUEST_PARAMETER_VALUE);
       }
     }
   }
