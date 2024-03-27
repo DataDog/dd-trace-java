@@ -478,7 +478,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       System.out.println("### Got spark RDD info: " + next.name() + " -> " + next);
     }
 
-
     if (stageInfo.failureReason().isDefined()) {
       span.setError(true);
       span.setErrorMessage(getErrorMessageWithoutStackTrace(stageInfo.failureReason().get()));
