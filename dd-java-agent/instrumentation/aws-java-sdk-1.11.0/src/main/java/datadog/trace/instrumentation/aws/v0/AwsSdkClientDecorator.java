@@ -148,7 +148,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       bestPrecursor = InstrumentationTags.AWS_BUCKET_NAME;
       bestPeerService = bucketName;
 
-      System.out.printf("#### -> Operation %s. Got bucket name %s, key %s",
+      System.out.printf("\n#### -> Operation %s. Got bucket name %s, key %s\n",
           awsOperation.getSimpleName(),
           bucketName,
           key);

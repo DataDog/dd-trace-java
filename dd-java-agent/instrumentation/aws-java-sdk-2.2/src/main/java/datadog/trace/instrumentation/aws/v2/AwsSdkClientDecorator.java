@@ -358,15 +358,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         Object bucket = span.getTag(InstrumentationTags.AWS_BUCKET_NAME);
         Object awsOperation = span.getTag(InstrumentationTags.AWS_OPERATION);
 
-        if (httpResponse != null && httpResponse.headers() != null) {
-          for ( Entry<String, List<String>> entry : httpResponse.headers().entrySet()) {
-            if (entry == null || entry.getKey() == null || entry.getValue() == null) {
-              continue;
-            }
-            System.out.printf("### response header v2 %s=%s (%s)\n", entry.getKey(), String.join(",", entry.getValue()), awsOperation);
-          }
-        }
-
         if (key != null && bucket != null && awsOperation != null) {
           if ("GetObject".equalsIgnoreCase(awsOperation.toString())) {
             LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
