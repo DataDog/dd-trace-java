@@ -140,7 +140,7 @@ public class DDSpanContext
   private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
-  private boolean requiresPostProcessing;
+  private volatile boolean requiresPostProcessing;
 
   public DDSpanContext(
       final DDTraceId traceId,

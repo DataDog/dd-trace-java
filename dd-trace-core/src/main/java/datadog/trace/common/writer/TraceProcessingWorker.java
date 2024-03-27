@@ -17,6 +17,8 @@ import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.postprocessor.AppSecPostProcessor;
 import datadog.trace.core.postprocessor.SpanPostProcessor;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -308,23 +310,30 @@ public class TraceProcessingWorker implements AutoCloseable {
         return;
       }
 
+      // Filter spans that need post-processing
+      List<DDSpan> spansToPostProcess = null;
+      for (DDSpan span : trace) {
+        DDSpanContext context = span.context();
+        if (context != null && context.isRequiresPostProcessing()) {
+          if (spansToPostProcess == null) {
+            spansToPostProcess = new ArrayList<>();
+          }
+          spansToPostProcess.add(span);
+        }
+      }
+
+      if (spansToPostProcess == null) {
+        return;
+      }
+
       long timeout = Config.get().getTracePostProcessingTimeout();
       long deadline = System.currentTimeMillis() + timeout;
       BooleanSupplier timeoutCheck = () -> System.currentTimeMillis() > deadline;
 
-      for (DDSpan span : trace) {
-        if (timeoutCheck.getAsBoolean()) {
+      for (DDSpan span : spansToPostProcess) {
+        if (timeoutCheck.getAsBoolean() || !spanPostProcessor.process(span, timeoutCheck)) {
           log.debug("Span post-processing is interrupted due to timeout.");
           break;
-        }
-
-        DDSpanContext context = span.context();
-        if (context == null) {
-          continue;
-        }
-
-        if (context.isRequiresPostProcessing()) {
-          spanPostProcessor.process(span, context, timeoutCheck);
         }
       }
     }
