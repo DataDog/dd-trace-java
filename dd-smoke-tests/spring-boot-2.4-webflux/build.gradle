@@ -24,6 +24,6 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
-
+  testLogging.showStandardStreams = true
   jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }

@@ -24,7 +24,7 @@ public class DDAgentWriter extends RemoteWriter {
     return new DDAgentWriterBuilder();
   }
 
-  private static final int BUFFER_SIZE = 1024;
+  static final int BUFFER_SIZE = 1024;
 
   public static class DDAgentWriterBuilder {
 

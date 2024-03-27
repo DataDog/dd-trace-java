@@ -35,7 +35,7 @@ public abstract class RemoteApi {
       final int traceCount,
       final int sizeInBytes,
       final okhttp3.Response response,
-      final IOException outer) {
+      final Exception outer) {
     // count the failed traces
     failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body

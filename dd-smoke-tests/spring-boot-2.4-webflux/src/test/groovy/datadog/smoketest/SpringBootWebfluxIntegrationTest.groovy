@@ -13,9 +13,7 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
-      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
-      // decoding received traces is only available for v05 right now
-      "-Ddd.trace.agent.v0.5.enabled=true",
+      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDNativeWriter",
       "-jar",
       springBootShadowJar,
       "--server.port=${httpPort}"
@@ -38,6 +36,11 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
   Closure decodedTracesCallback() {
     // we don't want to do anything special with the decoded traces
     return {}
+  }
+
+  @Override
+  def logLevel() {
+    return "debug"
   }
 
   def "put docs and find all docs"() {
