@@ -41,8 +41,8 @@ final class PreloadHierarchy implements ClassDefining.Observer {
     if (!internalName.equals(recentlyChecked[slot])) {
       recentlyChecked[slot] = internalName;
       String name = internalName.replace('/', '.');
-      // take advantage of no-match filter to avoid preloading known uninteresting classes
-      if (!NoMatchFilter.contains(name)) {
+      // avoid preloading known uninteresting classes
+      if (Memoizer.potentialMatch(name)) {
         loader.loadClass(name);
       }
     }
