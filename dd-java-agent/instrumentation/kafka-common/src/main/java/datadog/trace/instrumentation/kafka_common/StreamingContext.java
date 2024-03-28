@@ -64,6 +64,10 @@ public class StreamingContext {
     return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SOURCE_TOPIC);
   }
 
+  public boolean isUnknownTopic(final String topic) {
+    return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), UNKNOWN_TOPIC);
+  }
+
   public boolean empty() {
     return topics.isEmpty();
   }
