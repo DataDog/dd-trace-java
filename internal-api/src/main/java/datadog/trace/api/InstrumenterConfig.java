@@ -329,8 +329,8 @@ public class InstrumenterConfig {
     return excludedCodeSources;
   }
 
-  public int getResolverNoMatchesSize() {
-    return resolverCacheConfig.noMatchesSize();
+  public int getResolverClassFilterSize() {
+    return resolverCacheConfig.classFilterSize();
   }
 
   public boolean isResolverMemoizingEnabled() {
