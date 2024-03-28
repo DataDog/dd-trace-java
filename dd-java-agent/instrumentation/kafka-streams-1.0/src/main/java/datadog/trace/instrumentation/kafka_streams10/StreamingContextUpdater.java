@@ -22,5 +22,10 @@ public class StreamingContextUpdater {
 
     STREAMING_CONTEXT.registerTopics(
         topology.sourceTopics(), topology.sinkTopics(), internalTopics);
+
+    System.out.println("#### Source topics: " + String.join(",", topology.sourceTopics()));
+    System.out.println("#### Sink topics: " + String.join(",", topology.sinkTopics()));
+    System.out.println("#### Internal topics: " + String.join(",", internalTopics));
+    System.out.println("#### " + topology);
   }
 }
