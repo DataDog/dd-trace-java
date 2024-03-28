@@ -1118,6 +1118,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void flush() {
     pendingTraceBuffer.flush();
     writer.flush();
+    dataStreamsMonitoring.flush();
   }
 
   @Override
