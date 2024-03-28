@@ -53,7 +53,9 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
+
   dependsOn "shadowJar"
+
 
   jvmArgs "-Ddatadog.smoketest.springboot-grpc.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
