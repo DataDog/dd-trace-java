@@ -12,11 +12,15 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.ApplicationModule;
+import datadog.trace.api.iast.sink.SessionRewritingModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.SessionTrackingMode;
 import jakarta.servlet.http.HttpServlet;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -60,7 +64,8 @@ public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(@Advice.This final HttpServlet servlet) {
       final ApplicationModule applicationModule = InstrumentationBridge.APPLICATION;
-      if (applicationModule == null) {
+      final SessionRewritingModule sessionRewritingModule = InstrumentationBridge.SESSION_REWRITING;
+      if (applicationModule == null && sessionRewritingModule == null) {
         return;
       }
       final ServletContext context = servlet.getServletContext();
@@ -68,7 +73,18 @@ public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
         return;
       }
       InstrumentationContext.get(ServletContext.class, Boolean.class).put(context, true);
-      applicationModule.onRealPath(context.getRealPath("/"));
+      if (applicationModule != null) {
+        applicationModule.onRealPath(context.getRealPath("/"));
+      }
+      if (sessionRewritingModule != null
+          && context.getEffectiveSessionTrackingModes() != null
+          && !context.getEffectiveSessionTrackingModes().isEmpty()) {
+        Set<String> sessionTrackingModes = new HashSet<>();
+        for (SessionTrackingMode mode : context.getEffectiveSessionTrackingModes()) {
+          sessionTrackingModes.add(mode.name());
+        }
+        sessionRewritingModule.checkSessionTrackingModes(sessionTrackingModes);
+      }
     }
   }
 }
