@@ -10,7 +10,7 @@ import java.util.Arrays;
  * class name should minimize the probability of collisions without needing to store full names,
  * which would otherwise make the filter overly large.
  */
-public abstract class ClassCodeFilter {
+public class ClassCodeFilter {
 
   private static final int MAX_CAPACITY = 1 << 16;
   private static final int MIN_CAPACITY = 1 << 8;
@@ -19,7 +19,7 @@ public abstract class ClassCodeFilter {
   protected final long[] slots;
   protected final int slotMask;
 
-  protected ClassCodeFilter(int capacity) {
+  public ClassCodeFilter(int capacity) {
     if (capacity < MIN_CAPACITY) {
       capacity = MIN_CAPACITY;
     } else if (capacity > MAX_CAPACITY) {
