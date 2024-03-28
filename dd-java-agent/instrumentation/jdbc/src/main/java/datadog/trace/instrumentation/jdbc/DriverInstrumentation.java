@@ -91,8 +91,22 @@ public final class DriverInstrumentation extends InstrumenterModule.Tracing
       } catch (Throwable ignored) {
         // use original values
       }
+      Connection connWithContext = connection;
+      if (connectionUrl.startsWith("**internally_generated**", connectionUrl.indexOf("://") + 3)) {
+        // Treat MySql multi-host connections specifically.
+        // Use the original connection URL for parsing.
+        connectionUrl = url;
+        try {
+          // Find an underlying connection object to which to attach the DBInfo. Otherwise, it may
+          // be attached to a wrapper or a proxy connection object that is different from the one
+          // available in other parts of the instrumentation, resulting in a loss of context.
+          connWithContext = connection.unwrap(Connection.class);
+        } catch (Throwable t) {
+          // ignore
+        }
+      }
       DBInfo dbInfo = JDBCConnectionUrlParser.extractDBInfo(connectionUrl, connectionProps);
-      InstrumentationContext.get(Connection.class, DBInfo.class).put(connection, dbInfo);
+      InstrumentationContext.get(Connection.class, DBInfo.class).put(connWithContext, dbInfo);
     }
   }
 }

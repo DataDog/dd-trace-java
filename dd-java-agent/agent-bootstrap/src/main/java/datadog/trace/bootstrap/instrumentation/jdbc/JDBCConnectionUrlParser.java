@@ -216,6 +216,12 @@ public enum JDBCConnectionUrlParser {
   MARIA_SUBPROTO() {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
+      if (jdbcUrl.startsWith("**internally_generated**")) {
+        // there is nothing to parse
+        builder.host(null);
+        builder.port(null);
+        return builder;
+      }
       final int hostEndLoc;
       final int clusterSepLoc = jdbcUrl.indexOf(',');
       final int ipv6End = jdbcUrl.startsWith("[") ? jdbcUrl.indexOf(']') : -1;
