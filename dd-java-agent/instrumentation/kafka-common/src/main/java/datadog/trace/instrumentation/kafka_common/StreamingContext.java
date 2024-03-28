@@ -57,14 +57,17 @@ public class StreamingContext {
   }
 
   public boolean isSinkTopic(final String topic) {
+    System.out.println("#### Is Sink Topic: " + topic);
     return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SINK_TOPIC);
   }
 
   public boolean isSourceTopic(final String topic) {
+    System.out.println("#### Is Source Topic: " + topic);
     return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SOURCE_TOPIC);
   }
 
   public boolean isUnknownTopic(final String topic) {
+    System.out.println("#### Is Unknown Topic: " + topic);
     return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), UNKNOWN_TOPIC);
   }
 
