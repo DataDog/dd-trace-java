@@ -24,7 +24,7 @@ final class NoMatchFilter extends ClassCodeFilter {
   private static final Logger log = LoggerFactory.getLogger(NoMatchFilter.class);
 
   NoMatchFilter() {
-    super(InstrumenterConfig.get().getResolverNoMatchesSize());
+    super(InstrumenterConfig.get().getResolverClassFilterSize());
 
     // seed filter from previously collected results?
     Path noMatchFile = discoverNoMatchFile();

@@ -6,7 +6,7 @@ public enum ResolverCacheConfig {
   /** Memoizing and outlining for large enterprise apps. */
   LARGE {
     @Override
-    public int noMatchesSize() {
+    public int classFilterSize() {
       return 65536;
     }
 
@@ -29,7 +29,7 @@ public enum ResolverCacheConfig {
   /** Memoizing and outlining for the average sized app. */
   MEMOS {
     @Override
-    public int noMatchesSize() {
+    public int classFilterSize() {
       return 16384;
     }
 
@@ -52,7 +52,7 @@ public enum ResolverCacheConfig {
   /** Outlining only for the average sized app, no memoizing. */
   NO_MEMOS {
     @Override
-    public int noMatchesSize() {
+    public int classFilterSize() {
       return 0;
     }
 
@@ -75,7 +75,7 @@ public enum ResolverCacheConfig {
   /** Outlining only for small microservice apps. */
   SMALL {
     @Override
-    public int noMatchesSize() {
+    public int classFilterSize() {
       return 0;
     }
 
@@ -98,7 +98,7 @@ public enum ResolverCacheConfig {
   /** No outlining or memoizing. */
   LEGACY {
     @Override
-    public int noMatchesSize() {
+    public int classFilterSize() {
       return 0;
     }
 
@@ -118,7 +118,7 @@ public enum ResolverCacheConfig {
     }
   };
 
-  public abstract int noMatchesSize();
+  public abstract int classFilterSize();
 
   public abstract int memoPoolSize();
 
