@@ -51,3 +51,6 @@ dd-java-agent/instrumentation/spring-security-5/ @DataDog/asm-java
 # @DataDog/data-jobs-monitoring
 dd-java-agent/instrumentation/spark/            @DataDog/data-jobs-monitoring
 dd-java-agent/instrumentation/spark-executor/   @DataDog/data-jobs-monitoring
+
+# Security
+/.gitlab/software_composition_analysis.yaml  @DataDog/software-integrity-and-trust
