@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADER;
 
 import datadog.trace.agent.tooling.InstrumenterMetrics;
+import datadog.trace.agent.tooling.bytebuddy.ClassCodeFilter;
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
@@ -82,6 +83,12 @@ final class TypeFactory {
 
   private static final TypeInfoCache<TypeDescription> fullTypes =
       new TypeInfoCache<>(InstrumenterConfig.get().getResolverTypePoolSize());
+
+  static final boolean CLASS_FILTERING_ENABLED =
+      InstrumenterConfig.get().getResolverClassFilterSize() > 0;
+
+  static final ClassCodeFilter isPublicFilter =
+      new ClassCodeFilter(InstrumenterConfig.get().getResolverClassFilterSize());
 
   /** Small local cache to help deduplicate lookups when matching/transforming. */
   private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);
@@ -273,6 +280,12 @@ final class TypeFactory {
 
     InstrumenterMetrics.buildTypeDescription(fromTick, isOutline);
 
+    if (CLASS_FILTERING_ENABLED && null != type) {
+      if (type.isPublic()) {
+        isPublicFilter.add(name);
+      }
+    }
+
     // share result, whether we found it or not
     types.share(name, classLoader, classFile, type);
 
@@ -375,6 +388,14 @@ final class TypeFactory {
     @Override
     public TypeDescription getDeclaringType() {
       return outline().getDeclaringType();
+    }
+
+    @Override
+    public boolean isPublic() {
+      if (CLASS_FILTERING_ENABLED && isPublicFilter.contains(name)) {
+        return true;
+      }
+      return super.isPublic();
     }
 
     private TypeDescription outline() {
