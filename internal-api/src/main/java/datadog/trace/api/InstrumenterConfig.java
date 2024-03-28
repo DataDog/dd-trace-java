@@ -21,6 +21,9 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
+import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
@@ -86,6 +89,8 @@ import java.util.Set;
 public class InstrumenterConfig {
   private final ConfigProvider configProvider;
 
+  private final boolean triageEnabled;
+
   private final boolean integrationsEnabled;
 
   private final boolean traceEnabled;
@@ -141,6 +146,14 @@ public class InstrumenterConfig {
 
   InstrumenterConfig(ConfigProvider configProvider) {
     this.configProvider = configProvider;
+
+    if (null != configProvider.getString(TRIAGE_REPORT_TRIGGER)) {
+      triageEnabled = true; // explicitly setting a trigger implies triage mode
+    } else {
+      // default to same state as debug mode, unless explicitly overridden
+      boolean debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
+      triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, debugEnabled);
+    }
 
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
@@ -228,6 +241,10 @@ public class InstrumenterConfig {
 
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
+  }
+
+  public boolean isTriageEnabled() {
+    return triageEnabled;
   }
 
   public boolean isIntegrationsEnabled() {
