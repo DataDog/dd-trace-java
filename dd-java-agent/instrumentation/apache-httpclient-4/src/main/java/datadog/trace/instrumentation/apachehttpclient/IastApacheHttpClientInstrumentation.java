@@ -19,7 +19,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
 import org.apache.http.client.methods.HttpUriRequest;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastApacheHttpClientInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.CanShortcutTypeMatching {
 

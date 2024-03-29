@@ -26,7 +26,7 @@ import net.bytebuddy.asm.Advice;
  *
  * @see UnmarshallerInstrumentation unconditionally taints marshaller output if its input is tainted
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 

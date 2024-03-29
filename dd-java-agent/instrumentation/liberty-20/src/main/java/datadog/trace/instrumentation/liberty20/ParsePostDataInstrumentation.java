@@ -24,7 +24,7 @@ import java.util.Hashtable;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
   public ParsePostDataInstrumentation() {

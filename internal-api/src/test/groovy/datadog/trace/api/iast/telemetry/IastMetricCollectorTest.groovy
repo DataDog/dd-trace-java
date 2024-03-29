@@ -24,6 +24,9 @@ class IastMetricCollectorTest extends DDSpecification {
   @Shared
   protected static final AgentTracer.TracerAPI ORIGINAL_TRACER = AgentTracer.get()
 
+  @Shared
+  protected static final IastMetricCollector ORIGINAL_COLLECTOR = IastMetricCollector.INSTANCE
+
   private HasMetricCollector iastCtx
   private RequestContext ctx
   private AgentSpan span
@@ -48,6 +51,7 @@ class IastMetricCollectorTest extends DDSpecification {
   void cleanup() {
     executor.shutdown()
     AgentTracer.forceRegister(ORIGINAL_TRACER)
+    IastMetricCollector.register(ORIGINAL_COLLECTOR)
   }
 
   void 'test empty collector'() {
@@ -68,6 +72,8 @@ class IastMetricCollectorTest extends DDSpecification {
     final value = 5
     final total = times * value
     final latch = new CountDownLatch(1)
+    final globalCollector = new IastMetricCollector()
+    IastMetricCollector.register(globalCollector)
     final requestCollector = new IastMetricCollector()
     final random = new Random()
     final metrics = IastMetric.values()
@@ -89,11 +95,11 @@ class IastMetricCollectorTest extends DDSpecification {
     latch.countDown()
     futures*.get(10, TimeUnit.SECONDS).size()
     requestCollector.prepareMetrics()
-    IastMetricCollector.get().merge(requestCollector.drain())
+    globalCollector.merge(requestCollector.drain())
 
     then:
-    IastMetricCollector.get().prepareMetrics()
-    final result = IastMetricCollector.get().drain()
+    globalCollector.prepareMetrics()
+    final result = globalCollector.drain()
     final computedTotal = result*.value.sum() as long
     computedTotal == total
   }
@@ -220,8 +226,14 @@ class IastMetricCollectorTest extends DDSpecification {
     IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.SPRING_RESPONSE // wrapped spring response
     IastMetric.EXECUTED_SINK       | VulnerabilityTypes.SPRING_RESPONSE
 
+    IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.APPLICATION // wrapped application vuls
+    IastMetric.EXECUTED_SINK       | VulnerabilityTypes.APPLICATION
+
     IastMetric.INSTRUMENTED_SOURCE | SourceTypes.REQUEST_HEADER_NAME
     IastMetric.EXECUTED_SOURCE     | SourceTypes.REQUEST_HEADER_NAME
+
+    IastMetric.INSTRUMENTED_SOURCE | SourceTypes.KAFKA_MESSAGE // wrapped kafka sources
+    IastMetric.EXECUTED_SOURCE     | SourceTypes.KAFKA_MESSAGE
 
     IastMetric.EXECUTED_TAINTED    | null
   }

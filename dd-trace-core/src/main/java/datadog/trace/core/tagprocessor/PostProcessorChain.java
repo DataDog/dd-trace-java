@@ -13,16 +13,11 @@ public class PostProcessorChain implements TagsPostProcessor {
   }
 
   @Override
-  public Map<String, Object> processTags(Map<String, Object> unsafeTags) {
-    return processTagsWithContext(unsafeTags, null);
-  }
-
-  @Override
-  public Map<String, Object> processTagsWithContext(
+  public Map<String, Object> processTags(
       Map<String, Object> unsafeTags, DDSpanContext spanContext) {
     Map<String, Object> currentTags = unsafeTags;
     for (final TagsPostProcessor tagsPostProcessor : chain) {
-      currentTags = tagsPostProcessor.processTagsWithContext(currentTags, spanContext);
+      currentTags = tagsPostProcessor.processTags(currentTags, spanContext);
     }
     return currentTags;
   }

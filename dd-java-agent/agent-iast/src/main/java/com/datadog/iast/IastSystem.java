@@ -46,6 +46,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
@@ -62,6 +63,7 @@ public class IastSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(IastSystem.class);
   public static boolean DEBUG = false;
+  public static Verbosity VERBOSITY = Verbosity.OFF;
 
   public static void start(final SubscriptionService ss) {
     start(ss, null);
@@ -77,7 +79,11 @@ public class IastSystem {
       return;
     }
     DEBUG = config.isIastDebugEnabled();
-    LOGGER.debug("IAST is starting: debug={}", DEBUG);
+    VERBOSITY = config.getIastTelemetryVerbosity();
+    LOGGER.debug("IAST is starting: debug={}, verbosity={}", DEBUG, VERBOSITY);
+    if (VERBOSITY != Verbosity.OFF) {
+      IastMetricCollector.register(new IastMetricCollector());
+    }
     final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);
     final boolean globalContext = config.getIastContextMode() == GLOBAL;
     final IastContext.Provider contextProvider = contextProvider(iast, globalContext);

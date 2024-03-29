@@ -12,7 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
 /** @see MultipartUnmarshallers */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MultipartUnmarshallersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
 

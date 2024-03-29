@@ -15,7 +15,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.codehaus.plexus.PlexusContainer;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MavenInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 

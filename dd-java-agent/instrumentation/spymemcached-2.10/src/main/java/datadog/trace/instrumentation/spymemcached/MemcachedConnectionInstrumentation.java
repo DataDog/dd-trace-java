@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 import net.spy.memcached.MemcachedNode;
 import net.spy.memcached.internal.OperationFuture;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MemcachedConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -30,7 +30,7 @@ import redis.RedisCommand;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

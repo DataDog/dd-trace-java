@@ -10,7 +10,7 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
-import datadog.trace.agent.tooling.Instrumenter
+import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.*
@@ -75,7 +75,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevi
  * This will cause the following to occur before test startup:
  *
  * <ul>
- *   <li>All {@link Instrumenter}s on the test classpath will be applied. Matching preloaded classes
+ *   <li>All {@link InstrumenterModule}s on the test classpath will be applied. Matching preloaded classes
  *       will be retransformed.
  *   <li>{@link AgentTestRunner#TEST_WRITER} will be registered with the global tracer and available
  *       in an initialized state.
@@ -171,6 +171,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @SuppressWarnings('PropertyName')
   @Shared
   TraceConfig MOCK_DSM_TRACE_CONFIG = new TraceConfig() {
+    @Override
+    boolean isTraceEnabled() {
+      return true
+    }
     @Override
     boolean isRuntimeMetricsEnabled() {
       return true
@@ -389,7 +393,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       spiedAgentSpan
     }
 
-    assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
+    assert ServiceLoader.load(InstrumenterModule, AgentTestRunner.getClassLoader())
     .iterator()
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(

@@ -27,7 +27,7 @@ import net.bytebuddy.asm.Advice;
 import scala.concurrent.impl.CallbackRunnable;
 import scala.util.Try;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CallbackRunnableInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 

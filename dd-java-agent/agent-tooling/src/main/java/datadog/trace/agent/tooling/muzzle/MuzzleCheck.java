@@ -16,10 +16,10 @@ public class MuzzleCheck implements ElementMatcher<ClassLoader> {
 
   private ReferenceMatcher muzzle;
 
-  public MuzzleCheck(InstrumenterModule instrumenter) {
-    this.instrumentationId = instrumenter.instrumentationId();
-    this.instrumentationClass = instrumenter.getClass().getName();
-    this.runtimeMuzzleReferences = instrumenter.runtimeMuzzleReferences();
+  public MuzzleCheck(InstrumenterModule module, int instrumentationId) {
+    this.instrumentationId = instrumentationId;
+    this.instrumentationClass = module.getClass().getName();
+    this.runtimeMuzzleReferences = module.runtimeMuzzleReferences();
   }
 
   public boolean matches(ClassLoader classLoader) {

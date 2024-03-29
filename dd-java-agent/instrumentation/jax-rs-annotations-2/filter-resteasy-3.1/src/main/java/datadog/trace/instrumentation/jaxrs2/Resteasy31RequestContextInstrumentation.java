@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jaxrs2;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.lang.reflect.Method;
 import javax.ws.rs.container.ContainerRequestContext;
@@ -19,7 +19,7 @@ import org.jboss.resteasy.core.interception.jaxrs.PostMatchContainerRequestConte
  * PostMatchContainerRequestContext</code>. This class provides a way to get the matched resource
  * method through <code>getResourceMethod()</code>.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Resteasy31RequestContextInstrumentation extends AbstractRequestContextInstrumentation {
   public static class ContainerRequestContextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)

@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.engine.Handler.InvocationResponse;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AxisEngineInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -15,7 +15,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.nio.ByteBuffer;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class UtilsInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

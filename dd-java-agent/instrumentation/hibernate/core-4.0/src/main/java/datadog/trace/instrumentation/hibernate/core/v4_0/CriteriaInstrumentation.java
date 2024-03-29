@@ -7,7 +7,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.Criteria;
 import org.hibernate.SharedSessionContract;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override

@@ -5,6 +5,7 @@ import static com.datadog.iast.taint.Ranges.highestPriorityRange;
 import static com.datadog.iast.taint.Ranges.mergeRanges;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static com.datadog.iast.taint.Tainteds.getTainted;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.Ranges;
@@ -20,8 +21,12 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -30,6 +35,10 @@ public class StringModuleImpl implements StringModule {
   /** {@link java.util.Formatter#formatSpecifier} */
   private static final Pattern FORMAT_PATTERN =
       Pattern.compile("%(?<index>\\d+\\$)?([-#+ 0,(\\<]*)?(\\d+)?(\\.\\d+)?([tT])?([a-zA-Z%])");
+
+  /** Escaped format patterns * */
+  private static final Map<String, String> ESCAPED_PATTERNS =
+      Stream.of("%%", "%n").collect(Collectors.toMap(Function.identity(), String::format));
 
   private static final Ranged END = Ranged.build(Integer.MAX_VALUE, 0);
 
@@ -442,21 +451,32 @@ public class StringModuleImpl implements StringModule {
       final String placeholder = matcher.group();
       final Object parameter;
       final String formattedValue;
-      final String index = matcher.group("index");
-      if (index != null) {
-        // indexes are 1-based
-        final int parsedIndex = Integer.parseInt(index.substring(0, index.length() - 1)) - 1;
-        // remove the index before the formatting without increment the current state
-        parameter = parameters[parsedIndex];
-        formattedValue = String.format(locale, placeholder.replace(index, ""), parameter);
+      final TaintedObject taintedObject;
+      final String escaped = ESCAPED_PATTERNS.get(placeholder);
+      if (escaped != null) {
+        parameter = placeholder;
+        formattedValue = escaped;
+        taintedObject = null;
       } else {
-        parameter = parameters[paramIndex++];
-        formattedValue = String.format(locale, placeholder, parameter);
+        final String index = matcher.group("index");
+        if (index != null) {
+          // indexes are 1-based
+          final int parsedIndex = Integer.parseInt(index.substring(0, index.length() - 1)) - 1;
+          // remove the index before the formatting without increment the current state
+          parameter = parameters[parsedIndex];
+          formattedValue = String.format(locale, placeholder.replace(index, ""), parameter);
+        } else {
+          if (!checkParameterBounds(format, parameters, paramIndex)) {
+            return; // return without tainting the string in case of error
+          }
+          parameter = parameters[paramIndex++];
+          formattedValue = String.format(locale, placeholder, parameter);
+        }
+        taintedObject = to.get(parameter);
       }
       final Ranged placeholderPos = Ranged.build(matcher.start(), placeholder.length());
       final Range placeholderRange =
           addFormatTaintedRanges(placeholderPos, offset, formatRanges, finalRanges);
-      final TaintedObject taintedObject = to.get(parameter);
       final Range[] paramRanges = taintedObject == null ? null : taintedObject.getRanges();
       final int shift = placeholderPos.getStart() + offset;
       addParameterTaintedRanges(
@@ -471,6 +491,20 @@ public class StringModuleImpl implements StringModule {
     if (!finalRanges.isEmpty()) {
       to.taint(result, finalRanges.toArray());
     }
+  }
+
+  private static boolean checkParameterBounds(
+      final String format, final Object[] parameters, int paramIndex) {
+    if (paramIndex < parameters.length) {
+      return true;
+    }
+    LOG.debug(
+        SEND_TELEMETRY,
+        "Error handling string format pattern {} with args {} at index {}",
+        format,
+        parameters.length,
+        paramIndex);
+    return false;
   }
 
   @Override

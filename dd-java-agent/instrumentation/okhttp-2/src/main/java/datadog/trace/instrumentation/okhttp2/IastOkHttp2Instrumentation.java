@@ -11,7 +11,7 @@ import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastOkHttp2Instrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

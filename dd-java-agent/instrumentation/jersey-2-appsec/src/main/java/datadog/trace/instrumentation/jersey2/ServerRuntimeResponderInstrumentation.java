@@ -16,7 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 // tested in GrizzlyTest (grizzly-http)
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ServerRuntimeResponderInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public ServerRuntimeResponderInstrumentation() {

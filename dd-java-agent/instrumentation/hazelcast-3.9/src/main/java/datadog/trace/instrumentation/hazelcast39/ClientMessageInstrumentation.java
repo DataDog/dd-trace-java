@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
  *
  * <p>It is required because there is no getter for this value until 4.0.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ClientMessageInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

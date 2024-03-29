@@ -32,7 +32,9 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
       new Stateful() {
         @Override
         public void close() {
-          // this implementation is stateless so nothing to do here
+          DDPROF.clearSpanContext();
+          DDPROF.clearContextValue(SPAN_NAME_INDEX);
+          DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
         }
 
         @Override
@@ -60,7 +62,6 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   @Override
   public void onDetach() {
-    clearContext();
     if (WALLCLOCK_ENABLED) {
       DDPROF.removeThread();
     }

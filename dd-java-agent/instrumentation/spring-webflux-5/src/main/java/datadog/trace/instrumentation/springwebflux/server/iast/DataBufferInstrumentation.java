@@ -10,7 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import org.springframework.core.io.buffer.DataBuffer;
 
 /** @see DataBuffer#asInputStream() */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class DataBufferInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   public DataBufferInstrumentation() {

@@ -20,7 +20,7 @@ import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class JettyCommitResponseInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
 

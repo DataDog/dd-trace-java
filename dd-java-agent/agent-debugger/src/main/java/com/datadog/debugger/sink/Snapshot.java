@@ -31,6 +31,7 @@ public class Snapshot {
   private List<EvaluationError> evaluationErrors;
   private transient String message;
   private final transient int maxDepth;
+  private String exceptionId;
 
   public Snapshot(java.lang.Thread thread, ProbeImplementation probeImplementation, int maxDepth) {
     this.id = UUID.randomUUID().toString();
@@ -84,6 +85,10 @@ public class Snapshot {
 
   public void setMessage(String message) {
     this.message = message;
+  }
+
+  public void setExceptionId(String exceptionId) {
+    this.exceptionId = exceptionId;
   }
 
   public void addLine(CapturedContext context, int line) {
@@ -163,6 +168,10 @@ public class Snapshot {
 
   public int getMaxDepth() {
     return maxDepth;
+  }
+
+  public String getExceptionId() {
+    return exceptionId;
   }
 
   public void recordStackTrace(int offset) {

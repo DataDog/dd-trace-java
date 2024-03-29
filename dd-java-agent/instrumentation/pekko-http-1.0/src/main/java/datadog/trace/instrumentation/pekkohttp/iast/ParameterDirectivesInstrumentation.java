@@ -28,7 +28,7 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  *
  * @see org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   private static final String TRAIT_NAME =

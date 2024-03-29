@@ -8,7 +8,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class MicronautInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 

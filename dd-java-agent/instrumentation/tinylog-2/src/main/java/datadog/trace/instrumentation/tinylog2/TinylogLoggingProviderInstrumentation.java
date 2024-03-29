@@ -18,7 +18,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.tinylog.core.LogEntry;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public TinylogLoggingProviderInstrumentation() {

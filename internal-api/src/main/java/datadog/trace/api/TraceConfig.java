@@ -7,6 +7,7 @@ import java.util.Map;
 
 /** Snapshot of dynamic configuration; valid for the duration of a trace. */
 public interface TraceConfig {
+  boolean isTraceEnabled();
 
   boolean isRuntimeMetricsEnabled();
 

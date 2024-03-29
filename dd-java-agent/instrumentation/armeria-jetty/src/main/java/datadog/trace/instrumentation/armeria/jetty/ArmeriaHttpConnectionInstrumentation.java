@@ -11,7 +11,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.server.HttpChannel;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ArmeriaHttpConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public ArmeriaHttpConnectionInstrumentation() {

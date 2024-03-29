@@ -27,7 +27,7 @@ import net.bytebuddy.asm.Advice;
  * the span can propagate with it into the {@code io.lettuce.core.protocol.CommandHandler} event
  * loop.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class AsyncCommandInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForSingleType {
   public AsyncCommandInstrumentation() {

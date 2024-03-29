@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.scalatest;
 
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
+import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,7 +31,7 @@ public class RunContext {
   }
 
   private final int runStamp;
-  private final TestEventsHandler eventHandler =
+  private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler =
       InstrumentationBridge.createTestEventsHandler("scalatest");
   private final java.util.Set<TestIdentifier> skippedTests = ConcurrentHashMap.newKeySet();
   private final java.util.Set<TestIdentifier> unskippableTests = ConcurrentHashMap.newKeySet();
@@ -44,7 +46,7 @@ public class RunContext {
     return runStamp;
   }
 
-  public TestEventsHandler getEventHandler() {
+  public TestEventsHandler<TestSuiteDescriptor, TestDescriptor> getEventHandler() {
     return eventHandler;
   }
 

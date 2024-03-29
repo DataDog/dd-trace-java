@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IgniteInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 import scala.concurrent.duration.FiniteDuration;
 
 /** @see akka.http.scaladsl.model.Multipart.FormData#toStrict(FiniteDuration, Materializer) */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FormDataToStrictInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, ScalaListCollectorMuzzleReferences {
   public FormDataToStrictInstrumentation() {

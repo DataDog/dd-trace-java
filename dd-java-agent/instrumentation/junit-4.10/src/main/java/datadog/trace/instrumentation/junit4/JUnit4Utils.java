@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
+import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import java.lang.annotation.Annotation;
@@ -304,5 +305,20 @@ public abstract class JUnit4Utils {
     String testName = JUnit4Utils.getTestName(description, testMethod);
     String testParameters = JUnit4Utils.getParameters(description);
     return new TestDescriptor(testSuiteName, testClass, testName, testParameters, null);
+  }
+
+  public static TestSuiteDescriptor toSuiteDescriptor(Description description) {
+    Class<?> testClass = description.getTestClass();
+    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
+    return new TestSuiteDescriptor(testSuiteName, testClass);
+  }
+
+  /**
+   * Is JUnit 5 test that is executed with JUnit 4
+   * using @RunWith(org.junit.platform.runner.JUnitPlatform.class)
+   */
+  public static boolean isJUnitPlatformRunnerTest(Description description) {
+    Object uniqueId = getUniqueId(description);
+    return uniqueId != null && uniqueId.toString().contains("[engine:");
   }
 }

@@ -9,7 +9,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class DefaultErrorUtilInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

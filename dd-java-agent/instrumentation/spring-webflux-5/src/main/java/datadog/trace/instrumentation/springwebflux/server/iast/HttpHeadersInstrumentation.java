@@ -9,7 +9,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 /** @see org.springframework.http.HttpHeaders */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpHeadersInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public HttpHeadersInstrumentation() {

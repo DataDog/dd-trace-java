@@ -6,10 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import com.oracle.svm.core.jdk.Resources;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ResourcesFeatureInstrumentation extends AbstractNativeImageInstrumentation
     implements Instrumenter.ForSingleType {
 
