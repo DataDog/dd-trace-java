@@ -26,9 +26,10 @@ public class StatsBucket {
 
     // FIXME Java 7
     if (statsGroup == null) {
+      // stats group remains the same
       statsGroup =
           new StatsGroup(
-              statsPoint.getEdgeTags(), statsPoint.getDataSetHash(), statsPoint.getParentHash());
+              statsPoint.getEdgeTags(), statsPoint.getHash(), statsPoint.getParentHash());
       hashToGroup.put(statsPoint.getDataSetHash(), statsGroup);
     }
 
