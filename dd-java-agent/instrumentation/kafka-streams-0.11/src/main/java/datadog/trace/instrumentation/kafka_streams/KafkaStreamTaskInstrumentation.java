@@ -255,9 +255,6 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
         final long payloadSize =
             span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
-        // We may not have an active streaming context, or the topic name can be a dynamic topic
-        // name
-        // i.e. it's a dynamically resolved topic name. We should set the checkpoint in this case.
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
@@ -340,7 +337,6 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
         }
 
-        // streaming context is not set, or it is set, but we can't get the topic type
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
