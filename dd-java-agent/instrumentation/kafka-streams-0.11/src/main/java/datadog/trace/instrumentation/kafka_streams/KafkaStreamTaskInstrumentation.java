@@ -258,7 +258,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         // We may not have an active streaming context, or the topic name can be a dynamic topic
         // name
         // i.e. it's a dynamically resolved topic name. We should set the checkpoint in this case.
-        if (STREAMING_CONTEXT.empty()) {
+        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, sortedTags, record.timestamp, payloadSize);
@@ -341,7 +341,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         }
 
         // streaming context is not set, or it is set, but we can't get the topic type
-        if (STREAMING_CONTEXT.empty()) {
+        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);

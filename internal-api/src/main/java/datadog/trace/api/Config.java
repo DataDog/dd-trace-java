@@ -1935,14 +1935,12 @@ public class Config {
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
+    triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, instrumenterConfig.isTriageEnabled());
     triageReportTrigger = configProvider.getString(TRIAGE_REPORT_TRIGGER);
     if (null != triageReportTrigger) {
-      // setting a trigger implies the triage directory and triage mode should be enabled
       triageReportDir = configProvider.getString(TRIAGE_REPORT_DIR, getProp("java.io.tmpdir"));
-      triageEnabled = true;
     } else {
       triageReportDir = null;
-      triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, debugEnabled);
     }
 
     startupLogsEnabled =
