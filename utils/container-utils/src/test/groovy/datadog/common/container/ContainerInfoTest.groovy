@@ -231,10 +231,10 @@ class ContainerInfoTest extends DDSpecification {
     Path path = f.toPath()
 
     then:
-    ContainerInfo.getIno(path) == readInode(path)
+    ContainerInfo.readInode(path) == readInode(path)
   }
 
-  private Long readInode(Path path) {
+  private long readInode(Path path) {
     ProcessBuilder pb = new ProcessBuilder("ls", "-id", path.toString())
     Process ps = pb.start()
     BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getInputStream()))
