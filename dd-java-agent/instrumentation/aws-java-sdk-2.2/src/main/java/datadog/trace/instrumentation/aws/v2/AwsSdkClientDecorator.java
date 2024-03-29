@@ -24,16 +24,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -112,7 +108,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   public AgentSpan onSdkRequest(
-      final AgentSpan span, final SdkRequest request, final SdkHttpRequest httpRequest, final ExecutionAttributes attributes) {
+      final AgentSpan span,
+      final SdkRequest request,
+      final SdkHttpRequest httpRequest,
+      final ExecutionAttributes attributes) {
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
@@ -293,7 +292,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   public AgentSpan onSdkResponse(
-      final AgentSpan span, final SdkResponse response, final SdkHttpResponse httpResponse, final ExecutionAttributes attributes) {
+      final AgentSpan span,
+      final SdkResponse response,
+      final SdkHttpResponse httpResponse,
+      final ExecutionAttributes attributes) {
     if (response instanceof AwsResponse) {
       span.setTag(
           InstrumentationTags.AWS_REQUEST_ID,
@@ -376,7 +378,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
             long payloadSize = 0;
             if (requestSize != null) {
-              payloadSize = (long)requestSize;
+              payloadSize = (long) requestSize;
             }
 
             LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();

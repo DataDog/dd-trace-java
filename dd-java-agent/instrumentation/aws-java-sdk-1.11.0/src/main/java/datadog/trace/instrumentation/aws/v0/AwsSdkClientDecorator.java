@@ -1,23 +1,13 @@
 package datadog.trace.instrumentation.aws.v0;
 
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_BUCKET_NAME;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_OBJECT_KEY;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_OPERATION;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AWS_SERVICE;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.http.HttpMethodName;
-import com.amazonaws.transform.MapEntry;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
@@ -33,14 +23,10 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -147,10 +133,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       bestPrecursor = InstrumentationTags.AWS_BUCKET_NAME;
       bestPeerService = bucketName;
 
-      System.out.printf("\n#### -> Operation %s. Got bucket name %s, key %s\n",
-          awsOperation.getSimpleName(),
-          bucketName,
-          key);
+      System.out.printf(
+          "\n#### -> Operation %s. Got bucket name %s, key %s\n",
+          awsOperation.getSimpleName(), bucketName, key);
     }
     String queueUrl = access.getQueueUrl(originalRequest);
     if (null != queueUrl) {
@@ -259,7 +244,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     return span;
   }
 
-  public AgentSpan onServiceResponse(final AgentSpan span, final String awsService, final Response response) {
+  public AgentSpan onServiceResponse(
+      final AgentSpan span, final String awsService, final Response response) {
     if ("Amazon S3".equalsIgnoreCase(awsService) && span.traceConfig().isDataStreamsEnabled()) {
       long responseSize = getResponseContentLength(response);
       span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
@@ -270,9 +256,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
       if (key != null && bucket != null && awsOperation != null) {
         // GetObjectMetadataRequest may return the object if it's not "HEAD"
-        if (HttpMethodName.GET.name().equals(span.getTag(Tags.HTTP_METHOD)) &&
-            ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation.toString()) ||
-            "GetObjectRequest".equalsIgnoreCase(awsOperation.toString()))) {
+        if (HttpMethodName.GET.name().equals(span.getTag(Tags.HTTP_METHOD))
+            && ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation.toString())
+                || "GetObjectRequest".equalsIgnoreCase(awsOperation.toString()))) {
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
 
           sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
@@ -286,12 +272,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               .setCheckpoint(span, sortedTags, 0, responseSize);
         }
 
-        if ("PutObjectRequest".equalsIgnoreCase(awsOperation.toString()) ||
-            "UploadPartRequest".equalsIgnoreCase(awsOperation.toString())) {
+        if ("PutObjectRequest".equalsIgnoreCase(awsOperation.toString())
+            || "UploadPartRequest".equalsIgnoreCase(awsOperation.toString())) {
           Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
           long payloadSize = 0;
           if (requestSize != null) {
-            payloadSize = (long)requestSize;
+            payloadSize = (long) requestSize;
           }
 
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();

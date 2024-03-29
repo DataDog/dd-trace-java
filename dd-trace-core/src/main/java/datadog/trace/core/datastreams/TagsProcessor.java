@@ -58,12 +58,16 @@ public class TagsProcessor {
   private static final Function<String, String> EXCHANGE_TAG_PREFIX = new StringPrefix("exchange:");
 
   public static final String DATASET_NAME_TAG = "ds.name";
-  private static final DDCache<String, String> DATASET_NAME_TAG_CACHE = DDCaches.newFixedSizeCache(32);
-  private static final Function<String, String> DATASET_NAME_TAG_PREFIX = new StringPrefix("ds.name:");
+  private static final DDCache<String, String> DATASET_NAME_TAG_CACHE =
+      DDCaches.newFixedSizeCache(32);
+  private static final Function<String, String> DATASET_NAME_TAG_PREFIX =
+      new StringPrefix("ds.name:");
 
   public static final String DATASET_NAMESPACE_TAG = "ds.namespace";
-  private static final DDCache<String, String> DATASET_NAMESPACE_TAG_CACHE = DDCaches.newFixedSizeCache(32);
-  private static final Function<String, String> DATASET_NAMESPACE_TAG_PREFIX = new StringPrefix("ds.namespace:");
+  private static final DDCache<String, String> DATASET_NAMESPACE_TAG_CACHE =
+      DDCaches.newFixedSizeCache(32);
+  private static final Function<String, String> DATASET_NAMESPACE_TAG_PREFIX =
+      new StringPrefix("ds.namespace:");
 
   public static final String HAS_ROUTING_KEY_TAG = "has_routing_key";
   private static final DDCache<String, String> HAS_ROUTING_KEY_TAG_CACHE =

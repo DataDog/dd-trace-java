@@ -41,11 +41,8 @@ import org.apache.spark.sql.streaming.SourceProgress;
 import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
-import org.apache.spark.storage.RDDInfo;
 import scala.Tuple2;
-import scala.collection.Iterator;
 import scala.collection.JavaConverters;
-import scala.collection.Seq;
 
 /**
  * Implementation of the SparkListener {@link SparkListener} to generate spans from the execution of

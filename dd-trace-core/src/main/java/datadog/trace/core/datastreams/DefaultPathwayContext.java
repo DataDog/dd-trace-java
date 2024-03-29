@@ -63,9 +63,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
   private static final Set<String> dataSetTagKeys =
       new HashSet<String>(
-          Arrays.asList(
-              TagsProcessor.DATASET_NAME_TAG,
-              TagsProcessor.DATASET_NAMESPACE_TAG));
+          Arrays.asList(TagsProcessor.DATASET_NAME_TAG, TagsProcessor.DATASET_NAMESPACE_TAG));
 
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
