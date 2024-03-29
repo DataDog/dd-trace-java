@@ -64,8 +64,10 @@ public class StreamingContext {
     return Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), SOURCE_TOPIC);
   }
 
-  public boolean empty() {
-    return topics.isEmpty();
+  // Checks if this topic is a part of a streaming topology
+  public boolean isDisabledForTopic(final String topic) {
+    return topics.isEmpty() ||
+        Objects.equals(topics.getOrDefault(topic, UNKNOWN_TOPIC), UNKNOWN_TOPIC);
   }
 
   private final Set<String> allSourceTopics = ConcurrentHashMap.newKeySet();
