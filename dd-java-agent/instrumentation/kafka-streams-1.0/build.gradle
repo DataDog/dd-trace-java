@@ -2,8 +2,7 @@ muzzle {
   pass {
     group = "org.apache.kafka"
     module = "kafka-streams"
-    versions = "[1.0.0.0,)"
-    assertInverse = true
+    versions = "[1.0.0.0,3)"
   }
 }
 

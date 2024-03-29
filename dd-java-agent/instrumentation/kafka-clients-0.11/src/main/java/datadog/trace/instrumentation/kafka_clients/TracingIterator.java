@@ -105,7 +105,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
           final long payloadSize =
               span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
-          if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isUnknownTopic(val.topic())) {
+          if (STREAMING_CONTEXT.empty()) {
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
