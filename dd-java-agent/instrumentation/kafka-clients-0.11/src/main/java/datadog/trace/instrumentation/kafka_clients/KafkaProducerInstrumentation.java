@@ -132,8 +132,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         sortedTags.put(TYPE_TAG, "kafka");
         try {
           propagate().inject(span, record.headers(), SETTER);
-          if (STREAMING_CONTEXT.isDisabledForTopic(record.topic()) ||
-              STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+          if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
+              || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
             // inject the context in the headers, but delay sending the stats until we know the
             // message size.
             // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
@@ -154,8 +154,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                   record.headers());
 
           propagate().inject(span, record.headers(), SETTER);
-          if (STREAMING_CONTEXT.isDisabledForTopic(record.topic()) ||
-              STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+          if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
+              || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
             propagate()
                 .injectPathwayContextWithoutSendingStats(
                     span, record.headers(), SETTER, sortedTags);
