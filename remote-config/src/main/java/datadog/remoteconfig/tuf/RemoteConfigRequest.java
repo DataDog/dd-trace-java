@@ -53,7 +53,8 @@ public class RemoteConfigRequest {
 
   /** Stores client information for Remote Configuration */
   public static class ClientInfo {
-    // This bitset is reserved according to the Remote Config spec
+    // This bitset is reserved according to the Remote Config spec. See:
+    // https://datadoghq.atlassian.net/wiki/spaces/RC/pages/2594702792/Client+capabilities+list
     public static final long CAPABILITY_ASM_ACTIVATION = 1 << 1;
     public static final long CAPABILITY_ASM_IP_BLOCKING = 1 << 2;
     public static final long CAPABILITY_ASM_DD_RULES = 1 << 3;
@@ -75,6 +76,15 @@ public class RemoteConfigRequest {
     public static final long CAPABILITY_ASM_EXCLUSION_DATA = 1 << 18;
     public static final long CAPABILITY_APM_TRACING_TRACING_ENABLED = 1 << 19;
     public static final long CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED = 1 << 20;
+    public static final long CAPABILITY_ASM_RASP_SQLI = 1 << 21;
+    public static final long CAPABILITY_ASM_RASP_LFI = 1 << 22;
+    public static final long CAPABILITY_ASM_RASP_SSRF = 1 << 23;
+    public static final long CAPABILITY_ASM_RASP_SHI = 1 << 24;
+    public static final long CAPABILITY_ASM_RASP_XXE = 1 << 25;
+    public static final long CAPABILITY_ASM_RASP_RCE = 1 << 26;
+    public static final long CAPABILITY_ASM_RASP_NOSQLI = 1 << 27;
+    public static final long CAPABILITY_ASM_RASP_XSS = 1 << 28;
+    public static final long CAPABILITY_APM_TRACING_SAMPLE_RULES = 1 << 29;
 
     @Json(name = "state")
     private final ClientState clientState;
