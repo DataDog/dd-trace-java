@@ -26,6 +26,7 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     var bytes
     runUnderTrace("parent_serialize") {
       bytes = message.toByteArray()
+      blockUntilChildSpansFinished(1)
     }
     runUnderTrace("parent_deserialize") {
       Message.MyMessage.parseFrom(bytes)

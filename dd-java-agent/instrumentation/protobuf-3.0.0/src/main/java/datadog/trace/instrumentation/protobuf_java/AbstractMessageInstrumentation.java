@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.protobuf_java.Decorator.SERIALIZER_DECORATOR;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
@@ -45,6 +46,7 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".OpenAPIFormatExtractor",
+        packageName + ".Decorator",
     };
   }
 
@@ -59,7 +61,7 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This AbstractMessage message) {
       final AgentSpan span = startSpan(instrumentationName, SERIALIZE);
-      OpenAPIFormatExtractor.attachSchemaOnSpan(message, span, "serialization");
+      SERIALIZER_DECORATOR.attachSchemaOnSpan(message, span);
       return activateSpan(span);
     }
 
@@ -70,6 +72,7 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
         return;
       }
       AgentSpan span = scope.span();
+      SERIALIZER_DECORATOR.onError(span, throwable);
       scope.close();
       span.finish();
     }

@@ -17,6 +17,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.protobuf_java.Decorator.DESERIALIZER_DECORATOR;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
@@ -45,6 +46,7 @@ public final class DynamicMessageInstrumentation extends InstrumenterModule.Trac
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".OpenAPIFormatExtractor",
+        packageName + ".Decorator",
     };
   }
 
@@ -64,7 +66,7 @@ public final class DynamicMessageInstrumentation extends InstrumenterModule.Trac
         @Advice.Argument(0) final Descriptor descriptor
     ) {
       final AgentSpan span = startSpan(instrumentationName, DESERIALIZE);
-      OpenAPIFormatExtractor.attachSchemaOnSpan(descriptor, span, "deserialization");
+      DESERIALIZER_DECORATOR.attachSchemaOnSpan(descriptor, span);
       return activateSpan(span);
     }
 
@@ -76,6 +78,7 @@ public final class DynamicMessageInstrumentation extends InstrumenterModule.Trac
         return;
       }
       AgentSpan span = scope.span();
+      DESERIALIZER_DECORATOR.onError(span, throwable);
       scope.close();
       span.finish();
     }

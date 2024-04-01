@@ -1,14 +1,11 @@
 package datadog.trace.instrumentation.protobuf_java;
 
-import com.google.protobuf.AbstractMessage;
+import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
-import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.util.FNV64Hash;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class OpenAPIFormatExtractor {
   private static final int TYPE_DOUBLE = 1;
@@ -29,38 +26,6 @@ public class OpenAPIFormatExtractor {
   private static final int TYPE_SFIXED64 = 16;
   private static final int TYPE_SINT32 = 17;
   private static final int TYPE_SINT64 = 18;
-
-  public static void attachSchemaOnSpan(AbstractMessage message, AgentSpan span, String operation) {
-    if (message == null) {
-      return;
-    }
-    attachSchemaOnSpan(message.getDescriptorForType(), span, operation);
-  }
-
-  public static void attachSchemaOnSpan(Descriptor descriptor, AgentSpan span, String operation) {
-    if (descriptor == null) {
-      return;
-    }
-    Integer prio = span.forceSamplingDecision();
-    if (prio == null || prio <= 0) {
-      // don't extract schema if span is not sampled
-      return;
-    }
-    int weight = AgentTracer.get().getDataStreamsMonitoring().shouldSampleSchema(operation);
-    if (weight == 0) {
-      return;
-    }
-    String schema = extractSchema(descriptor);
-    System.out.println("schema is " + schema + " operation" + operation);
-    span.setTag(DDTags.SCHEMA_DEFINITION, schema);
-    span.setTag(DDTags.SCHEMA_WEIGHT, weight);
-    span.setTag(DDTags.SCHEMA_TYPE, "protobuf");
-    span.setTag(DDTags.SCHEMA_OPERATION, operation);
-    span.setTag(DDTags.SCHEMA_NAME, descriptor.getName());
-    span.setTag(
-        DDTags.SCHEMA_ID,
-        Long.toUnsignedString(FNV64Hash.generateHash(schema, FNV64Hash.Version.v1A)));
-  }
 
   private static String wrapInArray(String serializedType, boolean isArray) {
     return isArray ? "{\"type\": \"array\", \"items\":" + serializedType + "}" : serializedType;
@@ -142,8 +107,12 @@ public class OpenAPIFormatExtractor {
           serializedType = "{\"type\": \"integer\", \"format\": \"uint32\"}";
           break;
         case TYPE_ENUM:
-          // should we add enum values?
-          serializedType = "{\"type\": \"string\", \"enum\": [/* enum values */]}";
+          String jsonFormattedEnumNames =
+              field.getEnumType().getValues().stream()
+                  .map(Descriptors.EnumValueDescriptor::getName)
+                  .map(name -> "\"" + name + "\"")
+                  .collect(Collectors.joining(", ", "[", "]"));
+          serializedType = "{\"type\": \"string\", \"enum\": " + jsonFormattedEnumNames + "}";
           break;
         case TYPE_SFIXED32:
           serializedType = "{\"type\": \"integer\", \"format\": \"sfixed32\"}";
