@@ -2,6 +2,8 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.Reporter
+import com.datadog.iast.model.Vulnerability
+import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
 
@@ -11,6 +13,7 @@ import static com.datadog.iast.model.VulnerabilityType.DIRECTORY_LISTING_LEAK
 import static com.datadog.iast.model.VulnerabilityType.INSECURE_JSP_LAYOUT
 import static com.datadog.iast.model.VulnerabilityType.SESSION_TIMEOUT
 import static com.datadog.iast.model.VulnerabilityType.VERB_TAMPERING
+import static com.datadog.iast.sink.ApplicationModuleImpl.SESSION_REWRITING_EVIDENCE_VALUE
 
 class ApplicationModuleTest extends IastModuleImplTestBase {
 
@@ -69,6 +72,33 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     'application/defaulthtmlescapeinvalid/false_tag'  | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be true'                     | 8
     'application/defaulthtmlescapeinvalid/no_tag_1'   | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'                      | NO_LINE
     'application/defaulthtmlescapeinvalid/no_tag_2'   | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'                      | NO_LINE
+  }
+
+  void 'iast module detects session rewriting on sessionTrackingModes'() {
+    when:
+    module.checkSessionTrackingModes(sessionTrackingModes as Set<String>)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertSessionRewriting(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+
+    where:
+    sessionTrackingModes        | expected
+    []                          | null
+    ['COOKIE']                  | null
+    ['URL']                     | SESSION_REWRITING_EVIDENCE_VALUE
+    ['COOKIE', 'URL']           | SESSION_REWRITING_EVIDENCE_VALUE
+  }
+
+  private static void assertSessionRewriting(final Vulnerability vuln, final String expected) {
+    assert vuln != null
+    assert vuln.getType() == VulnerabilityType.SESSION_REWRITING
+    assert vuln.getLocation() != null
+    final evidence = vuln.getEvidence()
+    assert evidence.value == expected
   }
 
   private static void assertVulnerability(final vuln, final expectedVulnType) {

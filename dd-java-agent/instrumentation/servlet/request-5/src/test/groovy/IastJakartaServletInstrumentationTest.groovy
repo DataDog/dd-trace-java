@@ -1,7 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
-import datadog.trace.api.iast.sink.SessionRewritingModule
 import foo.bar.smoketest.DummyHttpServlet
 import foo.bar.smoketest.DummyRequest
 import foo.bar.smoketest.DummyResponse
@@ -20,7 +19,6 @@ class IastJakartaServletInstrumentationTest extends AgentTestRunner{
 
   void 'test no modules'() {
     final appModule = Mock(ApplicationModule)
-    final sessionModule = Mock(SessionRewritingModule)
     final Servlet servlet = new DummyHttpServlet()
     final ServletResponse response = new DummyResponse()
     final ServletRequest request = new DummyRequest()
@@ -30,7 +28,7 @@ class IastJakartaServletInstrumentationTest extends AgentTestRunner{
 
     then:
     0 *  appModule.onRealPath(_)
-    0 *  sessionModule.checkSessionTrackingModes(_)
+    0 *  appModule.checkSessionTrackingModes(_)
     0 *  _
   }
 
@@ -47,41 +45,7 @@ class IastJakartaServletInstrumentationTest extends AgentTestRunner{
 
     then:
     1 *  module.onRealPath(_)
-    0 * _
-  }
-
-  void 'test SessionRewriting'() {
-    given:
-    final module = Mock(SessionRewritingModule)
-    InstrumentationBridge.registerIastModule(module)
-    final Servlet servlet = new DummyHttpServlet()
-    final ServletResponse response = new DummyResponse()
-    final ServletRequest request = new DummyRequest()
-
-    when:
-    servlet.callPublicServiceMethod(request, response)
-
-    then:
     1 *  module.checkSessionTrackingModes(['COOKIE', 'URL'] as Set<String>)
-    0 * _
-  }
-
-  void 'test all modules'() {
-    given:
-    final appModule = Mock(ApplicationModule)
-    InstrumentationBridge.registerIastModule(appModule)
-    final sessionModule = Mock(SessionRewritingModule)
-    InstrumentationBridge.registerIastModule(sessionModule)
-    final Servlet servlet = new DummyHttpServlet()
-    final ServletResponse response = new DummyResponse()
-    final ServletRequest request = new DummyRequest()
-
-    when:
-    servlet.callPublicServiceMethod(request, response)
-
-    then:
-    1 *  appModule.onRealPath(_)
-    1 *  sessionModule.checkSessionTrackingModes(['COOKIE', 'URL'] as Set<String>)
     0 * _
   }
 }

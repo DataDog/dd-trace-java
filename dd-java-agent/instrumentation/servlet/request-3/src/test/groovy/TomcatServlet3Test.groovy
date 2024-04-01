@@ -5,7 +5,7 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
-import datadog.trace.api.iast.sink.SessionRewritingModule
+
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import datadog.trace.instrumentation.servlet3.TestServlet3
@@ -539,7 +539,6 @@ class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
   void 'test no calls if no modules registered'() {
     given:
     final appModule = Mock(ApplicationModule)
-    final sessionRewritingModule = Mock(SessionRewritingModule)
     def request = request(SUCCESS, "GET", null).build()
 
     when:
@@ -547,16 +546,14 @@ class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
 
     then:
     0 * appModule.onRealPath(_)
-    0 * sessionRewritingModule.checkSessionTrackingModes(_)
+    0 * appModule.checkSessionTrackingModes(_)
     0 * _
   }
 
   void 'test that iast modules are called'() {
     given:
     final appModule = Mock(ApplicationModule)
-    final sessionRewritingModule = Mock(SessionRewritingModule)
     InstrumentationBridge.registerIastModule(appModule)
-    InstrumentationBridge.registerIastModule(sessionRewritingModule)
     def request = request(SUCCESS, "GET", null).build()
 
     when:
@@ -564,7 +561,7 @@ class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
 
     then:
     1 *  appModule.onRealPath(_)
-    1 *  sessionRewritingModule.checkSessionTrackingModes(_)
+    1 *  appModule.checkSessionTrackingModes(_)
     0 * _
 
     when:
@@ -572,7 +569,7 @@ class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
 
     then: //Only call once per application context
     0 *  appModule.onRealPath(_)
-    0 *  sessionRewritingModule.checkSessionTrackingModes(_)
+    0 *  appModule.checkSessionTrackingModes(_)
     0 * _
   }
 

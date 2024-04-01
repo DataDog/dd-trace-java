@@ -16,7 +16,6 @@ import datadog.trace.api.iast.sink.NoHttpOnlyCookieModule;
 import datadog.trace.api.iast.sink.NoSameSiteCookieModule;
 import datadog.trace.api.iast.sink.PathTraversalModule;
 import datadog.trace.api.iast.sink.ReflectionInjectionModule;
-import datadog.trace.api.iast.sink.SessionRewritingModule;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import datadog.trace.api.iast.sink.SsrfModule;
 import datadog.trace.api.iast.sink.StacktraceLeakModule;
@@ -66,7 +65,6 @@ public abstract class InstrumentationBridge {
   public static HardcodedSecretModule HARDCODED_SECRET;
   public static InsecureAuthProtocolModule INSECURE_AUTH_PROTOCOL;
   public static ReflectionInjectionModule REFLECTION_INJECTION;
-  public static SessionRewritingModule SESSION_REWRITING;
 
   private static final Map<Class<? extends IastModule>, Field> MODULE_MAP = buildModuleMap();
 
