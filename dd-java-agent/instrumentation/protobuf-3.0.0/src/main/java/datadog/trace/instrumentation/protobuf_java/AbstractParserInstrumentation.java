@@ -46,8 +46,7 @@ public final class AbstractParserInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OpenAPIFormatExtractor",
-        packageName + ".Decorator",
+      packageName + ".OpenAPIFormatExtractor", packageName + ".Decorator",
     };
   }
 

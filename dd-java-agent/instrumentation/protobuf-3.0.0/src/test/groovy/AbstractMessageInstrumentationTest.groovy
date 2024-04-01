@@ -5,11 +5,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class AbstractMessageInstrumentationTest extends AgentTestRunner {
   @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-  }
-
-  @Override
   protected boolean isDataStreamsEnabled() {
     return true
   }
