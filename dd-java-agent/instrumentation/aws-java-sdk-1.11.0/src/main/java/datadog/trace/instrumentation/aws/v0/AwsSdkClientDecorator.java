@@ -132,10 +132,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(InstrumentationTags.BUCKET_NAME, bucketName);
       bestPrecursor = InstrumentationTags.AWS_BUCKET_NAME;
       bestPeerService = bucketName;
-
-      System.out.printf(
-          "\n#### -> Operation %s. Got bucket name %s, key %s\n",
-          awsOperation.getSimpleName(), bucketName, key);
     }
     String queueUrl = access.getQueueUrl(originalRequest);
     if (null != queueUrl) {
