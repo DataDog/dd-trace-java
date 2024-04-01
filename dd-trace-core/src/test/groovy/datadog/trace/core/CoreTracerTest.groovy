@@ -477,6 +477,51 @@ class CoreTracerTest extends DDCoreSpecification {
     """{"lib_config":{"tracing_tags": []}}""" | [:]
   }
 
+  def "verify configuration polling with tracing_enabled"() {
+    setup:
+    def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
+    def poller = Mock(ConfigurationPoller)
+    def sco = new SharedCommunicationObjects(
+      okHttpClient: Mock(OkHttpClient),
+      monitoring: Mock(Monitoring),
+      agentUrl: HttpUrl.get('https://example.com'),
+      featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
+      configurationPoller: poller
+      )
+
+    def updater
+
+    when:
+    def tracer = CoreTracer.builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build()
+
+    then:
+
+    1 * poller.addListener(Product.APM_TRACING, _ as ProductListener) >> {
+      updater = it[1] // capture config updater for further testing
+    }
+    and:
+    tracer.captureTraceConfig().traceEnabled == true
+
+    when:
+    updater.accept(key, value.getBytes(StandardCharsets.UTF_8), null)
+    updater.commit()
+
+    then:
+    tracer.captureTraceConfig().traceEnabled == expectedValue
+
+    cleanup:
+    tracer?.close()
+
+    where:
+    value | expectedValue
+    """{"lib_config":{"tracing_enabled": false } } """ | false
+    """{"lib_config":{"tracing_enabled": true } } """  | true
+    """{"action": "enable", "lib_config": {"tracing_sampling_rate": null, "log_injection_enabled": null, "tracing_header_tags": null, "runtime_metrics_enabled": null, "tracing_debug": null, "tracing_service_mapping": null, "tracing_sampling_rules": null, "span_sampling_rules": null, "data_streams_enabled": null, "tracing_enabled": false}}""" | false
+  }
+
   def "test local root service name override"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).serviceName("test").build()

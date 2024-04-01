@@ -255,7 +255,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
         final long payloadSize =
             span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
-        if (STREAMING_CONTEXT.empty()) {
+        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, sortedTags, record.timestamp, payloadSize);
@@ -337,7 +337,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
         }
 
-        if (STREAMING_CONTEXT.empty()) {
+        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);

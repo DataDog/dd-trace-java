@@ -47,7 +47,10 @@ public class ContainerInfo {
 
   private static final ContainerInfo INSTANCE;
 
-  private static final Long PROC_CGROUP_INIT_INO = 0xEFFFFFFBL;
+  private static final long PROC_CGROUP_INIT_INO = 0xEFFFFFFBL;
+  private static final String CGROUPV1_BASE_CONTROLLER = "memory";
+  private static final String CGROUPV2_BASE_CONTROLLER = "";
+
   private static final String ENTITY_ID;
 
   public String containerId;
@@ -107,11 +110,10 @@ public class ContainerInfo {
 
   /** Checks if the agent is running in the host cgroup namespace. */
   static boolean isHostCgroupNamespace() {
-    Long ino = getIno(HOST_GROUP_NAMESPACE);
     // Currently, host namespace inode number is hardcoded, which can be used to detect if it's
     // running in host namespace or not (does not work when running in DinD)
     // https://github.com/torvalds/linux/blob/5859a2b1991101d6b978f3feb5325dad39421f29/include/linux/proc_ns.h#L41-L49
-    return PROC_CGROUP_INIT_INO.equals(ino);
+    return readInode(HOST_GROUP_NAMESPACE) == PROC_CGROUP_INIT_INO;
   }
 
   /**
@@ -121,12 +123,13 @@ public class ContainerInfo {
   static @Nullable String getCgroupInode(Path cgroupMountPath, List<CGroupInfo> cgroups) {
     // It first tries to get the cGroupV1 "memory" controller inode, and if that fails, it tries to
     // get the cGroupV2 inode.
-    for (String controller : Arrays.asList("memory", "")) {
+    for (String controller : Arrays.asList(CGROUPV1_BASE_CONTROLLER, CGROUPV2_BASE_CONTROLLER)) {
       for (CGroupInfo cgroup : cgroups) {
         if (cgroup.getControllers().contains(controller)) {
           Path path = cgroupMountPath.resolve(controller).resolve(cgroup.getPath());
-          Long inode = getIno(path);
-          if (inode != null) {
+          long inode = readInode(path);
+          // ignore invalid and root inode
+          if (inode > 2) {
             return "in-" + inode;
           }
         }
@@ -135,16 +138,14 @@ public class ContainerInfo {
     return null;
   }
 
-  static @Nullable Long getIno(Path path) {
+  /** @return 0 - if it couldn't read inode */
+  static long readInode(Path path) {
     try {
-      Object attr = Files.getAttribute(path, "unix:ino");
-      if (attr instanceof Long) {
-        return (Long) attr;
-      }
+      return (long) Files.getAttribute(path, "unix:ino");
     } catch (Exception e) {
       log.debug("Unable to read cgroup inode of {} because of {}", path, e.getClass());
     }
-    return null;
+    return 0;
   }
 
   public static class CGroupInfo {

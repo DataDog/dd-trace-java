@@ -91,12 +91,14 @@ nexusPublishing {
     if (forceLocal && !isCI) {
       local {
         // For testing use with https://hub.docker.com/r/sonatype/nexus
-        // docker run --rm -d -p 8081:8081 --name nexus sonatype/nexus
+        // docker run --rm -d -p 8081:8081 --name nexus sonatype/nexus:oss
+        // ./gradlew publishToLocal
         // Doesn't work for testing releases though... (due to staging)
         nexusUrl = uri("http://localhost:8081/nexus/content/repositories/releases/")
         snapshotRepositoryUrl = uri("http://localhost:8081/nexus/content/repositories/snapshots/")
         username = "admin"
         password = "admin123"
+        allowInsecureProtocol = true
       }
     } else {
       sonatype {

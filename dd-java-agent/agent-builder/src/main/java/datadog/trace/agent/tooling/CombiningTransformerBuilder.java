@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
@@ -34,7 +35,12 @@ import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
-/** Builds multiple instrumentations into a single combining-matcher and splitting-transformer. */
+/**
+ * Builds {@link InstrumenterModule}s into a single combining-matcher and splitting-transformer.
+ *
+ * <p>Each transformation defined by a module is allocated a unique {@code transformationId} used to
+ * combine match results in a bitset. This bitset determines the transformations to apply to a type.
+ */
 public final class CombiningTransformerBuilder
     implements Instrumenter.TypeTransformer, Instrumenter.MethodTransformer {
 
@@ -50,11 +56,16 @@ public final class CombiningTransformerBuilder
       new HashMap<>();
 
   private final AgentBuilder agentBuilder;
-  private int nextSupplementaryId;
+  private final InstrumenterIndex instrumenterIndex;
+  private final int knownTransformationCount;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
   private final BitSet knownTypesMask;
   private AdviceStack[] transformers;
+
+  // used to allocate ids to instrumentations not known at build-time
+  private int nextRuntimeInstrumentationId;
+  private int nextRuntimeTransformationId;
 
   // module defined matchers and transformers, shared across members
   private ElementMatcher<? super MethodDescription> ignoredMethods;
@@ -73,27 +84,36 @@ public final class CombiningTransformerBuilder
    */
   private Advice.PostProcessor.Factory postProcessor;
 
-  public CombiningTransformerBuilder(AgentBuilder agentBuilder, int maxInstrumentationId) {
+  public CombiningTransformerBuilder(
+      AgentBuilder agentBuilder, InstrumenterIndex instrumenterIndex) {
     this.agentBuilder = agentBuilder;
-    int transformationCount = maxInstrumentationId + 1;
-    this.nextSupplementaryId = transformationCount;
-    this.knownTypesMask = new BitSet(transformationCount);
-    this.transformers = new AdviceStack[transformationCount];
+    this.instrumenterIndex = instrumenterIndex;
+    int knownInstrumentationCount = instrumenterIndex.instrumentationCount();
+    this.knownTransformationCount = instrumenterIndex.transformationCount();
+    this.knownTypesMask = new BitSet(knownTransformationCount);
+    this.transformers = new AdviceStack[knownTransformationCount];
+    this.nextRuntimeInstrumentationId = knownInstrumentationCount;
+    this.nextRuntimeTransformationId = knownTransformationCount;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
   public void applyInstrumentation(InstrumenterModule module) {
     if (module.isEnabled()) {
-      InstrumenterState.registerInstrumentation(module);
-      prepareInstrumentation(module);
+      int instrumentationId = instrumenterIndex.instrumentationId(module);
+      if (instrumentationId < 0) {
+        // this is a non-indexed instrumentation configured at runtime
+        instrumentationId = nextRuntimeInstrumentationId++;
+      }
+      InstrumenterState.registerInstrumentation(module, instrumentationId);
+      prepareInstrumentation(module, instrumentationId);
       for (Instrumenter member : module.typeInstrumentations()) {
-        buildTypeInstrumentation(module, member);
+        buildTypeInstrumentation(member);
       }
     }
   }
 
   /** Prepares shared matchers and transformers defined by an instrumentation module. */
-  private void prepareInstrumentation(InstrumenterModule module) {
+  private void prepareInstrumentation(InstrumenterModule module, int instrumentationId) {
     ignoredMethods = module.methodIgnoreMatcher();
     classLoaderMatcher = module.classLoaderMatcher();
     contextStore = module.contextStore();
@@ -113,65 +133,79 @@ public final class CombiningTransformerBuilder
             ? new HelperTransformer(module.getClass().getSimpleName(), helperClassNames)
             : null;
 
-    muzzle = new MuzzleCheck(module);
+    muzzle = new MuzzleCheck(module, instrumentationId);
   }
 
   /** Builds a type-specific transformer, controlled by one or more matchers. */
-  private void buildTypeInstrumentation(InstrumenterModule module, Instrumenter member) {
+  private void buildTypeInstrumentation(Instrumenter member) {
 
-    int id = module.instrumentationId();
-    if (module != member) {
-      // this is an additional "dd.trace.methods" instrumenter configured at runtime
-      // (a separate instance is created for each class listed in "dd.trace.methods")
-      // allocate a distinct id for matching purposes to avoid mixing trace methods
-      id = nextSupplementaryId++;
-      if (transformers.length <= id) {
-        transformers = Arrays.copyOf(transformers, id + 1);
+    int transformationId = instrumenterIndex.transformationId(member);
+    if (transformationId < 0) {
+      // this is a non-indexed transformation configured at runtime, e.g. "dd.trace.methods"
+      // allocate a distinct runtime id to each extra transformation for matching purposes
+      transformationId = nextRuntimeTransformationId++;
+      if (transformers.length <= transformationId) {
+        transformers = Arrays.copyOf(transformers, transformationId + 1);
       }
     }
 
-    buildTypeMatcher(member, id);
-    buildTypeAdvice(member, id);
+    buildTypeMatcher(member, transformationId);
+    buildTypeAdvice(member, transformationId);
   }
 
-  private void buildTypeMatcher(Instrumenter member, int id) {
+  private void buildTypeMatcher(Instrumenter member, int transformationId) {
 
-    if (member instanceof Instrumenter.ForSingleType
-        || member instanceof Instrumenter.ForKnownTypes) {
-      knownTypesMask.set(id);
+    if (member instanceof Instrumenter.ForSingleType) {
+      if (transformationId < knownTransformationCount) {
+        knownTypesMask.set(transformationId); // can use known-types index
+      } else {
+        String name = ((Instrumenter.ForSingleType) member).instrumentedType();
+        matchers.add(new MatchRecorder.ForType(transformationId, named(name)));
+      }
+    } else if (member instanceof Instrumenter.ForKnownTypes) {
+      if (transformationId < knownTransformationCount) {
+        knownTypesMask.set(transformationId); // can use known-types index
+      } else {
+        String[] names = ((Instrumenter.ForKnownTypes) member).knownMatchingTypes();
+        matchers.add(new MatchRecorder.ForType(transformationId, namedOneOf(names)));
+      }
     } else if (member instanceof Instrumenter.ForTypeHierarchy) {
-      matchers.add(new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) member));
+      matchers.add(
+          new MatchRecorder.ForHierarchy(transformationId, (Instrumenter.ForTypeHierarchy) member));
     } else if (member instanceof Instrumenter.ForCallSite) {
-      matchers.add(new MatchRecorder.ForType(id, ((Instrumenter.ForCallSite) member).callerType()));
+      matchers.add(
+          new MatchRecorder.ForType(
+              transformationId, ((Instrumenter.ForCallSite) member).callerType()));
     }
 
     if (member instanceof Instrumenter.ForConfiguredTypes) {
       Collection<String> names =
           ((Instrumenter.ForConfiguredTypes) member).configuredMatchingTypes();
       if (null != names && !names.isEmpty()) {
-        matchers.add(new MatchRecorder.ForType(id, namedOneOf(names)));
+        matchers.add(new MatchRecorder.ForType(transformationId, namedOneOf(names)));
       }
     }
 
     if (member instanceof Instrumenter.CanShortcutTypeMatching
         && !((Instrumenter.CanShortcutTypeMatching) member).onlyMatchKnownTypes()) {
-      matchers.add(new MatchRecorder.ForHierarchy(id, (Instrumenter.ForTypeHierarchy) member));
+      matchers.add(
+          new MatchRecorder.ForHierarchy(transformationId, (Instrumenter.ForTypeHierarchy) member));
     }
 
     if (classLoaderMatcher != ANY_CLASS_LOADER) {
-      matchers.add(new MatchRecorder.NarrowLocation(id, classLoaderMatcher));
+      matchers.add(new MatchRecorder.NarrowLocation(transformationId, classLoaderMatcher));
     }
 
     if (member instanceof Instrumenter.WithTypeStructure) {
       matchers.add(
           new MatchRecorder.NarrowType(
-              id, ((Instrumenter.WithTypeStructure) member).structureMatcher()));
+              transformationId, ((Instrumenter.WithTypeStructure) member).structureMatcher()));
     }
 
-    matchers.add(new MatchRecorder.NarrowLocation(id, muzzle));
+    matchers.add(new MatchRecorder.NarrowLocation(transformationId, muzzle));
   }
 
-  private void buildTypeAdvice(Instrumenter member, int id) {
+  private void buildTypeAdvice(Instrumenter member, int transformationId) {
 
     postProcessor =
         member instanceof WithPostProcessor ? ((WithPostProcessor) member).postProcessor() : null;
@@ -193,10 +227,10 @@ public final class CombiningTransformerBuilder
       ((Instrumenter.HasMethodAdvice) member).methodAdvice(this);
     }
 
-    // record the advice collected for this type instrumentation
-    transformers[id] = new AdviceStack(advice);
+    // record the advice collected for this transformationId
+    transformers[transformationId] = new AdviceStack(advice);
 
-    advice.clear(); // reset for next type instrumentation
+    advice.clear(); // reset for next transformationId
   }
 
   @Override
@@ -217,14 +251,22 @@ public final class CombiningTransformerBuilder
             .advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
+  public ClassFileTransformer installOn(Instrumentation instrumentation) {
+    if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
+      applyContextStoreInjection();
+    }
+
+    return agentBuilder
+        .type(new CombiningMatcher(knownTypesMask, matchers))
+        .and(NOT_DECORATOR_MATCHER)
+        .transform(defaultTransformers())
+        .transform(new SplittingTransformer(transformers))
+        .installOn(instrumentation);
+  }
+
   /** Counts the number of distinct context store injections registered with this builder. */
   private int contextStoreCount() {
     return contextStoreInjection.size();
-  }
-
-  /** Applies each context store injection, guarded by the associated class-loader matcher. */
-  private void applyContextStoreInjection() {
-    contextStoreInjection.forEach(this::applyContextStoreInjection);
   }
 
   /** Tracks which class-loader matchers are associated with each store request. */
@@ -260,6 +302,14 @@ public final class CombiningTransformerBuilder
     }
   }
 
+  /** Applies each context store injection, guarded by the associated class-loader matcher. */
+  private void applyContextStoreInjection() {
+    // expand array so we have enough space for a context injecting transformer for each store
+    transformers = Arrays.copyOf(transformers, transformers.length + contextStoreCount());
+
+    contextStoreInjection.forEach(this::applyContextStoreInjection);
+  }
+
   /** Arranges for a context value field to be injected into types extending the context key. */
   private void applyContextStoreInjection(
       Map.Entry<String, String> contextStore, ElementMatcher<ClassLoader> activation) {
@@ -271,25 +321,11 @@ public final class CombiningTransformerBuilder
     FieldBackedContextInjector contextAdvice =
         new FieldBackedContextInjector(keyClassName, contextClassName);
 
-    int id = nextSupplementaryId++;
+    // transformers array has already been expanded to fit in 'applyContextStoreInjection()'
+    int transformationId = nextRuntimeTransformationId++;
 
-    matchers.add(new MatchRecorder.ForContextStore(id, activation, contextMatcher));
-    transformers[id] = new AdviceStack(new VisitingTransformer(contextAdvice));
-  }
-
-  public ClassFileTransformer installOn(Instrumentation instrumentation) {
-    if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
-      // expand so we have enough space for a context injecting transformer for each store
-      transformers = Arrays.copyOf(transformers, transformers.length + contextStoreCount());
-      applyContextStoreInjection();
-    }
-
-    return agentBuilder
-        .type(new CombiningMatcher(knownTypesMask, matchers))
-        .and(NOT_DECORATOR_MATCHER)
-        .transform(defaultTransformers())
-        .transform(new SplittingTransformer(transformers))
-        .installOn(instrumentation);
+    matchers.add(new MatchRecorder.ForContextStore(transformationId, activation, contextMatcher));
+    transformers[transformationId] = new AdviceStack(new VisitingTransformer(contextAdvice));
   }
 
   static final class VisitingTransformer implements AgentBuilder.Transformer {

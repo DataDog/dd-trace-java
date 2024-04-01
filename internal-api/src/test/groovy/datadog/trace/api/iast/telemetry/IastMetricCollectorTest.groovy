@@ -226,8 +226,14 @@ class IastMetricCollectorTest extends DDSpecification {
     IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.SPRING_RESPONSE // wrapped spring response
     IastMetric.EXECUTED_SINK       | VulnerabilityTypes.SPRING_RESPONSE
 
+    IastMetric.INSTRUMENTED_SINK   | VulnerabilityTypes.APPLICATION // wrapped application vuls
+    IastMetric.EXECUTED_SINK       | VulnerabilityTypes.APPLICATION
+
     IastMetric.INSTRUMENTED_SOURCE | SourceTypes.REQUEST_HEADER_NAME
     IastMetric.EXECUTED_SOURCE     | SourceTypes.REQUEST_HEADER_NAME
+
+    IastMetric.INSTRUMENTED_SOURCE | SourceTypes.KAFKA_MESSAGE // wrapped kafka sources
+    IastMetric.EXECUTED_SOURCE     | SourceTypes.KAFKA_MESSAGE
 
     IastMetric.EXECUTED_TAINTED    | null
   }

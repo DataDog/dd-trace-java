@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling;
 
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class InstrumenterMetrics {
@@ -33,7 +33,7 @@ public final class InstrumenterMetrics {
     static final AtomicLong missingClassFile = new AtomicLong();
   }
 
-  private static final boolean ENABLED = Config.get().isTriageEnabled();
+  private static final boolean ENABLED = InstrumenterConfig.get().isTriageEnabled();
 
   public static long tick() {
     if (ENABLED) {

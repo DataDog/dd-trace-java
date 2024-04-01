@@ -92,7 +92,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   }
 
   public final class Builder {
-
+    boolean tracingEnabled;
     boolean runtimeMetricsEnabled;
     boolean logsInjectionEnabled;
     boolean dataStreamsEnabled;
@@ -114,6 +114,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     Builder(Snapshot snapshot) {
 
+      this.tracingEnabled = snapshot.tracingEnabled;
       this.runtimeMetricsEnabled = snapshot.runtimeMetricsEnabled;
       this.logsInjectionEnabled = snapshot.logsInjectionEnabled;
       this.dataStreamsEnabled = snapshot.dataStreamsEnabled;
@@ -199,6 +200,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setTracingTags(Map<String, String> tracingTags) {
       this.tracingTags = tracingTags;
+      return this;
+    }
+
+    public Builder setTracingEnabled(boolean tracingEnabled) {
+      this.tracingEnabled = tracingEnabled;
       return this;
     }
 
@@ -290,6 +296,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
   /** Immutable snapshot of the configuration. */
   public static class Snapshot implements TraceConfig {
+    final boolean tracingEnabled;
     final boolean runtimeMetricsEnabled;
     final boolean logsInjectionEnabled;
     final boolean dataStreamsEnabled;
@@ -309,6 +316,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
+      this.tracingEnabled = builder.tracingEnabled;
       this.runtimeMetricsEnabled = builder.runtimeMetricsEnabled;
       this.logsInjectionEnabled = builder.logsInjectionEnabled;
       this.dataStreamsEnabled = builder.dataStreamsEnabled;
@@ -328,6 +336,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
       return null != mapping ? mapping : Collections.emptyMap();
+    }
+
+    @Override
+    public boolean isTraceEnabled() {
+      return tracingEnabled;
     }
 
     @Override

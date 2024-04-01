@@ -18,13 +18,13 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Maintains an index from known instrumented class names to stable instrumentation ids. */
+/** Maintains an index from known instrumented class names to transformation id(s). */
 public final class KnownTypesIndex {
   private static final Logger log = LoggerFactory.getLogger(KnownTypesIndex.class);
 
   private static final String KNOWN_TYPES_INDEX_NAME = "known-types.index";
 
-  // marks results that match multiple instrumentations
+  // marks results that match multiple transformations
   private static final int MULTIPLE_ID_MARKER = 0x1000;
 
   // lookup table of multiple-id results
@@ -37,17 +37,17 @@ public final class KnownTypesIndex {
     this.knownTypesTrie = knownTypesTrie;
   }
 
-  public void apply(String name, BitSet mask, BitSet instrumentationIds) {
-    int instrumentationId = knownTypesTrie.apply(name);
-    if (instrumentationId >= 0) {
-      if ((instrumentationId & MULTIPLE_ID_MARKER) != 0) {
-        for (int id : multipleIdTable[instrumentationId & ~MULTIPLE_ID_MARKER]) {
+  public void apply(String name, BitSet mask, BitSet transformationIds) {
+    int result = knownTypesTrie.apply(name);
+    if (result >= 0) {
+      if ((result & MULTIPLE_ID_MARKER) != 0) {
+        for (int id : multipleIdTable[result & ~MULTIPLE_ID_MARKER]) {
           if (mask.get(id)) {
-            instrumentationIds.set(id);
+            transformationIds.set(id);
           }
         }
-      } else if (mask.get(instrumentationId)) {
-        instrumentationIds.set(instrumentationId);
+      } else if (mask.get(result)) {
+        transformationIds.set(result);
       }
     }
   }
@@ -94,44 +94,44 @@ public final class KnownTypesIndex {
 
     public void buildIndex() {
       log.debug("Generating KnownTypesIndex");
-      for (InstrumenterModule module : InstrumenterModules.load()) {
-        int instrumentationId = InstrumenterModules.currentInstrumentationId();
+      InstrumenterIndex instrumenterIndex = InstrumenterIndex.readIndex();
+      for (InstrumenterModule module : instrumenterIndex.modules()) {
         for (Instrumenter member : module.typeInstrumentations()) {
+          int transformationId = instrumenterIndex.transformationId(member);
           if (member instanceof Instrumenter.ForSingleType) {
             String type = ((Instrumenter.ForSingleType) member).instrumentedType();
-            indexKnownType(member, type, instrumentationId);
+            indexKnownType(member, type, transformationId);
           } else if (member instanceof Instrumenter.ForKnownTypes) {
             for (String type : ((Instrumenter.ForKnownTypes) member).knownMatchingTypes()) {
-              indexKnownType(member, type, instrumentationId);
+              indexKnownType(member, type, transformationId);
             }
           }
         }
       }
     }
 
-    /** Indexes a single match from known-type to instrumentation-id. */
-    private void indexKnownType(
-        Instrumenter instrumenter, String knownType, int instrumentationId) {
+    /** Indexes a single match from known-type to transformation-id. */
+    private void indexKnownType(Instrumenter instrumenter, String knownType, int transformationId) {
       if (null == knownType || knownType.isEmpty()) {
         throw new IllegalArgumentException(
             instrumenter.getClass() + " declares a null or empty known-type");
       }
       int existingId = knownTypesTrie.apply(knownType);
       if (existingId < 0) {
-        knownTypesTrie.put(knownType, instrumentationId);
+        knownTypesTrie.put(knownType, transformationId);
       } else {
-        BitSet instrumentationIds;
+        BitSet transformationIds;
         if ((existingId & MULTIPLE_ID_MARKER) != 0) {
-          // add new instrumentation-id to existing table entry, no need to update trie
-          instrumentationIds = multipleIdTable.get(existingId & ~MULTIPLE_ID_MARKER);
+          // add new transformation-id to existing table entry, no need to update trie
+          transformationIds = multipleIdTable.get(existingId & ~MULTIPLE_ID_MARKER);
         } else {
           // create new table entry to hold multiple ids and update trie with its offset
           knownTypesTrie.put(knownType, multipleIdTable.size() | MULTIPLE_ID_MARKER);
-          instrumentationIds = new BitSet();
-          multipleIdTable.add(instrumentationIds);
-          instrumentationIds.set(existingId);
+          transformationIds = new BitSet();
+          multipleIdTable.add(transformationIds);
+          transformationIds.set(existingId);
         }
-        instrumentationIds.set(instrumentationId);
+        transformationIds.set(transformationId);
       }
     }
 
