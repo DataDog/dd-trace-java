@@ -399,7 +399,7 @@ public class DefaultPathwayContext implements PathwayContext {
         hash);
   }
 
-  private static class DataSetHashBuilder {
+  static class DataSetHashBuilder {
     private final StringBuilder builder;
 
     public DataSetHashBuilder() {

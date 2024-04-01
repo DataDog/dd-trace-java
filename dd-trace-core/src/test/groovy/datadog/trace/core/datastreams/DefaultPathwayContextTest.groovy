@@ -155,6 +155,31 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
     thrown(IllegalStateException)
   }
 
+  def "Set checkpoint with dataset tags"() {
+    given:
+    def timeSource = new ControllableTimeSource()
+    def context = new DefaultPathwayContext(timeSource, wellKnownTags)
+
+    when:
+    timeSource.advance(MILLISECONDS.toNanos(50))
+    context.setCheckpoint(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "in"]), pointConsumer)
+    def encoded = context.strEncode()
+    timeSource.advance(MILLISECONDS.toNanos(2))
+    def decodedContext = DefaultPathwayContext.strDecode(timeSource, wellKnownTags, encoded)
+    timeSource.advance(MILLISECONDS.toNanos(25))
+    context.setCheckpoint(new LinkedHashMap<>(["type": "s3", "ds.namespace": "my_bucket", "ds.name": "my_object.csv", "direction": "out"]), pointConsumer)
+
+    then:
+    decodedContext.isStarted()
+    pointConsumer.points.size() == 2
+
+    // all points should have datasetHash, which is not equal to hash or 0
+    for (var i = 0; i < pointConsumer.points.size(); i++){
+      pointConsumer.points[i].dataSetHash != pointConsumer.points[i].hash
+      pointConsumer.points[i].dataSetHash != 0
+    }
+  }
+
   def "Encoding and decoding (base64) a context"() {
     // Timesource needs to be advanced in milliseconds because encoding truncates to millis
     given:
