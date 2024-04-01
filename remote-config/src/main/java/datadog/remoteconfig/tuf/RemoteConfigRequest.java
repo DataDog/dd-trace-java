@@ -53,8 +53,7 @@ public class RemoteConfigRequest {
 
   /** Stores client information for Remote Configuration */
   public static class ClientInfo {
-    // This bitset is reserved according to the Remote Config spec. See:
-    // https://datadoghq.atlassian.net/wiki/spaces/RC/pages/2594702792/Client+capabilities+list
+    // This bitset is reserved according to the Remote Config spec.
     public static final long CAPABILITY_ASM_ACTIVATION = 1 << 1;
     public static final long CAPABILITY_ASM_IP_BLOCKING = 1 << 2;
     public static final long CAPABILITY_ASM_DD_RULES = 1 << 3;
@@ -65,7 +64,6 @@ public class RemoteConfigRequest {
     public static final long CAPABILITY_ASM_CUSTOM_RULES = 1 << 8;
     public static final long CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE = 1 << 9;
     public static final long CAPABILITY_ASM_TRUSTED_IPS = 1 << 10;
-
     public static final long CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE = 1 << 11;
     public static final long CAPABILITY_APM_TRACING_SAMPLE_RATE = 1 << 12;
     public static final long CAPABILITY_APM_LOGS_INJECTION = 1 << 13;
