@@ -12,7 +12,6 @@ import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
-
 import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
 import javax.servlet.Servlet
@@ -543,7 +542,7 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
     0 * _
   }
 
-  void 'test that iast modules are called'() {
+  void 'test that iast module is called'() {
     given:
     final appModule = Mock(ApplicationModule)
     InstrumentationBridge.registerIastModule(appModule)

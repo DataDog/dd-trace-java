@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,7 +106,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   }
 
   @Override
-  public void checkSessionTrackingModes(@NotNull Set<String> sessionTrackingModes) {
+  public void checkSessionTrackingModes(@Nonnull Set<String> sessionTrackingModes) {
     if (!sessionTrackingModes.contains("URL")) {
       return;
     }

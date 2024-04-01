@@ -94,9 +94,7 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
   }
 
   private static void assertSessionRewriting(final Vulnerability vuln, final String expected) {
-    assert vuln != null
-    assert vuln.getType() == VulnerabilityType.SESSION_REWRITING
-    assert vuln.getLocation() != null
+    assertVulnerability(vuln, VulnerabilityType.SESSION_REWRITING)
     final evidence = vuln.getEvidence()
     assert evidence.value == expected
   }

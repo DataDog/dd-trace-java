@@ -5,7 +5,6 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
-
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import datadog.trace.instrumentation.servlet3.TestServlet3
@@ -20,7 +19,6 @@ import org.apache.catalina.valves.ValveBase
 import org.apache.tomcat.JarScanFilter
 import org.apache.tomcat.JarScanType
 import spock.lang.Shared
-
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 
@@ -550,7 +548,7 @@ class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
     0 * _
   }
 
-  void 'test that iast modules are called'() {
+  void 'test that iast module is called'() {
     given:
     final appModule = Mock(ApplicationModule)
     InstrumentationBridge.registerIastModule(appModule)
