@@ -51,7 +51,9 @@ public final class AgentThreadFactory implements ThreadFactory {
     CI_GIT_DATA_SHUTDOWN_HOOK("dd-ci-git-data-shutdown-hook"),
     CI_TEST_EVENTS_SHUTDOWN_HOOK("dd-ci-test-events-shutdown-hook"),
     CI_PROJECT_CONFIGURATOR("dd-ci-project-configurator"),
-    CI_SIGNAL_SERVER("dd-ci-signal-server");
+    CI_SIGNAL_SERVER("dd-ci-signal-server"),
+
+    RETRANSFORMER("dd-retransformer");
 
     public final String threadName;
 
