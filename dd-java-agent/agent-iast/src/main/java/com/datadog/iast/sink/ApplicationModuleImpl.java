@@ -68,6 +68,27 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   static final String TOMCAT_HOST_MANAGER_APP = "Tomcat Host Manager Application";
   private static final String TOMCAT_HOST_MANAGER_APP_PATTERN =
       DISPLAY_NAME_START_TAG + TOMCAT_HOST_MANAGER_APP + DISPLAY_NAME_END_TAG;
+  static final String TOMCAT_SAMPLES_APP = "Servlet and JSP Examples";
+  private static final String TOMCAT_SAMPLES_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + TOMCAT_SAMPLES_APP + DISPLAY_NAME_END_TAG;
+  static final String JETTY_ASYNC_REST_APP = "Async REST Webservice Example";
+  private static final String JETTY_ASYNC_REST_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + JETTY_ASYNC_REST_APP + DISPLAY_NAME_END_TAG;
+  static final String JETTY_JAVADOC_APP = "Transparent Proxy WebApp";
+  private static final String JETTY_JAVADOC_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + JETTY_JAVADOC_APP + DISPLAY_NAME_END_TAG;
+  static final String JETTY_JAAS_APP = "JAAS Test";
+  private static final String JETTY_JAAS_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + JETTY_JAAS_APP + DISPLAY_NAME_END_TAG;
+  static final String JETTY_JNDI_APP = "Test JNDI WebApp";
+  private static final String JETTY_JNDI_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + JETTY_JNDI_APP + DISPLAY_NAME_END_TAG;
+  static final String JETTY_SPEC_APP = "Test Annotations WebApp";
+  private static final String JETTY_SPEC_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + JETTY_SPEC_APP + DISPLAY_NAME_END_TAG;
+  static final String JETTY_TEST_APP = "Test WebApp";
+  private static final String JETTY_TEST_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + JETTY_TEST_APP + DISPLAY_NAME_END_TAG;
   public static final String WEB_INF = "WEB-INF";
   public static final String WEB_XML = "web.xml";
   public static final String WEBLOGIC_XML = "weblogic.xml";
@@ -83,6 +104,13 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
                   DEFAULT_HTML_ESCAPE,
                   TOMCAT_MANAGER_APP_PATTERN,
                   TOMCAT_HOST_MANAGER_APP_PATTERN,
+                  TOMCAT_SAMPLES_APP_PATTERN,
+                  JETTY_ASYNC_REST_APP_PATTERN,
+                  JETTY_JAVADOC_APP_PATTERN,
+                  JETTY_JAAS_APP_PATTERN,
+                  JETTY_JNDI_APP_PATTERN,
+                  JETTY_SPEC_APP_PATTERN,
+                  JETTY_TEST_APP_PATTERN,
                   LISTINGS_PATTERN,
                   JETTY_LISTINGS_PATTERN,
                   SESSION_TIMEOUT_START_TAG,
@@ -212,6 +240,27 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case TOMCAT_HOST_MANAGER_APP_PATTERN:
           reportAdminConsoleActive(span, TOMCAT_HOST_MANAGER_APP);
           break;
+        case TOMCAT_SAMPLES_APP_PATTERN:
+          reportDefaultAppDeployed(span, TOMCAT_SAMPLES_APP);
+          break;
+        case JETTY_ASYNC_REST_APP_PATTERN:
+          reportDefaultAppDeployed(span, JETTY_ASYNC_REST_APP);
+          break;
+        case JETTY_JAVADOC_APP_PATTERN:
+          reportDefaultAppDeployed(span, JETTY_JAVADOC_APP);
+          break;
+        case JETTY_JAAS_APP_PATTERN:
+          reportDefaultAppDeployed(span, JETTY_JAAS_APP);
+          break;
+        case JETTY_JNDI_APP_PATTERN:
+          reportDefaultAppDeployed(span, JETTY_JNDI_APP);
+          break;
+        case JETTY_SPEC_APP_PATTERN:
+          reportDefaultAppDeployed(span, JETTY_SPEC_APP);
+          break;
+        case JETTY_TEST_APP_PATTERN:
+          reportDefaultAppDeployed(span, JETTY_TEST_APP);
+          break;
         case LISTINGS_PATTERN:
         case JETTY_LISTINGS_PATTERN:
           checkDirectoryListingLeak(webXmlContent, matcher.start(), span);
@@ -262,6 +311,15 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         span,
         new Vulnerability(
             VulnerabilityType.ADMIN_CONSOLE_ACTIVE,
+            Location.forSpan(span),
+            new Evidence(evidence)));
+  }
+
+  private void reportDefaultAppDeployed(final AgentSpan span, final String evidence) {
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.DEFAULT_APP_DEPLOYED,
             Location.forSpan(span),
             new Evidence(evidence)));
   }

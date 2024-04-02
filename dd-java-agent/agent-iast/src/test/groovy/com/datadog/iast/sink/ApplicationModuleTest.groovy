@@ -9,6 +9,7 @@ import datadog.trace.api.iast.sink.ApplicationModule
 
 import static com.datadog.iast.model.VulnerabilityType.ADMIN_CONSOLE_ACTIVE
 import static com.datadog.iast.model.VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID
+import static com.datadog.iast.model.VulnerabilityType.DEFAULT_APP_DEPLOYED
 import static com.datadog.iast.model.VulnerabilityType.DIRECTORY_LISTING_LEAK
 import static com.datadog.iast.model.VulnerabilityType.INSECURE_JSP_LAYOUT
 import static com.datadog.iast.model.VulnerabilityType.SESSION_TIMEOUT
@@ -71,6 +72,14 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     'application/adminconsoleactive/secure'           | null                        | null                                                       | _
     'application/adminconsoleactive/insecure/tomcat/manager' | ADMIN_CONSOLE_ACTIVE | ApplicationModuleImpl.TOMCAT_MANAGER_APP                   | NO_LINE
     'application/adminconsoleactive/insecure/tomcat/host'    | ADMIN_CONSOLE_ACTIVE | ApplicationModuleImpl.TOMCAT_HOST_MANAGER_APP              | NO_LINE
+    'application/defaultappdeployed/secure'           | null                        | null                                                       | _
+    'application/defaultappdeployed/insecure/tomcat/samples'         | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.TOMCAT_SAMPLES_APP                    | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/async'            | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_ASYNC_REST_APP                  | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/jaas'             | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_JAAS_APP                        | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/javadoc'          | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_JAVADOC_APP                     | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/jndi'             | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_JNDI_APP                        | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/spec'             | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_SPEC_APP                        | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/test'             | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_TEST_APP                        | NO_LINE
     'application/defaulthtmlescapeinvalid/secure'     | null                        | null                                                       | _
     'application/defaulthtmlescapeinvalid/secure_tag' | null                        | null                                                       | _
     'application/defaulthtmlescapeinvalid/false_tag'  | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be true'                     | 8
