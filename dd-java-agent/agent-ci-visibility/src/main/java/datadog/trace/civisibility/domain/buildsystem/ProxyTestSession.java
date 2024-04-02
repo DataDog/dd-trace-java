@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -63,7 +64,10 @@ public class ProxyTestSession implements TestFrameworkSession {
 
   @Override
   public void end(Long startTime) {
-    // no op
+    // flushing written traces synchronously:
+    // as soon as all tests have been executed,
+    // the process can be killed by the build system
+    AgentTracer.get().flush();
   }
 
   @Override
