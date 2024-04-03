@@ -11,6 +11,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -51,6 +52,9 @@ public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
     transformer.applyAdvice(
         named("close").and(takesNoArguments()),
         SeleniumInstrumentation.class.getName() + "$ClosePageAdvice");
+    transformer.applyAdvice(
+        named("quit").and(takesNoArguments()),
+        SeleniumInstrumentation.class.getName() + "$QuitPageAdvice");
   }
 
   public static class InjectTestListener {
@@ -75,6 +79,20 @@ public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
     @Advice.OnMethodEnter
     public static void beforePageClose(@Advice.This WebDriver driver) {
       SeleniumUtils.beforePageClose(driver);
+    }
+  }
+
+  public static class QuitPageAdvice {
+    @Advice.OnMethodEnter
+    public static void beforeBrowserQuit(@Advice.This WebDriver driver) {
+      Set<String> handles = driver.getWindowHandles();
+      if (handles == null) {
+        return;
+      }
+      for (String handle : handles) {
+        WebDriver window = driver.switchTo().window(handle);
+        SeleniumUtils.beforePageClose(window);
+      }
     }
   }
 }
