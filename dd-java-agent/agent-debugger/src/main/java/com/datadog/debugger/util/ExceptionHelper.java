@@ -97,6 +97,8 @@ public class ExceptionHelper {
     }
   }
 
+  // Because flattened stack traces are organized with first frames at the bottom I need to follow
+  // the order of the first frame and wrap around the array with a modulo to continue the matching
   public static int[] createThrowableMapping(Throwable innerMost, Throwable current) {
     StackTraceElement[] innerTrace = innerMost.getStackTrace();
     StackTraceElement[] currentTrace = flattenStackTrace(current);

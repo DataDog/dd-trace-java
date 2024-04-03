@@ -91,12 +91,11 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     }
     int[] mapping = createThrowableMapping(innerMostException, t);
     StackTraceElement[] innerTrace = innerMostException.getStackTrace();
-    int currentIdx = 0;
     boolean snapshotAssigned = false;
     List<Snapshot> snapshots = state.getSnapshots();
     for (int i = 0; i < snapshots.size(); i++) {
       Snapshot snapshot = snapshots.get(i);
-      currentIdx = innerTrace.length - snapshot.getStack().size();
+      int currentIdx = innerTrace.length - snapshot.getStack().size();
       if (!sanityCheckSnapshotAssignment(snapshot, innerTrace, currentIdx)) {
         continue;
       }
