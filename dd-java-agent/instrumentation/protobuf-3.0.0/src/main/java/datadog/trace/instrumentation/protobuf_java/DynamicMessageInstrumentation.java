@@ -18,7 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class DynamicMessageInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
