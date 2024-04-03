@@ -71,15 +71,15 @@ public class TraceDecorator extends AsyncResultDecorator {
     }
 
     if (operationName == null || operationName.length() == 0) {
-      if (DECORATE.useLegacyOperationName()) {
+      if (useLegacyOperationName()) {
         operationName = DEFAULT_OPERATION_NAME;
       } else {
-        operationName = DECORATE.spanNameForMethod(method);
+        operationName = spanNameForMethod(method);
       }
     }
 
     if (resourceName == null || resourceName.length() == 0) {
-      resourceName = DECORATE.spanNameForMethod(method);
+      resourceName = spanNameForMethod(method);
     }
 
     AgentSpan span =
@@ -87,7 +87,7 @@ public class TraceDecorator extends AsyncResultDecorator {
             ? startSpan(INSTRUMENTATION_NAME, operationName, null)
             : startSpan(INSTRUMENTATION_NAME, operationName);
 
-    DECORATE.afterStart(span);
+    afterStart(span);
     span.setResourceName(resourceName);
 
     if (measured || InstrumenterConfig.get().isMethodMeasured(method)) {
