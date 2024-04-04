@@ -91,10 +91,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag(InstrumentationTags.AWS_ENDPOINT, request.getEndpoint().toString());
 
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
-
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
-    System.out.println("#### v1 Request type: " + request.getClass().getName());
-    if ("s3".equalsIgnoreCase(awsSimplifiedServiceName) && span.traceConfig().isDataStreamsEnabled()) {
+
+    if ("s3".equalsIgnoreCase(awsSimplifiedServiceName)
+        && span.traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
     }
 
@@ -244,8 +244,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   public AgentSpan onServiceResponse(
       final AgentSpan span, final String awsService, final Response response) {
-    System.out.println("#### v1 Response type: " + response.getClass().getName());
-    if ("s3".equalsIgnoreCase(simplifyServiceName(awsService)) && span.traceConfig().isDataStreamsEnabled()) {
+    if ("s3".equalsIgnoreCase(simplifyServiceName(awsService))
+        && span.traceConfig().isDataStreamsEnabled()) {
       long responseSize = getResponseContentLength(response);
       span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
 
