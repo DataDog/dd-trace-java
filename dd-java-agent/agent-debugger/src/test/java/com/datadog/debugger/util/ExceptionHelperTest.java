@@ -122,6 +122,26 @@ public class ExceptionHelperTest {
     }
   }
 
+  @Test
+  public void createThrowableMappingRecursive() {
+    Throwable nestedException = createNestExceptionRecursive(4);
+    Throwable innerMostThrowable = ExceptionHelper.getInnerMostThrowable(nestedException);
+    int[] mapping = ExceptionHelper.createThrowableMapping(innerMostThrowable, nestedException);
+    StackTraceElement[] flattenedTrace = ExceptionHelper.flattenStackTrace(nestedException);
+    for (int i = 0; i < mapping.length; i++) {
+      assertEquals(
+          flattenedTrace[mapping[i]].getClassName(),
+          innerMostThrowable.getStackTrace()[i].getClassName());
+    }
+  }
+
+  private RuntimeException createNestExceptionRecursive(int depth) {
+    if (depth == 0) {
+      return createNestException();
+    }
+    return createNestExceptionRecursive(depth - 1);
+  }
+
   private RuntimeException createNestException() {
     return new RuntimeException("test3", createTest2Exception(createTest1Exception()));
   }
