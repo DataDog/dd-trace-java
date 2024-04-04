@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.DynamicMessage;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -48,8 +47,8 @@ public final class DynamicMessageInstrumentation extends InstrumenterModule.Trac
         isMethod()
             .and(named("parseFrom"))
             .and(isStatic())
-            .and(takesArgument(0, Descriptor.class))
-            .and(returns(DynamicMessage.class)),
+            .and(takesArgument(0, named("com.google.protobuf.Descriptors$Descriptor")))
+            .and(returns(named(TARGET_TYPE))),
         DynamicMessageInstrumentation.class.getName() + "$ParseFromAdvice");
   }
 

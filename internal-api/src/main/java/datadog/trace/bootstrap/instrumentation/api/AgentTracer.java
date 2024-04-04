@@ -1105,6 +1105,11 @@ public class AgentTracer {
     }
 
     @Override
+    public SchemaBuilder newSchemaBuilder() {
+      return null;
+    }
+
+    @Override
     public void setConsumeCheckpoint(
         String type, String source, DataStreamsContextCarrier carrier) {}
 

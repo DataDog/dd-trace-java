@@ -36,4 +36,6 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
    *     without having been sampled.
    */
   int shouldSampleSchema(String topic);
+
+  SchemaBuilder newSchemaBuilder();
 }

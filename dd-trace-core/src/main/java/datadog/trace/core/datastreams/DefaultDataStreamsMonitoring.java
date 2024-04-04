@@ -168,6 +168,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public datadog.trace.bootstrap.instrumentation.api.SchemaBuilder newSchemaBuilder() {
+    return new SchemaBuilder();
+  }
+
+  @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
       return new DefaultPathwayContext(timeSource, wellKnownTags);

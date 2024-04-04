@@ -65,7 +65,8 @@ public class Decorator extends BaseDecorator {
     if (weight == 0) {
       return;
     }
-    String schema = OpenAPIFormatExtractor.extractSchema(descriptor);
+    String schema = SchemaExtractor.extractSchemas(descriptor);
+    System.out.println("schema is: " + schema);
     span.setTag(DDTags.SCHEMA_DEFINITION, schema);
     span.setTag(DDTags.SCHEMA_WEIGHT, weight);
     span.setTag(
