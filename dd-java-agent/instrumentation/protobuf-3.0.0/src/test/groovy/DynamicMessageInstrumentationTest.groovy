@@ -23,12 +23,11 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
     var bytes
     runUnderTrace("parent_serialize") {
       bytes = message.toByteArray()
-      blockUntilChildSpansFinished(1)
     }
     runUnderTrace("parent_deserialize") {
       DynamicMessage.parseFrom(Message.MyMessage.getDescriptor(), bytes)
-      blockUntilChildSpansFinished(1)
     }
+    TEST_WRITER.waitForTraces(2)
     then:
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(2) {

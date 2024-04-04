@@ -45,7 +45,7 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OpenAPIFormatExtractor", packageName + ".Decorator",
+      packageName + ".SchemaExtractor", packageName + ".Decorator",
     };
   }
 

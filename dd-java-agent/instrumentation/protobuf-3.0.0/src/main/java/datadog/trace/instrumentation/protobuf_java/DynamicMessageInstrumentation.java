@@ -37,7 +37,7 @@ public final class DynamicMessageInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OpenAPIFormatExtractor", packageName + ".Decorator",
+      packageName + ".SchemaExtractor", packageName + ".Decorator",
     };
   }
 
