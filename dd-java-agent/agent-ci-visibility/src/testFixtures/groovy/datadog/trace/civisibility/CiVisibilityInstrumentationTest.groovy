@@ -238,7 +238,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     Files.deleteIfExists(agentKeyFile)
   }
 
-  def assertSpansData(String testcaseName, int expectedTracesCount) {
+  def assertSpansData(String testcaseName, int expectedTracesCount, Map<String, String> replacements = [:]) {
     TEST_WRITER.waitForTraces(expectedTracesCount)
     def traces = TEST_WRITER.toList()
 
@@ -247,20 +247,20 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def additionalReplacements = [
       "content.meta.['test.framework_version']": instrumentedLibraryVersion(),
       "content.meta.['test.toolchain']"        : "${instrumentedLibraryName()}:${instrumentedLibraryVersion()}"
-    ]
+    ] + replacements
 
     // uncomment to generate expected data templates
     //    def baseTemplatesPath = CiVisibilityInstrumentationTest.classLoader
-    //    .getResource("test-succeed")
-    //    .toURI()
-    //    .schemeSpecificPart
-    //    .replace('build/resources/test', 'src/test/resources')
-    //    .replace('build/resources/latestDepTest', 'src/test/resources')
-    //    .replace("test-succeed", testcaseName)
+    //      .getResource("test-succeed")
+    //      .toURI()
+    //      .schemeSpecificPart
+    //      .replace('build/resources/test', 'src/test/resources')
+    //      .replace('build/resources/latestDepTest', 'src/test/resources')
+    //      .replace("test-succeed", testcaseName)
     //    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+    //    return [:]
 
-    CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
-    return true
+    return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
   }
 
   def getEventsAsJson(List<List<DDSpan>> traces) {

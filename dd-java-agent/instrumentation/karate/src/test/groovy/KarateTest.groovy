@@ -27,7 +27,6 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 class KarateTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    setup:
     Assumptions.assumeTrue(assumption)
 
     runTests(tests)
@@ -44,7 +43,6 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test ITR #testcaseName"() {
-    setup:
     Assumptions.assumeTrue(isSkippingSupported(FileUtils.KARATE_VERSION))
 
     givenSkippableTests(skippedTests)
@@ -63,7 +61,6 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
-    setup:
     givenFlakyTests(retriedTests)
 
     runTests(tests)
