@@ -119,6 +119,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
+      System.out.println("#### v2 Request type: " + request.getClass().getName());
       request
           .getValueForField("Key", String.class)
           .ifPresent(key -> span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key));
@@ -351,22 +352,23 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         }
       }
 
+      System.out.println("#### v2 Response type: " + response.getClass().getName());
       if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
         long responseSize = getResponseContentLength(httpResponse);
         span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
 
-        Object key = span.getTag(InstrumentationTags.AWS_OBJECT_KEY);
-        Object bucket = span.getTag(InstrumentationTags.AWS_BUCKET_NAME);
-        Object awsOperation = span.getTag(InstrumentationTags.AWS_OPERATION);
+        String key = getSpanTagAsString(span, InstrumentationTags.AWS_OBJECT_KEY);
+        String bucket = getSpanTagAsString(span, InstrumentationTags.AWS_BUCKET_NAME);
+        String awsOperation = getSpanTagAsString(span, InstrumentationTags.AWS_OPERATION);
 
         if (key != null && bucket != null && awsOperation != null) {
-          if ("GetObject".equalsIgnoreCase(awsOperation.toString())) {
+          if ("GetObject".equalsIgnoreCase(awsOperation)) {
             LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
 
             sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
-            sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key.toString());
-            sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket.toString());
-            sortedTags.put(TagsProcessor.TOPIC_TAG, bucket.toString());
+            sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+            sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+            sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
             sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
 
             AgentTracer.get()
@@ -374,7 +376,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                 .setCheckpoint(span, sortedTags, 0, responseSize);
           }
 
-          if ("PutObject".equalsIgnoreCase(awsOperation.toString())) {
+          if ("PutObject".equalsIgnoreCase(awsOperation)) {
             Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
             long payloadSize = 0;
             if (requestSize != null) {
@@ -384,9 +386,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
 
             sortedTags.put(TagsProcessor.DIRECTION_TAG, DIRECTION_OUT);
-            sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key.toString());
-            sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket.toString());
-            sortedTags.put(TagsProcessor.TOPIC_TAG, bucket.toString());
+            sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+            sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+            sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
             sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
 
             AgentTracer.get()

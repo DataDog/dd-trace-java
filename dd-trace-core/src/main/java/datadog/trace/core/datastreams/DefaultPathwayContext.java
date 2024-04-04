@@ -154,7 +154,7 @@ public class DefaultPathwayContext implements PathwayContext {
           pathwayHashBuilder.addTag(tag);
         }
         if (dataSetTagKeys.contains(entry.getKey())) {
-          dataSetHashBuilder.addTag(tag);
+          dataSetHashBuilder.addValue(tag);
         }
         allTags.add(tag);
       }
@@ -174,7 +174,7 @@ public class DefaultPathwayContext implements PathwayContext {
       }
 
       long newHash = generatePathwayHash(nodeHash, hash);
-      long dataSetHash = dataSetHashBuilder.generateDataSourceHash(newHash);
+      long dataSetHash = dataSetHashBuilder.addValue(String.valueOf(newHash));
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -399,21 +399,11 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   static class DataSetHashBuilder {
-    private final StringBuilder builder;
+    private long currentHash = 0L;
 
-    public DataSetHashBuilder() {
-      builder = new StringBuilder();
-    }
-
-    public void addTag(String tag) {
-      if (dataSetTagKeys.contains(tag)) {
-        builder.append(tag);
-      }
-    }
-
-    public long generateDataSourceHash(long parentHash) {
-      builder.append(parentHash);
-      return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
+    public long addValue(String val) {
+      currentHash = FNV64Hash.generateHash(currentHash + val, FNV64Hash.Version.v1);
+      return currentHash;
     }
   }
 

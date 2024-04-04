@@ -79,20 +79,22 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     super.onRequest(span, request);
 
     final String awsServiceName = request.getServiceName();
+    final String awsSimplifiedServiceName = simplifyServiceName(awsServiceName);
     final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
     final Class<?> awsOperation = originalRequest.getClass();
     final GetterAccess access = GetterAccess.of(originalRequest);
 
     span.setTag(InstrumentationTags.AWS_AGENT, COMPONENT_NAME);
     span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
-    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, simplifyServiceName(awsServiceName));
+    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsSimplifiedServiceName);
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperation.getSimpleName());
     span.setTag(InstrumentationTags.AWS_ENDPOINT, request.getEndpoint().toString());
 
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
 
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
-    if ("Amazon S3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
+    System.out.println("#### v1 Request type: " + request.getClass().getName());
+    if ("s3".equalsIgnoreCase(awsSimplifiedServiceName) && span.traceConfig().isDataStreamsEnabled()) {
       span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
     }
 
@@ -242,25 +244,26 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   public AgentSpan onServiceResponse(
       final AgentSpan span, final String awsService, final Response response) {
-    if ("Amazon S3".equalsIgnoreCase(awsService) && span.traceConfig().isDataStreamsEnabled()) {
+    System.out.println("#### v1 Response type: " + response.getClass().getName());
+    if ("s3".equalsIgnoreCase(simplifyServiceName(awsService)) && span.traceConfig().isDataStreamsEnabled()) {
       long responseSize = getResponseContentLength(response);
       span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
 
-      Object key = span.getTag(InstrumentationTags.AWS_OBJECT_KEY);
-      Object bucket = span.getTag(InstrumentationTags.AWS_BUCKET_NAME);
-      Object awsOperation = span.getTag(InstrumentationTags.AWS_OPERATION);
+      String key = getSpanTagAsString(span, InstrumentationTags.AWS_OBJECT_KEY);
+      String bucket = getSpanTagAsString(span, InstrumentationTags.AWS_BUCKET_NAME);
+      String awsOperation = getSpanTagAsString(span, InstrumentationTags.AWS_OPERATION);
 
       if (key != null && bucket != null && awsOperation != null) {
         // GetObjectMetadataRequest may return the object if it's not "HEAD"
         if (HttpMethodName.GET.name().equals(span.getTag(Tags.HTTP_METHOD))
-            && ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation.toString())
-                || "GetObjectRequest".equalsIgnoreCase(awsOperation.toString()))) {
+            && ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation)
+                || "GetObjectRequest".equalsIgnoreCase(awsOperation))) {
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
 
           sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
-          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key.toString());
-          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket.toString());
-          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket.toString());
+          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
           sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
 
           AgentTracer.get()
@@ -268,8 +271,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               .setCheckpoint(span, sortedTags, 0, responseSize);
         }
 
-        if ("PutObjectRequest".equalsIgnoreCase(awsOperation.toString())
-            || "UploadPartRequest".equalsIgnoreCase(awsOperation.toString())) {
+        if ("PutObjectRequest".equalsIgnoreCase(awsOperation)
+            || "UploadPartRequest".equalsIgnoreCase(awsOperation)) {
           Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
           long payloadSize = 0;
           if (requestSize != null) {
@@ -279,9 +282,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
 
           sortedTags.put(TagsProcessor.DIRECTION_TAG, DIRECTION_OUT);
-          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key.toString());
-          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket.toString());
-          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket.toString());
+          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
           sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
 
           AgentTracer.get()

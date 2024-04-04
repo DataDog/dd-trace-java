@@ -132,6 +132,11 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         .operationForComponent(component().toString());
   }
 
+  public String getSpanTagAsString(AgentSpan span, String tag) {
+    Object value = span.getTag(tag);
+    return value == null ? null : value.toString();
+  }
+
   public long getRequestContentLength(final REQUEST request) {
     if (request == null) {
       return 0;
