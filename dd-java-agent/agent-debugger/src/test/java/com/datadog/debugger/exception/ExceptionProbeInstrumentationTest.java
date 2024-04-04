@@ -44,6 +44,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 
 public class ExceptionProbeInstrumentationTest {
   private final Instrumentation instr = ByteBuddyAgent.install();
@@ -163,6 +164,9 @@ public class ExceptionProbeInstrumentationTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Bug in J9: no LocalVariableTable for ClassFileTransformer")
   public void recursive() throws Exception {
     Config config = createConfig();
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
