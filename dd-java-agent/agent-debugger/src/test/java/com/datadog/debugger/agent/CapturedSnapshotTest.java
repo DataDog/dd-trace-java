@@ -90,6 +90,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -757,6 +758,46 @@ public class CapturedSnapshotTest {
         compositeDataFields.get("@" + NOT_CAPTURED_REASON).getNotCapturedReason());
     assertTrue(compositeDataFields.containsKey("s1"));
     assertTrue(compositeDataFields.containsKey("s2"));
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void fieldExtractorNotAccessible() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot30";
+    LogProbe logProbe = createProbe(PROBE_ID, CLASS_NAME + "$MyObjectInputStream", "process", "()");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "").get();
+    assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureFieldsNotCaptured(
+        snapshot.getCaptures().getReturn(),
+        "bin",
+        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$BlockDataInputStream java.io.ObjectInputStream.bin accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+    assertCaptureFieldsNotCaptured(
+        snapshot.getCaptures().getReturn(),
+        "vlist",
+        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$ValidationList java.io.ObjectInputStream.vlist accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void staticFieldExtractorNotAccessible() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot30";
+    LogProbe logProbe = createProbe(PROBE_ID, CLASS_NAME + "$MyHttpURLConnection", "process", "()");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "static").get();
+    assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureStaticFieldsNotCaptured(
+        snapshot.getCaptures().getReturn(),
+        "followRedirects",
+        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static boolean java.net.HttpURLConnection.followRedirects accessible: module java.base does not \"opens java.net\" to unnamed module.*");
+    assertCaptureStaticFieldsNotCaptured(
+        snapshot.getCaptures().getReturn(),
+        "factory",
+        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static volatile java.net.ContentHandlerFactory java.net.URLConnection.factory accessible: module java.base does not \"opens java.net\" to unnamed module.*");
   }
 
   @Test
@@ -2321,6 +2362,20 @@ public class CapturedSnapshotTest {
       assertTrue(expectedMap.containsKey(entry.getKey()));
       assertEquals(expectedMap.get(entry.getKey()), entry.getValue());
     }
+  }
+
+  private void assertCaptureFieldsNotCaptured(
+      CapturedContext context, String name, String expectedReasonRegEx) {
+    CapturedContext.CapturedValue field = context.getFields().get(name);
+    assertTrue(
+        field.getNotCapturedReason().matches(expectedReasonRegEx), field.getNotCapturedReason());
+  }
+
+  private void assertCaptureStaticFieldsNotCaptured(
+      CapturedContext context, String name, String expectedReasonRegEx) {
+    CapturedContext.CapturedValue field = context.getStaticFields().get(name);
+    assertTrue(
+        field.getNotCapturedReason().matches(expectedReasonRegEx), field.getNotCapturedReason());
   }
 
   private void assertCaptureFieldCount(CapturedContext context, int expectedFieldCount) {
