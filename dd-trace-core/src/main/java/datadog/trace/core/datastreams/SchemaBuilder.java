@@ -9,9 +9,12 @@ import java.util.Map;
 
 public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.api.SchemaBuilder {
   private final OpenApiSchema schema = new OpenApiSchema();
+  private static final int maxDepth = 10;
+  private static final int maxProperties = 1000;
+  private int properties;
 
   @Override
-  public void addProperty(
+  public boolean addProperty(
       String schemaName,
       String fieldName,
       boolean isArray,
@@ -20,17 +23,17 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
       String ref,
       String format,
       List<String> enumValues) {
+    if (properties >= maxProperties) {
+      return false;
+    }
+    properties++;
     OpenApiSchema.Property property =
         new OpenApiSchema.Property(type, description, ref, format, enumValues, null);
     if (isArray) {
       property = new OpenApiSchema.Property("array", null, null, null, null, property);
     }
-    schema
-        .components
-        .schemas
-        .computeIfAbsent(schemaName, k -> new OpenApiSchema.Schema())
-        .properties
-        .put(fieldName, property);
+    schema.components.schemas.get(schemaName).properties.put(fieldName, property);
+    return true;
   }
 
   @Override
@@ -38,6 +41,18 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
     Moshi moshi = new Moshi.Builder().build();
     JsonAdapter<OpenApiSchema> jsonAdapter = moshi.adapter(OpenApiSchema.class);
     return jsonAdapter.toJson(schema);
+  }
+
+  @Override
+  public boolean shouldExtractSchema(String schemaName, int depth) {
+    if (depth > maxDepth) {
+      return false;
+    }
+    if (schema.components.schemas.containsKey(schemaName)) {
+      return false;
+    }
+    schema.components.schemas.put(schemaName, new OpenApiSchema.Schema());
+    return true;
   }
 
   public static class OpenApiSchema {

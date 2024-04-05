@@ -1100,8 +1100,13 @@ public class AgentTracer {
     public void add(StatsPoint statsPoint) {}
 
     @Override
-    public int shouldSampleSchema(String topic) {
+    public int trySampleSchema(String topic) {
       return 0;
+    }
+
+    @Override
+    public boolean canSampleSchema(String topic) {
+      return false;
     }
 
     @Override

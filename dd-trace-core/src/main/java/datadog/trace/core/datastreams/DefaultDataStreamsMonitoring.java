@@ -162,9 +162,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public int shouldSampleSchema(String topic) {
+  public int trySampleSchema(String topic) {
     SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
-    return sampler.shouldSample(timeSource.getCurrentTimeMillis());
+    return sampler.trySample(timeSource.getCurrentTimeMillis());
+  }
+
+  @Override
+  public boolean canSampleSchema(String topic) {
+    SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
+    return sampler.canSample(timeSource.getCurrentTimeMillis());
   }
 
   @Override

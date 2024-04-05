@@ -28,8 +28,12 @@ public class SchemaExtractor {
   private static final int TYPE_SINT32 = 17;
   private static final int TYPE_SINT64 = 18;
 
-  public static void extractProperty(
-      FieldDescriptor field, String schemaName, String fieldName, SchemaBuilder builder) {
+  public static boolean extractProperty(
+      FieldDescriptor field,
+      String schemaName,
+      String fieldName,
+      SchemaBuilder builder,
+      int depth) {
     boolean array = false;
     String type = null;
     String format = null;
@@ -86,7 +90,9 @@ public class SchemaExtractor {
       case TYPE_MESSAGE:
         ref = "#/components/schemas/" + field.getMessageType().getName();
         // Recursively add nested message schemas
-        extractSchema(field.getMessageType(), builder);
+        if (!extractSchema(field.getMessageType(), builder, depth)) {
+          return false;
+        }
         break;
       case TYPE_BYTES:
         type = "string";
@@ -120,18 +126,26 @@ public class SchemaExtractor {
         description = "Unknown type";
         break;
     }
-    builder.addProperty(schemaName, fieldName, array, type, description, ref, format, enumValues);
+    return builder.addProperty(
+        schemaName, fieldName, array, type, description, ref, format, enumValues);
   }
 
-  public static void extractSchema(Descriptor descriptor, SchemaBuilder builder) {
-    for (FieldDescriptor field : descriptor.getFields()) {
-      extractProperty(field, descriptor.getName(), field.getName(), builder);
+  public static boolean extractSchema(Descriptor descriptor, SchemaBuilder builder, int depth) {
+    depth++;
+    if (!builder.shouldExtractSchema(descriptor.getName(), depth)) {
+      return false;
     }
+    for (FieldDescriptor field : descriptor.getFields()) {
+      if (!extractProperty(field, descriptor.getName(), field.getName(), builder, depth)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public static String extractSchemas(Descriptor descriptor) {
     SchemaBuilder builder = AgentTracer.get().getDataStreamsMonitoring().newSchemaBuilder();
-    extractSchema(descriptor, builder);
+    extractSchema(descriptor, builder, 0);
     return builder.build();
   }
 }

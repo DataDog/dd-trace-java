@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import java.util.List;
 
 public interface SchemaBuilder {
-  void addProperty(
+  boolean addProperty(
       String schemaName,
       String fieldName,
       boolean isArray,
@@ -14,4 +14,6 @@ public interface SchemaBuilder {
       List<String> enumValues);
 
   String build();
+
+  boolean shouldExtractSchema(String schemaName, int depth);
 }

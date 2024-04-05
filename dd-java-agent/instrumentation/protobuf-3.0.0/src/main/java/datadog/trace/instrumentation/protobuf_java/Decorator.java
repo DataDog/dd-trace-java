@@ -56,12 +56,16 @@ public class Decorator extends BaseDecorator {
     span.setTag(DDTags.SCHEMA_TYPE, PROTOBUF);
     span.setTag(DDTags.SCHEMA_NAME, descriptor.getName());
     span.setTag(DDTags.SCHEMA_OPERATION, operation);
+    // do a check against the schema sampler to avoid forcing the trace sampling decision too often.
+    if (!AgentTracer.get().getDataStreamsMonitoring().canSampleSchema(operation)) {
+      return;
+    }
     Integer prio = span.forceSamplingDecision();
     if (prio == null || prio <= 0) {
       // don't extract schema if span is not sampled
       return;
     }
-    int weight = AgentTracer.get().getDataStreamsMonitoring().shouldSampleSchema(operation);
+    int weight = AgentTracer.get().getDataStreamsMonitoring().trySampleSchema(operation);
     if (weight == 0) {
       return;
     }

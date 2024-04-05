@@ -77,12 +77,12 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     then:
-    dataStreams.shouldSampleSchema("schema1") == 1
-    dataStreams.shouldSampleSchema("schema2") == 1
-    dataStreams.shouldSampleSchema("schema1") == 0
-    dataStreams.shouldSampleSchema("schema1") == 0
+    dataStreams.trySampleSchema("schema1") == 1
+    dataStreams.trySampleSchema("schema2") == 1
+    dataStreams.trySampleSchema("schema1") == 0
+    dataStreams.trySampleSchema("schema1") == 0
     timeSource.advance(30*1e9 as long)
-    dataStreams.shouldSampleSchema("schema1") == 3
+    dataStreams.trySampleSchema("schema1") == 3
   }
 
   def "Context carrier adapter test"() {
