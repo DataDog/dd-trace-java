@@ -219,9 +219,30 @@ final class TracingConfigPoller {
     public String env;
   }
 
+  static final class TracingSamplingRules {
+    @Json(name = "tracing_sampling_rules")
+    public List<String> tracingSamplingRules;
+
+    @Json(name = "service")
+    public String service;
+
+    @Json(name = "provenance")
+    public String provenance;
+
+    @Json(name = "resource")
+    public String resource;
+
+    @Json(name = "sample_rate")
+    public Double sampleRate;
+
+  }
+
   static final class LibConfig {
     @Json(name = "tracing_enabled")
     public Boolean tracingEnabled;
+
+    @Json(name = "tracing_sampling_rules")
+    public List<TracingSamplingRules> tracingSamplingRules;
 
     @Json(name = "tracing_debug")
     public Boolean debugEnabled;
