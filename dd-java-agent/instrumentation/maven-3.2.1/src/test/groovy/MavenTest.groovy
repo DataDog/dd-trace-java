@@ -7,6 +7,8 @@ import spock.lang.TempDir
 import java.nio.file.Path
 import java.nio.file.Paths
 
+import static org.junit.jupiter.api.Assertions.assertEquals
+
 class MavenTest extends CiVisibilityInstrumentationTest {
 
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 3
@@ -29,14 +31,11 @@ class MavenTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test #testcaseName"() {
-    given:
     String workingDirectory = projectFolder.toString()
 
-    when:
     def exitCode = new MavenCli().doMain(args.toArray(new String[0]), workingDirectory, null, null)
 
-    then:
-    exitCode == expectedExitCode
+    assertEquals(expectedExitCode, exitCode)
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:

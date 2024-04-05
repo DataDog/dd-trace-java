@@ -540,7 +540,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
-            .setTracingEnabled(config.isTraceEnabled())
+            .setTracingEnabled(true) // implied by installation of CoreTracer
             .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
             .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
             .setDataStreamsEnabled(config.isDataStreamsEnabled())
@@ -726,7 +726,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void rebuildTraceConfig(Config config) {
     dynamicConfig
         .initial()
-        .setTracingEnabled(config.isTraceEnabled())
+        .setTracingEnabled(true) // implied by installation of CoreTracer
         .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
         .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
         .setDataStreamsEnabled(config.isDataStreamsEnabled())

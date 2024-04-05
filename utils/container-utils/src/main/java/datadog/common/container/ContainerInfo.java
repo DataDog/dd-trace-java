@@ -126,7 +126,7 @@ public class ContainerInfo {
     for (String controller : Arrays.asList(CGROUPV1_BASE_CONTROLLER, CGROUPV2_BASE_CONTROLLER)) {
       for (CGroupInfo cgroup : cgroups) {
         if (cgroup.getControllers().contains(controller)) {
-          Path path = cgroupMountPath.resolve(controller).resolve(cgroup.getPath());
+          Path path = Paths.get(cgroupMountPath.toString(), controller, cgroup.getPath());
           long inode = readInode(path);
           // ignore invalid and root inode
           if (inode > 2) {

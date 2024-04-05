@@ -10,4 +10,6 @@ public interface CIConstants {
    * test cases were considered new.
    */
   String EFD_ABORT_REASON_FAULTY = "faulty";
+
+  String SELENIUM_BROWSER_DRIVER = "selenium";
 }

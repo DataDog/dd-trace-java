@@ -6,6 +6,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.NOT_CAPTURED_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotTestHelper.VALUE_ADAPTER;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -90,6 +91,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -104,8 +106,6 @@ public class CapturedSnapshotTest {
   private static final ProbeId PROBE_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
   private static final ProbeId PROBE_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final String SERVICE_NAME = "service-name";
-  private static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
-      new MoshiSnapshotTestHelper.CapturedValueAdapter();
   private static final JsonAdapter<Map<String, Object>> GENERIC_ADAPTER =
       MoshiHelper.createGenericAdapter();
 
@@ -760,6 +760,46 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void fieldExtractorNotAccessible() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot30";
+    LogProbe logProbe = createProbe(PROBE_ID, CLASS_NAME + "$MyObjectInputStream", "process", "()");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "").get();
+    assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureFieldsNotCaptured(
+        snapshot.getCaptures().getReturn(),
+        "bin",
+        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$BlockDataInputStream java.io.ObjectInputStream.bin accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+    assertCaptureFieldsNotCaptured(
+        snapshot.getCaptures().getReturn(),
+        "vlist",
+        "java.lang.reflect.InaccessibleObjectException: Unable to make field private final java.io.ObjectInputStream\\$ValidationList java.io.ObjectInputStream.vlist accessible: module java.base does not \"opens java.io\" to unnamed module.*");
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void staticFieldExtractorNotAccessible() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot30";
+    LogProbe logProbe = createProbe(PROBE_ID, CLASS_NAME + "$MyHttpURLConnection", "process", "()");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "static").get();
+    assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureStaticFieldsNotCaptured(
+        snapshot.getCaptures().getReturn(),
+        "followRedirects",
+        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static boolean java.net.HttpURLConnection.followRedirects accessible: module java.base does not \"opens java.net\" to unnamed module.*");
+    assertCaptureStaticFieldsNotCaptured(
+        snapshot.getCaptures().getReturn(),
+        "factory",
+        "java.lang.reflect.InaccessibleObjectException: Unable to make field private static volatile java.net.ContentHandlerFactory java.net.URLConnection.factory accessible: module java.base does not \"opens java.net\" to unnamed module.*");
+  }
+
+  @Test
   public void uncaughtException() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot05";
     TestSnapshotListener listener =
@@ -1033,9 +1073,10 @@ public class CapturedSnapshotTest {
     Map<String, CapturedContext.CapturedValue> staticFields =
         snapshot.getCaptures().getReturn().getStaticFields();
     assertEquals(4, staticFields.size());
-    assertEquals("foo", getValue(staticFields.get("strField")));
-    assertEquals("1001", getValue(staticFields.get("intField")));
-    assertEquals(String.valueOf(Math.PI), getValue(staticFields.get("doubleField")));
+    assertEquals("foo", MoshiSnapshotTestHelper.getValue(staticFields.get("strField")));
+    assertEquals("1001", MoshiSnapshotTestHelper.getValue(staticFields.get("intField")));
+    assertEquals(
+        String.valueOf(Math.PI), MoshiSnapshotTestHelper.getValue(staticFields.get("doubleField")));
     assertTrue(staticFields.containsKey("intArrayField"));
   }
 
@@ -1366,11 +1407,11 @@ public class CapturedSnapshotTest {
     Map<String, CapturedContext.CapturedValue> staticFields =
         snapshot.getCaptures().getReturn().getStaticFields();
     assertEquals(7, staticFields.size());
-    assertEquals("barfoo", getValue(staticFields.get("strValue")));
-    assertEquals("48", getValue(staticFields.get("intValue")));
-    assertEquals("6.28", getValue(staticFields.get("doubleValue")));
-    assertEquals("[1, 2, 3, 4]", getValue(staticFields.get("longValues")));
-    assertEquals("[foo, bar]", getValue(staticFields.get("strValues")));
+    assertEquals("barfoo", MoshiSnapshotTestHelper.getValue(staticFields.get("strValue")));
+    assertEquals("48", MoshiSnapshotTestHelper.getValue(staticFields.get("intValue")));
+    assertEquals("6.28", MoshiSnapshotTestHelper.getValue(staticFields.get("doubleValue")));
+    assertEquals("[1, 2, 3, 4]", MoshiSnapshotTestHelper.getValue(staticFields.get("longValues")));
+    assertEquals("[foo, bar]", MoshiSnapshotTestHelper.getValue(staticFields.get("strValues")));
   }
 
   @Test
@@ -2264,14 +2305,14 @@ public class CapturedSnapshotTest {
       CapturedContext context, String name, String typeName, String value) {
     CapturedContext.CapturedValue capturedValue = context.getArguments().get(name);
     assertEquals(typeName, capturedValue.getType());
-    assertEquals(value, getValue(capturedValue));
+    assertEquals(value, MoshiSnapshotTestHelper.getValue(capturedValue));
   }
 
   private void assertCaptureLocals(
       CapturedContext context, String name, String typeName, String value) {
     CapturedContext.CapturedValue localVar = context.getLocals().get(name);
     assertEquals(typeName, localVar.getType());
-    assertEquals(value, getValue(localVar));
+    assertEquals(value, MoshiSnapshotTestHelper.getValue(localVar));
   }
 
   private void assertCaptureLocals(
@@ -2294,7 +2335,7 @@ public class CapturedSnapshotTest {
       CapturedContext context, String name, String typeName, String value) {
     CapturedContext.CapturedValue field = context.getFields().get(name);
     assertEquals(typeName, field.getType());
-    assertEquals(value, getValue(field));
+    assertEquals(value, MoshiSnapshotTestHelper.getValue(field));
   }
 
   private void assertCaptureFields(
@@ -2323,6 +2364,20 @@ public class CapturedSnapshotTest {
     }
   }
 
+  private void assertCaptureFieldsNotCaptured(
+      CapturedContext context, String name, String expectedReasonRegEx) {
+    CapturedContext.CapturedValue field = context.getFields().get(name);
+    assertTrue(
+        field.getNotCapturedReason().matches(expectedReasonRegEx), field.getNotCapturedReason());
+  }
+
+  private void assertCaptureStaticFieldsNotCaptured(
+      CapturedContext context, String name, String expectedReasonRegEx) {
+    CapturedContext.CapturedValue field = context.getStaticFields().get(name);
+    assertTrue(
+        field.getNotCapturedReason().matches(expectedReasonRegEx), field.getNotCapturedReason());
+  }
+
   private void assertCaptureFieldCount(CapturedContext context, int expectedFieldCount) {
     assertEquals(expectedFieldCount, context.getFields().size());
   }
@@ -2330,7 +2385,7 @@ public class CapturedSnapshotTest {
   private void assertCaptureReturnValue(CapturedContext context, String typeName, String value) {
     CapturedContext.CapturedValue returnValue = context.getLocals().get("@return");
     assertEquals(typeName, returnValue.getType());
-    assertEquals(value, getValue(returnValue));
+    assertEquals(value, MoshiSnapshotTestHelper.getValue(returnValue));
   }
 
   private void assertCaptureReturnValue(
@@ -2368,56 +2423,6 @@ public class CapturedSnapshotTest {
     Assertions.assertFalse(throwable.getStacktrace().isEmpty());
     assertEquals(methodName, throwable.getStacktrace().get(0).getFunction());
     assertEquals(lineNumber, throwable.getStacktrace().get(0).getLineNumber());
-  }
-
-  private static String getValue(CapturedContext.CapturedValue capturedValue) {
-    CapturedContext.CapturedValue valued = null;
-    try {
-      valued = VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
-      if (valued.getNotCapturedReason() != null) {
-        Assertions.fail("NotCapturedReason: " + valued.getNotCapturedReason());
-      }
-      Object obj = valued.getValue();
-      if (obj != null && obj.getClass().isArray()) {
-        if (obj.getClass().getComponentType().isPrimitive()) {
-          return primitiveArrayToString(obj);
-        }
-        return Arrays.toString((Object[]) obj);
-      }
-      return obj != null ? String.valueOf(obj) : null;
-    } catch (IOException e) {
-      e.printStackTrace();
-      return null;
-    }
-  }
-
-  private static String primitiveArrayToString(Object obj) {
-    Class<?> componentType = obj.getClass().getComponentType();
-    if (componentType == long.class) {
-      return Arrays.toString((long[]) obj);
-    }
-    if (componentType == int.class) {
-      return Arrays.toString((int[]) obj);
-    }
-    if (componentType == short.class) {
-      return Arrays.toString((short[]) obj);
-    }
-    if (componentType == char.class) {
-      return Arrays.toString((char[]) obj);
-    }
-    if (componentType == byte.class) {
-      return Arrays.toString((byte[]) obj);
-    }
-    if (componentType == boolean.class) {
-      return Arrays.toString((boolean[]) obj);
-    }
-    if (componentType == float.class) {
-      return Arrays.toString((float[]) obj);
-    }
-    if (componentType == double.class) {
-      return Arrays.toString((double[]) obj);
-    }
-    return null;
   }
 
   public static Map<String, CapturedContext.CapturedValue> getFields(

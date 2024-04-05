@@ -350,6 +350,10 @@ public class InstrumenterConfig {
     return resolverCacheConfig.noMatchesSize();
   }
 
+  public int getResolverVisibilitySize() {
+    return resolverCacheConfig.visibilitySize();
+  }
+
   public boolean isResolverMemoizingEnabled() {
     return resolverCacheConfig.memoPoolSize() > 0;
   }

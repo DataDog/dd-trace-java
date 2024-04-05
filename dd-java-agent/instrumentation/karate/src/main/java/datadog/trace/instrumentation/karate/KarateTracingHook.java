@@ -48,6 +48,13 @@ public class KarateTracingHook implements RuntimeHook {
         KarateUtils.getCategories(feature.getTags()),
         suite.parallel,
         TestFrameworkInstrumentation.KARATE);
+
+    if (!fr.scenarios.hasNext()) {
+      // Karate will not trigger the afterFeature hook if suite has no scenarios
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    }
+
     return true;
   }
 

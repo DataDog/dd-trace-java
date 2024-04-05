@@ -44,7 +44,7 @@ public class SharedCommunicationObjects {
   }
 
   private static long getHttpClientTimeout(Config config) {
-    if (!config.isCiVisibilityEnabled() || !config.isCiVisibilityAgentlessEnabled()) {
+    if (!config.isCiVisibilityEnabled()) {
       return TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
     } else {
       return config.getCiVisibilityBackendApiTimeoutMillis();

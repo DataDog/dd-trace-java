@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.telemetry;
 
+import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageErrorType;
@@ -13,6 +14,7 @@ import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsBenchmark;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
+import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
@@ -42,7 +44,9 @@ public enum CiVisibilityCountMetric {
       IsUnsupportedCI.class,
       IsBenchmark.class,
       EarlyFlakeDetectionAbortReason.class,
-      IsNew.class),
+      IsNew.class,
+      IsRum.class,
+      BrowserDriver.class),
   /**
    * The number of per-test code coverage sessions started (each test case counts as a separate
    * session)

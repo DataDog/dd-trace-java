@@ -4,6 +4,7 @@ import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CON
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.ERROR_DEBUG_INFO_CAPTURED;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
+import static com.datadog.debugger.util.MoshiSnapshotTestHelper.getValue;
 import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,6 +44,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 
 public class ExceptionProbeInstrumentationTest {
   private final Instrumentation instr = ByteBuddyAgent.install();
@@ -161,6 +163,40 @@ public class ExceptionProbeInstrumentationTest {
     assertEquals(snapshot1.getId(), span1.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
   }
 
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "Bug in J9: no LocalVariableTable for ClassFileTransformer")
+  public void recursive() throws Exception {
+    Config config = createConfig();
+    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
+    TestSnapshotListener listener =
+        setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    // instrument RuntimeException stacktrace
+    String fingerprint = callMethodFiboException(testClass);
+    assertWithTimeout(
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint), Duration.ofSeconds(30));
+    assertEquals(11, exceptionProbeManager.getProbes().size());
+    callMethodFiboException(testClass); // generate snapshots
+    Map<String, Set<String>> probeIdsByMethodName =
+        extractProbeIdsByMethodName(exceptionProbeManager);
+    assertEquals(10, listener.snapshots.size());
+    Snapshot snapshot0 = listener.snapshots.get(0);
+    assertProbeId(probeIdsByMethodName, "fiboException", snapshot0.getProbe().getId());
+    assertEquals(
+        "oops fibo", snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
+    assertTrue(snapshot0.getCaptures().getReturn().getLocals().containsKey("@exception"));
+    assertEquals("1", getValue(snapshot0.getCaptures().getReturn().getArguments().get("n")));
+    Snapshot snapshot1 = listener.snapshots.get(1);
+    assertEquals("2", getValue(snapshot1.getCaptures().getReturn().getArguments().get("n")));
+    Snapshot snapshot2 = listener.snapshots.get(2);
+    assertEquals("3", getValue(snapshot2.getCaptures().getReturn().getArguments().get("n")));
+    Snapshot snapshot9 = listener.snapshots.get(9);
+    assertEquals("10", getValue(snapshot9.getCaptures().getReturn().getArguments().get("n")));
+  }
+
   private static void assertExceptionMsg(String expectedMsg, Snapshot snapshot) {
     assertEquals(
         expectedMsg, snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
@@ -174,7 +210,7 @@ public class ExceptionProbeInstrumentationTest {
 
   private String callMethodThrowingRuntimeException(Class<?> testClass) {
     try {
-      Reflect.on(testClass).call("main", "exception").get();
+      Reflect.onClass(testClass).call("main", "exception").get();
       Assertions.fail("should not reach this code");
     } catch (RuntimeException ex) {
       assertEquals("oops", ex.getCause().getCause().getMessage());
@@ -185,7 +221,7 @@ public class ExceptionProbeInstrumentationTest {
 
   private String callMethodThrowingIllegalArgException(Class<?> testClass) {
     try {
-      Reflect.on(testClass).call("main", "illegal").get();
+      Reflect.onClass(testClass).call("main", "illegal").get();
       Assertions.fail("should not reach this code");
     } catch (RuntimeException ex) {
       assertEquals("illegal argument", ex.getCause().getCause().getMessage());
@@ -195,8 +231,19 @@ public class ExceptionProbeInstrumentationTest {
   }
 
   private static void callMethodNoException(Class<?> testClass) {
-    int result = Reflect.on(testClass).call("main", "1").get();
+    int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(84, result);
+  }
+
+  private String callMethodFiboException(Class<?> testClass) {
+    try {
+      Reflect.onClass(testClass).call("main", "recursive").get();
+      Assertions.fail("should not reach this code");
+    } catch (RuntimeException ex) {
+      assertEquals("oops fibo", ex.getCause().getCause().getMessage());
+      return Fingerprinter.fingerprint(ex, classNameFiltering);
+    }
+    return null;
   }
 
   private static Map<String, Set<String>> extractProbeIdsByMethodName(
