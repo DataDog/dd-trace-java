@@ -140,8 +140,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           // message size.
           // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
           propagate()
-              .injectPathwayContextWithoutSendingStats(
-                  span, record.headers(), setter, sortedTags);
+              .injectPathwayContextWithoutSendingStats(span, record.headers(), setter, sortedTags);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       } catch (final IllegalStateException e) {
@@ -159,8 +158,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
             || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
           propagate()
-              .injectPathwayContextWithoutSendingStats(
-                  span, record.headers(), setter, sortedTags);
+              .injectPathwayContextWithoutSendingStats(span, record.headers(), setter, sortedTags);
           AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       }
