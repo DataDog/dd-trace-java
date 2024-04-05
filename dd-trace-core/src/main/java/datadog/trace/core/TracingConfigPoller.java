@@ -220,9 +220,6 @@ final class TracingConfigPoller {
   }
 
   static final class TracingSamplingRules {
-    @Json(name = "tracing_sampling_rules")
-    public List<String> tracingSamplingRules;
-
     @Json(name = "service")
     public String service;
 
