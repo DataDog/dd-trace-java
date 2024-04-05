@@ -48,6 +48,19 @@
     ]
   },
   {
+    "name" : "datadog.trace.agent.core.DDSpanLink$SpanLinkAdapter",
+    "methods": [
+      {"name": "toSpanLinkJson"}
+    ]
+  },
+  {
+    "name" : "datadog.trace.agent.core.DDSpanLink$SpanLinkJson",
+    "allDeclaredConstructors" : true,
+    "allPublicConstructors" : true,
+    "allDeclaredFields" : true,
+    "allPublicFields" : true
+  },
+  {
     "name" : "datadog.trace.instrumentation.springweb.HandlerMappingResourceNameFilter",
     "methods": [
       {"name": "<init>", "parameterTypes": []}
