@@ -36,7 +36,7 @@ final class SingleContinuation extends AbstractContinuation {
     if (USED.compareAndSet(this, 0, 1)) {
       trace.cancelContinuation(this);
     } else {
-      ContinuableScopeManager.log.debug("Failed to close continuation {}. Already used.", this);
+      ContinuableScopeManager.log.trace("Failed to close continuation {}. Already used.", this);
     }
   }
 
