@@ -12,7 +12,6 @@ import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
-
 import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
 import javax.servlet.Servlet
@@ -52,7 +51,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
         it.setHost('localhost')
       }
 
-      ServletContextHandler servletContext = new ServletContextHandler(null, "/$context")
+      ServletContextHandler servletContext = new ServletContextHandler(null, "/$context", ServletContextHandler.SESSIONS)
       servletContext.errorHandler = new ErrorHandler() {
           @Override
           void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -539,8 +538,8 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
 
     then:
     0 * appModule.onRealPath(_)
+    0 * appModule.checkSessionTrackingModes(_)
     0 * _
-
   }
 
   void 'test that iast module is called'() {
@@ -554,6 +553,7 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
 
     then:
     1 *  appModule.onRealPath(_)
+    1 *  appModule.checkSessionTrackingModes(_)
     0 * _
 
     when:
@@ -561,6 +561,7 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
 
     then: //Only call once per application context
     0 *  appModule.onRealPath(_)
+    0 *  appModule.checkSessionTrackingModes(_)
     0 * _
   }
 
