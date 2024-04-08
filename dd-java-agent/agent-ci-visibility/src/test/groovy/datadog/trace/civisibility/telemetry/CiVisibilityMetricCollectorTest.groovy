@@ -159,8 +159,9 @@ class CiVisibilityMetricCollectorTest extends Specification {
 
     for (CiVisibilityCountMetric metric : CiVisibilityCountMetric.values()) {
       def metricTags = metric.getTags()
-      // iterate over all possible combinations of metric tags
-      for (TagValue[] tags : cartesianProduct(metricTags)) {
+
+      int cartesianProductSizeLimit = 2000 // limiting the number of combinations to avoid OOM/timeout
+      for (TagValue[] tags : cartesianProduct(metricTags, cartesianProductSizeLimit)) { // iterate over combinations of metric tags
         possibleMetrics += new PossibleMetric(metric, tags)
       }
     }
@@ -190,13 +191,17 @@ class CiVisibilityMetricCollectorTest extends Specification {
     }
   }
 
-  private Collection<TagValue[]> cartesianProduct(Class<? extends TagValue>[] sets) {
+  private Collection<TagValue[]> cartesianProduct(Class<? extends TagValue>[] sets, int sizeLimit) {
     Collection<TagValue[]> tuples = new ArrayList<>()
-    cartesianProductBacktrack(sets, tuples, new ArrayDeque<>(), 0)
+    cartesianProductBacktrack(sets, tuples, new ArrayDeque<>(), 0, sizeLimit)
     return tuples
   }
 
-  private void cartesianProductBacktrack(Class<? extends TagValue>[] sets, Collection<TagValue[]> tuples, Deque<TagValue> currentTuple, int offset) {
+  private void cartesianProductBacktrack(Class<? extends TagValue>[] sets, Collection<TagValue[]> tuples, Deque<TagValue> currentTuple, int offset, int sizeLimit) {
+    if (tuples.size() >= sizeLimit) {
+      return
+    }
+
     if (offset == sets.length) {
       int idx = 0
       TagValue[] tuple = new TagValue[currentTuple.size()]
@@ -208,11 +213,11 @@ class CiVisibilityMetricCollectorTest extends Specification {
     }
 
     // a branch where we omit current tag
-    cartesianProductBacktrack(sets, tuples, currentTuple, offset + 1)
+    cartesianProductBacktrack(sets, tuples, currentTuple, offset + 1, sizeLimit)
 
     for (TagValue element : sets[offset].getEnumConstants()) {
       currentTuple.push(element)
-      cartesianProductBacktrack(sets, tuples, currentTuple, offset + 1)
+      cartesianProductBacktrack(sets, tuples, currentTuple, offset + 1, sizeLimit)
       currentTuple.pop()
     }
   }

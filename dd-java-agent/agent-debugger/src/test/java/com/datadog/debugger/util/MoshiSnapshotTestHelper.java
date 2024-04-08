@@ -36,13 +36,39 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.junit.jupiter.api.Assertions;
 
 public class MoshiSnapshotTestHelper {
+
+  public static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
+      new MoshiSnapshotTestHelper.CapturedValueAdapter();
+
+  public static String getValue(CapturedContext.CapturedValue capturedValue) {
+    CapturedContext.CapturedValue valued = null;
+    try {
+      valued = VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
+      if (valued.getNotCapturedReason() != null) {
+        Assertions.fail("NotCapturedReason: " + valued.getNotCapturedReason());
+      }
+      Object obj = valued.getValue();
+      if (obj != null && obj.getClass().isArray()) {
+        if (obj.getClass().getComponentType().isPrimitive()) {
+          return primitiveArrayToString(obj);
+        }
+        return Arrays.toString((Object[]) obj);
+      }
+      return obj != null ? String.valueOf(obj) : null;
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
 
   public static class SnapshotJsonFactory implements JsonAdapter.Factory {
     @Override
@@ -72,6 +98,35 @@ public class MoshiSnapshotTestHelper {
             DebuggerScript.class,
             new ProbeCondition.ProbeConditionJsonAdapter()) // ProbeDetails in Snapshot
         .build();
+  }
+
+  private static String primitiveArrayToString(Object obj) {
+    Class<?> componentType = obj.getClass().getComponentType();
+    if (componentType == long.class) {
+      return Arrays.toString((long[]) obj);
+    }
+    if (componentType == int.class) {
+      return Arrays.toString((int[]) obj);
+    }
+    if (componentType == short.class) {
+      return Arrays.toString((short[]) obj);
+    }
+    if (componentType == char.class) {
+      return Arrays.toString((char[]) obj);
+    }
+    if (componentType == byte.class) {
+      return Arrays.toString((byte[]) obj);
+    }
+    if (componentType == boolean.class) {
+      return Arrays.toString((boolean[]) obj);
+    }
+    if (componentType == float.class) {
+      return Arrays.toString((float[]) obj);
+    }
+    if (componentType == double.class) {
+      return Arrays.toString((double[]) obj);
+    }
+    return null;
   }
 
   private static class CapturesAdapter extends MoshiSnapshotHelper.CapturesAdapter {

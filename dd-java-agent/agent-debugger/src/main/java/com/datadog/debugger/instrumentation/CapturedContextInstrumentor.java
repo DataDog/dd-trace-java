@@ -1,6 +1,5 @@
 package com.datadog.debugger.instrumentation;
 
-import static com.datadog.debugger.instrumentation.ASMHelper.emitReflectiveCall;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeConstructor;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
@@ -17,6 +16,7 @@ import static com.datadog.debugger.instrumentation.Types.CORRELATION_ACCESS_TYPE
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static com.datadog.debugger.instrumentation.Types.METHOD_LOCATION_TYPE;
 import static com.datadog.debugger.instrumentation.Types.OBJECT_TYPE;
+import static com.datadog.debugger.instrumentation.Types.REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_ARRAY_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import static com.datadog.debugger.instrumentation.Types.THROWABLE_TYPE;
@@ -793,20 +793,30 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // stack: [capturedcontext, capturedcontext, array, array]
       ldc(insnList, counter++);
       // stack: [capturedcontext, capturedcontext, array, array, int]
+      if (!isAccessible(fieldNode)) {
+        ldc(insnList, Type.getObjectType(classNode.name));
+        ldc(insnList, null);
+        ldc(insnList, fieldNode.name);
+        // stack: [capturedcontext, capturedcontext, array, array, int, null, string]
+        invokeStatic(
+            insnList,
+            REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
+            "getFieldAsCapturedValue",
+            CAPTURED_VALUE,
+            CLASS_TYPE,
+            OBJECT_TYPE,
+            STRING_TYPE);
+        insnList.add(new InsnNode(Opcodes.AASTORE));
+        // stack: [capturedcontext, capturedcontext, array]
+        continue;
+      }
       ldc(insnList, fieldNode.name);
       // stack: [capturedcontext, capturedcontext, array, array, int, string]
       Type fieldType = Type.getType(fieldNode.desc);
       ldc(insnList, fieldType.getClassName());
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-      if (isAccessible(fieldNode)) {
-        insnList.add(
-            new FieldInsnNode(Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
-      } else {
-        ldc(insnList, Type.getObjectType(classNode.name));
-        ldc(insnList, fieldNode.name);
-        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, string]
-        emitReflectiveCall(insnList, new ASMHelper.Type(Type.getType(fieldNode.desc)), CLASS_TYPE);
-      }
+      insnList.add(
+          new FieldInsnNode(Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
       // field_value]
       tryBox(fieldType, insnList);
@@ -855,6 +865,23 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // stack: [capturedcontext, capturedcontext, array, array]
       ldc(insnList, counter++);
       // stack: [capturedcontext, capturedcontext, array, array, int]
+      if (!isAccessible(fieldNode)) {
+        insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+        // stack: [capturedcontext, capturedcontext, array, array, int, this]
+        ldc(insnList, fieldNode.name);
+        // stack: [capturedcontext, capturedcontext, array, array, int, this, string]
+        invokeStatic(
+            insnList,
+            REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
+            "getFieldAsCapturedValue",
+            CAPTURED_VALUE,
+            OBJECT_TYPE,
+            STRING_TYPE);
+        // stack: [capturedcontext, capturedcontext, array, array, int, CapturedValue]
+        insnList.add(new InsnNode(Opcodes.AASTORE));
+        // stack: [capturedcontext, capturedcontext, array]
+        continue;
+      }
       ldc(insnList, fieldNode.name);
       // stack: [capturedcontext, capturedcontext, array, array, int, string]
       Type fieldType = Type.getType(fieldNode.desc);
@@ -867,6 +894,8 @@ public class CapturedContextInstrumentor extends Instrumentor {
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // access]
             invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getTraceId", STRING_TYPE);
+            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+            // field_value]
             break;
           }
         case "dd.span_id":
@@ -875,33 +904,26 @@ public class CapturedContextInstrumentor extends Instrumentor {
             // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
             // access]
             invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getSpanId", STRING_TYPE);
+            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+            // field_value]
             break;
           }
         default:
           {
             insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, this]
-            if (isAccessible(fieldNode)) {
-              insnList.add(
-                  new FieldInsnNode(
-                      Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
-            } else {
-              ldc(insnList, fieldNode.name);
-              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-              // this, string]
-              emitReflectiveCall(
-                  insnList, new ASMHelper.Type(Type.getType(fieldNode.desc)), OBJECT_TYPE);
-              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-              // this, string]
-            }
+            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+            // this]
+            insnList.add(
+                new FieldInsnNode(
+                    Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
+            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+            // field_value]
           }
       }
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-      // field_value]
       tryBox(fieldType, insnList);
       // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
       addCapturedValueOf(insnList, limits);
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
+      // stack: [capturedcontext, capturedcontext, array, array, int, CapturedValue]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack: [capturedcontext, capturedcontext, array]
     }

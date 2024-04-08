@@ -70,6 +70,9 @@ final class TypeFactory {
   private static final boolean OUTLINING_ENABLED =
       InstrumenterConfig.get().isResolverOutliningEnabled();
 
+  private static final boolean MEMOIZING_ENABLED =
+      InstrumenterConfig.get().isResolverMemoizingEnabled();
+
   private static final TypeParser outlineTypeParser = new OutlineTypeParser();
 
   private static final TypeParser fullTypeParser = new FullTypeParser();
@@ -82,6 +85,8 @@ final class TypeFactory {
 
   private static final TypeInfoCache<TypeDescription> fullTypes =
       new TypeInfoCache<>(InstrumenterConfig.get().getResolverTypePoolSize());
+
+  static final IsPublicFilter isPublicFilter = new IsPublicFilter();
 
   /** Small local cache to help deduplicate lookups when matching/transforming. */
   private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);
@@ -273,6 +278,12 @@ final class TypeFactory {
 
     InstrumenterMetrics.buildTypeDescription(fromTick, isOutline);
 
+    if (MEMOIZING_ENABLED && null != type) {
+      if (type.isPublic()) {
+        isPublicFilter.add(name);
+      }
+    }
+
     // share result, whether we found it or not
     types.share(name, classLoader, classFile, type);
 
@@ -375,6 +386,11 @@ final class TypeFactory {
     @Override
     public TypeDescription getDeclaringType() {
       return outline().getDeclaringType();
+    }
+
+    @Override
+    public boolean isPublic() {
+      return isPublicFilter.contains(name) || super.isPublic();
     }
 
     private TypeDescription outline() {

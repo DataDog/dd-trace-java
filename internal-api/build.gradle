@@ -104,6 +104,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.telemetry.CiVisibilityMetricData",
   "datadog.trace.api.civisibility.telemetry.NoOpMetricCollector",
   "datadog.trace.api.civisibility.InstrumentationBridge",
+  "datadog.trace.api.civisibility.InstrumentationTestBridge",
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",

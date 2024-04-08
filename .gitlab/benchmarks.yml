@@ -41,6 +41,7 @@ benchmarks:
         compare_to: "master"
       when: on_success
     - when: manual
+      allow_failure: true
   tags: ["runner:apm-k8s-tweaked-metal"]
   interruptible: true
   timeout: 1h

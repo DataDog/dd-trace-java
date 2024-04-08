@@ -3,9 +3,10 @@ package datadog.trace.civisibility.writer.ddintake
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.civisibility.coverage.CoverageProbeStore
 import datadog.trace.api.civisibility.coverage.TestReport
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry
-import datadog.trace.api.civisibility.coverage.TestReportHolder
+import datadog.trace.api.civisibility.domain.TestContext
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.core.CoreSpan
@@ -194,8 +195,8 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
 
     def report = new TestReport(1, 2, 3, [new TestReportFileEntry("source", [new TestReportFileEntry.Segment(4, -1, 4, -1, 11)])])
 
-    trace.add(buildSpan(0, InternalSpanTypes.TEST, PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, new DummyReportHolder(report)))
-    trace.add(buildSpan(0, "testChild", PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, new DummyReportHolder(report)))
+    trace.add(buildSpan(0, InternalSpanTypes.TEST, PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, new DummyTestContext(new DummyReportHolder(report))))
+    trace.add(buildSpan(0, "testChild", PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, new DummyTestContext(new DummyReportHolder(report))))
 
     when:
     def message = getMappedMessage(trace)
@@ -223,7 +224,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     def trace = new ArrayList()
     for (TestReport testReport : testReports) {
       def testReportHolder = new DummyReportHolder(testReport)
-      trace.add(buildSpan(0, InternalSpanTypes.TEST, PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, testReportHolder))
+      trace.add(buildSpan(0, InternalSpanTypes.TEST, PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, new DummyTestContext(testReportHolder)))
     }
     return trace
   }
@@ -243,7 +244,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     return objectMapper.readValue(writtenBytes, Map)
   }
 
-  private static final class DummyReportHolder implements TestReportHolder {
+  private static final class DummyReportHolder implements CoverageProbeStore {
     private final testReport
 
     DummyReportHolder(testReport) {
@@ -253,6 +254,45 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     @Override
     TestReport getReport() {
       testReport
+    }
+
+    @Override
+    void record(Class<?> clazz) {
+    }
+
+    @Override
+    void record(Class<?> clazz, long classId, int probeId) {
+    }
+
+    @Override
+    void recordNonCodeResource(String absolutePath) {
+    }
+
+    @Override
+    boolean report(Long testSessionId, Long testSuiteId, long spanId) {
+      return false
+    }
+  }
+
+  private static final class DummyTestContext implements TestContext {
+    private final CoverageProbeStore probeStore
+
+    DummyTestContext(CoverageProbeStore probeStore) {
+      this.probeStore = probeStore
+    }
+
+    @Override
+    CoverageProbeStore getCoverageProbeStore() {
+      return probeStore
+    }
+
+    @Override
+    def <T> void set(Class<T> key, T value) {
+    }
+
+    @Override
+    def <T> T get(Class<T> key) {
+      return null
     }
   }
 
