@@ -45,7 +45,7 @@ onboarding_tests:
       matrix:
         - ONBOARDING_FILTER_WEBLOG: [test-app-java]
           SCENARIO: [SIMPLE_HOST_AUTO_INJECTION]
-        - ONBOARDING_FILTER_WEBLOG: [test-app-java-container]
+        - ONBOARDING_FILTER_WEBLOG: [test-app-java-container,test-app-java-buildpack,test-app-java-alpine]
           SCENARIO: [SIMPLE_CONTAINER_AUTO_INJECTION]
   script:
     - git clone https://git@github.com/DataDog/system-tests.git system-tests
