@@ -13,7 +13,7 @@ stages:
   - benchmarks
   - exploration-tests
   - ci-visibility-tests
-  - onboarding-tests
+  - single-step-instrumentation-tests
   - generate-signing-key
 
 variables:
