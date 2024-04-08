@@ -449,6 +449,30 @@ class ReporterTest extends DDSpecification {
     0 * _
   }
 
+  void 'Reporter when noDedupReport is called does not prevent duplicates'() {
+    given:
+    final Reporter reporter = new Reporter()
+    final batch = new VulnerabilityBatch()
+    final span = spanWithBatch(batch)
+    final vulnerability = new Vulnerability(
+      VulnerabilityType.WEAK_HASH,
+      Location.forSpanAndStack(span, new StackTraceElement("foo", "foo", "foo", 1)),
+      new Evidence("GOOD")
+      )
+
+    when: 'first time a vulnerability is reported'
+    reporter.noDedupReport(span, vulnerability)
+
+    then:
+    batch.vulnerabilities.size() == 1
+
+    when: 'second time the a vulnerability is reported'
+    reporter.noDedupReport(span, vulnerability)
+
+    then:
+    batch.vulnerabilities.size() == 2
+  }
+
   private AgentSpan spanWithBatch(final VulnerabilityBatch batch) {
     final traceSegment = Mock(TraceSegment) {
       getDataTop('iast') >> batch

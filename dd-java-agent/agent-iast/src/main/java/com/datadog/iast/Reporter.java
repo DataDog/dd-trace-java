@@ -52,6 +52,15 @@ public class Reporter {
     if (duplicated.test(vulnerability)) {
       return;
     }
+    noDedupReport(span, vulnerability);
+  }
+
+  /**
+   * Report a vulnerability without deduplication. This should be used when the caller is sure that
+   * no deduplication is needed, otherwise use {@link #report(AgentSpan, Vulnerability)}.
+   */
+  public void noDedupReport(
+      @Nullable final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
     if (span == null) {
       final AgentSpan newSpan = startNewSpan();
       try (final AgentScope autoClosed = tracer().activateSpan(newSpan, ScopeSource.MANUAL)) {
