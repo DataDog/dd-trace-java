@@ -50,28 +50,28 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
 
     then:
     if (expectedVulnType != null) {
-      1 * reporter.report(_, _) >> { assertEvidence(it[1], expectedVulnType, expectedEvidence, line) }
+      1 * reporter."$method"(_, _) >> { assertEvidence(it[1], expectedVulnType, expectedEvidence, line) }
     } else {
       0 * reporter._
     }
 
     where:
-    path                                              | expectedVulnType            | expectedEvidence                                           | line
-    'application/insecurejsplayout/secure'            | null                        | null                                                       | _
-    'application/insecurejsplayout/insecure'          | INSECURE_JSP_LAYOUT         | ['/nestedinsecure', '/nestedinsecure/nestedinsecure', '/'] | NO_LINE
-    'application/verbtampering/secure'                | null                        | null                                                       | _
-    'application/verbtampering/insecure'              | VERB_TAMPERING              | 'http-method not defined in web.xml'                       | 6
-    'application/sessiontimeout/secure'               | null                        | null                                                       | _
-    'application/sessiontimeout/insecure'             | SESSION_TIMEOUT             | 'Found vulnerable timeout value: 80'                       | 7
-    'application/directorylistingleak/secure'         | null                        | null                                                       | _
-    'application/directorylistingleak/insecure'       | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                            | 14
-    'application/adminconsoleactive/secure'           | null                        | null                                                       | _
-    'application/adminconsoleactive/insecure'         | ADMIN_CONSOLE_ACTIVE        | 'Tomcat Manager Application'                               | NO_LINE
-    'application/defaulthtmlescapeinvalid/secure'     | null                        | null                                                       | _
-    'application/defaulthtmlescapeinvalid/secure_tag' | null                        | null                                                       | _
-    'application/defaulthtmlescapeinvalid/false_tag'  | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be true'                     | 8
-    'application/defaulthtmlescapeinvalid/no_tag_1'   | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'                      | NO_LINE
-    'application/defaulthtmlescapeinvalid/no_tag_2'   | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'                      | NO_LINE
+    method           | path                                              | expectedVulnType            | expectedEvidence                                           | line
+    'report'         | 'application/insecurejsplayout/secure'            | null                        | null                                                       | _
+    'report'         | 'application/insecurejsplayout/insecure'          | INSECURE_JSP_LAYOUT         | ['/nestedinsecure', '/nestedinsecure/nestedinsecure', '/'] | NO_LINE
+    'report'         | 'application/verbtampering/secure'                | null                        | null                                                       | _
+    'report'         | 'application/verbtampering/insecure'              | VERB_TAMPERING              | 'http-method not defined in web.xml'                       | 6
+    'report'         | 'application/sessiontimeout/secure'               | null                        | null                                                       | _
+    'report'         | 'application/sessiontimeout/insecure'             | SESSION_TIMEOUT             | 'Found vulnerable timeout value: 80'                       | 7
+    'report'         | 'application/directorylistingleak/secure'         | null                        | null                                                       | _
+    'report'         | 'application/directorylistingleak/insecure'       | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                            | 14
+    'noDedupReport'  | 'application/adminconsoleactive/secure'           | null                        | null                                                       | _
+    'noDedupReport'  | 'application/adminconsoleactive/insecure'         | ADMIN_CONSOLE_ACTIVE        | 'Tomcat Manager Application'                               | NO_LINE
+    'report'         | 'application/defaulthtmlescapeinvalid/secure'     | null                        | null                                                       | _
+    'report'         | 'application/defaulthtmlescapeinvalid/secure_tag' | null                        | null                                                       | _
+    'report'         | 'application/defaulthtmlescapeinvalid/false_tag'  | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be true'                     | 8
+    'report'         | 'application/defaulthtmlescapeinvalid/no_tag_1'   | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'                      | NO_LINE
+    'report'         | 'application/defaulthtmlescapeinvalid/no_tag_2'   | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'                      | NO_LINE
   }
 
   void 'iast module detects session rewriting on sessionTrackingModes'() {
