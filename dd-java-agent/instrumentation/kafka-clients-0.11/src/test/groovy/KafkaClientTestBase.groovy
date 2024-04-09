@@ -916,6 +916,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         void onMessage(ConsumerRecord<String, String> record) {
           TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
+          if (isDataStreamsEnabled()) {
+            // even if header propagation is disabled, we want data streams to work.
+            TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+          }
         }
       })
 
