@@ -19,6 +19,7 @@ import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
+import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
@@ -168,6 +169,8 @@ final class TracingConfigPoller {
 
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
+
+   // maybeOverride(builder::setTraceSamplingRules, libConfig.tracingSamplingRules);
     builder.apply();
   }
 
@@ -231,7 +234,6 @@ final class TracingConfigPoller {
 
     @Json(name = "sample_rate")
     public Double sampleRate;
-
   }
 
   static final class LibConfig {

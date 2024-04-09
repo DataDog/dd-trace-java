@@ -9,10 +9,12 @@ import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
 import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
+
 import datadog.trace.util.Strings;
 import java.util.Collection;
 import java.util.Collections;
@@ -127,6 +129,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.traceSampleRate = snapshot.traceSampleRate;
       this.tracingTags = snapshot.tracingTags;
       this.preferredServiceName = snapshot.preferredServiceName;
+
+      this.traceSamplingRules=snapshot.traceSamplingRules;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
@@ -282,6 +286,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     update.put(RESPONSE_HEADER_TAGS, newSnapshot.responseHeaderTags);
     update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
 
+    maybePut(update, TRACE_SAMPLING_RULES, newSnapshot.traceSamplingRules);
     maybePut(update, TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
 
     ConfigCollector.get().putAll(update, ConfigOrigin.REMOTE);
