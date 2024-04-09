@@ -58,7 +58,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".KafkaDecorator",
+      packageName + ".TextMapInjectAdapterInterface",
       packageName + ".TextMapInjectAdapter",
+      packageName + ".NoopTextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       packageName + ".AvroSchemaExtractor",
