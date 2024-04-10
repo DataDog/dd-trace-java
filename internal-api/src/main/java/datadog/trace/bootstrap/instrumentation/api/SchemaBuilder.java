@@ -13,7 +13,5 @@ public interface SchemaBuilder {
       String format,
       List<String> enumValues);
 
-  String build();
-
   boolean shouldExtractSchema(String schemaName, int depth);
 }

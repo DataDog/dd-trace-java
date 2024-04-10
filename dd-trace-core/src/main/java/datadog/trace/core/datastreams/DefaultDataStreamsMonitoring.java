@@ -24,6 +24,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Backlog;
 import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.Schema;
+import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
@@ -174,8 +176,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public datadog.trace.bootstrap.instrumentation.api.SchemaBuilder newSchemaBuilder() {
-    return new SchemaBuilder();
+  public Schema getSchema(String schemaName, SchemaIterator iterator) {
+    return SchemaBuilder.getSchema(schemaName, iterator);
   }
 
   @Override

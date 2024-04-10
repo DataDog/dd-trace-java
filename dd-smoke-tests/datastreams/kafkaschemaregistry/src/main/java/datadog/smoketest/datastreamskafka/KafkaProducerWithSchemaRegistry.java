@@ -7,8 +7,12 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class KafkaProducerWithSchemaRegistry {
+  private static final Logger log = LoggerFactory.getLogger(KafkaProducerWithSchemaRegistry.class);
+
   public static void main(String[] args) {
     produce();
   }
@@ -44,7 +48,7 @@ public class KafkaProducerWithSchemaRegistry {
         new org.apache.kafka.clients.producer.KafkaProducer<>(properties);
 
     Duration duration = Duration.newBuilder().setSeconds(10).build();
-    System.out.println("duration is " + duration.getSeconds());
+    log.info("duration is " + duration.getSeconds());
 
     try {
       for (int i = 1; i <= 20; i++) {
@@ -56,7 +60,7 @@ public class KafkaProducerWithSchemaRegistry {
             new ProducerRecord<String, MyMessage>(topicName, "testkey", message);
         producer.send(record);
         Thread.sleep(1500);
-        System.out.println("produced message");
+        log.info("produced message");
       }
     } catch (Exception e) {
       e.printStackTrace();

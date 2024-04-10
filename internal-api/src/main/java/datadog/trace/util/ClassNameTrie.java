@@ -777,7 +777,6 @@ public final class ClassNameTrie {
 
   /** Generates Java source for a trie described as a series of "{number} {class-name}" lines. */
   public static class JavaGenerator {
-
     public static void main(String[] args) throws IOException {
       if (args.length < 2) {
         throw new IllegalArgumentException("Expected: trie-dir java-dir [file.trie ...]");

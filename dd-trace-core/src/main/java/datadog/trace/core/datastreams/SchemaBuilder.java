@@ -3,15 +3,26 @@ package datadog.trace.core.datastreams;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.api.Schema;
+import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
+import datadog.trace.util.FNV64Hash;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.api.SchemaBuilder {
   private final OpenApiSchema schema = new OpenApiSchema();
+  private static final DDCache<String, Schema> CACHE = DDCaches.newFixedSizeCache(32);
   private static final int maxDepth = 10;
   private static final int maxProperties = 1000;
   private int properties;
+  private final SchemaIterator iterator;
+
+  public SchemaBuilder(SchemaIterator iterator) {
+    this.iterator = iterator;
+  }
 
   @Override
   public boolean addProperty(
@@ -36,11 +47,13 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
     return true;
   }
 
-  @Override
-  public String build() {
+  public Schema build() {
     Moshi moshi = new Moshi.Builder().build();
     JsonAdapter<OpenApiSchema> jsonAdapter = moshi.adapter(OpenApiSchema.class);
-    return jsonAdapter.toJson(schema);
+    String definition = jsonAdapter.toJson(this.schema);
+    this.iterator.iterateOverSchema(this);
+    String id = Long.toUnsignedString(FNV64Hash.generateHash(definition, FNV64Hash.Version.v1A));
+    return new Schema(definition, id);
   }
 
   @Override
@@ -101,5 +114,9 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
         this.items = items;
       }
     }
+  }
+
+  public static Schema getSchema(String schemaName, SchemaIterator iterator) {
+    return CACHE.computeIfAbsent(schemaName, s -> new SchemaBuilder(iterator).build());
   }
 }

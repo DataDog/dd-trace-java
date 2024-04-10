@@ -4,11 +4,13 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaBuilder;
+import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class SchemaExtractor {
+public class SchemaExtractor implements SchemaIterator {
   private static final int TYPE_DOUBLE = 1;
   private static final int TYPE_FLOAT = 2;
   private static final int TYPE_INT64 = 3;
@@ -27,6 +29,12 @@ public class SchemaExtractor {
   private static final int TYPE_SFIXED64 = 16;
   private static final int TYPE_SINT32 = 17;
   private static final int TYPE_SINT64 = 18;
+
+  private final Descriptor descriptor;
+
+  public SchemaExtractor(Descriptor descriptor) {
+    this.descriptor = descriptor;
+  }
 
   public static boolean extractProperty(
       FieldDescriptor field,
@@ -132,7 +140,7 @@ public class SchemaExtractor {
 
   public static boolean extractSchema(Descriptor descriptor, SchemaBuilder builder, int depth) {
     depth++;
-    if (!builder.shouldExtractSchema(descriptor.getName(), depth)) {
+    if (!builder.shouldExtractSchema(descriptor.getFullName(), depth)) {
       return false;
     }
     for (FieldDescriptor field : descriptor.getFields()) {
@@ -143,9 +151,14 @@ public class SchemaExtractor {
     return true;
   }
 
-  public static String extractSchemas(Descriptor descriptor) {
-    SchemaBuilder builder = AgentTracer.get().getDataStreamsMonitoring().newSchemaBuilder();
+  public static Schema extractSchemas(Descriptor descriptor) {
+    return AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .getSchema(descriptor.getFullName(), new SchemaExtractor(descriptor));
+  }
+
+  @Override
+  public void iterateOverSchema(SchemaBuilder builder) {
     extractSchema(descriptor, builder, 0);
-    return builder.build();
   }
 }

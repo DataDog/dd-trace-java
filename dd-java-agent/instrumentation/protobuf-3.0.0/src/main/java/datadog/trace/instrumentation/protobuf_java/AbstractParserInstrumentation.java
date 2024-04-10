@@ -16,6 +16,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -26,7 +27,7 @@ public final class AbstractParserInstrumentation extends InstrumenterModule.Trac
 
   static final String instrumentationName = "protobuf";
   static final String TARGET_TYPE = "com.google.protobuf.AbstractParser";
-  static final String DESERIALIZE = "deserialize";
+  static final UTF8BytesString OPERATION = UTF8BytesString.create("protobuf.deserialize");
 
   public AbstractParserInstrumentation() {
     super(instrumentationName);
@@ -60,7 +61,7 @@ public final class AbstractParserInstrumentation extends InstrumenterModule.Trac
   public static class ParseFromAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter() {
-      final AgentSpan span = startSpan(instrumentationName, DESERIALIZE);
+      final AgentSpan span = startSpan(instrumentationName, OPERATION);
       return activateSpan(span);
     }
 

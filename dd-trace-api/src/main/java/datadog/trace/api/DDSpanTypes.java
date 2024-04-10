@@ -33,6 +33,5 @@ public class DDSpanTypes {
   public static final String TEST_SESSION_END = "test_session_end";
 
   public static final String VULNERABILITY = "vulnerability";
-  public static final String SERIALIZE = "serialize";
-  public static final String DESERIALIZE = "deserialize";
+  public static final String PROTOBUF = "protobuf";
 }

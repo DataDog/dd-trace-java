@@ -1110,7 +1110,7 @@ public class AgentTracer {
     }
 
     @Override
-    public SchemaBuilder newSchemaBuilder() {
+    public Schema getSchema(String schemaName, SchemaIterator iterator) {
       return null;
     }
 
