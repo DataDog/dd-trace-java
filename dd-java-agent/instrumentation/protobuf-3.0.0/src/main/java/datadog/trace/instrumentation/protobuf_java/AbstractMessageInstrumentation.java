@@ -14,7 +14,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -25,7 +24,7 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
 
   static final String instrumentationName = "protobuf";
   static final String TARGET_TYPE = "com.google.protobuf.AbstractMessage";
-  static final UTF8BytesString OPERATION = UTF8BytesString.create("protobuf.serialize");
+  static final String SERIALIZE_OPERATION = "protobuf.serialize";
 
   public AbstractMessageInstrumentation() {
     super(instrumentationName);
@@ -60,7 +59,7 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
   public static class WriteToAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This AbstractMessage message) {
-      final AgentSpan span = startSpan(instrumentationName, OPERATION);
+      final AgentSpan span = startSpan(instrumentationName, SERIALIZE_OPERATION);
       SERIALIZER_DECORATOR.attachSchemaOnSpan(message, span);
       return activateSpan(span);
     }

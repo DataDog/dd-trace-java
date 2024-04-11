@@ -15,7 +15,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -24,7 +23,7 @@ public final class DynamicMessageInstrumentation extends InstrumenterModule.Trac
 
   static final String instrumentationName = "protobuf";
   static final String TARGET_TYPE = "com.google.protobuf.DynamicMessage";
-  static final UTF8BytesString OPERATION = UTF8BytesString.create("protobuf.deserialize");
+  static final String DESERIALIZE_OPERATION = "protobuf.deserialize";
 
   public DynamicMessageInstrumentation() {
     super(instrumentationName);
@@ -56,7 +55,7 @@ public final class DynamicMessageInstrumentation extends InstrumenterModule.Trac
   public static class ParseFromAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(0) final Descriptor descriptor) {
-      final AgentSpan span = startSpan(instrumentationName, OPERATION);
+      final AgentSpan span = startSpan(instrumentationName, DESERIALIZE_OPERATION);
       DESERIALIZER_DECORATOR.attachSchemaOnSpan(descriptor, span);
       return activateSpan(span);
     }

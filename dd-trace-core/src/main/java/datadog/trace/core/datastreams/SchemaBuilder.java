@@ -48,10 +48,10 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
   }
 
   public Schema build() {
+    this.iterator.iterateOverSchema(this);
     Moshi moshi = new Moshi.Builder().build();
     JsonAdapter<OpenApiSchema> jsonAdapter = moshi.adapter(OpenApiSchema.class);
     String definition = jsonAdapter.toJson(this.schema);
-    this.iterator.iterateOverSchema(this);
     String id = Long.toUnsignedString(FNV64Hash.generateHash(definition, FNV64Hash.Version.v1A));
     return new Schema(definition, id);
   }

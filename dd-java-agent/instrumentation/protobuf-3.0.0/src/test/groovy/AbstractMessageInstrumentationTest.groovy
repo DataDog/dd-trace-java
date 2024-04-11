@@ -34,8 +34,8 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
         basicSpan(it, "parent_serialize")
         span {
           hasServiceName()
-          operationName "serialize"
-          resourceName "serialize"
+          operationName "protobuf.serialize"
+          resourceName "protobuf.serialize"
           errored false
           measured false
           childOf span(0)
@@ -54,8 +54,8 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
         basicSpan(it, "parent_deserialize")
         span {
           hasServiceName()
-          operationName "deserialize"
-          resourceName "deserialize"
+          operationName "protobuf.deserialize"
+          resourceName "protobuf.deserialize"
           errored false
           measured false
           childOf span(0)
@@ -95,8 +95,8 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
         basicSpan(it, "parent_deserialize")
         span {
           hasServiceName()
-          operationName "deserialize"
-          resourceName "deserialize"
+          operationName "protobuf.deserialize"
+          resourceName "protobuf.deserialize"
           errored true
           measured false
           childOf span(0)
