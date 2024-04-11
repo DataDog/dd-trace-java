@@ -2,13 +2,11 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCED_KEY;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Headers;
 
-public class TextMapInjectAdapter implements AgentPropagation.BinarySetter<Headers> {
-
+public class TextMapInjectAdapter implements TextMapInjectAdapterInterface {
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 
   @Override

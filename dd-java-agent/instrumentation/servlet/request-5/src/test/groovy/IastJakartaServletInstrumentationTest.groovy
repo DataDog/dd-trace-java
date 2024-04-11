@@ -28,6 +28,7 @@ class IastJakartaServletInstrumentationTest extends AgentTestRunner{
 
     then:
     0 *  appModule.onRealPath(_)
+    0 *  appModule.checkSessionTrackingModes(_)
     0 *  _
   }
 
@@ -44,6 +45,7 @@ class IastJakartaServletInstrumentationTest extends AgentTestRunner{
 
     then:
     1 *  module.onRealPath(_)
+    1 *  module.checkSessionTrackingModes(['COOKIE', 'URL'] as Set<String>)
     0 * _
   }
 }

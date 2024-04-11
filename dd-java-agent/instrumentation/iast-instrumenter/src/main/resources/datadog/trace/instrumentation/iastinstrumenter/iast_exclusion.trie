@@ -183,6 +183,7 @@
 2 okhttp3.Request
 2 okhttp3.Request$*
 1 ognl.*
+2 oracle.j2ee.*
 1 oracle.jdbc.*
 1 oracle.sql.*
 1 org.ajax4jsf.*
