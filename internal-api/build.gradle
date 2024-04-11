@@ -75,6 +75,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.Backlog",
   "datadog.trace.bootstrap.instrumentation.api.StatsPoint",
+  "datadog.trace.bootstrap.instrumentation.api.Schema",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
   "datadog.trace.bootstrap.instrumentation.api.TagContext",
