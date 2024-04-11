@@ -23,8 +23,6 @@ public class DDSpanLink extends SpanLink {
   private static final Logger LOGGER = LoggerFactory.getLogger(DDSpanLink.class);
   /** The maximum of characters a span tag value can hold. */
   private static final int TAG_MAX_LENGTH = 25_000;
-  /** JSON encoder (lazily initialized) */
-  private static JsonAdapter<AgentSpanLink> encoder;
 
   protected DDSpanLink(
       DDTraceId traceId, long spanId, byte traceFlags, String traceState, Attributes attributes) {
@@ -95,11 +93,20 @@ public class DDSpanLink extends SpanLink {
   }
 
   private static JsonAdapter<AgentSpanLink> getEncoder() {
-    if (encoder == null) {
+    return EncoderHolder.ENCODER;
+  }
+
+  /**
+   * JSON encoder (lazily initialized). This is not folded at native image build time, so it works
+   * as expected.
+   */
+  private static class EncoderHolder {
+    static final JsonAdapter<AgentSpanLink> ENCODER = createEncoder();
+
+    private static JsonAdapter<AgentSpanLink> createEncoder() {
       Moshi moshi = new Moshi.Builder().add(new SpanLinkAdapter()).build();
-      encoder = moshi.adapter(AgentSpanLink.class);
+      return moshi.adapter(AgentSpanLink.class);
     }
-    return encoder;
   }
 
   private static class SpanLinkAdapter {
