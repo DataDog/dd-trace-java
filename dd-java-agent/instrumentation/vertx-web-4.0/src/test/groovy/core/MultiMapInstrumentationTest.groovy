@@ -33,7 +33,7 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
     iastCtx = Stub(IastContext)
   }
 
-  void 'test that get() is instrumented'() {
+  void 'test that #name get() is instrumented'() {
     given:
     final origin = SourceTypes.REQUEST_PARAMETER_VALUE
     addAll([key: 'value'], instance)
@@ -56,9 +56,10 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     where:
     instance << multiMaps()
+    name = instance.getClass().simpleName
   }
 
-  void 'test that getAll() is instrumented'() {
+  void 'test that #name getAll() is instrumented'() {
     given:
     final origin = SourceTypes.REQUEST_PARAMETER_VALUE
     addAll([[key: 'value1'], [key: 'value2']], instance)
@@ -82,9 +83,10 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     where:
     instance << multiMaps()
+    name = instance.getClass().simpleName
   }
 
-  void 'test that names() is instrumented'() {
+  void 'test that #name names() is instrumented'() {
     given:
     final origin = SourceTypes.REQUEST_PARAMETER_VALUE
     addAll([[key: 'value1'], [key: 'value2']], instance)
@@ -107,11 +109,12 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     where:
     instance << multiMaps()
+    name = instance.getClass().simpleName
   }
 
   // some implementations do not override the entries() method so we will lose propagation in those cases
   @IgnoreIf({ !MultiMapInstrumentationTest.hasMethod(data['instance'].class, 'entries')})
-  void 'test that entries() is instrumented'() {
+  void 'test that #name entries() is instrumented'() {
     given:
     final origin = SourceTypes.REQUEST_PARAMETER_VALUE
     addAll([[key: 'value1'], [key: 'value2']], instance)
@@ -136,6 +139,7 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     where:
     instance << multiMaps()
+    name = instance.getClass().simpleName
   }
 
   protected <E> E runUnderIastTrace(Closure<E> cl) {

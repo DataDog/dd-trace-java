@@ -17,7 +17,7 @@ class BufferInstrumentationTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  void 'test that toString() is instrumented'() {
+  void 'test that Buffer.#methodName is instrumented'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -30,12 +30,12 @@ class BufferInstrumentationTest extends AgentTestRunner {
     1 * module.taintIfTainted(_, buffer)
 
     where:
-    _ | method
-    _ | { Buffer b -> b.toString() }
-    _ | { Buffer b -> b.toString('UTF-8') }
+    methodName         | method
+    'toString()'       | { Buffer b -> b.toString() }
+    'toString(String)' | { Buffer b -> b.toString('UTF-8') }
   }
 
-  void 'test that append() is instrumented'() {
+  void 'test that Buffer.#methodName is instrumented'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -49,9 +49,9 @@ class BufferInstrumentationTest extends AgentTestRunner {
     1 * module.taintIfTainted(buffer, tainted)
 
     where:
-    _ | method
-    _ | { Buffer b, Buffer taint -> b.appendBuffer(taint) }
-    _ | { Buffer b, Buffer taint -> b.appendBuffer(taint, 0, taint.length()) }
+    methodName                       | method
+    'appendBuffer(Buffer)'           | { Buffer b, Buffer taint -> b.appendBuffer(taint) }
+    'appendBuffer(buffer, int, int)' | { Buffer b, Buffer taint -> b.appendBuffer(taint, 0, taint.length()) }
   }
 
   private Buffer taintedInstance(final byte origin) {
