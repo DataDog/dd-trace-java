@@ -15,7 +15,6 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.postprocessor.AppSecPostProcessor;
 import datadog.trace.core.postprocessor.SpanPostProcessor;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +54,8 @@ public class TraceProcessingWorker implements AutoCloseable {
       final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit,
-      final SingleSpanSampler singleSpanSampler) {
+      final SingleSpanSampler singleSpanSampler,
+      final SpanPostProcessor spanPostProcessor) {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
@@ -78,9 +78,21 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.serializingHandler =
         runAsDaemon
             ? new DaemonTraceSerializingHandler(
-                primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit)
+                primaryQueue,
+                secondaryQueue,
+                healthMetrics,
+                dispatcher,
+                flushInterval,
+                timeUnit,
+                spanPostProcessor)
             : new NonDaemonTraceSerializingHandler(
-                primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
+                primaryQueue,
+                secondaryQueue,
+                healthMetrics,
+                dispatcher,
+                flushInterval,
+                timeUnit,
+                spanPostProcessor);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler, runAsDaemon);
   }
 
@@ -139,9 +151,16 @@ public class TraceProcessingWorker implements AutoCloseable {
         HealthMetrics healthMetrics,
         PayloadDispatcher payloadDispatcher,
         long flushInterval,
-        TimeUnit timeUnit) {
+        TimeUnit timeUnit,
+        SpanPostProcessor spanPostProcessor) {
       super(
-          primaryQueue, secondaryQueue, healthMetrics, payloadDispatcher, flushInterval, timeUnit);
+          primaryQueue,
+          secondaryQueue,
+          healthMetrics,
+          payloadDispatcher,
+          flushInterval,
+          timeUnit,
+          spanPostProcessor);
     }
 
     @Override
@@ -174,9 +193,16 @@ public class TraceProcessingWorker implements AutoCloseable {
         HealthMetrics healthMetrics,
         PayloadDispatcher payloadDispatcher,
         long flushInterval,
-        TimeUnit timeUnit) {
+        TimeUnit timeUnit,
+        SpanPostProcessor spanPostProcessor) {
       super(
-          primaryQueue, secondaryQueue, healthMetrics, payloadDispatcher, flushInterval, timeUnit);
+          primaryQueue,
+          secondaryQueue,
+          healthMetrics,
+          payloadDispatcher,
+          flushInterval,
+          timeUnit,
+          spanPostProcessor);
     }
 
     @Override
@@ -219,7 +245,8 @@ public class TraceProcessingWorker implements AutoCloseable {
         final HealthMetrics healthMetrics,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
-        final TimeUnit timeUnit) {
+        final TimeUnit timeUnit,
+        final SpanPostProcessor spanPostProcessor) {
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
       this.healthMetrics = healthMetrics;
@@ -231,7 +258,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       } else {
         this.ticksRequiredToFlush = Long.MAX_VALUE;
       }
-      this.spanPostProcessor = new AppSecPostProcessor();
+      this.spanPostProcessor = spanPostProcessor;
     }
 
     @SuppressWarnings("unchecked")
@@ -330,8 +357,8 @@ public class TraceProcessingWorker implements AutoCloseable {
       BooleanSupplier timeoutCheck = () -> System.currentTimeMillis() > deadline;
 
       for (DDSpan span : spansToPostProcess) {
-        if (timeoutCheck.getAsBoolean() || !spanPostProcessor.process(span, timeoutCheck)) {
-          log.debug("Span post-processing is interrupted due to timeout.");
+        if (!spanPostProcessor.process(span, timeoutCheck)) {
+          log.debug("Span post-processing interrupted due to timeout.");
           break;
         }
       }
