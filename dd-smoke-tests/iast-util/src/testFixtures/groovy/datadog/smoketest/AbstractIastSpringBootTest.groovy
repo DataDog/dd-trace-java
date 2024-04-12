@@ -5,6 +5,7 @@ import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
@@ -965,6 +966,20 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       && vul.location.method == 'reflectionInjectionLookup'
       && vul.evidence.valueParts[0].value == "java.lang.String#"
       && vul.evidence.valueParts[1].value == "hash"
+    }
+  }
+
+  void 'find session rewriting'() {
+    given:
+    String url = "http://localhost:${httpPort}/greeting"
+
+    when:
+    Response response = client.newCall(new Request.Builder().url(url).get().build()).execute()
+
+    then:
+    response.successful
+    hasVulnerabilityInLogs { vul ->
+      vul.type == 'SESSION_REWRITING'
     }
   }
 

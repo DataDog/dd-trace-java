@@ -70,6 +70,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
 
   public static final String WEB_XML = "web.xml";
 
+  static final String SESSION_REWRITING_EVIDENCE_VALUE = "Servlet URL Session Tracking Mode";
+
   private static final Pattern PATTERN =
       Pattern.compile(
           Stream.of(
@@ -101,6 +103,21 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     final AgentSpan span = AgentTracer.activeSpan();
     checkInsecureJSPLayout(root, span);
     checkWebXmlVulnerabilities(root, span);
+  }
+
+  @Override
+  public void checkSessionTrackingModes(@Nonnull Set<String> sessionTrackingModes) {
+    if (!sessionTrackingModes.contains("URL")) {
+      return;
+    }
+    final AgentSpan span = AgentTracer.activeSpan();
+    // overhead is not checked here as it's called once per application context
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.SESSION_REWRITING,
+            Location.forSpan(span),
+            new Evidence(SESSION_REWRITING_EVIDENCE_VALUE)));
   }
 
   private void checkWebXmlVulnerabilities(@Nonnull Path path, AgentSpan span) {

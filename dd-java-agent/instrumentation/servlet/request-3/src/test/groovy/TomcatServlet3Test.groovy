@@ -19,7 +19,6 @@ import org.apache.catalina.valves.ValveBase
 import org.apache.tomcat.JarScanFilter
 import org.apache.tomcat.JarScanType
 import spock.lang.Shared
-
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 
@@ -545,6 +544,7 @@ class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
 
     then:
     0 * appModule.onRealPath(_)
+    0 * appModule.checkSessionTrackingModes(_)
     0 * _
   }
 
@@ -559,6 +559,7 @@ class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
 
     then:
     1 *  appModule.onRealPath(_)
+    1 *  appModule.checkSessionTrackingModes(_)
     0 * _
 
     when:
@@ -566,6 +567,7 @@ class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
 
     then: //Only call once per application context
     0 *  appModule.onRealPath(_)
+    0 *  appModule.checkSessionTrackingModes(_)
     0 * _
   }
 
