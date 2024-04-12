@@ -3,11 +3,11 @@ package com.datadog.appsec.config
 import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler
 import com.datadog.appsec.util.AbortStartupException
-import datadog.remoteconfig.ConfigurationChangesListener
 import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
+import datadog.remoteconfig.PollingRateHinter
 import datadog.remoteconfig.Product
 import datadog.trace.api.ProductActivation
 import datadog.trace.test.util.DDSpecification
@@ -314,7 +314,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when:
     listeners.savedFeaturesListener.accept('asm_features_activation',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": false}}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      PollingRateHinter.NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
@@ -324,7 +324,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when: 'switch back to enabled'
     listeners.savedFeaturesListener.accept('asm_features_activation',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      PollingRateHinter.NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then: 'it is enabled again'
@@ -333,7 +333,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when: 'asm are not set'
     listeners.savedFeaturesListener.accept('asm_features_activation',
       listeners.savedFeaturesDeserializer.deserialize('{}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      PollingRateHinter.NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then: 'it is disabled (<not set> == false)'
@@ -343,7 +343,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when: 'switch back to enabled'
     listeners.savedFeaturesListener.accept('asm_features_activation',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      PollingRateHinter.NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then: 'it is enabled again'
@@ -352,7 +352,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when: 'asm features are not set'
     listeners.savedFeaturesListener.accept('asm_features_activation',
       null,
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      PollingRateHinter.NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then: 'it is disabled (<not set> == false)'
@@ -422,7 +422,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"rules_target":[{"rule_id": "foo"}], "enabled":false}]}'.bytes), null)
     listeners.savedFeaturesListener.accept('asm_features conf',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      PollingRateHinter.NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:

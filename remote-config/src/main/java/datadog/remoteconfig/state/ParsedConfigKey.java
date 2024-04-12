@@ -12,7 +12,7 @@ public class ParsedConfigKey implements ConfigKey {
   private static final Pattern EXTRACT_PRODUCT_REGEX =
       Pattern.compile("([^/]+)(/\\d+)?/([^/]+)/([^/]+)/[^/]+");
 
-  private final String orginalKey;
+  private final String originalKey;
   private final String org;
   private final Integer version;
   private final String productName;
@@ -20,8 +20,8 @@ public class ParsedConfigKey implements ConfigKey {
   private final Product product;
 
   ParsedConfigKey(
-      String orginalKey, String org, Integer version, String productName, String configId) {
-    this.orginalKey = orginalKey;
+      String originalKey, String org, Integer version, String productName, String configId) {
+    this.originalKey = originalKey;
     this.org = org;
     this.version = version;
     this.productName = productName;
@@ -77,7 +77,7 @@ public class ParsedConfigKey implements ConfigKey {
 
   @Override
   public String toString() {
-    return orginalKey;
+    return originalKey;
   }
 
   @Override
@@ -85,11 +85,11 @@ public class ParsedConfigKey implements ConfigKey {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ParsedConfigKey that = (ParsedConfigKey) o;
-    return Objects.equals(orginalKey, that.orginalKey);
+    return Objects.equals(originalKey, that.originalKey);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(orginalKey);
+    return Objects.hash(originalKey);
   }
 }

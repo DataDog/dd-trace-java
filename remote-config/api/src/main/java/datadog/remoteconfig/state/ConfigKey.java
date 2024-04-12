@@ -1,6 +1,7 @@
 package datadog.remoteconfig.state;
 
 import datadog.remoteconfig.Product;
+import javax.annotation.Nullable;
 
 public interface ConfigKey {
   Product getProduct();
@@ -9,6 +10,7 @@ public interface ConfigKey {
 
   String getOrg();
 
+  @Nullable
   Integer getVersion();
 
   String getConfigId();

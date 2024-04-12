@@ -6,7 +6,6 @@ import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
-import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.remoteconfig.state.ProductState;
@@ -54,7 +53,9 @@ import org.slf4j.LoggerFactory;
 
 /** Handles polling debugger configuration from datadog agent/Remote Configuration */
 public class DefaultConfigurationPoller
-    implements AgentTaskScheduler.Target<ConfigurationPoller>, ConfigurationPoller {
+    implements ConfigurationPoller,
+        PollingRateHinter,
+        AgentTaskScheduler.Target<ConfigurationPoller> {
   private static final Logger log = LoggerFactory.getLogger(ConfigurationPoller.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
 

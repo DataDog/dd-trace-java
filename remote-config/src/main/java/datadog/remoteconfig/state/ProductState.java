@@ -1,6 +1,6 @@
 package datadog.remoteconfig.state;
 
-import datadog.remoteconfig.ConfigurationChangesListener;
+import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import datadog.remoteconfig.ReportableException;
 import datadog.remoteconfig.tuf.MissingContentException;
@@ -54,7 +54,7 @@ public class ProductState {
   public boolean apply(
       RemoteConfigResponse fleetResponse,
       List<ParsedConfigKey> relevantKeys,
-      ConfigurationChangesListener.PollingRateHinter hinter) {
+      PollingRateHinter hinter) {
     errors = null;
 
     List<ParsedConfigKey> configBeenUsedByProduct = new ArrayList<>();
@@ -99,7 +99,7 @@ public class ProductState {
 
   private void callListenerApplyTarget(
       RemoteConfigResponse fleetResponse,
-      ConfigurationChangesListener.PollingRateHinter hinter,
+      PollingRateHinter hinter,
       ParsedConfigKey configKey,
       byte[] content) {
 
@@ -124,8 +124,7 @@ public class ProductState {
     }
   }
 
-  private void callListenerRemoveTarget(
-      ConfigurationChangesListener.PollingRateHinter hinter, ParsedConfigKey configKey) {
+  private void callListenerRemoveTarget(PollingRateHinter hinter, ParsedConfigKey configKey) {
     try {
       for (ProductListener listener : productListeners) {
         listener.remove(configKey, hinter);
@@ -141,7 +140,7 @@ public class ProductState {
     configStates.remove(configKey);
   }
 
-  private void callListenerCommit(ConfigurationChangesListener.PollingRateHinter hinter) {
+  private void callListenerCommit(PollingRateHinter hinter) {
     try {
       for (ProductListener listener : productListeners) {
         listener.commit(hinter);

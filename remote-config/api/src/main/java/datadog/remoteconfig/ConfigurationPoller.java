@@ -2,7 +2,7 @@ package datadog.remoteconfig;
 
 import datadog.remoteconfig.state.ProductListener;
 
-public interface ConfigurationPoller extends ConfigurationChangesListener.PollingRateHinter {
+public interface ConfigurationPoller {
   void addListener(Product product, ProductListener listener);
 
   <T> void addListener(

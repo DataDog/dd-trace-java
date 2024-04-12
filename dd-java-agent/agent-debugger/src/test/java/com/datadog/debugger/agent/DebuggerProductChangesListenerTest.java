@@ -18,7 +18,7 @@ import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
-import datadog.remoteconfig.ConfigurationChangesListener;
+import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -41,8 +41,8 @@ public class DebuggerProductChangesListenerTest {
 
   @Mock private Config tracerConfig;
 
-  final ConfigurationChangesListener.PollingHinterNoop pollingHinter =
-      new ConfigurationChangesListener.PollingHinterNoop();
+  final PollingRateHinter.PollingHinterNoop pollingHinter =
+      new PollingRateHinter.PollingHinterNoop();
 
   class SimpleAcceptor implements ConfigurationAcceptor {
     private Collection<? extends ProbeDefinition> definitions;

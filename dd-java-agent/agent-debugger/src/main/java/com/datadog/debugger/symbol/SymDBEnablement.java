@@ -5,7 +5,7 @@ import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
-import datadog.remoteconfig.ConfigurationChangesListener;
+import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
@@ -62,10 +62,7 @@ public class SymDBEnablement implements ProductListener {
   }
 
   @Override
-  public void accept(
-      ConfigKey configKey,
-      byte[] content,
-      ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
+  public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
       throws IOException {
     if (configKey.getConfigId().equals(SYM_DB_RC_KEY)) {
       SymDbRemoteConfigRecord symDb = deserializeSymDb(content);
@@ -81,16 +78,14 @@ public class SymDBEnablement implements ProductListener {
   }
 
   @Override
-  public void remove(
-      ConfigKey configKey, ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
-      throws IOException {
+  public void remove(ConfigKey configKey, PollingRateHinter pollingRateHinter) throws IOException {
     if (configKey.getConfigId().equals(SYM_DB_RC_KEY)) {
       stopSymbolExtraction();
     }
   }
 
   @Override
-  public void commit(ConfigurationChangesListener.PollingRateHinter pollingRateHinter) {}
+  public void commit(PollingRateHinter pollingRateHinter) {}
 
   private static SymDbRemoteConfigRecord deserializeSymDb(byte[] content) throws IOException {
     return SYM_DB_JSON_ADAPTER.fromJson(
