@@ -37,6 +37,9 @@ onboarding_tests:
   extends: .base_job_onboarding_tests
   stage: single-step-instrumentation-tests
   needs: [ package, package-arm]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "master"
+      when: on_success
   allow_failure: false
   variables:
     TEST_LIBRARY: java
