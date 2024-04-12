@@ -113,7 +113,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     final AgentSpan span = AgentTracer.activeSpan();
     // overhead is not checked here as it's called once per application context
     // No deduplication is needed as same service can have multiple applications
-    reporter.noDedupReport(
+    reporter.report(
         span,
         new Vulnerability(
             VulnerabilityType.SESSION_REWRITING,

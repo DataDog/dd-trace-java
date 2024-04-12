@@ -80,9 +80,9 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
 
     then:
     if (expected != null) {
-      1 * reporter.noDedupReport(_, _) >> { args -> assertSessionRewriting(args[1] as Vulnerability, expected) }
+      1 * reporter.report(_, _) >> { args -> assertSessionRewriting(args[1] as Vulnerability, expected) }
     } else {
-      0 * reporter.noDedupReport(_, _)
+      0 * reporter.report(_, _)
     }
     0 * reporter.report(_, _)
 
