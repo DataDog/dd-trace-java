@@ -21,6 +21,7 @@ import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.SizeCheckedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -52,8 +53,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Handles polling debugger configuration from datadog agent/Remote Configuration */
-public class ConfigurationPoller
-    implements AgentTaskScheduler.Target<ConfigurationPoller>, PollingRateHinter {
+public class DefaultConfigurationPoller
+    implements AgentTaskScheduler.Target<ConfigurationPoller>, ConfigurationPoller {
   private static final Logger log = LoggerFactory.getLogger(ConfigurationPoller.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
 
@@ -82,7 +83,7 @@ public class ConfigurationPoller
   private RemoteConfigResponse.Factory responseFactory;
   private boolean fatalOnInitialization = false;
 
-  public ConfigurationPoller(
+  public DefaultConfigurationPoller(
       Config config,
       String tracerVersion,
       String containerId,
@@ -100,7 +101,7 @@ public class ConfigurationPoller
   }
 
   // for testing
-  public ConfigurationPoller(
+  public DefaultConfigurationPoller(
       Config config,
       String tracerVersion,
       String containerId,
@@ -130,12 +131,14 @@ public class ConfigurationPoller
     this.httpClient = httpClient;
   }
 
+  @Override
   public synchronized void addListener(Product product, ProductListener listener) {
     ProductState productState =
         this.productStates.computeIfAbsent(product, p -> new ProductState(product));
     productState.addProductListener(listener);
   }
 
+  @Override
   public synchronized <T> void addListener(
       Product product,
       ConfigurationDeserializer<T> deserializer,
@@ -143,6 +146,7 @@ public class ConfigurationPoller
     this.addListener(product, new SimpleProductListener(useDeserializer(deserializer, listener)));
   }
 
+  @Override
   public synchronized void addListener(
       Product product, String configKey, ProductListener listener) {
     ProductState productState =
@@ -150,6 +154,7 @@ public class ConfigurationPoller
     productState.addProductListener(configKey, listener);
   }
 
+  @Override
   public synchronized <T> void addListener(
       Product product,
       String configKey,
@@ -159,6 +164,7 @@ public class ConfigurationPoller
         product, configKey, new SimpleProductListener(useDeserializer(deserializer, listener)));
   }
 
+  @Override
   public synchronized void removeListeners(Product product) {
     this.productStates.remove(product);
   }
@@ -170,18 +176,22 @@ public class ConfigurationPoller
     this.fileListeners.put(file, useDeserializer(deserializer, listener));
   }
 
+  @Override
   public synchronized void addConfigurationEndListener(ConfigurationEndListener listener) {
     this.configurationEndListeners.add(listener);
   }
 
+  @Override
   public synchronized void removeConfigurationEndListener(ConfigurationEndListener listener) {
     this.configurationEndListeners.removeIf(l -> l == listener);
   }
 
+  @Override
   public synchronized void addCapabilities(long flags) {
     capabilities |= flags;
   }
 
+  @Override
   public synchronized void removeCapabilities(long flags) {
     capabilities &= ~flags;
   }
@@ -191,6 +201,7 @@ public class ConfigurationPoller
     return this;
   }
 
+  @Override
   public void start() {
     int prevCount = this.startCount.getAndIncrement();
     if (prevCount == 0) {
@@ -198,6 +209,7 @@ public class ConfigurationPoller
     }
   }
 
+  @Override
   public void stop() {
     int newCount = this.startCount.decrementAndGet();
     if (newCount == 0) {
@@ -514,17 +526,6 @@ public class ConfigurationPoller
       durationHint = duration;
     } else if (duration.compareTo(durationHint) < 0) {
       durationHint = duration;
-    }
-  }
-
-  /* An exception that should be reported in client.state.error */
-  public static class ReportableException extends RuntimeException {
-    public ReportableException(String message) {
-      super(message);
-    }
-
-    public ReportableException(String message, Throwable t) {
-      super(message, t);
     }
   }
 

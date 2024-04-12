@@ -12,12 +12,12 @@ class PollerScheduler {
 
   private final long initialPollInterval;
   private long currentPollInterval;
-  private final ConfigurationPoller poller;
+  private final DefaultConfigurationPoller poller;
   private final AgentTaskScheduler taskScheduler;
   private volatile AgentTaskScheduler.Scheduled<ConfigurationPoller> scheduled;
 
   public PollerScheduler(
-      Config config, ConfigurationPoller poller, AgentTaskScheduler taskScheduler) {
+      Config config, DefaultConfigurationPoller poller, AgentTaskScheduler taskScheduler) {
     // TODO add a jitter to avoid herd issue
     this.initialPollInterval = (long) (config.getRemoteConfigPollIntervalSeconds() * 1000);
     this.poller = poller;

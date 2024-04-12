@@ -1,7 +1,8 @@
 package datadog.remoteconfig.state
 
-import datadog.remoteconfig.ConfigurationPoller
+
 import datadog.remoteconfig.Product
+import datadog.remoteconfig.ReportableException
 import spock.lang.Specification
 
 class ParsedConfigKeyTests extends Specification {
@@ -31,7 +32,7 @@ class ParsedConfigKeyTests extends Specification {
     ParsedConfigKey.parse("foo")
 
     then:
-    def e = thrown(ConfigurationPoller.ReportableException)
+    def e = thrown(ReportableException)
     e.message == "Not a valid config key: foo"
   }
 }

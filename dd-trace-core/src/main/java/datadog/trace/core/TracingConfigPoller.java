@@ -1,12 +1,12 @@
 package datadog.trace.core;
 
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_CUSTOM_TAGS;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_HTTP_HEADER_TAGS;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_LOGS_INJECTION;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_SAMPLE_RATE;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_SAMPLE_RULES;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_TRACING_ENABLED;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_CUSTOM_TAGS;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_HTTP_HEADER_TAGS;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_LOGS_INJECTION;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RATE;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RULES;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_TRACING_ENABLED;
 import static datadog.trace.api.sampling.SamplingRule.normalizeGlob;
 
 import com.squareup.moshi.FromJson;
@@ -19,7 +19,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
-import datadog.remoteconfig.state.ParsedConfigKey;
+import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
@@ -98,7 +98,7 @@ final class TracingConfigPoller {
     }
 
     @Override
-    public void accept(ParsedConfigKey configKey, byte[] content, PollingRateHinter hinter)
+    public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
         throws IOException {
 
       ConfigOverrides overrides =
@@ -136,7 +136,7 @@ final class TracingConfigPoller {
     }
 
     @Override
-    public void remove(ParsedConfigKey configKey, PollingRateHinter hinter) {}
+    public void remove(ConfigKey configKey, PollingRateHinter hinter) {}
 
     @Override
     public void commit(PollingRateHinter hinter) {

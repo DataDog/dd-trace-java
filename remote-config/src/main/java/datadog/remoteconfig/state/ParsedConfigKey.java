@@ -1,13 +1,13 @@
 package datadog.remoteconfig.state;
 
-import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
+import datadog.remoteconfig.ReportableException;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class ParsedConfigKey {
+public class ParsedConfigKey implements ConfigKey {
 
   private static final Pattern EXTRACT_PRODUCT_REGEX =
       Pattern.compile("([^/]+)(/\\d+)?/([^/]+)/([^/]+)/[^/]+");
@@ -38,7 +38,7 @@ public class ParsedConfigKey {
   public static ParsedConfigKey parse(String configKey) {
     Matcher matcher = EXTRACT_PRODUCT_REGEX.matcher(configKey);
     if (!matcher.matches()) {
-      throw new ConfigurationPoller.ReportableException("Not a valid config key: " + configKey);
+      throw new ReportableException("Not a valid config key: " + configKey);
     }
     String org = matcher.group(1);
     String version = matcher.group(2);
@@ -50,22 +50,27 @@ public class ParsedConfigKey {
     return new ParsedConfigKey(configKey, org, parsedVersion, product, configId);
   }
 
+  @Override
   public Product getProduct() {
     return product;
   }
 
+  @Override
   public String getProductName() {
     return productName;
   }
 
+  @Override
   public String getOrg() {
     return org;
   }
 
+  @Override
   public Integer getVersion() {
     return version;
   }
 
+  @Override
   public String getConfigId() {
     return configId;
   }

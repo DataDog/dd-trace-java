@@ -1,8 +1,8 @@
 package datadog.remoteconfig.state;
 
 import datadog.remoteconfig.ConfigurationChangesListener;
-import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
+import datadog.remoteconfig.ReportableException;
 import datadog.remoteconfig.tuf.MissingContentException;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigResponse;
@@ -32,7 +32,7 @@ public class ProductState {
   private final List<ProductListener> productListeners;
   private final Map<String, ProductListener> configListeners;
 
-  List<ConfigurationPoller.ReportableException> errors = null;
+  List<ReportableException> errors = null;
 
   public ProductState(Product product) {
     this.product = product;
@@ -71,7 +71,7 @@ public class ProductState {
           byte[] content = getTargetFileContent(fleetResponse, configKey);
           callListenerApplyTarget(fleetResponse, hinter, configKey, content);
         }
-      } catch (ConfigurationPoller.ReportableException e) {
+      } catch (ReportableException e) {
         recordError(e);
       }
     }
@@ -113,7 +113,7 @@ public class ProductState {
       }
 
       updateConfigState(fleetResponse, configKey, null);
-    } catch (ConfigurationPoller.ReportableException e) {
+    } catch (ReportableException e) {
       recordError(e);
     } catch (Exception ex) {
       updateConfigState(fleetResponse, configKey, ex);
@@ -149,7 +149,7 @@ public class ProductState {
       for (ProductListener listener : configListeners.values()) {
         listener.commit(hinter);
       }
-    } catch (ConfigurationPoller.ReportableException e) {
+    } catch (ReportableException e) {
       recordError(e);
     } catch (Exception ex) {
       ratelimitedLogger.warn(
@@ -162,7 +162,7 @@ public class ProductState {
     RemoteConfigResponse.Targets.ConfigTarget target =
         fleetResponse.getTarget(configKey.toString());
     if (target == null) {
-      throw new ConfigurationPoller.ReportableException(
+      throw new ReportableException(
           "Told to apply config for "
               + configKey
               + " but no corresponding entry exists in targets.targets_signed.targets");
@@ -187,14 +187,14 @@ public class ProductState {
       maybeFileContent = fleetResponse.getFileContents(configKey.toString());
     } catch (MissingContentException e) {
       if (cachedTargetFiles.containsKey(configKey)) {
-        throw new ConfigurationPoller.ReportableException(
+        throw new ReportableException(
             "Told to apply config "
                 + configKey
                 + " but content not present even though hash differs from that of 'cached file'");
       }
-      throw new ConfigurationPoller.ReportableException(e.getMessage());
+      throw new ReportableException(e.getMessage());
     } catch (Exception e) {
-      throw new ConfigurationPoller.ReportableException(e.getMessage());
+      throw new ReportableException(e.getMessage());
     }
 
     return maybeFileContent;
@@ -222,14 +222,14 @@ public class ProductState {
     return errors != null;
   }
 
-  public void recordError(ConfigurationPoller.ReportableException error) {
+  public void recordError(ReportableException error) {
     if (errors == null) {
       errors = new ArrayList<>();
     }
     errors.add(error);
   }
 
-  public Collection<ConfigurationPoller.ReportableException> getErrors() {
+  public Collection<ReportableException> getErrors() {
     return errors;
   }
 

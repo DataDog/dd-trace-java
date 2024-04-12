@@ -5,13 +5,12 @@ import java.io.IOException;
 
 public interface ProductListener {
   void accept(
-      ParsedConfigKey configKey,
+      ConfigKey configKey,
       byte[] content,
       ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
       throws IOException;
 
-  void remove(
-      ParsedConfigKey configKey, ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
+  void remove(ConfigKey configKey, ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
       throws IOException;
 
   void commit(ConfigurationChangesListener.PollingRateHinter pollingRateHinter);

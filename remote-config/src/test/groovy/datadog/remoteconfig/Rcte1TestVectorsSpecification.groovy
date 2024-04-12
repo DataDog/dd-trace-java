@@ -47,7 +47,7 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
     injectSysConfig('dd.rc.targets.key', PUBLIC_KEY)
     injectSysConfig('remote_config.integrity_check.enabled', 'true')
 
-    poller = new ConfigurationPoller(
+    poller = new DefaultConfigurationPoller(
       Config.get(),
       '0.0.0',
       'containerid',

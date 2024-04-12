@@ -12,7 +12,7 @@ public class SimpleProductListener implements ProductListener {
 
   @Override
   public void accept(
-      ParsedConfigKey configKey,
+      ConfigKey configKey,
       byte[] content,
       ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
       throws IOException {
@@ -21,7 +21,7 @@ public class SimpleProductListener implements ProductListener {
 
   @Override
   public void remove(
-      ParsedConfigKey configKey, ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
+      ConfigKey configKey, ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
       throws IOException {
     listener.accept(configKey.toString(), null, pollingRateHinter);
   }

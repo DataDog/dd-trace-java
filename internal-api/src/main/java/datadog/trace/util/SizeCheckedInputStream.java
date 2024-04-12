@@ -1,4 +1,4 @@
-package datadog.remoteconfig;
+package datadog.trace.util;
 
 import java.io.IOException;
 import java.io.InputStream;

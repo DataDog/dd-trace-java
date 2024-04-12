@@ -1,4 +1,5 @@
-package datadog.remoteconfig
+package datadog.trace.util
+
 
 import spock.lang.Specification
 
