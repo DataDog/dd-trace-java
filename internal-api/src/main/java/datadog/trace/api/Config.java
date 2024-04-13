@@ -2000,7 +2000,7 @@ public class Config {
         && (longRunningTraceInitialFlushInterval < 10
             || longRunningTraceInitialFlushInterval > 450)) {
       log.warn(
-          "Provided long running trace inital flush interval of {} seconds. It should be between 10 seconds and 7.5 minutes."
+          "Provided long running trace initial flush interval of {} seconds. It should be between 10 seconds and 7.5 minutes."
               + "Setting the flush interval to the default value of {} seconds .",
           longRunningTraceInitialFlushInterval,
           DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL);
@@ -2015,7 +2015,7 @@ public class Config {
           DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL);
       longRunningTraceFlushInterval = DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
     }
-    longRunningTraceEnabled = longRunningEnabled;
+    this.longRunningTraceEnabled = longRunningEnabled;
     this.longRunningTraceInitialFlushInterval = longRunningTraceInitialFlushInterval;
     this.longRunningTraceFlushInterval = longRunningTraceFlushInterval;
 

@@ -89,6 +89,7 @@ public class OtelSpan implements Span {
         this.delegate.setError(statusCode == ERROR);
         this.delegate.setErrorMessage(statusCode == ERROR ? description : null);
       } else if (this.statusCode == ERROR && statusCode == OK) {
+        this.statusCode = statusCode;
         this.delegate.setError(false);
         this.delegate.setErrorMessage(null);
       }
