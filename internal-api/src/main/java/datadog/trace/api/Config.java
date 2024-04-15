@@ -2071,9 +2071,7 @@ public class Config {
 
     if (appSecScaEnabled != null
         && appSecScaEnabled
-        && (!isTelemetryEnabled()
-            || !isTelemetryDependencyServiceEnabled()
-            || !isTelemetryLogCollectionEnabled())) {
+        && (!isTelemetryEnabled() || !isTelemetryDependencyServiceEnabled())) {
       log.warn("AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
 
