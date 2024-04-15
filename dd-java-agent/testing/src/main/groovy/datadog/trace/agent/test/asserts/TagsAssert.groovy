@@ -62,7 +62,9 @@ class TagsAssert {
     assertedTags.add(DDTags.PROFILING_ENABLED)
     assertedTags.add(DDTags.PROFILING_CONTEXT_ENGINE)
     assertedTags.add(DDTags.BASE_SERVICE)
-
+    assertedTags.add(DDTags.DD_ENTRY_LOCATION_FILE)
+    assertedTags.add(DDTags.DD_ENTRY_METHOD)
+    assertedTags.add(DDTags.DD_ENTRY_START_LINE)
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
 

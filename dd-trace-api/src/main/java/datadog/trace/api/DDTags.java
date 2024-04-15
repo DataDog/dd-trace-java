@@ -2,6 +2,10 @@ package datadog.trace.api;
 
 public class DDTags {
 
+  public static final String DD_ENTRY_LOCATION_FILE = "_dd.entry_location.file";
+  public static final String DD_ENTRY_METHOD = "_dd.entry_location.method";
+  public static final String DD_ENTRY_START_LINE = "_dd.entry_location.start_line";
+
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
   public static final String RESOURCE_NAME = "resource.name";

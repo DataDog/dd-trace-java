@@ -7,7 +7,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
-import datadog.trace.bootstrap.instrumentation.SpanOrigin;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -191,9 +190,9 @@ public abstract class BaseDecorator {
                     .findFirst()
                     .orElse(-1));
 
-    span.setTag(SpanOrigin.DD_ENTRY_LOCATION_FILE, className);
-    span.setTag(SpanOrigin.DD_ENTRY_METHOD, method);
-    span.setTag(SpanOrigin.DD_ENTRY_START_LINE, lineNumber);
+    span.setTag(DDTags.DD_ENTRY_LOCATION_FILE, className);
+    span.setTag(DDTags.DD_ENTRY_METHOD, method);
+    span.setTag(DDTags.DD_ENTRY_START_LINE, lineNumber);
   }
 
   /**
