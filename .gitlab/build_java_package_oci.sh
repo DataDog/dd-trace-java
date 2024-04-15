@@ -17,5 +17,5 @@ datadog-package create \
     --version="$VERSION" \
     --package="datadog-apm-library-java" \
     --archive=true \
-    --archive-path="datadog-apm-library-java-$VERSION.tar" \
+    --archive-path="datadog-apm-library-java-$VERSION-1.tar" \
     ./sources
