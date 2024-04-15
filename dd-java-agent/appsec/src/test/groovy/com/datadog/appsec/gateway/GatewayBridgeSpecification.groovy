@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
 
+import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -78,6 +79,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
+  BiConsumer<RequestContext, String> reqRouteCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -245,6 +247,14 @@ class GatewayBridgeSpecification extends DDSpecification {
     thrown(IllegalStateException)
     def data = bundle.get(KnownAddresses.HEADERS_NO_COOKIES)
     assert data == null || data.isEmpty()
+  }
+
+  void 'bridge can collect the route'() {
+    when:
+    reqRouteCB.accept(ctx, '/id/{id}/name/{name}')
+
+    then:
+    assert ctx.data.route == '/id/{id}/name/{name}'
   }
 
   void 'the socket address is distributed'() {

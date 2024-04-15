@@ -419,6 +419,15 @@ public class GatewayBridge {
             }
           }
         });
+
+    subscriptionService.registerCallback(
+        EVENTS.requestRoute(),
+        (ctx_, route) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx != null) {
+            ctx.setRoute(route);
+          }
+        });
   }
 
   public void stop() {

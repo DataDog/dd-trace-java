@@ -6,6 +6,7 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -200,6 +201,16 @@ public final class Events<D> {
       graphqlServerRequestMessage() {
     return (EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>)
         GRAPHQL_SERVER_REQUEST_MESSAGE;
+  }
+
+  static final int REQUEST_ROUTE_ID = 16;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType REQUEST_ROUTE = new ET<>("server.request.route", REQUEST_ROUTE_ID);
+  /** The route for the request */
+  @SuppressWarnings("unchecked")
+  public EventType<BiConsumer<RequestContext, String>> requestRoute() {
+    return (EventType<BiConsumer<RequestContext, String>>) REQUEST_ROUTE;
   }
 
   static final int MAX_EVENTS = nextId.get();

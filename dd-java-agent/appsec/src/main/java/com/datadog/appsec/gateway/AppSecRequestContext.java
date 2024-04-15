@@ -64,6 +64,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String peerAddress;
   private int peerPort;
   private String inferredClientIp;
+  private String route;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
 
@@ -304,6 +305,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   String getInferredClientIp() {
     return inferredClientIp;
+  }
+
+  public String getRoute() {
+    return route;
+  }
+
+  public void setRoute(String route) {
+    this.route = route;
   }
 
   void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
