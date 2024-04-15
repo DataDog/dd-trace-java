@@ -2238,7 +2238,7 @@ public class CapturedSnapshotTest {
     return installProbes(typeName, logProbes);
   }
 
-  private TestSnapshotListener installProbes(
+  protected TestSnapshotListener installProbes(
       String expectedClassName, Configuration configuration) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);

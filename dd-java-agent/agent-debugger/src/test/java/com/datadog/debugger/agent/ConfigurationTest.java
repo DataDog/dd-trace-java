@@ -293,6 +293,7 @@ public class ConfigurationTest {
         Arrays.asList(probe1, log1),
         Arrays.asList(span1),
         Arrays.asList(spanDecoration1),
+        null,
         allowList,
         denyList,
         globalSampling);
@@ -339,6 +340,7 @@ public class ConfigurationTest {
         Arrays.asList(probe2, log2),
         Arrays.asList(span2),
         Arrays.asList(spanDecoration2),
+        null,
         allowList,
         denyList,
         globalSampling);

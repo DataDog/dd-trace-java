@@ -28,9 +28,7 @@ public class MuzzleCheck implements ElementMatcher<ClassLoader> {
       return applicable;
     }
     boolean muzzleMatches = muzzle().matches(classLoader);
-    if (muzzleMatches) {
-      InstrumenterState.applyInstrumentation(classLoader, instrumentationId);
-    } else {
+    if (!muzzleMatches) {
       InstrumenterState.blockInstrumentation(classLoader, instrumentationId);
       if (log.isDebugEnabled()) {
         final List<Reference.Mismatch> mismatches =
