@@ -1,8 +1,3 @@
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
-import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
-
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.AlreadyClosedException
 import com.rabbitmq.client.Channel
@@ -29,11 +24,17 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.testcontainers.containers.RabbitMQContainer
 import spock.lang.Shared
+import spock.util.concurrent.PollingConditions
 
 import java.time.Duration
 import java.util.concurrent.Phaser
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES
 
 abstract class RabbitMQTestBase extends VersionedNamingTestBase {
   @Shared
@@ -605,6 +606,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
 
   def "test rabbit publish/get with given disabled queue (consumer side)"() {
     setup:
+    def conditions = new PollingConditions(timeout: 5)
     removeSysConfig(RABBIT_PROPAGATION_DISABLED_QUEUES)
 
     when:
@@ -673,16 +675,19 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled() && !noParent) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
-      verifyAll(first) {
-        edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
-        edgeTags.size() == 4
-      }
+      conditions.eventually {
+        // assert with retries in case DSM data is split in more groups that take a bit longer to arrive.
+        StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+        verifyAll(first) {
+          edgeTags == ["direction:out", "exchange:" + exchangeName, "has_routing_key:true", "type:rabbitmq"]
+          edgeTags.size() == 4
+        }
 
-      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
-      verifyAll(second) {
-        edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
-        edgeTags.size() == 3
+        StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+        verifyAll(second) {
+          edgeTags == ["direction:in", "topic:" + queueName, "type:rabbitmq"]
+          edgeTags.size() == 3
+        }
       }
     }
 
