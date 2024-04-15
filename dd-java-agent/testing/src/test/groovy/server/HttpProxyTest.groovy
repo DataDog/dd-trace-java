@@ -45,7 +45,7 @@ class HttpProxyTest extends AgentTestRunner {
   OkHttpClient client = OkHttpUtils.client(server, new ProxySelector() {
     @Override
     List<Proxy> select(URI uri) {
-      Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.port)))
+      Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("localhost", proxy.port)))
     }
 
     @Override
