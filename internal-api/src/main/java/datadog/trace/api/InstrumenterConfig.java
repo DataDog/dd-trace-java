@@ -8,6 +8,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SPAN_ORIGIN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
@@ -47,6 +48,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_L
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPAN_ORIGIN_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
@@ -97,6 +99,7 @@ public class InstrumenterConfig {
 
   private final boolean integrationsEnabled;
 
+  private final boolean spanOriginEnabled;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean logs128bTraceIdEnabled;
@@ -169,6 +172,7 @@ public class InstrumenterConfig {
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
 
+    spanOriginEnabled = configProvider.getBoolean(SPAN_ORIGIN_ENABLED, DEFAULT_SPAN_ORIGIN_ENABLED);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     logs128bTraceIdEnabled =
@@ -259,6 +263,10 @@ public class InstrumenterConfig {
 
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
+  }
+
+  public boolean isSpanOriginEnabled() {
+    return spanOriginEnabled;
   }
 
   public boolean isTriageEnabled() {
@@ -563,6 +571,8 @@ public class InstrumenterConfig {
         + runtimeContextFieldInjection
         + ", serialVersionUIDFieldInjection="
         + serialVersionUIDFieldInjection
+        + ", spanOriginEnabled="
+        + spanOriginEnabled
         + ", traceAnnotations='"
         + traceAnnotations
         + '\''
