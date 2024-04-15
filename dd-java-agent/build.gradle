@@ -240,7 +240,7 @@ dependencies {
   sharedShadowInclude project(':remote-config:api'), {
     transitive = false
   }
-  sharedShadowInclude project(':remote-config'), {
+  sharedShadowInclude project(':remote-config:core'), {
     transitive = false
   }
   sharedShadowInclude project(':utils:container-utils'), {

@@ -4,7 +4,7 @@ dependencies {
   implementation libs.slf4j
 
   api project(':remote-config:api')
-  implementation project(':remote-config')
+  implementation project(':remote-config:core')
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')

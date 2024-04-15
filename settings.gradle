@@ -67,8 +67,8 @@ include ':dd-java-agent:agent-otel:otel-tooling'
 
 include ':communication'
 include ':telemetry'
-include ':remote-config'
 include ':remote-config:api'
+include ':remote-config:core'
 
 include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
