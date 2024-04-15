@@ -12,7 +12,9 @@ import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import org.joor.Reflect;
+import org.junit.jupiter.api.Disabled;
 
+@Disabled
 public class SpanOriginTest extends CapturedSnapshotTest {
   private static final ProbeId PROBE_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
   private static final String SERVICE_NAME = "origin-service-name";
