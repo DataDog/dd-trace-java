@@ -82,7 +82,7 @@ public class DebuggerProductChangesListener implements ProductListener {
 
   private static final Predicate<String> IS_UUID =
       Pattern.compile(
-              "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$")
+              "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
           .asPredicate();
 
   private final String serviceName;
