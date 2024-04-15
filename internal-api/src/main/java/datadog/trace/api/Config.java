@@ -2069,7 +2069,11 @@ public class Config {
             ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
             ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
 
-    if (appSecScaEnabled != null && appSecScaEnabled && !isTelemetryEnabled()) {
+    if (appSecScaEnabled != null
+        && appSecScaEnabled
+        && (!isTelemetryEnabled()
+            || !isTelemetryDependencyServiceEnabled()
+            || !isTelemetryLogCollectionEnabled())) {
       log.warn("AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
 
