@@ -29,7 +29,7 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     iastCtx = Stub(IastContext)
   }
 
-  void 'test that get() is instrumented'() {
+  void 'test that #name get() is instrumented'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -42,12 +42,12 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     1 * module.taintIfTainted(iastCtx, 'value', headers, SourceTypes.REQUEST_HEADER_VALUE, 'key')
 
     where:
-    headers        | _
-    httpAdaptor()  | _
-    http2Adaptor() | _
+    headers        | name
+    httpAdaptor()  | 'HeadersAdaptor'
+    http2Adaptor() | 'Http2HeadersAdaptor'
   }
 
-  void 'test that getAll() is instrumented'() {
+  void 'test that #name getAll() is instrumented'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -69,12 +69,12 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     1 * module.taint(iastCtx, 'value2', SourceTypes.REQUEST_HEADER_VALUE, 'key')
 
     where:
-    headers        | _
-    httpAdaptor()  | _
-    http2Adaptor() | _
+    headers        | name
+    httpAdaptor()  | 'HeadersAdaptor'
+    http2Adaptor() | 'Http2HeadersAdaptor'
   }
 
-  void 'test that names() is instrumented'() {
+  void 'test that #name names() is instrumented'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
@@ -95,12 +95,12 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     1 * module.taint(iastCtx, 'key', SourceTypes.REQUEST_HEADER_NAME, 'key')
 
     where:
-    headers        | _
-    httpAdaptor()  | _
-    http2Adaptor() | _
+    headers        | name
+    httpAdaptor()  | 'HeadersAdaptor'
+    http2Adaptor() | 'Http2HeadersAdaptor'
   }
 
-  void 'test that entries() is instrumented'() {
+  void 'test that #name entries() is instrumented'() {
     given:
     // latest versions of vertx 3.x define the entries in the MultiMap interface, so we will lose propagation
     Assume.assumeTrue(hasMethod(headers.getClass(), 'entries'))
@@ -128,9 +128,9 @@ class HeadersAdaptorInstrumentationTest extends AgentTestRunner {
     }
 
     where:
-    headers        | _
-    httpAdaptor()  | _
-    http2Adaptor() | _
+    headers        | name
+    httpAdaptor()  | 'HeadersAdaptor'
+    http2Adaptor() | 'Http2HeadersAdaptor'
   }
 
   protected <E> E runUnderIastTrace(Closure<E> cl) {
