@@ -1,3 +1,5 @@
+import datadog.trace.test.util.Flaky
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 import io.vertx.core.AsyncResult
@@ -98,6 +100,7 @@ abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
     }
   }
 
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/6910")
   def "linsert (5 args)"() {
     when:
     def rpush = runWithParentAndHandler({ Handler<AsyncResult<Response>> h ->
