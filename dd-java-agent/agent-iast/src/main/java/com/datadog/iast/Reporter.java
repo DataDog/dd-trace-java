@@ -152,6 +152,9 @@ public class Reporter {
 
     @Override
     public boolean test(final Vulnerability vulnerability) {
+      if (!vulnerability.getType().isDeduplicable()) {
+        return false;
+      }
       final boolean newVulnerability = hashes.add(vulnerability.getHash());
       if (newVulnerability && hashes.size() > maxSize) {
         hashes.clear();

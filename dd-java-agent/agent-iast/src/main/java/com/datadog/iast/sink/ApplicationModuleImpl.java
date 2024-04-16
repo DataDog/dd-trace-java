@@ -44,32 +44,26 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
 
   private static final String CONTEXT_LOADER_LISTENER =
       "org.springframework.web.context.ContextLoaderListener";
-
   private static final String DISPATCHER_SERVLET =
       "org.springframework.web.servlet.DispatcherServlet";
-
   private static final String DEFAULT_HTML_ESCAPE = "defaultHtmlEscape";
-
-  private static final String TOMCAT_MANAGER_APPLICATION = "Tomcat Manager Application";
-
   private static final String LISTINGS_PATTERN = "<param-name>listings</param-name>";
-
   private static final String SESSION_TIMEOUT_START_TAG = "<session-timeout>";
-
   private static final String SESSION_TIMEOUT_END_TAG = "</session-timeout>";
-
   private static final String SECURITY_CONSTRAINT_START_TAG = "<security-constraint>";
-
   private static final String SECURITY_CONSTRAINT_END_TAG = "</security-constraint>";
-
   public static final String PARAM_VALUE_START_TAG = "<param-value>";
-
   public static final String PARAM_VALUE_END_TAG = "</param-value>";
-
+  public static final String DISPLAY_NAME_START_TAG = "<display-name>";
+  public static final String DISPLAY_NAME_END_TAG = "</display-name>";
+  static final String TOMCAT_MANAGER_APP = "Tomcat Manager Application";
+  private static final String TOMCAT_MANAGER_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + TOMCAT_MANAGER_APP + DISPLAY_NAME_END_TAG;
+  static final String TOMCAT_HOST_MANAGER_APP = "Tomcat Host Manager Application";
+  private static final String TOMCAT_HOST_MANAGER_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + TOMCAT_HOST_MANAGER_APP + DISPLAY_NAME_END_TAG;
   public static final String WEB_INF = "WEB-INF";
-
   public static final String WEB_XML = "web.xml";
-
   static final String SESSION_REWRITING_EVIDENCE_VALUE = "Servlet URL Session Tracking Mode";
 
   private static final Pattern PATTERN =
@@ -78,7 +72,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
                   CONTEXT_LOADER_LISTENER,
                   DISPATCHER_SERVLET,
                   DEFAULT_HTML_ESCAPE,
-                  TOMCAT_MANAGER_APPLICATION,
+                  TOMCAT_MANAGER_APP_PATTERN,
+                  TOMCAT_HOST_MANAGER_APP_PATTERN,
                   LISTINGS_PATTERN,
                   SESSION_TIMEOUT_START_TAG,
                   SECURITY_CONSTRAINT_START_TAG)
@@ -91,6 +86,11 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     super(dependencies);
   }
 
+  /**
+   * Overhead is not checked here as it's called once per application context
+   *
+   * @param realPath the real path of the application
+   */
   @Override
   public void onRealPath(final @Nullable String realPath) {
     if (realPath == null) {
@@ -105,13 +105,18 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     checkWebXmlVulnerabilities(root, span);
   }
 
+  /**
+   * Overhead is not checked here as it's called once per application context
+   *
+   * @param sessionTrackingModes the session tracking modes
+   */
   @Override
   public void checkSessionTrackingModes(@Nonnull Set<String> sessionTrackingModes) {
     if (!sessionTrackingModes.contains("URL")) {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    // overhead is not checked here as it's called once per application context
+    // No deduplication is needed as same service can have multiple applications
     reporter.report(
         span,
         new Vulnerability(
@@ -140,8 +145,11 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case DEFAULT_HTML_ESCAPE:
           defaultHtmlEscapeIndex = matcher.start();
           break;
-        case TOMCAT_MANAGER_APPLICATION:
-          reportAdminConsoleActive(span);
+        case TOMCAT_MANAGER_APP_PATTERN:
+          reportAdminConsoleActive(span, TOMCAT_MANAGER_APP);
+          break;
+        case TOMCAT_HOST_MANAGER_APP_PATTERN:
+          reportAdminConsoleActive(span, TOMCAT_HOST_MANAGER_APP);
           break;
         case LISTINGS_PATTERN:
           checkDirectoryListingLeak(webXmlContent, matcher.start(), span);
@@ -186,8 +194,14 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
   }
 
-  private void reportAdminConsoleActive(AgentSpan span) {
-    report(span, VulnerabilityType.ADMIN_CONSOLE_ACTIVE, "Tomcat Manager Application", NO_LINE);
+  private void reportAdminConsoleActive(AgentSpan span, final String evidence) {
+    // No deduplication is needed as same service can have multiple applications
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.ADMIN_CONSOLE_ACTIVE,
+            Location.forSpan(span),
+            new Evidence(evidence)));
   }
 
   private void checkDirectoryListingLeak(
