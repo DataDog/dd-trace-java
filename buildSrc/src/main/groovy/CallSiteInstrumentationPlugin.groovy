@@ -20,6 +20,7 @@ import java.nio.file.Paths
 
 import static groovy.io.FileType.FILES
 
+@SuppressWarnings('unused')
 @CompileStatic
 class CallSiteInstrumentationPlugin implements Plugin<Project> {
 
@@ -39,9 +40,9 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     final targetFolder = newBuildFolder(target, extension.targetFolder)
     final sourceSets = getSourceSets(target)
     final csiSourceSet = sourceSets.create('csi')
-    final mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
-    final csiConfiguration = target.configurations.getByName(csiSourceSet.compileClasspathConfigurationName)
-    final mainConfiguration = target.configurations.getByName(mainSourceSet.compileClasspathConfigurationName)
+    final mainSourceSet = sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME).get()
+    final csiConfiguration = target.configurations.named(csiSourceSet.compileClasspathConfigurationName).get()
+    final mainConfiguration = target.configurations.named(mainSourceSet.compileClasspathConfigurationName).get()
     csiConfiguration.extendsFrom(mainConfiguration)
     csiSourceSet.compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
     csiSourceSet.annotationProcessorPath += mainSourceSet.annotationProcessorPath
@@ -53,7 +54,7 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     }
 
     // add csi classes to test classpath
-    final testSourceSet = sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME)
+    final testSourceSet = sourceSets.named(SourceSet.TEST_SOURCE_SET_NAME).get()
     testSourceSet.compileClasspath += csiSourceSet.output.classesDirs
     testSourceSet.runtimeClasspath += csiSourceSet.output.classesDirs
     target.dependencies.add('testImplementation', csiSourceSet.output)
@@ -63,24 +64,21 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
   }
 
   private static void createTasks(final Project target) {
-    final compileTask = (AbstractCompile) target.tasks.findByName('compileJava')
+    final compileTask = (AbstractCompile) target.tasks.named('compileJava').get()
     final extension = target.extensions.getByType(CallSiteInstrumentationExtension)
     final input = compileTask.destinationDirectory
     final output = target.layout.buildDirectory.dir(extension.targetFolder)
     final targetFolder = output.get().asFile
     createGenerateCallSiteTask(target, compileTask, input, output)
-    target.tasks.matching { Task task -> task.name.startsWith('compileTest') }.all {
-      final compileTestTask = (AbstractCompile) it
-      compileTestTask.classpath = compileTestTask.classpath + target.files(targetFolder)
+    target.tasks.matching { Task task -> task.name.startsWith('compileTest') }.configureEach {
+      ((AbstractCompile) it).classpath += target.files(targetFolder)
     }
-    target.tasks.matching { Task task -> task instanceof Test }.all {
-      final testTask = (Test) it
-      testTask.classpath = testTask.classpath + target.files(targetFolder)
+    target.tasks.matching { Task task -> task instanceof Test }.configureEach {
+      ((Test) it).classpath += target.files(targetFolder)
     }
   }
 
   private static File newBuildFolder(final Project target, final String name) {
-    final folder = new File(target.buildDir, name)
     if (folder.exists()) {
       folder.traverse(type: FILES) {
         if (!it.delete()) {
@@ -112,7 +110,7 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
                                                  final Provider<Directory> output) {
     final extension = target.extensions.getByType(CallSiteInstrumentationExtension)
     final taskName = compileTask.name.replace('compile', 'generateCallSite')
-    final callSiteGeneratorTask = target.tasks.create(taskName, JavaExec)
+    final callSiteGeneratorTask = target.tasks.register(taskName, JavaExec).get()
     final stdout = new ByteArrayOutputStream()
     final stderr = new ByteArrayOutputStream()
     callSiteGeneratorTask.group = 'call site instrumentation'
@@ -134,7 +132,7 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     callSiteGeneratorTask.setIgnoreExitValue(true)
     // pass the arguments to the main via file to prevent issues with too long classpaths
     callSiteGeneratorTask.doFirst { JavaExec execTask ->
-      final argumentFile = newTempFile(execTask.getTemporaryDir(), "call-site-arguments")
+      final argumentFile = newTempFile(execTask.getTemporaryDir(), 'call-site-arguments')
       argumentFile.withWriter {
         it.writeLine(target.getProjectDir().toPath().resolve(extension.srcFolder).toString())
         it.writeLine(input.get().asFile.toString())
@@ -156,28 +154,28 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
     // insert task after compile
     callSiteGeneratorTask.dependsOn(compileTask)
     final sourceSets = getSourceSets(target)
-    final mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+    final mainSourceSet = sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME).get()
     target.tasks.named(mainSourceSet.classesTaskName).configure { it.dependsOn(callSiteGeneratorTask) }
 
     // compile generated sources
-    final csiSourceSet = sourceSets.getByName('csi')
+    final csiSourceSet = sourceSets.named('csi').get()
     target.tasks.named(csiSourceSet.compileJavaTaskName).configure { callSiteGeneratorTask.finalizedBy(it) }
   }
 
   private static List<File> getProgramClasspath(final Project project) {
     final List<File> classpath = []
     // 1. Compilation outputs
-    project.tasks.matching { Task task -> task instanceof AbstractCompile }.all {
+    project.tasks.matching { Task task -> task instanceof AbstractCompile }.configureEach {
       final compileTask = (AbstractCompile) it
       classpath.add(compileTask.destinationDirectory.getAsFile().get())
     }
     // 2. Compile time dependencies
-    project.tasks.matching { Task task -> task instanceof AbstractCompile }.all {
+    project.tasks.matching { Task task -> task instanceof AbstractCompile }.configureEach {
       final compileTask = (AbstractCompile) it
       compileTask.classpath.every { classpath.add(it) }
     }
     // 3. Test time dependencies
-    project.tasks.matching { Task task -> task instanceof Test }.all {
+    project.tasks.matching { Task task -> task instanceof Test }.configureEach {
       final testTask = (Test) it
       testTask.classpath.every { classpath.add(it) }
     }
