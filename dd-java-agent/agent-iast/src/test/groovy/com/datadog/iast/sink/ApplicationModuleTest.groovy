@@ -84,6 +84,7 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     } else {
       0 * reporter.report(_, _)
     }
+    0 * reporter.report(_, _)
 
     where:
     sessionTrackingModes        | expected
