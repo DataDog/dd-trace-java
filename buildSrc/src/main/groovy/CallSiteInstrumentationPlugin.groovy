@@ -18,8 +18,6 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 import java.nio.file.Paths
 
-import static groovy.io.FileType.FILES
-
 @SuppressWarnings('unused')
 @CompileStatic
 class CallSiteInstrumentationPlugin implements Plugin<Project> {
@@ -79,13 +77,8 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
   }
 
   private static File newBuildFolder(final Project target, final String name) {
-    if (folder.exists()) {
-      folder.traverse(type: FILES) {
-        if (!it.delete()) {
-          throw new GradleException("Cannot delete stale file $it")
-        }
-      }
-    } else {
+    final folder = target.layout.buildDirectory.dir(name).get().asFile
+    if (!folder.exists()) {
       if (!folder.mkdirs()) {
         throw new GradleException("Cannot create folder $folder")
       }
