@@ -42,6 +42,14 @@ benchmarks-load:
     - ./steps/run-benchmarks.sh load
     - ./steps/analyze-results.sh load
 
+benchmarks-dacapo:
+  extends: .benchmarks
+  script:
+    - !reference [ .benchmarks, script ]
+    - ./steps/capture-hardware-software-info.sh
+    - ./steps/run-benchmarks.sh dacapo
+    - ./steps/analyze-results.sh dacapo
+
 benchmarks-post-results:
   extends: .benchmarks
   script:
@@ -52,6 +60,8 @@ benchmarks-post-results:
     - job: benchmarks-startup
       artifacts: true
     - job: benchmarks-load
+      artifacts: true
+    - job: benchmarks-dacapo
       artifacts: true
 
 .dsm-kafka-benchmarks:
