@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.api.Config;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.FlushEvent;
 import datadog.trace.common.writer.ddagent.Prioritization;
@@ -16,6 +17,7 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.postprocessor.SpanPostProcessor;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -270,6 +272,7 @@ public class TraceProcessingWorker implements AutoCloseable {
         if (event instanceof List) {
           List<DDSpan> trace = (List<DDSpan>) event;
           maybeTracePostProcessing(trace);
+          closeRequestContext(trace);
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           payloadDispatcher.addTrace(trace);
         } else if (event instanceof FlushEvent) {
@@ -367,6 +370,24 @@ public class TraceProcessingWorker implements AutoCloseable {
         if (log.isDebugEnabled()) {
           log.debug("Error while trace post-processing", e);
         }
+      }
+    }
+
+    private void closeRequestContext(List<DDSpan> trace) {
+      if (trace == null || trace.isEmpty()) {
+        return;
+      }
+
+      DDSpan rootSpan = trace.get(0);
+      RequestContext requestContext = rootSpan.getRequestContext();
+      if (requestContext == null) {
+        return;
+      }
+
+      try {
+        requestContext.close();
+      } catch (IOException e) {
+        log.warn("Error closing request context data", e);
       }
     }
   }

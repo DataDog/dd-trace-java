@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -200,6 +201,17 @@ public final class Events<D> {
       graphqlServerRequestMessage() {
     return (EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>)
         GRAPHQL_SERVER_REQUEST_MESSAGE;
+  }
+
+  static final int POST_PROCESSING_ID = 16;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType POST_PROCESSING =
+      new ET<>("trace.post.processing", POST_PROCESSING_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<Consumer<RequestContext>> postProcessing() {
+    return (EventType<Consumer<RequestContext>>) POST_PROCESSING;
   }
 
   static final int MAX_EVENTS = nextId.get();

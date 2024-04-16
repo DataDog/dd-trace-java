@@ -946,10 +946,12 @@ public class DDSpanContext
     return "_dd." + key + ".json";
   }
 
+  @Override
   public void setRequiresPostProcessing(boolean postProcessing) {
     this.requiresPostProcessing = postProcessing;
   }
 
+  @Override
   public boolean isRequiresPostProcessing() {
     return requiresPostProcessing;
   }

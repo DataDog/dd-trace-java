@@ -3,7 +3,6 @@ package com.datadog.appsec.gateway;
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 
 import com.datadog.appsec.AppSecSystem;
-import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
@@ -63,7 +62,6 @@ public class GatewayBridge {
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final RateLimiter rateLimiter;
-  private final ApiSecurityRequestSampler requestSampler;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
   // subscriber cache
@@ -80,12 +78,10 @@ public class GatewayBridge {
       SubscriptionService subscriptionService,
       EventProducerService producerService,
       RateLimiter rateLimiter,
-      ApiSecurityRequestSampler requestSampler,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
     this.rateLimiter = rateLimiter;
-    this.requestSampler = requestSampler;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
@@ -111,11 +107,6 @@ public class GatewayBridge {
           if (ctx == null) {
             return NoopFlow.INSTANCE;
           }
-
-          maybeExtractSchemas(ctx);
-
-          // WAF call
-          ctx.closeAdditive();
 
           TraceSegment traceSeg = ctx_.getTraceSegment();
 
@@ -175,11 +166,6 @@ public class GatewayBridge {
               }
             }
 
-            // If extracted any Api Schemas - commit them
-            if (!ctx.commitApiSchemas(traceSeg)) {
-              log.debug("Unable to commit, api security schemas and will be skipped");
-            }
-
             if (ctx.isBlocked()) {
               WafMetricCollector.get().wafRequestBlocked();
             } else if (!collectedEvents.isEmpty()) {
@@ -189,7 +175,7 @@ public class GatewayBridge {
             }
           }
 
-          ctx.close();
+          // ctx.close();
           return NoopFlow.INSTANCE;
         });
 
@@ -234,6 +220,7 @@ public class GatewayBridge {
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
               try {
+                ctx_.setRequiresPostProcessing(true);
                 return producerService.publishDataEvent(subInfo, ctx, bundle, false);
               } catch (ExpiredSubscriberInfoException e) {
                 pathParamsSubInfo = null;
@@ -305,6 +292,7 @@ public class GatewayBridge {
                   new SingletonDataBundle<>(
                       KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
               try {
+                ctx_.setRequiresPostProcessing(true);
                 return producerService.publishDataEvent(subInfo, ctx, bundle, false);
               } catch (ExpiredSubscriberInfoException e) {
                 requestBodySubInfo = null;
@@ -322,7 +310,7 @@ public class GatewayBridge {
           }
           ctx.setPeerAddress(ip);
           ctx.setPeerPort(port);
-          return maybePublishRequestData(ctx);
+          return maybePublishRequestData(ctx_, ctx);
         });
 
     subscriptionService.registerCallback(
@@ -419,6 +407,27 @@ public class GatewayBridge {
             }
           }
         });
+
+    subscriptionService.registerCallback(
+        EVENTS.postProcessing(),
+        (ctx_) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null) {
+            return;
+          }
+
+          maybeExtractSchemas(ctx);
+          ctx.closeAdditive();
+
+          TraceSegment traceSeg = ctx_.getTraceSegment();
+
+          if (traceSeg != null) {
+            // If extracted any Api Schemas - commit them
+            if (!ctx.commitApiSchemas(traceSeg)) {
+              log.debug("Unable to commit, api security schemas and will be skipped");
+            }
+          }
+        });
   }
 
   public void stop() {
@@ -474,7 +483,7 @@ public class GatewayBridge {
         return NoopFlow.INSTANCE;
       }
       ctx.finishRequestHeaders();
-      return maybePublishRequestData(ctx);
+      return maybePublishRequestData(ctx_, ctx);
     }
   }
 
@@ -510,11 +519,11 @@ public class GatewayBridge {
           log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
         }
       }
-      return maybePublishRequestData(ctx);
+      return maybePublishRequestData(ctx_, ctx);
     }
   }
 
-  private Flow<Void> maybePublishRequestData(AppSecRequestContext ctx) {
+  private Flow<Void> maybePublishRequestData(RequestContext reqCtx, AppSecRequestContext ctx) {
     String savedRawURI = ctx.getSavedRawURI();
 
     if (savedRawURI == null || !ctx.isFinishedRequestHeaders() || ctx.getPeerAddress() == null) {
@@ -568,6 +577,7 @@ public class GatewayBridge {
       }
 
       try {
+        reqCtx.setRequiresPostProcessing(true);
         return producerService.publishDataEvent(subInfo, ctx, bundle, false);
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;
@@ -608,10 +618,7 @@ public class GatewayBridge {
   }
 
   private void maybeExtractSchemas(AppSecRequestContext ctx) {
-    boolean extractSchema = false;
-    if (Config.get().isApiSecurityEnabled() && requestSampler != null) {
-      extractSchema = requestSampler.sampleRequest();
-    }
+    boolean extractSchema = Config.get().isApiSecurityEnabled();
 
     if (!extractSchema) {
       return;

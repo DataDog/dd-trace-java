@@ -956,17 +956,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     if (null != rootSpan) {
       onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
-
-      // request context is propagated to contexts in child spans
-      // Assume here that if present it will be so starting in the top span
-      RequestContext requestContext = rootSpan.getRequestContext();
-      if (requestContext != null) {
-        try {
-          requestContext.close();
-        } catch (IOException e) {
-          log.warn("Error closing request context data", e);
-        }
-      }
     }
   }
 

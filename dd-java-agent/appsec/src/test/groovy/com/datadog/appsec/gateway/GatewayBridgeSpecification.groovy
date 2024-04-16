@@ -50,6 +50,15 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
 
     @Override
+    boolean isRequiresPostProcessing() {
+      return false
+    }
+
+    @Override
+    void setRequiresPostProcessing(boolean postProcessing) {
+    }
+
+    @Override
     void close() throws IOException {}
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -60,7 +69,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -729,6 +738,14 @@ class GatewayBridgeSpecification extends DDSpecification {
         @Override
         final TraceSegment getTraceSegment() {
           GatewayBridgeSpecification.this.traceSegment
+        }
+
+        @Override
+        void setRequiresPostProcessing(boolean postProcessing) {}
+
+        @Override
+        boolean isRequiresPostProcessing() {
+          return false
         }
 
         @Override
