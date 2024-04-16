@@ -91,6 +91,11 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     super(dependencies);
   }
 
+  /**
+   * Overhead is not checked here as it's called once per application context
+   *
+   * @param realPath the real path of the application
+   */
   @Override
   public void onRealPath(final @Nullable String realPath) {
     if (realPath == null) {
@@ -105,13 +110,17 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     checkWebXmlVulnerabilities(root, span);
   }
 
+  /**
+   * Overhead is not checked here as it's called once per application context
+   *
+   * @param sessionTrackingModes the session tracking modes
+   */
   @Override
   public void checkSessionTrackingModes(@Nonnull Set<String> sessionTrackingModes) {
     if (!sessionTrackingModes.contains("URL")) {
       return;
     }
     final AgentSpan span = AgentTracer.activeSpan();
-    // overhead is not checked here as it's called once per application context
     // No deduplication is needed as same service can have multiple applications
     reporter.report(
         span,
@@ -188,7 +197,13 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   }
 
   private void reportAdminConsoleActive(AgentSpan span) {
-    report(span, VulnerabilityType.ADMIN_CONSOLE_ACTIVE, "Tomcat Manager Application", NO_LINE);
+    // No deduplication is needed as same service can have multiple applications
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.ADMIN_CONSOLE_ACTIVE,
+            Location.forSpan(span),
+            new Evidence("Tomcat Manager Application")));
   }
 
   private void checkDirectoryListingLeak(
