@@ -127,5 +127,14 @@
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true}
     ]
+  },
+  {
+    "name" : "sun.misc.SharedSecrets",
+    "methods": [
+      { "name": "getJavaLangAccess" }
+    ],
+    "fields": [
+      { "name" : "javaLangAccess"}
+    ]
   }
 ]
