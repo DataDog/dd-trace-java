@@ -128,7 +128,7 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
 
     final rootFolder = extension.rootFolder ?: target.rootDir
     final path = Paths.get(rootFolder.toString(),
-      'buildSrc', 'call-site-instrumentation-plugin', 'build', 'libs', 'call-site-instrumentation-plugin.jar')
+      'buildSrc', 'call-site-instrumentation-plugin', 'build', 'libs', 'call-site-instrumentation-plugin-all.jar')
     callSiteGeneratorTask.jvmArgs(extension.jvmArgs)
     callSiteGeneratorTask.classpath(path.toFile())
     callSiteGeneratorTask.setIgnoreExitValue(true)
