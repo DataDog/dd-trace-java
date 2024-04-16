@@ -3,7 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   java
   groovy
-  id("com.diffplug.spotless") version "6.11.0"
+  id("com.diffplug.spotless") version "6.13.0"
   id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
