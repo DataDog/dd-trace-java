@@ -198,7 +198,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
 
   private void reportAdminConsoleActive(AgentSpan span) {
     // No deduplication is needed as same service can have multiple applications
-    reporter.noDedupReport(
+    reporter.report(
         span,
         new Vulnerability(
             VulnerabilityType.ADMIN_CONSOLE_ACTIVE,
