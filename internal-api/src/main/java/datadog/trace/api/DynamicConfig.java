@@ -14,7 +14,6 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
 import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
-
 import datadog.trace.util.Strings;
 import java.util.Collection;
 import java.util.Collections;
@@ -130,7 +129,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.tracingTags = snapshot.tracingTags;
       this.preferredServiceName = snapshot.preferredServiceName;
 
-      this.traceSamplingRules=snapshot.traceSamplingRules;
+      this.traceSamplingRules = snapshot.traceSamplingRules;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
