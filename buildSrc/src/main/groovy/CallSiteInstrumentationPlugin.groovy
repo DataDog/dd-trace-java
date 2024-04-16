@@ -88,12 +88,10 @@ class CallSiteInstrumentationPlugin implements Plugin<Project> {
 
   private static File newTempFile(final File folder, final String name) {
     final file = new File(folder, name)
-    file.deleteOnExit()
-    if (file.exists()) {
-      file.text = ''
-    } else if (!file.createNewFile()) {
+    if (!file.exists() && !file.createNewFile()) {
       throw new GradleException("Cannot create temporary file: $file")
     }
+    file.deleteOnExit()
     return file
   }
 
