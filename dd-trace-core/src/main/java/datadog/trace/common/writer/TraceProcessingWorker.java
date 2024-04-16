@@ -352,14 +352,20 @@ public class TraceProcessingWorker implements AutoCloseable {
         return;
       }
 
-      long timeout = Config.get().getTracePostProcessingTimeout();
-      long deadline = System.currentTimeMillis() + timeout;
-      BooleanSupplier timeoutCheck = () -> System.currentTimeMillis() > deadline;
+      try {
+        long timeout = Config.get().getTracePostProcessingTimeout();
+        long deadline = System.currentTimeMillis() + timeout;
+        BooleanSupplier timeoutCheck = () -> System.currentTimeMillis() > deadline;
 
-      for (DDSpan span : spansToPostProcess) {
-        if (!spanPostProcessor.process(span, timeoutCheck)) {
-          log.debug("Span post-processing interrupted due to timeout.");
-          break;
+        for (DDSpan span : spansToPostProcess) {
+          if (!spanPostProcessor.process(span, timeoutCheck)) {
+            log.debug("Span post-processing interrupted due to timeout.");
+            break;
+          }
+        }
+      } catch (Throwable e) {
+        if (log.isDebugEnabled()) {
+          log.debug("Error while trace post-processing", e);
         }
       }
     }
