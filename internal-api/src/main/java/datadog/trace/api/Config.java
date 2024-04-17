@@ -436,6 +436,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOU
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.TRACE_POST_PROCESSING_TIMEOUT;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_EXTRACT;
@@ -928,6 +929,7 @@ public class Config {
 
   private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
+  private final long tracePostProcessingTimeout;
 
   private final boolean telemetryDebugRequestsEnabled;
 
@@ -2042,6 +2044,10 @@ public class Config {
           "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
     }
 
+    this.tracePostProcessingTimeout =
+        configProvider.getLong(
+            TRACE_POST_PROCESSING_TIMEOUT, ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
+
     if (isCiVisibilityEnabled()
         && ciVisibilityAgentlessEnabled
         && (apiKey == null || apiKey.isEmpty())) {
@@ -2140,6 +2146,10 @@ public class Config {
 
   public float getTraceFlushIntervalSeconds() {
     return traceFlushIntervalSeconds;
+  }
+
+  public long getTracePostProcessingTimeout() {
+    return tracePostProcessingTimeout;
   }
 
   public boolean isIntegrationSynapseLegacyOperationName() {
