@@ -456,6 +456,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
@@ -2072,7 +2073,9 @@ public class Config {
     if (appSecScaEnabled != null
         && appSecScaEnabled
         && (!isTelemetryEnabled() || !isTelemetryDependencyServiceEnabled())) {
-      log.warn("AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
+      log.warn(
+          SEND_TELEMETRY,
+          "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
 
     log.debug("New instance: {}", this);
