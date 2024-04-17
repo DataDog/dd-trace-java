@@ -11,6 +11,7 @@ import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -356,31 +357,45 @@ public final class OkHttpUtils {
     }
   }
 
+  /**
+   * Retries a request in accordance with the provided retry policy. <strong>Important:</strong>
+   * interrupts to a thread executing this method are ignored (the thread's interruption flag is
+   * restored on exit)
+   */
   public static Response sendWithRetries(
       OkHttpClient httpClient, HttpRetryPolicy retryPolicy, Request request) throws IOException {
-    while (true) {
-      try {
-        okhttp3.Response response = httpClient.newCall(request).execute();
-        if (response.isSuccessful()) {
-          return response;
+    boolean interrupted = false;
+    try {
+
+      while (true) {
+        try {
+          Response response = httpClient.newCall(request).execute();
+          if (response.isSuccessful()) {
+            return response;
+          }
+          if (!retryPolicy.shouldRetry(response)) {
+            return response;
+          } else {
+            closeQuietly(response);
+          }
+        } catch (ConnectException | InterruptedIOException ex) {
+          if (!retryPolicy.shouldRetry(null)) {
+            throw ex;
+          }
         }
-        if (!retryPolicy.shouldRetry(response)) {
-          return response;
-        } else {
-          closeQuietly(response);
-        }
-      } catch (ConnectException ex) {
-        if (!retryPolicy.shouldRetry(null)) {
-          throw ex;
+        // If we get here, there has been an error, and we still have retries left
+        long backoffMs = retryPolicy.backoff();
+        try {
+          Thread.sleep(backoffMs);
+        } catch (InterruptedException e) {
+          // remember interrupted status to restore the thread's interrupted flag later
+          interrupted = true;
         }
       }
-      // If we get here, there has been an error, and we still have retries left
-      long backoffMs = retryPolicy.backoff();
-      try {
-        Thread.sleep(backoffMs);
-      } catch (InterruptedException e) {
+
+    } finally {
+      if (interrupted) {
         Thread.currentThread().interrupt();
-        throw new IOException(e);
       }
     }
   }
