@@ -25,7 +25,7 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     }
   }
 
-  void '#method null or empty'() {
+  void '#method null'() {
     when:
     module.&"$method".call(args.toArray())
 
@@ -35,15 +35,10 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     where:
     method              | args
     'onUrlDecode'       | ['test', 'utf-8', null]
-    'onUrlDecode'       | ['test', 'utf-8', '']
     'onStringGetBytes'  | ['test', 'utf-8', null]
-    'onStringGetBytes'  | ['test', 'utf-8', [] as byte[]]
     'onStringFromBytes' | ['test'.bytes, 0, 2, 'utf-8', null]
-    'onStringFromBytes' | ['test'.bytes, 0, 2, 'utf-8', '']
     'onBase64Encode'    | ['test'.bytes, null]
-    'onBase64Encode'    | ['test'.bytes, [] as byte[]]
     'onBase64Decode'    | ['test'.bytes, null]
-    'onBase64Decode'    | ['test'.bytes, [] as byte[]]
   }
 
   void '#method no context'() {

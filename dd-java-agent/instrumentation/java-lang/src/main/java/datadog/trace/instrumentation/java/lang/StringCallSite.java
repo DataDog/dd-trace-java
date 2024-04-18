@@ -123,7 +123,7 @@ public class StringCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-        module.onStringJoin(result, delimiter, copy.toArray(new CharSequence[copy.size()]));
+        module.onStringJoin(result, delimiter, copy.toArray(new CharSequence[0]));
       } catch (final Throwable e) {
         module.onUnexpectedException("afterSubSequence threw", e);
       }
@@ -412,7 +412,7 @@ public class StringCallSite {
   public static String[] afterSplitWithLimit(
       @CallSite.This @Nonnull final String self,
       @CallSite.Argument(0) @Nonnull final String regex,
-      @CallSite.Argument(1) @Nonnull final int pos,
+      @CallSite.Argument(1) final int pos,
       @CallSite.Return @Nonnull final String[] result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {

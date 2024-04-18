@@ -69,9 +69,14 @@ trait IastRequestContextPreparationTrait {
         return tainted
       }
 
-      private final static Logger LOGGER = LoggerFactory.getLogger("map tainted objects")
-      static {
-        ((ch.qos.logback.classic.Logger) LOGGER).level = ch.qos.logback.classic.Level.DEBUG
+      private final static Logger LOGGER = withLogger("map tainted objects")
+
+      private static Logger withLogger(final String name) {
+        final logger = LoggerFactory.getLogger(name)
+        if (logger instanceof ch.qos.logback.classic.Logger) {
+          ((ch.qos.logback.classic.Logger) logger).level = ch.qos.logback.classic.Level.DEBUG
+        }
+        return logger
       }
 
       private static void logTaint(Object o) {
