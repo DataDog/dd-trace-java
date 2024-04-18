@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.utils;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.context.TraceScope;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.Strings;
@@ -83,35 +85,38 @@ public class ShellCommandExecutor {
   private <T> T executeCommand(
       OutputParser<T> outputParser, byte[] input, boolean readFromError, String... command)
       throws IOException, TimeoutException, InterruptedException {
-    ProcessBuilder processBuilder = new ProcessBuilder(command);
-    processBuilder.directory(executionFolder);
+    Process p = null;
 
-    Process p = processBuilder.start();
+    // mute tracing to prevent process instrumentation from creating a span for the forked process
+    try (TraceScope scope = AgentTracer.get().muteTracing()) {
+      ProcessBuilder processBuilder = new ProcessBuilder(command);
+      processBuilder.directory(executionFolder);
 
-    StreamConsumer inputStreamConsumer = new StreamConsumer(p.getInputStream());
-    Thread inputStreamThread =
-        AgentThreadFactory.newAgentThread(
-            AgentThread.CI_SHELL_COMMAND,
-            "-input-stream-consumer-" + command[0],
-            inputStreamConsumer,
-            true);
-    inputStreamThread.start();
+      p = processBuilder.start();
 
-    StreamConsumer errorStreamConsumer = new StreamConsumer(p.getErrorStream());
-    Thread errorStreamThread =
-        AgentThreadFactory.newAgentThread(
-            AgentThread.CI_SHELL_COMMAND,
-            "-error-stream-consumer-" + command[0],
-            errorStreamConsumer,
-            true);
-    errorStreamThread.start();
+      StreamConsumer inputStreamConsumer = new StreamConsumer(p.getInputStream());
+      Thread inputStreamThread =
+          AgentThreadFactory.newAgentThread(
+              AgentThread.CI_SHELL_COMMAND,
+              "-input-stream-consumer-" + command[0],
+              inputStreamConsumer,
+              true);
+      inputStreamThread.start();
 
-    if (input != null) {
-      p.getOutputStream().write(input);
-      p.getOutputStream().close();
-    }
+      StreamConsumer errorStreamConsumer = new StreamConsumer(p.getErrorStream());
+      Thread errorStreamThread =
+          AgentThreadFactory.newAgentThread(
+              AgentThread.CI_SHELL_COMMAND,
+              "-error-stream-consumer-" + command[0],
+              errorStreamConsumer,
+              true);
+      errorStreamThread.start();
 
-    try {
+      if (input != null) {
+        p.getOutputStream().write(input);
+        p.getOutputStream().close();
+      }
+
       if (p.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)) {
         int exitValue = p.exitValue();
         if (exitValue != 0) {
@@ -152,6 +157,9 @@ public class ShellCommandExecutor {
   }
 
   private void terminate(Process p) throws InterruptedException {
+    if (p == null) {
+      return;
+    }
     p.destroy();
     try {
       if (!p.waitFor(NORMAL_TERMINATION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
