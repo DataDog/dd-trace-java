@@ -43,7 +43,7 @@ public class DDIntakeApi extends RemoteApi {
 
     HttpUrl hostUrl = null;
     OkHttpClient httpClient = null;
-    HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
+    HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
     private String apiKey;
 
@@ -134,9 +134,8 @@ public class DDIntakeApi extends RemoteApi {
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 
-    HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
     try (okhttp3.Response response =
-        OkHttpUtils.sendWithRetries(httpClient, retryPolicy, request)) {
+        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         return Response.success(response.code());

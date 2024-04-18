@@ -11,7 +11,6 @@ import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;
 import java.io.IOException;
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.ByteBuffer;
@@ -357,30 +356,27 @@ public final class OkHttpUtils {
   }
 
   public static Response sendWithRetries(
-      OkHttpClient httpClient, HttpRetryPolicy retryPolicy, Request request) throws IOException {
-    while (true) {
-      try {
-        okhttp3.Response response = httpClient.newCall(request).execute();
-        if (response.isSuccessful()) {
-          return response;
+      OkHttpClient httpClient, HttpRetryPolicy.Factory retryPolicyFactory, Request request)
+      throws IOException {
+    try (HttpRetryPolicy retryPolicy = retryPolicyFactory.create()) {
+      while (true) {
+        try {
+          Response response = httpClient.newCall(request).execute();
+          if (response.isSuccessful()) {
+            return response;
+          }
+          if (!retryPolicy.shouldRetry(response)) {
+            return response;
+          } else {
+            closeQuietly(response);
+          }
+        } catch (Exception ex) {
+          if (!retryPolicy.shouldRetry(ex)) {
+            throw ex;
+          }
         }
-        if (!retryPolicy.shouldRetry(response)) {
-          return response;
-        } else {
-          closeQuietly(response);
-        }
-      } catch (ConnectException ex) {
-        if (!retryPolicy.shouldRetry(null)) {
-          throw ex;
-        }
-      }
-      // If we get here, there has been an error, and we still have retries left
-      long backoffMs = retryPolicy.backoff();
-      try {
-        Thread.sleep(backoffMs);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IOException(e);
+        // If we get here, there has been an error, and we still have retries left
+        retryPolicy.backoff();
       }
     }
   }

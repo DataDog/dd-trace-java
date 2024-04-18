@@ -85,9 +85,8 @@ public class IntakeApi implements BackendApi {
     }
 
     Request request = requestBuilder.build();
-    HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
     try (okhttp3.Response response =
-        OkHttpUtils.sendWithRetries(httpClient, retryPolicy, request)) {
+        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         log.debug("Request to {} returned successful response: {}", uri, response.code());
         InputStream responseBodyStream = response.body().byteStream();
