@@ -2,8 +2,7 @@ package com.datadog.debugger.symbol;
 
 import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
 
-import com.datadog.debugger.agent.AllowListHelper;
-import com.datadog.debugger.agent.Configuration;
+import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.ConfigurationChangesListener;
@@ -24,7 +23,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,14 +46,19 @@ public class SymDBEnablement implements ProductListener {
   private final Config config;
   private final SymbolAggregator symbolAggregator;
   private SymbolExtractionTransformer symbolExtractionTransformer;
+  private final ClassNameFiltering classNameFiltering;
   private volatile long lastUploadTimestamp;
-  private AtomicBoolean starting = new AtomicBoolean();
+  private final AtomicBoolean starting = new AtomicBoolean();
 
   public SymDBEnablement(
-      Instrumentation instrumentation, Config config, SymbolAggregator symbolAggregator) {
+      Instrumentation instrumentation,
+      Config config,
+      SymbolAggregator symbolAggregator,
+      ClassNameFiltering classNameFiltering) {
     this.instrumentation = instrumentation;
     this.config = config;
     this.symbolAggregator = symbolAggregator;
+    this.classNameFiltering = classNameFiltering;
   }
 
   @Override
@@ -116,14 +119,12 @@ public class SymDBEnablement implements ProductListener {
                 Instant.ofEpochMilli(lastUploadTimestamp), ZoneId.systemDefault()));
         return;
       }
-      String includes = config.getDebuggerSymbolIncludes();
-      AllowListHelper allowListHelper = new AllowListHelper(buildFilterList(includes));
       symbolAggregator.loadedClassesProcessStarted();
       try {
         symbolExtractionTransformer =
-            new SymbolExtractionTransformer(allowListHelper, symbolAggregator);
+            new SymbolExtractionTransformer(symbolAggregator, classNameFiltering);
         instrumentation.addTransformer(symbolExtractionTransformer);
-        extractSymbolForLoadedClasses(allowListHelper);
+        extractSymbolForLoadedClasses();
         lastUploadTimestamp = System.currentTimeMillis();
       } catch (Throwable ex) {
         // catch all Throwables because LinkageError is possible (duplicate class definition)
@@ -136,12 +137,12 @@ public class SymDBEnablement implements ProductListener {
     }
   }
 
-  private void extractSymbolForLoadedClasses(AllowListHelper allowListHelper) {
+  private void extractSymbolForLoadedClasses() {
     Class<?>[] classesToExtract;
     try {
       classesToExtract =
           Arrays.stream(instrumentation.getAllLoadedClasses())
-              .filter(clazz -> allowListHelper.isAllowed(clazz.getTypeName()))
+              .filter(clazz -> !classNameFiltering.isExcluded(clazz.getTypeName()))
               .filter(instrumentation::isModifiableClass)
               .toArray(Class<?>[]::new);
     } catch (Throwable ex) {
@@ -173,7 +174,7 @@ public class SymDBEnablement implements ProductListener {
               .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
               .filter(
                   jarEntry ->
-                      allowListHelper.isAllowed(
+                      !classNameFiltering.isExcluded(
                           Strings.getClassName(trimPrefixes(jarEntry.getName()))))
               .forEach(jarEntry -> parseJarEntry(jarEntry, jarFile, jarPath, baos, buffer));
         }
@@ -198,13 +199,5 @@ public class SymDBEnablement implements ProductListener {
     } catch (IOException ex) {
       LOGGER.debug("Exception during parsing jarEntry class: {}", jarEntry.getName(), ex);
     }
-  }
-
-  private Configuration.FilterList buildFilterList(String includes) {
-    if (includes == null || includes.isEmpty()) {
-      return null;
-    }
-    String[] includeParts = COMMA_PATTERN.split(includes);
-    return new Configuration.FilterList(Arrays.asList(includeParts), Collections.emptyList());
   }
 }
