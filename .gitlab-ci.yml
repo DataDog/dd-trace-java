@@ -82,9 +82,9 @@ build: &build
       when: never
     - when: on_success
   script:
-    - ls -la
-    - pwd
-    - ls -la .gradle
+#    - ls -la
+#    - pwd
+#    - ls -la .gradle
     - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M" ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - ls -la workspace
