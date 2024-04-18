@@ -38,7 +38,7 @@ default:
     policy: pull
 
 cache:
-  - key: '$CI_SERVER_VERSION' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
+  - key: '$CI_SERVER_VERSION-dne' # Dependencies cache. Reset the cache every time gitlab is upgraded.  ~Every couple months
     paths:
       # Cached dependencies and wrappers for gradle
       - .gradle/wrapper
