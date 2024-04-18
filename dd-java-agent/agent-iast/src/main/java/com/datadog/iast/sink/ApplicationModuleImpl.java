@@ -48,6 +48,12 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
       "org.springframework.web.servlet.DispatcherServlet";
   private static final String DEFAULT_HTML_ESCAPE = "defaultHtmlEscape";
   private static final String LISTINGS_PATTERN = "<param-name>listings</param-name>";
+  private static final String JETTY_LISTINGS_PATTERN = "<param-name>dirAllowed</param-name>";
+  private static final String WEBLOGIC_LISTING_PATTERN =
+      "<index-directory-enabled>true</index-directory-enabled>";
+  private static final String WEBSPHERE_XMI_LISTING_PATTERN = "directoryBrowsingEnabled=\"true\"";
+  private static final String WEBSPHERE_XML_LISTING_PATTERN =
+      "<enable-directory-browsing value=\"true\"/>";
   private static final String SESSION_TIMEOUT_START_TAG = "<session-timeout>";
   private static final String SESSION_TIMEOUT_END_TAG = "</session-timeout>";
   private static final String SECURITY_CONSTRAINT_START_TAG = "<security-constraint>";
@@ -64,6 +70,9 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
       DISPLAY_NAME_START_TAG + TOMCAT_HOST_MANAGER_APP + DISPLAY_NAME_END_TAG;
   public static final String WEB_INF = "WEB-INF";
   public static final String WEB_XML = "web.xml";
+  public static final String WEBLOGIC_XML = "weblogic.xml";
+  public static final String IBM_WEB_EXT_XMI = "ibm-web-ext.xmi";
+  public static final String IBM_WEB_EXT_XML = "ibm-web-ext.xml";
   static final String SESSION_REWRITING_EVIDENCE_VALUE = "Servlet URL Session Tracking Mode";
 
   private static final Pattern PATTERN =
@@ -75,10 +84,20 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
                   TOMCAT_MANAGER_APP_PATTERN,
                   TOMCAT_HOST_MANAGER_APP_PATTERN,
                   LISTINGS_PATTERN,
+                  JETTY_LISTINGS_PATTERN,
                   SESSION_TIMEOUT_START_TAG,
                   SECURITY_CONSTRAINT_START_TAG)
               .map(Pattern::quote)
               .collect(Collectors.joining("|")));
+
+  private static final Pattern WEBLOGIC_PATTERN =
+      Pattern.compile(WEBLOGIC_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern WEBSPHERE_XMI_PATTERN =
+      Pattern.compile(WEBSPHERE_XMI_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern WEBSPHERE_XML_PATTERN =
+      Pattern.compile(WEBSPHERE_XML_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
 
   private static final int NO_LINE = -1;
 
@@ -103,6 +122,10 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     final AgentSpan span = AgentTracer.activeSpan();
     checkInsecureJSPLayout(root, span);
     checkWebXmlVulnerabilities(root, span);
+    // WEBLOGIC
+    checkWeblogicVulnerabilities(root, span);
+    // WEBSPHERE
+    checkWebsphereVulnerabilities(root, span);
   }
 
   /**
@@ -125,8 +148,46 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
             new Evidence(SESSION_REWRITING_EVIDENCE_VALUE)));
   }
 
-  private void checkWebXmlVulnerabilities(@Nonnull Path path, AgentSpan span) {
-    String webXmlContent = webXmlContent(path);
+  private void checkWebsphereVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    checkWebsphereXMLVulnerabilities(path, span);
+    checkWebsphereXMIVulnerabilities(path, span);
+  }
+
+  private void checkWebsphereXMIVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String xmlContent = getXmlContent(path, IBM_WEB_EXT_XMI);
+    if (xmlContent == null) {
+      return;
+    }
+    Matcher matcher = WEBSPHERE_XMI_PATTERN.matcher(xmlContent);
+    while (matcher.find()) {
+      reportDirectoryListingLeak(xmlContent, matcher.start(), span);
+    }
+  }
+
+  private void checkWebsphereXMLVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String xmlContent = getXmlContent(path, IBM_WEB_EXT_XML);
+    if (xmlContent == null) {
+      return;
+    }
+    Matcher matcher = WEBSPHERE_XML_PATTERN.matcher(xmlContent);
+    while (matcher.find()) {
+      reportDirectoryListingLeak(xmlContent, matcher.start(), span);
+    }
+  }
+
+  private void checkWeblogicVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String xmlContent = getXmlContent(path, WEBLOGIC_XML);
+    if (xmlContent == null) {
+      return;
+    }
+    Matcher matcher = WEBLOGIC_PATTERN.matcher(xmlContent);
+    while (matcher.find()) {
+      reportDirectoryListingLeak(xmlContent, matcher.start(), span);
+    }
+  }
+
+  private void checkWebXmlVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String webXmlContent = getXmlContent(path, WEB_XML);
     if (webXmlContent == null) {
       return;
     }
@@ -152,6 +213,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
           reportAdminConsoleActive(span, TOMCAT_HOST_MANAGER_APP);
           break;
         case LISTINGS_PATTERN:
+        case JETTY_LISTINGS_PATTERN:
           checkDirectoryListingLeak(webXmlContent, matcher.start(), span);
           break;
         case SESSION_TIMEOUT_START_TAG:
@@ -211,12 +273,17 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     int valueLast = webXmlContent.indexOf(PARAM_VALUE_END_TAG, valueIndex);
     String data = substringTrim(webXmlContent, valueIndex, valueLast);
     if (data.equalsIgnoreCase("true")) {
-      report(
-          span,
-          VulnerabilityType.DIRECTORY_LISTING_LEAK,
-          "Directory listings configured",
-          getLine(webXmlContent, index));
+      reportDirectoryListingLeak(webXmlContent, index, span);
     }
+  }
+
+  private void reportDirectoryListingLeak(
+      final String webXmlContent, int index, final AgentSpan span) {
+    report(
+        span,
+        VulnerabilityType.DIRECTORY_LISTING_LEAK,
+        "Directory listings configured",
+        getLine(webXmlContent, index));
   }
 
   private void checkSessionTimeOut(final String webXmlContent, int index, final AgentSpan span) {
@@ -288,8 +355,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   }
 
   @Nullable
-  private static String webXmlContent(final Path realPath) {
-    Path path = realPath.resolve(WEB_INF).resolve(WEB_XML);
+  private static String getXmlContent(final Path realPath, final String fileName) {
+    Path path = realPath.resolve(WEB_INF).resolve(fileName);
     if (Files.exists(path)) {
       try {
         return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
