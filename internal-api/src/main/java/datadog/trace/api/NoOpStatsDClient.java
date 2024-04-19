@@ -34,6 +34,9 @@ final class NoOpStatsDClient implements StatsDClient {
       final String... tags) {}
 
   @Override
+  public void event(String title, String message, EventKind kind, String... tags) {}
+
+  @Override
   public void error(Exception error) {}
 
   @Override

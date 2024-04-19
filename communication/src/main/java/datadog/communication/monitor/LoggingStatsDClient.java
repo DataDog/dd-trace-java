@@ -2,6 +2,7 @@ package datadog.communication.monitor;
 
 import static datadog.communication.monitor.DDAgentStatsDClient.serviceCheckStatus;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -19,6 +20,7 @@ public final class LoggingStatsDClient implements StatsDClient {
   private static final String HISTOGRAM_FORMAT = "{}:{}|h{}";
   private static final String DISTRIBUTION_FORMAT = "{}:{}|d{}";
   private static final String SERVICE_CHECK_FORMAT = "_sc|{}|{}{}{}";
+  private static final String EVENT_FORMAT = "_e{{},{}}:{}|{}|d:{}|h:{}|p:{}|t:{}{}";
 
   private static final DecimalFormat DECIMAL_FORMAT;
 
@@ -86,6 +88,21 @@ public final class LoggingStatsDClient implements StatsDClient {
         DISTRIBUTION_FORMAT,
         nameMapping.apply(metricName),
         DECIMAL_FORMAT.format(value),
+        join(tagMapping.apply(tags)));
+  }
+
+  @Override
+  public void event(String title, String message, EventKind kind, String... tags) {
+    log.info(
+        EVENT_FORMAT,
+        title.length(),
+        message.length(),
+        title,
+        message,
+        System.currentTimeMillis(),
+        Config.get().getHostName(),
+        "normal",
+        kind.name().toLowerCase(),
         join(tagMapping.apply(tags)));
   }
 

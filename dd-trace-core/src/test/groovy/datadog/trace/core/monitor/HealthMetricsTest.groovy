@@ -506,6 +506,15 @@ class HealthMetricsTest extends DDSpecification {
     }
 
     @Override
+    void event(String title, String message, EventKind kind, String... tags) {
+      try {
+        delegate.event(title, message, kind, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
     void error(Exception error) {
       try {
         delegate.error(error)

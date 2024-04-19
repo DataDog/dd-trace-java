@@ -1,5 +1,6 @@
 package datadog.communication.monitor;
 
+import com.timgroup.statsd.Event;
 import com.timgroup.statsd.ServiceCheck;
 import datadog.trace.api.StatsDClient;
 import java.util.function.Function;
@@ -64,6 +65,27 @@ final class DDAgentStatsDClient implements StatsDClient {
   public void distribution(String metricName, double value, String... tags) {
     connection.statsd.recordDistributionValue(
         nameMapping.apply(metricName), value, tagMapping.apply(tags));
+  }
+
+  @Override
+  public void event(String title, String message, EventKind kind, String... tags) {
+    Event.Builder builder =
+        Event.builder().withTitle(title).withText(message).withDate(System.currentTimeMillis());
+    switch (kind) {
+      case INFO:
+        builder.withAlertType(Event.AlertType.INFO);
+        break;
+      case WARNING:
+        builder.withAlertType(Event.AlertType.WARNING);
+        break;
+      case ERROR:
+        builder.withAlertType(Event.AlertType.ERROR);
+        break;
+      case SUCCESS:
+        builder.withAlertType(Event.AlertType.SUCCESS);
+        break;
+    }
+    connection.statsd.recordEvent(builder.build(), tags);
   }
 
   @Override

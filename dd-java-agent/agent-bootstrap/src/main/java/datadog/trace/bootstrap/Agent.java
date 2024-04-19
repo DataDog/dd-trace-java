@@ -622,6 +622,10 @@ public class Agent {
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
+
+    // start the jfr metrics after JMX, just to be sure
+    startJfrMetrics();
+
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
     if (profilingEnabled) {
       registerDeadlockDetectionEvent();
@@ -931,6 +935,25 @@ public class Agent {
     }
 
     StaticEventLogger.end("ProfilingAgent");
+  }
+
+  private static synchronized void startJfrMetrics() {
+    if (!isJavaVersionAtLeast(17) || Platform.isJ9()) {
+      log.debug("JFR metrics are only supported on Java 17+ and HotSpot JVMs");
+      return;
+    }
+    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+      final Class<?> jfrMetricsClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.jfrmetrics.JfrMetricsEmitter");
+      final Method installerMethod = jfrMetricsClass.getMethod("run", StatsDClientManager.class);
+      installerMethod.invoke(null, statsDClientManager());
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while starting JfrMetricsEmitter", ex);
+    } finally {
+      Thread.currentThread().setContextClassLoader(contextLoader);
+    }
   }
 
   private static boolean isAwsLambdaRuntime() {
