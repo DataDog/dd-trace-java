@@ -1,0 +1,18 @@
+muzzle {
+  pass {
+    group = "com.amazonaws"
+    module = "aws-java-sdk-sns"
+    versions = "[1.0.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '1.12.676'
+
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '+'
+}
