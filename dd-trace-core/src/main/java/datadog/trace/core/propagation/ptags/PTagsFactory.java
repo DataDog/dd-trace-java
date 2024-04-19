@@ -80,6 +80,8 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile int samplingPriority;
     private volatile CharSequence origin;
+    private volatile CharSequence lastParentId;
+
     private volatile String[] headerCache = null;
     /** The high-order 64 bits of the trace id. */
     private volatile long traceIdHighOrderBits;
@@ -104,7 +106,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue) {
-      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, PrioritySampling.UNSET, null);
+      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, PrioritySampling.UNSET, null, null);
     }
 
     PTags(
@@ -113,7 +115,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
         int samplingPriority,
-        CharSequence origin) {
+        CharSequence origin,
+        CharSequence lastParentId) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
@@ -121,6 +124,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.decisionMakerTagValue = decisionMakerTagValue;
       this.samplingPriority = samplingPriority;
       this.origin = origin;
+      this.lastParentId = lastParentId;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -132,7 +136,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     static PTags withError(PTagsFactory factory, String error) {
-      PTags pTags = new PTags(factory, null, null, null, PrioritySampling.UNSET, null);
+      PTags pTags = new PTags(factory, null, null, null, PrioritySampling.UNSET, null, null);
       pTags.error = error;
       return pTags;
     }
@@ -195,6 +199,21 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public CharSequence getOrigin() {
       return origin;
+    }
+
+    @Override
+    public CharSequence getLastParentId() { return lastParentId; }
+
+    @Override
+    public void updateLastParentId(CharSequence lastParentId) {
+      // TODO we should really have UTF8ByteStrings for the regular ones
+      CharSequence existing = this.lastParentId;
+      if (Objects.equals(existing, lastParentId)) {
+        return;
+      }
+      // Invalidate any cached w3c header
+      clearCachedHeader(W3C);
+      this.lastParentId = TagValue.from(lastParentId);
     }
 
     @Override

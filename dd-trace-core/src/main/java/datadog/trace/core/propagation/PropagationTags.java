@@ -62,6 +62,10 @@ public abstract class PropagationTags {
 
   public abstract CharSequence getOrigin();
 
+  public abstract CharSequence getLastParentId();
+
+  public abstract void updateLastParentId(CharSequence lastParent);
+
   public abstract long getTraceIdHighOrderBits();
 
   public abstract void updateTraceIdHighOrderBits(long highOrderBits);

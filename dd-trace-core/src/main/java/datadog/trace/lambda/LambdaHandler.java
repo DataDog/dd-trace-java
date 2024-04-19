@@ -107,6 +107,7 @@ public class LambdaHandler {
               DDSpanId.ZERO,
               samplingPriority,
               null,
+              null,
               propagationTags,
               DATADOG);
         } else {

@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
+import static datadog.trace.api.internal.util.LongStringUtils.toHexStringPadded;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 
 import datadog.trace.api.DDTags;
@@ -121,6 +122,8 @@ public class DDSpanContext
 
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
+
+  private volatile CharSequence lastParentId;
 
   /** RequestContext data for the InstrumentationGateway */
   private final Object requestContextDataAppSec;
@@ -360,6 +363,8 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+
+    setLastParentId(this.propagationTags.getLastParentId());
   }
 
   @Override
@@ -684,6 +689,14 @@ public class DDSpanContext
   public void setMetric(final CharSequence key, final Number value) {
     synchronized (unsafeTags) {
       unsafeSetTag(key.toString(), value);
+    }
+  }
+
+  private void setLastParentId(final CharSequence lastParentId) {
+    if (lastParentId != null) {
+      synchronized (unsafeTags) {
+        unsafeSetTag("_dd.parent_id", lastParentId);
+      }
     }
   }
 

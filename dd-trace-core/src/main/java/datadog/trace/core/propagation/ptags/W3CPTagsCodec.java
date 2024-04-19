@@ -91,6 +91,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int tagPos = ddMemberValueStart;
     int samplingPriority = PrioritySampling.UNSET;
     CharSequence origin = null;
+    CharSequence lastParentId = null;
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
     int maxUnknownSize = 0;
@@ -162,6 +163,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           samplingPriority = validateSamplingPriority(value, tagValuePos, tagValueEndsAt);
         } else if (keyLength == 1 && c == 'o') {
           origin = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+        } else if (keyLength == 1 && c == 'p') {
+          lastParentId = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
         } else {
           if (maxUnknownSize != 0) {
             maxUnknownSize++; // delimiter
@@ -178,6 +181,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         traceIdTagValue,
         samplingPriority,
         origin,
+        lastParentId,
         value,
         firstMemberStart,
         ddMemberStart,
@@ -231,6 +235,24 @@ public class W3CPTagsCodec extends PTagsCodec {
         sb.append(origin);
       }
     }
+    // Append last parent (p)
+    CharSequence lastParent = ptags.getLastParentId();
+    if (lastParent != null) {
+      if (sb.length() > EMPTY_SIZE) {
+        sb.append(';');
+      }
+      sb.append("p:");
+      if (lastParent instanceof TagValue) {
+        sb.append(((TagValue) lastParent).forType(Encoding.W3C));
+      } else {
+        sb.append(lastParent);
+      }
+    }
+
+    // if we have a span, then this span ID will be the last parent
+    // if we don't have a span, then the previous last parent will be used
+    // if we don't have a span nor last parent data, do nothing
+
     return sb.length();
   }
 
@@ -688,6 +710,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         null,
         PrioritySampling.UNSET,
         null,
+        null,
         original,
         firstMemberStart,
         ddMemberStart,
@@ -718,12 +741,13 @@ public class W3CPTagsCodec extends PTagsCodec {
         TagValue traceIdTagValue,
         int samplingPriority,
         CharSequence origin,
+        CharSequence lastParentId,
         String original,
         int firstMemberStart,
         int ddMemberStart,
         int ddMemberValueEnd,
         int maxUnknownSize) {
-      super(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, samplingPriority, origin);
+      super(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, samplingPriority, origin, lastParentId);
       this.tracestate = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;

@@ -45,6 +45,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> baggage;
 
   protected CharSequence origin;
+  protected CharSequence lastParentId;
   protected long endToEndStartTime;
   protected boolean valid;
   protected boolean fullContext;
@@ -248,6 +249,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             spanId,
             samplingPriorityOrDefault(traceId, samplingPriority),
             origin,
+            lastParentId,
             endToEndStartTime,
             baggage,
             tags,
