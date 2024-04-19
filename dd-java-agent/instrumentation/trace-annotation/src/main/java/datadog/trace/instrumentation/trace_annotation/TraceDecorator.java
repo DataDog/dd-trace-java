@@ -90,7 +90,6 @@ public class TraceDecorator extends AsyncResultDecorator {
     afterStart(span);
     span.setResourceName(resourceName);
 
-    spanOrigin(span, method);
     if (measured || InstrumenterConfig.get().isMethodMeasured(method)) {
       span.setMeasured(true);
     }

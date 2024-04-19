@@ -99,6 +99,9 @@ public final class CombiningTransformerBuilder
   /** Builds matchers and transformers for an instrumentation module and its members. */
   public void applyInstrumentation(InstrumenterModule module) {
     if (module.isEnabled()) {
+      boolean debug = module.name().contains("SpanOrigin");
+      if (debug) System.out.println("CombiningTransformerBuilder.applyInstrumentation");
+      if (debug) System.out.println("module = " + module);
       int instrumentationId = instrumenterIndex.instrumentationId(module);
       if (instrumentationId < 0) {
         // this is a non-indexed instrumentation configured at runtime
@@ -107,6 +110,8 @@ public final class CombiningTransformerBuilder
       InstrumenterState.registerInstrumentation(module, instrumentationId);
       prepareInstrumentation(module, instrumentationId);
       for (Instrumenter member : module.typeInstrumentations()) {
+        if (debug) System.out.println("member = " + member);
+
         buildTypeInstrumentation(member);
       }
     }

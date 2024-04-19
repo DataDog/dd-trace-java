@@ -10,8 +10,6 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.stacktrace.StackWalker;
-import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -169,30 +167,6 @@ public abstract class BaseDecorator {
    */
   public CharSequence spanNameForMethod(final Class<?> clazz, final String methodName) {
     return CLASS_NAMES.getQualifiedName(clazz, methodName);
-  }
-
-  public void spanOrigin(AgentSpan span, Method method) {
-    StackWalker walker = StackWalkerFactory.INSTANCE;
-
-    String className = method.getDeclaringClass().getName();
-    String methodName = method.getName();
-
-    // memoize this
-    Integer lineNumber =
-        walker.walk(
-            stream ->
-                stream
-                    .filter(
-                        element ->
-                            element.getClassName().equals(className)
-                                && element.getMethodName().equals(methodName))
-                    .map(StackTraceElement::getLineNumber)
-                    .findFirst()
-                    .orElse(-1));
-
-    span.setTag(DDTags.DD_ENTRY_LOCATION_FILE, className);
-    span.setTag(DDTags.DD_ENTRY_METHOD, method);
-    span.setTag(DDTags.DD_ENTRY_START_LINE, lineNumber);
   }
 
   /**

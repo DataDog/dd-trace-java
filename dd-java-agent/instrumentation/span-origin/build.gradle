@@ -2,7 +2,5 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  compileOnly project(':dd-java-agent:instrumentation:span-origin')
-
   testImplementation group: 'com.newrelic.agent.java', name: 'newrelic-api', version: '6.+'
 }
