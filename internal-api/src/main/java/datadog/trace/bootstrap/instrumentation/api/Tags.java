@@ -25,6 +25,8 @@ public class Tags {
   public static final String HTTP_FORWARDED_PORT = "http.forwarded.port";
   public static final String HTTP_USER_AGENT = "http.useragent";
   public static final String HTTP_CLIENT_IP = "http.client_ip";
+  public static final String HTTP_REQUEST_CONTENT_LENGTH = "http.request_content_length";
+  public static final String HTTP_RESPONSE_CONTENT_LENGTH = "http.response_content_length";
   public static final String PEER_HOST_IPV4 = "peer.ipv4";
   public static final String PEER_HOST_IPV6 = "peer.ipv6";
   public static final String PEER_SERVICE = "peer.service";

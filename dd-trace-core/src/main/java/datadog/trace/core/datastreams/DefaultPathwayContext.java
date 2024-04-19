@@ -61,6 +61,10 @@ public class DefaultPathwayContext implements PathwayContext {
               TagsProcessor.TOPIC_TAG,
               TagsProcessor.EXCHANGE_TAG));
 
+  private static final Set<String> dataSetTagKeys =
+      new HashSet<String>(
+          Arrays.asList(TagsProcessor.DATASET_NAME_TAG, TagsProcessor.DATASET_NAMESPACE_TAG));
+
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
     this.wellKnownTags = wellKnownTags;
@@ -121,6 +125,7 @@ public class DefaultPathwayContext implements PathwayContext {
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
       List<String> allTags = new ArrayList<>(sortedTags.size());
       PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
+      DataSetHashBuilder dataSetHashBuilder = new DataSetHashBuilder();
 
       if (!started) {
         if (defaultTimestamp == 0) {
@@ -148,6 +153,9 @@ public class DefaultPathwayContext implements PathwayContext {
         if (hashableTagKeys.contains(entry.getKey())) {
           pathwayHashBuilder.addTag(tag);
         }
+        if (dataSetTagKeys.contains(entry.getKey())) {
+          dataSetHashBuilder.addValue(tag);
+        }
         allTags.add(tag);
       }
 
@@ -166,6 +174,7 @@ public class DefaultPathwayContext implements PathwayContext {
       }
 
       long newHash = generatePathwayHash(nodeHash, hash);
+      long dataSetHash = dataSetHashBuilder.addValue(String.valueOf(newHash));
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -175,6 +184,7 @@ public class DefaultPathwayContext implements PathwayContext {
               allTags,
               newHash,
               hash,
+              dataSetHash,
               startNanos,
               pathwayLatencyNano,
               edgeLatencyNano,
@@ -386,6 +396,15 @@ public class DefaultPathwayContext implements PathwayContext {
         pathwayStartNanoTicks,
         edgeStartNanoTicks,
         hash);
+  }
+
+  static class DataSetHashBuilder {
+    private long currentHash = 0L;
+
+    public long addValue(String val) {
+      currentHash = FNV64Hash.generateHash(currentHash + val, FNV64Hash.Version.v1);
+      return currentHash;
+    }
   }
 
   private static class PathwayHashBuilder {
