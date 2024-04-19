@@ -17,10 +17,10 @@ class HttpRetryPolicyTest extends Specification {
 
     when:
     while (retry <= maxRetries) {
-      def shouldRetry = retryPolicy.shouldRetry()
+      def shouldRetry = retryPolicy.shouldRetry((Response) null)
       shouldRetries << shouldRetry
       if (shouldRetry) {
-        backoffs << retryPolicy.backoff()
+        backoffs << retryPolicy.getBackoffDelay()
       }
       retry += 1
     }
@@ -44,10 +44,10 @@ class HttpRetryPolicyTest extends Specification {
     def retryPolicy = new HttpRetryPolicy.Factory(5, 100, 2.0).create()
 
     def responseBuilder = new Response.Builder()
-      .code(responseCode)
-      .request(GroovyMock(Request))
-      .protocol(Protocol.HTTP_1_1)
-      .message("")
+    .code(responseCode)
+    .request(GroovyMock(Request))
+    .protocol(Protocol.HTTP_1_1)
+    .message("")
     if (rateLimitHeader != null) {
       responseBuilder.header("x-ratelimit-reset", rateLimitHeader)
     }
@@ -72,5 +72,59 @@ class HttpRetryPolicyTest extends Specification {
     429          | "20"            | 0
     500          | null            | 5
     501          | null            | 5
+  }
+
+  def "test exceptions are retried: #exception with suppress interrupts #suppressInterrupts"() {
+    setup:
+    def retryPolicy = new HttpRetryPolicy.Factory(5, 100, 2.0, suppressInterrupts).create()
+
+    expect:
+    retryPolicy.shouldRetry(exception) == shouldRetry
+
+    where:
+    exception                      | suppressInterrupts | shouldRetry
+    new NullPointerException()     | false              | false
+    new IllegalArgumentException() | false              | false
+    new ConnectException()         | false              | true
+    new InterruptedIOException()   | false              | false
+    new InterruptedIOException()   | true               | true
+    new InterruptedException()     | false              | false
+    new InterruptedException()     | true               | true
+  }
+
+  def "test interrupt flag is preserved when suppressing interrupts"() {
+    setup:
+    def retryPolicy = new HttpRetryPolicy.Factory(5, 100, 2.0, true).create()
+
+    when:
+    retryPolicy.shouldRetry(new InterruptedException())
+    retryPolicy.close()
+
+    then:
+    Thread.interrupted()
+  }
+
+  def "test interrupt flag is preserved if interrupted while backing off"() {
+    setup:
+    boolean[] b = new boolean[2]
+
+    Runnable r = () -> {
+      def retryPolicy = new HttpRetryPolicy.Factory(5, 1000, 2.0, true).create()
+      retryPolicy.backoff()
+
+      b[0] = Thread.currentThread().isInterrupted()
+      retryPolicy.close()
+      b[1] = Thread.interrupted()
+    }
+    Thread t = new Thread(r, "test-http-retry-policy-interrupts")
+
+    when:
+    t.start()
+    t.interrupt()
+    t.join()
+
+    then:
+    !b[0] // before retry policy is closed, the thread should not be interrupted: interrupts are suppressed
+    b[1] // after retry policy is closed, the thread should be interrupted: interrupt flag should be restored
   }
 }
