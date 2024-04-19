@@ -5,11 +5,12 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
+import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
 
 public class AppSecSpanPostProcessor implements SpanPostProcessor {
 
@@ -35,12 +36,13 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
       return false;
     }
 
-    Consumer<RequestContext> postProcessingCallback = cbp.getCallback(EVENTS.postProcessing());
+    BiConsumer<RequestContext, AgentSpan> postProcessingCallback =
+        cbp.getCallback(EVENTS.postProcessing());
     if (postProcessingCallback == null) {
       return false;
     }
 
-    postProcessingCallback.accept(ctx);
+    postProcessingCallback.accept(ctx, span);
     return true;
   }
 }

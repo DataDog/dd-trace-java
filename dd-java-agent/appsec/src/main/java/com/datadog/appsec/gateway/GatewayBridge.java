@@ -3,6 +3,7 @@ package com.datadog.appsec.gateway;
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 
 import com.datadog.appsec.AppSecSystem;
+import com.datadog.appsec.api.security.ApiAccessTracker;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventProducerService.DataSubscriberInfo;
@@ -28,6 +29,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.Strings;
@@ -59,6 +61,7 @@ public class GatewayBridge {
   private static final Pattern QUERY_PARAM_SPLITTER = Pattern.compile("&");
   private static final Map<String, List<String>> EMPTY_QUERY_PARAMS = Collections.emptyMap();
 
+  private final ApiAccessTracker apiAccessTracker = new ApiAccessTracker();
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final RateLimiter rateLimiter;
@@ -410,13 +413,13 @@ public class GatewayBridge {
 
     subscriptionService.registerCallback(
         EVENTS.postProcessing(),
-        (ctx_) -> {
+        (ctx_, span) -> {
           AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (ctx == null) {
             return;
           }
 
-          maybeExtractSchemas(ctx);
+          maybeExtractSchemas(ctx, span);
           ctx.closeAdditive();
 
           TraceSegment traceSeg = ctx_.getTraceSegment();
@@ -617,10 +620,27 @@ public class GatewayBridge {
     }
   }
 
-  private void maybeExtractSchemas(AppSecRequestContext ctx) {
+  private void maybeExtractSchemas(AppSecRequestContext ctx, AgentSpan span) {
     boolean extractSchema = Config.get().isApiSecurityEnabled();
-
     if (!extractSchema) {
+      return;
+    }
+
+    Object routeObj = span.getTag(Tags.HTTP_ROUTE);
+    String route = routeObj instanceof String ? (String) routeObj : null;
+
+    Object methodObj = span.getTag(Tags.HTTP_METHOD);
+    String method = methodObj instanceof String ? (String) methodObj : null;
+
+    Object statusCodeObj = span.getTag(Tags.HTTP_STATUS);
+    int statusCode = statusCodeObj instanceof Integer ? (Integer) statusCodeObj : 0;
+
+    if (route == null || method == null || statusCode == 0) {
+      return;
+    }
+
+    boolean sampled = apiAccessTracker.updateApiAccessIfExpired(route, method, statusCode);
+    if (!sampled) {
       return;
     }
 

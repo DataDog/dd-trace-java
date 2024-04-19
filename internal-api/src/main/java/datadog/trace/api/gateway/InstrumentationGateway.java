@@ -22,11 +22,12 @@ import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -364,11 +365,11 @@ public class InstrumentationGateway {
             };
       case POST_PROCESSING_ID:
         return (C)
-            new Consumer<RequestContext>() {
+            new BiConsumer<RequestContext, AgentSpan>() {
               @Override
-              public void accept(RequestContext ctx) {
+              public void accept(RequestContext ctx, AgentSpan span) {
                 try {
-                  ((Consumer<RequestContext>) callback).accept(ctx);
+                  ((BiConsumer<RequestContext, AgentSpan>) callback).accept(ctx, span);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                 }

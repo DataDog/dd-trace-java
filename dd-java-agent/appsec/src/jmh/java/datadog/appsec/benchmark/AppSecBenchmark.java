@@ -248,6 +248,14 @@ public class AppSecBenchmark {
     }
 
     @Override
+    public void setRequiresPostProcessing(boolean postProcessing) {}
+
+    @Override
+    public boolean isRequiresPostProcessing() {
+      return false;
+    }
+
+    @Override
     public void close() throws IOException {}
   }
 }

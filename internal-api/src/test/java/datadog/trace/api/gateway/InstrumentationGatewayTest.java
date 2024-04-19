@@ -56,6 +56,14 @@ public class InstrumentationGatewayTest {
           public BlockResponseFunction getBlockResponseFunction() {
             return null;
           }
+
+          @Override
+          public void setRequiresPostProcessing(boolean postProcessing) {}
+
+          @Override
+          public boolean isRequiresPostProcessing() {
+            return false;
+          }
         };
     flow = new Flow.ResultFlow<>(null);
     callback = new Callback(context, flow);
