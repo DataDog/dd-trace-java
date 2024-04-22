@@ -26,11 +26,19 @@ class ExceptionProbeManagerTest {
   @Test
   void instrumentSingleFrame() {
     ClassNameFiltering classNameFiltering =
-        new ClassNameFiltering(Arrays.asList("org.gradle.", "worker.org.gradle.", "org.junit."));
+        new ClassNameFiltering(
+            Arrays.asList(
+                "java.",
+                "jdk.",
+                "sun.",
+                "com.sun.",
+                "org.gradle.",
+                "worker.org.gradle.",
+                "org.junit."));
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
-    assertEquals("aa4a4dd768f6ef0fcc2b39a3bdedcbe44baff2e9dd0a779228db7bd8bf58", fingerprint);
+    assertEquals("66b67fc7b62efa883bfd4b22910e2e27f35d09fbc5cf52e9bf65aa535ac9022", fingerprint);
     exceptionProbeManager.createProbesForException(fingerprint, exception.getStackTrace());
     assertEquals(1, exceptionProbeManager.getProbes().size());
     ExceptionProbe exceptionProbe = exceptionProbeManager.getProbes().iterator().next();

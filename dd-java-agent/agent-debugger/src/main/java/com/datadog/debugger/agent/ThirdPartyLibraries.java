@@ -10,6 +10,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,14 +18,11 @@ import org.slf4j.LoggerFactory;
 public class ThirdPartyLibraries {
 
   public static final ThirdPartyLibraries INSTANCE = new ThirdPartyLibraries();
-
   public static final char[] ALPHABET = "abcdefghijklmnopqrstuvwxyz".toCharArray();
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ThirdPartyLibraries.class);
-
   private static final JsonAdapter<InternalConfig> ADAPTER =
       new Moshi.Builder().build().adapter(InternalConfig.class);
-
+  private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final String FILE_NAME = "/third_party_libraries.json";
 
   private ThirdPartyLibraries() {}
@@ -33,7 +31,7 @@ public class ThirdPartyLibraries {
     try (InputStream inputStream = this.getClass().getResourceAsStream(FILE_NAME)) {
       InternalConfig defaults = readConfig(inputStream);
       List<String> excludes =
-          Arrays.stream(config.getThirdPartyExcludes().split(","))
+          Arrays.stream(COMMA_PATTERN.split(config.getThirdPartyExcludes()))
               .filter(s -> !s.isEmpty())
               .collect(Collectors.toList());
       excludes.addAll(defaults.getPrefixes());
@@ -45,7 +43,7 @@ public class ThirdPartyLibraries {
   }
 
   public List<String> getIncludes(Config config) {
-    return Arrays.stream(config.getThirdPartyIncludes().split(","))
+    return Arrays.stream(COMMA_PATTERN.split(config.getThirdPartyIncludes()))
         .filter(s -> !s.isEmpty())
         .collect(Collectors.toList());
   }

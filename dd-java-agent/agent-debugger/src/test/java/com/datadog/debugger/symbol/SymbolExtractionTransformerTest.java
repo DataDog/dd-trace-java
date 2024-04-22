@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 import net.bytebuddy.agent.ByteBuddyAgent;
@@ -30,6 +31,17 @@ class SymbolExtractionTransformerTest {
   private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symboltest.";
   private static final String EXCLUDED_PACKAGE = "akka.actor.";
   private static final String SYMBOL_PACKAGE_DIR = SYMBOL_PACKAGE.replace('.', '/');
+  private static final List<String> TRANSFORMER_EXCLUDES =
+      Arrays.asList(
+          "java.",
+          "jdk.",
+          "sun.",
+          "com.sun.",
+          "utils.",
+          "javax.",
+          "javaslang.",
+          "org.omg.",
+          "com.datadog.debugger.");
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private Config config;
@@ -38,24 +50,6 @@ class SymbolExtractionTransformerTest {
   public void setUp() {
     config = Mockito.mock(Config.class);
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-  }
-
-  @Test
-  public void noIncludesFilterOutDatadogClass() throws IOException, URISyntaxException {
-    config = Mockito.mock(Config.class);
-    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
-    SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(
-            new SymbolAggregator(symbolSinkMock, 1), ClassNameFiltering.allowAll());
-    instr.addTransformer(transformer);
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    Reflect.on(testClass).call("main", "1").get();
-    assertFalse(
-        symbolSinkMock.jarScopes.stream()
-            .flatMap(scope -> scope.getScopes().stream())
-            .anyMatch(scope -> scope.getName().equals(CLASS_NAME)));
   }
 
   @Test
@@ -960,12 +954,15 @@ class SymbolExtractionTransformerTest {
   }
 
   private SymbolExtractionTransformer createTransformer(SymbolSink symbolSink) {
-    return createTransformer(symbolSink, 1, ClassNameFiltering.allowAll());
+    return createTransformer(symbolSink, 1);
   }
 
   private SymbolExtractionTransformer createTransformer(
       SymbolSink symbolSink, int symbolFlushThreshold) {
-    return createTransformer(symbolSink, symbolFlushThreshold, ClassNameFiltering.allowAll());
+    return createTransformer(
+        symbolSink,
+        symbolFlushThreshold,
+        new ClassNameFiltering(TRANSFORMER_EXCLUDES, Arrays.asList(SYMBOL_PACKAGE)));
   }
 
   private SymbolExtractionTransformer createTransformer(

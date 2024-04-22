@@ -53,11 +53,15 @@ public class ExceptionProbeInstrumentationTest {
   private final ClassNameFiltering classNameFiltering =
       new ClassNameFiltering(
           Arrays.asList(
+              "java.",
+              "jdk.",
+              "com.sun.",
+              "sun.",
               "org.gradle.",
               "worker.org.gradle.",
               "org.junit.",
               "org.joor.",
-              "com.datadog.debugger.exception."));;
+              "com.datadog.debugger.exception."));
 
   @BeforeEach
   public void before() {
