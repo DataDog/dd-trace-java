@@ -205,6 +205,8 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.graphqlServerRequestMessage(), callback);
     assertThat(cbp.getCallback(events.graphqlServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    ss.registerCallback(events.postProcessing(), callback);
+    cbp.getCallback(events.postProcessing()).accept(null, null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -254,6 +256,8 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.graphqlServerRequestMessage(), throwback);
     assertThat(cbp.getCallback(events.graphqlServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    ss.registerCallback(events.postProcessing(), throwback);
+    cbp.getCallback(events.postProcessing()).accept(null, null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 

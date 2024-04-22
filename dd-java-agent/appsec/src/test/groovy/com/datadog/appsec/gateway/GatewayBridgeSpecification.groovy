@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
 
+import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -87,6 +88,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
+  BiConsumer<RequestContext, AgentSpan> postProcessingCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -143,7 +145,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
-    1 * mockAppSecCtx.close()
     1 * traceSegment.setTagTop('manual.keep', true)
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
     1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
@@ -152,7 +153,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
     1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
     1 * traceSegment.setTagTop('network.client.ip', '2001::1')
-    1 * mockAppSecCtx.closeAdditive()
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -172,8 +172,6 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     11 * mockAppSecCtx.transferCollectedEvents() >> [event]
-    11 * mockAppSecCtx.close()
-    11 * mockAppSecCtx.closeAdditive()
     10 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
     10 * traceSegment.setDataTop("appsec", _)
   }
@@ -421,6 +419,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.postProcessing(), _) >> { postProcessingCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()

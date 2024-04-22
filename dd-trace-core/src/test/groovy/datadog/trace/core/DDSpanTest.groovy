@@ -3,7 +3,6 @@ package datadog.trace.core
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext
@@ -317,30 +316,6 @@ class DDSpanTest extends DDCoreSpecification {
     extractedContext                                                                                                              | isTraceRootSpan
     null                                                                                                                          | true
     new ExtractedContext(DDTraceId.from(123), 456, PrioritySampling.SAMPLER_KEEP, "789", propagationTagsFactory.empty(), DATADOG) | false
-  }
-
-  def 'publishing of root span closes the request context data'() {
-    setup:
-    def reqContextData = Mock(Closeable)
-    def context = new TagContext().withRequestContextDataAppSec(reqContextData)
-    def root = tracer.buildSpan("root").asChildOf(context).start()
-    def child = tracer.buildSpan("child").asChildOf(root).start()
-
-    expect:
-    root.requestContext.getData(RequestContextSlot.APPSEC).is(reqContextData)
-    child.requestContext.getData(RequestContextSlot.APPSEC).is(reqContextData)
-
-    when:
-    child.finish()
-
-    then:
-    0 * reqContextData.close()
-
-    when:
-    root.finish()
-
-    then:
-    1 * reqContextData.close()
   }
 
   def "infer top level from parent service name"() {
