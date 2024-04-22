@@ -51,11 +51,11 @@ public class TaintSingleParameterFunction<Magnet>
       while (iterator.hasNext()) {
         Object o = iterator.next();
         if (o instanceof String) {
-          mod.taint(ctx, o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+          mod.taint(ctx, (String) o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
         }
       }
     } else if (value instanceof String) {
-      mod.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+      mod.taint(ctx, (String) value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
     }
 
     return v1;
