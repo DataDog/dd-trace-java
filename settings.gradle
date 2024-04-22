@@ -6,8 +6,8 @@ def isCI = System.getenv("CI") != null
 def skipBuildscan = Boolean.valueOf(System.getenv("SKIP_BUILDSCAN"))
 develocity {
   buildScan {
-    termsOfUseUrl = "https://gradle.com/help/legal-terms-of-use"
-    termsOfUseAgree = "yes"
+    termsOfUseUrl = 'https://gradle.com/help/legal-terms-of-use'
+    termsOfUseAgree = 'yes'
 
     publishing.onlyIf { isCI && !skipBuildscan }
   }
