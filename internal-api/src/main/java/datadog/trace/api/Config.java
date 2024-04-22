@@ -145,6 +145,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
@@ -455,6 +456,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.iast.IastDetectionMode.DEFAULT;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
@@ -720,6 +722,7 @@ public class Config {
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
   private final UserEventTrackingMode appSecUserEventsTracking;
+  private final Boolean appSecScaEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
 
@@ -1608,6 +1611,7 @@ public class Config {
         UserEventTrackingMode.fromString(
             configProvider.getStringNotEmpty(
                 APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
+    appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -2065,6 +2069,14 @@ public class Config {
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
             ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
+
+    if (appSecScaEnabled != null
+        && appSecScaEnabled
+        && (!isTelemetryEnabled() || !isTelemetryDependencyServiceEnabled())) {
+      log.warn(
+          SEND_TELEMETRY,
+          "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
+    }
 
     log.debug("New instance: {}", this);
   }
@@ -3882,6 +3894,10 @@ public class Config {
     return telemetryDebugRequestsEnabled;
   }
 
+  public Boolean getAppSecScaEnabled() {
+    return appSecScaEnabled;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -4516,6 +4532,8 @@ public class Config {
         + telemetryDebugRequestsEnabled
         + ", telemetryMetricsEnabled="
         + telemetryMetricsEnabled
+        + ", appSecScaEnabled="
+        + appSecScaEnabled
         + '}';
   }
 }
