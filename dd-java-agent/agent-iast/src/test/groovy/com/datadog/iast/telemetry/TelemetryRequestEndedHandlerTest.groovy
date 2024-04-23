@@ -12,8 +12,8 @@ import datadog.trace.api.iast.telemetry.IastMetric
 import datadog.trace.api.iast.telemetry.IastMetricCollector
 import datadog.trace.api.iast.telemetry.Verbosity
 import datadog.trace.api.internal.TraceSegment
-import groovy.transform.CompileDynamic
 import groovy.transform.ToString
+import spock.lang.Shared
 
 import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_SINK
 import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_SOURCE
@@ -23,18 +23,24 @@ import static datadog.trace.api.iast.telemetry.IastMetric.REQUEST_TAINTED
 import static datadog.trace.api.iast.telemetry.IastMetric.Scope
 import static datadog.trace.api.iast.telemetry.IastMetric.TRACE_METRIC_PREFIX
 
-@CompileDynamic
 class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
+
+  @Shared
+  final IastMetricCollector defaultCollector = IastMetricCollector.get()
 
   protected RequestEndedHandler delegate
   protected IastMetricCollector globalCollector
 
+  @Override
+  void cleanupSpec() {
+    IastMetricCollector.register(defaultCollector)
+  }
+
   void setup() {
     InstrumentationBridge.clearIastModules()
     delegate = Spy(new RequestEndedHandler(dependencies))
-    globalCollector = IastMetricCollector.get()
-    globalCollector.prepareMetrics()
-    globalCollector.drain()
+    globalCollector = new IastMetricCollector()
+    IastMetricCollector.register(globalCollector)
     ctx.taintedObjects = TaintedObjectsWithTelemetry.build(Verbosity.DEBUG, ctx)
     ctx.collector = new IastMetricCollector()
   }
@@ -116,18 +122,18 @@ class TelemetryRequestEndedHandlerTest extends IastModuleImplTestBase {
     }
 
     where:
-    metrics                                                                       | description
+    metrics                                                                | description
     [
       metric(REQUEST_TAINTED, 123),
       metric(EXECUTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE, 2),
       metric(EXECUTED_SOURCE, SourceTypes.REQUEST_HEADER_VALUE, 4),
       metric(EXECUTED_SINK, VulnerabilityTypes.SQL_INJECTION, 1),
       metric(EXECUTED_SINK, VulnerabilityTypes.COMMAND_INJECTION, 2),
-    ]                                                                             | 'List of only request scoped metrics'
+    ]                                                                      | 'List of only request scoped metrics'
     [
       metric(REQUEST_TAINTED, 123),
       metric(INSTRUMENTED_SOURCE, SourceTypes.REQUEST_PARAMETER_VALUE, 2),
-    ]                                                                             | 'Mix between global and request scoped metrics'
+    ]                                                                      | 'Mix between global and request scoped metrics'
   }
 
   private static String getSpanTagValue(final IastMetric metric, final Byte tagValue = null) {
