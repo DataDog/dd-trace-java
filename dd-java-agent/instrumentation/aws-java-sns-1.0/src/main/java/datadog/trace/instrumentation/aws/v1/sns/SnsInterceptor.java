@@ -1,12 +1,6 @@
 package datadog.trace.instrumentation.aws.v1.sns;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v1.sns.MessageAttributeInjector.SETTER;
 
 import com.amazonaws.AmazonWebServiceRequest;
@@ -17,8 +11,7 @@ import com.amazonaws.services.sns.model.PublishRequest;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.LinkedHashMap;
-
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 
 public class SnsInterceptor extends RequestHandler2 {
 
@@ -30,7 +23,7 @@ public class SnsInterceptor extends RequestHandler2 {
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(AmazonWebServiceRequest request) {
-    // Injecting the AWSTraceHeader into SNS messageAttributes. This uses fewer keys and is consistent with SQS cases.
+    // Injecting the AWSTraceHeader into SNS messageAttributes. This is consistent with SQS cases.
     if (request instanceof PublishRequest) {
       PublishRequest pRequest = (PublishRequest) request;
       final AgentSpan span = newSpan(request);
@@ -50,18 +43,10 @@ public class SnsInterceptor extends RequestHandler2 {
   }
 
   private AgentSpan newSpan(AmazonWebServiceRequest request) {
-    final AgentSpan span = startSpan("aws.sns.send");
+    final AgentSpan span = AgentTracer.startSpan("aws.sns.send");
     // pass the span to TracingRequestHandler in the sdk instrumentation where it'll be enriched &
     // activated
     contextStore.put(request, span);
     return span;
-  }
-
-  private static LinkedHashMap<String, String> getTags(String topicArn) {
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    sortedTags.put(TOPIC_TAG, urlFileName(topicArn));
-    sortedTags.put(TYPE_TAG, "sns");
-    return sortedTags;
   }
 }

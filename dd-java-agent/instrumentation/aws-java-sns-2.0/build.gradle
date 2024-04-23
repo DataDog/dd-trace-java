@@ -1,0 +1,18 @@
+muzzle {
+  pass {
+    group = "software.amazon.awssdk"
+    module = "sns"
+    versions = "[2.0.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'software.amazon.awssdk', name: 'sns', version: '2.24.4'
+
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
+}
