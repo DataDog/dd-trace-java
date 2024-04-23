@@ -7,10 +7,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,18 +21,17 @@ public class ThirdPartyLibraries {
   private static final Logger LOGGER = LoggerFactory.getLogger(ThirdPartyLibraries.class);
   private static final JsonAdapter<InternalConfig> ADAPTER =
       new Moshi.Builder().build().adapter(InternalConfig.class);
-  private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final String FILE_NAME = "/third_party_libraries.json";
 
   private ThirdPartyLibraries() {}
 
-  public List<String> getExcludes(Config config) {
+  public Set<String> getExcludes(Config config) {
     try (InputStream inputStream = this.getClass().getResourceAsStream(FILE_NAME)) {
       InternalConfig defaults = readConfig(inputStream);
-      List<String> excludes =
-          Arrays.stream(COMMA_PATTERN.split(config.getThirdPartyExcludes()))
+      Set<String> excludes =
+          config.getThirdPartyExcludes().stream()
               .filter(s -> !s.isEmpty())
-              .collect(Collectors.toList());
+              .collect(Collectors.toSet());
       excludes.addAll(defaults.getPrefixes());
       return excludes;
     } catch (Exception e) {
@@ -42,16 +40,16 @@ public class ThirdPartyLibraries {
     }
   }
 
-  public List<String> getIncludes(Config config) {
-    return Arrays.stream(COMMA_PATTERN.split(config.getThirdPartyIncludes()))
+  public Set<String> getIncludes(Config config) {
+    return config.getThirdPartyIncludes().stream()
         .filter(s -> !s.isEmpty())
-        .collect(Collectors.toList());
+        .collect(Collectors.toSet());
   }
 
   // Add a*, b*, c*, ..., z* to the exclude trie in ClassNameFiltering. Simply adding * does not
   // work.
-  private static List<String> getExcludeAll() {
-    List<String> excludeAllPrefixes = new ArrayList<>();
+  private static Set<String> getExcludeAll() {
+    Set<String> excludeAllPrefixes = new HashSet<>();
     for (char c : ALPHABET) {
       excludeAllPrefixes.add(String.valueOf(c));
     }

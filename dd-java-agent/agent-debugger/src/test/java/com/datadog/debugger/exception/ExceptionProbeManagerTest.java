@@ -7,7 +7,9 @@ import static org.mockito.Mockito.when;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.api.Config;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 class ExceptionProbeManagerTest {
@@ -27,18 +29,19 @@ class ExceptionProbeManagerTest {
   void instrumentSingleFrame() {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
-            Arrays.asList(
-                "java.",
-                "jdk.",
-                "sun.",
-                "com.sun.",
-                "org.gradle.",
-                "worker.org.gradle.",
-                "org.junit."));
+            Stream.of(
+                    "java.",
+                    "jdk.",
+                    "sun.",
+                    "com.sun.",
+                    "org.gradle.",
+                    "worker.org.gradle.",
+                    "org.junit.")
+                .collect(Collectors.toSet()));
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
-    assertEquals("66b67fc7b62efa883bfd4b22910e2e27f35d09fbc5cf52e9bf65aa535ac9022", fingerprint);
+    assertEquals("d2e9d63e304d95f6435d77bf4d0d387521591e550be21d432339a14ee1cb40", fingerprint);
     exceptionProbeManager.createProbesForException(fingerprint, exception.getStackTrace());
     assertEquals(1, exceptionProbeManager.getProbes().size());
     ExceptionProbe exceptionProbe = exceptionProbeManager.getProbes().iterator().next();
@@ -50,15 +53,16 @@ class ExceptionProbeManagerTest {
   @Test
   void filterAllFrames() {
     Config config = mock(Config.class);
-    when(config.getThirdPartyIncludes()).thenReturn("");
+    when(config.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
     when(config.getThirdPartyExcludes())
         .thenReturn(
-            String.join(
-                ",",
-                "org.gradle.",
-                "worker.org.gradle.",
-                "org.junit.",
-                "com.datadog.debugger.exception.ExceptionProbeManagerTest"));
+            Stream.of(
+                    ",",
+                    "org.gradle.",
+                    "worker.org.gradle.",
+                    "org.junit.",
+                    "com.datadog.debugger.exception.ExceptionProbeManagerTest")
+                .collect(Collectors.toSet()));
     ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);

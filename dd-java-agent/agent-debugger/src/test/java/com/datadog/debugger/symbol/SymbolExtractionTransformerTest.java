@@ -1,7 +1,6 @@
 package com.datadog.debugger.symbol;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,9 +14,12 @@ import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,17 +33,18 @@ class SymbolExtractionTransformerTest {
   private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symboltest.";
   private static final String EXCLUDED_PACKAGE = "akka.actor.";
   private static final String SYMBOL_PACKAGE_DIR = SYMBOL_PACKAGE.replace('.', '/');
-  private static final List<String> TRANSFORMER_EXCLUDES =
-      Arrays.asList(
-          "java.",
-          "jdk.",
-          "sun.",
-          "com.sun.",
-          "utils.",
-          "javax.",
-          "javaslang.",
-          "org.omg.",
-          "com.datadog.debugger.");
+  private static final Set<String> TRANSFORMER_EXCLUDES =
+      Stream.of(
+              "java.",
+              "jdk.",
+              "sun.",
+              "com.sun.",
+              "utils.",
+              "javax.",
+              "javaslang.",
+              "org.omg.",
+              "com.datadog.debugger.")
+          .collect(Collectors.toSet());
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private Config config;
@@ -883,7 +886,7 @@ class SymbolExtractionTransformerTest {
     SymbolExtractionTransformer transformer =
         new SymbolExtractionTransformer(
             new SymbolAggregator(symbolSinkMock, 1),
-            new ClassNameFiltering(singletonList(EXCLUDED_PACKAGE)));
+            new ClassNameFiltering(Collections.singleton(EXCLUDED_PACKAGE)));
     instr.addTransformer(transformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
@@ -962,7 +965,7 @@ class SymbolExtractionTransformerTest {
     return createTransformer(
         symbolSink,
         symbolFlushThreshold,
-        new ClassNameFiltering(TRANSFORMER_EXCLUDES, Arrays.asList(SYMBOL_PACKAGE)));
+        new ClassNameFiltering(TRANSFORMER_EXCLUDES, Collections.singleton(SYMBOL_PACKAGE)));
   }
 
   private SymbolExtractionTransformer createTransformer(

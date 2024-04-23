@@ -1,6 +1,6 @@
 package com.datadog.debugger.exception;
 
-import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.util.ClassNameFiltering;
@@ -38,7 +38,7 @@ class FingerprinterTest {
   }
 
   final String TEST_FINGERPRINT = "2ec0db28f254ffa383cbb26a32269bf739ba937b9dd8f111d22294e6a494855";
-  final ClassNameFiltering classNameFiltering = new ClassNameFiltering(emptyList());
+  final ClassNameFiltering classNameFiltering = new ClassNameFiltering(emptySet());
 
   @Test
   void basic() {

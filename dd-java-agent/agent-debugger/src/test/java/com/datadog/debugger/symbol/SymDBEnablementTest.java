@@ -26,6 +26,8 @@ import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -44,7 +46,7 @@ class SymDBEnablementTest {
     when(instr.getAllLoadedClasses()).thenReturn(new Class[0]);
     when(instr.isModifiableClass(any())).thenReturn(true);
     config = mock(Config.class);
-    when(config.getThirdPartyIncludes()).thenReturn("com.datadog.debugger");
+    when(config.getThirdPartyIncludes()).thenReturn(Collections.singleton("com.datadog.debugger"));
     when(config.isDebuggerSymbolEnabled()).thenReturn(true);
     symbolSink = mock(SymbolSink.class);
   }
@@ -74,8 +76,8 @@ class SymDBEnablementTest {
 
   @Test
   public void noIncludesFilterOutDatadogClass() {
-    when(config.getThirdPartyIncludes()).thenReturn("");
-    when(config.getThirdPartyExcludes()).thenReturn("com.datadog.debugger.");
+    when(config.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
+    when(config.getThirdPartyExcludes()).thenReturn(Collections.singleton("com.datadog.debugger."));
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(
             instr, config, new SymbolAggregator(symbolSink, 1), new ClassNameFiltering(config));
@@ -98,7 +100,9 @@ class SymDBEnablementTest {
     Class<?> testClass = urlClassLoader.loadClass(CLASS_NAME);
     when(instr.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
     when(config.getThirdPartyIncludes())
-        .thenReturn("com.datadog.debugger.,org.springframework.samples.");
+        .thenReturn(
+            Stream.of("com.datadog.debugger.", "org.springframework.samples.")
+                .collect(Collectors.toSet()));
     SymbolAggregator symbolAggregator = mock(SymbolAggregator.class);
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(instr, config, symbolAggregator, ClassNameFiltering.allowAll());
@@ -121,8 +125,8 @@ class SymDBEnablementTest {
     SymbolAggregator symbolAggregator = new SymbolAggregator(mockSymbolSink, 1);
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
-            Collections.singletonList("org.springframework."),
-            Collections.singletonList("com.datadog.debugger."));
+            Collections.singleton("org.springframework."),
+            Collections.singleton("com.datadog.debugger."));
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(instr, config, symbolAggregator, classNameFiltering);
     doAnswer(

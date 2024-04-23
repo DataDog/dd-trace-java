@@ -8,10 +8,11 @@ import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.agent.ThirdPartyLibraries;
 import datadog.trace.api.Config;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -26,7 +27,7 @@ class ClassNameFilteringTest {
 
   @Test
   public void testExcludeAll() {
-    List<String> excludeAllPrefixes = new ArrayList<>();
+    Set<String> excludeAllPrefixes = new HashSet<>();
     for (char c : ALPHABET) {
       excludeAllPrefixes.add(String.valueOf(c));
     }
@@ -36,7 +37,7 @@ class ClassNameFilteringTest {
 
   @Test
   public void testExcludeSome() {
-    List<String> excludeSomePrefixes = new ArrayList<>();
+    Set<String> excludeSomePrefixes = new HashSet<>();
     excludeSomePrefixes.add("com.datadog.debugger");
     excludeSomePrefixes.add("org.junit");
     ClassNameFiltering classNameFiltering = new ClassNameFiltering(excludeSomePrefixes);
@@ -50,8 +51,8 @@ class ClassNameFilteringTest {
   public void testIncludeOverridesExclude() {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
-            Collections.singletonList("com.datadog.debugger"),
-            Collections.singletonList("com.datadog.debugger"));
+            Collections.singleton("com.datadog.debugger"),
+            Collections.singleton("com.datadog.debugger"));
     assertFalse(classNameFiltering.isExcluded("com.datadog.debugger.FooBar"));
   }
 
@@ -59,8 +60,7 @@ class ClassNameFilteringTest {
   public void testIncludePrefixOverridesExclude() {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
-            Collections.singletonList("com.datadog.debugger"),
-            Collections.singletonList("com.datadog"));
+            Collections.singleton("com.datadog.debugger"), Collections.singleton("com.datadog"));
     assertFalse(classNameFiltering.isExcluded("com.datadog.debugger.FooBar"));
   }
 
@@ -68,8 +68,8 @@ class ClassNameFilteringTest {
   public void testIncludeSomeExcludeSome() {
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(
-            Arrays.asList("com.datadog.debugger", "org.junit"),
-            Collections.singletonList("com.datadog.debugger"));
+            Stream.of("com.datadog.debugger", "org.junit").collect(Collectors.toSet()),
+            Collections.singleton("com.datadog.debugger"));
     assertFalse(classNameFiltering.isExcluded("com.datadog.debugger.FooBar"));
     assertTrue(classNameFiltering.isExcluded("org.junit.FooBar"));
   }
@@ -88,8 +88,8 @@ class ClassNameFilteringTest {
       })
   public void testExcludeDefaults(String input) {
     Config config = mock(Config.class);
-    when(config.getThirdPartyExcludes()).thenReturn("");
-    when(config.getThirdPartyIncludes()).thenReturn("");
+    when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
+    when(config.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(ThirdPartyLibraries.INSTANCE.getExcludes(config));
     assertTrue(classNameFiltering.isExcluded(input));

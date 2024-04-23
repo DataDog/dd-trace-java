@@ -830,8 +830,8 @@ public class Config {
   private final int debuggerSymbolFlushThreshold;
   private final boolean debuggerExceptionEnabled;
 
-  private final String debuggerThirdPartyIncludes;
-  private final String debuggerThirdPartyExcludes;
+  private final Set<String> debuggerThirdPartyIncludes;
+  private final Set<String> debuggerThirdPartyExcludes;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1874,8 +1874,9 @@ public class Config {
             DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
     debuggerExceptionEnabled =
         configProvider.getBoolean(DEBUGGER_EXCEPTION_ENABLED, DEFAULT_DEBUGGER_EXCEPTION_ENABLED);
-    debuggerThirdPartyIncludes = configProvider.getString(THIRD_PARTY_INCLUDES, "");
-    debuggerThirdPartyExcludes = configProvider.getString(THIRD_PARTY_EXCLUDES, "");
+
+    debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
+    debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -3186,11 +3187,11 @@ public class Config {
     return debuggerExceptionEnabled;
   }
 
-  public String getThirdPartyIncludes() {
+  public Set<String> getThirdPartyIncludes() {
     return debuggerThirdPartyIncludes;
   }
 
-  public String getThirdPartyExcludes() {
+  public Set<String> getThirdPartyExcludes() {
     return debuggerThirdPartyExcludes;
   }
 

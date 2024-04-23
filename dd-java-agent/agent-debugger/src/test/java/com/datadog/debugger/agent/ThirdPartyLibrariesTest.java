@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,8 +17,8 @@ class ThirdPartyLibrariesTest {
 
   @BeforeEach
   void setUp() {
-    when(mockConfig.getThirdPartyIncludes()).thenReturn("");
-    when(mockConfig.getThirdPartyExcludes()).thenReturn("");
+    when(mockConfig.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
+    when(mockConfig.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
   }
 
   @Test
@@ -27,15 +28,19 @@ class ThirdPartyLibrariesTest {
 
   @Test
   void testGetExcludesWithExplicitExclude() {
-    when(mockConfig.getThirdPartyExcludes()).thenReturn("com.datadog.debugger");
+
+    when(mockConfig.getThirdPartyExcludes())
+        .thenReturn(Collections.singleton("com.datadog.debugger"));
     assertTrue(
         ThirdPartyLibraries.INSTANCE.getExcludes(mockConfig).contains("com.datadog.debugger"));
   }
 
   @Test
   void testGetExcludesWithExplicitExcludeAndExplicitInclude() {
-    when(mockConfig.getThirdPartyExcludes()).thenReturn("com.datadog.debugger");
-    when(mockConfig.getThirdPartyIncludes()).thenReturn("com.datadog.debugger");
+    when(mockConfig.getThirdPartyExcludes())
+        .thenReturn(Collections.singleton("com.datadog.debugger"));
+    when(mockConfig.getThirdPartyIncludes())
+        .thenReturn(Collections.singleton("com.datadog.debugger"));
     assertTrue(
         ThirdPartyLibraries.INSTANCE.getExcludes(mockConfig).contains("com.datadog.debugger"));
     assertTrue(
@@ -50,7 +55,7 @@ class ThirdPartyLibrariesTest {
 
   @Test
   void testGetExcludesWithIncludeOverridingDefaultExclude() {
-    when(mockConfig.getThirdPartyIncludes()).thenReturn("java.");
+    when(mockConfig.getThirdPartyIncludes()).thenReturn(Collections.singleton("java."));
     assertTrue(ThirdPartyLibraries.INSTANCE.getExcludes(mockConfig).contains("java."));
     assertTrue(ThirdPartyLibraries.INSTANCE.getIncludes(mockConfig).contains("java."));
   }

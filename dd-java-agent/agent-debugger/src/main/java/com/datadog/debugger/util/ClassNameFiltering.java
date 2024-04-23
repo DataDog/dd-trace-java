@@ -4,7 +4,7 @@ import com.datadog.debugger.agent.ThirdPartyLibraries;
 import datadog.trace.api.Config;
 import datadog.trace.util.ClassNameTrie;
 import java.util.Collections;
-import java.util.List;
+import java.util.Set;
 
 /** A class to filter out classes based on their package name. */
 public class ClassNameFiltering {
@@ -18,11 +18,11 @@ public class ClassNameFiltering {
         ThirdPartyLibraries.INSTANCE.getIncludes(config));
   }
 
-  public ClassNameFiltering(List<String> excludes) {
-    this(excludes, Collections.emptyList());
+  public ClassNameFiltering(Set<String> excludes) {
+    this(excludes, Collections.emptySet());
   }
 
-  public ClassNameFiltering(List<String> excludes, List<String> includes) {
+  public ClassNameFiltering(Set<String> excludes, Set<String> includes) {
     ClassNameTrie.Builder excludeBuilder = new ClassNameTrie.Builder();
     excludes.forEach(s -> excludeBuilder.put(s + "*", 1));
     this.excludeTrie = excludeBuilder.buildTrie();
@@ -36,6 +36,6 @@ public class ClassNameFiltering {
   }
 
   public static ClassNameFiltering allowAll() {
-    return new ClassNameFiltering(Collections.emptyList(), Collections.emptyList());
+    return new ClassNameFiltering(Collections.emptySet(), Collections.emptySet());
   }
 }

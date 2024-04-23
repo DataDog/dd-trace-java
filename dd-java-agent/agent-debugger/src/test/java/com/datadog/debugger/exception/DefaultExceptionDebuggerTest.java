@@ -3,6 +3,7 @@ package com.datadog.debugger.exception;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
 import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.*;
@@ -56,7 +57,7 @@ class DefaultExceptionDebuggerTest {
   @BeforeEach
   public void setUp() {
     configurationUpdater = mock(ConfigurationUpdater.class);
-    classNameFiltering = new ClassNameFiltering(emptyList());
+    classNameFiltering = new ClassNameFiltering(emptySet());
     exceptionDebugger = new DefaultExceptionDebugger(configurationUpdater, classNameFiltering);
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
