@@ -37,9 +37,8 @@ public abstract class SpanOriginInstrumentation extends Tracing implements ForTy
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    System.out.println("SpanOriginInstrumentation.methodAdvice");
-    System.out.println("transformer = " + transformer);
-    System.out.println("matcher = " + matcher);
-    transformer.applyAdvice(isAnnotatedWith(matcher), SpanOriginAdvice.class.getName());
+    transformer.applyAdvice(
+        isAnnotatedWith(matcher),
+        "datadog.trace.instrumentation.trace_annotation.SpanOriginAdvice");
   }
 }
