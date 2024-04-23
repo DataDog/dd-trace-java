@@ -4,7 +4,9 @@ public class DDTags {
 
   public static final String DD_ENTRY_LOCATION_FILE = "_dd.entry_location.file";
   public static final String DD_ENTRY_METHOD = "_dd.entry_location.method";
+  public static final String DD_ENTRY_METHOD_SIGNATURE = "_dd.entry_location.signature";
   public static final String DD_ENTRY_START_LINE = "_dd.entry_location.start_line";
+  public static final String DD_ENTRY_END_LINE = "_dd.entry_location.end_line";
 
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
