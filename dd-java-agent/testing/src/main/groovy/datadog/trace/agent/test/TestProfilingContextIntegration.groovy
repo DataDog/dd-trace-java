@@ -34,6 +34,11 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
     detachments.incrementAndGet()
   }
 
+  void clear() {
+    attachments.set(0)
+    detachments.set(0)
+  }
+
   @Override
   String name() {
     return "test"
