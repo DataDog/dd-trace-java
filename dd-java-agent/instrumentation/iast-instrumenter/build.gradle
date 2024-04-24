@@ -12,4 +12,8 @@ addTestSuiteForDir('latestDepTest', 'test')
 compileJava.dependsOn 'generateClassNameTries'
 sourcesJar.dependsOn 'generateClassNameTries'
 
+dependencies {
+  testImplementation project(':dd-java-agent:agent-tooling')
+}
+
 

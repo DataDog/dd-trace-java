@@ -8,6 +8,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import net.bytebuddy.ClassFileVersion;
+import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.ClassReader;
@@ -91,6 +92,7 @@ final class OutlineTypeParser implements TypeParser {
     TypeOutline typeOutline;
     FieldOutline fieldOutline;
     MethodOutline methodOutline;
+    boolean selfContained = true;
 
     OutlineTypeExtractor() {
       super(OpenedClassReader.ASM_API);
@@ -108,9 +110,23 @@ final class OutlineTypeParser implements TypeParser {
     }
 
     @Override
+    public void visitOuterClass(String owner, String name, String descriptor) {
+      if (name != null && !name.equals(MethodDescription.TYPE_INITIALIZER_INTERNAL_NAME)) {
+        selfContained = false;
+      } else if (owner != null) {
+        selfContained = false;
+      }
+    }
+
+    @Override
     public void visitInnerClass(String name, String outerName, String innerName, int access) {
-      if (null != outerName && typeOutline.getInternalName().equals(name)) {
-        typeOutline.declaredBy(outerName);
+      if (typeOutline.getInternalName().equals(name)) {
+        if (null != outerName) {
+          typeOutline.declaredBy(outerName);
+        }
+        if (null == innerName && !selfContained) {
+          typeOutline.anonymousType();
+        }
       }
     }
 
