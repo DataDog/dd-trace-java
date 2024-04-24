@@ -34,7 +34,7 @@ public class Fingerprinter {
     StackTraceElement[] stackTrace = t.getStackTrace();
     for (StackTraceElement stackTraceElement : stackTrace) {
       String className = stackTraceElement.getClassName();
-      if (classNameFiltering.apply(className)) {
+      if (classNameFiltering.isExcluded(className)) {
         continue;
       }
       digest.update(stackTraceElement.toString().getBytes());

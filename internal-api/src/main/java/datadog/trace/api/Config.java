@@ -223,6 +223,8 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE;
+import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
+import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
@@ -827,6 +829,9 @@ public class Config {
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
   private final boolean debuggerExceptionEnabled;
+
+  private final Set<String> debuggerThirdPartyIncludes;
+  private final Set<String> debuggerThirdPartyExcludes;
 
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
@@ -1869,6 +1874,9 @@ public class Config {
             DEBUGGER_SYMBOL_FLUSH_THRESHOLD, DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD);
     debuggerExceptionEnabled =
         configProvider.getBoolean(DEBUGGER_EXCEPTION_ENABLED, DEFAULT_DEBUGGER_EXCEPTION_ENABLED);
+
+    debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
+    debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -3177,6 +3185,14 @@ public class Config {
 
   public boolean isDebuggerExceptionEnabled() {
     return debuggerExceptionEnabled;
+  }
+
+  public Set<String> getThirdPartyIncludes() {
+    return debuggerThirdPartyIncludes;
+  }
+
+  public Set<String> getThirdPartyExcludes() {
+    return debuggerThirdPartyExcludes;
   }
 
   public String getFinalDebuggerProbeUrl() {

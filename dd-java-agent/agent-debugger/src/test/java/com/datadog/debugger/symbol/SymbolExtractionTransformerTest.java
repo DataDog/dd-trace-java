@@ -1,24 +1,25 @@
 package com.datadog.debugger.symbol;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
-import com.datadog.debugger.agent.AllowListHelper;
-import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.sink.SymbolSink;
+import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +31,20 @@ import org.mockito.Mockito;
 
 class SymbolExtractionTransformerTest {
   private static final String SYMBOL_PACKAGE = "com.datadog.debugger.symboltest.";
+  private static final String EXCLUDED_PACKAGE = "akka.actor.";
   private static final String SYMBOL_PACKAGE_DIR = SYMBOL_PACKAGE.replace('.', '/');
+  private static final Set<String> TRANSFORMER_EXCLUDES =
+      Stream.of(
+              "java.",
+              "jdk.",
+              "sun.",
+              "com.sun.",
+              "utils.",
+              "javax.",
+              "javaslang.",
+              "org.omg.",
+              "com.datadog.debugger.")
+          .collect(Collectors.toSet());
 
   private Instrumentation instr = ByteBuddyAgent.install();
   private Config config;
@@ -39,24 +53,6 @@ class SymbolExtractionTransformerTest {
   public void setUp() {
     config = Mockito.mock(Config.class);
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-  }
-
-  @Test
-  public void noIncludesFilterOutDatadogClass() throws IOException, URISyntaxException {
-    config = Mockito.mock(Config.class);
-    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
-    SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer =
-        new SymbolExtractionTransformer(
-            new AllowListHelper(null), new SymbolAggregator(symbolSinkMock, 1));
-    instr.addTransformer(transformer);
-    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    Reflect.on(testClass).call("main", "1").get();
-    assertFalse(
-        symbolSinkMock.jarScopes.stream()
-            .flatMap(scope -> scope.getScopes().stream())
-            .anyMatch(scope -> scope.getName().equals(CLASS_NAME)));
   }
 
   @Test
@@ -881,6 +877,25 @@ class SymbolExtractionTransformerTest {
     assertScope(ageMethodScope, ScopeType.METHOD, "age", 10, 10, SOURCE_FILE, 0, 0);
   }
 
+  @Test
+  public void filterOutClassesFromExcludedPackages() throws IOException, URISyntaxException {
+    config = Mockito.mock(Config.class);
+    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    final String CLASS_NAME = EXCLUDED_PACKAGE + "SymbolExtraction16";
+    SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
+    SymbolExtractionTransformer transformer =
+        new SymbolExtractionTransformer(
+            new SymbolAggregator(symbolSinkMock, 1),
+            new ClassNameFiltering(Collections.singleton(EXCLUDED_PACKAGE)));
+    instr.addTransformer(transformer);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    Reflect.on(testClass).call("main", "1").get();
+    assertFalse(
+        symbolSinkMock.jarScopes.stream()
+            .flatMap(scope -> scope.getScopes().stream())
+            .anyMatch(scope -> scope.getName().equals(CLASS_NAME)));
+  }
+
   private void assertLangSpecifics(
       LanguageSpecifics languageSpecifics,
       List<String> expectedModifiers,
@@ -947,11 +962,16 @@ class SymbolExtractionTransformerTest {
 
   private SymbolExtractionTransformer createTransformer(
       SymbolSink symbolSink, int symbolFlushThreshold) {
-    AllowListHelper allowListHelper =
-        new AllowListHelper(
-            new Configuration.FilterList(singletonList(SYMBOL_PACKAGE), emptyList()));
+    return createTransformer(
+        symbolSink,
+        symbolFlushThreshold,
+        new ClassNameFiltering(TRANSFORMER_EXCLUDES, Collections.singleton(SYMBOL_PACKAGE)));
+  }
+
+  private SymbolExtractionTransformer createTransformer(
+      SymbolSink symbolSink, int symbolFlushThreshold, ClassNameFiltering classNameFiltering) {
     return new SymbolExtractionTransformer(
-        allowListHelper, new SymbolAggregator(symbolSink, symbolFlushThreshold));
+        new SymbolAggregator(symbolSink, symbolFlushThreshold), classNameFiltering);
   }
 
   static class SymbolSinkMock extends SymbolSink {

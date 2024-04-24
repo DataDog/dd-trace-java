@@ -2,7 +2,6 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
 import com.datadog.debugger.sink.DebuggerSink;
@@ -63,8 +62,7 @@ public class DebuggerAgent {
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     DebuggerSink debuggerSink = new DebuggerSink(config, probeStatusSink);
     debuggerSink.start();
-    // TODO filtering out thirdparty code
-    ClassNameFiltering classNameFiltering = new ClassNameFiltering(emptyList());
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
@@ -104,7 +102,8 @@ public class DebuggerAgent {
                 instrumentation,
                 config,
                 new SymbolAggregator(
-                    debuggerSink.getSymbolSink(), config.getDebuggerSymbolFlushThreshold()));
+                    debuggerSink.getSymbolSink(), config.getDebuggerSymbolFlushThreshold()),
+                classNameFiltering);
         if (config.isDebuggerSymbolForceUpload()) {
           symDBEnablement.startSymbolExtraction();
         }
