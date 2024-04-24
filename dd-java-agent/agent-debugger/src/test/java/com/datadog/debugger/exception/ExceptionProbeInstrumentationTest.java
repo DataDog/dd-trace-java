@@ -34,10 +34,10 @@ import datadog.trace.core.CoreTracer;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
@@ -52,12 +52,17 @@ public class ExceptionProbeInstrumentationTest {
   private ClassFileTransformer currentTransformer;
   private final ClassNameFiltering classNameFiltering =
       new ClassNameFiltering(
-          Arrays.asList(
-              "org.gradle.",
-              "worker.org.gradle.",
-              "org.junit.",
-              "org.joor.",
-              "com.datadog.debugger.exception."));;
+          Stream.of(
+                  "java.",
+                  "jdk.",
+                  "com.sun.",
+                  "sun.",
+                  "org.gradle.",
+                  "worker.org.gradle.",
+                  "org.junit.",
+                  "org.joor.",
+                  "com.datadog.debugger.exception.")
+              .collect(Collectors.toSet()));
 
   @BeforeEach
   public void before() {

@@ -92,7 +92,8 @@ public class DDEvpProxyApi extends RemoteApi {
               ? httpClient
               : OkHttpUtils.buildHttpClient(proxiedApiUrl, timeoutMillis);
 
-      final HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
+      final HttpRetryPolicy.Factory retryPolicyFactory =
+          new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
       log.debug("proxiedApiUrl: {}", proxiedApiUrl);
       return new DDEvpProxyApi(
@@ -141,9 +142,8 @@ public class DDEvpProxyApi extends RemoteApi {
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 
-    HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
     try (okhttp3.Response response =
-        OkHttpUtils.sendWithRetries(httpClient, retryPolicy, request)) {
+        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         return Response.success(response.code());

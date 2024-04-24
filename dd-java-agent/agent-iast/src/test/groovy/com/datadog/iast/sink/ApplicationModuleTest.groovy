@@ -64,9 +64,13 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     'application/sessiontimeout/secure'               | null                        | null                                                       | _
     'application/sessiontimeout/insecure'             | SESSION_TIMEOUT             | 'Found vulnerable timeout value: 80'                       | 7
     'application/directorylistingleak/secure'         | null                        | null                                                       | _
-    'application/directorylistingleak/insecure'       | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                            | 14
+    'application/directorylistingleak/insecure/tomcat'| DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                            | 14
+    'application/directorylistingleak/insecure/weblogic'     | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                             | 17
+    'application/directorylistingleak/insecure/websphere/xmi'        | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                             | 1
+    'application/directorylistingleak/insecure/websphere/xml'        | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                             | 10
     'application/adminconsoleactive/secure'           | null                        | null                                                       | _
-    'application/adminconsoleactive/insecure'         | ADMIN_CONSOLE_ACTIVE        | 'Tomcat Manager Application'                               | NO_LINE
+    'application/adminconsoleactive/insecure/tomcat/manager' | ADMIN_CONSOLE_ACTIVE | ApplicationModuleImpl.TOMCAT_MANAGER_APP                   | NO_LINE
+    'application/adminconsoleactive/insecure/tomcat/host'    | ADMIN_CONSOLE_ACTIVE | ApplicationModuleImpl.TOMCAT_HOST_MANAGER_APP              | NO_LINE
     'application/defaulthtmlescapeinvalid/secure'     | null                        | null                                                       | _
     'application/defaulthtmlescapeinvalid/secure_tag' | null                        | null                                                       | _
     'application/defaulthtmlescapeinvalid/false_tag'  | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be true'                     | 8
@@ -84,6 +88,7 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     } else {
       0 * reporter.report(_, _)
     }
+    0 * reporter.report(_, _)
 
     where:
     sessionTrackingModes        | expected

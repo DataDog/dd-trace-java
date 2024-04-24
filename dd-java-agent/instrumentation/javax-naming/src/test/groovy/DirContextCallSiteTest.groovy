@@ -18,7 +18,7 @@ class DirContextCallSiteTest extends AgentTestRunner {
   }
 
 
-  def 'test search(String, String, SearchControls)'() {
+  def 'test search(String, String, SearchControls) using #suiteBuilderName'() {
     setup:
     final name = 'name'
     final filter = 'filter'
@@ -38,12 +38,10 @@ class DirContextCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    _ | suiteBuilder
-    _ | { InitialDirContext ctx -> new TestDirContextSuite(ctx) }
-    _ | { InitialDirContext ctx -> new TestInitialDirContextSuite(ctx) }
+    [suiteBuilderName, suiteBuilder] << suiteBuilders()
   }
 
-  def 'test search(Name, String, SearchControls)'() {
+  def 'test search(Name, String, SearchControls) using #suiteBuilderName'() {
     setup:
     final name = Mock(Name)
     final filter = 'filter'
@@ -63,12 +61,10 @@ class DirContextCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    _ | suiteBuilder
-    _ | { InitialDirContext ctx -> new TestDirContextSuite(ctx) }
-    _ | { InitialDirContext ctx -> new TestInitialDirContextSuite(ctx) }
+    [suiteBuilderName, suiteBuilder] << suiteBuilders()
   }
 
-  def 'test search(String, String, Object[], SearchControls)'() {
+  def 'test search(String, String, Object[], SearchControls) using #suiteBuilderName'() {
     setup:
     final name = 'name'
     final filter = 'filter'
@@ -89,12 +85,10 @@ class DirContextCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    _ | suiteBuilder
-    _ | { InitialDirContext ctx -> new TestDirContextSuite(ctx) }
-    _ | { InitialDirContext ctx -> new TestInitialDirContextSuite(ctx) }
+    [suiteBuilderName, suiteBuilder] << suiteBuilders()
   }
 
-  def 'test search(Name, String, Object[], SearchControls)'() {
+  def 'test search(Name, String, Object[], SearchControls) using #suiteBuilderName'() {
     setup:
     final name = Mock(Name)
     final filter = 'filter'
@@ -115,8 +109,13 @@ class DirContextCallSiteTest extends AgentTestRunner {
     0 * _
 
     where:
-    _ | suiteBuilder
-    _ | { InitialDirContext ctx -> new TestDirContextSuite(ctx) }
-    _ | { InitialDirContext ctx -> new TestInitialDirContextSuite(ctx) }
+    [suiteBuilderName, suiteBuilder] << suiteBuilders()
+  }
+
+  static Object[][] suiteBuilders() {
+    [
+      ['TestDirContextSuite', TestDirContextSuite::new],
+      ['TestInitialDirContextSuite', TestInitialDirContextSuite::new]
+    ]
   }
 }

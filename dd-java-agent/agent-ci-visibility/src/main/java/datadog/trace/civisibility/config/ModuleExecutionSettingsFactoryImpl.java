@@ -66,7 +66,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
     Map<String, String> systemProperties =
         getPropertiesPropagatedToChildProcess(
-            codeCoverageEnabled, itrEnabled, flakyTestRetriesEnabled);
+            codeCoverageEnabled, itrEnabled, flakyTestRetriesEnabled, earlyFlakeDetectionEnabled);
 
     LOGGER.info(
         "CI Visibility settings ({}, {}):\n"
@@ -196,7 +196,10 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
-      boolean codeCoverageEnabled, boolean itrEnabled, boolean flakyTestRetriesEnabled) {
+      boolean codeCoverageEnabled,
+      boolean itrEnabled,
+      boolean flakyTestRetriesEnabled,
+      boolean earlyFlakeDetectionEnabled) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
     Properties systemProperties = System.getProperties();
     for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
@@ -222,6 +225,11 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         Strings.propertyNameToSystemPropertyName(
             CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED),
         Boolean.toString(flakyTestRetriesEnabled));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED),
+        Boolean.toString(earlyFlakeDetectionEnabled));
 
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,

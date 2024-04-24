@@ -8,6 +8,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioIterator;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
@@ -49,13 +50,20 @@ public class KarateTracingHook implements RuntimeHook {
         suite.parallel,
         TestFrameworkInstrumentation.KARATE);
 
-    if (!fr.scenarios.hasNext()) {
+    if (!isFeatureContainingScenarios(fr)) {
       // Karate will not trigger the afterFeature hook if suite has no scenarios
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
     }
 
     return true;
+  }
+
+  private boolean isFeatureContainingScenarios(FeatureRuntime fr) {
+    // cannot use existing iterator (FeatureRuntime#scenarios) because it may have been traversed
+    // already
+    // (likely, when scheduling parallel execution of scenarios)
+    return new ScenarioIterator(fr).filterSelected().iterator().hasNext();
   }
 
   @Override

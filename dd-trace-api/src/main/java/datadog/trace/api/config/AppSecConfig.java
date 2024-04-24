@@ -26,5 +26,7 @@ public final class AppSecConfig {
       "experimental.api-security.enabled";
   public static final String API_SECURITY_REQUEST_SAMPLE_RATE = "api-security.request.sample.rate";
 
+  public static final String APPSEC_SCA_ENABLED = "appsec.sca.enabled";
+
   private AppSecConfig() {}
 }

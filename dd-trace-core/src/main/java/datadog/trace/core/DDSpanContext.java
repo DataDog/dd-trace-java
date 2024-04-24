@@ -140,6 +140,7 @@ public class DDSpanContext
   private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
+  private volatile boolean requiresPostProcessing;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -943,5 +944,13 @@ public class DDSpanContext
   private String getTagName(String key) {
     // TODO is this decided?
     return "_dd." + key + ".json";
+  }
+
+  public void setRequiresPostProcessing(boolean postProcessing) {
+    this.requiresPostProcessing = postProcessing;
+  }
+
+  public boolean isRequiresPostProcessing() {
+    return requiresPostProcessing;
   }
 }

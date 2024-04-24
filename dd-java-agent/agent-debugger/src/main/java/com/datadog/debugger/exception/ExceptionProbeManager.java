@@ -44,7 +44,7 @@ public class ExceptionProbeManager {
         // TODO log?
         continue;
       }
-      if (classNameFiltering.apply(stackTraceElement.getClassName())) {
+      if (classNameFiltering.isExcluded(stackTraceElement.getClassName())) {
         continue;
       }
       Where where =

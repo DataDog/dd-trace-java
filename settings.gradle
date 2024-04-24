@@ -1,18 +1,15 @@
 plugins {
-  id 'com.gradle.enterprise' version '3.0'
+  id 'com.gradle.develocity' version '3.17.2'
 }
 
 def isCI = System.getenv("CI") != null
 def skipBuildscan = Boolean.valueOf(System.getenv("SKIP_BUILDSCAN"))
-gradleEnterprise {
+develocity {
   buildScan {
-    termsOfServiceUrl = 'https://gradle.com/terms-of-service'
-    termsOfServiceAgree = 'yes'
+    termsOfUseUrl = 'https://gradle.com/help/legal-terms-of-use'
+    termsOfUseAgree = 'yes'
 
-    if (isCI && !skipBuildscan) {
-      publishAlways()
-      tag 'CI'
-    }
+    publishing.onlyIf { isCI && !skipBuildscan }
   }
 }
 

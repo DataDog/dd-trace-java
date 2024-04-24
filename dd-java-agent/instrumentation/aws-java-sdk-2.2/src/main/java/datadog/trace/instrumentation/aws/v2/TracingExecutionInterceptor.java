@@ -58,7 +58,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     if (span != null) {
       try (AgentScope ignored = activateSpan(span)) {
         DECORATE.onRequest(span, context.httpRequest());
-        DECORATE.onSdkRequest(span, context.request(), executionAttributes);
+        DECORATE.onSdkRequest(span, context.request(), context.httpRequest(), executionAttributes);
       }
     }
   }
@@ -104,7 +104,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     if (span != null) {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
       // Call onResponse on both types of responses:
-      DECORATE.onSdkResponse(span, context.response(), executionAttributes);
+      DECORATE.onSdkResponse(span, context.response(), context.httpResponse(), executionAttributes);
       DECORATE.onResponse(span, context.httpResponse());
       DECORATE.beforeFinish(span);
       span.finish();
@@ -127,7 +127,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       Optional<SdkResponse> responseOpt = context.response();
       if (responseOpt.isPresent()) {
         SdkResponse response = responseOpt.get();
-        DECORATE.onSdkResponse(span, response, executionAttributes);
+        DECORATE.onSdkResponse(span, response, response.sdkHttpResponse(), executionAttributes);
         DECORATE.onResponse(span, response.sdkHttpResponse());
         if (span.isError()) {
           DECORATE.onError(span, context.exception());

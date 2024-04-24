@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import com.amazonaws.http.HttpMethodName;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
@@ -20,7 +22,9 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.core.datastreams.TagsProcessor;
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -75,19 +79,24 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     super.onRequest(span, request);
 
     final String awsServiceName = request.getServiceName();
+    final String awsSimplifiedServiceName = simplifyServiceName(awsServiceName);
     final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
     final Class<?> awsOperation = originalRequest.getClass();
     final GetterAccess access = GetterAccess.of(originalRequest);
 
     span.setTag(InstrumentationTags.AWS_AGENT, COMPONENT_NAME);
     span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
-    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, simplifyServiceName(awsServiceName));
+    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsSimplifiedServiceName);
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperation.getSimpleName());
     span.setTag(InstrumentationTags.AWS_ENDPOINT, request.getEndpoint().toString());
 
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
-
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
+
+    if ("s3".equalsIgnoreCase(awsSimplifiedServiceName)
+        && span.traceConfig().isDataStreamsEnabled()) {
+      span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
+    }
 
     switch (awsRequestName.toString()) {
       case "SQS.SendMessage":
@@ -233,12 +242,68 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     return span;
   }
 
+  public AgentSpan onServiceResponse(
+      final AgentSpan span, final String awsService, final Response response) {
+    if ("s3".equalsIgnoreCase(simplifyServiceName(awsService))
+        && span.traceConfig().isDataStreamsEnabled()) {
+      long responseSize = getResponseContentLength(response);
+      span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
+
+      String key = getSpanTagAsString(span, InstrumentationTags.AWS_OBJECT_KEY);
+      String bucket = getSpanTagAsString(span, InstrumentationTags.AWS_BUCKET_NAME);
+      String awsOperation = getSpanTagAsString(span, InstrumentationTags.AWS_OPERATION);
+
+      if (key != null && bucket != null && awsOperation != null) {
+        // GetObjectMetadataRequest may return the object if it's not "HEAD"
+        if (HttpMethodName.GET.name().equals(span.getTag(Tags.HTTP_METHOD))
+            && ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation)
+                || "GetObjectRequest".equalsIgnoreCase(awsOperation))) {
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+          sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
+          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
+          sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, 0, responseSize);
+        }
+
+        if ("PutObjectRequest".equalsIgnoreCase(awsOperation)
+            || "UploadPartRequest".equalsIgnoreCase(awsOperation)) {
+          Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
+          long payloadSize = 0;
+          if (requestSize != null) {
+            payloadSize = (long) requestSize;
+          }
+
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+          sortedTags.put(TagsProcessor.DIRECTION_TAG, DIRECTION_OUT);
+          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
+          sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, 0, payloadSize);
+        }
+      }
+    }
+
+    return span;
+  }
+
   @Override
   public AgentSpan onResponse(final AgentSpan span, final Response response) {
     if (response.getAwsResponse() instanceof AmazonWebServiceResponse) {
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
     }
+
     return super.onResponse(span, response);
   }
 

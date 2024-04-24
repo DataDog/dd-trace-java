@@ -19,20 +19,11 @@ public interface PropagationModule extends IastModule {
    */
   void taint(@Nullable IastContext ctx, @Nullable Object target, byte origin);
 
-  /** @see #taint(IastContext, Object, byte, int, int) */
-  void taint(@Nullable Object target, byte origin, int start, int length);
+  /** @see #taint(IastContext, String, byte) */
+  void taint(@Nullable String target, byte origin);
 
-  /**
-   * Taints the object with a source with the selected origin, range and no name. If target is a
-   * char sequence it will be used as value.
-   *
-   * <p>If the value is already tainted this method will append a new range.
-   */
-  void taint(
-      @Nullable IastContext ctx, @Nullable Object target, byte origin, int start, int length);
-
-  /** @see #taint(IastContext, Object, byte, CharSequence) */
-  void taint(@Nullable Object target, byte origin, @Nullable CharSequence name);
+  /** @see #taint(IastContext, Object, byte) */
+  void taint(@Nullable IastContext ctx, @Nullable String target, byte origin);
 
   /**
    * Taints the object with a source with the selected origin and name, if target is a char sequence
@@ -40,6 +31,16 @@ public interface PropagationModule extends IastModule {
    */
   void taint(
       @Nullable IastContext ctx, @Nullable Object target, byte origin, @Nullable CharSequence name);
+
+  /** @see #taint(IastContext, Object, byte, CharSequence) */
+  void taint(@Nullable Object target, byte origin, @Nullable CharSequence name);
+
+  /** @see #taint(IastContext, Object, byte, CharSequence) */
+  void taint(
+      @Nullable IastContext ctx, @Nullable String target, byte origin, @Nullable CharSequence name);
+
+  /** @see #taint(IastContext, String, byte, CharSequence) */
+  void taint(@Nullable String target, byte origin, @Nullable CharSequence name);
 
   /** @see #taint(IastContext, Object, byte, CharSequence, Object) */
   void taint(
@@ -53,6 +54,40 @@ public interface PropagationModule extends IastModule {
       @Nullable CharSequence name,
       @Nullable Object value);
 
+  /** @see #taint(IastContext, String, byte, CharSequence, CharSequence) */
+  void taint(
+      @Nullable String target,
+      byte origin,
+      @Nullable CharSequence name,
+      @Nullable CharSequence value);
+
+  /** @see #taint(IastContext, Object, byte, CharSequence, Object) */
+  void taint(
+      @Nullable IastContext ctx,
+      @Nullable String target,
+      byte origin,
+      @Nullable CharSequence name,
+      @Nullable CharSequence value);
+
+  /** @see #taint(IastContext, Object, byte, int, int) */
+  void taint(@Nullable Object target, byte origin, int start, int length);
+
+  /**
+   * Taints the object with a source with the selected origin, range and no name. If target is a
+   * char sequence it will be used as value.
+   *
+   * <p>If the value is already tainted this method will append a new range.
+   */
+  void taint(
+      @Nullable IastContext ctx, @Nullable Object target, byte origin, int start, int length);
+
+  /** @see #taint(IastContext, String, byte, int, int) */
+  void taint(@Nullable String target, byte origin, int start, int length);
+
+  /** @see #taint(IastContext, Object, byte, int, int) */
+  void taint(
+      @Nullable IastContext ctx, @Nullable String target, byte origin, int start, int length);
+
   /** @see #taintIfTainted(IastContext, Object, Object) */
   void taintIfTainted(@Nullable Object target, @Nullable Object input);
 
@@ -62,7 +97,45 @@ public interface PropagationModule extends IastModule {
    */
   void taintIfTainted(@Nullable IastContext ctx, @Nullable Object target, @Nullable Object input);
 
-  /** @see #taintIfTainted(IastContext, Object, Object, int, int, boolean, int) */
+  /** @see #taintIfTainted(IastContext, String, Object) */
+  void taintIfTainted(@Nullable String target, @Nullable Object input);
+
+  /** @see #taintIfTainted(IastContext, Object, Object) */
+  void taintIfTainted(@Nullable IastContext ctx, @Nullable String target, @Nullable Object input);
+
+  /** @see #taintIfTainted(IastContext, Object, Object, boolean, int) */
+  void taintIfTainted(
+      @Nullable Object target, @Nullable Object input, boolean keepRanges, int mark);
+
+  /**
+   * Taints the object only if the input value is tainted. It will try to reuse sources from the
+   * input value according to:
+   *
+   * <ul>
+   *   <li>keepRanges=true will reuse the ranges from the input tainted value and mark them
+   *   <li>keepRanges=false will use the highest priority source from the input ranges and mark it
+   * </ul>
+   */
+  void taintIfTainted(
+      @Nullable IastContext ctx,
+      @Nullable Object target,
+      @Nullable Object input,
+      boolean keepRanges,
+      int mark);
+
+  /** @see #taintIfTainted(IastContext, String, Object, boolean, int) */
+  void taintIfTainted(
+      @Nullable String target, @Nullable Object input, boolean keepRanges, int mark);
+
+  /** @see #taintIfTainted(IastContext, Object, Object, boolean, int) */
+  void taintIfTainted(
+      @Nullable IastContext ctx,
+      @Nullable String target,
+      @Nullable Object input,
+      boolean keepRanges,
+      int mark);
+
+  /** @see #taintIfTainted(IastContext, Object, Object, boolean, int) */
   void taintIfTainted(
       @Nullable Object target,
       @Nullable Object input,
@@ -89,23 +162,22 @@ public interface PropagationModule extends IastModule {
       boolean keepRanges,
       int mark);
 
+  /** @see #taintIfTainted(IastContext, String, Object, boolean, int) */
+  void taintIfTainted(
+      @Nullable String target,
+      @Nullable Object input,
+      int start,
+      int length,
+      boolean keepRanges,
+      int mark);
+
   /** @see #taintIfTainted(IastContext, Object, Object, boolean, int) */
   void taintIfTainted(
-      @Nullable Object target, @Nullable Object input, boolean keepRanges, int mark);
-
-  /**
-   * Taints the object only if the input value is tainted. It will try to reuse sources from the
-   * input value according to:
-   *
-   * <ul>
-   *   <li>keepRanges=true will reuse the ranges from the input tainted value and mark them
-   *   <li>keepRanges=false will use the highest priority source from the input ranges and mark it
-   * </ul>
-   */
-  void taintIfTainted(
       @Nullable IastContext ctx,
-      @Nullable Object target,
+      @Nullable String target,
       @Nullable Object input,
+      int start,
+      int length,
       boolean keepRanges,
       int mark);
 
@@ -120,6 +192,13 @@ public interface PropagationModule extends IastModule {
   void taintIfTainted(
       @Nullable IastContext ctx, @Nullable Object target, @Nullable Object input, byte origin);
 
+  /** @see #taintIfTainted(IastContext, String, Object, byte) */
+  void taintIfTainted(@Nullable String target, @Nullable Object input, byte origin);
+
+  /** @see #taintIfTainted(IastContext, Object, Object, byte) */
+  void taintIfTainted(
+      @Nullable IastContext ctx, @Nullable String target, @Nullable Object input, byte origin);
+
   /** @see #taintIfTainted(IastContext, Object, Object, byte, CharSequence) */
   void taintIfTainted(
       @Nullable Object target, @Nullable Object input, byte origin, @Nullable CharSequence name);
@@ -132,6 +211,18 @@ public interface PropagationModule extends IastModule {
   void taintIfTainted(
       @Nullable IastContext ctx,
       @Nullable Object target,
+      @Nullable Object input,
+      byte origin,
+      @Nullable CharSequence name);
+
+  /** @see #taintIfTainted(IastContext, String, Object, byte, CharSequence) */
+  void taintIfTainted(
+      @Nullable String target, @Nullable Object input, byte origin, @Nullable CharSequence name);
+
+  /** @see #taintIfTainted(IastContext, Object, Object, byte, CharSequence) */
+  void taintIfTainted(
+      @Nullable IastContext ctx,
+      @Nullable String target,
       @Nullable Object input,
       byte origin,
       @Nullable CharSequence name);
@@ -156,6 +247,23 @@ public interface PropagationModule extends IastModule {
       @Nullable CharSequence name,
       @Nullable Object value);
 
+  /** @see #taintIfTainted(IastContext, String, Object, byte, CharSequence, Object) */
+  void taintIfTainted(
+      @Nullable String target,
+      @Nullable Object input,
+      byte origin,
+      @Nullable CharSequence name,
+      @Nullable Object value);
+
+  /** @see #taintIfTainted(IastContext, Object, Object, byte, CharSequence, Object) */
+  void taintIfTainted(
+      @Nullable IastContext ctx,
+      @Nullable String target,
+      @Nullable Object input,
+      byte origin,
+      @Nullable CharSequence name,
+      @Nullable Object value);
+
   /** @see #taintIfAnyTainted(IastContext, Object, Object[]) */
   void taintIfAnyTainted(@Nullable Object target, @Nullable Object[] inputs);
 
@@ -167,6 +275,13 @@ public interface PropagationModule extends IastModule {
    */
   void taintIfAnyTainted(
       @Nullable IastContext ctx, @Nullable Object target, @Nullable Object[] inputs);
+
+  /** @see #taintIfAnyTainted(IastContext, String, Object[]) */
+  void taintIfAnyTainted(@Nullable String target, @Nullable Object[] inputs);
+
+  /** @see #taintIfAnyTainted(IastContext, Object, Object[]) */
+  void taintIfAnyTainted(
+      @Nullable IastContext ctx, @Nullable String target, @Nullable Object[] inputs);
 
   /** @see #taintIfAnyTainted(IastContext, Object, Object[], boolean, int) */
   void taintIfAnyTainted(
@@ -181,6 +296,18 @@ public interface PropagationModule extends IastModule {
   void taintIfAnyTainted(
       @Nullable IastContext ctx,
       @Nullable Object target,
+      @Nullable Object[] inputs,
+      boolean keepRanges,
+      int mark);
+
+  /** @see #taintIfAnyTainted(IastContext, String, Object[], boolean, int) */
+  void taintIfAnyTainted(
+      @Nullable String target, @Nullable Object[] inputs, boolean keepRanges, int mark);
+
+  /** @see #taintIfAnyTainted(IastContext, Object, Object[], boolean, int) */
+  void taintIfAnyTainted(
+      @Nullable IastContext ctx,
+      @Nullable String target,
       @Nullable Object[] inputs,
       boolean keepRanges,
       int mark);
