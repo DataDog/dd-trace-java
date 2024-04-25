@@ -43,8 +43,8 @@ class SpringBootWithGRPCAppSecTest extends AbstractAppSecServerSmokeTest {
     response.code() == 200
 
     and:
-    waitForTraceCount(4) == 4
-    rootSpans.size() == 4
+    waitForTraceCount(2) == 2
+    rootSpans.size() == 2
     def grpcRootSpan = rootSpans.find { it.triggers }
     grpcRootSpan.triggers[0]['rule']['tags']['type'] == 'lfi'
     grpcRootSpan.triggers[0]['rule_matches'][0]['parameters']['address'][0] == 'grpc.server.request.message'

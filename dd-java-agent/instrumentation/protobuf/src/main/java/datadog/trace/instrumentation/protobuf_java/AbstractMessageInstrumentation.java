@@ -3,17 +3,15 @@ package datadog.trace.instrumentation.protobuf_java;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.protobuf_java.Decorator.SERIALIZER_DECORATOR;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import com.google.protobuf.AbstractMessage;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.concurrent.ExecutionException;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -24,7 +22,6 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
 
   static final String instrumentationName = "protobuf";
   static final String TARGET_TYPE = "com.google.protobuf.AbstractMessage";
-  static final String SERIALIZE_OPERATION = "protobuf.serialize";
 
   public AbstractMessageInstrumentation() {
     super(instrumentationName);
@@ -58,22 +55,17 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
 
   public static class WriteToAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.This AbstractMessage message) {
-      final AgentSpan span = startSpan(instrumentationName, SERIALIZE_OPERATION);
-      SERIALIZER_DECORATOR.attachSchemaOnSpan(message, span);
-      return activateSpan(span);
+    public static void onEnter(@Advice.This AbstractMessage message) {
+      SchemaExtractor.attachSchemaOnSpan(message, activeSpan(), SchemaExtractor.serialization);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
+    public static void stopSpan(@Advice.Thrown final Throwable throwable) {
+      AgentSpan span = activeSpan();
+      if (throwable != null) {
+        span.addThrowable(
+            throwable instanceof ExecutionException ? throwable.getCause() : throwable);
       }
-      AgentSpan span = scope.span();
-      SERIALIZER_DECORATOR.onError(span, throwable);
-      scope.close();
-      span.finish();
     }
   }
 }

@@ -1,8 +1,12 @@
 package datadog.trace.instrumentation.protobuf_java;
 
+import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
+import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaBuilder;
@@ -11,6 +15,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class SchemaExtractor implements SchemaIterator {
+  public static final String serialization = "serialization";
+  public static final String deserialization = "deserialization";
+  private static final String PROTOBUF = "protobuf";
   private static final int TYPE_DOUBLE = 1;
   private static final int TYPE_FLOAT = 2;
   private static final int TYPE_INT64 = 3;
@@ -160,5 +167,40 @@ public class SchemaExtractor implements SchemaIterator {
   @Override
   public void iterateOverSchema(SchemaBuilder builder) {
     extractSchema(descriptor, builder, 0);
+  }
+
+  public static void attachSchemaOnSpan(AbstractMessage message, AgentSpan span, String operation) {
+    if (message == null) {
+      return;
+    }
+    attachSchemaOnSpan(message.getDescriptorForType(), span, operation);
+  }
+
+  public static void attachSchemaOnSpan(
+      Descriptors.Descriptor descriptor, AgentSpan span, String operation) {
+    if (descriptor == null || span == null) {
+      return;
+    }
+    AgentDataStreamsMonitoring dsm = AgentTracer.get().getDataStreamsMonitoring();
+    span.setTag(DDTags.SCHEMA_TYPE, PROTOBUF);
+    span.setTag(DDTags.SCHEMA_NAME, descriptor.getName());
+    span.setTag(DDTags.SCHEMA_OPERATION, operation);
+    // do a check against the schema sampler to avoid forcing the trace sampling decision too often.
+    if (!dsm.canSampleSchema(operation)) {
+      return;
+    }
+    Integer prio = span.forceSamplingDecision();
+    if (prio == null || prio <= 0) {
+      // don't extract schema if span is not sampled
+      return;
+    }
+    int weight = dsm.trySampleSchema(operation);
+    if (weight == 0) {
+      return;
+    }
+    Schema schema = SchemaExtractor.extractSchemas(descriptor);
+    span.setTag(DDTags.SCHEMA_DEFINITION, schema.definition);
+    span.setTag(DDTags.SCHEMA_WEIGHT, weight);
+    span.setTag(DDTags.SCHEMA_ID, schema.id);
   }
 }

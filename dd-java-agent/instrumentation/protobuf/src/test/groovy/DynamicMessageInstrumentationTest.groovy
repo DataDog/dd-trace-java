@@ -30,15 +30,13 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(2)
     then:
     assertTraces(2, SORT_TRACES_BY_ID) {
-      trace(2) {
-        basicSpan(it, "parent_serialize")
+      trace(1) {
         span {
           hasServiceName()
-          operationName "protobuf.serialize"
-          resourceName "protobuf.serialize"
+          operationName "parent_serialize"
+          resourceName "parent_serialize"
           errored false
           measured false
-          childOf span(0)
           tags {
             "$DDTags.SCHEMA_DEFINITION" schema
             "$DDTags.SCHEMA_WEIGHT" 1
@@ -50,15 +48,13 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
           }
         }
       }
-      trace(2) {
-        basicSpan(it, "parent_deserialize")
+      trace(1) {
         span {
           hasServiceName()
-          operationName "protobuf.deserialize"
-          resourceName "protobuf.deserialize"
+          operationName "parent_deserialize"
+          resourceName "parent_deserialize"
           errored false
           measured false
-          childOf span(0)
           tags {
             "$DDTags.SCHEMA_DEFINITION" schema
             "$DDTags.SCHEMA_WEIGHT" 1
