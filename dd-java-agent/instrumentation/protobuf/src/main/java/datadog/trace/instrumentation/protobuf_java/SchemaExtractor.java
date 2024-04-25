@@ -103,7 +103,7 @@ public class SchemaExtractor implements SchemaIterator {
         description = "Group type";
         break;
       case TYPE_MESSAGE:
-        ref = "#/components/schemas/" + field.getMessageType().getName();
+        ref = "#/components/schemas/" + field.getMessageType().getFullName();
         // Recursively add nested message schemas
         if (!extractSchema(field.getMessageType(), builder, depth)) {
           return false;
@@ -147,11 +147,12 @@ public class SchemaExtractor implements SchemaIterator {
 
   public static boolean extractSchema(Descriptor descriptor, SchemaBuilder builder, int depth) {
     depth++;
-    if (!builder.shouldExtractSchema(descriptor.getFullName(), depth)) {
+    String schemaName = descriptor.getFullName();
+    if (!builder.shouldExtractSchema(schemaName, depth)) {
       return false;
     }
     for (FieldDescriptor field : descriptor.getFields()) {
-      if (!extractProperty(field, descriptor.getName(), field.getName(), builder, depth)) {
+      if (!extractProperty(field, schemaName, field.getName(), builder, depth)) {
         return false;
       }
     }
@@ -183,7 +184,7 @@ public class SchemaExtractor implements SchemaIterator {
     }
     AgentDataStreamsMonitoring dsm = AgentTracer.get().getDataStreamsMonitoring();
     span.setTag(DDTags.SCHEMA_TYPE, PROTOBUF);
-    span.setTag(DDTags.SCHEMA_NAME, descriptor.getName());
+    span.setTag(DDTags.SCHEMA_NAME, descriptor.getFullName());
     span.setTag(DDTags.SCHEMA_OPERATION, operation);
     // do a check against the schema sampler to avoid forcing the trace sampling decision too often.
     if (!dsm.canSampleSchema(operation)) {

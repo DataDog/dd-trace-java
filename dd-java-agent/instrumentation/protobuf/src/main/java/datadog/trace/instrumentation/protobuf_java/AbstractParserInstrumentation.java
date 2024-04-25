@@ -43,7 +43,7 @@ public final class AbstractParserInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SchemaExtractor", packageName + ".Decorator",
+      packageName + ".SchemaExtractor",
     };
   }
 

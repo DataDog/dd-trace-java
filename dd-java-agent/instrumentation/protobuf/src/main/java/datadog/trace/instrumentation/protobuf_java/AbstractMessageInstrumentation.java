@@ -42,7 +42,7 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SchemaExtractor", packageName + ".Decorator",
+      packageName + ".SchemaExtractor",
     };
   }
 

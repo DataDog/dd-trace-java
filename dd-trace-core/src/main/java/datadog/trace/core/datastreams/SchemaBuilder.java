@@ -70,19 +70,15 @@ public class SchemaBuilder implements datadog.trace.bootstrap.instrumentation.ap
 
   public static class OpenApiSchema {
     public String openapi = "3.0.0";
-    public Components components;
-
-    public OpenApiSchema() {
-      this.components = new Components();
-    }
+    public final Components components = new Components();
 
     public static class Components {
-      public Map<String, Schema> schemas = new LinkedHashMap<>();
+      public final Map<String, Schema> schemas = new LinkedHashMap<>();
     }
 
     public static class Schema {
       public String type = "object";
-      public Map<String, Property> properties = new LinkedHashMap<>();
+      public final Map<String, Property> properties = new LinkedHashMap<>();
     }
 
     public static class Property {
