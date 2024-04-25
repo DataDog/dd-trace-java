@@ -98,6 +98,14 @@ build: &build
     reports:
       dotenv: build.env
 
+build_again: &build
+  <<: *gradle_build
+  stage: build
+  needs: [ build ]
+  script:
+    - ls -laR workspace/dd-java-agent/instrumentation/
+    - ./gradlew :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+
 build_with_cache:
   <<: *build
   variables:
