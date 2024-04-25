@@ -94,12 +94,14 @@ package:
   when: on_success # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
   script:
     - ../.gitlab/build_java_package.sh
+    - find . -iregex '.*\.\(deb\|rpm\)' -printf '%f\0' | xargs -0 dd-pkg lint
 
 package-arm:
   extends: .package-arm
   when: on_success # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
   script:
     - ../.gitlab/build_java_package.sh
+    - find . -iregex '.*\.\(deb\|rpm\)' -printf '%f\0' | xargs -0 dd-pkg lint
 
 package-oci:
   stage: package
