@@ -21,7 +21,7 @@ variables:
   SONATYPE_USERNAME: robot-sonatype-apm-java
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: 8.4 # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.4" # must match gradle-wrapper.properties
   DOWNSTREAM_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
