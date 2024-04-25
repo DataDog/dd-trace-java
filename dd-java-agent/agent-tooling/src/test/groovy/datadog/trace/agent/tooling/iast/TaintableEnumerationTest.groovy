@@ -36,7 +36,7 @@ class TaintableEnumerationTest extends DDSpecification {
 
     then:
     result == values
-    values.each { 1 * module.taint(iastCtx, it, origin, name) }
+    values.each { 1 * module.taintString(iastCtx, it, origin, name) }
   }
 
   void 'underlying enumerated values are tainted with the value as a name'() {
@@ -50,7 +50,7 @@ class TaintableEnumerationTest extends DDSpecification {
 
     then:
     result == values
-    values.each { 1 * module.taint(iastCtx, it, origin, it) }
+    values.each { 1 * module.taintString(iastCtx, it, origin, it) }
   }
 
   void 'taintable enumeration leaves no trace in case of error'() {

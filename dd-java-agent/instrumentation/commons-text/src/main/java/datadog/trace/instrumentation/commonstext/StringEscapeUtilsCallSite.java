@@ -29,7 +29,7 @@ public class StringEscapeUtilsCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
+        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.XSS_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEscape threw", e);
       }
@@ -44,7 +44,7 @@ public class StringEscapeUtilsCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfTainted(result, input);
+        module.taintStringIfTainted(result, input);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEscapeJson threw", e);
       }

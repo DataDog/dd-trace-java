@@ -11,7 +11,7 @@ public class FastCodecModule extends PropagationModuleImpl implements CodecModul
   @Override
   public void onUrlDecode(
       @Nonnull final String value, @Nullable final String encoding, @Nonnull final String result) {
-    taintIfTainted(result, value);
+    taintStringIfTainted(result, value);
   }
 
   @Override
@@ -22,22 +22,22 @@ public class FastCodecModule extends PropagationModuleImpl implements CodecModul
       @Nullable final String charset,
       @Nonnull final String result) {
     // create a new range shifted to the result string coordinates
-    taintIfTainted(result, value, offset, length, false, NOT_MARKED);
+    taintStringIfRangeTainted(result, value, offset, length, false, NOT_MARKED);
   }
 
   @Override
   public void onStringGetBytes(
       @Nonnull final String value, @Nullable final String charset, @Nonnull final byte[] result) {
-    taintIfTainted(result, value);
+    taintObjectIfTainted(result, value);
   }
 
   @Override
   public void onBase64Encode(@Nullable byte[] value, @Nullable byte[] result) {
-    taintIfTainted(result, value);
+    taintObjectIfTainted(result, value);
   }
 
   @Override
   public void onBase64Decode(@Nullable byte[] value, @Nullable byte[] result) {
-    taintIfTainted(result, value);
+    taintObjectIfTainted(result, value);
   }
 }

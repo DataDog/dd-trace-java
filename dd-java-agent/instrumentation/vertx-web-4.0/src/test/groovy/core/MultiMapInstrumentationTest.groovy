@@ -52,7 +52,7 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
-    1 * module.taint(iastCtx, 'value', origin, 'key')
+    1 * module.taintString(iastCtx, 'value', origin, 'key')
 
     where:
     instance << multiMaps()
@@ -78,8 +78,8 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
-    1 * module.taint(iastCtx, 'value1', origin, 'key')
-    1 * module.taint(iastCtx, 'value2', origin, 'key')
+    1 * module.taintString(iastCtx, 'value1', origin, 'key')
+    1 * module.taintString(iastCtx, 'value2', origin, 'key')
 
     where:
     instance << multiMaps()
@@ -105,7 +105,7 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
-    1 * module.taint(iastCtx, 'key', namedSource(origin), 'key')
+    1 * module.taintString(iastCtx, 'key', namedSource(origin), 'key')
 
     where:
     instance << multiMaps()
@@ -133,9 +133,9 @@ class MultiMapInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.findSource(iastCtx, instance) >> { mockedSource(origin) }
-    1 * module.taint(iastCtx, 'key', namedSource(origin), 'key')
-    1 * module.taint(iastCtx, 'value1', origin, 'key')
-    1 * module.taint(iastCtx, 'value2', origin, 'key')
+    1 * module.taintString(iastCtx, 'key', namedSource(origin), 'key')
+    1 * module.taintString(iastCtx, 'value1', origin, 'key')
+    1 * module.taintString(iastCtx, 'value2', origin, 'key')
 
     where:
     instance << multiMaps()

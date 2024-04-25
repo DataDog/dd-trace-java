@@ -26,7 +26,7 @@ class UtilsInstrumentationForkedTest extends AgentTestRunner {
 
     then:
     bytes != null
-    1 * propagationModule.taintIfTainted(_ as byte[], buffer, offset, length, false, VulnerabilityMarks.NOT_MARKED)
+    1 * propagationModule.taintObjectIfRangeTainted(_ as byte[], buffer, offset, length, false, VulnerabilityMarks.NOT_MARKED)
     0 * _
 
     where:
@@ -51,7 +51,7 @@ class UtilsInstrumentationForkedTest extends AgentTestRunner {
 
     then:
     buffer != null
-    1 * propagationModule.taintIfTainted(_ as ByteBuffer, bytes, true, VulnerabilityMarks.NOT_MARKED)
+    1 * propagationModule.taintObjectIfTainted(_ as ByteBuffer, bytes, true, VulnerabilityMarks.NOT_MARKED)
     0 * _
   }
 

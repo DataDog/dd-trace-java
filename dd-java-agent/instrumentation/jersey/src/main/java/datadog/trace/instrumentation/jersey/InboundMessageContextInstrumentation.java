@@ -57,9 +57,9 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
           final String name = entry.getKey();
-          prop.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
+          prop.taintString(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
           for (String value : entry.getValue()) {
-            prop.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+            prop.taintString(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
           }
         }
       }
@@ -77,8 +77,8 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         for (Map.Entry<String, Object> entry : cookies.entrySet()) {
           final String name = entry.getKey();
-          module.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
-          module.taint(ctx, entry.getValue(), SourceTypes.REQUEST_COOKIE_VALUE, name);
+          module.taintString(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+          module.taintObject(ctx, entry.getValue(), SourceTypes.REQUEST_COOKIE_VALUE, name);
         }
       }
     }

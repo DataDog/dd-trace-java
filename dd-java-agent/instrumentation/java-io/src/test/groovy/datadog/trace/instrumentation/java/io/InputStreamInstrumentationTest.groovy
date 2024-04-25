@@ -23,6 +23,6 @@ class InputStreamInstrumentationTest extends AgentTestRunner {
     TestInputStreamSuite.pushbackInputStreamFromIS(is)
 
     then:
-    (1.._) * propagationModule.taintIfTainted(_ as InputStream, is)
+    (1.._) * propagationModule.taintObjectIfTainted(_ as InputStream, is)
   }
 }

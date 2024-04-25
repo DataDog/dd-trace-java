@@ -27,6 +27,6 @@ class TaintHttpHeadersGetFirstAdvice {
       return;
     }
     IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-    module.taintIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, arg);
+    module.taintStringIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, arg);
   }
 }

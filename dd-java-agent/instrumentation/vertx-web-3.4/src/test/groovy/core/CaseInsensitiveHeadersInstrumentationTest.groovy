@@ -37,7 +37,7 @@ class CaseInsensitiveHeadersInstrumentationTest extends AgentTestRunner {
     runUnderIastTrace { headers.get('key') }
 
     then:
-    1 * module.taintIfTainted(iastCtx, 'value', headers, SourceTypes.REQUEST_PARAMETER_VALUE, 'key')
+    1 * module.taintStringIfTainted(iastCtx, 'value', headers, SourceTypes.REQUEST_PARAMETER_VALUE, 'key')
   }
 
   void 'test that getAll() is instrumented'() {
@@ -59,8 +59,8 @@ class CaseInsensitiveHeadersInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.isTainted(iastCtx, headers) >> { true }
-    1 * module.taint(iastCtx, 'value1', SourceTypes.REQUEST_PARAMETER_VALUE, 'key')
-    1 * module.taint(iastCtx, 'value2', SourceTypes.REQUEST_PARAMETER_VALUE, 'key')
+    1 * module.taintString(iastCtx, 'value1', SourceTypes.REQUEST_PARAMETER_VALUE, 'key')
+    1 * module.taintString(iastCtx, 'value2', SourceTypes.REQUEST_PARAMETER_VALUE, 'key')
   }
 
   void 'test that names() is instrumented'() {
@@ -82,7 +82,7 @@ class CaseInsensitiveHeadersInstrumentationTest extends AgentTestRunner {
 
     then:
     1 * module.isTainted(iastCtx, headers) >> { true }
-    1 * module.taint(iastCtx, 'key', SourceTypes.REQUEST_PARAMETER_NAME, 'key')
+    1 * module.taintString(iastCtx, 'key', SourceTypes.REQUEST_PARAMETER_NAME, 'key')
   }
 
   void 'test that entries() is instrumented'() {
@@ -107,10 +107,10 @@ class CaseInsensitiveHeadersInstrumentationTest extends AgentTestRunner {
     then:
     1 * module.isTainted(iastCtx, headers) >> { true }
     result.collect { it.key }.unique().each {
-      1 * module.taint(iastCtx, it, SourceTypes.REQUEST_PARAMETER_NAME, it)
+      1 * module.taintString(iastCtx, it, SourceTypes.REQUEST_PARAMETER_NAME, it)
     }
     result.each {
-      1 * module.taint(iastCtx, it.value, SourceTypes.REQUEST_PARAMETER_VALUE, it.key)
+      1 * module.taintString(iastCtx, it.value, SourceTypes.REQUEST_PARAMETER_VALUE, it.key)
     }
   }
 

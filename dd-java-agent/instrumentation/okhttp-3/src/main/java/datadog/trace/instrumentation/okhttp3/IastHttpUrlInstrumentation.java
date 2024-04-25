@@ -77,7 +77,7 @@ public class IastHttpUrlInstrumentation extends InstrumenterModule.Iast
         @Advice.Argument(0) final Object arg, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfTainted(result, arg);
+        module.taintObjectIfTainted(result, arg);
       }
     }
   }

@@ -23,7 +23,7 @@ class URLEncoderCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * iastModule.taintIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
+    1 * iastModule.taintStringIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
     0 * _
 
     where:

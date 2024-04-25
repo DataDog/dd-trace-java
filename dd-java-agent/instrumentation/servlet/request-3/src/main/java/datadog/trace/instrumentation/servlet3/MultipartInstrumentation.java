@@ -69,7 +69,8 @@ public class MultipartInstrumentation extends InstrumenterModule.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER, "Content-Disposition");
+        module.taintString(
+            ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER, "Content-Disposition");
       }
       return name;
     }
@@ -86,7 +87,7 @@ public class MultipartInstrumentation extends InstrumenterModule.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, name);
+        module.taintString(ctx, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, name);
       }
       return value;
     }
@@ -107,7 +108,7 @@ public class MultipartInstrumentation extends InstrumenterModule.Iast
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         for (final String value : headerValues) {
-          module.taint(ctx, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, headerName);
+          module.taintString(ctx, value, SourceTypes.REQUEST_MULTIPART_PARAMETER, headerName);
         }
       }
     }
@@ -127,7 +128,7 @@ public class MultipartInstrumentation extends InstrumenterModule.Iast
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         for (final String name : headerNames) {
-          module.taint(ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER);
+          module.taintString(ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER);
         }
       }
     }

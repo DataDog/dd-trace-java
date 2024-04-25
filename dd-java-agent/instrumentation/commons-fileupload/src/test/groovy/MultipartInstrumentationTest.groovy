@@ -41,8 +41,8 @@ class MultipartInstrumentationTest extends AgentTestRunner {
     }
 
     then:
-    1 * module.taint(iastCtx, 'file', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'name')
-    1 * module.taint(iastCtx, _, SourceTypes.REQUEST_MULTIPART_PARAMETER, 'filename')
+    1 * module.taintString(iastCtx, 'file', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'name')
+    1 * module.taintString(iastCtx, _, SourceTypes.REQUEST_MULTIPART_PARAMETER, 'filename')
     0 * _
 
     where:

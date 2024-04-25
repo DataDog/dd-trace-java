@@ -54,9 +54,9 @@ public class AbstractFormProviderInstrumentation extends InstrumenterModule.Iast
       final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
       for (Map.Entry<String, List<String>> entry : result.entrySet()) {
         final String name = entry.getKey();
-        prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        prop.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
         for (String value : entry.getValue()) {
-          prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+          prop.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
         }
       }
     }

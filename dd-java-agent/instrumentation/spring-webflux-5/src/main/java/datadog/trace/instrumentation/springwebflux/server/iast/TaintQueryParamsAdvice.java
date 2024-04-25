@@ -31,9 +31,9 @@ class TaintQueryParamsAdvice {
     final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
     for (Map.Entry<String, List<String>> e : queryParams.entrySet()) {
       String name = e.getKey();
-      prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+      prop.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
       for (String value : e.getValue()) {
-        prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        prop.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }

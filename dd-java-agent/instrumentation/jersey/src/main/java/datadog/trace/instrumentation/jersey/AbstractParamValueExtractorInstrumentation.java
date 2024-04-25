@@ -54,7 +54,7 @@ public class AbstractParamValueExtractorInstrumentation extends InstrumenterModu
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taint(ctx, (String) result, ThreadLocalSourceType.get(), parameterName);
+          module.taintString(ctx, (String) result, ThreadLocalSourceType.get(), parameterName);
         }
       }
     }

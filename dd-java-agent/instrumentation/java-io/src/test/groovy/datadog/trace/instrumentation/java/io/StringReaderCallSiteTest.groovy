@@ -16,6 +16,6 @@ class StringReaderCallSiteTest extends  BaseIoCallSiteTest{
     TestStringReaderSuite.init(input)
 
     then:
-    1 * iastModule.taintIfTainted(_ as StringReader, input)
+    1 * iastModule.taintObjectIfTainted(_ as StringReader, input)
   }
 }

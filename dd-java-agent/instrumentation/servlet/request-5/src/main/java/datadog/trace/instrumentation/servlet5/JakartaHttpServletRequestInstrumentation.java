@@ -114,7 +114,7 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+      module.taintString(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
     }
   }
 
@@ -177,7 +177,7 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+      module.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
     }
   }
 
@@ -198,7 +198,7 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
       }
       final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
       for (final String value : values) {
-        module.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        module.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
   }
@@ -220,11 +220,11 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
       final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
       for (final Map.Entry<String, String[]> entry : parameters.entrySet()) {
         final String name = entry.getKey();
-        module.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        module.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
         final String[] values = entry.getValue();
         if (values != null) {
           for (final String value : entry.getValue()) {
-            module.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+            module.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
           }
         }
       }
@@ -268,7 +268,7 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
       }
       final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
       for (final Cookie cookie : cookies) {
-        module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }
@@ -287,7 +287,7 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taint(ctx, queryString, SourceTypes.REQUEST_QUERY);
+      module.taintString(ctx, queryString, SourceTypes.REQUEST_QUERY);
     }
   }
 
@@ -305,7 +305,7 @@ public class JakartaHttpServletRequestInstrumentation extends InstrumenterModule
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taint(ctx, body, SourceTypes.REQUEST_BODY);
+      module.taintObject(ctx, body, SourceTypes.REQUEST_BODY);
     }
   }
 

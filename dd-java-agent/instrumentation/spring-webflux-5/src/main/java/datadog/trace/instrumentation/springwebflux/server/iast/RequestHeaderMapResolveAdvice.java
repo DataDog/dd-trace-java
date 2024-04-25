@@ -32,17 +32,17 @@ public class RequestHeaderMapResolveAdvice {
       for (Map.Entry<String, List<String>> e :
           ((MultiValueMap<String, String>) values).entrySet()) {
         final String name = e.getKey();
-        prop.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
+        prop.taintString(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
         for (String v : e.getValue()) {
-          prop.taint(ctx, v, SourceTypes.REQUEST_HEADER_VALUE, name);
+          prop.taintString(ctx, v, SourceTypes.REQUEST_HEADER_VALUE, name);
         }
       }
     } else {
       for (Map.Entry<String, String> e : ((Map<String, String>) values).entrySet()) {
         final String name = e.getKey();
         final String value = e.getValue();
-        prop.taint(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
-        prop.taint(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
+        prop.taintString(ctx, name, SourceTypes.REQUEST_HEADER_NAME, name);
+        prop.taintString(ctx, value, SourceTypes.REQUEST_HEADER_VALUE, name);
       }
     }
   }

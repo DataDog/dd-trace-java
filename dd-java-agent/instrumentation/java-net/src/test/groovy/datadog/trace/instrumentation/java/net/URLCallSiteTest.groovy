@@ -23,7 +23,7 @@ class URLCallSiteTest extends AgentTestRunner {
 
     then:
     uri.toString() == expected
-    1 * module.taintIfAnyTainted(_ as URL, args as Object[])
+    1 * module.taintObjectIfAnyTainted(_ as URL, args as Object[])
 
     where:
     method | args                                                                             | expected
@@ -44,13 +44,13 @@ class URLCallSiteTest extends AgentTestRunner {
     TestURLCallSiteSuite.&"$method".call(args as Object[])
 
     then:
-    1 * module.taintIfTainted(_, _ as URL)
+    1 * module."taint${target}IfTainted"(_, _ as URL)
 
     where:
-    method           | args
-    'toURI'          | [new URL('http://test.com/index?name=value#fragment')]
-    'toString'       | [new URL('http://test.com/index?name=value#fragment')]
-    'toExternalForm' | [new URL('http://test.com/index?name=value#fragment')]
+    method           | target   | args
+    'toURI'          | 'Object' | [new URL('http://test.com/index?name=value#fragment')]
+    'toString'       | 'String' | [new URL('http://test.com/index?name=value#fragment')]
+    'toExternalForm' | 'String' | [new URL('http://test.com/index?name=value#fragment')]
   }
 
   void 'test ssrf endpoints'() {

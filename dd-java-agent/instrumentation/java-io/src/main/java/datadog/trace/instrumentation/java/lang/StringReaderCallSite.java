@@ -19,7 +19,7 @@ public class StringReaderCallSite {
     final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
     if (propagationModule != null) {
       try {
-        propagationModule.taintIfTainted(result, params[0]);
+        propagationModule.taintObjectIfTainted(result, params[0]);
       } catch (Throwable e) {
         propagationModule.onUnexpectedException("afterInit threw", e);
       }

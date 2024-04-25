@@ -38,7 +38,7 @@ public class JSONCookieInstrumentation extends InstrumenterModule.Iast
         @Advice.Return Object retValue, @Advice.Argument(0) final String input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
-        iastModule.taintIfTainted(retValue, input);
+        iastModule.taintObjectIfTainted(retValue, input);
       }
     }
   }

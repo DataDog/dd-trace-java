@@ -35,7 +35,7 @@ class KafkaIastDeserializerForkedTest extends AgentTestRunner {
     deserializer.deserialize("test", payload)
 
     then:
-    1 * propagationModule.taint(payload, source)
+    1 * propagationModule.taintObject(payload, source)
     1 * codecModule.onStringFromBytes(payload, _, _, _, _)
     0 * _
 
@@ -59,7 +59,7 @@ class KafkaIastDeserializerForkedTest extends AgentTestRunner {
     deserializer.deserialize("test", payload)
 
     then:
-    1 * propagationModule.taint(payload, source)
+    1 * propagationModule.taintObject(payload, source)
     0 * _
 
     where:
@@ -82,8 +82,8 @@ class KafkaIastDeserializerForkedTest extends AgentTestRunner {
     deserializer.deserialize("test", payload)
 
     then:
-    1 * propagationModule.taint(payload, source)
-    1 * propagationModule.taintIfTainted(_, payload, true, VulnerabilityMarks.NOT_MARKED)
+    1 * propagationModule.taintObject(payload, source)
+    1 * propagationModule.taintObjectIfTainted(_, payload, true, VulnerabilityMarks.NOT_MARKED)
     0 * _
 
     where:
@@ -107,14 +107,14 @@ class KafkaIastDeserializerForkedTest extends AgentTestRunner {
     deserializer.deserialize('test', payload)
 
     then:
-    1 * propagationModule.taint(payload, source)
-    1 * propagationModule.taintIfTainted(_ as JsonParser, payload)
+    1 * propagationModule.taintObject(payload, source)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, payload)
     1 * propagationModule.findSource(_) >> Stub(Source) {
       getOrigin() >> source
       getValue() >> json
     }
-    1 * propagationModule.taint(_, 'name', source, 'name', json)
-    1 * propagationModule.taint(_, 'Mr Bean', source, 'name', json)
+    1 * propagationModule.taintString(_, 'name', source, 'name', json)
+    1 * propagationModule.taintString(_, 'Mr Bean', source, 'name', json)
     0 * _
 
     where:

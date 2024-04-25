@@ -50,7 +50,7 @@ public class AbstractServerHttpRequestInstrumentation extends InstrumenterModule
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      propagation.taint(ctx, object, SourceTypes.REQUEST_HEADER_VALUE);
+      propagation.taintObject(ctx, object, SourceTypes.REQUEST_HEADER_VALUE);
     }
   }
 }

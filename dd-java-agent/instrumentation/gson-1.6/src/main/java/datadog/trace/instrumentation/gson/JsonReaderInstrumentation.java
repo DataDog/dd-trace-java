@@ -59,7 +59,7 @@ public class JsonReaderInstrumentation extends InstrumenterModule.Iast
         @Advice.This Object self, @Advice.Argument(0) final java.io.Reader input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
-        iastModule.taintIfTainted(self, input);
+        iastModule.taintObjectIfTainted(self, input);
       }
     }
   }
@@ -70,7 +70,7 @@ public class JsonReaderInstrumentation extends InstrumenterModule.Iast
     public static void afterMethod(@Advice.This Object self, @Advice.Return final String result) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && result != null) {
-        iastModule.taintIfTainted(result, self);
+        iastModule.taintStringIfTainted(result, self);
       }
     }
   }

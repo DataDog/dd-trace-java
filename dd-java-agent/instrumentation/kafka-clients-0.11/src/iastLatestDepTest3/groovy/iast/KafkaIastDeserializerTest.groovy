@@ -45,21 +45,21 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
     then:
     switch (test.method) {
       case Method.DEFAULT:
-        1 * propagationModule.taint(payload, source) // taint byte[]
+        1 * propagationModule.taintObject(payload, source) // taint byte[]
         1 * codecModule.onStringFromBytes(payload, 0, payload.length, _, _ as String) // taint byte[] => string
         break
       case Method.WITH_HEADERS:
-        1 * propagationModule.taint(payload, source) // taint byte[]
+        1 * propagationModule.taintObject(payload, source) // taint byte[]
         1 * codecModule.onStringFromBytes(payload, 0, payload.length, _, _ as String) // taint byte[] => string
         break
       case Method.WITH_BYTE_BUFFER:
-        1 * propagationModule.taint(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintIfTainted(payload, _ as ByteBuffer, 0, payload.length, false, NOT_MARKED) // taint ByteBuffer => byte[]
+        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
+        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, 0, payload.length, false, NOT_MARKED) // taint ByteBuffer => byte[]
         1 * codecModule.onStringFromBytes(payload, 0, payload.length, _, _ as String) // taint byte[] => string
         break
       case Method.WITH_BYTE_BUFFER_OFFSET:
-        1 * propagationModule.taint(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintIfTainted(_ as byte[], _ as ByteBuffer, true, NOT_MARKED) // taint ByteBuffer => byte[]
+        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
+        1 * propagationModule.taintObjectIfTainted(_ as byte[], _ as ByteBuffer, true, NOT_MARKED) // taint ByteBuffer => byte[]
         1 * codecModule.onStringFromBytes(_ as byte[], BUFF_OFFSET, payload.length, _, _ as String) // taint byte[] => string
         break
     }
@@ -86,18 +86,18 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
     then:
     switch (test.method) {
       case Method.DEFAULT:
-        1 * propagationModule.taint(payload, source) // taint byte[]
+        1 * propagationModule.taintObject(payload, source) // taint byte[]
         break
       case Method.WITH_HEADERS:
-        1 * propagationModule.taint(payload, source) // taint byte[]
+        1 * propagationModule.taintObject(payload, source) // taint byte[]
         break
       case Method.WITH_BYTE_BUFFER:
-        1 * propagationModule.taint(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintIfTainted(payload, _ as ByteBuffer, 0, payload.length, false, NOT_MARKED) // taint ByteBuffer => byte[]
+        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
+        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, 0, payload.length, false, NOT_MARKED) // taint ByteBuffer => byte[]
         break
       case Method.WITH_BYTE_BUFFER_OFFSET:
-        1 * propagationModule.taint(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintIfTainted(payload, _ as ByteBuffer, BUFF_OFFSET, payload.length, false, NOT_MARKED) // taint ByteBuffer => byte[]
+        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
+        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, BUFF_OFFSET, payload.length, false, NOT_MARKED) // taint ByteBuffer => byte[]
         break
     }
     0 * _
@@ -123,18 +123,18 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
     then:
     switch (test.method) {
       case Method.DEFAULT:
-        1 * propagationModule.taint(payload, source) // taint byte[]
-        1 * propagationModule.taintIfTainted(_ as ByteBuffer, payload, true, NOT_MARKED) // taint byte[] => ByteBuffer
+        1 * propagationModule.taintObject(payload, source) // taint byte[]
+        1 * propagationModule.taintObjectIfTainted(_ as ByteBuffer, payload, true, NOT_MARKED) // taint byte[] => ByteBuffer
         break
       case Method.WITH_HEADERS:
-        1 * propagationModule.taint(payload, source) // taint byte[]
-        1 * propagationModule.taintIfTainted(_ as ByteBuffer, payload, true, NOT_MARKED) // taint byte[] => ByteBuffer
+        1 * propagationModule.taintObject(payload, source) // taint byte[]
+        1 * propagationModule.taintObjectIfTainted(_ as ByteBuffer, payload, true, NOT_MARKED) // taint byte[] => ByteBuffer
         break
       case Method.WITH_BYTE_BUFFER:
-        1 * propagationModule.taint(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
+        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
         break
       case Method.WITH_BYTE_BUFFER_OFFSET:
-        1 * propagationModule.taint(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
+        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
         break
     }
     0 * _
@@ -161,28 +161,28 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
     then:
     switch (test.method) {
       case Method.DEFAULT:
-        1 * propagationModule.taint(payload, source) // taint byte[]
+        1 * propagationModule.taintObject(payload, source) // taint byte[]
         break
       case Method.WITH_HEADERS:
-        1 * propagationModule.taint(payload, source) // taint byte[]
+        1 * propagationModule.taintObject(payload, source) // taint byte[]
         break
       case Method.WITH_BYTE_BUFFER:
-        1 * propagationModule.taint(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintIfTainted(payload, _ as ByteBuffer, 0, payload.length, false, NOT_MARKED) // taint byte[] => ByteBuffer
+        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
+        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, 0, payload.length, false, NOT_MARKED) // taint byte[] => ByteBuffer
         break
       case Method.WITH_BYTE_BUFFER_OFFSET:
-        1 * propagationModule.taint(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintIfTainted(payload, _ as ByteBuffer, BUFF_OFFSET, payload.length, false, NOT_MARKED) // taint byte[] => ByteBuffer
+        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
+        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, BUFF_OFFSET, payload.length, false, NOT_MARKED) // taint byte[] => ByteBuffer
         break
     }
     // taint JSON
-    1 * propagationModule.taintIfTainted(_ as JsonParser, payload)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, payload)
     1 * propagationModule.findSource(_) >> Stub(Taintable.Source) {
       getOrigin() >> source
       getValue() >> json
     }
-    1 * propagationModule.taint(_, 'name', source, 'name', json)
-    1 * propagationModule.taint(_, 'Mr Bean', source, 'name', json)
+    1 * propagationModule.taintString(_, 'name', source, 'name', json)
+    1 * propagationModule.taintString(_, 'Mr Bean', source, 'name', json)
     0 * _
 
     where:
