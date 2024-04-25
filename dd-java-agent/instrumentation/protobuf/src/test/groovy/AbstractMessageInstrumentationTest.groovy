@@ -1,8 +1,10 @@
 import com.google.protobuf.InvalidProtocolBufferException
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 class AbstractMessageInstrumentationTest extends AgentTestRunner {
   @Override
@@ -22,9 +24,13 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     when:
     var bytes
     runUnderTrace("parent_serialize") {
+      AgentSpan span = activeSpan()
+      span.setTag(DDTags.MANUAL_KEEP, true)
       bytes = message.toByteArray()
     }
     runUnderTrace("parent_deserialize") {
+      AgentSpan span = activeSpan()
+      span.setTag(DDTags.MANUAL_KEEP, true)
       Message.MyMessage.parseFrom(bytes)
     }
     TEST_WRITER.waitForTraces(2)
@@ -77,6 +83,8 @@ class AbstractMessageInstrumentationTest extends AgentTestRunner {
     .build()
     when:
     runUnderTrace("parent_deserialize") {
+      AgentSpan span = activeSpan()
+      span.setTag(DDTags.MANUAL_KEEP, true)
       try {
         Message.MyMessage.parseFrom(new byte[]{
           1, 2, 3, 4, 5

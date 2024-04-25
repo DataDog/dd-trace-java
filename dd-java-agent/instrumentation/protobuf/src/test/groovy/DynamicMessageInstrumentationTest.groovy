@@ -1,9 +1,10 @@
 import com.google.protobuf.DynamicMessage
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class DynamicMessageInstrumentationTest extends AgentTestRunner {
   @Override
@@ -22,9 +23,13 @@ class DynamicMessageInstrumentationTest extends AgentTestRunner {
     String schemaID = "17871055810055148870"
     var bytes
     runUnderTrace("parent_serialize") {
+      AgentSpan span = activeSpan()
+      span.setTag(DDTags.MANUAL_KEEP, true)
       bytes = message.toByteArray()
     }
     runUnderTrace("parent_deserialize") {
+      AgentSpan span = activeSpan()
+      span.setTag(DDTags.MANUAL_KEEP, true)
       DynamicMessage.parseFrom(Message.MyMessage.getDescriptor(), bytes)
     }
     TEST_WRITER.waitForTraces(2)
