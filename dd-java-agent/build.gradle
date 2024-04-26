@@ -162,12 +162,13 @@ shadowJar generalShadowJarConfig >> {
 }
 
 tasks.register('generateAgentJarIndex', JavaExec) {
+  def indexName = 'dd-java-agent.index'
   def contentDir = "${sourceSets.main.output.resourcesDir}"
-  def indexFile = "${contentDir}/dd-java-agent.index"
+  def indexFile = "${contentDir}/${indexName}"
 
   it.group = 'Build'
   it.description = "Generate dd-java-agent.index"
-  it.inputs.files(contentDir)
+  it.inputs.files(fileTree(contentDir).exclude(indexName))
   it.outputs.files(indexFile)
   it.mainClass = 'datadog.trace.bootstrap.AgentJarIndex$IndexGenerator'
   it.classpath = project.configurations.shadowInclude
