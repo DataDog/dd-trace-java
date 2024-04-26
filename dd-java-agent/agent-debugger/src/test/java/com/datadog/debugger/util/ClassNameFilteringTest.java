@@ -91,7 +91,7 @@ class ClassNameFilteringTest {
     when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
     when(config.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
     ClassNameFiltering classNameFiltering =
-        new ClassNameFiltering(ThirdPartyLibraries.INSTANCE.getExcludes(config));
+        new ClassNameFiltering(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(config));
     assertTrue(classNameFiltering.isExcluded(input));
   }
 }

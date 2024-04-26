@@ -23,40 +23,46 @@ class ThirdPartyLibrariesTest {
 
   @Test
   void testGetExcludesContainsDefaultExclude() {
-    assertTrue(ThirdPartyLibraries.INSTANCE.getExcludes(mockConfig).contains("java."));
+    assertTrue(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(mockConfig).contains("java."));
   }
 
   @Test
   void testGetExcludesWithExplicitExclude() {
 
-    when(mockConfig.getThirdPartyExcludes())
+    when(mockConfig.getThirdPartyIncludes())
         .thenReturn(Collections.singleton("com.datadog.debugger"));
     assertTrue(
-        ThirdPartyLibraries.INSTANCE.getExcludes(mockConfig).contains("com.datadog.debugger"));
+        ThirdPartyLibraries.INSTANCE
+            .getThirdPartyLibraries(mockConfig)
+            .contains("com.datadog.debugger"));
   }
 
   @Test
   void testGetExcludesWithExplicitExcludeAndExplicitInclude() {
-    when(mockConfig.getThirdPartyExcludes())
-        .thenReturn(Collections.singleton("com.datadog.debugger"));
     when(mockConfig.getThirdPartyIncludes())
         .thenReturn(Collections.singleton("com.datadog.debugger"));
+    when(mockConfig.getThirdPartyExcludes())
+        .thenReturn(Collections.singleton("com.datadog.debugger"));
     assertTrue(
-        ThirdPartyLibraries.INSTANCE.getExcludes(mockConfig).contains("com.datadog.debugger"));
+        ThirdPartyLibraries.INSTANCE
+            .getThirdPartyLibraries(mockConfig)
+            .contains("com.datadog.debugger"));
     assertTrue(
-        ThirdPartyLibraries.INSTANCE.getIncludes(mockConfig).contains("com.datadog.debugger"));
+        ThirdPartyLibraries.INSTANCE
+            .getThirdPartyExcludes(mockConfig)
+            .contains("com.datadog.debugger"));
   }
 
   @Test
   void testGetExcludesWithoutExplicitConfig() {
-    assertNotNull(ThirdPartyLibraries.INSTANCE.getExcludes(mockConfig));
-    assertFalse(ThirdPartyLibraries.INSTANCE.getExcludes(mockConfig).isEmpty());
+    assertNotNull(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(mockConfig));
+    assertFalse(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(mockConfig).isEmpty());
   }
 
   @Test
   void testGetExcludesWithIncludeOverridingDefaultExclude() {
-    when(mockConfig.getThirdPartyIncludes()).thenReturn(Collections.singleton("java."));
-    assertTrue(ThirdPartyLibraries.INSTANCE.getExcludes(mockConfig).contains("java."));
-    assertTrue(ThirdPartyLibraries.INSTANCE.getIncludes(mockConfig).contains("java."));
+    when(mockConfig.getThirdPartyExcludes()).thenReturn(Collections.singleton("java."));
+    assertTrue(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(mockConfig).contains("java."));
+    assertTrue(ThirdPartyLibraries.INSTANCE.getThirdPartyExcludes(mockConfig).contains("java."));
   }
 }
