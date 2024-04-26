@@ -1,5 +1,4 @@
 .base_job_onboarding_tests:
-
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner:a58cc31c
   tags: ["arch:amd64"]
   before_script:
@@ -36,10 +35,11 @@
 onboarding_tests:
   extends: .base_job_onboarding_tests
   stage: single-step-instrumentation-tests
-  needs: [package, package-arm]
+  needs: [package, package-arm, package_onboarding_tests_oci]
   rules:
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "master"
       when: on_success
+    - when: on_success # TODO: remove
   allow_failure: false
   variables:
     TEST_LIBRARY: java
@@ -50,11 +50,15 @@ onboarding_tests:
           SCENARIO: [SIMPLE_HOST_AUTO_INJECTION]
         - ONBOARDING_FILTER_WEBLOG: [test-app-java-container,test-app-java-buildpack,test-app-java-alpine]
           SCENARIO: [SIMPLE_CONTAINER_AUTO_INJECTION]
+        - ONBOARDING_FILTER_WEBLOG: [test-app-java,test-app-java-container,test-app-java-buildpack,test-app-java-alpine]
+          SCENARIO: [INSTALLER_AUTO_INJECTION]
   script:
     - git clone https://git@github.com/DataDog/system-tests.git system-tests
     - cp packaging/*.rpm system-tests/binaries
     - cp packaging/*.deb system-tests/binaries
+    - cp -r packaging/oci_package system-tests/binaries/library
     - ls system-tests/binaries
+    - ls system-tests/binaries/library # TODO: remove
     - cd system-tests
     - ./build.sh -i runner
     - timeout 2700s ./run.sh $SCENARIO --vm-weblog ${ONBOARDING_FILTER_WEBLOG} --vm-env prod --vm-library ${TEST_LIBRARY} --vm-provider aws --vm-skip-branches ubuntu18_amd64
@@ -65,7 +69,9 @@ package_onboarding_tests_oci:
   needs: [package-oci]
   tags: ["runner:main"]
   rules:
-    - when: on_success
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "master"
+      when: on_success
+    - when: on_success # TODO: remove
   artifacts:
     paths: 
       - packaging/oci_package
@@ -85,31 +91,3 @@ package_onboarding_tests_oci:
         tar -xf merged.tar -C oci_package
       fi
     - ls oci_package
-
-onboarding_tests_oci:
-  extends: .base_job_onboarding_tests
-  stage: single-step-instrumentation-tests
-  needs: [package_onboarding_tests_oci]
-  rules:
-    - when: on_success
-  allow_failure: false
-  variables:
-    TEST_LIBRARY: java
-    ONBOARDING_FILTER_ENV: prod
-  parallel:
-      matrix:
-        - ONBOARDING_FILTER_WEBLOG:
-            - test-app-java
-            - test-app-java-container
-            - test-app-java-buildpack
-            - test-app-java-alpine
-          SCENARIO:
-            - INSTALLER_AUTO_INJECTION
-  script:
-    - git clone https://git@github.com/DataDog/system-tests.git system-tests
-    - cp -r packaging/oci_package/* system-tests/binaries
-    - ls system-tests/binaries
-    - cd system-tests
-    - git checkout baptiste.foy/FA/system-tests-installer # TODO: remove once merged
-    - ./build.sh -i runner
-    - timeout 2700s ./run.sh $SCENARIO --vm-weblog ${ONBOARDING_FILTER_WEBLOG} --vm-env prod --vm-library ${TEST_LIBRARY} --vm-provider aws
