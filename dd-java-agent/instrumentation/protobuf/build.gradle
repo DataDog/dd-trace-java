@@ -1,0 +1,15 @@
+muzzle {
+  pass {
+    group = "com.google.protobuf"
+    module = "protobuf-java"
+    versions = "[,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
+  testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
+}
