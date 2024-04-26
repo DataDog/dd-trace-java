@@ -20,6 +20,6 @@ tasks.register("writeVersionNumberFile") {
   }
 }
 
-tasks.withType(JavaCompile).configureEach {
-  dependsOn "writeVersionNumberFile"
-}
+//tasks.withType(JavaCompile).configureEach {
+//  dependsOn "writeVersionNumberFile"
+//}
