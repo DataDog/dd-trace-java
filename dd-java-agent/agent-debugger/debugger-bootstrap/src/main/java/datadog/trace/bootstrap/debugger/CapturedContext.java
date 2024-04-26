@@ -79,6 +79,9 @@ public class CapturedContext implements ValueReferenceResolver {
     for (Status status : statusByProbeId.values()) {
       result |= status.isCapturing();
     }
+
+    // call checkAndSetInProbe only if result is true because otherwise we are not in probe
+    // and no need to disable it later
     result = result && DebuggerContext.checkAndSetInProbe();
     return result;
   }

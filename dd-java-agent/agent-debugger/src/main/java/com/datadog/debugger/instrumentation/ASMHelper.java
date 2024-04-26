@@ -110,6 +110,10 @@ public class ASMHelper {
     insnList.add(val == null ? new InsnNode(Opcodes.ACONST_NULL) : new LdcInsnNode(val));
   }
 
+  public static void ldc(InsnList insnList, boolean val) {
+    insnList.add(new InsnNode(val ? Opcodes.ICONST_1 : Opcodes.ICONST_0));
+  }
+
   public static void getStatic(InsnList insnList, org.objectweb.asm.Type owner, String fieldName) {
     insnList.add(
         new FieldInsnNode(

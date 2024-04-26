@@ -59,6 +59,7 @@ import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 public class CapturedContextInstrumentor extends Instrumentor {
+  private final ToInstrumentInfo toInstrumentInfo;
   private final boolean captureSnapshot;
   private final Limits limits;
   private final LabelNode contextInitLabel = new LabelNode();
@@ -71,10 +72,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
       ProbeDefinition definition,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds,
+      ToInstrumentInfo toInstrumentInfo,
       boolean captureSnapshot,
       Limits limits) {
-    super(definition, methodInfo, diagnostics, probeIds);
+    super(definition, methodInfo, diagnostics);
+    this.toInstrumentInfo = toInstrumentInfo;
     this.captureSnapshot = captureSnapshot;
     this.limits = limits;
   }
@@ -133,16 +135,16 @@ public class CapturedContextInstrumentor extends Instrumentor {
             // stack [exception]
           }
         }
-        ldc(insnList, Type.getObjectType(classNode.name));
-        // stack [class, array]
+        ldc(insnList, toInstrumentInfo.atLeastOneProbeHasCondition);
+        // stack [boolean]
         pushProbesIds(insnList);
-        // stack [array]
+        // stack [boolean, array]
         invokeStatic(
             insnList,
             DEBUGGER_CONTEXT_TYPE,
             "isReadyToCapture",
-            Type.BOOLEAN_TYPE,
-            CLASS_TYPE,
+            BOOLEAN_TYPE,
+            BOOLEAN_TYPE,
             STRING_ARRAY_TYPE);
         // stack [boolean]
         LabelNode targetNode = new LabelNode();
@@ -388,16 +390,16 @@ public class CapturedContextInstrumentor extends Instrumentor {
       methodNode.instructions.insert(methodEnterLabel, insnList);
       return;
     }
-    ldc(insnList, Type.getObjectType(classNode.name));
-    // stack [class]
+    ldc(insnList, toInstrumentInfo.atLeastOneProbeHasCondition);
+    // stack [boolean]
     pushProbesIds(insnList);
-    // stack [class, array]
+    // stack [boolean, array]
     invokeStatic(
         insnList,
         DEBUGGER_CONTEXT_TYPE,
         "isReadyToCapture",
-        Type.BOOLEAN_TYPE,
-        CLASS_TYPE,
+        BOOLEAN_TYPE,
+        BOOLEAN_TYPE,
         STRING_ARRAY_TYPE);
     // stack [boolean]
     LabelNode targetNode = new LabelNode();
@@ -459,16 +461,16 @@ public class CapturedContextInstrumentor extends Instrumentor {
   }
 
   private void pushProbesIds(InsnList insnList) {
-    ldc(insnList, probeIds.size()); // array size
+    ldc(insnList, toInstrumentInfo.probeIds.size()); // array size
     // stack [int]
     insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, STRING_TYPE.getInternalName()));
     // stack [array]
-    for (int i = 0; i < probeIds.size(); i++) {
+    for (int i = 0; i < toInstrumentInfo.probeIds.size(); i++) {
       insnList.add(new InsnNode(Opcodes.DUP));
       // stack [array, array]
       ldc(insnList, i); // index
       // stack [array, array, int]
-      ldc(insnList, probeIds.get(i).getEncodedId());
+      ldc(insnList, toInstrumentInfo.probeIds.get(i).getEncodedId());
       // stack [array, array, int, string]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack [array]

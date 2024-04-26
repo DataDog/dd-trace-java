@@ -5,6 +5,7 @@ import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.instrumentation.SpanInstrumentor;
+import com.datadog.debugger.instrumentation.ToInstrumentInfo;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
@@ -24,8 +25,8 @@ public class SpanProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
-    return new SpanInstrumentor(this, methodInfo, diagnostics, probeIds).instrument();
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, ToInstrumentInfo instrumentInfo) {
+    return new SpanInstrumentor(this, methodInfo, diagnostics).instrument();
   }
 
   @Generated

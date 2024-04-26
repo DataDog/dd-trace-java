@@ -9,6 +9,7 @@ import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import com.datadog.debugger.instrumentation.ToInstrumentInfo;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -134,9 +135,9 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, ToInstrumentInfo toInstrumentInfo) {
     return new CapturedContextInstrumentor(
-            this, methodInfo, diagnostics, probeIds, false, Limits.DEFAULT)
+            this, methodInfo, diagnostics, toInstrumentInfo, false, Limits.DEFAULT)
         .instrument();
   }
 

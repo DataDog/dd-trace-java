@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import com.datadog.debugger.instrumentation.ToInstrumentInfo;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -378,7 +379,7 @@ public class DebuggerTransformerTest {
               return InstrumentationResult.Status.INSTALLED;
             })
         .when(mock)
-        .instrument(any(), anyList(), anyList());
+        .instrument(any(), anyList(), any());
     when(mock.getProbeId()).thenReturn(new ProbeId(id, 0));
     Where where = Where.convertLineToMethod(ArrayList.class.getName(), "add", "(Object)");
     when(mock.getWhere()).thenReturn(where);
@@ -402,7 +403,7 @@ public class DebuggerTransformerTest {
 
     @Override
     public InstrumentationResult.Status instrument(
-        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, ToInstrumentInfo toInstrumentInfo) {
       methodInfo
           .getMethodNode()
           .instructions

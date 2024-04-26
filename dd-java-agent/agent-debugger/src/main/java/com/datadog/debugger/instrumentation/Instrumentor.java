@@ -40,7 +40,6 @@ public abstract class Instrumentor {
   protected final MethodNode methodNode;
   protected final ClassFileLines classFileLines;
   protected final List<DiagnosticMessage> diagnostics;
-  protected final List<ProbeId> probeIds;
   protected final boolean isStatic;
   protected final LabelNode methodEnterLabel;
   protected int localVarBaseOffset;
@@ -52,15 +51,13 @@ public abstract class Instrumentor {
   public Instrumentor(
       ProbeDefinition definition,
       MethodInfo methodInfo,
-      List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds) {
+      List<DiagnosticMessage> diagnostics) {
     this.definition = definition;
     this.classLoader = methodInfo.getClassLoader();
     this.classNode = methodInfo.getClassNode();
     this.methodNode = methodInfo.getMethodNode();
     this.classFileLines = methodInfo.getClassFileLines();
     this.diagnostics = diagnostics;
-    this.probeIds = probeIds;
     isStatic = (methodNode.access & Opcodes.ACC_STATIC) != 0;
     methodEnterLabel = insertMethodEnterLabel();
     argOffset = isStatic ? 0 : 1;

@@ -1,9 +1,11 @@
 package com.datadog.debugger.probe;
 
+import com.datadog.debugger.agent.DebuggerTransformer;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import com.datadog.debugger.instrumentation.ToInstrumentInfo;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -125,7 +127,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   }
 
   public abstract InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds);
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, ToInstrumentInfo toInstrumentInfo);
 
   @Override
   public ProbeLocation getLocation() {

@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toList;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import com.datadog.debugger.instrumentation.ToInstrumentInfo;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -519,7 +520,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         for (ToInstrumentInfo toInstrumentInfo : toInstruments) {
           ProbeDefinition definition = toInstrumentInfo.definition;
           List<DiagnosticMessage> probeDiagnostics = diagnostics.get(definition.getProbeId());
-          status = definition.instrument(methodInfo, probeDiagnostics, toInstrumentInfo.probeIds);
+          status = definition.instrument(methodInfo, probeDiagnostics, toInstrumentInfo);
         }
       } catch (Throwable t) {
         log.warn("Exception during instrumentation: ", t);
@@ -529,16 +530,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
     }
     return new InstrumentationResult(status, diagnostics, methodInfo);
-  }
-
-  static class ToInstrumentInfo {
-    final ProbeDefinition definition;
-    final List<ProbeId> probeIds;
-
-    ToInstrumentInfo(ProbeDefinition definition, List<ProbeId> probeIds) {
-      this.definition = definition;
-      this.probeIds = probeIds;
-    }
   }
 
   private List<ToInstrumentInfo> filterAndSortDefinitions(List<ProbeDefinition> definitions) {
@@ -560,16 +551,16 @@ public class DebuggerTransformer implements ClassFileTransformer {
         }
         capturedContextProbes.add(definition);
       } else {
-        toInstrument.add(new ToInstrumentInfo(definition, singletonList(definition.getProbeId())));
+        toInstrument.add(new ToInstrumentInfo(definition, singletonList(definition.getProbeId()), false));
       }
     }
     if (!capturedContextProbes.isEmpty()) {
       List<ProbeId> probesIds =
           capturedContextProbes.stream().map(ProbeDefinition::getProbeId).collect(toList());
       ProbeDefinition referenceDefinition = selectReferenceDefinition(capturedContextProbes);
-      toInstrument.add(new ToInstrumentInfo(referenceDefinition, probesIds));
+      boolean hasCondition = capturedContextProbes.stream().anyMatch(ProbeDefinition::hasCondition);
+      toInstrument.add(new ToInstrumentInfo(referenceDefinition, probesIds, hasCondition));
     }
-    //     LOGGER.debug("exception probe is already instrumented for {}", preciseWhere);
     // ordering: metric < log < span decoration < span
     toInstrument.sort(
         (info1, info2) -> {

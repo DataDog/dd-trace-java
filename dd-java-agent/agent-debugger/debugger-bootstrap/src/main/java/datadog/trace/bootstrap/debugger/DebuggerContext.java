@@ -206,9 +206,21 @@ public class DebuggerContext {
    *
    * @return true if can proceed to capture data
    */
-  public static boolean isReadyToCapture(Class<?> callingClass, String... encodedProbeIds) {
+  public static boolean isReadyToCapture(boolean atLeastOneProbeHasCondition, String... probeIds) {
     try {
-      return checkAndSetInProbe();
+      if (atLeastOneProbeHasCondition) {
+        // we capture anyway because we will sample at commit after condition evaluation
+        // and need all values to evaluate
+        return checkAndSetInProbe();
+      }
+      boolean result = false;
+      for (String probeId : probeIds) {
+        // if all probes are rate limited, we don't capture
+        result |= ProbeRateLimiter.tryProbe(probeId);
+      }
+      // call checkAndSetInProbe only if result is true because otherwise we are not in probe
+      // and no need to disable it later
+      return result && checkAndSetInProbe();
     } catch (Exception ex) {
       LOGGER.debug("Error in isReadyToCapture: ", ex);
       return false;

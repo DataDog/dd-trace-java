@@ -28,9 +28,8 @@ public class SpanInstrumentor extends Instrumentor {
   public SpanInstrumentor(
       SpanProbe spanProbe,
       MethodInfo methodInfo,
-      List<DiagnosticMessage> diagnostics,
-      List<ProbeId> probeIds) {
-    super(spanProbe, methodInfo, diagnostics, probeIds);
+      List<DiagnosticMessage> diagnostics) {
+    super(spanProbe, methodInfo, diagnostics);
   }
 
   @Override
