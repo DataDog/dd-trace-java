@@ -106,8 +106,16 @@ build_again:
   stage: build
   needs: [ build ]
   script:
-    - ls -laR workspace/dd-java-agent/instrumentation/
+    - ls -laR workspace/
     - ./gradlew :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar --parallel --max-workers=8 $GRADLE_ARGS
+
+build_just_api:
+  extends: .gradle_build
+  stage: build
+  needs: [ build ]
+  script:
+    - ls -laR workspace/dd-trace-api
+    - ./gradlew :dd-trace-api:jar --parallel --max-workers=8 $GRADLE_ARGS
 
 build_with_cache:
   extends: build
