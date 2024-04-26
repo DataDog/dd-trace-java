@@ -55,6 +55,7 @@ import scala.collection.JavaConverters;
 public abstract class AbstractDatadogSparkListener extends SparkListener {
   public static volatile AbstractDatadogSparkListener listener = null;
   public static volatile boolean finishTraceOnApplicationEnd = true;
+  public static volatile boolean isPysparkShell = false;
 
   private final int MAX_COLLECTION_SIZE = 1000;
   private final int MAX_ACCUMULATOR_SIZE = 10000;
