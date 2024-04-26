@@ -530,7 +530,9 @@ public class LogProbe extends ProbeDefinition {
      * - ProbeDefinition.commit()
      * - DebuggerContext.commit() or DebuggerContext.evalAndCommit()
      */
-    snapshot.recordStackTrace(5);
+    if (isCaptureSnapshot()) {
+      snapshot.recordStackTrace(5);
+    }
     sink.addSnapshot(snapshot);
   }
 
