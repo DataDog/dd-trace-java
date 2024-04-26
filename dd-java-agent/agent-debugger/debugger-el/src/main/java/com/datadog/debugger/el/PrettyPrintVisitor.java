@@ -30,6 +30,7 @@ import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
+import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.math.BigDecimal;
@@ -264,6 +265,14 @@ public class PrettyPrintVisitor implements Visitor<String> {
   public String visit(MapValue mapValue) {
     if (mapValue.getMapHolder() instanceof Map) {
       return "Map";
+    }
+    return "null";
+  }
+
+  @Override
+  public String visit(SetValue setValue) {
+    if (setValue.getSetHolder() instanceof Set) {
+      return "Set";
     }
     return "null";
   }

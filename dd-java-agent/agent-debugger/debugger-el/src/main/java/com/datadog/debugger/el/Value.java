@@ -6,12 +6,14 @@ import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
+import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.el.values.UndefinedValue;
 import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /** Represents any value of the expression language */
@@ -76,6 +78,8 @@ public interface Value<T> {
       return new ListValue(value);
     } else if (value instanceof Map) {
       return new MapValue(value);
+    } else if (value instanceof Set) {
+      return new SetValue(value);
     } else if (value instanceof Value) {
       return (Value<?>) value;
     } else {

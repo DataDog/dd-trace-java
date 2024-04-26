@@ -32,6 +32,7 @@ import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
+import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -331,6 +332,11 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(MapValue mapValue) {
+      throw new UnsupportedOperationException("mapValue");
+    }
+
+    @Override
+    public Void visit(SetValue setValue) {
       throw new UnsupportedOperationException("mapValue");
     }
   }

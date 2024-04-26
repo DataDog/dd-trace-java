@@ -18,8 +18,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import okio.Okio;
 import org.junit.jupiter.api.Test;
@@ -236,6 +238,27 @@ public class ProbeConditionTest {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, fields);
     assertTrue(probeCondition.execute(ctx));
   }
+
+  @Test
+  void testLenCount() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_13.json");
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("intArray", new int[] {1, 1, 1});
+    fields.put("strArray", new String[] {"foo", "bar"});
+    Map<String, String> strMap = new HashMap<>();
+    strMap.put("foo", "bar");
+    strMap.put("bar", "foobar");
+    fields.put("strMap", strMap);
+    Set<String> strSet = new HashSet<>();
+    strSet.add("foo");
+    fields.put("strSet", strSet);
+    List<String> strList = new ArrayList<>();
+    strList.add("foo");
+    fields.put("strList", strList);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, fields);
+    assertTrue(probeCondition.execute(ctx));
+  }
+
 
   private static ProbeCondition load(String resourcePath) throws IOException {
     InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath);
