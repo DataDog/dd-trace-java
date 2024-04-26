@@ -32,7 +32,7 @@ variables:
 default:
   tags: [ "arch:amd64" ]
 
-.docker: &docker
+.docker:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:20.10.13
   cache:
     key: no-cache
@@ -61,7 +61,7 @@ cache:
       - workspace
     policy: $BUILD_CACHE_POLICY
 
-.gradle_build: &gradle_build
+.gradle_build:
   image: ghcr.io/datadog/dd-trace-java-docker-build:v23.10-base
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx1900M -Xms512M' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
@@ -77,8 +77,8 @@ cache:
     - mv .gradle-copy .gradle
     - ls -la
 
-build: &build
-  <<: *gradle_build
+build:
+  extends: .gradle_build
   stage: build
   variables:
     BUILD_CACHE_POLICY: push
@@ -101,8 +101,8 @@ build: &build
     reports:
       dotenv: build.env
 
-build_again: &build
-  <<: *gradle_build
+build_again:
+  extends: .gradle_build
   stage: build
   needs: [ build ]
   script:
@@ -110,7 +110,7 @@ build_again: &build
     - ./gradlew :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar --parallel --max-workers=8 $GRADLE_ARGS
 
 build_with_cache:
-  <<: *build
+  extends: build
   variables:
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: push
@@ -208,7 +208,7 @@ deploy_to_di_backend:manual:
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
 deploy_to_sonatype:
-  <<: *gradle_build
+  extends: .gradle_build
   stage: deploy
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
