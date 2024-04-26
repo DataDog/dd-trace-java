@@ -13,7 +13,6 @@ public class SpanOriginAdvice {
 
   @Advice.OnMethodEnter
   public static void onEnter(@Advice.Origin final Method method) {
-    System.out.println("SpanOriginAdvice.onEnter");
     StackTraceElement[] stackTrace =
         new Exception("\"SpanOriginAdvice.onExit\" trace").getStackTrace();
     AgentSpan span = AgentTracer.get().activeScope().span();
@@ -32,7 +31,6 @@ public class SpanOriginAdvice {
 
   @Advice.OnMethodExit
   public static void onExit() {
-    System.out.println("SpanOriginAdvice.onExit");
     AgentSpan span = AgentTracer.get().activeScope().span();
     StackTraceElement[] stackTrace =
         new Exception("\"SpanOriginAdvice.onExit\" trace").getStackTrace();
