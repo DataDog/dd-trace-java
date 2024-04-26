@@ -60,9 +60,14 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       Type.getMethodDescriptor(
           Type.VOID_TYPE, Type.getType(Object.class), Type.INT_TYPE, Type.getType(Object.class));
 
+  static final String IS_ASSIGNABLE_FROM_METHOD = "isAssignableFrom";
+  static final String IS_ASSIGNABLE_FROM_METHOD_DESCRIPTOR =
+      Type.getMethodDescriptor(Type.BOOLEAN_TYPE, Type.getType(Class.class));
+
   static final String OBJECT_DESCRIPTOR = Type.getDescriptor(Object.class);
 
-  static final String LINKAGE_ERROR_CLASS = getInternalName(LinkageError.class.getName());
+  public static final Type EXPECTED_SUPER_STORE_TYPE =
+      Type.getType(FieldBackedContextAccessor.class);
 
   /** Keeps track of injection requests for the class being transformed by the current thread. */
   static final ThreadLocal<BitSet> INJECTED_STORE_IDS = new ThreadLocal<>();
@@ -290,19 +295,25 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
         // else... delegate to superclass - but be prepared to fall back to weak-map
         if (hasMoreStores) {
-          Label superStoreLabel = new Label();
-          Label defaultStoreLabel = new Label();
+          Label fallbackStoreLabel = new Label();
 
-          mv.visitTryCatchBlock(
-              superStoreLabel, defaultStoreLabel, defaultStoreLabel, LINKAGE_ERROR_CLASS);
-          beginNextStore(mv, superStoreLabel);
+          String superName = instrumentedType.getSuperClass().asErasure().getInternalName();
 
-          invokeSuperGet(mv, instrumentedType.getSuperClass().asErasure().getInternalName());
+          // check superclass has expected type before calling
+          mv.visitLdcInsn(EXPECTED_SUPER_STORE_TYPE);
+          mv.visitLdcInsn(Type.getObjectType(superName));
+          mv.visitMethodInsn(
+              Opcodes.INVOKEVIRTUAL,
+              "java/lang/Class",
+              IS_ASSIGNABLE_FROM_METHOD,
+              IS_ASSIGNABLE_FROM_METHOD_DESCRIPTOR,
+              false);
+          mv.visitJumpInsn(Opcodes.IFEQ, fallbackStoreLabel);
 
-          mv.visitLabel(defaultStoreLabel);
-          if (frames) {
-            mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {LINKAGE_ERROR_CLASS});
-          }
+          invokeSuperGet(mv, superName);
+
+          // superclass has not been field-injected, fall back to weak-map
+          beginNextStore(mv, fallbackStoreLabel);
 
           invokeWeakGet(mv);
         }
@@ -355,19 +366,25 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
         // else... delegate to superclass - but be prepared to fall back to weak-map
         if (hasMoreStores) {
-          Label superStoreLabel = new Label();
-          Label defaultStoreLabel = new Label();
+          Label fallbackStoreLabel = new Label();
 
-          mv.visitTryCatchBlock(
-              superStoreLabel, defaultStoreLabel, defaultStoreLabel, LINKAGE_ERROR_CLASS);
-          beginNextStore(mv, superStoreLabel);
+          String superName = instrumentedType.getSuperClass().asErasure().getInternalName();
 
-          invokeSuperPut(mv, instrumentedType.getSuperClass().asErasure().getInternalName());
+          // check superclass has expected type before calling
+          mv.visitLdcInsn(EXPECTED_SUPER_STORE_TYPE);
+          mv.visitLdcInsn(Type.getObjectType(superName));
+          mv.visitMethodInsn(
+              Opcodes.INVOKEVIRTUAL,
+              "java/lang/Class",
+              IS_ASSIGNABLE_FROM_METHOD,
+              IS_ASSIGNABLE_FROM_METHOD_DESCRIPTOR,
+              false);
+          mv.visitJumpInsn(Opcodes.IFEQ, fallbackStoreLabel);
 
-          mv.visitLabel(defaultStoreLabel);
-          if (frames) {
-            mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {LINKAGE_ERROR_CLASS});
-          }
+          invokeSuperPut(mv, superName);
+
+          // superclass has not been field-injected, fall back to weak-map
+          beginNextStore(mv, fallbackStoreLabel);
 
           invokeWeakPut(mv);
         }
