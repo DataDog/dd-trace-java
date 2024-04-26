@@ -23,6 +23,8 @@ dependencies {
   testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring-scheduling-3.1')
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
 
   // IAST testing dependencies
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
@@ -48,6 +50,8 @@ dependencies {
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java-io')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastLatestDepTest3Implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.3')
+  iastLatestDepTest3Implementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
 }
 
 configurations.testRuntimeClasspath {

@@ -44,6 +44,11 @@ class IastAgentTestRunner extends AgentTestRunner implements IastRequestContextP
     new TaintedObjectCollection(localTaintedObjects)
   }
 
+  protected TaintedObjectCollection getTaintedObjectCollection(DDSpan span) {
+    final IastContext ctx = span.getRequestContext().getData(RequestContextSlot.IAST)
+    return new TaintedObjectCollection(ctx.getTaintedObjects())
+  }
+
   protected DDSpan runUnderIastTrace(Closure cl) {
     CallbackProvider iastCbp = TEST_TRACER.getCallbackProvider(RequestContextSlot.IAST)
     Supplier<Flow<Object>> reqStartCb = iastCbp.getCallback(Events.EVENTS.requestStarted())

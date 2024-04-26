@@ -2858,6 +2858,10 @@ public class Config {
     return iastHardcodedSecretEnabled;
   }
 
+  public IastDetectionMode getIastDetectionMode() {
+    return iastDetectionMode;
+  }
+
   public boolean isIastAnonymousClassesEnabled() {
     return iastAnonymousClassesEnabled;
   }
