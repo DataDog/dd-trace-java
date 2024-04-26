@@ -115,7 +115,7 @@ build_just_api:
   needs: [ build ]
   script:
     - ls -laR workspace/dd-trace-api
-    - ./gradlew :dd-trace-api:jar --parallel --max-workers=8 $GRADLE_ARGS
+    - ./gradlew :dd-trace-api:jar --parallel --max-workers=8 --info $GRADLE_ARGS
 
 build_with_cache:
   extends: build
