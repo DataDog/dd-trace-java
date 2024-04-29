@@ -27,7 +27,7 @@ class InstrumentPlugin implements Plugin<Project> {
 
     project.tasks.matching {
       it.name in ['compileJava', 'compileScala', 'compileKotlin'] ||
-        it.name =~ /compileMain_(?:.+)Java/
+        it.name =~ /compileMain_.+Java/
     }.all {
       AbstractCompile compileTask = it as AbstractCompile
       Matcher versionMatcher = it.name =~ /compileMain_(.+)Java/
