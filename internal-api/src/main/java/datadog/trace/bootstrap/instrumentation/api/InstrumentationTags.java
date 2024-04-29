@@ -112,4 +112,5 @@ public class InstrumentationTags {
       UTF8BytesString.create("_dd.partial_version");
   public static final UTF8BytesString DD_WAS_LONG_RUNNING =
       UTF8BytesString.create("_dd.was_long_running");
+  public static final String DD_ENABLED_PRODUCTS = "_dd.enabled_products";
 }

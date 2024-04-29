@@ -935,6 +935,11 @@ public class Config {
   private final long tracePostProcessingTimeout;
 
   private final boolean telemetryDebugRequestsEnabled;
+  private int enabledProducts;
+
+  private static final int APM_PRODUCT = 1; // 00000001
+  private static final int DSM_PRODUCT = 2; // 00000010
+  private static final int DJM_PRODUCT = 4; // 00000100
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -2078,6 +2083,14 @@ public class Config {
           "AppSec SCA is enabled but telemetry is disabled. AppSec SCA will not work.");
     }
 
+    this.enabledProducts = APM_PRODUCT;
+    if (isDataStreamsEnabled()) {
+      this.enabledProducts |= DSM_PRODUCT;
+    }
+    if (instrumenterConfig.isDataJobsEnabled()) {
+      this.enabledProducts |= DJM_PRODUCT;
+    }
+
     log.debug("New instance: {}", this);
   }
 
@@ -2098,6 +2111,10 @@ public class Config {
 
   public long getStartTimeMillis() {
     return startTimeMillis;
+  }
+
+  public int getEnabledProducts() {
+    return enabledProducts;
   }
 
   public String getRuntimeId() {

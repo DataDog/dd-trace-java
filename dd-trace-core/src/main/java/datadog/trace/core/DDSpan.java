@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.trace.api.DDTags.TRACE_START_TIME;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_ENABLED_PRODUCTS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
@@ -141,6 +142,7 @@ public class DDSpan
     }
 
     this.links = links == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(links);
+    this.context.setTag(DD_ENABLED_PRODUCTS, enabledProducts);
   }
 
   public boolean isFinished() {
@@ -197,6 +199,9 @@ public class DDSpan
 
   private static final boolean legacyEndToEndEnabled =
       Config.get().isEndToEndDurationEnabled(false, "legacy");
+
+  private static final int enabledProducts =
+      Config.get().getEnabledProducts();
 
   @Override
   public void beginEndToEnd() {
