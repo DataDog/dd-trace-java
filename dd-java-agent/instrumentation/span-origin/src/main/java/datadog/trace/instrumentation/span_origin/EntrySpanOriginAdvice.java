@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.trace_annotation;
+package datadog.trace.instrumentation.span_origin;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -9,12 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 
-public class SpanOriginAdvice {
+public class EntrySpanOriginAdvice {
 
   @Advice.OnMethodEnter
   public static void onEnter(@Advice.Origin final Method method) {
     StackTraceElement[] stackTrace =
-        new Exception("\"SpanOriginAdvice.onExit\" trace").getStackTrace();
+        new Exception("\"EntrySpanOriginAdvice.onEnter\" trace").getStackTrace();
     AgentSpan span = AgentTracer.get().activeScope().span();
     StackTraceElement stackTraceElement = stackTrace[0];
 
@@ -33,7 +33,8 @@ public class SpanOriginAdvice {
   public static void onExit() {
     AgentSpan span = AgentTracer.get().activeScope().span();
     StackTraceElement[] stackTrace =
-        new Exception("\"SpanOriginAdvice.onExit\" trace").getStackTrace();
+        new Exception("\"EntrySpanOriginAdvice.onExit\" trace").getStackTrace();
     span.setTag(DDTags.DD_ENTRY_END_LINE, stackTrace[0].getLineNumber());
+    System.out.println(">>>>>>  span.getTags() = " + span.getTags());
   }
 }

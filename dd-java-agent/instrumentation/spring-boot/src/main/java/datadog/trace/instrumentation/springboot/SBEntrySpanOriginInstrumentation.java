@@ -4,15 +4,15 @@ import static java.util.Arrays.asList;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.instrumentation.trace_annotation.SpanOriginInstrumentation;
+import datadog.trace.instrumentation.span_origin.EntrySpanOriginInstrumentation;
 import java.util.HashSet;
 import java.util.Set;
 
 @AutoService(InstrumenterModule.class)
-public class SBSpanOriginInstrumentation extends SpanOriginInstrumentation {
+public class SBEntrySpanOriginInstrumentation extends EntrySpanOriginInstrumentation {
   private static final String WEB_BIND_ANNOTATION = "org.springframework.web.bind.annotation.";
 
-  public SBSpanOriginInstrumentation() {
+  public SBEntrySpanOriginInstrumentation() {
     super("spring-boot-span-origin-instrumentation");
   }
 
