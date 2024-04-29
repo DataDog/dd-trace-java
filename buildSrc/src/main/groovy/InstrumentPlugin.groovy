@@ -100,19 +100,7 @@ abstract class InstrumentTask extends DefaultTask {
                   Directory targetDirectory,
                   InstrumentTask instrumentTask)
   {
-    def workQueue
-    if (javaVersion) {
-      def javaLauncher = javaToolchainService.launcherFor { spec ->
-        spec.languageVersion.set(JavaLanguageVersion.of(javaVersion))
-      }.get()
-      workQueue = workerExecutor.processIsolation { spec ->
-        spec.forkOptions { fork ->
-          fork.executable = javaLauncher.executablePath
-        }
-      }
-    } else {
-      workQueue = workerExecutor.noIsolation()
-    }
+    def workQueue = getWorkQueueFor(javaVersion)
     workQueue.submit(InstrumentAction.class, parameters -> {
       parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
       parameters.pluginClassPath.setFrom(project.configurations.findByName('instrumentPluginClasspath') ?: [])
@@ -125,6 +113,21 @@ abstract class InstrumentTask extends DefaultTask {
       parameters.sourceDirectory.set(sourceDirectory.asFile)
       parameters.targetDirectory.set(targetDirectory.asFile)
     })
+  }
+
+  private getWorkQueueFor(String javaVersion) {
+    if (javaVersion) {
+      def javaLauncher = javaToolchainService.launcherFor { spec ->
+        spec.languageVersion.set(JavaLanguageVersion.of(javaVersion))
+      }.get()
+      return workerExecutor.processIsolation { spec ->
+        spec.forkOptions { fork ->
+          fork.executable = javaLauncher.executablePath
+        }
+      }
+    } else {
+      return workerExecutor.noIsolation()
+    }
   }
 }
 
