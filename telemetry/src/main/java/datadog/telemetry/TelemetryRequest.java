@@ -115,6 +115,16 @@ public class TelemetryRequest {
     }
   }
 
+  public void writeInstrumentationConfigId() {
+    String instrumentationConfigId = System.getenv("DD_INSTRUMENTATION_CONFIG_ID");
+
+    try {
+      requestBody.writeInstrumentationConfigId(instrumentationConfigId);
+    } catch (IOException e) {
+      throw new TelemetryRequestBody.SerializationException("instrumentation-config-id", e);
+    }
+  }
+
   public void writeIntegrations() {
     if (!isWithinSizeLimits() || !eventSource.hasIntegrationEvent()) {
       return;

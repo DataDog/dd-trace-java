@@ -301,6 +301,13 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endObject();
   }
 
+  public void writeInstrumentationConfigId(String instrumentationConfigId) throws IOException {
+    if (instrumentationConfigId == null) {
+      return;
+    }
+    bodyWriter.name("instrumentation_config_id").value(instrumentationConfigId);
+  }
+
   @Nullable
   @Override
   public MediaType contentType() {
