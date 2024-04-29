@@ -14,6 +14,7 @@ import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 
+import javax.inject.Inject
 import java.util.regex.Matcher
 
 /**
@@ -83,13 +84,13 @@ abstract class InstrumentTask extends DefaultTask {
     group = 'Byte Buddy'
   }
 
-  @javax.inject.Inject
+  @Inject
   abstract JavaToolchainService getJavaToolchainService()
 
-  @javax.inject.Inject
+  @Inject
   abstract BuildInvocationDetails getInvocationDetails()
 
-  @javax.inject.Inject
+  @Inject
   abstract WorkerExecutor getWorkerExecutor()
 
   void instrument(String javaVersion,
