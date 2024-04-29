@@ -1,12 +1,8 @@
+package datadog.remoteconfig
+
 import cafe.cryptography.ed25519.Ed25519PrivateKey
 import cafe.cryptography.ed25519.Ed25519PublicKey
 import cafe.cryptography.ed25519.Ed25519Signature
-import datadog.remoteconfig.ConfigurationChangesListener
-import datadog.remoteconfig.ConfigurationChangesTypedListener
-import datadog.remoteconfig.ConfigurationDeserializer
-import datadog.remoteconfig.ConfigurationPoller
-import datadog.remoteconfig.JsonCanonicalizer
-import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
@@ -1108,7 +1104,7 @@ class ConfigurationPollerSpecification extends DDSpecification {
     ]
   }
 
-  void 'reportable errors'() {
+  void 'reportable errors #errorMsg'() {
     when:
     poller.addListener(Product.ASM_DD,
       { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,

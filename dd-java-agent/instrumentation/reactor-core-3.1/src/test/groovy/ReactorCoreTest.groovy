@@ -357,7 +357,7 @@ class ReactorCoreTest extends AgentTestRunner {
     "basic flux" | 2         | { -> Flux.fromIterable([1, 2]).map(addOne) }
   }
 
-  def "Fluxes produce the right number of results '#scheduler'"() {
+  def "Fluxes produce the right number of results on '#schedulerName' scheduler"() {
     when:
     List<String> values = Flux.fromIterable(Arrays.asList(1, 2, 3, 4))
       .parallel()
@@ -371,12 +371,11 @@ class ReactorCoreTest extends AgentTestRunner {
     values.size() == 4
 
     where:
-    scheduler << [
-      Schedulers.parallel(),
-      Schedulers.elastic(),
-      Schedulers.single(),
-      Schedulers.immediate()
-    ]
+    schedulerName | scheduler
+    "parallel"    | Schedulers.parallel()
+    "elastic"     | Schedulers.elastic()
+    "single"      | Schedulers.single()
+    "immediate"   | Schedulers.immediate()
   }
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
