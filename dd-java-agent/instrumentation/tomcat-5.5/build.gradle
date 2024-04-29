@@ -1,7 +1,10 @@
 ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
+  latest10TestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latest10ForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
 }
+
 muzzle {
   // Catalina doesn't reliably depend on coyote, so we use a different dependency that does.
   pass {
@@ -40,6 +43,10 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuite('latestDepTest')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
 
+addTestSuiteForDir('latest10Test', 'latestDepTest')
+addTestSuiteExtendingForDir('latest10ForkedTest', 'latest10Test', 'latestDepTest')
+
+
 def tomcatVersion = '5.5.12' // earliest 5.5.x available in maven central (with all needed dependencies).
 
 configurations.all {
@@ -49,12 +56,6 @@ configurations.all {
   }
 }
 
-[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(11)
-}
-[compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
-  setJavaVersion(it, 11)
-}
 
 
 dependencies {
@@ -91,7 +92,14 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
 
-  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10+'
+  latest10TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.+'
+  latest10TestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
+  latest10TestImplementation(testFixtures(project(":dd-java-agent:appsec")))
+
+  latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-6'))
+  latest10TestImplementation(project(':dd-java-agent:instrumentation:tomcat-appsec-7'))
+
+  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '11.+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'jakartaee-migration', version: '1.+'
   latestDepTestImplementation(testFixtures(project(":dd-java-agent:appsec")))
 
