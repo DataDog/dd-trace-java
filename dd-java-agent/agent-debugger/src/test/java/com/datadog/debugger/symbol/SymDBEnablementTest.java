@@ -76,8 +76,8 @@ class SymDBEnablementTest {
 
   @Test
   public void noIncludesFilterOutDatadogClass() {
-    when(config.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
-    when(config.getThirdPartyExcludes()).thenReturn(Collections.singleton("com.datadog.debugger."));
+    when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
+    when(config.getThirdPartyIncludes()).thenReturn(Collections.singleton("com.datadog.debugger."));
     SymDBEnablement symDBEnablement =
         new SymDBEnablement(
             instr, config, new SymbolAggregator(symbolSink, 1), new ClassNameFiltering(config));

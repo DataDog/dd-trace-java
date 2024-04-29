@@ -14,8 +14,8 @@ public class ClassNameFiltering {
 
   public ClassNameFiltering(Config config) {
     this(
-        ThirdPartyLibraries.INSTANCE.getExcludes(config),
-        ThirdPartyLibraries.INSTANCE.getIncludes(config));
+        ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(config),
+        ThirdPartyLibraries.INSTANCE.getThirdPartyExcludes(config));
   }
 
   public ClassNameFiltering(Set<String> excludes) {

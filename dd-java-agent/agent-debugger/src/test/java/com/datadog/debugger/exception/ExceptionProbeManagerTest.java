@@ -53,8 +53,8 @@ class ExceptionProbeManagerTest {
   @Test
   void filterAllFrames() {
     Config config = mock(Config.class);
-    when(config.getThirdPartyIncludes()).thenReturn(Collections.emptySet());
-    when(config.getThirdPartyExcludes())
+    when(config.getThirdPartyExcludes()).thenReturn(Collections.emptySet());
+    when(config.getThirdPartyIncludes())
         .thenReturn(
             Stream.of(
                     ",",
