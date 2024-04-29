@@ -24,6 +24,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Backlog;
 import datadog.trace.bootstrap.instrumentation.api.InboxItem;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import datadog.trace.bootstrap.instrumentation.api.Schema;
+import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import datadog.trace.bootstrap.instrumentation.api.StatsPoint;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
@@ -162,9 +164,20 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public int shouldSampleSchema(String topic) {
+  public int trySampleSchema(String topic) {
     SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
-    return sampler.shouldSample(timeSource.getCurrentTimeMillis());
+    return sampler.trySample(timeSource.getCurrentTimeMillis());
+  }
+
+  @Override
+  public boolean canSampleSchema(String topic) {
+    SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
+    return sampler.canSample(timeSource.getCurrentTimeMillis());
+  }
+
+  @Override
+  public Schema getSchema(String schemaName, SchemaIterator iterator) {
+    return SchemaBuilder.getSchema(schemaName, iterator);
   }
 
   @Override

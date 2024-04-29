@@ -48,6 +48,14 @@ cache: &default_cache
   image: ghcr.io/datadog/dd-trace-java-docker-build:v23.10-base
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
+    # for weird reasons, gradle will always "chmod 700" the .gradle folder
+    # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
+    # This dance is a hack to have .gradle owned by the Gitlab runner user
+    - mkdir -p .gradle
+    - cp -r .gradle .gradle-copy
+    - rm -rf .gradle
+    - mv .gradle-copy .gradle
+    - ls -la
 
 build: &build
   <<: *gradle_build
@@ -86,12 +94,14 @@ package:
   when: on_success # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
   script:
     - ../.gitlab/build_java_package.sh
+    - find . -iregex '.*\.\(deb\|rpm\)' -printf '%f\0' | xargs -0 dd-pkg lint
 
 package-arm:
   extends: .package-arm
   when: on_success # this can't use 'needs: [build]', since build is not available in the scheduled pipeline
   script:
     - ../.gitlab/build_java_package.sh
+    - find . -iregex '.*\.\(deb\|rpm\)' -printf '%f\0' | xargs -0 dd-pkg lint
 
 package-oci:
   stage: package

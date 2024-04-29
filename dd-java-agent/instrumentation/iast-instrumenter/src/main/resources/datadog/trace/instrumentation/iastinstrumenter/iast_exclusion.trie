@@ -123,6 +123,7 @@
 1 freemarker.*
 1 gnu.*
 1 graphql.*
+1 ibm.security.*
 1 io.dropwizard.*
 1 io.github.lukehutch.fastclasspathscanner.*
 1 io.grpc.*

@@ -8,6 +8,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.play25.PlayController
+import datadog.trace.test.util.Flaky
 import groovy.transform.CompileStatic
 import scala.concurrent.ExecutionContext$
 import spock.lang.Shared
@@ -51,6 +52,12 @@ class PlayScalaRoutesServerTest extends PlayServerTest {
   @Override
   String testPathParam() {
     '/path/?/param'
+  }
+
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/6952")
+  @Override
+  boolean testUserBlocking() {
+    "false" != System.getProperty("run.flaky.tests") // Set when using -PskipFlakyTests gradle parameter
   }
 
   @Override

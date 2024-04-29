@@ -10,7 +10,6 @@ apply from: "${rootDir}/gradle/tries.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 compileJava.dependsOn 'generateClassNameTries'
-packageSources.dependsOn 'generateClassNameTries'
 sourcesJar.dependsOn 'generateClassNameTries'
 
 

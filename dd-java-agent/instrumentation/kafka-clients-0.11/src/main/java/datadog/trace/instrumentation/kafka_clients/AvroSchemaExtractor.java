@@ -14,7 +14,7 @@ public class AvroSchemaExtractor {
       // don't extract schema if span is not sampled
       return;
     }
-    int weight = AgentTracer.get().getDataStreamsMonitoring().shouldSampleSchema(record.topic());
+    int weight = AgentTracer.get().getDataStreamsMonitoring().trySampleSchema(record.topic());
     if (weight == 0) {
       return;
     }

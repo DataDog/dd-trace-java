@@ -12,7 +12,7 @@ public class SchemaSampler {
     this.lastSampleMillis = 0;
   }
 
-  public int shouldSample(long currentTimeMillis) {
+  public int trySample(long currentTimeMillis) {
     weight.incrementAndGet();
     if (currentTimeMillis >= lastSampleMillis + SAMPLE_INTERVAL_MILLIS) {
       synchronized (this) {
@@ -25,5 +25,9 @@ public class SchemaSampler {
       }
     }
     return 0;
+  }
+
+  public boolean canSample(long currentTimeMillis) {
+    return currentTimeMillis >= lastSampleMillis + SAMPLE_INTERVAL_MILLIS;
   }
 }

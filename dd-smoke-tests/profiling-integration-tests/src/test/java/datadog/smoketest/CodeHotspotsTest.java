@@ -1,8 +1,8 @@
 package datadog.smoketest;
 
 import static datadog.smoketest.SmokeTestUtils.buildDirectory;
+import static datadog.smoketest.SmokeTestUtils.checkProcessSuccessfullyEnd;
 import static datadog.smoketest.SmokeTestUtils.createProcessBuilder;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -136,9 +136,7 @@ public final class CodeHotspotsTest {
                 Long.toString(arrivalRate),
                 Integer.toString(timeout))
             .start();
-
-    int ret = targetProcess.waitFor();
-    assertEquals(0, ret);
+    checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     long serviceRate = (long) (workers * 1_000_000_000d) / meanServiceTime.toNanos();
     double idleness = Math.max(0d, (serviceRate - arrivalRate) / (double) serviceRate);
@@ -179,9 +177,7 @@ public final class CodeHotspotsTest {
                 Long.toString(meanServiceTimeNs),
                 Integer.toString(timeout))
             .start();
-
-    int ret = targetProcess.waitFor();
-    assertEquals(0, ret);
+    checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     Files.walk(dumpDir)
         .filter(Files::isRegularFile)
@@ -213,9 +209,7 @@ public final class CodeHotspotsTest {
                 Long.toString(meanServiceTimeNs),
                 Integer.toString(timeout))
             .start();
-
-    int ret = targetProcess.waitFor();
-    assertEquals(0, ret);
+    checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     Files.walk(dumpDir)
         .filter(Files::isRegularFile)
@@ -240,9 +234,7 @@ public final class CodeHotspotsTest {
                 logFilePath,
                 libraryName)
             .start();
-
-    int ret = targetProcess.waitFor();
-    assertEquals(0, ret);
+    checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     Files.walk(dumpDir)
         .filter(Files::isRegularFile)
@@ -287,9 +279,7 @@ public final class CodeHotspotsTest {
                 "1000",
                 mode)
             .start();
-
-    int ret = targetProcess.waitFor();
-    assertEquals(0, ret);
+    checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     Files.walk(dumpDir)
         .filter(Files::isRegularFile)
