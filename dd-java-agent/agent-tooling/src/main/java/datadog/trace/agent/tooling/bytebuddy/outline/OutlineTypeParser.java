@@ -123,8 +123,7 @@ final class OutlineTypeParser implements TypeParser {
       if (typeOutline.getInternalName().equals(name)) {
         if (null != outerName) {
           typeOutline.declaredBy(outerName);
-        }
-        if (null == innerName && !selfContained) {
+        } else if (null == innerName && !selfContained) {
           typeOutline.anonymousType();
         }
       }

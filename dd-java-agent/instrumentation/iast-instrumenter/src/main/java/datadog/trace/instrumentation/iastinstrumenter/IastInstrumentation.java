@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.iastinstrumenter;
 
+import static net.bytebuddy.matcher.ElementMatchers.not;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
@@ -70,12 +72,8 @@ public class IastInstrumentation extends CallSiteInstrumentation {
       if (Config.get().isIastAnonymousClassesEnabled()) {
         INSTANCE = TRIE_MATCHER;
       } else {
-        INSTANCE = TRIE_MATCHER.and(type -> !type.isAnonymousType());
+        INSTANCE = TRIE_MATCHER.and(not(TypeDescription::isAnonymousType));
       }
-    }
-
-    private static boolean matchedByTrie(final TypeDescription target) {
-      return target != null && IastExclusionTrie.apply(target.getName()) != 1;
     }
   }
 
