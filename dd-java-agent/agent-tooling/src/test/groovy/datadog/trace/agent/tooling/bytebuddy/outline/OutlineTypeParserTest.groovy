@@ -18,9 +18,13 @@ class OutlineTypeParserTest extends Specification {
     outline.anonymousType == anonymous
 
     where:
-    clazz                                       | anonymous
-    'datadog.trace.agent.test.AnonymousClass'   | false
-    'datadog.trace.agent.test.AnonymousClass$1' | true
-    'datadog.trace.agent.test.AnonymousClass$2' | true
+    clazz                                                    | anonymous
+    'datadog.trace.agent.test.EnclosedClasses'               | false
+    'datadog.trace.agent.test.EnclosedClasses$Inner'         | false
+    'datadog.trace.agent.test.EnclosedClasses$InnerStatic'   | false
+    'datadog.trace.agent.test.EnclosedClasses$1'             | true
+    'datadog.trace.agent.test.EnclosedClasses$2'             | true
+    'datadog.trace.agent.test.EnclosedClasses$Inner$1'       | true
+    'datadog.trace.agent.test.EnclosedClasses$InnerStatic$1' | true
   }
 }
