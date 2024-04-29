@@ -101,15 +101,7 @@ jar {
    Instead we should 'fail early' and avoid building such Jars.
    */
   duplicatesStrategy = 'fail'
-}
 
-tasks.register("packageSources", Jar) {
-  archiveClassifier = 'sources'
-  from sourceSets.main.allSource
-}
-artifacts.archives packageSources
-
-jar {
   manifest {
     attributes(
       "Implementation-Title": project.name,
