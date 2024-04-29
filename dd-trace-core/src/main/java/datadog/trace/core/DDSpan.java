@@ -200,8 +200,7 @@ public class DDSpan
   private static final boolean legacyEndToEndEnabled =
       Config.get().isEndToEndDurationEnabled(false, "legacy");
 
-  private static final int enabledProducts =
-      Config.get().getEnabledProducts();
+  private static final int enabledProducts = Config.get().getEnabledProducts();
 
   @Override
   public void beginEndToEnd() {
