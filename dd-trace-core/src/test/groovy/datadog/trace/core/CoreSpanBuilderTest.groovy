@@ -82,7 +82,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
       (PID_TAG)         : Config.get().getProcessId(),
       (SCHEMA_VERSION_TAG_KEY) : SpanNaming.instance().version(),
-      (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0
+      (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0,
+      (DSM_ENABLED)           : Config.get().isDataStreamsEnabled() ? 1 : 0,
+      (DJM_ENABLED)           : Config.get().isDataJobsEnabled() ? 1 : 0
     ]
 
     when:
@@ -384,7 +386,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       (LANGUAGE_TAG_KEY)      : LANGUAGE_TAG_VALUE,
       (PID_TAG)               : Config.get().getProcessId(),
       (SCHEMA_VERSION_TAG_KEY): SpanNaming.instance().version(),
-      (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0
+      (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0,
+      (DSM_ENABLED)           : Config.get().isDataStreamsEnabled() ? 1 : 0,
+      (DJM_ENABLED)           : Config.get().isDataJobsEnabled() ? 1 : 0
     ]
 
     cleanup:
