@@ -130,7 +130,10 @@ public final class CombiningTransformerBuilder
     }
     helperTransformer =
         helperClassNames.length > 0
-            ? new HelperTransformer(module.getClass().getSimpleName(), helperClassNames)
+            ? new HelperTransformer(
+                module.injectHelperClassesWithAgentCodeSource(),
+                module.getClass().getSimpleName(),
+                helperClassNames)
             : null;
 
     muzzle = new MuzzleCheck(module, instrumentationId);
@@ -347,8 +350,9 @@ public final class CombiningTransformerBuilder
   }
 
   static final class HelperTransformer extends HelperInjector implements AgentBuilder.Transformer {
-    HelperTransformer(String requestingName, String... helperClassNames) {
-      super(requestingName, helperClassNames);
+    HelperTransformer(
+        boolean useAgentCodeSource, String requestingName, String... helperClassNames) {
+      super(useAgentCodeSource, requestingName, helperClassNames);
     }
   }
 

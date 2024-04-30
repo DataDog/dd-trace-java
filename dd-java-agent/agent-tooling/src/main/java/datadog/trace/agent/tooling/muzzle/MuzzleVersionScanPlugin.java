@@ -73,7 +73,9 @@ public class MuzzleVersionScanPlugin {
           final String[] helperClassNames = module.helperClassNames();
           if (helperClassNames.length > 0) {
             new HelperInjector(
-                    MuzzleVersionScanPlugin.class.getSimpleName(), createHelperMap(module))
+                    module.injectHelperClassesWithAgentCodeSource(),
+                    MuzzleVersionScanPlugin.class.getSimpleName(),
+                    createHelperMap(module))
                 .transform(null, null, testApplicationLoader, null, null);
           }
         } catch (final Exception e) {

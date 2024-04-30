@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.AgentClassLoading.INJECTING_HELPERS;
 import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,6 +28,7 @@ import org.slf4j.LoggerFactory;
 public class HelperInjector implements Instrumenter.TransformingAdvice {
   private static final Logger log = LoggerFactory.getLogger(HelperInjector.class);
 
+  private final boolean useAgentCodeSource;
   private final String requestingName;
 
   private final Set<String> helperClassNames;
@@ -39,19 +41,29 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
   /**
    * Construct HelperInjector.
    *
+   * @param useAgentCodeSource whether helper classes should be injected with the agent's {@link
+   *     CodeSource}.
    * @param helperClassNames binary names of the helper classes to inject. These class names must be
    *     resolvable by the classloader returned by
    *     datadog.trace.agent.tooling.Utils#getAgentClassLoader(). Classes are injected in the order
    *     provided. This is important if there is interdependency between helper classes that
    *     requires them to be injected in a specific order.
    */
-  public HelperInjector(final String requestingName, final String... helperClassNames) {
+  public HelperInjector(
+      final boolean useAgentCodeSource,
+      final String requestingName,
+      final String... helperClassNames) {
+    this.useAgentCodeSource = useAgentCodeSource;
     this.requestingName = requestingName;
 
     this.helperClassNames = new LinkedHashSet<>(Arrays.asList(helperClassNames));
   }
 
-  public HelperInjector(final String requestingName, final Map<String, byte[]> helperMap) {
+  public HelperInjector(
+      final boolean useAgentCodeSource,
+      final String requestingName,
+      final Map<String, byte[]> helperMap) {
+    this.useAgentCodeSource = useAgentCodeSource;
     this.requestingName = requestingName;
 
     helperClassNames = helperMap.keySet();
@@ -135,9 +147,20 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
       final ClassLoader classLoader, final Map<String, byte[]> classnameToBytes) {
     INJECTING_HELPERS.begin();
     try {
-      return new ClassInjector.UsingReflection(classLoader).injectRaw(classnameToBytes);
+      ProtectionDomain protectionDomain = createProtectionDomain(classLoader);
+      return new ClassInjector.UsingReflection(classLoader, protectionDomain)
+          .injectRaw(classnameToBytes);
     } finally {
       INJECTING_HELPERS.end();
+    }
+  }
+
+  private ProtectionDomain createProtectionDomain(final ClassLoader classLoader) {
+    if (useAgentCodeSource) {
+      CodeSource codeSource = HelperInjector.class.getProtectionDomain().getCodeSource();
+      return new ProtectionDomain(codeSource, null, classLoader, null);
+    } else {
+      return null;
     }
   }
 

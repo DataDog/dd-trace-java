@@ -16,6 +16,7 @@ import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -106,6 +107,13 @@ public abstract class InstrumenterModule implements Instrumenter {
   /** @return Class names of helpers to inject into the user's classloader */
   public String[] helperClassNames() {
     return new String[0];
+  }
+
+  /**
+   * @return {@code true} if helper classes should be injected with the agent's {@link CodeSource}
+   */
+  public boolean injectHelperClassesWithAgentCodeSource() {
+    return false;
   }
 
   /** Override this to automatically inject all (non-bootstrap) helper dependencies. */
