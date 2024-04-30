@@ -3441,6 +3441,8 @@ public class Config {
     return axisPromoteResourceName;
   }
 
+  public boolean isDataJobsEnabled() { return instrumenterConfig.isDataJobsEnabled(); }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -3450,7 +3452,7 @@ public class Config {
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
     result.put(DSM_ENABLED, isDataStreamsEnabled() ? 1 : 0);
-    result.put(DJM_ENABLED, instrumenterConfig.isDataJobsEnabled() ? 1 : 0);
+    result.put(DJM_ENABLED, isDataJobsEnabled() ? 1 : 0);
 
     if (reportHostName) {
       final String hostName = getHostName();
