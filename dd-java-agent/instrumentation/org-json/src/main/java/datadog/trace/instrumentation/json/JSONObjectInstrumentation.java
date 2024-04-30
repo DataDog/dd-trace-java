@@ -55,7 +55,7 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
     public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final Object input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
-        iastModule.taintIfTainted(self, input);
+        iastModule.taintObjectIfTainted(self, input);
       }
     }
   }
@@ -72,9 +72,9 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null) {
         if (isString) {
-          iastModule.taintIfTainted((String) result, self);
+          iastModule.taintStringIfTainted((String) result, self);
         } else {
-          iastModule.taintIfTainted(result, self);
+          iastModule.taintObjectIfTainted(result, self);
         }
       }
     }
@@ -92,9 +92,9 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null) {
         if (isString) {
-          iastModule.taintIfTainted((String) result, self);
+          iastModule.taintStringIfTainted((String) result, self);
         } else {
-          iastModule.taintIfTainted(result, self);
+          iastModule.taintObjectIfTainted(result, self);
         }
       }
     }

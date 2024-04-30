@@ -77,7 +77,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taint(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
+          module.taintObject(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -104,7 +104,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taint(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
+          module.taintObject(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -120,7 +120,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, data, SourceTypes.REQUEST_BODY);
+        module.taintObject(ctx, data, SourceTypes.REQUEST_BODY);
       }
     }
   }

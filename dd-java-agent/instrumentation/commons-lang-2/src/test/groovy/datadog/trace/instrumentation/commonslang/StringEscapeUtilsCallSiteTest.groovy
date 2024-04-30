@@ -27,7 +27,7 @@ class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.taintIfTainted(_ as String, args[0], false, mark)
+    1 * module.taintStringIfTainted(_ as String, args[0], false, mark)
     0 * _
 
     where:

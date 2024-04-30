@@ -63,7 +63,7 @@ public class UtilsInstrumentation extends InstrumenterModule.Iast
         start += buffer.arrayOffset();
       }
       // create a new range shifted to the result byte array coordinates
-      propagation.taintIfTainted(bytes, buffer, start, length, false, NOT_MARKED);
+      propagation.taintObjectIfRangeTainted(bytes, buffer, start, length, false, NOT_MARKED);
     }
   }
 
@@ -79,7 +79,7 @@ public class UtilsInstrumentation extends InstrumenterModule.Iast
       if (propagation == null) {
         return;
       }
-      propagation.taintIfTainted(buffer, bytes, true, NOT_MARKED);
+      propagation.taintObjectIfTainted(buffer, bytes, true, NOT_MARKED);
     }
   }
 }

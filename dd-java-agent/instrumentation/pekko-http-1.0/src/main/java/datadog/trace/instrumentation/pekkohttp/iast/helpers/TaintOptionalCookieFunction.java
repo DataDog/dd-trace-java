@@ -29,8 +29,8 @@ public class TaintOptionalCookieFunction
     final HttpCookiePair cookie = httpCookiePair.get();
     final String name = cookie.name();
     final String value = cookie.value();
-    mod.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
-    mod.taint(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
+    mod.taintString(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+    mod.taintString(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
     return v1;
   }
 }

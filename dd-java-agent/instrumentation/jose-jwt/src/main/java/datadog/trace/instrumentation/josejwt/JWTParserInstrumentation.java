@@ -51,7 +51,7 @@ public class JWTParserInstrumentation extends InstrumenterModule.Iast
         // TODO: We could represent this source more accurately, perhaps tracking the original
         // source, or using a special name.
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, json, SourceTypes.REQUEST_HEADER_VALUE);
+        module.taintString(ctx, json, SourceTypes.REQUEST_HEADER_VALUE);
       }
     }
   }

@@ -14,7 +14,7 @@ public class TaintFutureHelper {
         t -> {
           IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
           if (ctx != null) {
-            mod.taintIfTainted(ctx, t, input);
+            mod.taintObjectIfTainted(ctx, t, input);
           }
           return t;
         };

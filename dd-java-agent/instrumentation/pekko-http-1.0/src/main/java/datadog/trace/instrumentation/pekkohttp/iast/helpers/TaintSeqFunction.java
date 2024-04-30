@@ -39,9 +39,9 @@ public class TaintSeqFunction
       String name = t._1();
       String value = t._2();
       if (seenKeys.add(name)) {
-        prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+        prop.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
       }
-      prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+      prop.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
     }
 
     return v1;

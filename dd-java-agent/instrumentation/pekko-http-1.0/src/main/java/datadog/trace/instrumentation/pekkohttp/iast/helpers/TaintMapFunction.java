@@ -32,8 +32,8 @@ public class TaintMapFunction
     while (iterator.hasNext()) {
       Tuple2<String, String> e = iterator.next();
       final String name = e._1(), value = e._2();
-      prop.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
-      prop.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+      prop.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+      prop.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
     }
 
     return v1;

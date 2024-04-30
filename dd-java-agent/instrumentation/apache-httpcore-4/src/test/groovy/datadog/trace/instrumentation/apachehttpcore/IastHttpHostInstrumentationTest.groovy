@@ -21,7 +21,7 @@ class IastHttpHostInstrumentationTest extends AgentTestRunner {
     HttpHost.newInstance(*args)
 
     then:
-    1 * module.taintIfTainted( _ as HttpHost, 'localhost')
+    1 * module.taintObjectIfTainted( _ as HttpHost, 'localhost')
 
     where:
     args | _

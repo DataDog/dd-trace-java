@@ -47,7 +47,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == 'value'
     1 * mock.getHeader('header') >> 'value'
-    1 * iastModule.taint(iastCtx, 'value', SourceTypes.REQUEST_HEADER_VALUE, 'header')
+    1 * iastModule.taintString(iastCtx, 'value', SourceTypes.REQUEST_HEADER_VALUE, 'header')
     0 * _
 
     where:
@@ -68,7 +68,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == headers
     1 * mock.getHeaders('headers') >> Collections.enumeration(headers)
-    headers.each { 1 * iastModule.taint(iastCtx, it, SourceTypes.REQUEST_HEADER_VALUE, 'headers') }
+    headers.each { 1 * iastModule.taintString(iastCtx, it, SourceTypes.REQUEST_HEADER_VALUE, 'headers') }
     0 * _
 
     where:
@@ -89,7 +89,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == headers
     1 * mock.getHeaderNames() >> Collections.enumeration(headers)
-    headers.each { 1 * iastModule.taint(iastCtx, it, SourceTypes.REQUEST_HEADER_NAME, it) }
+    headers.each { 1 * iastModule.taintString(iastCtx, it, SourceTypes.REQUEST_HEADER_NAME, it) }
     0 * _
 
     where:
@@ -109,7 +109,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == 'value'
     1 * mock.getParameter('parameter') >> 'value'
-    1 * iastModule.taint(iastCtx, 'value', SourceTypes.REQUEST_PARAMETER_VALUE, 'parameter')
+    1 * iastModule.taintString(iastCtx, 'value', SourceTypes.REQUEST_PARAMETER_VALUE, 'parameter')
     0 * _
 
     where:
@@ -130,7 +130,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == values
     1 * mock.getParameterValues('parameter') >> { values as String[] }
-    values.each { 1 * iastModule.taint(iastCtx, it, SourceTypes.REQUEST_PARAMETER_VALUE, 'parameter') }
+    values.each { 1 * iastModule.taintString(iastCtx, it, SourceTypes.REQUEST_PARAMETER_VALUE, 'parameter') }
     0 * _
 
     where:
@@ -152,9 +152,9 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     result == parameters
     1 * mock.getParameterMap() >> parameters
     parameters.each { key, values ->
-      1 * iastModule.taint(iastCtx, key, SourceTypes.REQUEST_PARAMETER_NAME, key)
+      1 * iastModule.taintString(iastCtx, key, SourceTypes.REQUEST_PARAMETER_NAME, key)
       values.each { value ->
-        1 * iastModule.taint(iastCtx, value, SourceTypes.REQUEST_PARAMETER_VALUE, key)
+        1 * iastModule.taintString(iastCtx, value, SourceTypes.REQUEST_PARAMETER_VALUE, key)
       }
     }
     0 * _
@@ -178,7 +178,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == parameters
     1 * mock.getParameterNames() >> Collections.enumeration(parameters)
-    parameters.each { 1 * iastModule.taint(iastCtx, it, SourceTypes.REQUEST_PARAMETER_NAME, it) }
+    parameters.each { 1 * iastModule.taintString(iastCtx, it, SourceTypes.REQUEST_PARAMETER_NAME, it) }
     0 * _
 
     where:
@@ -199,7 +199,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == cookies
     1 * mock.getCookies() >> cookies
-    cookies.each { 1 * iastModule.taint(iastCtx, it, SourceTypes.REQUEST_COOKIE_VALUE) }
+    cookies.each { 1 * iastModule.taintObject(iastCtx, it, SourceTypes.REQUEST_COOKIE_VALUE) }
     0 * _
 
     where:
@@ -276,7 +276,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == queryString
     1 * mock.getQueryString() >> queryString
-    1 * iastModule.taint(iastCtx, queryString, SourceTypes.REQUEST_QUERY)
+    1 * iastModule.taintString(iastCtx, queryString, SourceTypes.REQUEST_QUERY)
     0 * _
 
     where:
@@ -297,7 +297,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == is
     1 * mock.getInputStream() >> is
-    1 * iastModule.taint(iastCtx, is, SourceTypes.REQUEST_BODY)
+    1 * iastModule.taintObject(iastCtx, is, SourceTypes.REQUEST_BODY)
     0 * _
 
     where:
@@ -318,7 +318,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == reader
     1 * mock.getReader() >> reader
-    1 * iastModule.taint(iastCtx, reader, SourceTypes.REQUEST_BODY)
+    1 * iastModule.taintObject(iastCtx, reader, SourceTypes.REQUEST_BODY)
     0 * _
 
     where:
@@ -361,7 +361,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == uri
     1 * mock.getRequestURI() >> uri
-    1 * iastModule.taint(iastCtx, uri, SourceTypes.REQUEST_PATH)
+    1 * iastModule.taintString(iastCtx, uri, SourceTypes.REQUEST_PATH)
     0 * _
 
     where:
@@ -382,7 +382,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == pathInfo
     1 * mock.getPathInfo() >> pathInfo
-    1 * iastModule.taint(iastCtx, pathInfo, SourceTypes.REQUEST_PATH)
+    1 * iastModule.taintString(iastCtx, pathInfo, SourceTypes.REQUEST_PATH)
     0 * _
 
     where:
@@ -403,7 +403,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == pathTranslated
     1 * mock.getPathTranslated() >> pathTranslated
-    1 * iastModule.taint(iastCtx, pathTranslated, SourceTypes.REQUEST_PATH)
+    1 * iastModule.taintString(iastCtx, pathTranslated, SourceTypes.REQUEST_PATH)
     0 * _
 
     where:
@@ -424,7 +424,7 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
     then:
     result == url
     1 * mock.getRequestURL() >> url
-    1 * iastModule.taint(iastCtx, url, SourceTypes.REQUEST_URI)
+    1 * iastModule.taintObject(iastCtx, url, SourceTypes.REQUEST_URI)
     0 * _
 
     where:

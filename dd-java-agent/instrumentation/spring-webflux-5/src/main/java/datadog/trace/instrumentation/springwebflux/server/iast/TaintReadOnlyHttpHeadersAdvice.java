@@ -26,6 +26,6 @@ class TaintReadOnlyHttpHeadersAdvice {
       return;
     }
     final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-    module.taintIfTainted(ctx, retValue, headers);
+    module.taintObjectIfTainted(ctx, retValue, headers);
   }
 }

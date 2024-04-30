@@ -35,7 +35,8 @@ public class GrpcRequestMessageHandler implements BiFunction<RequestContext, Obj
       final IastContext iastCtx = ctx.getData(RequestContextSlot.IAST);
       final byte source = SourceTypes.GRPC_BODY;
       final int tainted =
-          module.taintDeeply(iastCtx, o, source, GrpcRequestMessageHandler::isProtobufArtifact);
+          module.taintObjectDeeply(
+              iastCtx, o, source, GrpcRequestMessageHandler::isProtobufArtifact);
       if (tainted > 0) {
         IastMetricCollector.add(IastMetric.EXECUTED_SOURCE, source, tainted, iastCtx);
       }

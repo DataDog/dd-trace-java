@@ -33,7 +33,7 @@ public class HttpServletRequestCallSite {
         try {
           final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
           if (ctx != null) {
-            module.taint(ctx, retValue, SourceTypes.REQUEST_PATH);
+            module.taintString(ctx, retValue, SourceTypes.REQUEST_PATH);
           }
         } catch (final Throwable e) {
           module.onUnexpectedException("afterPath threw", e);
@@ -55,7 +55,7 @@ public class HttpServletRequestCallSite {
         try {
           final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
           if (ctx != null) {
-            module.taint(ctx, retValue, SourceTypes.REQUEST_URI);
+            module.taintObject(ctx, retValue, SourceTypes.REQUEST_URI);
           }
         } catch (final Throwable e) {
           module.onUnexpectedException("afterGetRequestURL threw", e);

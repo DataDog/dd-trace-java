@@ -30,8 +30,8 @@ class TaintCookiesAdvice {
       for (HttpCookie cookie : cookieList) {
         final String name = cookie.getName();
         final String value = cookie.getValue();
-        module.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
-        module.taint(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
+        module.taintString(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+        module.taintString(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
       }
     }
   }

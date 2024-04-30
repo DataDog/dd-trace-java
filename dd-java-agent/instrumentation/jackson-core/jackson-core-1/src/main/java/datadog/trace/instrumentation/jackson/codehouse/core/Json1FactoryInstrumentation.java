@@ -61,7 +61,7 @@ public class Json1FactoryInstrumentation extends InstrumenterModule.Iast
       if (input != null) {
         final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
         if (propagation != null) {
-          propagation.taintIfTainted(parser, input);
+          propagation.taintObjectIfTainted(parser, input);
         }
         if (input instanceof URL) {
           final SsrfModule ssrf = InstrumentationBridge.SSRF;
@@ -85,7 +85,7 @@ public class Json1FactoryInstrumentation extends InstrumenterModule.Iast
       if (input != null || length <= 0) {
         final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
         if (propagation != null) {
-          propagation.taintIfTainted(parser, input, offset, length, false, NOT_MARKED);
+          propagation.taintObjectIfRangeTainted(parser, input, offset, length, false, NOT_MARKED);
         }
       }
     }

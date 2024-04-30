@@ -28,55 +28,55 @@ public class PropagationModuleImpl implements PropagationModule {
   private static final int MAX_VALUE_LENGTH = Config.get().getIastTruncationMaxValueLength();
 
   @Override
-  public void taint(@Nullable Object target, byte origin) {
-    taint(target, origin, null);
+  public void taintObject(@Nullable Object target, byte origin) {
+    taintObject(target, origin, null);
   }
 
   @Override
-  public void taint(@Nullable IastContext ctx, @Nullable Object target, byte origin) {
-    taint(ctx, target, origin, null);
+  public void taintObject(@Nullable IastContext ctx, @Nullable Object target, byte origin) {
+    taintObject(ctx, target, origin, null);
   }
 
   @Override
-  public void taint(@Nullable String target, byte origin) {
-    taint(target, origin, null);
+  public void taintString(@Nullable String target, byte origin) {
+    taintString(target, origin, null);
   }
 
   @Override
-  public void taint(@Nullable IastContext ctx, @Nullable String target, byte origin) {
-    taint(ctx, target, origin, null);
+  public void taintString(@Nullable IastContext ctx, @Nullable String target, byte origin) {
+    taintString(ctx, target, origin, null);
   }
 
   @Override
-  public void taint(@Nullable Object target, byte origin, @Nullable CharSequence name) {
-    taint(target, origin, name, target);
+  public void taintObject(@Nullable Object target, byte origin, @Nullable CharSequence name) {
+    taintObject(target, origin, name, target);
   }
 
   @Override
-  public void taint(
+  public void taintObject(
       @Nullable IastContext ctx,
       @Nullable Object target,
       byte origin,
       @Nullable CharSequence name) {
-    taint(ctx, target, origin, name, target);
+    taintObject(ctx, target, origin, name, target);
   }
 
   @Override
-  public void taint(@Nullable String target, byte origin, @Nullable CharSequence name) {
-    taint(target, origin, name, target);
+  public void taintString(@Nullable String target, byte origin, @Nullable CharSequence name) {
+    taintString(target, origin, name, target);
   }
 
   @Override
-  public void taint(
+  public void taintString(
       @Nullable IastContext ctx,
       @Nullable String target,
       byte origin,
       @Nullable CharSequence name) {
-    taint(ctx, target, origin, name, target);
+    taintString(ctx, target, origin, name, target);
   }
 
   @Override
-  public void taint(
+  public void taintObjectRange(
       @Nullable final Object target, final byte origin, final int start, final int length) {
     if (target == null || length == 0) {
       return;
@@ -85,11 +85,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taint(ctx, target, origin, start, length);
+    taintObjectRange(ctx, target, origin, start, length);
   }
 
   @Override
-  public void taint(
+  public void taintObjectRange(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       final byte origin,
@@ -105,7 +105,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(
+  public void taintStringRange(
       @Nullable final String target, final byte origin, final int start, final int length) {
     if (target == null || length == 0) {
       return;
@@ -114,11 +114,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taint(ctx, target, origin, start, length);
+    taintStringRange(ctx, target, origin, start, length);
   }
 
   @Override
-  public void taint(
+  public void taintStringRange(
       @Nullable final IastContext ctx,
       @Nullable final String target,
       final byte origin,
@@ -134,7 +134,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(
+  public void taintObject(
       @Nullable final Object target,
       final byte origin,
       @Nullable final CharSequence name,
@@ -146,11 +146,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taint(ctx, target, origin, name, value);
+    taintObject(ctx, target, origin, name, value);
   }
 
   @Override
-  public void taint(
+  public void taintObject(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       final byte origin,
@@ -164,7 +164,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taint(
+  public void taintString(
       @Nullable final String target,
       final byte origin,
       @Nullable final CharSequence name,
@@ -176,11 +176,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taint(ctx, target, origin, name, value);
+    taintString(ctx, target, origin, name, value);
   }
 
   @Override
-  public void taint(
+  public void taintString(
       @Nullable final IastContext ctx,
       @Nullable final String target,
       final byte origin,
@@ -194,29 +194,29 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintIfTainted(@Nullable Object target, @Nullable Object input) {
-    taintIfTainted(target, input, false, NOT_MARKED);
+  public void taintObjectIfTainted(@Nullable Object target, @Nullable Object input) {
+    taintObjectIfTainted(target, input, false, NOT_MARKED);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfTainted(
       @Nullable IastContext ctx, @Nullable Object target, @Nullable Object input) {
-    taintIfTainted(ctx, target, input, false, NOT_MARKED);
+    taintObjectIfTainted(ctx, target, input, false, NOT_MARKED);
   }
 
   @Override
-  public void taintIfTainted(@Nullable String target, @Nullable Object input) {
-    taintIfTainted(target, input, false, NOT_MARKED);
+  public void taintStringIfTainted(@Nullable String target, @Nullable Object input) {
+    taintStringIfTainted(target, input, false, NOT_MARKED);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfTainted(
       @Nullable IastContext ctx, @Nullable String target, @Nullable Object input) {
-    taintIfTainted(ctx, target, input, false, NOT_MARKED);
+    taintStringIfTainted(ctx, target, input, false, NOT_MARKED);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfTainted(
       @Nullable final Object target, @Nullable final Object input, boolean keepRanges, int mark) {
     if (target == null || input == null) {
       return;
@@ -225,11 +225,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taintIfTainted(ctx, target, input, keepRanges, mark);
+    taintObjectIfTainted(ctx, target, input, keepRanges, mark);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfTainted(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       @Nullable final Object input,
@@ -247,7 +247,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfTainted(
       @Nullable final String target, @Nullable final Object input, boolean keepRanges, int mark) {
     if (target == null || input == null) {
       return;
@@ -256,11 +256,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taintIfTainted(ctx, target, input, keepRanges, mark);
+    taintStringIfTainted(ctx, target, input, keepRanges, mark);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfTainted(
       @Nullable final IastContext ctx,
       @Nullable final String target,
       @Nullable final Object input,
@@ -278,7 +278,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfRangeTainted(
       @Nullable final Object target,
       @Nullable final Object input,
       final int start,
@@ -292,11 +292,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taintIfTainted(ctx, target, input, start, length, keepRanges, mark);
+    taintObjectIfRangeTainted(ctx, target, input, start, length, keepRanges, mark);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfRangeTainted(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       @Nullable final Object input,
@@ -325,7 +325,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfRangeTainted(
       @Nullable final String target,
       @Nullable final Object input,
       final int start,
@@ -339,11 +339,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taintIfTainted(ctx, target, input, start, length, keepRanges, mark);
+    taintStringIfRangeTainted(ctx, target, input, start, length, keepRanges, mark);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfRangeTainted(
       @Nullable final IastContext ctx,
       @Nullable final String target,
       @Nullable final Object input,
@@ -372,61 +372,61 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintIfTainted(@Nullable Object target, @Nullable Object input, byte origin) {
-    taintIfTainted(target, input, origin, null, target);
+  public void taintObjectIfTainted(@Nullable Object target, @Nullable Object input, byte origin) {
+    taintObjectIfTainted(target, input, origin, null, target);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfTainted(
       @Nullable IastContext ctx, @Nullable Object target, @Nullable Object input, byte origin) {
-    taintIfTainted(ctx, target, input, origin, null, target);
+    taintObjectIfTainted(ctx, target, input, origin, null, target);
   }
 
   @Override
-  public void taintIfTainted(@Nullable String target, @Nullable Object input, byte origin) {
-    taintIfTainted(target, input, origin, null, target);
+  public void taintStringIfTainted(@Nullable String target, @Nullable Object input, byte origin) {
+    taintStringIfTainted(target, input, origin, null, target);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfTainted(
       @Nullable IastContext ctx, @Nullable String target, @Nullable Object input, byte origin) {
-    taintIfTainted(ctx, target, input, origin, null, target);
+    taintStringIfTainted(ctx, target, input, origin, null, target);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfTainted(
       @Nullable Object target, @Nullable Object input, byte origin, @Nullable CharSequence name) {
-    taintIfTainted(target, input, origin, name, target);
+    taintObjectIfTainted(target, input, origin, name, target);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfTainted(
       @Nullable IastContext ctx,
       @Nullable Object target,
       @Nullable Object input,
       byte origin,
       @Nullable CharSequence name) {
-    taintIfTainted(ctx, target, input, origin, name, target);
+    taintObjectIfTainted(ctx, target, input, origin, name, target);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfTainted(
       @Nullable String target, @Nullable Object input, byte origin, @Nullable CharSequence name) {
-    taintIfTainted(target, input, origin, name, target);
+    taintStringIfTainted(target, input, origin, name, target);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfTainted(
       @Nullable IastContext ctx,
       @Nullable String target,
       @Nullable Object input,
       byte origin,
       @Nullable CharSequence name) {
-    taintIfTainted(ctx, target, input, origin, name, target);
+    taintStringIfTainted(ctx, target, input, origin, name, target);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfTainted(
       @Nullable final Object target,
       @Nullable final Object input,
       final byte origin,
@@ -439,11 +439,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taintIfTainted(ctx, target, input, origin, name, value);
+    taintObjectIfTainted(ctx, target, input, origin, name, value);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfTainted(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       @Nullable final Object input,
@@ -460,7 +460,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfTainted(
       @Nullable final String target,
       @Nullable final Object input,
       final byte origin,
@@ -473,11 +473,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taintIfTainted(ctx, target, input, origin, name, value);
+    taintStringIfTainted(ctx, target, input, origin, name, value);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfTainted(
       @Nullable final IastContext ctx,
       @Nullable final String target,
       @Nullable final Object input,
@@ -494,29 +494,29 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintIfAnyTainted(@Nullable Object target, @Nullable Object[] inputs) {
-    taintIfAnyTainted(target, inputs, false, NOT_MARKED);
+  public void taintObjectIfAnyTainted(@Nullable Object target, @Nullable Object[] inputs) {
+    taintObjectIfAnyTainted(target, inputs, false, NOT_MARKED);
   }
 
   @Override
-  public void taintIfAnyTainted(
+  public void taintObjectIfAnyTainted(
       @Nullable IastContext ctx, @Nullable Object target, @Nullable Object[] inputs) {
-    taintIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
+    taintObjectIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
   }
 
   @Override
-  public void taintIfAnyTainted(@Nullable String target, @Nullable Object[] inputs) {
-    taintIfAnyTainted(target, inputs, false, NOT_MARKED);
+  public void taintStringIfAnyTainted(@Nullable String target, @Nullable Object[] inputs) {
+    taintStringIfAnyTainted(target, inputs, false, NOT_MARKED);
   }
 
   @Override
-  public void taintIfAnyTainted(
+  public void taintStringIfAnyTainted(
       @Nullable IastContext ctx, @Nullable String target, @Nullable Object[] inputs) {
-    taintIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
+    taintStringIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
   }
 
   @Override
-  public void taintIfAnyTainted(
+  public void taintObjectIfAnyTainted(
       @Nullable final Object target,
       @Nullable final Object[] inputs,
       final boolean keepRanges,
@@ -528,11 +528,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taintIfAnyTainted(ctx, target, inputs, keepRanges, mark);
+    taintObjectIfAnyTainted(ctx, target, inputs, keepRanges, mark);
   }
 
   @Override
-  public void taintIfAnyTainted(
+  public void taintObjectIfAnyTainted(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       @Nullable final Object[] inputs,
@@ -556,7 +556,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public void taintIfAnyTainted(
+  public void taintStringIfAnyTainted(
       @Nullable final String target,
       @Nullable final Object[] inputs,
       final boolean keepRanges,
@@ -568,11 +568,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return;
     }
-    taintIfAnyTainted(ctx, target, inputs, keepRanges, mark);
+    taintStringIfAnyTainted(ctx, target, inputs, keepRanges, mark);
   }
 
   @Override
-  public void taintIfAnyTainted(
+  public void taintStringIfAnyTainted(
       @Nullable final IastContext ctx,
       @Nullable final String target,
       @Nullable final Object[] inputs,
@@ -596,7 +596,7 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Override
-  public int taintDeeply(
+  public int taintObjectDeeply(
       @Nullable final Object target, final byte origin, final Predicate<Class<?>> classFilter) {
     if (target == null) {
       return 0;
@@ -605,11 +605,11 @@ public class PropagationModuleImpl implements PropagationModule {
     if (ctx == null) {
       return 0;
     }
-    return taintDeeply(ctx, target, origin, classFilter);
+    return taintObjectDeeply(ctx, target, origin, classFilter);
   }
 
   @Override
-  public int taintDeeply(
+  public int taintObjectDeeply(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       final byte origin,

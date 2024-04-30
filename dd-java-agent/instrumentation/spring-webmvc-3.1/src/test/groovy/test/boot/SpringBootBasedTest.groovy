@@ -259,7 +259,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taint(_ as IastContext, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
+    1 * mod.taintString(_ as IastContext, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:
@@ -295,11 +295,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taint(_ as IastContext, 'a=x,y;a=z', SourceTypes.REQUEST_PATH_PARAMETER, 'var')
-    1 * mod.taint(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    1 * mod.taint(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    1 * mod.taint(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    1 * mod.taint(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taintString(_ as IastContext, 'a=x,y;a=z', SourceTypes.REQUEST_PATH_PARAMETER, 'var')
+    1 * mod.taintString(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taintString(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taintString(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    1 * mod.taintString(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
     0 * mod._
 
     cleanup:

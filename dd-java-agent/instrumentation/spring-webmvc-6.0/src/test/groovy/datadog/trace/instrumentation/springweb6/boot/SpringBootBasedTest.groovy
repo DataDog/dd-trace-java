@@ -305,7 +305,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     // spring-security filter causes uri matching to happen twice
-    (1.._) * mod.taint(_, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
+    (1.._) * mod.taintString(_ as IastContext, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:
@@ -344,11 +344,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     // spring-security filter (AuthorizationFilter.java:95) causes uri matching to happen twice (or three times in recent spring (6.1+) versions)
-    (1.._) * mod.taint(_ as IastContext, 'a=x,y', SourceTypes.REQUEST_PATH_PARAMETER, 'var') // this version of spring removes ;a=z
-    (1.._) * mod.taint(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    (1.._) * mod.taint(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    (1.._) * mod.taint(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
-    (1.._) * mod.taint(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    (1.._) * mod.taintString(_ as IastContext, 'a=x,y', SourceTypes.REQUEST_PATH_PARAMETER, 'var') // this version of spring removes ;a=z
+    (1.._) * mod.taintString(_ as IastContext, 'a', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    (1.._) * mod.taintString(_ as IastContext, 'x', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    (1.._) * mod.taintString(_ as IastContext, 'y', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
+    (1.._) * mod.taintString(_ as IastContext, 'z', SourceTypes.REQUEST_MATRIX_PARAMETER, 'var')
     0 * mod._
 
     cleanup:

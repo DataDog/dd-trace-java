@@ -31,8 +31,8 @@ class TaintHttpHeadersToSingleValueMapAdvice {
     for (Map.Entry<String, String> e : values.entrySet()) {
       final String name = e.getKey();
       final String value = e.getValue();
-      module.taintIfTainted(ctx, name, self, SourceTypes.REQUEST_HEADER_NAME, name);
-      module.taintIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, name);
+      module.taintStringIfTainted(ctx, name, self, SourceTypes.REQUEST_HEADER_NAME, name);
+      module.taintStringIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, name);
     }
   }
 }

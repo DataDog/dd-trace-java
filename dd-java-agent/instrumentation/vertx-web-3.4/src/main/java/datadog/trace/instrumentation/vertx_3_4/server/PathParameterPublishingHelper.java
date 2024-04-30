@@ -72,7 +72,7 @@ public class PathParameterPublishingHelper {
             if (parameterName == null || value == null) {
               continue; // should not happen
             }
-            module.taint(
+            module.taintString(
                 iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
           }
         }

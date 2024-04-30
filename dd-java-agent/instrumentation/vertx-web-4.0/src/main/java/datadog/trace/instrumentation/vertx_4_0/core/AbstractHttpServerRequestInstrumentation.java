@@ -85,7 +85,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taint(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
+          module.taintObject(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -112,7 +112,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         final PropagationModule module = InstrumentationBridge.PROPAGATION;
         if (module != null) {
           final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-          module.taint(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
+          module.taintObject(ctx, multiMap, SourceTypes.REQUEST_PARAMETER_VALUE);
         }
       }
     }
@@ -128,7 +128,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, multiMap, SourceTypes.REQUEST_HEADER_VALUE);
+        module.taintObject(ctx, multiMap, SourceTypes.REQUEST_HEADER_VALUE);
       }
     }
   }
@@ -143,7 +143,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, data, SourceTypes.REQUEST_BODY);
+        module.taintObject(ctx, data, SourceTypes.REQUEST_BODY);
       }
     }
   }
@@ -159,7 +159,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       if (module != null && cookies != null && !cookies.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         for (final Object cookie : cookies) {
-          module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+          module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
         }
       }
     }
@@ -175,7 +175,7 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
+        module.taintObject(ctx, cookie, SourceTypes.REQUEST_COOKIE_VALUE);
       }
     }
   }

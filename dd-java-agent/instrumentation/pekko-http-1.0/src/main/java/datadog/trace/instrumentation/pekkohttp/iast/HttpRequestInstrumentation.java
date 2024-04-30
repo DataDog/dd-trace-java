@@ -89,7 +89,7 @@ public class HttpRequestInstrumentation extends InstrumenterModule.Iast
         }
         // unfortunately, the call to h.value() is instrumented, but
         // because the call to taint() only happens after, the call is a noop
-        propagation.taint(ctx, h, SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value());
+        propagation.taintObject(ctx, h, SourceTypes.REQUEST_HEADER_VALUE, h.name(), h.value());
       }
     }
   }
@@ -113,7 +113,7 @@ public class HttpRequestInstrumentation extends InstrumenterModule.Iast
         return;
       }
 
-      propagation.taintIfTainted(ctx, entity, thiz);
+      propagation.taintObjectIfTainted(ctx, entity, thiz);
     }
   }
 }

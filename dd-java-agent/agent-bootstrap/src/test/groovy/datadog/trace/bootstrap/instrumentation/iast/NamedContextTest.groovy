@@ -38,7 +38,7 @@ class NamedContextTest extends DDSpecification {
     context.taintName(name)
 
     then:
-    1 * module.taint(_, name, source.origin, name, source.value)
+    1 * module.taintString(_, name, source.origin, name, source.value)
 
     when:
     context.taintName(name)
@@ -50,7 +50,7 @@ class NamedContextTest extends DDSpecification {
     context.taintValue(value)
 
     then:
-    1 * module.taint(_, value, source.origin, name, source.value)
+    1 * module.taintString(_, value, source.origin, name, source.value)
     0 * _
   }
 

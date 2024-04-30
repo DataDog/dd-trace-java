@@ -25,7 +25,7 @@ class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.taintIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
+    1 * module.taintStringIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
     0 * _
 
     where:
@@ -48,7 +48,7 @@ class StringEscapeUtilsCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * module.taintIfTainted(_ as String, args[0])
+    1 * module.taintStringIfTainted(_ as String, args[0])
     0 * _
 
     where:

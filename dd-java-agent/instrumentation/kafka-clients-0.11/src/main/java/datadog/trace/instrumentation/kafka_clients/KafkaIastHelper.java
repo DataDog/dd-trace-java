@@ -37,7 +37,7 @@ public class KafkaIastHelper {
       return;
     }
     final byte source = getSource(store, deserializer);
-    module.taint(data, source);
+    module.taintObject(data, source);
   }
 
   public static void taint(
@@ -59,7 +59,7 @@ public class KafkaIastHelper {
     if (data.hasArray()) {
       start += data.arrayOffset();
     }
-    module.taint(data, source, start, data.remaining());
+    module.taintObjectRange(data, source, start, data.remaining());
   }
 
   public static void afterDeserialize() {

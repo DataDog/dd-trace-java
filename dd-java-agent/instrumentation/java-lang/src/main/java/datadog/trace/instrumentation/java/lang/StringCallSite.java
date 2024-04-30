@@ -384,7 +384,7 @@ public class StringCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfTainted(result, self, true, NOT_MARKED);
+        module.taintObjectIfTainted(result, self, true, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterToCharArray threw", e);
       }
