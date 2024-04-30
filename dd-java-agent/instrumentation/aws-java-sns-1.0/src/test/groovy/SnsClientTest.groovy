@@ -128,10 +128,9 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
           measured true
-          childOf(sendSpan)
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.HTTP_URL" localstack.getEndpointOverride(SNS).toString()+'/'
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
