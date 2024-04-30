@@ -221,6 +221,41 @@ abstract class AbstractSparkTest extends AgentTestRunner {
     AbstractDatadogSparkListener.finishTraceOnApplicationEnd = true
   }
 
+  def "finish pyspark span launched with python onApplicationEnd"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .getOrCreate()
+
+    try {
+      // Generating a fake submit of pyspark-shell
+      def sparkSubmit = new SparkSubmit()
+      sparkSubmit.doSubmit(["--verbose", "pyspark-shell"] as String[])
+    }
+    catch (Exception ignored) {}
+    sparkSession.stop()
+
+    expect:
+    assert AbstractDatadogSparkListener.isPysparkShell
+    assert AbstractDatadogSparkListener.finishTraceOnApplicationEnd
+
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+        }
+      }
+    }
+
+    cleanup:
+    AbstractDatadogSparkListener.isPysparkShell = false
+    AbstractDatadogSparkListener.finishTraceOnApplicationEnd = true
+  }
+
   def "generate databricks spans"() {
     setup:
     def sparkSession = SparkSession.builder()
