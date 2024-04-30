@@ -51,7 +51,9 @@ public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
     "io.grpc.netty.shaded.io.netty.util.concurrent.PromiseTask$RunnableAdapter",
     "task",
     "io.grpc.netty.shaded.io.netty.util.concurrent.PromiseTask",
-    "task"
+    "task",
+    "akka.dispatch.TaskInvocation",
+    "runnable"
   };
 
   @Override
