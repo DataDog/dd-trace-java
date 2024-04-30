@@ -544,6 +544,10 @@ public class CapturedContext implements ValueReferenceResolver {
           null);
     }
 
+    public static CapturedValue redacted(String name, String type) {
+      return build(name, type, REDACTED_VALUE, Limits.DEFAULT, null);
+    }
+
     public static CapturedValue notCapturedReason(String name, String type, String reason) {
       return build(name, type, null, Limits.DEFAULT, reason);
     }
@@ -565,9 +569,6 @@ public class CapturedContext implements ValueReferenceResolver {
 
     private static CapturedValue build(
         String name, String declaredType, Object value, Limits limits, String notCapturedReason) {
-      if (Redaction.isRedactedKeyword(name)) {
-        value = REDACTED_VALUE;
-      }
       CapturedValue val =
           new CapturedValue(
               name, declaredType, value, limits, Collections.emptyMap(), notCapturedReason);

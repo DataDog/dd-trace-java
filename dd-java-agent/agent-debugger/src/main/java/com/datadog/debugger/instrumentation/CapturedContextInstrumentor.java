@@ -36,6 +36,7 @@ import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -605,12 +606,16 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // stack: [capturedcontext, capturedcontext, array, array, int, string]
       ldc(insnList, argType.getClassName());
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-      insnList.add(new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot));
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, arg]
-      tryBox(argType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
-      addCapturedValueOf(insnList, limits);
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
+      if (Redaction.isRedactedKeyword(currentArgName)) {
+        addCapturedValueRedacted(insnList);
+      } else {
+        insnList.add(new VarInsnNode(argType.getOpcode(Opcodes.ILOAD), slot));
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, arg]
+        tryBox(argType, insnList);
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, object]
+        addCapturedValueOf(insnList, limits);
+      }
+      // stack: [capturedcontext, capturedcontext, array, array, int, captured_value]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack: [capturedcontext, capturedcontext, array]
       slot += argType.getSize();
@@ -635,6 +640,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
     insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
     // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, this]
+    // no need to test redaction, 'this' is never redacted
     addCapturedValueOf(insnList, limits);
     // stack: [capturedcontext, capturedcontext, array, array, int, field_value]
     insnList.add(new InsnNode(Opcodes.AASTORE));
@@ -689,12 +695,16 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Type varType = Type.getType(variableNode.desc);
       ldc(insnList, Type.getType(variableNode.desc).getClassName());
       // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name]
-      insnList.add(new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), variableNode.index));
-      // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, value]
-      tryBox(varType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, object]
-      addCapturedValueOf(insnList, limits);
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
+      if (Redaction.isRedactedKeyword(variableNode.name)) {
+        addCapturedValueRedacted(insnList);
+      } else {
+        insnList.add(new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), variableNode.index));
+        // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, value]
+        tryBox(varType, insnList);
+        // stack: [capturedcontext, capturedcontext, array, array, int, name, type_name, object]
+        addCapturedValueOf(insnList, limits);
+      }
+      // stack: [capturedcontext, capturedcontext, array, array, int, captured_value]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack: [capturedcontext, capturedcontext, array]
     }
@@ -745,6 +755,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [ret_value, capturedcontext, capturedcontext, null, type_name, ret_value]
     tryBox(returnType, insnList);
     // stack: [ret_value, capturedcontext, capturedcontext, null, type_name, ret_value]
+    // no name, no redaction
     addCapturedValueOf(insnList, limits);
     // stack: [ret_value, capturedcontext, capturedcontext, capturedvalue]
     invokeVirtual(insnList, CAPTURED_CONTEXT_TYPE, "addReturn", Type.VOID_TYPE, CAPTURED_VALUE);
@@ -815,14 +826,18 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Type fieldType = Type.getType(fieldNode.desc);
       ldc(insnList, fieldType.getClassName());
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-      insnList.add(
-          new FieldInsnNode(Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-      // field_value]
-      tryBox(fieldType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
-      addCapturedValueOf(insnList, limits);
-      // stack: [capturedcontext, capturedcontext, array, array, int, typed_value]
+      if (Redaction.isRedactedKeyword(fieldNode.name)) {
+        addCapturedValueRedacted(insnList);
+      } else {
+        insnList.add(
+            new FieldInsnNode(Opcodes.GETSTATIC, classNode.name, fieldNode.name, fieldNode.desc));
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+        // field_value]
+        tryBox(fieldType, insnList);
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, object]
+        addCapturedValueOf(insnList, limits);
+      }
+      // stack: [capturedcontext, capturedcontext, array, array, int, captured_value]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack: [capturedcontext, capturedcontext, array]
     }
@@ -887,42 +902,46 @@ public class CapturedContextInstrumentor extends Instrumentor {
       Type fieldType = Type.getType(fieldNode.desc);
       ldc(insnList, fieldType.getClassName());
       // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-      switch (fieldNode.name) {
-        case "dd.trace_id":
-          {
-            invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // access]
-            invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getTraceId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
-            break;
-          }
-        case "dd.span_id":
-          {
-            invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // access]
-            invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getSpanId", STRING_TYPE);
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
-            break;
-          }
-        default:
-          {
-            insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // this]
-            insnList.add(
-                new FieldInsnNode(
-                    Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
-            // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-            // field_value]
-          }
+      if (Redaction.isRedactedKeyword(fieldNode.name)) {
+        addCapturedValueRedacted(insnList);
+      } else {
+        switch (fieldNode.name) {
+          case "dd.trace_id":
+            {
+              invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
+              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+              // access]
+              invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getTraceId", STRING_TYPE);
+              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+              // field_value]
+              break;
+            }
+          case "dd.span_id":
+            {
+              invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
+              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+              // access]
+              invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getSpanId", STRING_TYPE);
+              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+              // field_value]
+              break;
+            }
+          default:
+            {
+              insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+              // this]
+              insnList.add(
+                  new FieldInsnNode(
+                      Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
+              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
+              // field_value]
+            }
+        }
+        tryBox(fieldType, insnList);
+        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, object]
+        addCapturedValueOf(insnList, limits);
       }
-      tryBox(fieldType, insnList);
-      // stack: [capturedcontext, capturedcontext, array, array, int, type_name, object]
-      addCapturedValueOf(insnList, limits);
       // stack: [capturedcontext, capturedcontext, array, array, int, CapturedValue]
       insnList.add(new InsnNode(Opcodes.AASTORE));
       // stack: [capturedcontext, capturedcontext, array]
@@ -1121,7 +1140,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
       ldc(insnList, limits.getMaxLength());
       ldc(insnList, limits.getMaxFieldCount());
     }
-    // expected stack: [type_name, value, int, int, int, int]
+    // expected stack: [name, type_name, value, int, int, int, int]
     invokeStatic(
         insnList,
         CAPTURED_VALUE,
@@ -1134,6 +1153,12 @@ public class CapturedContextInstrumentor extends Instrumentor {
         INT_TYPE,
         INT_TYPE,
         INT_TYPE);
+    // stack: [captured_value]
+  }
+
+  private void addCapturedValueRedacted(InsnList insnList) {
+    // expected stack: [name, type_name]
+    invokeStatic(insnList, CAPTURED_VALUE, "redacted", CAPTURED_VALUE, STRING_TYPE, STRING_TYPE);
     // stack: [captured_value]
   }
 }
