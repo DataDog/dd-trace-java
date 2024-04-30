@@ -3441,7 +3441,9 @@ public class Config {
     return axisPromoteResourceName;
   }
 
-  public boolean isDataJobsEnabled() { return instrumenterConfig.isDataJobsEnabled(); }
+  public boolean isDataJobsEnabled() {
+    return instrumenterConfig.isDataJobsEnabled();
+  }
 
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, Object> getLocalRootSpanTags() {
