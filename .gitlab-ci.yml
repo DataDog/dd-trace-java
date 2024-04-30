@@ -45,19 +45,11 @@ cache:
       - .gradle/wrapper
       - .gradle/caches
       - .gradle/notifications
-      # Cached dependencies for maven
-      - .m2
-      # Cached launchers and compilers for sbt
-      - .sbt
-      # Cached dependencies for sbt handled by ivy
-      - .ivy2
-      # Cached dependencies for sbt handled by coursier
-      - .cache/coursier
     policy: $DEPENDENCY_CACHE_POLICY
   - key: $CI_PIPELINE_ID # Incremental build cache. Shared by all jobs in the pipeline
     paths:
-      - .gradle/caches/$GRADLE_VERSION
-      - .gradle/$GRADLE_VERSION/executionHistory
+      - .gradle/caches
+      - .gradle/$GRADLE_VERSION
       - workspace
     policy: $BUILD_CACHE_POLICY
 
