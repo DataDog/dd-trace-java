@@ -41,6 +41,8 @@ import org.apache.spark.sql.streaming.SourceProgress;
 import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
@@ -53,6 +55,7 @@ import scala.collection.JavaConverters;
  * still needed
  */
 public abstract class AbstractDatadogSparkListener extends SparkListener {
+  private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
   public static volatile AbstractDatadogSparkListener listener = null;
   public static volatile boolean finishTraceOnApplicationEnd = true;
 
@@ -120,6 +123,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
     sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
+
+    log.info("Created datadog spark listener: {}", this.getClass().getSimpleName());
   }
 
   /** Resource name of the spark job. Provide an implementation based on a specific scala version */
@@ -172,6 +177,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
+    log.info(
+        "Received spark application end event, finish trace on this event: {}",
+        finishTraceOnApplicationEnd);
+
     if (finishTraceOnApplicationEnd) {
       finishApplication(applicationEnd.time(), null, 0, null);
     }
@@ -179,6 +188,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   public synchronized void finishApplication(
       long time, Throwable throwable, int exitCode, String msg) {
+    log.info("Finishing spark application trace");
+
     if (applicationEnded) {
       return;
     }
