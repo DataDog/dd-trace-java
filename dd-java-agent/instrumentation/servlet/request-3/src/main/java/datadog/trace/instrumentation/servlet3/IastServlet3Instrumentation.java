@@ -59,4 +59,9 @@ public final class IastServlet3Instrumentation extends InstrumenterModule.Iast
             .and(isPublic()),
         packageName + ".IastServlet3Advice");
   }
+
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
+  }
 }
