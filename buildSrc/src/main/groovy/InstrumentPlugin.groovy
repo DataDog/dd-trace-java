@@ -7,6 +7,13 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.invocation.BuildInvocationDetails
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
@@ -14,27 +21,28 @@ import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 
+import javax.inject.Inject
 import java.util.regex.Matcher
 
 /**
  * instrument<Language> task plugin which performs build-time instrumentation of classes.
  */
+@SuppressWarnings('unused')
 class InstrumentPlugin implements Plugin<Project> {
-
   @Override
   void apply(Project project) {
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
 
     project.tasks.matching {
       it.name in ['compileJava', 'compileScala', 'compileKotlin'] ||
-        it.name =~ /compileMain_(?:.+)Java/
+        it.name =~ /compileMain_.+Java/
     }.all {
       AbstractCompile compileTask = it as AbstractCompile
       Matcher versionMatcher = it.name =~ /compileMain_(.+)Java/
       project.afterEvaluate {
         if (!compileTask.source.empty) {
-          String sourceSetSuffix
-          String javaVersion
+          String sourceSetSuffix = null
+          String javaVersion = null
           if (versionMatcher.matches()) {
             sourceSetSuffix = versionMatcher.group(1)
             if (sourceSetSuffix ==~ /java\d+/) {
@@ -50,14 +58,28 @@ class InstrumentPlugin implements Plugin<Project> {
 
           // insert task between compile and jar, and before test*
           String instrumentTaskName = compileTask.name.replace('compile', 'instrument')
-          def instrumentTask = project.task(['type': InstrumentTask], instrumentTaskName) {
-            description = "Instruments the classes compiled by ${compileTask.name}"
-            doLast {
-              instrument(javaVersion, project, extension, rawClassesDir, classesDir, it)
+          def instrumentTask = project.tasks.register(instrumentTaskName, InstrumentTask) {
+            // Task configuration
+            it.group = 'Byte Buddy'
+            it.description = "Instruments the classes compiled by ${compileTask.name}"
+            it.inputs.dir(compileTask.destinationDirectory)
+            it.outputs.dir(classesDir)
+            // Task inputs
+            it.javaVersion = javaVersion
+            def instrumenterConfiguration = project.configurations.named('instrumentPluginClasspath')
+            if (instrumenterConfiguration.present) {
+              it.pluginClassPath.from(instrumenterConfiguration.get())
             }
+            it.plugins = extension.plugins
+            it.instrumentingClassPath.from(
+              findCompileClassPath(project, it.name) +
+                rawClassesDir +
+                findAdditionalClassPath(extension, it.name)
+            )
+            it.sourceDirectory = rawClassesDir
+            // Task output
+            it.targetDirectory = classesDir
           }
-          instrumentTask.inputs.dir(compileTask.destinationDirectory)
-          instrumentTask.outputs.dir(classesDir)
           if (javaVersion) {
             project.tasks.named(project.sourceSets."main_java${javaVersion}".classesTaskName) {
               it.dependsOn(instrumentTask)
@@ -71,6 +93,22 @@ class InstrumentPlugin implements Plugin<Project> {
       }
     }
   }
+
+  static findCompileClassPath(Project project, String taskName) {
+    def matcher = taskName =~ /instrument([A-Z].+)Java/
+    def cfgName = matcher.matches() ? "${matcher.group(1).uncapitalize()}CompileClasspath" : 'compileClasspath'
+    project.configurations.named(cfgName).findAll {
+      it.name != 'previous-compilation-data.bin' && !it.name.endsWith('.gz')
+    }
+  }
+
+  static findAdditionalClassPath(InstrumentExtension extension, String taskName) {
+    extension.additionalClasspath.getOrDefault(taskName, []).collect {
+      // insert intermediate 'raw' directory for unprocessed classes
+      def fileName = it.get().asFile.name
+      it.get().dir("../${fileName.replaceFirst('^main', 'raw')}")
+    }
+  }
 }
 
 abstract class InstrumentExtension {
@@ -79,51 +117,52 @@ abstract class InstrumentExtension {
 }
 
 abstract class InstrumentTask extends DefaultTask {
-  {
-    group = 'Byte Buddy'
-  }
+  @Input @Optional
+  String javaVersion
+  @InputFiles @Classpath
+  abstract ConfigurableFileCollection getPluginClassPath()
+  @Input
+  ListProperty<String> plugins
+  @InputFiles @Classpath
+  abstract ConfigurableFileCollection getInstrumentingClassPath()
+  @InputDirectory
+  Directory sourceDirectory
 
-  @javax.inject.Inject
+  @OutputDirectory
+  Directory targetDirectory
+
+  @Inject
   abstract JavaToolchainService getJavaToolchainService()
-
-  @javax.inject.Inject
+  @Inject
   abstract BuildInvocationDetails getInvocationDetails()
-
-  @javax.inject.Inject
+  @Inject
   abstract WorkerExecutor getWorkerExecutor()
 
-  void instrument(String javaVersion,
-                  Project project,
-                  InstrumentExtension extension,
-                  Directory sourceDirectory,
-                  Directory targetDirectory,
-                  InstrumentTask instrumentTask)
-  {
-    def workQueue
-    if (javaVersion) {
-      def javaLauncher = javaToolchainService.launcherFor { spec ->
-        spec.languageVersion.set(JavaLanguageVersion.of(javaVersion))
+  @TaskAction
+  instrument() {
+    workQueue().submit(InstrumentAction.class, parameters -> {
+      parameters.buildStartedTime.set(this.invocationDetails.buildStartedTime)
+      parameters.pluginClassPath.from(this.pluginClassPath)
+      parameters.plugins.set(this.plugins)
+      parameters.instrumentingClassPath.setFrom(this.instrumentingClassPath)
+      parameters.sourceDirectory.set(this.sourceDirectory.asFile)
+      parameters.targetDirectory.set(this.targetDirectory.asFile)
+    })
+  }
+
+  private workQueue() {
+    if (this.javaVersion) {
+      def javaLauncher = this.javaToolchainService.launcherFor { spec ->
+        spec.languageVersion.set(JavaLanguageVersion.of(this.javaVersion))
       }.get()
-      workQueue = workerExecutor.processIsolation { spec ->
+      return this.workerExecutor.processIsolation { spec ->
         spec.forkOptions { fork ->
           fork.executable = javaLauncher.executablePath
         }
       }
     } else {
-      workQueue = workerExecutor.noIsolation()
+      return this.workerExecutor.noIsolation()
     }
-    workQueue.submit(InstrumentAction.class, parameters -> {
-      parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
-      parameters.pluginClassPath.setFrom(project.configurations.findByName('instrumentPluginClasspath') ?: [])
-      parameters.plugins.set(extension.plugins)
-      def matcher = instrumentTask.name =~ /instrument([A-Z].+)Java/
-      def cfgName = matcher.matches() ? "${matcher.group(1).uncapitalize()}CompileClasspath" : 'compileClasspath'
-      parameters.instrumentingClassPath.setFrom(project.configurations[cfgName].findAll {
-        it.name != 'previous-compilation-data.bin' && !it.name.endsWith(".gz")
-      } + sourceDirectory + (extension.additionalClasspath[instrumentTask.name] ?: [])*.get())
-      parameters.sourceDirectory.set(sourceDirectory.asFile)
-      parameters.targetDirectory.set(targetDirectory.asFile)
-    })
   }
 }
 
