@@ -36,8 +36,6 @@ public class SnsInterceptor implements ExecutionInterceptor {
           new HashMap<>(request.messageAttributes());
       final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
       propagate().inject(span, messageAttributes, SETTER, TracePropagationStyle.XRAY);
-      System.out.println("[JOEY]");
-      System.out.println(messageAttributes);
       return request.toBuilder().messageAttributes(messageAttributes).build();
     } else if (context.request() instanceof PublishBatchRequest) {
       PublishBatchRequest request = (PublishBatchRequest) context.request();
