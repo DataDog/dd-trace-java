@@ -68,6 +68,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_HARDCODED_SECRET_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_ENABLED;
@@ -271,6 +272,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_DIR;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.IastConfig.IAST_ANONYMOUS_CLASSES_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_CONTEXT_MODE;
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
@@ -742,6 +744,7 @@ public class Config {
   private final boolean iastStacktraceLeakSuppress;
   private final IastContext.Mode iastContextMode;
   private final boolean iastHardcodedSecretEnabled;
+  private final boolean iastAnonymousClassesEnabled;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1661,6 +1664,9 @@ public class Config {
     iastHardcodedSecretEnabled =
         configProvider.getBoolean(
             IAST_HARDCODED_SECRET_ENABLED, DEFAULT_IAST_HARDCODED_SECRET_ENABLED);
+    iastAnonymousClassesEnabled =
+        configProvider.getBoolean(
+            IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2848,6 +2854,10 @@ public class Config {
 
   public boolean isIastHardcodedSecretEnabled() {
     return iastHardcodedSecretEnabled;
+  }
+
+  public boolean isIastAnonymousClassesEnabled() {
+    return iastAnonymousClassesEnabled;
   }
 
   public boolean isCiVisibilityEnabled() {

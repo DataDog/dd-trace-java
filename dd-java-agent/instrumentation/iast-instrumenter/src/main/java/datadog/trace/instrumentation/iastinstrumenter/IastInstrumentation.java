@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.iastinstrumenter;
 
+import static net.bytebuddy.matcher.ElementMatchers.not;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
@@ -26,7 +28,7 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
   @Override
   public ElementMatcher<TypeDescription> callerType() {
-    return IastMatcher.INSTANCE;
+    return IastMatchers.INSTANCE;
   }
 
   @Override
@@ -54,13 +56,24 @@ public class IastInstrumentation extends CallSiteInstrumentation {
     return false;
   }
 
-  public static final class IastMatcher
-      extends ElementMatcher.Junction.ForNonNullValues<TypeDescription> {
-    public static final IastMatcher INSTANCE = new IastMatcher();
+  public static final class IastMatchers {
 
-    @Override
-    protected boolean doMatch(TypeDescription target) {
-      return IastExclusionTrie.apply(target.getName()) != 1;
+    public static final ElementMatcher<TypeDescription> INSTANCE;
+
+    private static final ElementMatcher.Junction<TypeDescription> TRIE_MATCHER =
+        new ElementMatcher.Junction.ForNonNullValues<TypeDescription>() {
+          @Override
+          protected boolean doMatch(TypeDescription target) {
+            return IastExclusionTrie.apply(target.getName()) != 1;
+          }
+        };
+
+    static {
+      if (Config.get().isIastAnonymousClassesEnabled()) {
+        INSTANCE = TRIE_MATCHER;
+      } else {
+        INSTANCE = TRIE_MATCHER.and(not(TypeDescription::isAnonymousType));
+      }
     }
   }
 

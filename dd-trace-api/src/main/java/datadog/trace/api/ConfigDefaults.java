@@ -122,6 +122,7 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH = 250;
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
+  static final boolean DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED = true;
 
   static final boolean DEFAULT_USM_ENABLED = false;
 
