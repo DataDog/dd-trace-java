@@ -67,6 +67,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -260,6 +261,12 @@ public class InstrumenterConfig {
       final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return configProvider.isEnabled(
         integrationNames, "integration.", ".matching.shortcut.enabled", defaultEnabled);
+  }
+
+  public boolean isDataJobsEnabled() {
+    // there's no dedicated flag to enabled DJM, it's enough to just enable
+    // spark instrumentation
+    return isIntegrationEnabled(Collections.singletonList("spark"), false);
   }
 
   public boolean isTraceEnabled() {
