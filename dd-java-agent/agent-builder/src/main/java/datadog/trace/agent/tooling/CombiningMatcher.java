@@ -6,6 +6,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.RETRANSFORMER;
 import datadog.trace.agent.tooling.bytebuddy.matcher.CustomExcludes;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ProxyClassIgnores;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.time.TimeUtils;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
@@ -15,8 +16,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.utility.JavaModule;
@@ -101,32 +100,18 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
   /** Arranges for any deferred matching to resume at the requested trigger point. */
   private void scheduleResumeMatching(Instrumentation instrumentation, String untilTrigger) {
     if (null != untilTrigger && !untilTrigger.isEmpty()) {
-      Pattern delayPattern = Pattern.compile("(\\d+)([HhMmSs]?)");
-      Matcher delayMatcher = delayPattern.matcher(untilTrigger);
-      if (delayMatcher.matches()) {
-        long delay = Integer.parseInt(delayMatcher.group(1));
-        String unit = delayMatcher.group(2);
-        if ("H".equalsIgnoreCase(unit)) {
-          delay = TimeUnit.HOURS.toSeconds(delay);
-        } else if ("M".equalsIgnoreCase(unit)) {
-          delay = TimeUnit.MINUTES.toSeconds(delay);
-        } else {
-          // already in seconds
-        }
-
-        if (delay < 5) {
-          return; // don't bother deferring small delays
-        }
+      long delay = TimeUtils.parseSimpleDelay(untilTrigger);
+      if (delay < 0) {
+        log.info(
+            "Unrecognized value for dd.{}: {}",
+            EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL,
+            untilTrigger);
+      } else if (delay >= 5) { // don't bother deferring small delays
 
         new AgentTaskScheduler(RETRANSFORMER)
             .schedule(this::resumeMatching, instrumentation, delay, TimeUnit.SECONDS);
 
         deferring = true;
-      } else {
-        log.info(
-            "Unrecognized value for dd.{}: {}",
-            EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL,
-            untilTrigger);
       }
     }
   }
