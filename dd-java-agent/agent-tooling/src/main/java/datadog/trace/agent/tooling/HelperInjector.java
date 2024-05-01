@@ -20,6 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassInjector;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -160,7 +161,7 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
       CodeSource codeSource = HelperInjector.class.getProtectionDomain().getCodeSource();
       return new ProtectionDomain(codeSource, null, classLoader, null);
     } else {
-      return null;
+      return ClassLoadingStrategy.NO_PROTECTION_DOMAIN;
     }
   }
 

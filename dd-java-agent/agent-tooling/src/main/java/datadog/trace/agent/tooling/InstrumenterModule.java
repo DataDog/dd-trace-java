@@ -112,7 +112,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   /**
    * @return {@code true} if helper classes should be injected with the agent's {@link CodeSource}
    */
-  public boolean injectHelperClassesWithAgentCodeSource() {
+  public boolean useAgentCodeSource() {
     return false;
   }
 

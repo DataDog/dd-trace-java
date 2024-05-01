@@ -59,7 +59,7 @@ public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVi
   }
 
   @Override
-  public boolean injectHelperClassesWithAgentCodeSource() {
+  public boolean useAgentCodeSource() {
     return true;
   }
 

@@ -131,9 +131,7 @@ public final class CombiningTransformerBuilder
     helperTransformer =
         helperClassNames.length > 0
             ? new HelperTransformer(
-                module.injectHelperClassesWithAgentCodeSource(),
-                module.getClass().getSimpleName(),
-                helperClassNames)
+                module.useAgentCodeSource(), module.getClass().getSimpleName(), helperClassNames)
             : null;
 
     muzzle = new MuzzleCheck(module, instrumentationId);
