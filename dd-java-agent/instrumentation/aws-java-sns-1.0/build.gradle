@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "com.amazonaws"
     module = "aws-java-sdk-sns"
-    versions = "[1.12.0,)"
+    versions = "[1.0.0,)"
     assertInverse = true
   }
 }
@@ -19,6 +19,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
   testImplementation project(':dd-java-agent:instrumentation:aws-java-sdk-1.11.0')
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '1.12.710'
+  // SQS is used to act as the "Subscriber" of the SNS topic.
   // There's a problem with sqs sdk v1 with localstack+testcontainers testing. so use sdk v2 for sqs
   testImplementation 'software.amazon.awssdk:sqs:2.25.40'
   testImplementation 'org.testcontainers:testcontainers:1.19.7'

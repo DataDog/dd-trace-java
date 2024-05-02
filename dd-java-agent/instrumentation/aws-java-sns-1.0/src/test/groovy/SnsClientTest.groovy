@@ -1,4 +1,3 @@
-import com.amazonaws.SDKGlobalConfiguration
 import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.client.builder.AwsClientBuilder
@@ -8,7 +7,6 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.testcontainers.containers.localstack.LocalStackContainer
@@ -27,7 +25,7 @@ import static org.testcontainers.containers.localstack.LocalStackContainer.Servi
 
 abstract class SnsClientTest extends VersionedNamingTestBase {
   static final localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
-    .withServices( SQS, SNS)
+  .withServices( SQS, SNS)
   @Shared AmazonSNSClient snsClient
   @Shared SqsClient sqsClient
 
@@ -146,7 +144,6 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     messageBody["Message"] == "sometext"
     messageBody["MessageAttributes"]["AWSTraceHeader"]["Value"] =~
       /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
-
   }
 }
 
@@ -158,7 +155,6 @@ class SnsClientV0Test extends SnsClientTest {
       return "aws.http"
     }
     return "http.request"
-
   }
 
   @Override
@@ -182,7 +178,7 @@ class SnsClientV1ForkedTest extends SnsClientTest {
     if (awsService == "SNS"&& awsOperation == "Publish") {
       return "aws.sns.send"
     }
-    return "aws.${awsService.toLowerCase()}.request"
+    return "http.client.request"
   }
 
   @Override

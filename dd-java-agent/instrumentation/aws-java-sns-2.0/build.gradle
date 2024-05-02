@@ -10,9 +10,19 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
-  compileOnly group: 'software.amazon.awssdk', name: 'sns', version: '2.24.4'
+  compileOnly group: 'software.amazon.awssdk', name: 'sns', version: '2.25.40'
+
+  // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
+  testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
+  testImplementation project(':dd-java-agent:instrumentation:aws-java-sdk-2.2')
+  testImplementation 'software.amazon.awssdk:sns:2.25.40'
+  // SQS is used to act as the "Subscriber" of the SNS topic.
+  testImplementation 'software.amazon.awssdk:sqs:2.25.40'
+  testImplementation 'org.testcontainers:testcontainers:1.19.7'
+  testImplementation 'org.testcontainers:localstack:1.19.7'
 
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
 }
