@@ -30,6 +30,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
@@ -50,6 +51,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATI
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_DEFER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CODESOURCES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
@@ -120,6 +122,9 @@ public class InstrumenterConfig {
   private final String excludedClassesFile;
   private final Set<String> excludedClassLoaders;
   private final List<String> excludedCodeSources;
+  private final Set<String> deferredClassLoaders;
+
+  private final String deferIntegrationsUntil;
 
   private final ResolverCacheConfig resolverCacheConfig;
   private final String resolverCacheDir;
@@ -206,6 +211,9 @@ public class InstrumenterConfig {
     excludedClassesFile = configProvider.getString(TRACE_CLASSES_EXCLUDE_FILE);
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
     excludedCodeSources = tryMakeImmutableList(configProvider.getList(TRACE_CODESOURCES_EXCLUDE));
+    deferredClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_DEFER));
+
+    deferIntegrationsUntil = configProvider.getString(EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL);
 
     resolverCacheConfig =
         configProvider.getEnum(
@@ -351,6 +359,14 @@ public class InstrumenterConfig {
 
   public List<String> getExcludedCodeSources() {
     return excludedCodeSources;
+  }
+
+  public Set<String> getDeferredClassLoaders() {
+    return deferredClassLoaders;
+  }
+
+  public String deferIntegrationsUntil() {
+    return deferIntegrationsUntil;
   }
 
   public int getResolverNoMatchesSize() {
@@ -512,6 +528,10 @@ public class InstrumenterConfig {
         + excludedClassLoaders
         + ", excludedCodeSources="
         + excludedCodeSources
+        + ", deferredClassLoaders="
+        + deferredClassLoaders
+        + ", deferIntegrationsUntil="
+        + deferIntegrationsUntil
         + ", resolverCacheConfig="
         + resolverCacheConfig
         + ", resolverCacheDir="

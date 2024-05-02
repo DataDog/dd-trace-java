@@ -29,6 +29,10 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_CLASSES_EXCLUDE_FILE = "trace.classes.exclude.file";
   public static final String TRACE_CLASSLOADERS_EXCLUDE = "trace.classloaders.exclude";
   public static final String TRACE_CODESOURCES_EXCLUDE = "trace.codesources.exclude";
+  public static final String TRACE_CLASSLOADERS_DEFER = "trace.classloaders.defer";
+
+  public static final String EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL =
+      "experimental.defer.integrations.until";
 
   @SuppressWarnings("unused")
   public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
