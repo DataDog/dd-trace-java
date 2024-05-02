@@ -142,7 +142,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
 
     and:
     messageBody["Message"] == "sometext"
-    messageBody["MessageAttributes"]["AWSTraceHeader"]["Value"] =~
+    messageBody["MessageAttributes"]["X-Amzn-Trace-Id"]["Value"] =~
       /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
   }
 }

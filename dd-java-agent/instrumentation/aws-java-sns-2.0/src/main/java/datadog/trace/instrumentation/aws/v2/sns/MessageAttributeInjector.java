@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v2.sns;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.Map;
-import java.util.Objects;
 import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 
 public class MessageAttributeInjector
@@ -13,18 +12,11 @@ public class MessageAttributeInjector
   @Override
   public void set(
       final Map<String, MessageAttributeValue> carrier, final String key, final String value) {
-    // The injector would use "X-Amzn-Trace-Id" key, but to keep the behavior same as SQS, use
-    // "AWSTraceHeader"
-    // Also checks if the key already exists because AWS could in the future automatically injects
-    // AWSTraceHeader
-    // (as it does today in SQS)
-
-    if (Objects.equals(key, "X-Amzn-Trace-Id")
-        && carrier.size() < 10
-        && !carrier.containsKey("AWSTraceHeader")) {
+    // 10 messageAttributes is a limit from SQS, which is often used as a subscriber and therefore
+    // still apply here
+    if (carrier.size() < 10 && !carrier.containsKey(key)) {
       carrier.put(
-          "AWSTraceHeader",
-          MessageAttributeValue.builder().dataType("String").stringValue(value).build());
+          key, MessageAttributeValue.builder().dataType("String").stringValue(value).build());
     }
   }
 }
