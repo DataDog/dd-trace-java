@@ -57,9 +57,6 @@ public final class SnsClientInstrumentation extends InstrumenterModule.Tracing
         }
       }
       interceptors.add(new SnsInterceptor());
-      //          InstrumentationContext.get(
-      //              "software.amazon.awssdk.core.SdkRequest",
-      //              "datadog.trace.bootstrap.instrumentation.api.AgentSpan")));
     }
   }
 }
