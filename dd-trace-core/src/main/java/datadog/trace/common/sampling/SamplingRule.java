@@ -1,18 +1,28 @@
 package datadog.trace.common.sampling;
 
+import java.util.Map;
+import java.util.regex.Pattern;
+
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.Matcher;
 import datadog.trace.core.util.Matchers;
 import datadog.trace.core.util.SimpleRateLimiter;
 import datadog.trace.core.util.TagsMatcher;
-import java.util.Map;
-import java.util.regex.Pattern;
+
+import datadog.trace.api.sampling.SamplingMechanism;
 
 public abstract class SamplingRule {
   private final RateSampler sampler;
+  private final byte mechanism;
 
-  public SamplingRule(final RateSampler sampler) {
+  public SamplingRule(final RateSampler sampler, byte mechanism) {
     this.sampler = sampler;
+    this.mechanism = mechanism;
+  }
+  
+  @Deprecated
+  public SamplingRule(final RateSampler sampler) {
+    this(sampler, SamplingMechanism.LOCAL_USER_RULE);
   }
 
   public abstract <T extends CoreSpan<T>> boolean matches(T span);
@@ -24,9 +34,12 @@ public abstract class SamplingRule {
   public RateSampler getSampler() {
     return sampler;
   }
+  
+  public final byte getMechanism() {
+    return mechanism;
+  }
 
   public static class AlwaysMatchesSamplingRule extends SamplingRule {
-
     public AlwaysMatchesSamplingRule(final RateSampler sampler) {
       super(sampler);
     }
