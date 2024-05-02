@@ -19,7 +19,6 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -28,7 +27,11 @@ import javax.inject.Inject
 private const val CALL_SITE_INSTRUMENTER_MAIN_CLASS = "datadog.trace.plugin.csi.PluginApplication"
 private const val CALL_SITE_CLASS_SUFFIX = "CallSite"
 private const val CALL_SITE_CONSOLE_REPORTER = "CONSOLE"
+private const val CALL_SITE_ERROR_CONSOLE_REPORTER = "ERROR_CONSOLE"
 
+/**
+ * This extension allows to configure the Call Site Instrumenter plugin execution.
+ */
 abstract class CallSiteInstrumentationExtension @Inject constructor(objectFactory: ObjectFactory) {
   /**
    * The location of the source code to generate call site ({@code src/main/java} by default).
@@ -43,10 +46,10 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(objectFactor
    */
   val suffix: Property<String> = objectFactory.property(String::class.java).convention(CALL_SITE_CLASS_SUFFIX)
   /**
-   * The reporters to use after call site instrumenter run (only #CONSOLE_REPORTER supported for now).
+   * The reporters to use after call site instrumenter run (only #CALL_SITE_CONSOLE_REPORTER and #CALL_SITE_ERROR_CONSOLE_REPORTER supported for now).
    */
   val reporters: ListProperty<String> = objectFactory.listProperty(String::class.java).convention(listOf(
-    CALL_SITE_CONSOLE_REPORTER
+    CALL_SITE_ERROR_CONSOLE_REPORTER
   ))
   /**
    * The location of the dd-trace-java project to look for the call site instrumenter (optional, current project root folder used if not set).
@@ -63,7 +66,6 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(objectFactor
    */
   val jvmArgs: ListProperty<String> = objectFactory.listProperty(String::class.java).convention(listOf("-Xmx128m", "-Xms64m"))
 }
-
 
 abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   @get:Inject
@@ -103,7 +105,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
     project.dependencies.add("testImplementation", csiSourceSet.output)
 
     // include classes in final JAR
-    project.tasks.named("jar", Jar::class.java).configure{
+    project.tasks.named("jar", Jar::class.java).configure {
       from(csiSourceSet.output.classesDirs)
     }
   }
@@ -159,47 +161,45 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
                                          input: DirectoryProperty,
                                          output: Provider<Directory>) {
     val taskName = compileTask.name.replace("compile", "generateCallSite")
-    val callSiteGeneratorTask = project.tasks.register(taskName, JavaExec::class.java).get()
-    val stdout = ByteArrayOutputStream()
-    val stderr = ByteArrayOutputStream()
-    callSiteGeneratorTask.group = "call site instrumentation"
-    callSiteGeneratorTask.description = "Generates call sites from ${compileTask.name}"
-    if (extension.javaVersion.isPresent) {
-      configureLanguage(callSiteGeneratorTask, extension.javaVersion.get())
-    }
-    callSiteGeneratorTask.setStandardOutput(stdout)
-    callSiteGeneratorTask.setErrorOutput(stderr)
-    callSiteGeneratorTask.inputs.dir(input)
-    callSiteGeneratorTask.outputs.dir(output)
-    callSiteGeneratorTask.mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
-
     val rootFolder = extension.rootFolder.getOrElse(project.rootDir)
-    val path = Paths.get(rootFolder.toString(),
-    "buildSrc", "call-site-instrumentation-plugin", "build", "libs", "call-site-instrumentation-plugin-all.jar")
-    callSiteGeneratorTask.jvmArgs(extension.jvmArgs.get())
-    callSiteGeneratorTask.classpath(path.toFile())
-    callSiteGeneratorTask.setIgnoreExitValue(true)
-    // pass the arguments to the main via file to prevent issues with too long classpaths
-    callSiteGeneratorTask.doFirst {
-      val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
-      val arguments = mutableListOf(
-        project.projectDir.toPath().resolve(extension.srcFolder.get()).toString(),
-        input.get().asFile.toString(),
-        output.get().asFile.toString(),
-        extension.suffix.get(),
-        extension.reporters.get().joinToString(",")
-      )
-      arguments.addAll(getProgramClasspath(project).map { it.toString() })
-      Files.write(argumentFile.toPath(), arguments)
-      callSiteGeneratorTask.args(argumentFile.toString())
-    }
-    callSiteGeneratorTask.doLast {
-      project.logger.info(stdout.toString())
-      project.logger.error(stderr.toString())
-      if (callSiteGeneratorTask.executionResult.get().exitValue != 0) {
-        throw GradleException("Failed to generate call site classes, check task logs for more information")
+    val pluginJarFile = Paths.get(
+      rootFolder.toString(),
+      "buildSrc",
+      "call-site-instrumentation-plugin",
+      "build",
+      "libs",
+      "call-site-instrumentation-plugin-all.jar"
+    ).toFile()
+    val sourcePath = project.projectDir.toPath().resolve(extension.srcFolder.get()) // TODO Update with Directory property
+    val programClassPath = getProgramClasspath(project).map { it.toString() }
+    val callSiteGeneratorTask = project.tasks.register(taskName, JavaExec::class.java) {
+      // Task description
+      group = "call site instrumentation"
+      description = "Generates call sites from ${compileTask.name}"
+      // Task input & output
+      inputs.dir(input)
+      outputs.dir(output)
+      // JavaExec configuration
+      if (extension.javaVersion.isPresent) {
+        configureLanguage(this, extension.javaVersion.get())
       }
-    }
+      jvmArgs(extension.jvmArgs.get())
+      classpath(pluginJarFile)
+      mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
+      // Write the call site instrumenter arguments into a temporary file
+      doFirst {
+        val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
+        val arguments = listOf(
+          sourcePath.toString(),
+          input.get().asFile.toString(),
+          output.get().asFile.toString(),
+          extension.suffix.get(),
+          extension.reporters.get().joinToString(",")
+        ) + programClassPath
+        Files.write(argumentFile.toPath(), arguments)
+        args(argumentFile.toString())
+      }
+    }.get()
 
     // insert task after compile
     callSiteGeneratorTask.dependsOn(compileTask)
