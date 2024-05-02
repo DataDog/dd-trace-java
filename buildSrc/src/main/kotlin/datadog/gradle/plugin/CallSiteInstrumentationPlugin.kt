@@ -4,13 +4,12 @@ import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.ProjectLayout
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
@@ -32,15 +31,19 @@ private const val CALL_SITE_ERROR_CONSOLE_REPORTER = "ERROR_CONSOLE"
 /**
  * This extension allows to configure the Call Site Instrumenter plugin execution.
  */
-abstract class CallSiteInstrumentationExtension @Inject constructor(objectFactory: ObjectFactory) {
+abstract class CallSiteInstrumentationExtension @Inject constructor(objectFactory: ObjectFactory, layout: ProjectLayout) {
   /**
-   * The location of the source code to generate call site ({@code src/main/java} by default).
+   * The location of the source code to generate call site ({@code <project>/src/main/java} by default).
    */
-  val srcFolder: Property<String> = objectFactory.property(String::class.java).convention("src${File.separatorChar}main${File.separatorChar}java")
+  val srcFolder: DirectoryProperty = objectFactory.directoryProperty().convention(
+    layout.projectDirectory.dir("src").dir("main").dir("java")
+  )
   /**
-   * The location to generate call site source code ({@code generated/sources/csi} by default).
+   * The location to generate call site source code ({@code <project>/build/generated/sources/csi} by default).
    */
-  val targetFolder: Property<String> = objectFactory.property(String::class.java).convention("generated${File.separatorChar}sources${File.separatorChar}csi")
+  val targetFolder: DirectoryProperty = objectFactory.directoryProperty().convention(
+    layout.buildDirectory.dir("generated${File.separatorChar}sources${File.separatorChar}csi")
+  )
   /**
    * The generated call site source file suffix (#CALL_SITE_CLASS_SUFFIX by default).
    */
@@ -82,7 +85,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
 
   private fun configureSourceSets(project: Project, extension: CallSiteInstrumentationExtension) {
     // create a new source set for the csi files
-    val targetFolder = newBuildFolder(project, extension.targetFolder.get())
+    val targetFolder = newBuildFolder(project, extension.targetFolder.get().asFile.toString())
     val sourceSets = getSourceSets(project)
     val csiSourceSet = sourceSets.create("csi")
     val mainSourceSet = sourceSets.named(SourceSet.MAIN_SOURCE_SET_NAME).get()
@@ -134,11 +137,10 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   }
 
   private fun createTasks(project: Project, extension: CallSiteInstrumentationExtension) {
-    val compileTask: AbstractCompile = project.tasks.named("compileJava").get() as AbstractCompile
+    val compileTask: AbstractCompile = project.tasks.named("compileJava", AbstractCompile::class.java).get()
     val input = compileTask.destinationDirectory
-    val output = project.layout.buildDirectory.dir(extension.targetFolder)
-    val targetFolder = output.get().asFile
-    createGenerateCallSiteTask(project, extension, compileTask, input, output)
+    createGenerateCallSiteTask(project, extension, compileTask, input)
+    val targetFolder = extension.targetFolder.get().asFile
     project.tasks.withType(AbstractCompile::class.java).matching {
       task -> task.name.startsWith("compileTest")
     }.configureEach {
@@ -158,8 +160,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
   private fun createGenerateCallSiteTask(project: Project,
                                          extension: CallSiteInstrumentationExtension,
                                          compileTask: AbstractCompile,
-                                         input: DirectoryProperty,
-                                         output: Provider<Directory>) {
+                                         input: DirectoryProperty) {
     val taskName = compileTask.name.replace("compile", "generateCallSite")
     val rootFolder = extension.rootFolder.getOrElse(project.rootDir)
     val pluginJarFile = Paths.get(
@@ -170,13 +171,13 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       "libs",
       "call-site-instrumentation-plugin-all.jar"
     ).toFile()
-    val sourcePath = project.projectDir.toPath().resolve(extension.srcFolder.get()) // TODO Update with Directory property
     val programClassPath = getProgramClasspath(project).map { it.toString() }
     val callSiteGeneratorTask = project.tasks.register(taskName, JavaExec::class.java) {
       // Task description
       group = "call site instrumentation"
       description = "Generates call sites from ${compileTask.name}"
       // Task input & output
+      val output = extension.targetFolder
       inputs.dir(input)
       outputs.dir(output)
       // JavaExec configuration
@@ -190,7 +191,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project>{
       doFirst {
         val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
         val arguments = listOf(
-          sourcePath.toString(),
+          extension.srcFolder.get().asFile.toString(),
           input.get().asFile.toString(),
           output.get().asFile.toString(),
           extension.suffix.get(),
