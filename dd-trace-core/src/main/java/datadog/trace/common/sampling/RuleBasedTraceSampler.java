@@ -137,13 +137,13 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
               PrioritySampling.USER_KEEP,
               SAMPLING_RULE_RATE,
               matchedRule.getSampler().getSampleRate(),
-              SamplingMechanism.RULE);
+              SamplingMechanism.LOCAL_USER_RULE);
         } else {
           span.setSamplingPriority(
               PrioritySampling.USER_DROP,
               SAMPLING_RULE_RATE,
               matchedRule.getSampler().getSampleRate(),
-              SamplingMechanism.RULE);
+              SamplingMechanism.LOCAL_USER_RULE);
         }
         span.setMetric(SAMPLING_LIMIT_RATE, rateLimit);
       } else {
@@ -151,7 +151,7 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
             PrioritySampling.USER_DROP,
             SAMPLING_RULE_RATE,
             matchedRule.getSampler().getSampleRate(),
-            SamplingMechanism.RULE);
+            SamplingMechanism.LOCAL_USER_RULE);
       }
     }
   }
