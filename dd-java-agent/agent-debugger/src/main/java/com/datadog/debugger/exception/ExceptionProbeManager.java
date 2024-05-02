@@ -7,12 +7,15 @@ import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.WeakIdentityHashMap;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -22,15 +25,28 @@ import org.slf4j.LoggerFactory;
 public class ExceptionProbeManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProbeManager.class);
 
-  private final Set<String> fingerprints = ConcurrentHashMap.newKeySet();
+  private final Map<String, Instant> fingerprints = new ConcurrentHashMap<>();
   private final Map<String, ExceptionProbe> probes = new ConcurrentHashMap<>();
   private final ClassNameFiltering classNameFiltering;
   // FIXME: if this becomes a bottleneck, find a way to make it concurrent weak identity hashmap
   private final Map<Throwable, ThrowableState> snapshotsByThrowable =
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
+  private final long captureIntervalMS;
+  private final Clock clock;
 
-  public ExceptionProbeManager(ClassNameFiltering classNameFiltering) {
+  public ExceptionProbeManager(ClassNameFiltering classNameFiltering, Duration captureInterval) {
+    this(classNameFiltering, captureInterval, Clock.systemUTC());
+  }
+
+  ExceptionProbeManager(ClassNameFiltering classNameFiltering) {
+    this(classNameFiltering, Duration.ofHours(1), Clock.systemUTC());
+  }
+
+  ExceptionProbeManager(
+      ClassNameFiltering classNameFiltering, Duration captureInterval, Clock clock) {
     this.classNameFiltering = classNameFiltering;
+    this.captureIntervalMS = captureInterval.toMillis();
+    this.clock = clock;
   }
 
   public ClassNameFiltering getClassNameFiltering() {
@@ -62,7 +78,7 @@ public class ExceptionProbeManager {
   }
 
   void addFingerprint(String fingerprint) {
-    fingerprints.add(fingerprint);
+    fingerprints.put(fingerprint, Instant.ofEpochSecond(0));
   }
 
   private static ExceptionProbe createMethodProbe(
@@ -73,7 +89,7 @@ public class ExceptionProbeManager {
   }
 
   public boolean isAlreadyInstrumented(String fingerprint) {
-    return fingerprints.contains(fingerprint);
+    return fingerprints.containsKey(fingerprint);
   }
 
   public Collection<ExceptionProbe> getProbes() {
@@ -81,7 +97,16 @@ public class ExceptionProbeManager {
   }
 
   public boolean shouldCaptureException(String fingerprint) {
-    return fingerprints.contains(fingerprint);
+    return shouldCaptureException(fingerprint, clock);
+  }
+
+  boolean shouldCaptureException(String fingerprint, Clock clock) {
+    Instant lastCapture = fingerprints.get(fingerprint);
+    if (lastCapture == null) {
+      return false;
+    }
+    // only capture once an hour
+    return ChronoUnit.MILLIS.between(lastCapture, Instant.now(clock)) >= captureIntervalMS;
   }
 
   public void addSnapshot(Snapshot snapshot) {
@@ -102,6 +127,14 @@ public class ExceptionProbeManager {
 
   public ThrowableState getSateByThrowable(Throwable throwable) {
     return snapshotsByThrowable.get(throwable);
+  }
+
+  public void updateLastCapture(String fingerprint) {
+    updateLastCapture(fingerprint, clock);
+  }
+
+  void updateLastCapture(String fingerprint, Clock clock) {
+    fingerprints.put(fingerprint, Instant.now(clock));
   }
 
   public static class ThrowableState {

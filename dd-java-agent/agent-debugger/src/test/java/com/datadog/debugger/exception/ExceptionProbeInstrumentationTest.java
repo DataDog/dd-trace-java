@@ -35,7 +35,9 @@ import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.core.CoreTracer;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -214,6 +216,35 @@ public class ExceptionProbeInstrumentationTest {
     // sampling happens only once ont he first snapshot then forced for coordinated sampling
     assertEquals(1, probeSampler.getCallCount());
     assertEquals(1, globalSampler.getCallCount());
+  }
+
+  @Test
+  public void captureOncePerHour() throws Exception {
+    Config config = createConfig();
+    Clock clockMock = mock(Clock.class);
+    when(clockMock.instant()).thenReturn(Instant.now());
+    ExceptionProbeManager exceptionProbeManager =
+        new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), clockMock);
+    TestSnapshotListener listener =
+        setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    // instrument RuntimeException stacktrace
+    String fingerprint0 = callMethodThrowingRuntimeException(testClass);
+    assertWithTimeout(
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint0), Duration.ofSeconds(30));
+    // generate snapshots RuntimeException
+    callMethodThrowingRuntimeException(testClass);
+    assertEquals(1, listener.snapshots.size());
+    listener.snapshots.clear();
+    // second call, no snapshot should be generated
+    callMethodThrowingRuntimeException(testClass);
+    assertEquals(0, listener.snapshots.size());
+    // Fast-forward 1 hour
+    when(clockMock.instant()).thenReturn(Instant.now().plus(Duration.ofMinutes(61)));
+    // second call, snapshot should be generated
+    callMethodThrowingRuntimeException(testClass);
+    assertEquals(1, listener.snapshots.size());
   }
 
   private static void assertExceptionMsg(String expectedMsg, Snapshot snapshot) {

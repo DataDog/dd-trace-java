@@ -7,6 +7,9 @@ import static org.mockito.Mockito.when;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.api.Config;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -41,8 +44,8 @@ class ExceptionProbeManagerTest {
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
-    assertEquals("d2e9d63e304d95f6435d77bf4d0d387521591e550be21d432339a14ee1cb40", fingerprint);
-    exceptionProbeManager.createProbesForException(exception.getStackTrace());
+    assertEquals("1c27b291764c9d387fb85247bb7c2711f885aadfbf2f64fed34b2e0c64c5a2", fingerprint);
+    exceptionProbeManager.createProbesForException(fingerprint, exception.getStackTrace());
     assertEquals(1, exceptionProbeManager.getProbes().size());
     ExceptionProbe exceptionProbe = exceptionProbeManager.getProbes().iterator().next();
     assertEquals(
@@ -69,5 +72,20 @@ class ExceptionProbeManagerTest {
     assertEquals("7a1e5e1bcc64ee26801d1471245eff6b6e8d7c61d0ea36fe85f3f75d79e42c", fingerprint);
     exceptionProbeManager.createProbesForException(exception.getStackTrace());
     assertEquals(0, exceptionProbeManager.getProbes().size());
+  }
+
+  @Test
+  void lastCapture() {
+    ClassNameFiltering classNameFiltering = ClassNameFiltering.allowAll();
+    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
+    RuntimeException exception = new RuntimeException("test");
+    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
+    exceptionProbeManager.addFingerprint(fingerprint);
+    assertTrue(exceptionProbeManager.shouldCaptureException(fingerprint));
+    exceptionProbeManager.updateLastCapture(fingerprint);
+    assertFalse(exceptionProbeManager.shouldCaptureException(fingerprint));
+    Clock clock =
+        Clock.fixed(Instant.now().plus(Duration.ofMinutes(61)), Clock.systemUTC().getZone());
+    assertTrue(exceptionProbeManager.shouldCaptureException(fingerprint, clock));
   }
 }
