@@ -257,7 +257,7 @@ public final class CombiningTransformerBuilder
     }
 
     return agentBuilder
-        .type(new CombiningMatcher(knownTypesMask, matchers))
+        .type(new CombiningMatcher(instrumentation, knownTypesMask, matchers))
         .and(NOT_DECORATOR_MATCHER)
         .transform(defaultTransformers())
         .transform(new SplittingTransformer(transformers))

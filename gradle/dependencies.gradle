@@ -33,7 +33,7 @@ final class CachedData {
     testcontainers: '1.19.3',
     jmc           : "8.1.0",
     autoservice   : "1.0-rc7",
-    ddprof        : "1.4.0",
+    ddprof        : "1.5.0",
     asm           : "9.6",
     cafe_crypto   : "0.1.0",
     lz4           : "1.7.1"

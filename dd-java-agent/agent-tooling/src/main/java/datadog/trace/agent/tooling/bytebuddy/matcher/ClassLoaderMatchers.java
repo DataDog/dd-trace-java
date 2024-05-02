@@ -14,6 +14,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,8 +26,10 @@ public final class ClassLoaderMatchers {
 
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null;
 
-  private static final boolean HAS_CLASSLOADER_EXCLUDES =
-      !InstrumenterConfig.get().getExcludedClassLoaders().isEmpty();
+  private static final Set<String> EXCLUDED_CLASSLOADER_NAMES =
+      InstrumenterConfig.get().getExcludedClassLoaders();
+
+  private static final boolean CHECK_EXCLUDES = !EXCLUDED_CLASSLOADER_NAMES.isEmpty();
 
   /** A private constructor that must not be invoked. */
   private ClassLoaderMatchers() {
@@ -45,8 +48,8 @@ public final class ClassLoaderMatchers {
       case "datadog.trace.bootstrap.DatadogClassLoader":
         return true;
     }
-    if (HAS_CLASSLOADER_EXCLUDES) {
-      return InstrumenterConfig.get().getExcludedClassLoaders().contains(classLoaderName);
+    if (CHECK_EXCLUDES) {
+      return EXCLUDED_CLASSLOADER_NAMES.contains(classLoaderName);
     }
     return false;
   }
