@@ -60,8 +60,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public static volatile boolean finishTraceOnApplicationEnd = true;
   public static volatile boolean isPysparkShell = false;
 
-  private final int MAX_COLLECTION_SIZE = 1000;
-  private final int MAX_ACCUMULATOR_SIZE = 10000;
+  private final int MAX_COLLECTION_SIZE = 5000;
+  private final int MAX_ACCUMULATOR_SIZE = 50000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
 
   private final SparkConf sparkConf;
