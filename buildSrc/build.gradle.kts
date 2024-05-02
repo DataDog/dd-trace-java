@@ -1,6 +1,7 @@
 plugins {
   groovy
   `java-gradle-plugin`
+  `kotlin-dsl`
   id("com.diffplug.spotless") version "6.13.0"
 }
 
@@ -16,7 +17,7 @@ gradlePlugin {
     }
     create("call-site-instrumentation-plugin") {
       id = "call-site-instrumentation"
-      implementationClass = "CallSiteInstrumentationPlugin"
+      implementationClass = "datadog.gradle.plugin.CallSiteInstrumentationPlugin"
     }
     create("otel-converter-plugin") {
       id = "otel-converter"
@@ -53,7 +54,7 @@ dependencies {
   testImplementation("io.opentelemetry.javaagent.instrumentation", "opentelemetry-javaagent-grpc-1.6", "1.32.0-alpha")
 }
 
-tasks.compileGroovy {
+tasks.compileGroovy { // TODO This needs to be updated.
   dependsOn(":call-site-instrumentation-plugin:build")
 }
 
