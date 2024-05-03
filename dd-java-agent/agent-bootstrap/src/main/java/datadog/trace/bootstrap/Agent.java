@@ -200,12 +200,8 @@ public class Agent {
 
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
     if (dataJobsEnabled) {
-      log.info("Data Jobs Monitoring enabled, changing default integrations enabled");
+      log.info("Data Jobs Monitoring enabled, enabling spark integrations");
 
-      // If data jobs is enabled, changing default to only enable spark instrumentations
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName(TraceInstrumentationConfig.INTEGRATIONS_ENABLED),
-          "false");
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName(TracerConfig.TRACE_LONG_RUNNING_ENABLED), "true");
       setSystemPropertyDefault(
