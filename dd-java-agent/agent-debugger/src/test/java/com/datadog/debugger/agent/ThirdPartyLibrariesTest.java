@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
 import java.util.Collections;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -64,5 +65,11 @@ class ThirdPartyLibrariesTest {
     when(mockConfig.getThirdPartyExcludes()).thenReturn(Collections.singleton("java."));
     assertTrue(ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(mockConfig).contains("java."));
     assertTrue(ThirdPartyLibraries.INSTANCE.getThirdPartyExcludes(mockConfig).contains("java."));
+  }
+
+  @Test
+  void testGetExcludeAll() {
+    Set<String> excludeAll = ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(null);
+    for (char c : ThirdPartyLibraries.ALPHABET) assertTrue(excludeAll.contains(String.valueOf(c)));
   }
 }
