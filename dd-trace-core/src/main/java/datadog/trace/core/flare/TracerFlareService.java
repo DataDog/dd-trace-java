@@ -288,15 +288,17 @@ final class TracerFlareService {
       return;
     }
     Path path = Paths.get(logFile);
-    long size = Files.size(path);
-    log.debug("Size of the log file: " + size);
-    if (size > MAX_LOGFILE_SIZE_BYTES) {
-      log.info(
-          "Can't add tracer log file to the flare due to its size: {}. Max Size is {} MB.",
-          size,
-          MAX_LOGFILE_SIZE_MB);
-    } else {
-      TracerFlare.addBinary(zip, "tracer_logs.log", readAllBytes(path));
+    if (Files.exists(path)) {
+      long size = Files.size(path);
+      log.debug("Size of the log file: " + size);
+      if (size > MAX_LOGFILE_SIZE_BYTES) {
+        log.info(
+            "Can't add tracer log file to the flare due to its size: {}. Max Size is {} MB.",
+            size,
+            MAX_LOGFILE_SIZE_MB);
+      } else {
+        TracerFlare.addBinary(zip, "tracer.log", readAllBytes(path));
+      }
     }
   }
 
