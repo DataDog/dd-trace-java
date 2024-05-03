@@ -3463,8 +3463,6 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    result.put(DSM_ENABLED, isDataStreamsEnabled() ? 1 : 0);
-    result.put(DJM_ENABLED, isDataJobsEnabled() ? 1 : 0);
 
     if (reportHostName) {
       final String hostName = getHostName();
@@ -3535,6 +3533,12 @@ public class Config {
   public Map<String, String> getSpanTags() {
     final Map<String, String> result = newHashMap(spanTags.size());
     result.putAll(spanTags);
+    if (isDataStreamsEnabled()) {
+      result.put(DSM_ENABLED, "1");
+    }
+    if (isDataJobsEnabled()) {
+      result.put(DJM_ENABLED, "1");
+    }
     return Collections.unmodifiableMap(result);
   }
 
