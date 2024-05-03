@@ -54,7 +54,7 @@ dependencies {
   testImplementation("io.opentelemetry.javaagent.instrumentation", "opentelemetry-javaagent-grpc-1.6", "1.32.0-alpha")
 }
 
-tasks.compileGroovy { // TODO This needs to be updated.
+tasks.compileKotlin {
   dependsOn(":call-site-instrumentation-plugin:build")
 }
 
