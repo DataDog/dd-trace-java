@@ -40,8 +40,8 @@ public abstract class SamplingRule {
   }
 
   public static class AlwaysMatchesSamplingRule extends SamplingRule {
-    public AlwaysMatchesSamplingRule(final RateSampler sampler) {
-      super(sampler);
+    public AlwaysMatchesSamplingRule(final RateSampler sampler, byte samplingMechanism) {
+      super(sampler, samplingMechanism);
     }
 
     @Override
