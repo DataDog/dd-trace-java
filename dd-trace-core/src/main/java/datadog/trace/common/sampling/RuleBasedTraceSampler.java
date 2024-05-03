@@ -8,7 +8,6 @@ import datadog.trace.common.sampling.SamplingRule.ServiceSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.TraceSamplingRule;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.SimpleRateLimiter;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -102,12 +101,15 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
         }
       }
     }
-    
-    // Per spec, defaultRate is treated as "rule".  Arguably a defaultRate set via RC should be remote rule, 
+
+    // Per spec, defaultRate is treated as "rule".  Arguably a defaultRate set via RC should be
+    // remote rule,
     // but that's not currenlty part of the spec.
     if (defaultRate != null) {
       final SamplingRule samplingRule =
-          new AlwaysMatchesSamplingRule(new DeterministicSampler.TraceSampler(defaultRate), SamplingMechanism.LOCAL_USER_RULE);
+          new AlwaysMatchesSamplingRule(
+              new DeterministicSampler.TraceSampler(defaultRate),
+              SamplingMechanism.LOCAL_USER_RULE);
       samplingRules.add(samplingRule);
     }
 
