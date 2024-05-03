@@ -11,6 +11,12 @@ public interface SamplingRule {
   /** The "match all" glob pattern . */
   String MATCH_ALL = "*";
 
+  /** The provenance of rules generated from dynamic sampling. */
+  String DYNAMIC = "dynamic";
+
+  /** The provenance of rules supplied by the customer. */
+  String CUSTOMER = "customer";
+
   /**
    * Gets the glob pattern the span service must match to validate the rule.
    *
@@ -49,6 +55,13 @@ public interface SamplingRule {
    *     {@code 1.0}.
    */
   double getSampleRate();
+
+  /**
+   * How this rule was generated; e.g. from {@link #DYNAMIC} sampling or the {@link #CUSTOMER}.
+   *
+   * @return How this rule was generated.
+   */
+  String getProvenance();
 
   /** This interface describes the criteria of a sampling rule that can match against a trace. */
   interface TraceSamplingRule extends SamplingRule {}
