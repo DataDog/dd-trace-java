@@ -77,7 +77,6 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     span.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
     span.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
     span.getSamplingPriority() == expectedPriority
-
     decisionMaker == expectedDmStr
 
     cleanup:
@@ -173,109 +172,115 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
       .start()
     ((PrioritySampler) sampler).setSamplingPriority(span)
 
+    def propagationMap = span.context.propagationTags.createTagMap()
+    def decisionMaker = propagationMap.get('_dd.p.dm')
+
+    def expectedDmStr = (expectedDecisionMaker == null) ? null : "-" + expectedDecisionMaker
+
     then:
     span.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == expectedRuleRate
     span.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
     span.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
     span.getSamplingPriority() == expectedPriority
+	decisionMaker == expectedDmStr
 
     cleanup:
     tracer.close()
 
     where:
-    jsonRules                                                                                                                                            | defaultRate | expectedRuleRate | expectedRateLimit | expectedAgentRate | expectedPriority
+    jsonRules                                                                                                                                                                      | defaultRate | expectedDecisionMaker | expectedPriority | expectedRuleRate | expectedRateLimit | expectedAgentRate 
     // Matching neither passes through to rate based sampler
-    "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                        | null        | null             | null              | 1.0               | SAMPLER_KEEP
-    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                           | null        | null             | null              | 1.0               | SAMPLER_KEEP
+    "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                        						   | null        | AGENT_RATE            | SAMPLER_KEEP     | null             | null              | 1.0               
+    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                     | null        | AGENT_RATE            | SAMPLER_KEEP     | null             | null              | 1.0               
 
     // Matching neither with default rate
-    "[{\"sample_rate\": 1}]"                                                                                                                             | "1"         | 1.0              | 50                | null              | USER_KEEP
-    "[{\"sample_rate\": 0}]"                                                                                                                             | "0"         | 0                | null              | null              | USER_DROP
-    "[]"                                                                                                                                                 | "0"         | 0                | null              | null              | USER_DROP
-    "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                        | "1"         | 1.0              | 50                | null              | USER_KEEP
-    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                           | "1"         | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                        | "0"         | 0                | null              | null              | USER_DROP
-    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                           | "0"         | 0                | null              | null              | USER_DROP
+    "[{\"sample_rate\": 1}]"                                                                                                                                                       | "1"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"sample_rate\": 0}]"                                                                                                                                                       | "0"         | null                  | USER_DROP        | 0                | null              | null
+    "[]"                                                                                                                                                                           | "0"         | null                  | USER_DROP        | 0                | null              | null
+    "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                  | "1"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                     | "1"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                  | "0"         | null                  | USER_DROP        | 0                | null              | null
+    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                     | "0"         | null                  | USER_DROP        | 0                | null              | null 
 
     // Matching service: keep
-    "[{\"service\": \"service\", \"sample_rate\": 1}]"                                                                                                   | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"service\": \"service\", \"sample_rate\": 1}]"                                                                                                                             | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
 
     // Matching service: drop
-    "[{\"service\": \"service\", \"sample_rate\": 0}]"                                                                                                   | null        | 0                | null              | null              | USER_DROP
+    "[{\"service\": \"service\", \"sample_rate\": 0}]"                                                                                                   						   | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Matching service overrides default rate
-    "[{\"service\": \"service\", \"sample_rate\": 1}]"                                                                                                   | "0"         | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"service\", \"sample_rate\": 0}]"                                                                                                   | "1"         | 0                | null              | null              | USER_DROP
+    "[{\"service\": \"service\", \"sample_rate\": 1}]"                                                                                                   						   | "0"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"service\", \"sample_rate\": 0}]"                                                                                                   						   | "1"         | null                  | USER_DROP        | 0                | null              | null
 
     // multiple services
-    "[{\"service\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"sample_rate\": 1}]"                                                       | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"xxx\", \"sample_rate\": 1}, {\"service\": \"service\", \"sample_rate\": 0}]"                                                       | null        | 0                | null              | null              | USER_DROP
+    "[{\"service\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"sample_rate\": 1}]"                                                       						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"xxx\", \"sample_rate\": 1}, {\"service\": \"service\", \"sample_rate\": 0}]"                                                       						   | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Matching operation : keep
-    "[{\"name\": \"operation\", \"sample_rate\": 1}]"                                                                                                    | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"name\": \"operation\", \"sample_rate\": 1}]"                                                                                                    						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
 
     // Matching operation: drop
-    "[{\"name\": \"operation\", \"sample_rate\": 0}]"                                                                                                    | null        | 0                | null              | null              | USER_DROP
+    "[{\"name\": \"operation\", \"sample_rate\": 0}]"                                                                                                    						   | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Matching operation overrides default rate
-    "[{\"name\": \"operation\", \"sample_rate\": 1}]"                                                                                                    | "0"         | 1.0              | 50                | null              | USER_KEEP
-    "[{\"name\": \"operation\", \"sample_rate\": 0}]"                                                                                                    | "1"         | 0                | null              | null              | USER_DROP
+    "[{\"name\": \"operation\", \"sample_rate\": 1}]"                                                                                                    						   | "0"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"name\": \"operation\", \"sample_rate\": 0}]"                                                                                                    						   | "1"         | null                  | USER_DROP        | 0                | null              | null
 
     // multiple operation combinations
-    "[{\"name\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                                           | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"name\": \"xxx\", \"sample_rate\": 1}, {\"name\": \"operation\", \"sample_rate\": 0}]"                                                           | null        | 0                | null              | null              | USER_DROP
+    "[{\"name\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                                           						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"name\": \"xxx\", \"sample_rate\": 1}, {\"name\": \"operation\", \"sample_rate\": 0}]"                                                           					       | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Matching resource : keep
-    "[{\"resource\": \"resource\", \"sample_rate\": 1}]"                                                                                                 | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"resource\": \"resource\", \"sample_rate\": 1}]"                                                                                                 						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
 
     // Matching resource: drop
-    "[{\"resource\": \"resource\", \"sample_rate\": 0}]"                                                                                                 | null        | 0                | null              | null              | USER_DROP
+    "[{\"resource\": \"resource\", \"sample_rate\": 0}]"                                                                                                 						   | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Matching resource overrides default rate
-    "[{\"resource\": \"resource\", \"sample_rate\": 1}]"                                                                                                 | "0"         | 1.0              | 50                | null              | USER_KEEP
-    "[{\"resource\": \"resource\", \"sample_rate\": 0}]"                                                                                                 | "1"         | 0                | null              | null              | USER_DROP
+    "[{\"resource\": \"resource\", \"sample_rate\": 1}]"                                                                                                 						   | "0"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"resource\": \"resource\", \"sample_rate\": 0}]"                                                                                                 					       | "1"         | null                  | USER_DROP        | 0                | null              | null
 
     // Multiple resource combinations
-    "[{\"resource\": \"xxx\", \"sample_rate\": 0}, {\"resource\": \"resource\", \"sample_rate\": 1}]"                                                    | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"resource\": \"xxx\", \"sample_rate\": 1}, {\"resource\": \"resource\", \"sample_rate\": 0}]"                                                    | null        | 0                | null              | null              | USER_DROP
+    "[{\"resource\": \"xxx\", \"sample_rate\": 0}, {\"resource\": \"resource\", \"sample_rate\": 1}]"                                                    						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"resource\": \"xxx\", \"sample_rate\": 1}, {\"resource\": \"resource\", \"sample_rate\": 0}]"                                                    						   | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Select matching service + operation rules
-    "[{\"service\": \"service\", \"sample_rate\": 1}, {\"name\": \"operation\", \"sample_rate\": 0}]"                                                    | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"service\", \"sample_rate\": 1}, {\"name\": \"xxx\", \"sample_rate\": 0}]"                                                          | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"service\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                                    | null        | 0                | null              | null              | USER_DROP
-    "[{\"service\": \"service\", \"sample_rate\": 0}, {\"name\": \"xxx\", \"sample_rate\": 1}]"                                                          | null        | 0                | null              | null              | USER_DROP
-    "[{\"service\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                                        | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"xxx\", \"sample_rate\": 1}, {\"name\": \"operation\", \"sample_rate\": 0}]"                                                        | null        | 0                | null              | null              | USER_DROP
+    "[{\"service\": \"service\", \"sample_rate\": 1}, {\"name\": \"operation\", \"sample_rate\": 0}]"                                                    						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"service\", \"sample_rate\": 1}, {\"name\": \"xxx\", \"sample_rate\": 0}]"                                                          						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"service\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                                    						   | null        | null                  | USER_DROP        | 0                | null              | null
+    "[{\"service\": \"service\", \"sample_rate\": 0}, {\"name\": \"xxx\", \"sample_rate\": 1}]"                                                          						   | null        | null                  | USER_DROP        | 0                | null              | null
+    "[{\"service\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                                        						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"xxx\", \"sample_rate\": 1}, {\"name\": \"operation\", \"sample_rate\": 0}]"                                                        					       | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Select matching service + operation rules
-    "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"                                                                          | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"       | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"sample_rate\": 1}]"                                | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                 | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"resource\": \"resource\", \"sample_rate\": 1}]"                          | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]" | null        | 0                | null              | null              | USER_DROP
-    "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}]"                                                                          | null        | 0                | null              | null              | USER_DROP
+    "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"                                                                          						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null 
+    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"       						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null 
+    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"sample_rate\": 1}]"                                						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null 
+    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                 						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null 
+    "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"resource\": \"resource\", \"sample_rate\": 1}]"                          						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]" 						   | null        | null                  | USER_DROP        | 0                | null              | null
+    "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}]"                                                                          						   | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Select matching service + resource
-    "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"sample_rate\": 1}]"                          | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"sample_rate\": 1}]"                          | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
 
     // Select matching service + resource + operation rules
-    "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"name\": \"operation\", \"sample_rate\": 1}]"                          | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"name\": \"operation\", \"sample_rate\": 1}]" | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
 
     // Select matching single tag rules
-    "[{\"tags\": {\"env\": \"xxx\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"bar\"}, \"sample_rate\": 1}]"                                           | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"tags\": {\"env\": \"*x\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"*\"}, \"sample_rate\": 1}]"                                              | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"b?r\"}, \"sample_rate\": 1}]"                                           | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 1}, {\"tags\": {\"env\": \"b?r\"}, \"sample_rate\": 0}]"                                           | null        | 0                | null              | null              | USER_DROP
+    "[{\"tags\": {\"env\": \"xxx\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"bar\"}, \"sample_rate\": 1}]"                                           						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"tags\": {\"env\": \"*x\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"*\"}, \"sample_rate\": 1}]"                                              						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"b?r\"}, \"sample_rate\": 1}]"                                           						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 1}, {\"tags\": {\"env\": \"b?r\"}, \"sample_rate\": 0}]"                                           						   | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Select matching two tags rules
-    "[{\"tags\": {\"env\": \"xxx\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"bar\", \"tag\": \"foo\"}, \"sample_rate\": 1}]"                         | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"tags\": {\"env\": \"*x\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"*\", \"tag\": \"*\"}, \"sample_rate\": 1}]"                              | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 1}]"                         | null        | 1.0              | 50                | null              | USER_KEEP
-    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 1}, {\"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 0}]"                         | null        | 0                | null              | null              | USER_DROP
+    "[{\"tags\": {\"env\": \"xxx\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"bar\", \"tag\": \"foo\"}, \"sample_rate\": 1}]"                         						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"tags\": {\"env\": \"*x\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"*\", \"tag\": \"*\"}, \"sample_rate\": 1}]"                         						       | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 1}]"                         						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"tags\": {\"env\": \"x??\"}, \"sample_rate\": 1}, {\"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 0}]"                         						   | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Select matching service + resource + operation + tag rules
-    "[{\"service\": \"service\", \"resource\": \"xxx\", \"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"name\": \"operation\", \"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 1}]"                          | null        | 1.0              | 50                | null              | USER_KEEP
+    "[{\"service\": \"service\", \"resource\": \"xxx\", \"tags\": {\"env\": \"x??\"}, \"sample_rate\": 0}, {\"service\": \"service\", \"resource\": \"resource\", \"name\": \"operation\", \"tags\": {\"env\": \"b?r\", \"tag\": \"f??\"}, \"sample_rate\": 1}]"    | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
 
   }
 
