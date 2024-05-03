@@ -35,6 +35,5 @@ public class EntrySpanOriginAdvice {
     StackTraceElement[] stackTrace =
         new Exception("\"EntrySpanOriginAdvice.onExit\" trace").getStackTrace();
     span.setTag(DDTags.DD_ENTRY_END_LINE, stackTrace[0].getLineNumber());
-    System.out.println(">>>>>>  span.getTags() = " + span.getTags());
   }
 }

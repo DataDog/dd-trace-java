@@ -6,7 +6,6 @@ public class ExitSpanOriginAdvice {
 
   @Advice.OnMethodEnter
   public static void onEnter() {
-    System.out.println("ExitSpanOriginAdvice.onEnter");
     /*
         StackTraceElement[] stackTrace =
             new Exception("\"ExitSpanOriginAdvice.onEnter\" trace").getStackTrace();
