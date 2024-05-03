@@ -163,14 +163,25 @@ allprojects { project ->
 }
 
 
-def testAggregate(String baseTaskName, includePrefixes, excludePrefixes) {
+def testAggregate(String baseTaskName, includePrefixes, excludePrefixes, boolean coverage = false) {
   def createRootTask = { rootTaskName, subProjTaskName ->
     tasks.register(rootTaskName) { aggTest ->
+      println("=> testAggregate.register $rootTaskName $subProjTaskName $aggTest")
       subprojects { subproject ->
         if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
           def testTask = subproject.tasks.findByName(subProjTaskName)
           if (testTask != null) {
             aggTest.dependsOn(testTask)
+          }
+          if (coverage) {
+            def coverageTask = subproject.tasks.findByName("jacocoTestReport")
+            if (coverageTask != null) {
+              aggTest.dependsOn(coverageTask)
+            }
+            coverageTask = subproject.tasks.findByName("jacocoTestCoverageVerification")
+            if (coverageTask != null) {
+              aggTest.dependsOn(coverageTask)
+            }
           }
         }
       }
@@ -211,7 +222,7 @@ allprojects { project ->
 testAggregate("smoke", [":dd-smoke-tests"], [])
 testAggregate("instrumentation", [":dd-java-agent:instrumentation"], [])
 testAggregate("profiling", [":dd-java-agent:agent-profiling"], [])
-testAggregate("debugger", [":dd-java-agent:agent-debugger"], [])
+testAggregate("debugger", [":dd-java-agent:agent-debugger"], [], true)
 testAggregate("base", [":"], [
   ":dd-java-agent:instrumentation",
   ":dd-smoke-tests",
