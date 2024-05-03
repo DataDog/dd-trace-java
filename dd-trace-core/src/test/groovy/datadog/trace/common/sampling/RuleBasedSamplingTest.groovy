@@ -13,6 +13,10 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 
+import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE
+import static datadog.trace.api.sampling.SamplingMechanism.LOCAL_USER_RULE
+
+
 class RuleBasedSamplingTest extends DDCoreSpecification {
   def "Rule Based Sampler is not created when properties not set"() {
     when:
@@ -63,76 +67,80 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
       .ignoreActiveSpan().start()
     ((PrioritySampler) sampler).setSamplingPriority(span)
 
+    def propagationMap = span.context.propagationTags.createTagMap()
+    def decisionMaker = propagationMap.get('_dd.p.dm')
+
+    def expectedDmStr = (expectedDecisionMaker == null) ? null : "-" + expectedDecisionMaker
+
     then:
     span.getTag(RuleBasedTraceSampler.SAMPLING_RULE_RATE) == expectedRuleRate
     span.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
     span.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
     span.getSamplingPriority() == expectedPriority
 
+    decisionMaker == expectedDmStr
+
     cleanup:
     tracer.close()
 
     where:
-    serviceRules      | operationRules      | defaultRate | expectedRuleRate | expectedRateLimit | expectedAgentRate | expectedPriority
-    // Matching neither passes through to rate based sampler
-    "xx:1"            | null                | null        | null             | null              | 1.0               | SAMPLER_KEEP
-    null              | "xx:1"              | null        | null             | null              | 1.0               | SAMPLER_KEEP
+    serviceRules      | operationRules      | defaultRate | expectedDecisionMaker | expectedPriority | expectedRuleRate | expectedRateLimit | expectedAgentRate
 
-    // Matching neither with default rate
-    null              | null                | "1"         | 1.0              | 50                | null              | USER_KEEP
-    null              | null                | "0"         | 0                | null              | null              | USER_DROP
-    "xx:1"            | null                | "1"         | 1.0              | 50                | null              | USER_KEEP
-    null              | "xx:1"              | "1"         | 1.0              | 50                | null              | USER_KEEP
-    "xx:1"            | null                | "0"         | 0                | null              | null              | USER_DROP
-    null              | "xx:1"              | "0"         | 0                | null              | null              | USER_DROP
+    // Matching neither passes through to rate based sampler
+    "xx:1"            | null                | null        | AGENT_RATE            | SAMPLER_KEEP     | null             | null              | 1.0
+    null              | "xx:1"              | null        | AGENT_RATE            | SAMPLER_KEEP     | null             | null              | 1.0
+
+    // Matching neither with default rate - per spec, use of defaultRate is considered a "rule"
+    null              | null                | "1"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    null              | null                | "0"         | null                  | USER_DROP        | 0                | null              | null
+    "xx:1"            | null                | "1"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    null              | "xx:1"              | "1"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "xx:1"            | null                | "0"         | null                  | USER_DROP        | 0                | null              | null
+    null              | "xx:1"              | "0"         | null                  | USER_DROP        | 0                | null              | null
 
     // Matching service: keep
-    "service:1"       | null                | null        | 1.0              | 50                | null              | USER_KEEP
-    "s.*:1"           | null                | null        | 1.0              | 50                | null              | USER_KEEP
-    ".*e:1"           | null                | null        | 1.0              | 50                | null              | USER_KEEP
-    "[a-z]+:1"        | null                | null        | 1.0              | 50                | null              | USER_KEEP
+    "service:1"       | null                | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "s.*:1"           | null                | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    ".*e:1"           | null                | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
 
     // Matching service: drop
-    "service:0"       | null                | null        | 0                | null              | null              | USER_DROP
-    "s.*:0"           | null                | null        | 0                | null              | null              | USER_DROP
-    ".*e:0"           | null                | null        | 0                | null              | null              | USER_DROP
-    "[a-z]+:0"        | null                | null        | 0                | null              | null              | USER_DROP
+    "service:0"       | null                | null        | null                  | USER_DROP        | 0                | null              | null
+    "s.*:0"           | null                | null        | null                  | USER_DROP        | 0                | null              | null
+    ".*e:0"           | null                | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Matching service overrides default rate
-    "service:1"       | null                | "0"         | 1.0              | 50                | null              | USER_KEEP
-    "service:0"       | null                | "1"         | 0                | null              | null              | USER_DROP
+    "service:1"       | null                | "0"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "service:0"       | null                | "1"         | null                  | USER_DROP        | 0                | null              | null
 
     // multiple services
-    "xxx:0,service:1" | null                | null        | 1.0              | 50                | null              | USER_KEEP
-    "xxx:1,service:0" | null                | null        | 0                | null              | null              | USER_DROP
+    "xxx:0,service:1" | null                | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "xxx:1,service:0" | null                | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Matching operation : keep
-    null              | "operation:1"       | null        | 1.0              | 50                | null              | USER_KEEP
-    null              | "o.*:1"             | null        | 1.0              | 50                | null              | USER_KEEP
-    null              | ".*n:1"             | null        | 1.0              | 50                | null              | USER_KEEP
-    null              | "[a-z]+:1"          | null        | 1.0              | 50                | null              | USER_KEEP
+    null              | "operation:1"       | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    null              | "o.*:1"             | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    null              | ".*n:1"             | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
 
     // Matching operation: drop
-    null              | "operation:0"       | null        | 0                | null              | null              | USER_DROP
-    null              | "o.*:0"             | null        | 0                | null              | null              | USER_DROP
-    null              | ".*n:0"             | null        | 0                | null              | null              | USER_DROP
-    null              | "[a-z]+:0"          | null        | 0                | null              | null              | USER_DROP
+    null              | "operation:0"       | null        | null                  | USER_DROP        | 0                | null              | null
+    null              | "o.*:0"             | null        | null                  | USER_DROP        | 0                | null              | null
+    null              | ".*n:0"             | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Matching operation overrides default rate
-    null              | "operation:1"       | "0"         | 1.0              | 50                | null              | USER_KEEP
-    null              | "operation:0"       | "1"         | 0                | null              | null              | USER_DROP
+    null              | "operation:1"       | "0"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    null              | "operation:0"       | "1"         | null                  | USER_DROP        | 0                | null              | null
 
     // multiple operation combinations
-    null              | "xxx:0,operation:1" | null        | 1.0              | 50                | null              | USER_KEEP
-    null              | "xxx:1,operation:0" | null        | 0                | null              | null              | USER_DROP
+    null              | "xxx:0,operation:1" | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    null              | "xxx:1,operation:0" | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Service and operation name combinations
-    "service:1"       | "operation:0"       | null        | 1.0              | 50                | null              | USER_KEEP
-    "service:1"       | "xxx:0"             | null        | 1.0              | 50                | null              | USER_KEEP
-    "service:0"       | "operation:1"       | null        | 0                | null              | null              | USER_DROP
-    "service:0"       | "xxx:1"             | null        | 0                | null              | null              | USER_DROP
-    "xxx:0"           | "operation:1"       | null        | 1.0              | 50                | null              | USER_KEEP
-    "xxx:1"           | "operation:0"       | null        | 0                | null              | null              | USER_DROP
+    "service:1"       | "operation:0"       | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "service:1"       | "xxx:0"             | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "service:0"       | "operation:1"       | null        | null                  | USER_DROP        | 0                | null              | null
+    "service:0"       | "xxx:1"             | null        | null                  | USER_DROP        | 0                | null              | null
+    "xxx:0"           | "operation:1"       | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "xxx:1"           | "operation:0"       | null        | null                  | USER_DROP        | 0                | null              | null
 
     // There are no tests for ordering within service or operation rules because the rule order in that case is unspecified
   }
