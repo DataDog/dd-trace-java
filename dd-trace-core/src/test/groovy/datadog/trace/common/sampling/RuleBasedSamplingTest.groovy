@@ -182,16 +182,16 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     span.getTag(RuleBasedTraceSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
     span.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
     span.getSamplingPriority() == expectedPriority
-	decisionMaker == expectedDmStr
+    decisionMaker == expectedDmStr
 
     cleanup:
     tracer.close()
 
     where:
-    jsonRules                                                                                                                                                                      | defaultRate | expectedDecisionMaker | expectedPriority | expectedRuleRate | expectedRateLimit | expectedAgentRate 
+    jsonRules                                                                                                                                                                      | defaultRate | expectedDecisionMaker | expectedPriority | expectedRuleRate | expectedRateLimit | expectedAgentRate
     // Matching neither passes through to rate based sampler
-    "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                        						   | null        | AGENT_RATE            | SAMPLER_KEEP     | null             | null              | 1.0               
-    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                     | null        | AGENT_RATE            | SAMPLER_KEEP     | null             | null              | 1.0               
+    "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                        						   | null        | AGENT_RATE            | SAMPLER_KEEP     | null             | null              | 1.0
+    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                     | null        | AGENT_RATE            | SAMPLER_KEEP     | null             | null              | 1.0
 
     // Matching neither with default rate
     "[{\"sample_rate\": 1}]"                                                                                                                                                       | "1"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
@@ -200,7 +200,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                  | "1"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
     "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                     | "1"         | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
     "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                  | "0"         | null                  | USER_DROP        | 0                | null              | null
-    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                     | "0"         | null                  | USER_DROP        | 0                | null              | null 
+    "[{\"name\": \"xx\", \"sample_rate\": 1}]"                                                                                                                                     | "0"         | null                  | USER_DROP        | 0                | null              | null
 
     // Matching service: keep
     "[{\"service\": \"service\", \"sample_rate\": 1}]"                                                                                                                             | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
@@ -253,10 +253,10 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     "[{\"service\": \"xxx\", \"sample_rate\": 1}, {\"name\": \"operation\", \"sample_rate\": 0}]"                                                        					       | null        | null                  | USER_DROP        | 0                | null              | null
 
     // Select matching service + operation rules
-    "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"                                                                          						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null 
-    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"       						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null 
-    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"sample_rate\": 1}]"                                						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null 
-    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                 						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null 
+    "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"                                                                          						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]"       						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"service\": \"service\", \"sample_rate\": 1}]"                                						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
+    "[{\"service\": \"service\", \"name\": \"xxx\", \"sample_rate\": 0}, {\"name\": \"operation\", \"sample_rate\": 1}]"                                 						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
     "[{\"service\": \"service\", \"resource\": \"xxx\", \"sample_rate\": 0}, {\"resource\": \"resource\", \"sample_rate\": 1}]"                          						   | null        | LOCAL_USER_RULE       | USER_KEEP        | 1.0              | 50                | null
     "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}, {\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 1}]" 						   | null        | null                  | USER_DROP        | 0                | null              | null
     "[{\"service\": \"service\", \"name\": \"operation\", \"sample_rate\": 0}]"                                                                          						   | null        | null                  | USER_DROP        | 0                | null              | null

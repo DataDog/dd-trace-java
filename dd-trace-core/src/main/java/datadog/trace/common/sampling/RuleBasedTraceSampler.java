@@ -48,7 +48,6 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
       final TraceSamplingRules traceSamplingRules,
       final Double defaultRate,
       final int rateLimit) {
-
     final List<SamplingRule> samplingRules = new ArrayList<>();
 
     if (traceSamplingRules != null && !traceSamplingRules.isEmpty()) {

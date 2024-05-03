@@ -101,7 +101,7 @@ public abstract class SamplingRule {
         final RateSampler sampler,
         final byte samplingMechanism) {
       super(sampler, samplingMechanism);
-      
+
       serviceMatcher = Matchers.compileGlob(serviceGlob);
       operationMatcher = Matchers.compileGlob(operationGlob);
       resourceMatcher = Matchers.compileGlob(resourceGlob);
