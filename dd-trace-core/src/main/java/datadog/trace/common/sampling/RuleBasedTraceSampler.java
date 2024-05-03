@@ -68,7 +68,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
                 rule.getName(),
                 rule.getResource(),
                 rule.getTags(),
-                new DeterministicSampler.TraceSampler(rule.getSampleRate()));
+                new DeterministicSampler.TraceSampler(rule.getSampleRate()),
+                SamplingMechanism.LOCAL_USER_RULE);
         samplingRules.add(samplingRule);
       }
     } else {
