@@ -169,8 +169,10 @@ final class TracingConfigPoller {
         for (Iterator<TracingSamplingRule> itr = rules.iterator(); itr.hasNext(); ) {
           TracingSamplingRule rule = itr.next();
           // check for required fields
-          if (null == rule.service
-              || null == rule.resource
+          if ((null == rule.service
+                  && null == rule.name
+                  && null == rule.resource
+                  && null == rule.tags)
               || null == rule.sampleRate
               || null == rule.provenance) {
             log.debug(
@@ -182,7 +184,6 @@ final class TracingConfigPoller {
           rule.name = normalizeGlob(rule.name);
           rule.resource = normalizeGlob(rule.resource);
           rule.sampleRate = checkSampleRate(rule.sampleRate);
-          rule.provenance = normalizeGlob(rule.provenance);
         }
       }
       return rules;
