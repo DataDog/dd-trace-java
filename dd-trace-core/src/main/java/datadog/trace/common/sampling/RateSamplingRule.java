@@ -1,5 +1,6 @@
 package datadog.trace.common.sampling;
 
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.Matcher;
 import datadog.trace.core.util.Matchers;
@@ -10,9 +11,16 @@ import java.util.regex.Pattern;
 
 public abstract class RateSamplingRule {
   private final RateSampler sampler;
+  private final byte mechanism;
 
-  public RateSamplingRule(final RateSampler sampler) {
+  public RateSamplingRule(final RateSampler sampler, byte mechanism) {
     this.sampler = sampler;
+    this.mechanism = mechanism;
+  }
+
+  @Deprecated
+  public RateSamplingRule(final RateSampler sampler) {
+    this(sampler, SamplingMechanism.LOCAL_USER_RULE);
   }
 
   public abstract <T extends CoreSpan<T>> boolean matches(T span);
@@ -25,10 +33,13 @@ public abstract class RateSamplingRule {
     return sampler;
   }
 
-  public static class AlwaysMatchesSamplingRule extends RateSamplingRule {
+  public final byte getMechanism() {
+    return mechanism;
+  }
 
-    public AlwaysMatchesSamplingRule(final RateSampler sampler) {
-      super(sampler);
+  public static class AlwaysMatchesSamplingRule extends RateSamplingRule {
+    public AlwaysMatchesSamplingRule(final RateSampler sampler, byte samplingMechanism) {
+      super(sampler, samplingMechanism);
     }
 
     @Override
@@ -87,8 +98,10 @@ public abstract class RateSamplingRule {
         final String operationGlob,
         final String resourceGlob,
         final Map<String, String> tags,
-        final RateSampler sampler) {
-      super(sampler);
+        final RateSampler sampler,
+        final byte samplingMechanism) {
+      super(sampler, samplingMechanism);
+
       serviceMatcher = Matchers.compileGlob(serviceGlob);
       operationMatcher = Matchers.compileGlob(operationGlob);
       resourceMatcher = Matchers.compileGlob(resourceGlob);

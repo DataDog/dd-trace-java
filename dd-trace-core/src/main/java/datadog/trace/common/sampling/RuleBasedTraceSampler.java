@@ -1,7 +1,6 @@
 package datadog.trace.common.sampling;
 
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.core.CoreSpan;
@@ -68,7 +67,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
                 rule.getName(),
                 rule.getResource(),
                 rule.getTags(),
-                new DeterministicSampler.TraceSampler(rule.getSampleRate()));
+                new DeterministicSampler.TraceSampler(rule.getSampleRate()),
+                SamplingMechanism.LOCAL_USER_RULE);
         samplingRules.add(samplingRule);
       }
     } else {
@@ -102,10 +102,14 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
       }
     }
 
+    // Per spec, defaultRate is treated as "rule".  Arguably a defaultRate set via RC should be
+    // remote rule,
+    // but that's not currenlty part of the spec.
     if (defaultRate != null) {
       final RateSamplingRule samplingRule =
           new RateSamplingRule.AlwaysMatchesSamplingRule(
-              new DeterministicSampler.TraceSampler(defaultRate));
+              new DeterministicSampler.TraceSampler(defaultRate),
+              SamplingMechanism.LOCAL_USER_RULE);
       samplingRules.add(samplingRule);
     }
 
@@ -137,13 +141,13 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
               PrioritySampling.USER_KEEP,
               SAMPLING_RULE_RATE,
               matchedRule.getSampler().getSampleRate(),
-              SamplingMechanism.RULE);
+              matchedRule.getMechanism());
         } else {
           span.setSamplingPriority(
               PrioritySampling.USER_DROP,
               SAMPLING_RULE_RATE,
               matchedRule.getSampler().getSampleRate(),
-              SamplingMechanism.RULE);
+              matchedRule.getMechanism());
         }
         span.setMetric(SAMPLING_LIMIT_RATE, rateLimit);
       } else {
@@ -151,7 +155,7 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
             PrioritySampling.USER_DROP,
             SAMPLING_RULE_RATE,
             matchedRule.getSampler().getSampleRate(),
-            SamplingMechanism.RULE);
+            matchedRule.getMechanism());
       }
     }
   }
