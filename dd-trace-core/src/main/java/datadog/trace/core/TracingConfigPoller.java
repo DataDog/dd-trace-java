@@ -407,8 +407,12 @@ final class TracingConfigPoller {
     }
 
     @Override
-    public String getProvenance() {
-      return provenance;
+    public Provenance getProvenance() {
+      if ("dynamic".equals(provenance)) {
+        return Provenance.DYNAMIC;
+      } else {
+        return Provenance.CUSTOMER;
+      }
     }
   }
 
