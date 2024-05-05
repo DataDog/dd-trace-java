@@ -68,7 +68,7 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
                 rule.getResource(),
                 rule.getTags(),
                 new DeterministicSampler.TraceSampler(rule.getSampleRate()),
-                SamplingMechanism.LOCAL_USER_RULE);
+                samplingMechanism(rule.getProvenance()));
         samplingRules.add(samplingRule);
       }
     } else {
@@ -114,6 +114,17 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
     }
 
     return new RuleBasedTraceSampler(samplingRules, rateLimit, new RateByServiceTraceSampler());
+  }
+
+  private static byte samplingMechanism(SamplingRule.Provenance provenance) {
+    switch (provenance) {
+      case DYNAMIC:
+        return SamplingMechanism.REMOTE_ADAPTIVE_RULE;
+      case CUSTOMER:
+        return SamplingMechanism.REMOTE_USER_RULE;
+      default:
+        return SamplingMechanism.LOCAL_USER_RULE;
+    }
   }
 
   @Override
