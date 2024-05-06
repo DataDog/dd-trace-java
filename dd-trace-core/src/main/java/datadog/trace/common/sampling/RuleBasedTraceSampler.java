@@ -3,10 +3,7 @@ package datadog.trace.common.sampling;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
-import datadog.trace.common.sampling.SamplingRule.AlwaysMatchesSamplingRule;
-import datadog.trace.common.sampling.SamplingRule.OperationSamplingRule;
-import datadog.trace.common.sampling.SamplingRule.ServiceSamplingRule;
-import datadog.trace.common.sampling.SamplingRule.TraceSamplingRule;
+import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.SimpleRateLimiter;
 import java.util.ArrayList;
@@ -19,7 +16,7 @@ import org.slf4j.LoggerFactory;
 public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, PrioritySampler {
 
   private static final Logger log = LoggerFactory.getLogger(RuleBasedTraceSampler.class);
-  private final List<SamplingRule> samplingRules;
+  private final List<RateSamplingRule> samplingRules;
   private final PrioritySampler fallbackSampler;
   private final SimpleRateLimiter rateLimiter;
   private final long rateLimit;
@@ -28,7 +25,7 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
   public static final String SAMPLING_LIMIT_RATE = "_dd.limit_psr";
 
   public RuleBasedTraceSampler(
-      final List<SamplingRule> samplingRules,
+      final List<RateSamplingRule> samplingRules,
       final int rateLimit,
       final PrioritySampler fallbackSampler) {
     this.samplingRules = samplingRules;
@@ -39,18 +36,20 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
   }
 
   public static RuleBasedTraceSampler build(
-      final TraceSamplingRules traceSamplingRules, final Double defaultRate, final int rateLimit) {
+      final List<? extends SamplingRule.TraceSamplingRule> traceSamplingRules,
+      final Double defaultRate,
+      final int rateLimit) {
     return build(null, null, traceSamplingRules, defaultRate, rateLimit);
   }
 
   public static RuleBasedTraceSampler build(
       @Deprecated final Map<String, String> serviceRules,
       @Deprecated final Map<String, String> operationRules,
-      final TraceSamplingRules traceSamplingRules,
+      final List<? extends SamplingRule.TraceSamplingRule> traceSamplingRules,
       final Double defaultRate,
       final int rateLimit) {
 
-    final List<SamplingRule> samplingRules = new ArrayList<>();
+    final List<RateSamplingRule> samplingRules = new ArrayList<>();
 
     if (traceSamplingRules != null && !traceSamplingRules.isEmpty()) {
       if ((!serviceRules.isEmpty() || !operationRules.isEmpty())) {
@@ -62,9 +61,9 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
             TracerConfig.TRACE_SAMPLING_RULES);
       }
       // Ignore serviceRules & operationRules if traceSamplingRules are defined
-      for (TraceSamplingRules.Rule rule : traceSamplingRules.getRules()) {
-        TraceSamplingRule samplingRule =
-            new TraceSamplingRule(
+      for (SamplingRule.TraceSamplingRule rule : traceSamplingRules) {
+        RateSamplingRule.TraceSamplingRule samplingRule =
+            new RateSamplingRule.TraceSamplingRule(
                 rule.getService(),
                 rule.getName(),
                 rule.getResource(),
@@ -78,8 +77,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
         for (final Entry<String, String> entry : serviceRules.entrySet()) {
           try {
             final double rateForEntry = Double.parseDouble(entry.getValue());
-            final SamplingRule samplingRule =
-                new ServiceSamplingRule(
+            final RateSamplingRule samplingRule =
+                new RateSamplingRule.ServiceSamplingRule(
                     entry.getKey(), new DeterministicSampler.TraceSampler(rateForEntry));
             samplingRules.add(samplingRule);
           } catch (final NumberFormatException e) {
@@ -92,8 +91,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
         for (final Entry<String, String> entry : operationRules.entrySet()) {
           try {
             final double rateForEntry = Double.parseDouble(entry.getValue());
-            final SamplingRule samplingRule =
-                new OperationSamplingRule(
+            final RateSamplingRule samplingRule =
+                new RateSamplingRule.OperationSamplingRule(
                     entry.getKey(), new DeterministicSampler.TraceSampler(rateForEntry));
             samplingRules.add(samplingRule);
           } catch (final NumberFormatException e) {
@@ -104,8 +103,9 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
     }
 
     if (defaultRate != null) {
-      final SamplingRule samplingRule =
-          new AlwaysMatchesSamplingRule(new DeterministicSampler.TraceSampler(defaultRate));
+      final RateSamplingRule samplingRule =
+          new RateSamplingRule.AlwaysMatchesSamplingRule(
+              new DeterministicSampler.TraceSampler(defaultRate));
       samplingRules.add(samplingRule);
     }
 
@@ -119,9 +119,9 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
 
   @Override
   public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
-    SamplingRule matchedRule = null;
+    RateSamplingRule matchedRule = null;
 
-    for (final SamplingRule samplingRule : samplingRules) {
+    for (final RateSamplingRule samplingRule : samplingRules) {
       if (samplingRule.matches(span)) {
         matchedRule = samplingRule;
         break;

@@ -53,7 +53,7 @@ public interface SingleSpanSampler {
   }
 
   final class RuleBasedSingleSpanSampler implements SingleSpanSampler {
-    private final List<SamplingRule.SpanSamplingRule> spanSamplingRules;
+    private final List<RateSamplingRule.SpanSamplingRule> spanSamplingRules;
 
     public RuleBasedSingleSpanSampler(SpanSamplingRules rules) {
       if (rules == null) {
@@ -66,8 +66,8 @@ public interface SingleSpanSampler {
             rule.getMaxPerSecond() == Integer.MAX_VALUE
                 ? null
                 : new SimpleRateLimiter(rule.getMaxPerSecond());
-        SamplingRule.SpanSamplingRule spanSamplingRule =
-            new SamplingRule.SpanSamplingRule(
+        RateSamplingRule.SpanSamplingRule spanSamplingRule =
+            new RateSamplingRule.SpanSamplingRule(
                 rule.getService(), rule.getName(), sampler, simpleRateLimiter);
         spanSamplingRules.add(spanSamplingRule);
       }
@@ -75,7 +75,7 @@ public interface SingleSpanSampler {
 
     @Override
     public <T extends CoreSpan<T>> boolean setSamplingPriority(T span) {
-      for (SamplingRule.SpanSamplingRule rule : spanSamplingRules) {
+      for (RateSamplingRule.SpanSamplingRule rule : spanSamplingRules) {
         if (rule.matches(span)) {
           if (rule.sample(span)) {
             double rate = rule.getSampler().getSampleRate();
