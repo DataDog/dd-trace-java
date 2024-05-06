@@ -304,7 +304,7 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     where:
     headerValue                       | priority                      | mechanism                           | origin  | expectedHeaderValue                | tags
     'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT           | "other" | 'dd=s:0;o:other;t.dm:934086a686-4' | ['_dd.p.dm': '934086a686-4']
-    'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_KEEP    | SamplingMechanism.RULE              | "same"  | 'dd=s:2;o:same;t.dm:-3;x:unknown'  | ['_dd.p.dm': '-3']
+    'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_KEEP    | SamplingMechanism.LOCAL_USER_RULE   | "same"  | 'dd=s:2;o:same;t.dm:-3;x:unknown'  | ['_dd.p.dm': '-3']
     'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL            | null    | 'dd=s:-1;x:unknown'                | [:]
     'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.EXTERNAL_OVERRIDE | "other" | 'dd=s:1;o:other;t.dm:-0'           | ['_dd.p.dm': '-0']
     'dd=s:1;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_DROP | SamplingMechanism.EXTERNAL_OVERRIDE | "other" | 'dd=s:0;o:other'                   | [:]
