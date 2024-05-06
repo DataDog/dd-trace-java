@@ -88,6 +88,7 @@ public class SpanSamplingRules {
     private final Map<String, String> tags;
     private final double sampleRate;
     private final int maxPerSecond;
+    private final String provenance;
 
     private Rule(
         String service,
@@ -95,13 +96,15 @@ public class SpanSamplingRules {
         String resource,
         Map<String, String> tags,
         double sampleRate,
-        int maxPerSecond) {
+        int maxPerSecond,
+        String provenance) {
       this.service = service;
       this.name = name;
       this.resource = resource;
       this.tags = tags;
       this.sampleRate = sampleRate;
       this.maxPerSecond = maxPerSecond;
+      this.provenance = provenance;
     }
 
     /**
@@ -145,7 +148,7 @@ public class SpanSamplingRules {
           return null;
         }
       }
-      return new Rule(service, name, resource, tags, sampleRate, maxPerSecond);
+      return new Rule(service, name, resource, tags, sampleRate, maxPerSecond, CUSTOMER);
     }
 
     private static void logRuleError(JsonRule rule, String error) {
@@ -180,6 +183,11 @@ public class SpanSamplingRules {
     @Override
     public int getMaxPerSecond() {
       return maxPerSecond;
+    }
+
+    @Override
+    public String getProvenance() {
+      return provenance;
     }
   }
 

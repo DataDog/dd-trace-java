@@ -21,7 +21,7 @@ class ExceptionProbeManagerTest {
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     RuntimeException exception = new RuntimeException("test");
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
-    exceptionProbeManager.createProbesForException(fingerprint, exception.getStackTrace());
+    exceptionProbeManager.createProbesForException(exception.getStackTrace());
     assertFalse(exceptionProbeManager.getProbes().isEmpty());
   }
 
@@ -42,7 +42,7 @@ class ExceptionProbeManagerTest {
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     assertEquals("d2e9d63e304d95f6435d77bf4d0d387521591e550be21d432339a14ee1cb40", fingerprint);
-    exceptionProbeManager.createProbesForException(fingerprint, exception.getStackTrace());
+    exceptionProbeManager.createProbesForException(exception.getStackTrace());
     assertEquals(1, exceptionProbeManager.getProbes().size());
     ExceptionProbe exceptionProbe = exceptionProbeManager.getProbes().iterator().next();
     assertEquals(
@@ -67,7 +67,7 @@ class ExceptionProbeManagerTest {
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     assertEquals("7a1e5e1bcc64ee26801d1471245eff6b6e8d7c61d0ea36fe85f3f75d79e42c", fingerprint);
-    exceptionProbeManager.createProbesForException("", exception.getStackTrace());
+    exceptionProbeManager.createProbesForException(exception.getStackTrace());
     assertEquals(0, exceptionProbeManager.getProbes().size());
   }
 }

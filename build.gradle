@@ -5,9 +5,9 @@ buildscript {
 
   configurations.all {
     resolutionStrategy.dependencySubstitution {
-      substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
-      substitute module("com.jcraft:jsch.agentproxy") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
-      substitute module("com.jcraft:jzlib") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
+      substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.17") because "jcraft is unmaintained"
+      substitute module("com.jcraft:jsch.agentproxy") using module("com.github.mwiede:jsch:0.2.17") because "jcraft is unmaintained"
+      substitute module("com.jcraft:jzlib") using module("com.github.mwiede:jsch:0.2.17") because "jcraft is unmaintained"
     }
   }
 }
