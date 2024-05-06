@@ -2868,6 +2868,10 @@ public class Config {
     return instrumenterConfig.isUsmEnabled();
   }
 
+  public String instrumentationConfigId() {
+      return instrumenterConfig.getInstrumentationConfigId();
+  }
+
   public boolean isCiVisibilityTraceSanitationEnabled() {
     return ciVisibilityTraceSanitationEnabled;
   }

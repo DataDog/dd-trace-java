@@ -412,6 +412,25 @@ class TelemetryServiceSpecification extends DDSpecification {
     ]
   }
 
+  def 'app can propagate configuration id'() {
+    setup:
+    String instrKey = 'instrumentation_config_id'
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+    telemetryService.addConfiguration(['${instrKey}': ConfigSetting.of(instrKey, id, ConfigOrigin.ENV)])
+
+    when: 'first iteration'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppStartedEvent()
+
+    then: 'app-started'
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().instrumentationConfigId(id)
+    testHttpClient.assertNoMoreRequests()
+
+    where:
+    id << ["foo", null, ""]
+  }
+
   def 'app started must have install signature'() {
     setup:
     injectEnvConfig("INSTRUMENTATION_INSTALL_ID", installId)
