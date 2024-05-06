@@ -209,7 +209,7 @@ final class TracerFlareService {
   private byte[] buildFlareZip(long startMillis, long endMillis, boolean dumpThreads)
       throws IOException {
     try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-         ZipOutputStream zip = new ZipOutputStream(bytes)) {
+        ZipOutputStream zip = new ZipOutputStream(bytes)) {
 
       addPrelude(zip, startMillis, endMillis);
       addConfig(zip);
