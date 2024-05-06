@@ -26,6 +26,13 @@ public abstract class EntrySpanOriginInstrumentation extends Tracing implements 
   protected abstract Set<String> getAnnotations();
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "datadog.trace.instrumentation.span_origin.EntrySpanOriginAdvice$FindFirstStackTraceElement"
+    };
+  }
+
+  @Override
   public String hierarchyMarkerType() {
     return null; // no particular marker type
   }
@@ -37,7 +44,6 @@ public abstract class EntrySpanOriginInstrumentation extends Tracing implements 
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    System.out.println("EntrySpanOriginInstrumentation.methodAdvice");
     transformer.applyAdvice(
         isAnnotatedWith(matcher),
         "datadog.trace.instrumentation.span_origin.EntrySpanOriginAdvice");

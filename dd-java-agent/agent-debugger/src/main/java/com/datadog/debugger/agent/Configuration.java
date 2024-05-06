@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
-import com.datadog.debugger.probe.OriginProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
@@ -67,7 +66,6 @@ public class Configuration {
   private final Collection<LogProbe> logProbes;
   private final Collection<SpanProbe> spanProbes;
   private final Collection<SpanDecorationProbe> spanDecorationProbes;
-  private final Collection<OriginProbe> originProbes;
   private final FilterList allowList;
   private final FilterList denyList;
   private final LogProbe.Sampling sampling;
@@ -81,7 +79,7 @@ public class Configuration {
       Collection<MetricProbe> metricProbes,
       Collection<LogProbe> logProbes,
       Collection<SpanProbe> spanProbes) {
-    this(serviceName, metricProbes, logProbes, spanProbes, null, null, null, null, null);
+    this(serviceName, metricProbes, logProbes, spanProbes, null, null, null, null);
   }
 
   public Configuration(
@@ -90,7 +88,6 @@ public class Configuration {
       Collection<LogProbe> logProbes,
       Collection<SpanProbe> spanProbes,
       Collection<SpanDecorationProbe> spanDecorationProbes,
-      Collection<OriginProbe> originProbes,
       FilterList allowList,
       FilterList denyList,
       LogProbe.Sampling sampling) {
@@ -99,7 +96,6 @@ public class Configuration {
     this.logProbes = logProbes;
     this.spanProbes = spanProbes;
     this.spanDecorationProbes = spanDecorationProbes;
-    this.originProbes = originProbes;
     this.allowList = allowList;
     this.denyList = denyList;
     this.sampling = sampling;
@@ -150,9 +146,6 @@ public class Configuration {
     }
     if (spanDecorationProbes != null) {
       result.addAll(spanDecorationProbes);
-    }
-    if (originProbes != null) {
-      result.addAll(originProbes);
     }
     return result;
   }
@@ -206,7 +199,7 @@ public class Configuration {
     private List<LogProbe> logProbes = null;
     private List<SpanProbe> spanProbes = null;
     private List<SpanDecorationProbe> spanDecorationProbes = null;
-    private List<OriginProbe> originProbes = null;
+
     private FilterList allowList = null;
     private FilterList denyList = null;
     private LogProbe.Sampling sampling = null;
@@ -225,7 +218,6 @@ public class Configuration {
         if (definition instanceof LogProbe) add((LogProbe) definition);
         if (definition instanceof SpanProbe) add((SpanProbe) definition);
         if (definition instanceof SpanDecorationProbe) add((SpanDecorationProbe) definition);
-        if (definition instanceof OriginProbe) add((OriginProbe) definition);
       }
       return this;
     }
@@ -259,14 +251,6 @@ public class Configuration {
         spanDecorationProbes = new ArrayList<>();
       }
       spanDecorationProbes.add(probe);
-      return this;
-    }
-
-    public Configuration.Builder add(OriginProbe probe) {
-      if (originProbes == null) {
-        originProbes = new ArrayList<>();
-      }
-      originProbes.add(probe);
       return this;
     }
 
@@ -377,7 +361,6 @@ public class Configuration {
           logProbes,
           spanProbes,
           spanDecorationProbes,
-          originProbes,
           allowList,
           denyList,
           sampling);

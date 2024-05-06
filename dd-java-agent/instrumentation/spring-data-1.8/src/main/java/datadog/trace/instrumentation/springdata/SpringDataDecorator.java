@@ -48,18 +48,16 @@ public final class SpringDataDecorator extends ClientDecorator {
     } else {
       span.setResourceName(spanNameForMethod(method));
     }
-    attachSpanOriginInfo(span);
-    System.out.println("span.getTags() = " + span.getTags());
-    System.out.println("span = " + span);
+    markUpExitSpan(span);
   }
 
-  private void attachSpanOriginInfo(final AgentSpan span) {
+  private void markUpExitSpan(final AgentSpan span) {
     int[] i = {0};
     StackWalkerFactory.INSTANCE.walk(
         stream -> {
           stream
-              // 3rd party detection rules go here
               .filter(
+                  // 3rd party detection rules go here
                   element ->
                       element.getClassName().startsWith("org.springframework.samples")
                           || !element.getClassName().startsWith("org.springframework")

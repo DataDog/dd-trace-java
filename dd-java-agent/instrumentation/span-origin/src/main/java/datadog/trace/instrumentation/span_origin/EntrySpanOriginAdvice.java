@@ -4,9 +4,13 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.Strings;
+import datadog.trace.util.stacktrace.StackWalker;
+import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import net.bytebuddy.asm.Advice;
 
 public class EntrySpanOriginAdvice {
@@ -32,8 +36,16 @@ public class EntrySpanOriginAdvice {
   @Advice.OnMethodExit
   public static void onExit() {
     AgentSpan span = AgentTracer.get().activeScope().span();
-    StackTraceElement[] stackTrace =
-        new Exception("\"EntrySpanOriginAdvice.onExit\" trace").getStackTrace();
-    span.setTag(DDTags.DD_ENTRY_END_LINE, stackTrace[0].getLineNumber());
+    StackWalker stackWalker = StackWalkerFactory.INSTANCE;
+    StackTraceElement element = stackWalker.walk(new FindFirstStackTraceElement());
+    span.setTag(DDTags.DD_ENTRY_END_LINE, element.getLineNumber());
+  }
+
+  public static class FindFirstStackTraceElement
+      implements Function<Stream<StackTraceElement>, StackTraceElement> {
+    @Override
+    public StackTraceElement apply(Stream<StackTraceElement> stream) {
+      return stream.findFirst().orElseThrow(() -> new RuntimeException("No stack trace available"));
+    }
   }
 }
