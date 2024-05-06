@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.dubbo_2_7x;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -71,10 +72,14 @@ public class DubboDecorator extends BaseDecorator {
     if (isConsumer){
       // this is consumer
       span = startSpan(DUBBO_REQUEST);
+      propagate().inject(span, dubboTraceInfo, SETTER);
     }else{
       // this is provider
       AgentSpan.Context parentContext = propagate().extract(dubboTraceInfo, GETTER);
       span = startSpan(DUBBO_REQUEST,parentContext);
+      if (Config.get().isDubboProviderPropagateEnabled()){
+        propagate().inject(span, dubboTraceInfo, SETTER);
+      }
     }
     span.setTag(TAG_URL, url.toString());
     span.setTag(TAG_SHORT_URL, shortUrl);
@@ -86,7 +91,6 @@ public class DubboDecorator extends BaseDecorator {
     afterStart(span);
 
     withMethod(span, resourceName);
-    propagate().inject(span, dubboTraceInfo, SETTER);
     return span;
   }
 
