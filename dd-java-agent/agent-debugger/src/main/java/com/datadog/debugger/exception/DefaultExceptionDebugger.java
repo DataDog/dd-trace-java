@@ -65,9 +65,9 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       }
       processSnapshotsAndSetTags(t, span, state, innerMostException);
     } else {
-      exceptionProbeManager.createProbesForException(
-          fingerprint, innerMostException.getStackTrace());
-      AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+      if (exceptionProbeManager.createProbesForException(innerMostException.getStackTrace())) {
+        AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+      }
     }
   }
 
