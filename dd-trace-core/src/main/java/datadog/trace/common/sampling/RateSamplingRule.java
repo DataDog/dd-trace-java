@@ -8,10 +8,10 @@ import datadog.trace.core.util.TagsMatcher;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-public abstract class SamplingRule {
+public abstract class RateSamplingRule {
   private final RateSampler sampler;
 
-  public SamplingRule(final RateSampler sampler) {
+  public RateSamplingRule(final RateSampler sampler) {
     this.sampler = sampler;
   }
 
@@ -25,7 +25,7 @@ public abstract class SamplingRule {
     return sampler;
   }
 
-  public static class AlwaysMatchesSamplingRule extends SamplingRule {
+  public static class AlwaysMatchesSamplingRule extends RateSamplingRule {
 
     public AlwaysMatchesSamplingRule(final RateSampler sampler) {
       super(sampler);
@@ -37,7 +37,7 @@ public abstract class SamplingRule {
     }
   }
 
-  public abstract static class PatternMatchSamplingRule extends SamplingRule {
+  public abstract static class PatternMatchSamplingRule extends RateSamplingRule {
     private final Pattern pattern;
 
     public PatternMatchSamplingRule(final String regex, final RateSampler sampler) {
@@ -76,7 +76,7 @@ public abstract class SamplingRule {
     }
   }
 
-  public static final class TraceSamplingRule extends SamplingRule {
+  public static final class TraceSamplingRule extends RateSamplingRule {
     private final Matcher serviceMatcher;
     private final Matcher operationMatcher;
     private final Matcher resourceMatcher;
@@ -104,7 +104,7 @@ public abstract class SamplingRule {
     }
   }
 
-  public static final class SpanSamplingRule extends SamplingRule {
+  public static final class SpanSamplingRule extends RateSamplingRule {
     private final Matcher serviceMatcher;
     private final Matcher operationMatcher;
     private final SimpleRateLimiter rateLimiter;

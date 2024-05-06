@@ -1620,7 +1620,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       if (null == oldSnapshot) {
         sampler = CoreTracer.this.initialSampler;
-      } else if (Objects.equals(getTraceSampleRate(), oldSnapshot.getTraceSampleRate())) {
+      } else if (Objects.equals(getTraceSampleRate(), oldSnapshot.getTraceSampleRate())
+          && Objects.equals(getTraceSamplingRules(), oldSnapshot.getTraceSamplingRules())) {
         sampler = oldSnapshot.sampler;
       } else {
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this);
