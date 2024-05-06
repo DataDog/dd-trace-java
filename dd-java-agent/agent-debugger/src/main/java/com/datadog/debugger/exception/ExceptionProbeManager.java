@@ -78,7 +78,7 @@ public class ExceptionProbeManager {
   }
 
   void addFingerprint(String fingerprint) {
-    fingerprints.put(fingerprint, Instant.ofEpochSecond(0));
+    fingerprints.put(fingerprint, Instant.MIN);
   }
 
   private static ExceptionProbe createMethodProbe(
@@ -105,7 +105,6 @@ public class ExceptionProbeManager {
     if (lastCapture == null) {
       return false;
     }
-    // only capture once an hour
     return ChronoUnit.MILLIS.between(lastCapture, Instant.now(clock)) >= captureIntervalMS;
   }
 
