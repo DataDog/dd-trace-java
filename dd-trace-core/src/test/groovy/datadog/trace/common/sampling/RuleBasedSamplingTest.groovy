@@ -86,7 +86,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     // NOTE: Using a defaultRate is still considered to be a "rule"
     // decisionMaker is LOCAL_USER_RULE and expectedRuleRate is non-null
     // When trace is dropped, decisionMaker isn't tracked -- e.g. null
-    
+
     serviceRules      | operationRules      | defaultRate | expectedDecisionMaker | expectedPriority | expectedRuleRate | expectedRateLimit | expectedAgentRate
 
     // Matching neither passes through to rate based sampler
@@ -195,7 +195,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     // NOTE: Using a defaultRate is still considered to be a "rule"
     // decisionMaker is LOCAL_USER_RULE and expectedRuleRate is non-null
     // When trace is dropped, decisionMaker isn't tracked -- e.g. null
-    
+
     jsonRules                                                                                                                                                                      | defaultRate | expectedDecisionMaker | expectedPriority | expectedRuleRate | expectedRateLimit | expectedAgentRate
     // Matching neither passes through to rate based sampler
     "[{\"service\": \"xx\", \"sample_rate\": 1}]"                                                                                                        						   | null        | AGENT_RATE            | SAMPLER_KEEP     | null             | null              | 1.0
