@@ -745,6 +745,8 @@ public class Config {
   private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
 
+  private final boolean dubboProviderPropagateEnabled;
+
   private final boolean telemetryDebugRequestsEnabled;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
@@ -1762,6 +1764,8 @@ public class Config {
 
     tracerHeaderEnabled = configProvider.getBoolean(TRACE_HEADER_ENABLED, DEFAULT_TRACE_HEADER_ENABLED);
     tracerRequestBodyEnabled = configProvider.getBoolean(TRACE_REQUEST_BODY_ENABLED, DEFAULT_TRACE_REQUEST_BODY_ENABLED);
+
+    dubboProviderPropagateEnabled = configProvider.getBoolean(TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED, DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED);
 
     tracerResponseBodyEnabled = configProvider.getBoolean(TRACE_RESPONSE_BODY_ENABLED, DEFAULT_TRACE_RESPONSE_BODY_ENABLED);
 
@@ -3200,6 +3204,10 @@ public class Config {
     return tracerRequestBodyEnabled;
   }
 
+  public boolean isDubboProviderPropagateEnabled() {
+    return dubboProviderPropagateEnabled;
+  }
+
   public boolean isTracerResponseBodyEnabled() {
     return tracerResponseBodyEnabled;
   }
@@ -4320,6 +4328,8 @@ public class Config {
         + jdbcSqlObfuscation
         + ", mongoObfuscation="
         + mongoObfuscation
+        + ", dubboProviderPropagateEnabled="
+        + dubboProviderPropagateEnabled
         + '}';
   }
 }
