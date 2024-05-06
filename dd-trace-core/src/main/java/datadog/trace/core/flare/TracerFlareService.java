@@ -1,6 +1,7 @@
 package datadog.trace.core.flare;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACER_FLARE;
+import static java.nio.file.Files.readAllBytes;
 
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
@@ -47,6 +48,10 @@ final class TracerFlareService {
   private static final String REPORT_PREFIX = "dd-java-flare-";
 
   private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
+
+  private static final int MAX_LOGFILE_SIZE_MB = 15;
+
+  private static final int MAX_LOGFILE_SIZE_BYTES = MAX_LOGFILE_SIZE_MB << 20;
 
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
 
@@ -204,7 +209,7 @@ final class TracerFlareService {
   private byte[] buildFlareZip(long startMillis, long endMillis, boolean dumpThreads)
       throws IOException {
     try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        ZipOutputStream zip = new ZipOutputStream(bytes)) {
+         ZipOutputStream zip = new ZipOutputStream(bytes)) {
 
       addPrelude(zip, startMillis, endMillis);
       addConfig(zip);
@@ -214,6 +219,7 @@ final class TracerFlareService {
       if (dumpThreads) {
         addThreadDump(zip);
       }
+      addLogs(zip);
       zip.finish();
 
       return bytes.toByteArray();
@@ -272,6 +278,28 @@ final class TracerFlareService {
       buf.append("Problem collecting thread dump: ").append(e);
     }
     TracerFlare.addText(zip, "threads.txt", buf.toString());
+  }
+
+  private void addLogs(ZipOutputStream zip) throws IOException {
+
+    String logFile = System.getProperty("org.slf4j.simpleLogger.logFile");
+    if (logFile == null || logFile.isEmpty()) {
+      log.info("No tracer log file specified");
+      return;
+    }
+    Path path = Paths.get(logFile);
+    if (Files.exists(path)) {
+      long size = Files.size(path);
+      log.debug("Size of the log file: " + size);
+      if (size > MAX_LOGFILE_SIZE_BYTES) {
+        log.info(
+            "Can't add tracer log file to the flare due to its size: {}. Max Size is {} MB.",
+            size,
+            MAX_LOGFILE_SIZE_MB);
+      } else {
+        TracerFlare.addBinary(zip, "tracer.log", readAllBytes(path));
+      }
+    }
   }
 
   final class CleanupTask implements Runnable {
