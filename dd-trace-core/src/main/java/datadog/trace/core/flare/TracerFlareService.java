@@ -49,9 +49,9 @@ final class TracerFlareService {
 
   private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
 
-  private static final long MAX_LOGFILE_SIZE_MB = 15;
+  private static final int MAX_LOGFILE_SIZE_MB = 15;
 
-  private static final long MAX_LOGFILE_SIZE_BYTES = MAX_LOGFILE_SIZE_MB << 20;
+  private static final int MAX_LOGFILE_SIZE_BYTES = MAX_LOGFILE_SIZE_MB << 20;
 
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
 
