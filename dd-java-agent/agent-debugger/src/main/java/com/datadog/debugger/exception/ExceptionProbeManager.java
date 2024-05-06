@@ -37,7 +37,8 @@ public class ExceptionProbeManager {
     return classNameFiltering;
   }
 
-  public void createProbesForException(String fingerprint, StackTraceElement[] stackTraceElements) {
+  public boolean createProbesForException(StackTraceElement[] stackTraceElements) {
+    boolean created = false;
     for (StackTraceElement stackTraceElement : stackTraceElements) {
       if (stackTraceElement.isNativeMethod() || stackTraceElement.getLineNumber() < 0) {
         // Skip native methods and lines without line numbers
@@ -54,8 +55,10 @@ public class ExceptionProbeManager {
               null,
               String.valueOf(stackTraceElement.getLineNumber()));
       ExceptionProbe probe = createMethodProbe(this, where);
+      created = true;
       probes.putIfAbsent(probe.getId(), probe);
     }
+    return created;
   }
 
   void addFingerprint(String fingerprint) {
@@ -103,7 +106,7 @@ public class ExceptionProbeManager {
 
   public static class ThrowableState {
     private final String exceptionId;
-    private final List<Snapshot> snapshots = new ArrayList<>();
+    private List<Snapshot> snapshots;
 
     private ThrowableState(String exceptionId) {
       this.exceptionId = exceptionId;
@@ -117,7 +120,14 @@ public class ExceptionProbeManager {
       return snapshots;
     }
 
+    public boolean isSampling() {
+      return snapshots != null && !snapshots.isEmpty();
+    }
+
     public void addSnapshot(Snapshot snapshot) {
+      if (snapshots == null) {
+        snapshots = new ArrayList<>();
+      }
       snapshots.add(snapshot);
     }
   }

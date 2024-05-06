@@ -1,5 +1,6 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.el.ProbeCondition;
@@ -66,12 +67,25 @@ public class ExceptionProbe extends LogProbe {
       return;
     }
     Throwable throwable = context.getCapturedThrowable().getThrowable();
+    Throwable innerMostThrowable = getInnerMostThrowable(throwable);
     String fingerprint =
-        Fingerprinter.fingerprint(throwable, exceptionProbeManager.getClassNameFiltering());
+        Fingerprinter.fingerprint(
+            innerMostThrowable, exceptionProbeManager.getClassNameFiltering());
     if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
       LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
       // capture only on uncaught exception matching the fingerprint
       ExceptionProbeStatus exceptionStatus = (ExceptionProbeStatus) status;
+      ExceptionProbeManager.ThrowableState state =
+          exceptionProbeManager.getSateByThrowable(innerMostThrowable);
+      if (state != null) {
+        // Already unwinding the exception
+        if (!state.isSampling()) {
+          // skip snapshot because no snapshot from previous stack level
+          return;
+        }
+        // Force for coordinated sampling
+        exceptionStatus.setForceSampling(true);
+      }
       exceptionStatus.setCapture(true);
       super.evaluate(context, status, methodLocation);
     }
