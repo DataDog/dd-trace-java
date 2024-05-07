@@ -2,13 +2,20 @@ package datadog.trace.instrumentation.springsecurity5;
 
 import static datadog.trace.api.UserEventTrackingMode.DISABLED;
 import static datadog.trace.api.UserEventTrackingMode.EXTENDED;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.UserEventTrackingMode;
 import datadog.trace.bootstrap.instrumentation.decorator.AppSecUserEventDecorator;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +24,13 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
 
   public static final SpringSecurityUserEventDecorator DECORATE =
       new SpringSecurityUserEventDecorator();
+  private static final String SPRING_SECURITY_PACKAGE = "org.springframework.security";
+
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(SpringSecurityUserEventDecorator.class);
+
+  private static final Set<Class<?>> SKIPPED_AUTHS =
+      Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   public void onSignup(UserDetails user, Throwable throwable) {
     // skip failures while signing up a user, later on, we might want to generate a separate event
@@ -53,8 +67,7 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
       return;
     }
 
-    // For now, exclude all OAuth events. See APPSEC-12547.
-    if (authentication.getClass().getName().contains("OAuth")) {
+    if (shouldSkipAuthentication(authentication)) {
       return;
     }
 
@@ -97,5 +110,27 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
         onLoginFailure(userId, null);
       }
     }
+  }
+
+  private static boolean shouldSkipAuthentication(final Authentication authentication) {
+    if (authentication instanceof UsernamePasswordAuthenticationToken) {
+      return false;
+    }
+    if (SKIPPED_AUTHS.add(authentication.getClass())) {
+      final Class<?> authClass = authentication.getClass();
+      LOGGER.warn(
+          SEND_TELEMETRY, "Skipped authentication, auth={}", findRootAuthentication(authClass));
+    }
+    return true;
+  }
+
+  private static String findRootAuthentication(Class<?> authentication) {
+    while (authentication != Object.class) {
+      if (authentication.getName().startsWith(SPRING_SECURITY_PACKAGE)) {
+        return authentication.getName();
+      }
+      authentication = authentication.getSuperclass();
+    }
+    return Authentication.class.getName(); // set this a default for really custom impls
   }
 }
