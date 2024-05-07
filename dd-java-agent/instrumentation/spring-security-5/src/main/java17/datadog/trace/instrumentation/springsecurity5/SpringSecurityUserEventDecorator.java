@@ -18,7 +18,13 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
   public static final SpringSecurityUserEventDecorator DECORATE =
       new SpringSecurityUserEventDecorator();
 
-  public void onSignup(UserDetails user) {
+  public void onSignup(UserDetails user, Throwable throwable) {
+    // skip failures while signing up a user, later on, we might want to generate a separate event
+    // for this case
+    if (throwable != null) {
+      return;
+    }
+
     UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();
     String userId = null;
     Map<String, String> metadata = null;

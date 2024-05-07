@@ -83,15 +83,6 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     injectSysConfig('dd.appsec.automated-user-events-tracking', 'extended')
   }
 
-  def setupSpec() {
-    server = server()
-    server.start()
-    address = server.address()
-    assert address.port > 0
-    assert address.path.endsWith("/")
-    println "$server started at: $address"
-  }
-
   Request.Builder request(TestEndpoint uri, String method, RequestBody body) {
     def url = HttpUrl.get(uri.resolve(address)).newBuilder()
       .encodedQuery(uri.rawQuery)
@@ -213,5 +204,31 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     span.getTag("appsec.events.users.login.success")['enabled'] == 'true'
     span.getTag("appsec.events.users.login.success")['authorities'] == 'ROLE_USER'
     span.getTag("appsec.events.users.login.success")['accountNonLocked'] == 'true'
+  }
+
+  void 'test failed signup'() {
+    setup:
+    final formBody = new FormBody.Builder()
+      .add('username', randomString(1_000))
+      .add('password', 'cant_create_me')
+      .build()
+
+    final request = request(REGISTER, 'POST', formBody).build()
+
+    when:
+    final response = client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+    final span = TEST_WRITER.flatten().first() as DDSpan
+
+    then:
+    response.code() == 500
+    span.getTags().findAll { it.key.startsWith('appsec.events.users.signup') }.isEmpty()
+  }
+
+  @SuppressWarnings('GroovyAssignabilityCheck')
+  private static String randomString(int length) {
+    return new Random().with { random ->
+      (1..length).collect { Character.valueOf((char) (random.nextInt(26) + (char)'a')) }
+    }.join()
   }
 }
