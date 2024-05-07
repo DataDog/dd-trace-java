@@ -58,6 +58,11 @@ public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
         getClass().getName() + "$IastAdvice");
   }
 
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
+  }
+
   public static class IastAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
