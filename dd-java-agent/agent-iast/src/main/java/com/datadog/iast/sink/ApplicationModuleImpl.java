@@ -22,9 +22,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,35 +62,27 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   private static final String SECURITY_CONSTRAINT_END_TAG = "</security-constraint>";
   public static final String PARAM_VALUE_START_TAG = "<param-value>";
   public static final String PARAM_VALUE_END_TAG = "</param-value>";
-  public static final String DISPLAY_NAME_START_TAG = "<display-name>";
-  public static final String DISPLAY_NAME_END_TAG = "</display-name>";
+  public static final String DISPLAY_NAME_PATTERN = "<display-name>(.*?)</display-name>";
   static final String TOMCAT_MANAGER_APP = "Tomcat Manager Application";
-  private static final String TOMCAT_MANAGER_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + TOMCAT_MANAGER_APP + DISPLAY_NAME_END_TAG;
   static final String TOMCAT_HOST_MANAGER_APP = "Tomcat Host Manager Application";
-  private static final String TOMCAT_HOST_MANAGER_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + TOMCAT_HOST_MANAGER_APP + DISPLAY_NAME_END_TAG;
   static final String TOMCAT_SAMPLES_APP = "Servlet and JSP Examples";
-  private static final String TOMCAT_SAMPLES_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + TOMCAT_SAMPLES_APP + DISPLAY_NAME_END_TAG;
   static final String JETTY_ASYNC_REST_APP = "Async REST Webservice Example";
-  private static final String JETTY_ASYNC_REST_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + JETTY_ASYNC_REST_APP + DISPLAY_NAME_END_TAG;
   static final String JETTY_JAVADOC_APP = "Transparent Proxy WebApp";
-  private static final String JETTY_JAVADOC_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + JETTY_JAVADOC_APP + DISPLAY_NAME_END_TAG;
   static final String JETTY_JAAS_APP = "JAAS Test";
-  private static final String JETTY_JAAS_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + JETTY_JAAS_APP + DISPLAY_NAME_END_TAG;
   static final String JETTY_JNDI_APP = "Test JNDI WebApp";
-  private static final String JETTY_JNDI_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + JETTY_JNDI_APP + DISPLAY_NAME_END_TAG;
   static final String JETTY_SPEC_APP = "Test Annotations WebApp";
-  private static final String JETTY_SPEC_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + JETTY_SPEC_APP + DISPLAY_NAME_END_TAG;
   static final String JETTY_TEST_APP = "Test WebApp";
-  private static final String JETTY_TEST_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + JETTY_TEST_APP + DISPLAY_NAME_END_TAG;
+  public static final List ADMIN_CONSOLE_LIST =
+      Arrays.asList(TOMCAT_MANAGER_APP, TOMCAT_HOST_MANAGER_APP);
+  public static final List DEFAULT_APP_LIST =
+      Arrays.asList(
+          TOMCAT_SAMPLES_APP,
+          JETTY_ASYNC_REST_APP,
+          JETTY_JAVADOC_APP,
+          JETTY_JAAS_APP,
+          JETTY_JNDI_APP,
+          JETTY_SPEC_APP,
+          JETTY_TEST_APP);
   public static final String WEB_INF = "WEB-INF";
   public static final String WEB_XML = "web.xml";
   public static final String WEBLOGIC_XML = "weblogic.xml";
@@ -102,20 +96,11 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
                   CONTEXT_LOADER_LISTENER,
                   DISPATCHER_SERVLET,
                   DEFAULT_HTML_ESCAPE,
-                  TOMCAT_MANAGER_APP_PATTERN,
-                  TOMCAT_HOST_MANAGER_APP_PATTERN,
-                  TOMCAT_SAMPLES_APP_PATTERN,
-                  JETTY_ASYNC_REST_APP_PATTERN,
-                  JETTY_JAVADOC_APP_PATTERN,
-                  JETTY_JAAS_APP_PATTERN,
-                  JETTY_JNDI_APP_PATTERN,
-                  JETTY_SPEC_APP_PATTERN,
-                  JETTY_TEST_APP_PATTERN,
                   LISTINGS_PATTERN,
                   JETTY_LISTINGS_PATTERN,
                   SESSION_TIMEOUT_START_TAG,
-                  SECURITY_CONSTRAINT_START_TAG)
-              .map(Pattern::quote)
+                  SECURITY_CONSTRAINT_START_TAG,
+                  DISPLAY_NAME_PATTERN)
               .collect(Collectors.joining("|")));
 
   private static final Pattern WEBLOGIC_PATTERN =
@@ -234,33 +219,6 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case DEFAULT_HTML_ESCAPE:
           defaultHtmlEscapeIndex = matcher.start();
           break;
-        case TOMCAT_MANAGER_APP_PATTERN:
-          reportAdminConsoleActive(span, TOMCAT_MANAGER_APP);
-          break;
-        case TOMCAT_HOST_MANAGER_APP_PATTERN:
-          reportAdminConsoleActive(span, TOMCAT_HOST_MANAGER_APP);
-          break;
-        case TOMCAT_SAMPLES_APP_PATTERN:
-          reportDefaultAppDeployed(span, TOMCAT_SAMPLES_APP);
-          break;
-        case JETTY_ASYNC_REST_APP_PATTERN:
-          reportDefaultAppDeployed(span, JETTY_ASYNC_REST_APP);
-          break;
-        case JETTY_JAVADOC_APP_PATTERN:
-          reportDefaultAppDeployed(span, JETTY_JAVADOC_APP);
-          break;
-        case JETTY_JAAS_APP_PATTERN:
-          reportDefaultAppDeployed(span, JETTY_JAAS_APP);
-          break;
-        case JETTY_JNDI_APP_PATTERN:
-          reportDefaultAppDeployed(span, JETTY_JNDI_APP);
-          break;
-        case JETTY_SPEC_APP_PATTERN:
-          reportDefaultAppDeployed(span, JETTY_SPEC_APP);
-          break;
-        case JETTY_TEST_APP_PATTERN:
-          reportDefaultAppDeployed(span, JETTY_TEST_APP);
-          break;
         case LISTINGS_PATTERN:
         case JETTY_LISTINGS_PATTERN:
           checkDirectoryListingLeak(webXmlContent, matcher.start(), span);
@@ -271,7 +229,13 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case SECURITY_CONSTRAINT_START_TAG:
           checkVerbTampering(webXmlContent, matcher.start(), span);
           break;
-        default:
+        default: // DISPLAY NAME MATCH
+          String displayName = matcher.group(1);
+          if (ADMIN_CONSOLE_LIST.contains(displayName)) {
+            reportAdminConsoleActive(span, displayName);
+          } else if (DEFAULT_APP_LIST.contains(displayName)) {
+            reportDefaultAppDeployed(span, displayName);
+          }
           break;
       }
     }
