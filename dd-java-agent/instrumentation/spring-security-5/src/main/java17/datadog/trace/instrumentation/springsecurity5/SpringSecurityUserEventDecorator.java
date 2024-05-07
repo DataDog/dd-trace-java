@@ -118,7 +118,7 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
     }
     if (SKIPPED_AUTHS.add(authentication.getClass())) {
       final Class<?> authClass = authentication.getClass();
-      LOGGER.warn(
+      LOGGER.debug(
           SEND_TELEMETRY, "Skipped authentication, auth={}", findRootAuthentication(authClass));
     }
     return true;
