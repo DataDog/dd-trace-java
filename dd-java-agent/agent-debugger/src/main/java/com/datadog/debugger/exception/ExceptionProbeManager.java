@@ -31,7 +31,7 @@ public class ExceptionProbeManager {
   // FIXME: if this becomes a bottleneck, find a way to make it concurrent weak identity hashmap
   private final Map<Throwable, ThrowableState> snapshotsByThrowable =
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
-  private final long captureIntervalMS;
+  private final long captureIntervalS;
   private final Clock clock;
 
   public ExceptionProbeManager(ClassNameFiltering classNameFiltering, Duration captureInterval) {
@@ -45,7 +45,7 @@ public class ExceptionProbeManager {
   ExceptionProbeManager(
       ClassNameFiltering classNameFiltering, Duration captureInterval, Clock clock) {
     this.classNameFiltering = classNameFiltering;
-    this.captureIntervalMS = captureInterval.toMillis();
+    this.captureIntervalS = captureInterval.getSeconds();
     this.clock = clock;
   }
 
@@ -105,7 +105,7 @@ public class ExceptionProbeManager {
     if (lastCapture == null) {
       return false;
     }
-    return ChronoUnit.MILLIS.between(lastCapture, Instant.now(clock)) >= captureIntervalMS;
+    return ChronoUnit.SECONDS.between(lastCapture, Instant.now(clock)) >= captureIntervalS;
   }
 
   public void addSnapshot(Snapshot snapshot) {

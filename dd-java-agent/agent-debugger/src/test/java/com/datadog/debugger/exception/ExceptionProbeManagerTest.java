@@ -45,7 +45,7 @@ class ExceptionProbeManagerTest {
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     assertEquals("1c27b291764c9d387fb85247bb7c2711f885aadfbf2f64fed34b2e0c64c5a2", fingerprint);
-    exceptionProbeManager.createProbesForException(fingerprint, exception.getStackTrace());
+    exceptionProbeManager.createProbesForException(exception.getStackTrace());
     assertEquals(1, exceptionProbeManager.getProbes().size());
     ExceptionProbe exceptionProbe = exceptionProbeManager.getProbes().iterator().next();
     assertEquals(
