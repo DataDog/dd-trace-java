@@ -19,10 +19,12 @@ import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.ObjectVisitor;
 import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.Config;
+import datadog.trace.api.Pair;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
+import datadog.trace.instrumentation.iastinstrumenter.IastJSPClassListener;
 import datadog.trace.util.stacktrace.StackWalker;
 import java.util.Iterator;
 import java.util.stream.Stream;
@@ -40,10 +42,13 @@ public abstract class SinkModuleBase {
   protected final Reporter reporter;
   protected final StackWalker stackWalker;
 
+  protected final IastJSPClassListener iastJSPClassListener;
+
   protected SinkModuleBase(@Nonnull final Dependencies dependencies) {
     overheadController = dependencies.getOverheadController();
     reporter = dependencies.getReporter();
     stackWalker = dependencies.getStackWalker();
+    iastJSPClassListener = dependencies.getIastJSPClassListener();
   }
 
   protected void report(final Vulnerability vulnerability) {
@@ -301,7 +306,21 @@ public abstract class SinkModuleBase {
   }
 
   protected final StackTraceElement getCurrentStackTrace() {
-    return stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
+    // TODO Call the listener to get the JSP class and line number
+    Pair<String, Integer> pair =
+        iastJSPClassListener.getFileAndLine(
+            stackTraceElement.getClassName(), stackTraceElement.getLineNumber());
+    if (pair != null) {
+      return new StackTraceElement(
+          stackTraceElement.getClassName(),
+          stackTraceElement.getMethodName(),
+          pair.getLeft(),
+          pair.getRight());
+    }
+
+    return stackTraceElement;
   }
 
   static StackTraceElement findValidPackageForVulnerability(

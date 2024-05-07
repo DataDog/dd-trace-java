@@ -1,5 +1,19 @@
 package datadog.trace.agent.tooling.iast.stratum;
 
+/**
+ * The line section associates line numbers in the output source with line numbers and source names
+ * in the input source.
+ *
+ * <p>The format of the line section is the line section marker *L on a line by itself, followed by
+ * the lines of LineInfo. Each LineInfo has the form:
+ *
+ * <p>InputStartLine # LineFileID , RepeatCount : OutputStartLine , OutputLineIncrement where all
+ * but
+ *
+ * <p>InputStartLine : OutputStartLine are optional.
+ *
+ * <p>https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection
+ */
 public class LineInfo implements Cloneable {
   private int fileId = -1;
 

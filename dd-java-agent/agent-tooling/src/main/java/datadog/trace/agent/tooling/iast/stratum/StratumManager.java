@@ -8,32 +8,41 @@ import org.objectweb.asm.ClassVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Manages SMAP information for classes
+ * https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection
+ */
 public class StratumManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(StratumManager.class);
 
-  private static final Map<String, StratumExt> map = new ConcurrentHashMap<>();
+  private StratumManager() {
+    // Prevent instantiation
+  }
 
-  public static final StratumExt NO_DEBUG_INFO = new StratumExt();
+  private final Map<String, StratumExt> map = new ConcurrentHashMap<>();
 
-  private static boolean EMPTY_DEBUG_INFO;
+  public final StratumExt NO_DEBUG_INFO = new StratumExt();
+
+  private boolean EMPTY_DEBUG_INFO;
+
+  public static final StratumManager INSTANCE = new StratumManager();
 
   public static boolean shouldBeAnalyzed(final String internalClassName) {
     return internalClassName.contains("jsp")
         && (internalClassName.contains("_jsp")
             || internalClassName.contains("jsp_")
-            || internalClassName.contains("2ejsp")
             || internalClassName.contains("_tag"));
   }
 
-  public static void analyzeClass(final byte[] bytes) {
+  public void analyzeClass(final byte[] bytes) {
     StratumExt s = getDefaultStratum(bytes);
     if (s != null) {
       map.put(s.getName(), s);
     }
   }
 
-  public static Stratum get(final String classname) {
+  public Stratum get(final String classname) {
     StratumExt s = map.get(classname);
     if (s != null) {
       return s;
@@ -44,7 +53,7 @@ public class StratumManager {
     }
   }
 
-  private static SourceMap getResolvedSmap(final String smap) {
+  private SourceMap getResolvedSmap(final String smap) {
     try {
       SourceMap[] sourceMaps = new Parser().parse(smap);
 
@@ -55,7 +64,7 @@ public class StratumManager {
     return null;
   }
 
-  private static StratumExt getDefaultStratum(final byte[] bytes) {
+  private StratumExt getDefaultStratum(final byte[] bytes) {
     try {
       String[] classData = extractSourceDebugExtensionASM(bytes);
       if (classData[1] == null) {
@@ -78,7 +87,7 @@ public class StratumManager {
     return null;
   }
 
-  private static String[] extractSourceDebugExtensionASM(final byte[] classBytes) {
+  private String[] extractSourceDebugExtensionASM(final byte[] classBytes) {
     ClassReader cr = new ClassReader(classBytes);
     final String[] result = new String[2];
     cr.accept(

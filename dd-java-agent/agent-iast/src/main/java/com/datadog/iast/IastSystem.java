@@ -48,6 +48,7 @@ import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.instrumentation.iastinstrumenter.IastJSPClassListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.lang.reflect.Constructor;
@@ -98,7 +99,12 @@ public class IastSystem {
     IastContext.Provider.register(contextProvider);
     final Dependencies dependencies =
         new Dependencies(
-            config, reporter, overheadController, StackWalkerFactory.INSTANCE, contextProvider);
+            config,
+            reporter,
+            overheadController,
+            StackWalkerFactory.INSTANCE,
+            contextProvider,
+            IastJSPClassListener.INSTANCE);
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
     iastModules(iast, dependencies).forEach(InstrumentationBridge::registerIastModule);
     registerRequestStartedCallback(ss, addTelemetry, dependencies);

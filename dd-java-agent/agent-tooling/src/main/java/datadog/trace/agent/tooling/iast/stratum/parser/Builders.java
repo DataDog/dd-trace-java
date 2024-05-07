@@ -10,6 +10,10 @@ import datadog.trace.agent.tooling.iast.stratum.UnknownInfo;
 import datadog.trace.agent.tooling.iast.stratum.VendorInfo;
 import datadog.trace.agent.tooling.iast.stratum.utils.PatternUtils;
 
+/**
+ * A collection of builders to parse SMAP Information.
+ * https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#smap-syntax
+ */
 class Builders {
 
   private static final String LineInfoPattern =
