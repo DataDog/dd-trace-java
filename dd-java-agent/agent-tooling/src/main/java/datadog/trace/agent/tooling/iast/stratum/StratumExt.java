@@ -64,6 +64,14 @@ public class StratumExt extends AbstractStratum implements Cloneable, Stratum {
   }
 
   @Override
+  public String getSourceFile() {
+    if (fileInfo.isEmpty()) {
+      return null;
+    }
+    return fileInfo.get(0).getInputFilePath();
+  }
+
+  @Override
   public Object clone() {
     StratumExt stratum = new StratumExt(getName());
     for (Iterator<VendorInfo> iter = vendorInfo.iterator(); iter.hasNext(); ) {
