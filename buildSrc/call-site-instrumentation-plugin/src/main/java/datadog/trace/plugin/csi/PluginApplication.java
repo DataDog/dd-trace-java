@@ -65,8 +65,8 @@ public class PluginApplication {
 
   private static void printReport(
       final Configuration configuration, final List<CallSiteResult> result, final boolean failed) {
-    configuration.reporters.forEach(
-        reporter -> CallSiteReporter.getReporter(reporter).report(result, failed));
+    CallSiteReporter.getReporter(configuration)
+        .forEach(reporter -> reporter.report(result, failed));
   }
 
   private static List<CallSiteSpecification> searchForCallSites(final Configuration configuration) {
@@ -77,8 +77,7 @@ public class PluginApplication {
       Files.walkFileTree(
           configuration.classesFolder,
           new SimpleFileVisitor<Path>() {
-            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs)
-                throws IOException {
+            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
               if (Files.isRegularFile(file)
                   && pattern.matcher(file.getFileName().toString()).matches()) {
                 builder.build(file.toFile()).ifPresent(result::add);
