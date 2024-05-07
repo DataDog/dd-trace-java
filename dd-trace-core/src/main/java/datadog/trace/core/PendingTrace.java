@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.TraceConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -166,7 +165,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return tracer;
   }
 
-  TraceConfig getTraceConfig() {
+  ConfigSnapshot getTraceConfig() {
     return traceConfig;
   }
 
