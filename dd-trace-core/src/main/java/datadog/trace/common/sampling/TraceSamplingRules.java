@@ -69,7 +69,7 @@ public class TraceSamplingRules {
     private final String resource;
     private final Map<String, String> tags;
     private final double sampleRate;
-    private final String provenance;
+    private final Provenance provenance;
 
     private Rule(
         String service,
@@ -77,7 +77,7 @@ public class TraceSamplingRules {
         String resource,
         Map<String, String> tags,
         double sampleRate,
-        String provenance) {
+        Provenance provenance) {
       this.service = service;
       this.name = name;
       this.resource = resource;
@@ -113,7 +113,7 @@ public class TraceSamplingRules {
           return null;
         }
       }
-      return new Rule(service, name, resource, tags, sampleRate, CUSTOMER);
+      return new Rule(service, name, resource, tags, sampleRate, Provenance.LOCAL);
     }
 
     private static void logRuleError(JsonRule rule, String error) {
@@ -146,7 +146,7 @@ public class TraceSamplingRules {
     }
 
     @Override
-    public String getProvenance() {
+    public Provenance getProvenance() {
       return provenance;
     }
   }
