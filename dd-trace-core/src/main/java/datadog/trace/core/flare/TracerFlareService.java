@@ -284,20 +284,28 @@ final class TracerFlareService {
 
     String logFile = System.getProperty("org.slf4j.simpleLogger.logFile");
     if (logFile == null || logFile.isEmpty()) {
-      log.info("No tracer log file specified");
+      TracerFlare.addText(zip, "tracer.log", "No tracer log file specified");
       return;
     }
     Path path = Paths.get(logFile);
     if (Files.exists(path)) {
       long size = Files.size(path);
-      log.debug("Size of the log file: " + size);
       if (size > MAX_LOGFILE_SIZE_BYTES) {
-        log.info(
-            "Can't add tracer log file to the flare due to its size: {}. Max Size is {} MB.",
-            size,
-            MAX_LOGFILE_SIZE_MB);
+        TracerFlare.addText(
+            zip,
+            "tracer.log",
+            "Can't add tracer log file to the flare due to its size: "
+                + size
+                + "."
+                + "Max Size is "
+                + MAX_LOGFILE_SIZE_MB
+                + " MB.");
       } else {
-        TracerFlare.addBinary(zip, "tracer.log", readAllBytes(path));
+        try {
+          TracerFlare.addBinary(zip, "tracer.log", readAllBytes(path));
+        } catch (Throwable e) {
+          TracerFlare.addText(zip, "tracer.log", "Problem collecting tracer log: " + e);
+        }
       }
     }
   }
