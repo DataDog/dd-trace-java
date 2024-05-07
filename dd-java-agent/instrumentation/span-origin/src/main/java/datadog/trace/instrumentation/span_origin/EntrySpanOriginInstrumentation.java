@@ -28,7 +28,13 @@ public abstract class EntrySpanOriginInstrumentation extends Tracing implements 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.span_origin.EntrySpanOriginAdvice$FindFirstStackTraceElement"
+      "datadog.trace.instrumentation.span_origin.FindFirstStackTraceElement",
+      "datadog.trace.instrumentation.span_origin.EntrySpanOriginInfo",
+      "datadog.trace.instrumentation.span_origin.ExitSpanOriginInfo",
+      "datadog.trace.instrumentation.span_origin.LineInfo",
+      "datadog.trace.instrumentation.span_origin.FinishSpanOrigin",
+      "datadog.trace.instrumentation.span_origin.CreateSpanOrigin",
+      "datadog.trace.instrumentation.span_origin.EntrySpanOriginAdvice"
     };
   }
 
