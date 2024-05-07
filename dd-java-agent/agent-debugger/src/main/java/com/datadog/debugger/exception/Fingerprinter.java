@@ -20,7 +20,6 @@ public class Fingerprinter {
       return null;
     }
     Class<? extends Throwable> clazz = t.getClass();
-    // TODO filter out Error
     MessageDigest digest;
     try {
       // TODO avoid lookup a new instance every time
