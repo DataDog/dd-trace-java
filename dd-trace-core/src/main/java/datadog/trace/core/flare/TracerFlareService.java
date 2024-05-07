@@ -17,6 +17,7 @@ import datadog.trace.util.AgentTaskScheduler.Scheduled;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadInfo;
@@ -281,7 +282,6 @@ final class TracerFlareService {
   }
 
   private void addLogs(ZipOutputStream zip) throws IOException {
-
     String logFile = System.getProperty("org.slf4j.simpleLogger.logFile");
     if (logFile == null || logFile.isEmpty()) {
       TracerFlare.addText(zip, "tracer.log", "No tracer log file specified");
@@ -290,22 +290,26 @@ final class TracerFlareService {
     Path path = Paths.get(logFile);
     if (Files.exists(path)) {
       long size = Files.size(path);
-      if (size > MAX_LOGFILE_SIZE_BYTES) {
-        TracerFlare.addText(
-            zip,
-            "tracer.log",
-            "Can't add tracer log file to the flare due to its size: "
-                + size
-                + "."
-                + "Max Size is "
-                + MAX_LOGFILE_SIZE_MB
-                + " MB.");
-      } else {
-        try {
+      try {
+        if (size > MAX_LOGFILE_SIZE_BYTES) {
+          try (InputStream in = Files.newInputStream(path)) {
+            final byte[] bufferBeg = new byte[MAX_LOGFILE_SIZE_BYTES / 2];
+            int dataReadBeg = in.read(bufferBeg);
+            long skipped = in.skip(size - MAX_LOGFILE_SIZE_BYTES);
+            final byte[] bufferEnd = new byte[MAX_LOGFILE_SIZE_BYTES - dataReadBeg];
+            int dataReadEnd = in.read(bufferEnd);
+            TracerFlare.addBinary(zip, "tracer_begin.log", bufferBeg);
+            TracerFlare.addBinary(zip, "tracer_end.log", bufferEnd);
+            log.debug(
+                "{} bytes from the log file have been copied. {} have been ignored ",
+                dataReadBeg + dataReadEnd,
+                skipped);
+          }
+        } else {
           TracerFlare.addBinary(zip, "tracer.log", readAllBytes(path));
-        } catch (Throwable e) {
-          TracerFlare.addText(zip, "tracer.log", "Problem collecting tracer log: " + e);
         }
+      } catch (Throwable e) {
+        TracerFlare.addText(zip, "tracer.log", "Problem collecting tracer log: " + e);
       }
     }
   }
