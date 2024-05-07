@@ -58,7 +58,8 @@ class DefaultExceptionDebuggerTest {
   public void setUp() {
     configurationUpdater = mock(ConfigurationUpdater.class);
     classNameFiltering = new ClassNameFiltering(emptySet());
-    exceptionDebugger = new DefaultExceptionDebugger(configurationUpdater, classNameFiltering);
+    exceptionDebugger =
+        new DefaultExceptionDebugger(configurationUpdater, classNameFiltering, Duration.ofHours(1));
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }

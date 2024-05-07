@@ -28,6 +28,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.zip.ZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 /** Debugger agent implementation */
 public class DebuggerAgent {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerAgent.class);
+  public static final Duration EXCEPTION_CAPTURE_INTERVAL = Duration.ofHours(1);
   private static ConfigurationPoller configurationPoller;
   private static DebuggerSink sink;
   private static String agentVersion;
@@ -81,7 +83,8 @@ public class DebuggerAgent {
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerExceptionEnabled()) {
       DefaultExceptionDebugger defaultExceptionDebugger =
-          new DefaultExceptionDebugger(configurationUpdater, classNameFiltering);
+          new DefaultExceptionDebugger(
+              configurationUpdater, classNameFiltering, EXCEPTION_CAPTURE_INTERVAL);
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerInstrumentTheWorld()) {
