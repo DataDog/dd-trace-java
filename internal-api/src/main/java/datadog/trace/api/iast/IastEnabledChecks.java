@@ -1,5 +1,6 @@
 package datadog.trace.api.iast;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,5 +21,9 @@ public abstract class IastEnabledChecks {
           e);
       return false;
     }
+  }
+
+  public static boolean isFullDetection() {
+    return Config.get().getIastDetectionMode() == IastDetectionMode.FULL;
   }
 }
