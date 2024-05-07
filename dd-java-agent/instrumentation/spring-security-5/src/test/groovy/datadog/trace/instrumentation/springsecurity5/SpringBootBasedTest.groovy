@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.springsecurity5
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.core.Appender
 import com.datadog.appsec.AppSecHttpServerTest
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.core.DDSpan
@@ -14,6 +16,7 @@ import spock.lang.Shared
 
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.LOGIN
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.CUSTOM
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.REGISTER
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.UNKNOWN
 import static datadog.trace.instrumentation.springsecurity5.TestEndpoint.NOT_FOUND
@@ -223,6 +226,33 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     then:
     response.code() == 500
     span.getTags().findAll { it.key.startsWith('appsec.events.users.signup') }.isEmpty()
+  }
+
+  void 'test skipped authentication'() {
+    setup:
+    final appender = Mock(Appender)
+    final logger = SpringSecurityUserEventDecorator.LOGGER as Logger
+    logger.addAppender(appender)
+
+    and:
+    final requestCount = 3
+    final request = request(CUSTOM, "GET", null).addHeader('X-Custom-User', 'batman').build()
+
+    when:
+    final response = (1..requestCount).collect { client.newCall(request).execute() }.first()
+    TEST_WRITER.waitForTraces(3)
+    final span = TEST_WRITER.flatten().first() as DDSpan
+    logger.detachAppender(appender) // cant add cleanup
+
+    then:
+    response.code() == CUSTOM.status
+    span.context().resourceName.contains(CUSTOM.path)
+    span.getTags().findAll { key, value -> key.startsWith('appsec.events.users.login')}.isEmpty()
+    // single call to the appender
+    1 * appender.doAppend(_) >> {
+      assert it[0].toString().contains('Skipped authentication, auth=org.springframework.security.authentication.AbstractAuthenticationToken')
+    }
+    0 * appender._
   }
 
   @SuppressWarnings('GroovyAssignabilityCheck')
