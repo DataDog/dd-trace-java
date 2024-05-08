@@ -3531,7 +3531,7 @@ public class Config {
   }
 
   public Map<String, String> getSpanTags() {
-    final Map<String, String> result = newHashMap(spanTags.size());
+    final Map<String, String> result = newHashMap(spanTags.size() + 2);
     result.putAll(spanTags);
     if (isDataStreamsEnabled()) {
       result.put(DSM_ENABLED, "1");
