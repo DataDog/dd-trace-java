@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class SourceMap implements Cloneable {
+public class SourceMap {
   private String outputFileName;
 
   private String defaultStratumName;
@@ -18,18 +18,6 @@ public class SourceMap implements Cloneable {
   public SourceMap(final String outputFileName, final String defaultStratumName) {
     this.outputFileName = outputFileName;
     this.defaultStratumName = defaultStratumName;
-  }
-
-  @Override
-  public Object clone() {
-    SourceMap sourceMap = new SourceMap(outputFileName, defaultStratumName);
-    for (Iterator<StratumExt> iter = stratumList.iterator(); iter.hasNext(); ) {
-      sourceMap.getStratumList().add((StratumExt) iter.next().clone());
-    }
-    for (Iterator<EmbeddedStratum> iter = embeddedStratumList.iterator(); iter.hasNext(); ) {
-      sourceMap.getEmbeddedStratumList().add((EmbeddedStratum) iter.next().clone());
-    }
-    return sourceMap;
   }
 
   public boolean isResolved() {

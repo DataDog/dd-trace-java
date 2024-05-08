@@ -2,14 +2,13 @@ package datadog.trace.agent.tooling.iast.stratum
 
 import datadog.trace.test.util.DDSpecification
 import org.apache.commons.io.FileUtils
-import org.apache.commons.io.IOUtils
 
-class StratumManagerTest extends DDSpecification {
+class StratumManagerImplTest extends DDSpecification {
 
   void 'test StratumManager shouldBeAnalyzed'(){
 
     when:
-    def result = StratumManager.shouldBeAnalyzed(internalClassName)
+    def result = StratumManagerImpl.shouldBeAnalyzed(internalClassName)
 
     then:
     result == expected
@@ -29,10 +28,10 @@ class StratumManagerTest extends DDSpecification {
     byte[] data = FileUtils.readFileToByteArray(new File("src/test/resources/datadog.trace.agent.tooling.stratum/register_jsp.class"))
 
     when:
-    StratumManager.INSTANCE.analyzeClass(data)
+    StratumManagerImpl.INSTANCE.analyzeClass(data)
 
     then:
-    final result  = StratumManager.INSTANCE.get("org.apache.jsp.register_jsp")
+    final result  = StratumManagerImpl.INSTANCE.get("org.apache.jsp.register_jsp")
     result != null
     result.getInputLineNumber(216) == 70
     result.getSourceFile() == "register.jsp"

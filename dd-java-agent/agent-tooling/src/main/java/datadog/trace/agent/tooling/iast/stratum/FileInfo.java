@@ -4,7 +4,7 @@ package datadog.trace.agent.tooling.iast.stratum;
  * The fileInfo describes the translated-source file names
  * https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#filesection
  */
-public class FileInfo implements Cloneable {
+public class FileInfo {
   private int fileId = -1;
 
   private String inputFileName;
@@ -17,11 +17,6 @@ public class FileInfo implements Cloneable {
     this.fileId = fileId;
     this.inputFileName = inputFileName;
     this.inputFilePath = inputFilePath;
-  }
-
-  @Override
-  public Object clone() {
-    return new FileInfo(fileId, inputFileName, inputFilePath);
   }
 
   public int getFileId() {

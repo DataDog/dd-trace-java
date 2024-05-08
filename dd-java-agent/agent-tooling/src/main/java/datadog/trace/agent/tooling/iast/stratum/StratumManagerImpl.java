@@ -12,11 +12,11 @@ import org.slf4j.LoggerFactory;
  * Manages SMAP information for classes
  * https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection
  */
-public class StratumManager {
+public class StratumManagerImpl {
 
-  private static final Logger LOG = LoggerFactory.getLogger(StratumManager.class);
+  private static final Logger LOG = LoggerFactory.getLogger(StratumManagerImpl.class);
 
-  private StratumManager() {
+  private StratumManagerImpl() {
     // Prevent instantiation
   }
 
@@ -26,7 +26,7 @@ public class StratumManager {
 
   private boolean EMPTY_DEBUG_INFO;
 
-  public static final StratumManager INSTANCE = new StratumManager();
+  public static final StratumManagerImpl INSTANCE = new StratumManagerImpl();
 
   public static boolean shouldBeAnalyzed(final String internalClassName) {
     return internalClassName.contains("jsp")

@@ -4,23 +4,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StratumExt extends AbstractStratum implements Cloneable, Stratum {
+public class StratumExt extends AbstractStratum implements Stratum {
   private final List<FileInfo> fileInfo = new ArrayList<FileInfo>();
 
   private int[] lineStart = null;
 
   private final List<LineInfo> lineInfo = new ArrayList<LineInfo>();
-
-  private final List<VendorInfo> vendorInfo = new ArrayList<VendorInfo>();
-
-  private final List<UnknownInfo> unknownInfo = new ArrayList<UnknownInfo>();
 
   private static final Logger LOG = LoggerFactory.getLogger(StratumExt.class);
 
@@ -71,36 +64,6 @@ public class StratumExt extends AbstractStratum implements Cloneable, Stratum {
     return fileInfo.get(0).getInputFilePath();
   }
 
-  @Override
-  public Object clone() {
-    StratumExt stratum = new StratumExt(getName());
-    for (Iterator<VendorInfo> iter = vendorInfo.iterator(); iter.hasNext(); ) {
-      stratum.getVendorInfo().add((VendorInfo) iter.next().clone());
-    }
-    for (Iterator<UnknownInfo> iter = unknownInfo.iterator(); iter.hasNext(); ) {
-      stratum.getUnknownInfo().add((UnknownInfo) iter.next().clone());
-    }
-    Map<FileInfo, FileInfo> fileInfoMap = new HashMap<FileInfo, FileInfo>();
-    for (Iterator<FileInfo> iter = fileInfo.iterator(); iter.hasNext(); ) {
-      FileInfo fileInfoOrig = iter.next();
-      FileInfo fileInfoClone = (FileInfo) fileInfoOrig.clone();
-      fileInfoMap.put(fileInfoOrig, fileInfoClone);
-      stratum.getFileInfo().add(fileInfoClone);
-    }
-
-    for (Iterator<LineInfo> iter = lineInfo.iterator(); iter.hasNext(); ) {
-      LineInfo lineInfo = iter.next();
-      FileInfo fileInfo = lineInfo.getFileInfo();
-      if (fileInfo != null) {
-        fileInfo = fileInfoMap.get(fileInfo);
-        lineInfo.setFileInfo(fileInfo);
-      }
-      stratum.addLineInfo(lineInfo);
-    }
-
-    return stratum;
-  }
-
   public List<FileInfo> getFileInfo() {
     return fileInfo;
   }
@@ -139,38 +102,8 @@ public class StratumExt extends AbstractStratum implements Cloneable, Stratum {
     return lineStart;
   }
 
-  public List<VendorInfo> getVendorInfo() {
-    return vendorInfo;
-  }
-
-  public void setVendorInfo(final List<VendorInfo> vendorInfoList) {
-    vendorInfo.clear();
-    if (vendorInfoList != null) {
-      vendorInfo.addAll(vendorInfoList);
-    }
-  }
-
-  public List<UnknownInfo> getUnknownInfo() {
-    return unknownInfo;
-  }
-
-  public void setUnknownInfo(final List<UnknownInfo> unknownInfoList) {
-    unknownInfo.clear();
-    if (unknownInfoList != null) {
-      unknownInfo.addAll(unknownInfoList);
-    }
-  }
-
   @Override
   public String toString() {
-    return "Stratum [fileInfoList="
-        + fileInfo
-        + ", lineInfoList="
-        + lineInfo
-        + ", vendorInfoList="
-        + vendorInfo
-        + ", unknownInfoList="
-        + unknownInfo
-        + "]";
+    return "Stratum [fileInfoList=" + fileInfo + ", lineInfoList=" + lineInfo + "]";
   }
 }
