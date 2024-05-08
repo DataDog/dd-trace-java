@@ -71,17 +71,23 @@ public abstract class SeleniumUtils {
 
   private static void injectRumContext(WebDriver driver, DDTraceId traceId) {
     WebDriver.Options options = driver.manage();
-    // options can be null if the driver is not finished initialization yet
+    // options can be null if the driver has not finished initializing yet
     // (which is the case when the driver's home page is opened)
-    if (options != null) {
+    if (options == null) {
+      return;
+    }
+    try {
       String domain = getCookieDomain(driver.getCurrentUrl());
       options.addCookie(new Cookie(RUM_CONTEXT_COOKIE_NAME, traceId.toString(), domain, "/", null));
+    } catch (MalformedURLException e) {
+      // could be "about:blank" or other similar pages,
+      // trying to set a cookie will cause exceptions
     }
   }
 
   private static void clearRumContext(WebDriver driver) {
     WebDriver.Options options = driver.manage();
-    // options can be null if the driver is not finished initialization yet
+    // options can be null if the driver has not finished initializing yet
     // (which is the case when the driver's home page is opened)
     if (options != null) {
       options.deleteCookieNamed(RUM_CONTEXT_COOKIE_NAME);
@@ -89,25 +95,20 @@ public abstract class SeleniumUtils {
   }
 
   @SuppressForbidden
-  static String getCookieDomain(String urlString) {
-    try {
-      URL url = new URL(urlString);
-      String host = url.getHost();
-      if (isIPV4Address(host)) {
-        return null;
-      }
-
-      int idx = host.length();
-      int tokenCount = 0;
-      while (tokenCount < 2 && idx > 0) {
-        idx = host.lastIndexOf('.', idx - 1);
-        tokenCount++;
-      }
-      return idx == -1 ? null : host.substring(idx + 1);
-
-    } catch (MalformedURLException e) {
+  static String getCookieDomain(String urlString) throws MalformedURLException {
+    URL url = new URL(urlString);
+    String host = url.getHost();
+    if (isIPV4Address(host)) {
       return null;
     }
+
+    int idx = host.length();
+    int tokenCount = 0;
+    while (tokenCount < 2 && idx > 0) {
+      idx = host.lastIndexOf('.', idx - 1);
+      tokenCount++;
+    }
+    return idx == -1 ? null : host.substring(idx + 1);
   }
 
   @SuppressForbidden

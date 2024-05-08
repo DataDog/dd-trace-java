@@ -96,7 +96,7 @@ class TaintedObjectCollection {
         return false
       }
       TaintedObject tobj = obj
-      valueMatcher.matches(tobj.get() as String) &&
+      valueMatcher.matches(tobj.get()) &&
         ranges.every { RangeMatcher rm ->
           tobj.ranges.any { range ->
             rm.matches(range)

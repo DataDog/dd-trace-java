@@ -189,7 +189,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
-  private boolean injectBaggageAsTags;
+  private final boolean injectBaggageAsTags;
+  private final boolean flushOnClose;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -280,6 +281,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean pollForTracerFlareRequests;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
+    private boolean flushOnClose;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -413,6 +415,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder flushOnClose(boolean flushOnClose) {
+      this.flushOnClose = flushOnClose;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -443,6 +450,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       strictTraceWrites(config.isTraceStrictWritesEnabled());
       injectBaggageAsTags(config.isInjectBaggageAsTagsEnabled());
+      flushOnClose(config.isCiVisibilityEnabled());
       return this;
     }
 
@@ -473,7 +481,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           profilingContextIntegration,
           pollForTracerFlareRequests,
           pollForTracingConfiguration,
-          injectBaggageAsTags);
+          injectBaggageAsTags,
+          flushOnClose);
     }
   }
 
@@ -504,7 +513,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final ProfilingContextIntegration profilingContextIntegration,
       final boolean pollForTracerFlareRequests,
       final boolean pollForTracingConfiguration,
-      final boolean injectBaggageAsTags) {
+      final boolean injectBaggageAsTags,
+      final boolean flushOnClose) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -712,6 +722,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
+    this.flushOnClose = flushOnClose;
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
     if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
       Map<String, Object> tmp = new HashMap<>(localRootSpanTags);
@@ -1087,6 +1098,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void close() {
+    if (flushOnClose) {
+      flush();
+    }
     tracingConfigPoller.stop();
     pendingTraceBuffer.close();
     writer.close();
@@ -1620,7 +1634,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       if (null == oldSnapshot) {
         sampler = CoreTracer.this.initialSampler;
-      } else if (Objects.equals(getTraceSampleRate(), oldSnapshot.getTraceSampleRate())) {
+      } else if (Objects.equals(getTraceSampleRate(), oldSnapshot.getTraceSampleRate())
+          && Objects.equals(getTraceSamplingRules(), oldSnapshot.getTraceSamplingRules())) {
         sampler = oldSnapshot.sampler;
       } else {
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this);

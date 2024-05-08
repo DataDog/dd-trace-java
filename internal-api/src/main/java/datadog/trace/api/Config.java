@@ -33,6 +33,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
@@ -233,6 +234,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
@@ -899,6 +901,8 @@ public class Config {
 
   private final boolean cwsEnabled;
   private final int cwsTlsRefresh;
+
+  private final boolean dataJobsEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -1975,6 +1979,8 @@ public class Config {
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
+    dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
     dataStreamsBucketDurationSeconds =
@@ -2858,6 +2864,10 @@ public class Config {
     return iastHardcodedSecretEnabled;
   }
 
+  public IastDetectionMode getIastDetectionMode() {
+    return iastDetectionMode;
+  }
+
   public boolean isIastAnonymousClassesEnabled() {
     return iastAnonymousClassesEnabled;
   }
@@ -3452,7 +3462,7 @@ public class Config {
   }
 
   public boolean isDataJobsEnabled() {
-    return instrumenterConfig.isDataJobsEnabled();
+    return dataJobsEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -4568,6 +4578,8 @@ public class Config {
         + telemetryMetricsEnabled
         + ", appSecScaEnabled="
         + appSecScaEnabled
+        + ", dataJobsEnabled="
+        + dataJobsEnabled
         + '}';
   }
 }

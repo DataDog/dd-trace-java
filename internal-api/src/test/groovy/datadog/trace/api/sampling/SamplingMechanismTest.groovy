@@ -47,13 +47,13 @@ class SamplingMechanismTest extends Specification {
     REMOTE_AUTO_RATE  | userDropX    | false
     REMOTE_AUTO_RATE  | userKeepX    | false
 
-    RULE              | UNSET        | false
-    RULE              | SAMPLER_DROP | false
-    RULE              | SAMPLER_KEEP | false
-    RULE              | USER_DROP    | true
-    RULE              | USER_KEEP    | true
-    RULE              | userDropX    | false
-    RULE              | userKeepX    | false
+    LOCAL_USER_RULE   | UNSET        | false
+    LOCAL_USER_RULE   | SAMPLER_DROP | false
+    LOCAL_USER_RULE   | SAMPLER_KEEP | false
+    LOCAL_USER_RULE   | USER_DROP    | true
+    LOCAL_USER_RULE   | USER_KEEP    | true
+    LOCAL_USER_RULE   | userDropX    | false
+    LOCAL_USER_RULE   | userKeepX    | false
 
     MANUAL            | UNSET        | false
     MANUAL            | SAMPLER_DROP | false

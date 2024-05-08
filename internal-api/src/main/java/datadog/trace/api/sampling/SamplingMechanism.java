@@ -12,7 +12,7 @@ public class SamplingMechanism {
   /** Auto; reserved for future use */
   public static final byte REMOTE_AUTO_RATE = 2;
   /** Sampling rule or sampling rate based on tracer config */
-  public static final byte RULE = 3;
+  public static final byte LOCAL_USER_RULE = 3;
   /** User directly sets sampling priority via code using span.SetTag(ManualKeep) or similar API */
   public static final byte MANUAL = 4;
   /** AppSec */
@@ -23,6 +23,10 @@ public class SamplingMechanism {
   public static final byte SPAN_SAMPLING_RATE = 8;
   /** Data Jobs */
   public static final byte DATA_JOBS = 10;
+
+  public static final byte REMOTE_USER_RULE = 11;
+  public static final byte REMOTE_ADAPTIVE_RULE = 12;
+
   /** Force override sampling decision from external source, like W3C traceparent. */
   public static final byte EXTERNAL_OVERRIDE = Byte.MIN_VALUE;
 
@@ -36,7 +40,7 @@ public class SamplingMechanism {
       case REMOTE_AUTO_RATE:
         return priority == SAMPLER_DROP || priority == SAMPLER_KEEP;
 
-      case RULE:
+      case LOCAL_USER_RULE:
       case MANUAL:
       case REMOTE_USER_RATE:
         return priority == USER_DROP || priority == USER_KEEP;

@@ -4,6 +4,7 @@ import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
@@ -63,6 +64,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
+    assertTrue(snapshot.getStack().isEmpty());
     assertEquals("this is log line", snapshot.getMessage());
   }
 

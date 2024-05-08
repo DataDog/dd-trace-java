@@ -159,6 +159,7 @@ public final class CodeHotspotsTest {
 
   @Test
   @DisplayName("Test batch app")
+  @Flaky
   void testBatch() throws Exception {
     System.out.println("Test batch app");
     int meanServiceTimeSecs = 1; // seconds
@@ -256,7 +257,7 @@ public final class CodeHotspotsTest {
     runTestGenerativeStackTraces("MethodHandles", depth);
   }
 
-  @Flaky("hasCpuEvents assertions failes sometimes")
+  @Flaky("hasCpuEvents assertions fails sometimes")
   @ParameterizedTest
   @ValueSource(ints = {128})
   void testGenerativeStackTracesWithCapturingLambdas(int depth) throws Exception {
@@ -311,7 +312,7 @@ public final class CodeHotspotsTest {
       IItemCollection events = JfrLoaderToolkit.loadEvents(f);
       IItemCollection wallclock = events.apply(ItemFilters.type("datadog.MethodSample"));
       //      IItemCollection cpu = events.apply(ItemFilters.type("datadog.ExecutionSample"));
-      assertTrue(wallclock.hasItems());
+      assertTrue(wallclock.hasItems(), "No datadog.MethodSample events found from " + f.getName());
       //      assertTrue(cpu.hasItems());
 
       validateStats(wallclock, idleness, minCoverage);

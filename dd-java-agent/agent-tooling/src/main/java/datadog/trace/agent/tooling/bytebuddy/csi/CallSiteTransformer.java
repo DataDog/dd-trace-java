@@ -46,7 +46,7 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
     this.helperInjector =
         helpers == null || helpers.length == 0
             ? NO_OP
-            : new HelperInjector(name, advices.getHelpers());
+            : new HelperInjector(false, name, advices.getHelpers());
   }
 
   @Override

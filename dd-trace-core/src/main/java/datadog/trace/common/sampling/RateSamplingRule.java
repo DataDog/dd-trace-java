@@ -1,5 +1,6 @@
 package datadog.trace.common.sampling;
 
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.Matcher;
 import datadog.trace.core.util.Matchers;
@@ -8,11 +9,18 @@ import datadog.trace.core.util.TagsMatcher;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-public abstract class SamplingRule {
+public abstract class RateSamplingRule {
   private final RateSampler sampler;
+  private final byte mechanism;
 
-  public SamplingRule(final RateSampler sampler) {
+  public RateSamplingRule(final RateSampler sampler, byte mechanism) {
     this.sampler = sampler;
+    this.mechanism = mechanism;
+  }
+
+  @Deprecated
+  public RateSamplingRule(final RateSampler sampler) {
+    this(sampler, SamplingMechanism.LOCAL_USER_RULE);
   }
 
   public abstract <T extends CoreSpan<T>> boolean matches(T span);
@@ -25,10 +33,13 @@ public abstract class SamplingRule {
     return sampler;
   }
 
-  public static class AlwaysMatchesSamplingRule extends SamplingRule {
+  public final byte getMechanism() {
+    return mechanism;
+  }
 
-    public AlwaysMatchesSamplingRule(final RateSampler sampler) {
-      super(sampler);
+  public static class AlwaysMatchesSamplingRule extends RateSamplingRule {
+    public AlwaysMatchesSamplingRule(final RateSampler sampler, byte samplingMechanism) {
+      super(sampler, samplingMechanism);
     }
 
     @Override
@@ -37,7 +48,7 @@ public abstract class SamplingRule {
     }
   }
 
-  public abstract static class PatternMatchSamplingRule extends SamplingRule {
+  public abstract static class PatternMatchSamplingRule extends RateSamplingRule {
     private final Pattern pattern;
 
     public PatternMatchSamplingRule(final String regex, final RateSampler sampler) {
@@ -76,7 +87,7 @@ public abstract class SamplingRule {
     }
   }
 
-  public static final class TraceSamplingRule extends SamplingRule {
+  public static final class TraceSamplingRule extends RateSamplingRule {
     private final Matcher serviceMatcher;
     private final Matcher operationMatcher;
     private final Matcher resourceMatcher;
@@ -87,8 +98,10 @@ public abstract class SamplingRule {
         final String operationGlob,
         final String resourceGlob,
         final Map<String, String> tags,
-        final RateSampler sampler) {
-      super(sampler);
+        final RateSampler sampler,
+        final byte samplingMechanism) {
+      super(sampler, samplingMechanism);
+
       serviceMatcher = Matchers.compileGlob(serviceGlob);
       operationMatcher = Matchers.compileGlob(operationGlob);
       resourceMatcher = Matchers.compileGlob(resourceGlob);
@@ -104,7 +117,7 @@ public abstract class SamplingRule {
     }
   }
 
-  public static final class SpanSamplingRule extends SamplingRule {
+  public static final class SpanSamplingRule extends RateSamplingRule {
     private final Matcher serviceMatcher;
     private final Matcher operationMatcher;
     private final SimpleRateLimiter rateLimiter;

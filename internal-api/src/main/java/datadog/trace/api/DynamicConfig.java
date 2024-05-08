@@ -105,7 +105,6 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     List<? extends SpanSamplingRule> spanSamplingRules;
     List<? extends TraceSamplingRule> traceSamplingRules;
-
     Double traceSampleRate;
 
     String preferredServiceName;
@@ -124,8 +123,12 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.responseHeaderTags = snapshot.responseHeaderTags;
       this.baggageMapping = snapshot.baggageMapping;
 
+      this.spanSamplingRules = snapshot.spanSamplingRules;
+      this.traceSamplingRules = snapshot.traceSamplingRules;
       this.traceSampleRate = snapshot.traceSampleRate;
+
       this.tracingTags = snapshot.tracingTags;
+
       this.preferredServiceName = snapshot.preferredServiceName;
     }
 
@@ -326,16 +329,21 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.responseHeaderTags = nullToEmpty(builder.responseHeaderTags);
       this.baggageMapping = nullToEmpty(builder.baggageMapping);
 
+      this.spanSamplingRules = nullToEmpty(builder.spanSamplingRules);
+      this.traceSamplingRules = nullToEmpty(builder.traceSamplingRules);
       this.traceSampleRate = builder.traceSampleRate;
 
-      this.spanSamplingRules = builder.spanSamplingRules;
-      this.traceSamplingRules = builder.traceSamplingRules;
-      this.tracingTags = builder.tracingTags;
+      this.tracingTags = nullToEmpty(builder.tracingTags);
+
       this.preferredServiceName = builder.preferredServiceName;
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
       return null != mapping ? mapping : Collections.emptyMap();
+    }
+
+    private static <V> List<V> nullToEmpty(List<V> list) {
+      return null != list ? list : Collections.emptyList();
     }
 
     @Override

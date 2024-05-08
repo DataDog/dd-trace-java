@@ -1,12 +1,9 @@
 package iast
 
-import com.fasterxml.jackson.core.JsonParser
-import datadog.trace.agent.test.AgentTestRunner
+import com.datadog.iast.propagation.PropagationModuleImpl
+import com.datadog.iast.test.IastAgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
-import datadog.trace.api.iast.Taintable
-import datadog.trace.api.iast.propagation.CodecModule
-import datadog.trace.api.iast.propagation.PropagationModule
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.common.serialization.ByteBufferDeserializer
@@ -16,54 +13,35 @@ import org.springframework.kafka.support.serializer.JsonDeserializer
 
 import java.nio.ByteBuffer
 
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
+import static org.hamcrest.CoreMatchers.instanceOf
+import static org.hamcrest.core.IsEqual.equalTo
 
-class KafkaIastDeserializerTest extends AgentTestRunner {
+class KafkaIastDeserializerTest extends IastAgentTestRunner {
 
   private static final int BUFF_OFFSET = 10
 
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig('dd.iast.enabled', 'true')
-  }
-
   void 'test string deserializer: #test'() {
     given:
-    final source = test.source
-    final propagationModule = Mock(PropagationModule)
-    final codecModule = Mock(CodecModule)
-    [propagationModule, codecModule].each { InstrumentationBridge.registerIastModule(it) }
+    final origin = test.origin
+    final propagationModule = new PropagationModuleImpl()
+    InstrumentationBridge.registerIastModule(propagationModule)
 
     and:
     final payload = "Hello World!".bytes
     final deserializer = new StringDeserializer()
 
     when:
-    deserializer.configure([:], source == SourceTypes.KAFKA_MESSAGE_KEY)
-    test.method.deserialize(deserializer, "test", payload)
+    final span = runUnderIastTrace {
+      deserializer.configure([:], origin == SourceTypes.KAFKA_MESSAGE_KEY)
+      test.method.deserialize(deserializer, "test", payload)
+    }
 
     then:
-    switch (test.method) {
-      case Method.DEFAULT:
-        1 * propagationModule.taintObject(payload, source) // taint byte[]
-        1 * codecModule.onStringFromBytes(payload, 0, payload.length, _, _ as String) // taint byte[] => string
-        break
-      case Method.WITH_HEADERS:
-        1 * propagationModule.taintObject(payload, source) // taint byte[]
-        1 * codecModule.onStringFromBytes(payload, 0, payload.length, _, _ as String) // taint byte[] => string
-        break
-      case Method.WITH_BYTE_BUFFER:
-        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, 0, payload.length, false, NOT_MARKED) // taint ByteBuffer => byte[]
-        1 * codecModule.onStringFromBytes(payload, 0, payload.length, _, _ as String) // taint byte[] => string
-        break
-      case Method.WITH_BYTE_BUFFER_OFFSET:
-        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintObjectIfTainted(_ as byte[], _ as ByteBuffer, true, NOT_MARKED) // taint ByteBuffer => byte[]
-        1 * codecModule.onStringFromBytes(_ as byte[], BUFF_OFFSET, payload.length, _, _ as String) // taint byte[] => string
-        break
+    final to = getTaintedObjectCollection(span)
+    to.hasTaintedObject {
+      value('Hello World!')
+      range(0, 12, source(origin))
     }
-    0 * _
 
     where:
     test << testSuite()
@@ -71,8 +49,8 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
 
   void 'test byte array deserializer: #test'() {
     given:
-    final source = test.source
-    final propagationModule = Mock(PropagationModule)
+    final origin = test.origin
+    final propagationModule = new PropagationModuleImpl()
     InstrumentationBridge.registerIastModule(propagationModule)
 
     and:
@@ -80,27 +58,17 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
     final deserializer = new ByteArrayDeserializer()
 
     when:
-    deserializer.configure([:], source == SourceTypes.KAFKA_MESSAGE_KEY)
-    test.method.deserialize(deserializer, "test", payload)
+    final span = runUnderIastTrace {
+      deserializer.configure([:], origin == SourceTypes.KAFKA_MESSAGE_KEY)
+      test.method.deserialize(deserializer, "test", payload)
+    }
 
     then:
-    switch (test.method) {
-      case Method.DEFAULT:
-        1 * propagationModule.taintObject(payload, source) // taint byte[]
-        break
-      case Method.WITH_HEADERS:
-        1 * propagationModule.taintObject(payload, source) // taint byte[]
-        break
-      case Method.WITH_BYTE_BUFFER:
-        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, 0, payload.length, false, NOT_MARKED) // taint ByteBuffer => byte[]
-        break
-      case Method.WITH_BYTE_BUFFER_OFFSET:
-        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, BUFF_OFFSET, payload.length, false, NOT_MARKED) // taint ByteBuffer => byte[]
-        break
+    final to = getTaintedObjectCollection(span)
+    to.hasTaintedObject {
+      value(equalTo(payload))
+      range(0, Integer.MAX_VALUE, source(origin))
     }
-    0 * _
 
     where:
     test << testSuite()
@@ -108,8 +76,8 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
 
   void 'test byte buffer deserializer: #test'() {
     given:
-    final source = test.source
-    final propagationModule = Mock(PropagationModule)
+    final origin = test.origin
+    final propagationModule = new PropagationModuleImpl()
     InstrumentationBridge.registerIastModule(propagationModule)
 
     and:
@@ -117,27 +85,17 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
     final deserializer = new ByteBufferDeserializer()
 
     when:
-    deserializer.configure([:], source == SourceTypes.KAFKA_MESSAGE_KEY)
-    test.method.deserialize(deserializer, "test", payload)
+    final span = runUnderIastTrace {
+      deserializer.configure([:], origin == SourceTypes.KAFKA_MESSAGE_KEY)
+      test.method.deserialize(deserializer, "test", payload)
+    }
 
     then:
-    switch (test.method) {
-      case Method.DEFAULT:
-        1 * propagationModule.taintObject(payload, source) // taint byte[]
-        1 * propagationModule.taintObjectIfTainted(_ as ByteBuffer, payload, true, NOT_MARKED) // taint byte[] => ByteBuffer
-        break
-      case Method.WITH_HEADERS:
-        1 * propagationModule.taintObject(payload, source) // taint byte[]
-        1 * propagationModule.taintObjectIfTainted(_ as ByteBuffer, payload, true, NOT_MARKED) // taint byte[] => ByteBuffer
-        break
-      case Method.WITH_BYTE_BUFFER:
-        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
-        break
-      case Method.WITH_BYTE_BUFFER_OFFSET:
-        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
-        break
+    final to = getTaintedObjectCollection(span)
+    to.hasTaintedObject {
+      value(instanceOf(ByteBuffer))
+      range(0, Integer.MAX_VALUE, source(origin))
     }
-    0 * _
 
     where:
     test << testSuite()
@@ -145,8 +103,8 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
 
   void 'test json deserialization: #test'() {
     given:
-    final source = test.source
-    final propagationModule = Mock(PropagationModule)
+    final origin = test.origin
+    final propagationModule = new PropagationModuleImpl()
     InstrumentationBridge.registerIastModule(propagationModule)
 
     and:
@@ -155,47 +113,37 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
     final deserializer = new JsonDeserializer(TestBean)
 
     when:
-    deserializer.configure([:], source == SourceTypes.KAFKA_MESSAGE_KEY)
-    test.method.deserialize(deserializer, 'test', payload)
+    final span = runUnderIastTrace {
+      deserializer.configure([:], origin == SourceTypes.KAFKA_MESSAGE_KEY)
+      test.method.deserialize(deserializer, 'test', payload)
+    }
 
     then:
-    switch (test.method) {
-      case Method.DEFAULT:
-        1 * propagationModule.taintObject(payload, source) // taint byte[]
-        break
-      case Method.WITH_HEADERS:
-        1 * propagationModule.taintObject(payload, source) // taint byte[]
-        break
-      case Method.WITH_BYTE_BUFFER:
-        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, 0, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, 0, payload.length, false, NOT_MARKED) // taint byte[] => ByteBuffer
-        break
-      case Method.WITH_BYTE_BUFFER_OFFSET:
-        1 * propagationModule.taintObjectRange(_ as ByteBuffer, source, BUFF_OFFSET, payload.length) // taint ByteBuffer
-        1 * propagationModule.taintObjectIfRangeTainted(payload, _ as ByteBuffer, BUFF_OFFSET, payload.length, false, NOT_MARKED) // taint byte[] => ByteBuffer
-        break
+    final to = getTaintedObjectCollection(span)
+    to.hasTaintedObject {
+      value(instanceOf(TestBean))
+      range(0, Integer.MAX_VALUE, source(origin as byte))
     }
-    // taint JSON
-    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, payload)
-    1 * propagationModule.findSource(_) >> Stub(Taintable.Source) {
-      getOrigin() >> source
-      getValue() >> json
+    to.hasTaintedObject {
+      value('name')
+      range(0, 4, source(origin as byte, 'name', 'name'))
     }
-    1 * propagationModule.taintString(_, 'name', source, 'name', json)
-    1 * propagationModule.taintString(_, 'Mr Bean', source, 'name', json)
-    0 * _
+    to.hasTaintedObject {
+      value('Mr Bean')
+      range(0, 7, source(origin as byte, 'name', 'Mr Bean'))
+    }
 
     where:
     test << testSuite()
   }
 
   private static List<Suite> testSuite() {
-    return [SourceTypes.KAFKA_MESSAGE_KEY, SourceTypes.KAFKA_MESSAGE_VALUE].collectMany { source ->
+    return [SourceTypes.KAFKA_MESSAGE_KEY, SourceTypes.KAFKA_MESSAGE_VALUE].collectMany { origin ->
       return [
-        new Suite(source: source, method: Method.DEFAULT),
-        new Suite(source: source, method: Method.WITH_HEADERS),
-        new Suite(source: source, method: Method.WITH_BYTE_BUFFER),
-        new Suite(source: source, method: Method.WITH_BYTE_BUFFER_OFFSET)
+        new Suite(origin: origin, method: Method.DEFAULT),
+        new Suite(origin: origin, method: Method.WITH_HEADERS),
+        new Suite(origin: origin, method: Method.WITH_BYTE_BUFFER),
+        new Suite(origin: origin, method: Method.WITH_BYTE_BUFFER_OFFSET)
       ]
     }
   }
@@ -237,12 +185,12 @@ class KafkaIastDeserializerTest extends AgentTestRunner {
   }
 
   static class Suite {
-    byte source
+    byte origin
     Method method
 
     @Override
     String toString() {
-      return "${method.name()}: ${SourceTypes.toString(source)}"
+      return "${method.name()}: ${SourceTypes.toString(origin)}"
     }
   }
 
