@@ -28,6 +28,8 @@ public class MessageStore {
     if (instance == null) {
       return null;
     }
-     return MSG_FIELD.get(instance);
+    AgentScope  as =  MSG_FIELD.get(instance);
+    MSG_FIELD.remove(instance);
+    return as;
   }
 }
