@@ -1,5 +1,7 @@
 package datadog.trace.core
 
+import static datadog.trace.api.DDTags.DJM_ENABLED
+import static datadog.trace.api.DDTags.DSM_ENABLED
 import static datadog.trace.api.DDTags.PROFILING_ENABLED
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY
 
@@ -81,6 +83,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       (PID_TAG)         : Config.get().getProcessId(),
       (SCHEMA_VERSION_TAG_KEY) : SpanNaming.instance().version(),
       (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0,
+      (DSM_ENABLED)           : Config.get().isDataStreamsEnabled() ? 1 : 0,
+      (DJM_ENABLED)           : Config.get().isDataJobsEnabled() ? 1 : 0
     ]
 
     when:
@@ -358,6 +362,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
         (THREAD_NAME)           : thread.name, (THREAD_ID): thread.id, (PID_TAG): Config.get().getProcessId(),
         (SCHEMA_VERSION_TAG_KEY): SpanNaming.instance().version(),
         (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0,
+        (DSM_ENABLED)           : Config.get().isDataStreamsEnabled() ? 1 : 0,
+        (DJM_ENABLED)           : Config.get().isDataJobsEnabled() ? 1 : 0
       ]
 
     where:
@@ -381,6 +387,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       (PID_TAG)               : Config.get().getProcessId(),
       (SCHEMA_VERSION_TAG_KEY): SpanNaming.instance().version(),
       (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0,
+      (DSM_ENABLED)           : Config.get().isDataStreamsEnabled() ? 1 : 0,
+      (DJM_ENABLED)           : Config.get().isDataJobsEnabled() ? 1 : 0
     ]
 
     cleanup:
