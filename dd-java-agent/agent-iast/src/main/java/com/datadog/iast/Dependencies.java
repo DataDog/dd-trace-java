@@ -3,7 +3,7 @@ package com.datadog.iast;
 import com.datadog.iast.overhead.OverheadController;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastContext;
-import datadog.trace.instrumentation.iastinstrumenter.IastJSPClassListener;
+import datadog.trace.instrumentation.iastinstrumenter.StratumListener;
 import datadog.trace.util.stacktrace.StackWalker;
 import javax.annotation.Nonnull;
 
@@ -14,7 +14,7 @@ public class Dependencies {
   private final OverheadController overheadController;
   private final StackWalker stackWalker;
 
-  private final IastJSPClassListener iastJSPClassListener;
+  private final StratumListener iastJSPClassListener;
 
   final IastContext.Provider contextProvider;
 
@@ -24,13 +24,13 @@ public class Dependencies {
       @Nonnull final OverheadController overheadController,
       @Nonnull final StackWalker stackWalker,
       @Nonnull final IastContext.Provider contextProvider,
-      @Nonnull final IastJSPClassListener iastJSPClassListener) {
+      @Nonnull final StratumListener stratumListener) {
     this.config = config;
     this.reporter = reporter;
     this.overheadController = overheadController;
     this.stackWalker = stackWalker;
     this.contextProvider = contextProvider;
-    this.iastJSPClassListener = iastJSPClassListener;
+    this.iastJSPClassListener = stratumListener;
   }
 
   public Config getConfig() {
@@ -49,7 +49,7 @@ public class Dependencies {
     return stackWalker;
   }
 
-  public IastJSPClassListener getIastJSPClassListener() {
+  public StratumListener getIastJSPClassListener() {
     return iastJSPClassListener;
   }
 }

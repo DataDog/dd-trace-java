@@ -6,9 +6,8 @@ import datadog.trace.agent.tooling.iast.stratum.LineInfo;
 import datadog.trace.agent.tooling.iast.stratum.SourceMap;
 import datadog.trace.agent.tooling.iast.stratum.SourceMapException;
 import datadog.trace.agent.tooling.iast.stratum.StratumExt;
-import datadog.trace.agent.tooling.iast.stratum.UnknownInfo;
-import datadog.trace.agent.tooling.iast.stratum.VendorInfo;
-import datadog.trace.agent.tooling.iast.stratum.utils.PatternUtils;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A collection of builders to parse SMAP Information.
@@ -93,14 +92,14 @@ class Builders {
         if (!state.getStratum().getLineInfo().isEmpty()) {
           throw new SourceMapException("Only one line section allowed");
         }
-        PatternUtils.LimitedPattern p = PatternUtils.compile(LineInfoPattern);
+        Pattern p = Pattern.compile(LineInfoPattern);
         int fileId = 0;
         for (int i = 1; i < lines.length; i++) {
           int inputStartLine = 1;
           int repeatCount = 1;
           int outputStartLine = 1;
           int outputLineIncrement = 1;
-          PatternUtils.LimitedMatcher m = p.matcher(lines[i]);
+          Matcher m = p.matcher(lines[i]);
           if (!m.matches()) {
             throw new SourceMapException("Invalid line info: " + lines[i]);
           }
@@ -168,30 +167,6 @@ class Builders {
         StratumExt stratum = new StratumExt(tokens[1]);
         state.getSourceMap().getStratumList().add(stratum);
         state.setStratum(stratum);
-      }
-    };
-  }
-
-  public static Builder vendorInfoBuilder() {
-    return new Builder("V") {
-      @Override
-      public void build(final State state, final String[] lines) throws SourceMapException {
-        if (lines.length < 1) {
-          throw new SourceMapException("Vendor information expected");
-        }
-        String[] viLines = new String[lines.length - 2];
-        System.arraycopy(lines, 2, viLines, 0, viLines.length);
-
-        state.getStratum().getVendorInfo().add(new VendorInfo(lines[1], viLines));
-      }
-    };
-  }
-
-  public static Builder unknownInfoBuilder() {
-    return new Builder("") {
-      @Override
-      public void build(final State state, final String[] lines) throws SourceMapException {
-        state.getStratum().getUnknownInfo().add(new UnknownInfo(lines));
       }
     };
   }

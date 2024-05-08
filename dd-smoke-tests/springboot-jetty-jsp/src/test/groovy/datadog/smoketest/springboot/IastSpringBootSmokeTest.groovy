@@ -40,7 +40,9 @@ class IastSpringBootSmokeTest extends AbstractIastServerSmokeTest {
     then:
     response.successful
     hasVulnerability { vul ->
-      vul.type == 'XSS'
+      vul.type == 'XSS' &&
+        vul.location.path == 'WEB-INF/jsp/test_xss.jsp' &&
+        vul.location.line == 9
     }
   }
 }

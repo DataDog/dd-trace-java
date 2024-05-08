@@ -5,26 +5,25 @@ import java.util.List;
 
 public class Resolver {
   public SourceMap resolve(final SourceMap sourceMap) {
-    SourceMap result = (SourceMap) sourceMap.clone();
-    for (EmbeddedStratum stratum : result.getEmbeddedStratumList()) {
-      StratumExt outerStratum = result.getStratum(stratum.getName());
+    for (EmbeddedStratum stratum : sourceMap.getEmbeddedStratumList()) {
+      StratumExt outerStratum = sourceMap.getStratum(stratum.getName());
       if (outerStratum != null) {
         for (SourceMap embeddedSourceMap : stratum.getSourceMapList()) {
           SourceMap resolvedEmbeddedSourceMap = resolve(embeddedSourceMap);
           String outerFileName = resolvedEmbeddedSourceMap.getOutputFileName();
           for (StratumExt embeddedStratum : resolvedEmbeddedSourceMap.getStratumList()) {
-            StratumExt resolvedStratum = result.getStratum(embeddedStratum.getName());
+            StratumExt resolvedStratum = sourceMap.getStratum(embeddedStratum.getName());
             if (resolvedStratum == null) {
               resolvedStratum = new StratumExt(embeddedStratum.getName());
-              result.getStratumList().add(resolvedStratum);
+              sourceMap.getStratumList().add(resolvedStratum);
             }
             resolve(new Context(outerStratum, outerFileName, resolvedStratum, embeddedStratum));
           }
         }
       }
     }
-    result.getEmbeddedStratumList().clear();
-    return result;
+    sourceMap.getEmbeddedStratumList().clear();
+    return sourceMap;
   }
 
   private void resolve(final Context context) {
@@ -50,7 +49,7 @@ public class Resolver {
                 getByPath(
                     context.resolvedStratum.getFileInfo(), eli.getFileInfo().getInputFilePath());
             if (fileInfo == null) {
-              fileInfo = (FileInfo) eli.getFileInfo().clone();
+              fileInfo = eli.getFileInfo();
               context.resolvedStratum.getFileInfo().add(fileInfo);
             }
             if (completeCount > 0) {

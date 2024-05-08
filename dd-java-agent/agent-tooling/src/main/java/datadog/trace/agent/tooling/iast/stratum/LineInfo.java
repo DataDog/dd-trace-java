@@ -14,7 +14,7 @@ package datadog.trace.agent.tooling.iast.stratum;
  *
  * <p>https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection
  */
-public class LineInfo implements Cloneable {
+public class LineInfo {
   private int fileId = -1;
 
   int inputStartLine;
@@ -53,15 +53,6 @@ public class LineInfo implements Cloneable {
     this.repeatCount = repeatCount;
     this.outputStartLine = outputStartLine;
     this.outputLineIncrement = outputLineIncrement;
-  }
-
-  @Override
-  public Object clone() {
-    LineInfo lineInfo =
-        new LineInfo(fileId, inputStartLine, repeatCount, outputStartLine, outputLineIncrement);
-
-    lineInfo.setFileInfo(fileInfo);
-    return lineInfo;
   }
 
   public int getFileId() {

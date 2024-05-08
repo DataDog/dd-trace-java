@@ -32,7 +32,6 @@ public class Parser {
     add(Builders.stratumBuilder());
     add(Builders.fileInfoBuilder());
     add(Builders.lineInfoBuilder());
-    add(Builders.vendorInfoBuilder());
     add(Builders.openEmbeddedStratumBuilder());
     add(Builders.closeStratumBuilder());
   }
@@ -100,11 +99,7 @@ public class Parser {
     if (sectionName.startsWith("*")) {
       sectionName = sectionName.substring("*".length());
     }
-    Builder builder = builders.get(sectionName);
-    if (builder == null) {
-      builder = Builders.unknownInfoBuilder();
-    }
-    return builder;
+    return builders.get(sectionName);
   }
 
   private void parseSection(final String[] lines) throws SourceMapException {
