@@ -523,8 +523,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     setupWithStubConfigService()
     // first initialization to exercise the update path
-    service.listeners['waf'].onNewSubconfig(service.currentAppSecConfig, reconf)
-    service.currentAppSecConfig.dirtyStatus.clearDirty()
+    dataListener = pwafModule.dataSubscriptions.first()
 
     def actions = [
       [
