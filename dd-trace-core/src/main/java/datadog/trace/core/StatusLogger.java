@@ -101,11 +101,6 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isTraceAnalyticsEnabled());
     writer.name("sample_rate");
     writer.value(config.getTraceSampleRate());
-    writer.name("sampling_rules");
-    writer.beginArray();
-    writeMap(writer, config.getTraceSamplingServiceRules());
-    writeMap(writer, config.getTraceSamplingOperationRules());
-    writer.endArray();
     writer.name("priority_sampling_enabled");
     writer.value(config.isPrioritySamplingEnabled());
     writer.name("logs_correlation_enabled");
