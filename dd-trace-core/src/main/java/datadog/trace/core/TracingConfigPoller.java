@@ -238,11 +238,11 @@ final class TracingConfigPoller {
   }
 
   private Map<String, String> parseTagListToMap(List<String> input) {
-    Map<String, String> resultMap = Collections.emptyMap();
-    if (null == input || input.isEmpty()) {
-      return resultMap;
+    if (null == input) {
+      return null;
     }
-    resultMap = new HashMap<>(input.size());
+
+    Map<String, String> resultMap = new HashMap<>(input.size());
     for (String s : input) {
       int colonIndex = s.indexOf(":");
       if (colonIndex > -1

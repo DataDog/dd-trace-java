@@ -3542,12 +3542,6 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
-  public Map<String, String> getSpanTags() {
-    final Map<String, String> result = newHashMap(spanTags.size());
-    result.putAll(spanTags);
-    return Collections.unmodifiableMap(result);
-  }
-
   public Map<String, String> getMergedJmxTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, String> result =
