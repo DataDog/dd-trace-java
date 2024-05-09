@@ -1,6 +1,8 @@
 package com.datadog.appsec.gateway;
 
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
+import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
+import static com.datadog.appsec.gateway.AppSecRequestContext.HEADERS_ALLOW_LIST;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
@@ -31,7 +33,6 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
-import datadog.trace.util.Strings;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -130,51 +131,34 @@ public class GatewayBridge {
               pp.processTraceSegment(traceSeg, ctx, collectedEvents);
             }
 
-            // If detected any events - mark span at appsec.event
-            if (!collectedEvents.isEmpty() && (rateLimiter == null || !rateLimiter.isThrottled())) {
-              // Keep event related span, because it could be ignored in case of
-              // reduced datadog sampling rate.
-              traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
-              traceSeg.setTagTop("appsec.event", true);
-              traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
+            if (rateLimiter == null || !rateLimiter.isThrottled()) {
+              // If detected any events - mark span at appsec.event
+              if (!collectedEvents.isEmpty()) {
+                // Keep event related span, because it could be ignored in case of
+                // reduced datadog sampling rate.
+                traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
+                traceSeg.setTagTop("appsec.event", true);
+                traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
-              Map<String, List<String>> requestHeaders = ctx.getRequestHeaders();
-              Map<String, List<String>> responseHeaders = ctx.getResponseHeaders();
-              // Reflect client_ip as actor.ip for backward compatibility
-              Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
-              if (clientIp != null) {
-                traceSeg.setTagTop("actor.ip", clientIp);
-              }
+                // Reflect client_ip as actor.ip for backward compatibility
+                Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
+                if (clientIp != null) {
+                  traceSeg.setTagTop("actor.ip", clientIp);
+                }
 
-              // Report AppSec events via "_dd.appsec.json" tag
-              AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
-              traceSeg.setDataTop("appsec", wrapper);
+                // Report AppSec events via "_dd.appsec.json" tag
+                AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
+                traceSeg.setDataTop("appsec", wrapper);
 
-              // Report collected request and response headers based on allow list
-              if (requestHeaders != null) {
-                requestHeaders.forEach(
-                    (name, value) -> {
-                      if (AppSecRequestContext.HEADERS_ALLOW_LIST.contains(name)) {
-                        String v = Strings.join(",", value);
-                        if (!v.isEmpty()) {
-                          traceSeg.setTagTop("http.request.headers." + name, v);
-                        }
-                      }
-                    });
-              }
-              if (responseHeaders != null) {
-                responseHeaders.forEach(
-                    (name, value) -> {
-                      if (AppSecRequestContext.HEADERS_ALLOW_LIST.contains(name)) {
-                        String v = String.join(",", value);
-                        if (!v.isEmpty()) {
-                          traceSeg.setTagTop("http.response.headers." + name, v);
-                        }
-                      }
-                    });
+                // Report collected request and response headers based on allow list
+                writeRequestHeaders(traceSeg, HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+                writeResponseHeaders(traceSeg, HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+              } else {
+                // Report minimum set of collected request headers
+                writeRequestHeaders(
+                    traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
               }
             }
-
             // If extracted any Api Schemas - commit them
             if (!ctx.commitApiSchemas(traceSeg)) {
               log.debug("Unable to commit, api security schemas and will be skipped");
@@ -423,6 +407,38 @@ public class GatewayBridge {
 
   public void stop() {
     subscriptionService.reset();
+  }
+
+  private static void writeRequestHeaders(
+      final TraceSegment traceSeg,
+      final Set<String> allowed,
+      final Map<String, List<String>> headers) {
+    writeHeaders(traceSeg, "http.request.headers.", allowed, headers);
+  }
+
+  private static void writeResponseHeaders(
+      final TraceSegment traceSeg,
+      final Set<String> allowed,
+      final Map<String, List<String>> headers) {
+    writeHeaders(traceSeg, "http.response.headers.", allowed, headers);
+  }
+
+  private static void writeHeaders(
+      final TraceSegment traceSeg,
+      final String prefix,
+      final Set<String> allowed,
+      final Map<String, List<String>> headers) {
+    if (headers != null) {
+      headers.forEach(
+          (name, value) -> {
+            if (allowed.contains(name)) {
+              String v = String.join(",", value);
+              if (!v.isEmpty()) {
+                traceSeg.setTagTop(prefix + name, v);
+              }
+            }
+          });
+    }
   }
 
   private static class RequestContextSupplier implements Flow<AppSecRequestContext> {
