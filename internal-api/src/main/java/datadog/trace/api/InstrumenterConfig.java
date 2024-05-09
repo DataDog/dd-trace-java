@@ -32,8 +32,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
+import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
@@ -399,7 +399,9 @@ public class InstrumenterConfig {
     return resolverCacheDir;
   }
 
-  public String getInstrumentationConfigId() { return instrumentationConfigId; }
+  public String getInstrumentationConfigId() {
+    return instrumentationConfigId;
+  }
 
   public boolean isResolverNamesAreUnique() {
     return resolverNamesAreUnique;
