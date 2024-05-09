@@ -457,7 +457,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().tracingTags == expectedValue
-    tracer.captureTraceConfig().getMergedSpanTags() == expectedValue
+    tracer.captureTraceConfig().mergedTracerTags == expectedValue
     when:
     updater.remove(key, null)
     updater.commit()

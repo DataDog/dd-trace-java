@@ -4,6 +4,9 @@
 # Default owners, overridden by file/directory specific owners below
 * @DataDog/apm-java
 
+# @DataDog/apm-idm-java
+dd-java-agent/instrumentation/              @DataDog/apm-idm-java
+
 # @DataDog/profiling-java
 dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
 dd-java-agent/agent-crashtracking/                                                         @DataDog/profiling-java
