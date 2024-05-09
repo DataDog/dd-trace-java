@@ -14,6 +14,7 @@ public class InstrumentationTags {
   public static final String PROCESSOR_NAME = "processor.name";
   public static final String RECORD_QUEUE_TIME_MS = "record.queue_time_ms";
   public static final String RECORD_END_TO_END_DURATION_MS = "record.e2e_duration_ms";
+  public static final String KAFKA_RECORDS_COUNT = "kafka.records_count";
   public static final String TOMBSTONE = "tombstone";
   public static final String AWS_AGENT = "aws.agent";
   public static final String AWS_SERVICE = "aws.service";
