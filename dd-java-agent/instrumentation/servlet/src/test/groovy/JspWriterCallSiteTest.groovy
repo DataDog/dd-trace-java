@@ -1,11 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.XssModule
-import foo.bar.smoketest.TestJspWriterSuite
+import foo.bar.TestJspWriterSuite
 
-import jakarta.servlet.jsp.JspWriter
+import javax.servlet.jsp.JspWriter
 
-class JakartaJspWriterCallsiteTest extends AgentTestRunner{
+class JspWriterCallSiteTest extends AgentTestRunner{
 
   static final STRING = "test"
   static final CHAR_ARRAY = STRING.toCharArray()

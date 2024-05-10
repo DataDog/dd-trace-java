@@ -2,10 +2,9 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.XssModule
 import foo.bar.smoketest.TestJspWriterSuite
-
 import jakarta.servlet.jsp.JspWriter
 
-class JakartaJspWriterCallsiteTest extends AgentTestRunner{
+class JakartaJspWriterFullDetectionCallsiteTest extends AgentTestRunner{
 
   static final STRING = "test"
   static final CHAR_ARRAY = STRING.toCharArray()
@@ -13,6 +12,7 @@ class JakartaJspWriterCallsiteTest extends AgentTestRunner{
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
+    injectSysConfig("dd.iast.detection.mode", "FULL")
   }
 
   void 'test JspWriter'() {
@@ -26,18 +26,18 @@ class JakartaJspWriterCallsiteTest extends AgentTestRunner{
     suite.&"$method".call(args)
 
     then:
-    expected * iastModule.onXss(args[0])
+    1 * iastModule.onXss(args[0])
     0 * iastModule._
 
     where:
-    method | args | expected
-    "printTest" | [STRING]  | 1
-    "printlnTest" | [STRING]  | 1
-    "write" | [STRING]  | 1
-    "write" | [STRING, 0, 0]  | 1
-    "printTest" | [CHAR_ARRAY]  | 0
-    "printlnTest" | [CHAR_ARRAY]  | 0
-    "write" | [CHAR_ARRAY]  | 0
-    "write" | [CHAR_ARRAY, 0, 0]  | 0
+    method | args
+    "printTest" | [STRING]
+    "printlnTest" | [STRING]
+    "write" | [STRING]
+    "write" | [STRING, 0, 0]
+    "printTest" | [CHAR_ARRAY]
+    "printlnTest" | [CHAR_ARRAY]
+    "write" | [CHAR_ARRAY]
+    "write" | [CHAR_ARRAY, 0, 0]
   }
 }

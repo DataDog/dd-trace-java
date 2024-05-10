@@ -26,19 +26,4 @@ public class JakartaJspWriterCallSite {
       }
     }
   }
-
-  @CallSite.Before("void jakarta.servlet.jsp.JspWriter.print(char[])")
-  @CallSite.Before("void jakarta.servlet.jsp.JspWriter.println(char[])")
-  @CallSite.Before("void jakarta.servlet.jsp.JspWriter.write(char[])")
-  @CallSite.Before("void jakarta.servlet.jsp.JspWriter.write(char[], int, int)")
-  public static void beforeCharArrayParam(@CallSite.Argument(0) @Nonnull final char[] buf) {
-    final XssModule module = InstrumentationBridge.XSS;
-    if (module != null) {
-      try {
-        module.onXss(buf);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("beforeCharArrayParam threw", e);
-      }
-    }
-  }
 }

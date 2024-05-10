@@ -5,7 +5,7 @@ import foo.bar.TestJspWriterSuite
 
 import javax.servlet.jsp.JspWriter
 
-class JspWriterInstrumentationTest extends AgentTestRunner{
+class JspWriterFullDetectionCallSiteTest extends AgentTestRunner{
 
   static final STRING = "test"
   static final CHAR_ARRAY = STRING.toCharArray()
@@ -13,6 +13,7 @@ class JspWriterInstrumentationTest extends AgentTestRunner{
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.iast.enabled", "true")
+    injectSysConfig("dd.iast.detection.mode", "FULL")
   }
 
   void 'test JspWriter'() {
