@@ -11,11 +11,11 @@ import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.sampling.Sampler
-import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
@@ -27,6 +27,7 @@ import okhttp3.OkHttpClient
 import spock.lang.Timeout
 
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.CopyOnWriteArrayList
 
 import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
@@ -456,7 +457,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     tracer.captureTraceConfig().tracingTags == expectedValue
-    tracer.captureTraceConfig().getMergedSpanTags() == expectedValue
+    tracer.captureTraceConfig().mergedTracerTags == expectedValue
     when:
     updater.remove(key, null)
     updater.commit()
@@ -669,6 +670,48 @@ class CoreTracerTest extends DDCoreSpecification {
     "service" | "env" | "service"     | "ENV"
     "service" | "env" | "SERVICE"     | "ENV"
     "SERVICE" | "ENV" | "service"     | "env"
+  }
+
+  def "flushes on tracer close if configured to do so"() {
+    given:
+    def writer = new WriterWithExplicitFlush()
+    def tracer = tracerBuilder().writer(writer).flushOnClose(true).build()
+
+    when:
+    tracer.buildSpan('my_span').start().finish()
+    tracer.close()
+
+    then:
+    !writer.flushedTraces.empty
+  }
+}
+
+class WriterWithExplicitFlush implements datadog.trace.common.writer.Writer {
+  final List<List<DDSpan>> writtenTraces = new CopyOnWriteArrayList<>()
+  final List<List<DDSpan>> flushedTraces = new CopyOnWriteArrayList<>()
+
+  @Override
+  void write(List<DDSpan> trace) {
+    writtenTraces.add(trace)
+  }
+
+  @Override
+  void start() {
+  }
+
+  @Override
+  boolean flush() {
+    flushedTraces.addAll(writtenTraces)
+    writtenTraces.clear()
+    return true
+  }
+
+  @Override
+  void close() {
+  }
+
+  @Override
+  void incrementDropCounts(int spanCount) {
   }
 }
 

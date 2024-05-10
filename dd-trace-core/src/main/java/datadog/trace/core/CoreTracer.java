@@ -24,6 +24,7 @@ import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -189,7 +190,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
-  private boolean injectBaggageAsTags;
+  private final boolean injectBaggageAsTags;
+  private final boolean flushOnClose;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -280,6 +282,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean pollForTracerFlareRequests;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
+    private boolean flushOnClose;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -413,6 +416,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder flushOnClose(boolean flushOnClose) {
+      this.flushOnClose = flushOnClose;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -436,13 +444,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               invertMap(config.getBaggageMapping())));
       // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
-      defaultSpanTags(config.getMergedSpanTags());
+      defaultSpanTags(withTracerTags(config.getMergedSpanTags(), config, null));
       serviceNameMappings(config.getServiceMapping());
       taggedHeaders(config.getRequestHeaderTags());
       baggageMapping(config.getBaggageMapping());
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       strictTraceWrites(config.isTraceStrictWritesEnabled());
       injectBaggageAsTags(config.isInjectBaggageAsTagsEnabled());
+      flushOnClose(config.isCiVisibilityEnabled());
       return this;
     }
 
@@ -473,7 +482,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           profilingContextIntegration,
           pollForTracerFlareRequests,
           pollForTracingConfiguration,
-          injectBaggageAsTags);
+          injectBaggageAsTags,
+          flushOnClose);
     }
   }
 
@@ -504,7 +514,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final ProfilingContextIntegration profilingContextIntegration,
       final boolean pollForTracerFlareRequests,
       final boolean pollForTracingConfiguration,
-      final boolean injectBaggageAsTags) {
+      final boolean injectBaggageAsTags,
+      final boolean flushOnClose) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -538,6 +549,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       spanSamplingRules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
     }
 
+    this.defaultSpanTags = defaultSpanTags;
+
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
             .setTracingEnabled(true) // implied by installation of CoreTracer
@@ -550,11 +563,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setTraceSampleRate(config.getTraceSampleRate())
             .setSpanSamplingRules(spanSamplingRules.getRules())
             .setTraceSamplingRules(traceSamplingRules.getRules())
-            .setTracingTags(config.getGlobalTags())
+            .setTracingTags(config.getMergedSpanTags())
             .apply();
 
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
-    this.defaultSpanTags = defaultSpanTags;
     this.partialFlushMinSpans = partialFlushMinSpans;
     this.idGenerationStrategy =
         null == idGenerationStrategy
@@ -712,6 +724,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
+    this.flushOnClose = flushOnClose;
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
     if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
       Map<String, Object> tmp = new HashMap<>(localRootSpanTags);
@@ -1087,6 +1100,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void close() {
+    if (flushOnClose) {
+      flush();
+    }
     tracingConfigPoller.stop();
     pendingTraceBuffer.close();
     writer.close();
@@ -1515,6 +1531,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
       }
 
+      ConfigSnapshot traceConfig = parentTrace.getTraceConfig();
+
       // Use parent pathwayContext if present and started
       pathwayContext =
           parentContext != null
@@ -1530,7 +1548,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
       }
       if (serviceName == null) {
-        serviceName = captureTraceConfig().getPreferredServiceName();
+        serviceName = traceConfig.getPreferredServiceName();
         if (serviceName == null) {
           // it could be on the initial snapshot but may be overridden to null and service name
           // cannot be null
@@ -1541,9 +1559,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final CharSequence operationName =
           this.operationName != null ? this.operationName : resourceName;
 
+      final Map<String, ?> mergedTracerTags = traceConfig.mergedTracerTags;
+
       final int tagsSize =
-          (null == tags ? 0 : tags.size())
-              + defaultSpanTags.size()
+          mergedTracerTags.size()
+              + (null == tags ? 0 : tags.size())
               + (null == coreTags ? 0 : coreTags.size())
               + (null == rootSpanTags ? 0 : rootSpanTags.size());
 
@@ -1586,7 +1606,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
-      context.setAllTags(captureTraceConfig().getMergedSpanTags());
+      context.setAllTags(mergedTracerTags);
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
@@ -1614,29 +1634,46 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   protected class ConfigSnapshot extends DynamicConfig.Snapshot {
     final Sampler sampler;
 
+    final Map<String, ?> mergedTracerTags;
+
     protected ConfigSnapshot(
         DynamicConfig<ConfigSnapshot>.Builder builder, ConfigSnapshot oldSnapshot) {
       super(builder, oldSnapshot);
 
       if (null == oldSnapshot) {
         sampler = CoreTracer.this.initialSampler;
-      } else if (Objects.equals(getTraceSampleRate(), oldSnapshot.getTraceSampleRate())) {
+      } else if (Objects.equals(getTraceSampleRate(), oldSnapshot.getTraceSampleRate())
+          && Objects.equals(getTraceSamplingRules(), oldSnapshot.getTraceSamplingRules())) {
         sampler = oldSnapshot.sampler;
       } else {
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this);
       }
-    }
 
-    public Map<String, String> getMergedSpanTags() {
-      // Do not include runtimeId into span tags: we only want that added to the root span
-      if (getTracingTags().isEmpty()) {
-        return CoreTracer.this.initialConfig.getMergedSpanTags();
+      if (null == oldSnapshot) {
+        mergedTracerTags = CoreTracer.this.defaultSpanTags;
+      } else if (getTracingTags().equals(oldSnapshot.getTracingTags())) {
+        mergedTracerTags = oldSnapshot.mergedTracerTags;
+      } else {
+        mergedTracerTags = withTracerTags(getTracingTags(), CoreTracer.this.initialConfig, this);
       }
-      int size = getTracingTags().size() + CoreTracer.this.initialConfig.getSpanTags().size();
-      final Map<String, String> result = new HashMap<>(size + 1, 1f);
-      result.putAll(getTracingTags());
-      result.putAll(CoreTracer.this.initialConfig.getSpanTags());
-      return Collections.unmodifiableMap(result);
     }
+  }
+
+  /**
+   * Tags added by the tracer to all spans; combines user-supplied tags with tracer-defined tags.
+   */
+  static Map<String, ?> withTracerTags(
+      Map<String, ?> userSpanTags, Config config, TraceConfig traceConfig) {
+    final Map<String, Object> result = new HashMap<>(userSpanTags.size() + 3, 1f);
+    result.putAll(userSpanTags);
+    if (null != config) {
+      if (!config.getEnv().isEmpty()) {
+        result.put("env", config.getEnv());
+      }
+      if (!config.getVersion().isEmpty()) {
+        result.put("version", config.getVersion());
+      }
+    }
+    return Collections.unmodifiableMap(result);
   }
 }

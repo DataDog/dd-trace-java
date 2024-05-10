@@ -195,9 +195,6 @@
 0 org.apache.http.client.methods.*
 # apache compiled jsps
 0 org.apache.jsp.*
-# Need for kafka propagation
-2 org.apache.kafka.common.serialization.ByteBufferDeserializer
-2 org.apache.kafka.common.serialization.StringDeserializer
 1 org.apiguardian.*
 1 org.aspectj.*
 1 org.attoparser.*

@@ -404,11 +404,15 @@ public class LogProbe extends ProbeDefinition {
   }
 
   private void sample(LogStatus logStatus, MethodLocation methodLocation) {
+    if (logStatus.isForceSampling()) {
+      return;
+    }
     // sample only once and when we need to evaluate
     if (!MethodLocation.isSame(methodLocation, evaluateAt)) {
       return;
     }
     boolean sampled = ProbeRateLimiter.tryProbe(id);
+    LOGGER.debug("Probe[{}] sampled={}", probeId.getId(), sampled);
     logStatus.setSampled(sampled);
     if (!sampled) {
       DebuggerAgent.getSink().skipSnapshot(id, DebuggerContext.SkipCause.RATE);
@@ -530,7 +534,9 @@ public class LogProbe extends ProbeDefinition {
      * - ProbeDefinition.commit()
      * - DebuggerContext.commit() or DebuggerContext.evalAndCommit()
      */
-    snapshot.recordStackTrace(5);
+    if (isCaptureSnapshot()) {
+      snapshot.recordStackTrace(5);
+    }
     sink.addSnapshot(snapshot);
   }
 
@@ -586,6 +592,7 @@ public class LogProbe extends ProbeDefinition {
     private boolean hasLogTemplateErrors;
     private boolean hasConditionErrors;
     private boolean sampled = true;
+    private boolean forceSampling;
     private String message;
 
     public LogStatus(ProbeImplementation probeImplementation) {
@@ -653,6 +660,14 @@ public class LogProbe extends ProbeDefinition {
 
     public boolean isSampled() {
       return sampled;
+    }
+
+    public boolean isForceSampling() {
+      return forceSampling;
+    }
+
+    public void setForceSampling(boolean forceSampling) {
+      this.forceSampling = forceSampling;
     }
   }
 
