@@ -281,7 +281,8 @@ final class TracerFlareService {
   }
 
   private void addLogs(ZipOutputStream zip) throws IOException {
-
+    // org.slf4j.simpleLogger.logFile transformed as datadog.slf4j.simpleLogger.logFile in the final
+    // dd-java-agent jar
     String logFile = System.getProperty("org.slf4j.simpleLogger.logFile");
     if (logFile == null || logFile.isEmpty()) {
       TracerFlare.addText(zip, "tracer.log", "No tracer log file specified");
