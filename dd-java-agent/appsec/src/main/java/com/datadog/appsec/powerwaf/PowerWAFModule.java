@@ -101,10 +101,6 @@ public class PowerWAFModule implements AppSecModule {
       this.ctx = ctx;
       this.actionInfoMap = actionInfoMap;
     }
-
-    CtxAndAddresses withNewActions(Map<String, ActionInfo> actionInfoMap) {
-      return new CtxAndAddresses(this.addressesOfInterest, this.ctx, actionInfoMap);
-    }
   }
 
   static {
@@ -195,21 +191,8 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     try {
-      if (config.dirtyStatus.isDirtyForDdwafUpdate()) {
-        // ddwaf_init/update
-        initializeNewWafCtx(reconf, config, curCtxAndAddresses);
-      } else if (config.dirtyStatus.isDirtyForActions()) {
-        // only internal actions change
-        // if we're here curCtxAndAddresses is not null
-        Map<String, ActionInfo> actionInfoMap =
-            calculateEffectiveActions(curCtxAndAddresses, config.getMergedUpdateConfig());
-        CtxAndAddresses newCtxAndAddresses = curCtxAndAddresses.withNewActions(actionInfoMap);
-        boolean success =
-            this.ctxAndAddresses.compareAndSet(curCtxAndAddresses, newCtxAndAddresses);
-        if (!success) {
-          throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
-        }
-      }
+      // ddwaf_init/update
+      initializeNewWafCtx(reconf, config, curCtxAndAddresses);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     }
@@ -433,14 +416,13 @@ public class PowerWAFModule implements AppSecModule {
           log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
         }
 
-        for (String action : resultWithData.actions) {
-          ActionInfo actionInfo = ctxAndAddr.actionInfoMap.get(action);
-          if (actionInfo == null) {
-            log.warn(
-                "WAF indicated action {}, but such action id is unknown (not one from {})",
-                action,
-                ctxAndAddr.actionInfoMap.keySet());
-          } else if ("block_request".equals(actionInfo.type)) {
+        for (Map.Entry<String, Map<String, Object>> action : resultWithData.actions.entrySet()) {
+          String actionType = action.getKey();
+          Map<String, Object> actionParams = action.getValue();
+
+          ActionInfo actionInfo = new ActionInfo(actionType, actionParams);
+
+          if ("block_request".equals(actionInfo.type)) {
             Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
             flow.setAction(rba);
             break;
@@ -467,8 +449,15 @@ public class PowerWAFModule implements AppSecModule {
 
     private Flow.Action.RequestBlockingAction createBlockRequestAction(ActionInfo actionInfo) {
       try {
-        int statusCode =
-            ((Number) actionInfo.parameters.getOrDefault("status_code", 403)).intValue();
+        int statusCode;
+        Object statusCodeObj = actionInfo.parameters.get("status_code");
+        if (statusCodeObj instanceof Number) {
+          statusCode = ((Number) statusCodeObj).intValue();
+        } else if (statusCodeObj instanceof String) {
+          statusCode = Integer.parseInt((String) statusCodeObj);
+        } else {
+          statusCode = 403;
+        }
         String contentType = (String) actionInfo.parameters.getOrDefault("type", "auto");
         BlockingContentType blockingContentType = BlockingContentType.AUTO;
         try {
@@ -485,8 +474,15 @@ public class PowerWAFModule implements AppSecModule {
 
     private Flow.Action.RequestBlockingAction createRedirectRequestAction(ActionInfo actionInfo) {
       try {
-        int statusCode =
-            ((Number) actionInfo.parameters.getOrDefault("status_code", 303)).intValue();
+        int statusCode;
+        Object statusCodeObj = actionInfo.parameters.get("status_code");
+        if (statusCodeObj instanceof Number) {
+          statusCode = ((Number) statusCodeObj).intValue();
+        } else if (statusCodeObj instanceof String) {
+          statusCode = Integer.parseInt((String) statusCodeObj);
+        } else {
+          statusCode = 303;
+        }
         if (statusCode < 300 || statusCode > 399) {
           statusCode = 303;
         }

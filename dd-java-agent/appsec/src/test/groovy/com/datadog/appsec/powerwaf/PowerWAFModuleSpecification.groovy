@@ -545,7 +545,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
 
     then:
-    1 * reconf.reloadSubscriptions()
+    2 * reconf.reloadSubscriptions()
 
     when:
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)
