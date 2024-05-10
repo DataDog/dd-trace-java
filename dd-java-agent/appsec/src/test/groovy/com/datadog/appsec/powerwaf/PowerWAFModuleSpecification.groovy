@@ -523,7 +523,8 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     setupWithStubConfigService()
     // first initialization to exercise the update path
-    dataListener = pwafModule.dataSubscriptions.first()
+    service.listeners['waf'].onNewSubconfig(service.currentAppSecConfig, reconf)
+    service.currentAppSecConfig.dirtyStatus.clearDirty()
 
     def actions = [
       [
@@ -544,7 +545,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
 
     then:
-    1 * reconf.reloadSubscriptions()
+    2 * reconf.reloadSubscriptions()
 
     when:
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false)

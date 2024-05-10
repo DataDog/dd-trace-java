@@ -101,10 +101,6 @@ public class PowerWAFModule implements AppSecModule {
       this.ctx = ctx;
       this.actionInfoMap = actionInfoMap;
     }
-
-    CtxAndAddresses withNewActions(Map<String, ActionInfo> actionInfoMap) {
-      return new CtxAndAddresses(this.addressesOfInterest, this.ctx, actionInfoMap);
-    }
   }
 
   static {
@@ -195,21 +191,8 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     try {
-      if (config.dirtyStatus.isDirtyForDdwafUpdate()) {
-        // ddwaf_init/update
-        initializeNewWafCtx(reconf, config, curCtxAndAddresses);
-      } else if (config.dirtyStatus.isDirtyForActions()) {
-        // only internal actions change
-        // if we're here curCtxAndAddresses is not null
-        Map<String, ActionInfo> actionInfoMap =
-            calculateEffectiveActions(curCtxAndAddresses, config.getMergedUpdateConfig());
-        CtxAndAddresses newCtxAndAddresses = curCtxAndAddresses.withNewActions(actionInfoMap);
-        boolean success =
-            this.ctxAndAddresses.compareAndSet(curCtxAndAddresses, newCtxAndAddresses);
-        if (!success) {
-          throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
-        }
-      }
+      // ddwaf_init/update
+      initializeNewWafCtx(reconf, config, curCtxAndAddresses);
     } catch (Exception e) {
       throw new AppSecModuleActivationException("Could not initialize/update waf", e);
     }
