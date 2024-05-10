@@ -4,7 +4,8 @@
 
 Pull requests for bug fixes are welcome, but before submitting new features or changes to current
 functionality, please [open an issue](https://github.com/DataDog/dd-trace-java/issues/new)
-and discuss your ideas or propose the changes you wish to make first. After a resolution is reached a PR can be submitted for
+and discuss your ideas or propose the changes you wish to make first. After a resolution is reached a PR can be
+submitted for
 review.
 
 When opening a pull request, please open it as
@@ -21,7 +22,8 @@ Check [How Instrumentations Work](docs/how_instrumentations_work.md) for a deep 
 
 ### Development environment quick check
 
-Prior contributing to the project, you can quickly check your development environment using the `./setup.sh` command line, and fix any issue found using the [Building documentation](BUILDING.md).
+Prior to contributing to the project, you can quickly check your development environment using the `./setup.sh` command
+line, and fix any issue found using the [Building documentation](BUILDING.md).
 
 ### Automatic code formatting
 
@@ -49,7 +51,9 @@ To run formatting verify task only:
 
 For IntelliJ IDEA, we suggest the following settings and plugin:
 
-In contrast to the [IntelliJ IDEA set up](CONTRIBUTING.md#intellij-idea) the default JVM to build and run tests from the command line should be Java 8.
+In contrast to the [IntelliJ IDEA set up](CONTRIBUTING.md#intellij-idea) the default JVM to build and run tests from the
+command line should be Java 8.
+
 * Use Java 8 to build and run tests:  
   `Project Structure` > `Project` > `SDK` > Use a JDK 1.8
 * Configure import formatting:  
@@ -82,7 +86,6 @@ git config --local submodule.recurse true
 
 This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core` up to date.
 
-
 ### Troubleshooting
 
 * Gradle fails with a "too many open files" error.
@@ -92,17 +95,19 @@ This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core`
 <details>
   <summary>More past issues</summary>
 
-  * When Gradle is building the project, the
+* When Gradle is building the project, the
   error `Could not find netty-transport-native-epoll-4.1.43.Final-linux-x86_64.jar` is shown.
     * Execute `rm -rf  ~/.m2/repository/io/netty/netty-transport*` in a Terminal and re-build again.
 
-  * IntelliJ 2021.3 complains `Failed to find KotlinGradleProjectData for GradleSourceSetData` https://youtrack.jetbrains.com/issue/KTIJ-20173
+* IntelliJ 2021.3
+  complains `Failed to find KotlinGradleProjectData for GradleSourceSetData` https://youtrack.jetbrains.com/issue/KTIJ-20173
     * Switch to `IntelliJ IDEA CE 2021.2.3`
 
 * IntelliJ Gradle fails to import the project with `JAVA_11_HOME must be set to build Java 11 code`
     * A workaround is to run IntelliJ from terminal with `JAVA_11_HOME`
     * In order to verify what's visible from IntelliJ use `Add Configuration` bar and go
       to `Add New` -> `Gradle` -> `Environmental Variables`
+
 </details>
 
 ## Running tests on another JVM
@@ -122,10 +127,13 @@ Please note that the JDK name needs to end with the JDK version, e.g. `11`, `ZUL
 The APM test agent emulates the APM endpoints of the Datadog Agent.
 The APM Test Agent container runs alongside Java tracer Instrumentation Tests in CI,
 handling all traces during test runs and performing a number of `Trace Checks`.
-Trace Check results are returned within the `Get APM Test Agent Trace Check Results` step for all instrumentation test jobs.
-Check [trace invariant checks](https://github.com/DataDog/dd-apm-test-agent#trace-invariant-checks) for more informations.
+Trace Check results are returned within the `Get APM Test Agent Trace Check Results` step for all instrumentation test
+jobs.
+Check [trace invariant checks](https://github.com/DataDog/dd-apm-test-agent#trace-invariant-checks) for more
+informations.
 
 The APM Test Agent also emits helpful logging, including logging received traces' headers, spans, errors encountered,
-ands information on trace checks being performed. 
-Logs can be viewed in CircleCI within the Test-Agent container step for all instrumentation test suites, ie: `z_test_8_inst` job.
+ands information on trace checks being performed.
+Logs can be viewed in CircleCI within the Test-Agent container step for all instrumentation test suites,
+ie: `z_test_8_inst` job.
 Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agent#readme).
