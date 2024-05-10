@@ -242,6 +242,22 @@ class TestTelemetryRouter extends TelemetryRouter {
       return this
     }
 
+    PayloadAssertions instrumentationConfigId(String id) {
+      boolean checked = false
+      this.payload['configuration'].each { v ->
+        if (v['name'] == 'instrumentation_config_id') {
+          assert v['value'] == id
+          checked = true
+        }
+      }
+
+      if (!checked) {
+        assert id == null
+      }
+
+      return this
+    }
+
     PayloadAssertions products(boolean appsecEnabled = true, boolean profilerEnabled = false, boolean dynamicInstrumentationEnabled = false) {
       def expected = [
         appsec: [enabled: appsecEnabled],

@@ -32,6 +32,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
@@ -116,6 +117,8 @@ public class InstrumenterConfig {
   private final String axisTransportClassName;
 
   private final boolean directAllocationProfilingEnabled;
+
+  private final String instrumentationConfigId;
 
   private final List<String> excludedClasses;
   private final String excludedClassesFile;
@@ -235,6 +238,8 @@ public class InstrumenterConfig {
     serialVersionUIDFieldInjection =
         configProvider.getBoolean(
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
+
+    instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
     traceAnnotationAsync =
@@ -392,6 +397,10 @@ public class InstrumenterConfig {
 
   public String getResolverCacheDir() {
     return resolverCacheDir;
+  }
+
+  public String getInstrumentationConfigId() {
+    return instrumentationConfigId;
   }
 
   public boolean isResolverNamesAreUnique() {
