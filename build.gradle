@@ -166,7 +166,6 @@ allprojects { project ->
 def testAggregate(String baseTaskName, includePrefixes, excludePrefixes, boolean coverage = false) {
   def createRootTask = { rootTaskName, subProjTaskName ->
     tasks.register(rootTaskName) { aggTest ->
-      println("=> testAggregate.register $rootTaskName $subProjTaskName $aggTest")
       subprojects { subproject ->
         if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
           def testTask = subproject.tasks.findByName(subProjTaskName)
