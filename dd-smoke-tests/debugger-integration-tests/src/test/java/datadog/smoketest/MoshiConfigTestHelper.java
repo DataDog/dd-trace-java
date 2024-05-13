@@ -337,7 +337,7 @@ public class MoshiConfigTestHelper {
 
     @Override
     public Void visit(SetValue setValue) {
-      throw new UnsupportedOperationException("mapValue");
+      throw new UnsupportedOperationException("setValue");
     }
   }
 }

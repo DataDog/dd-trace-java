@@ -219,6 +219,7 @@ public class ProbeConditionTest {
     fields.put("emptyStr", "");
     fields.put("emptyList", new ArrayList<>());
     fields.put("emptyMap", new HashMap<>());
+    fields.put("emptySet", new HashSet<>());
     fields.put("emptyArray", new Object[0]);
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, fields);
     assertTrue(probeCondition.execute(ctx));
