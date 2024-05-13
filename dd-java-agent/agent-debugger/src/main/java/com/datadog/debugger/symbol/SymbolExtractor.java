@@ -65,7 +65,9 @@ public class SymbolExtractor {
           .scopes(new ArrayList<>(Collections.singletonList(classScope)))
           .build();
     } catch (Exception ex) {
-      LoggerFactory.getLogger(SymbolExtractor.class).debug("Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
+      LoggerFactory.getLogger(SymbolExtractor.class)
+          .debug(
+              "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
       return null;
     }
   }
