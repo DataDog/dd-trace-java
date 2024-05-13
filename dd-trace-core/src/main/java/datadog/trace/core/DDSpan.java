@@ -51,6 +51,8 @@ public class DDSpan
     implements AgentSpan, CoreSpan<DDSpan>, TransientProfilingContextHolder, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
+  private static final boolean DEBUGGER_ENABLED = Config.get().isDebuggerEnabled();
+
   public static final String CHECKPOINTED_TAG = "checkpointed";
 
   static DDSpan create(
@@ -365,7 +367,7 @@ public class DDSpan
 
       setTag(DDTags.ERROR_MSG, message);
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
-      if (isLocalRootSpan()) {
+      if (DEBUGGER_ENABLED && isLocalRootSpan()) {
         DebuggerContext.handleException(error, this);
       }
     }
