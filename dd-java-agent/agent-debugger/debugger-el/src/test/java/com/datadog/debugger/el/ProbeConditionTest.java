@@ -242,7 +242,7 @@ public class ProbeConditionTest {
 
   @Test
   void testLenCount() throws Exception {
-    ProbeCondition probeCondition = load("/test_conditional_13.json");
+    ProbeCondition probeCondition = load("/test_conditional_14.json");
     Map<String, Object> fields = new HashMap<>();
     fields.put("intArray", new int[] {1, 1, 1});
     fields.put("strArray", new String[] {"foo", "bar"});
@@ -259,7 +259,6 @@ public class ProbeConditionTest {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, fields);
     assertTrue(probeCondition.execute(ctx));
   }
-
 
   private static ProbeCondition load(String resourcePath) throws IOException {
     InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath);
