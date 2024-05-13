@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -72,17 +71,18 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   static final String JETTY_JNDI_APP = "Test JNDI WebApp";
   static final String JETTY_SPEC_APP = "Test Annotations WebApp";
   static final String JETTY_TEST_APP = "Test WebApp";
-  public static final List ADMIN_CONSOLE_LIST =
-      Arrays.asList(TOMCAT_MANAGER_APP, TOMCAT_HOST_MANAGER_APP);
-  public static final List DEFAULT_APP_LIST =
-      Arrays.asList(
-          TOMCAT_SAMPLES_APP,
-          JETTY_ASYNC_REST_APP,
-          JETTY_JAVADOC_APP,
-          JETTY_JAAS_APP,
-          JETTY_JNDI_APP,
-          JETTY_SPEC_APP,
-          JETTY_TEST_APP);
+  public static final Set<String> ADMIN_CONSOLE_LIST =
+      new HashSet<>(Arrays.asList(TOMCAT_MANAGER_APP, TOMCAT_HOST_MANAGER_APP));
+  public static final Set<String> DEFAULT_APP_LIST =
+      new HashSet<>(
+          Arrays.asList(
+              TOMCAT_SAMPLES_APP,
+              JETTY_ASYNC_REST_APP,
+              JETTY_JAVADOC_APP,
+              JETTY_JAAS_APP,
+              JETTY_JNDI_APP,
+              JETTY_SPEC_APP,
+              JETTY_TEST_APP));
   public static final String WEB_INF = "WEB-INF";
   public static final String WEB_XML = "web.xml";
   public static final String WEBLOGIC_XML = "weblogic.xml";
