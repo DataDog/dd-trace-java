@@ -293,7 +293,7 @@ public class AgentInstaller {
     EnumSet<InstrumenterModule.TargetSystem> enabledSystems =
         EnumSet.noneOf(InstrumenterModule.TargetSystem.class);
     InstrumenterConfig cfg = InstrumenterConfig.get();
-    if (cfg.isTraceEnabled()) {
+    if (cfg.isTraceEnabled() || cfg.isApmTracingEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.TRACING);
     }
     if (cfg.isProfilingEnabled()) {
