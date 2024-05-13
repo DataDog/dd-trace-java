@@ -909,11 +909,24 @@ public class DDSpanContext
   }
 
   @Override
+  public Object getTagTop(String key, boolean sanitize) {
+    return getRootSpanContextOrThis().getTagCurrent(key, sanitize);
+  }
+
+  @Override
   public void setTagCurrent(String key, Object value, boolean sanitize) {
     if (sanitize) {
       key = TagsHelper.sanitize(key);
     }
     this.setTag(key, value);
+  }
+
+  @Override
+  public Object getTagCurrent(String key, boolean sanitize) {
+    if (sanitize) {
+      key = TagsHelper.sanitize(key);
+    }
+    return this.getTag(key);
   }
 
   @Override

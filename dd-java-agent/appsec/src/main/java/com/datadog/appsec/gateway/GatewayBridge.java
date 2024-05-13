@@ -62,6 +62,11 @@ public class GatewayBridge {
   private static final Pattern QUERY_PARAM_SPLITTER = Pattern.compile("&");
   private static final Map<String, List<String>> EMPTY_QUERY_PARAMS = Collections.emptyMap();
 
+  /** User tracking tags that will force the collection of request headers */
+  private static final List<String> USER_TRACKING_TAGS =
+      Arrays.asList(
+          "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track");
+
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final RateLimiter rateLimiter;
@@ -151,12 +156,14 @@ public class GatewayBridge {
                 AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
                 traceSeg.setDataTop("appsec", wrapper);
 
-                // Report collected request and response headers based on allow list
-                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+                // Report collected response headers based on allow list
                 writeResponseHeaders(
                     traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+              }
+
+              if (hasAppSecEvents(traceSeg)) {
+                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
               } else {
-                // Report minimum set of collected request headers
                 writeRequestHeaders(
                     traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
               }
@@ -409,6 +416,22 @@ public class GatewayBridge {
 
   public void stop() {
     subscriptionService.reset();
+  }
+
+  private static boolean hasAppSecEvents(final TraceSegment traceSeg) {
+    if (isTruthy(traceSeg.getTagTop("appsec.event"))) {
+      return true;
+    }
+    for (String tagName : USER_TRACKING_TAGS) {
+      if (isTruthy(traceSeg.getTagTop(tagName))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isTruthy(final Object value) {
+    return value != null && "true".equals(value.toString());
   }
 
   private static void writeRequestHeaders(
