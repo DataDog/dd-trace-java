@@ -156,14 +156,15 @@ public class GatewayBridge {
                 AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
                 traceSeg.setDataTop("appsec", wrapper);
 
-                // Report collected response headers based on allow list
+                // Report collected request and response headers based on allow list
+                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
                 writeResponseHeaders(
                     traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
-              }
-
-              if (hasAppSecEvents(traceSeg)) {
+              } else if (hasUserTrackingEvent(traceSeg)) {
+                // Report all collected request headers on user tracking event
                 writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
               } else {
+                // Report minimum set of collected request headers
                 writeRequestHeaders(
                     traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
               }
@@ -418,10 +419,7 @@ public class GatewayBridge {
     subscriptionService.reset();
   }
 
-  private static boolean hasAppSecEvents(final TraceSegment traceSeg) {
-    if (isTruthy(traceSeg.getTagTop("appsec.event"))) {
-      return true;
-    }
+  private static boolean hasUserTrackingEvent(final TraceSegment traceSeg) {
     for (String tagName : USER_TRACKING_TAGS) {
       if (isTruthy(traceSeg.getTagTop(tagName))) {
         return true;
