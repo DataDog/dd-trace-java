@@ -1,15 +1,22 @@
 package datadog.trace.instrumentation.springsecurity5
 
+import custom.CustomAuthenticationFilter
+import custom.CustomAuthenticationProvider
 import org.springframework.boot.jdbc.DataSourceBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer
 import org.springframework.security.provisioning.JdbcUserDetailsManager
 import org.springframework.security.provisioning.UserDetailsManager
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
 import javax.sql.DataSource
+
+import static datadog.trace.instrumentation.springsecurity5.SecurityConfig.CustomDsl.customDsl
 
 @Configuration
 @EnableWebSecurity
@@ -17,9 +24,11 @@ class SecurityConfig {
 
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http.authorizeHttpRequests(
+    http.apply(customDsl())
+    http
+    .authorizeHttpRequests(
     (requests) -> requests
-    .requestMatchers("/", "/success", "/register", "/login").permitAll()
+    .requestMatchers("/", "/success", "/register", "/login", "/custom").permitAll()
     .anyRequest().authenticated())
     .csrf().disable()
     .formLogin((form) -> form.loginPage("/login").permitAll())
@@ -39,5 +48,18 @@ class SecurityConfig {
   @Bean
   UserDetailsManager userDetailsService() {
     return new JdbcUserDetailsManager(dataSource)
+  }
+
+  static class CustomDsl extends AbstractHttpConfigurer<CustomDsl, HttpSecurity> {
+    @Override
+    void configure(HttpSecurity http) throws Exception {
+      AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager)
+      http.authenticationProvider(new CustomAuthenticationProvider())
+      http.addFilterBefore(new CustomAuthenticationFilter(authenticationManager), UsernamePasswordAuthenticationFilter)
+    }
+
+    static CustomDsl customDsl() {
+      return new CustomDsl()
+    }
   }
 }

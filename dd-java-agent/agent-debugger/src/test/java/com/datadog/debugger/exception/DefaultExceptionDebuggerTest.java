@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,7 +59,8 @@ class DefaultExceptionDebuggerTest {
   public void setUp() {
     configurationUpdater = mock(ConfigurationUpdater.class);
     classNameFiltering = new ClassNameFiltering(emptySet());
-    exceptionDebugger = new DefaultExceptionDebugger(configurationUpdater, classNameFiltering);
+    exceptionDebugger =
+        new DefaultExceptionDebugger(configurationUpdater, classNameFiltering, Duration.ofHours(1));
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }
@@ -195,6 +197,15 @@ class DefaultExceptionDebuggerTest {
         expectedFrameIndex,
         "com.datadog.debugger.exception.DefaultExceptionDebuggerTest",
         "createTest1Exception");
+  }
+
+  @Test
+  public void filteringOutErrors() {
+    ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
+    exceptionDebugger =
+        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering);
+    exceptionDebugger.handleException(new AssertionError("test"), mock(AgentSpan.class));
+    verify(manager, times(0)).isAlreadyInstrumented(any());
   }
 
   private Object recordTags(InvocationOnMock invocationOnMock) {

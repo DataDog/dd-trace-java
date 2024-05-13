@@ -33,6 +33,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
@@ -122,8 +123,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
-import static datadog.trace.api.DDTags.DJM_ENABLED;
-import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
@@ -233,6 +232,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
@@ -899,6 +899,8 @@ public class Config {
 
   private final boolean cwsEnabled;
   private final int cwsTlsRefresh;
+
+  private final boolean dataJobsEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -1975,6 +1977,8 @@ public class Config {
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
+    dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
     dataStreamsBucketDurationSeconds =
@@ -2858,6 +2862,10 @@ public class Config {
     return iastHardcodedSecretEnabled;
   }
 
+  public IastDetectionMode getIastDetectionMode() {
+    return iastDetectionMode;
+  }
+
   public boolean isIastAnonymousClassesEnabled() {
     return iastAnonymousClassesEnabled;
   }
@@ -3452,7 +3460,7 @@ public class Config {
   }
 
   public boolean isDataJobsEnabled() {
-    return instrumenterConfig.isDataJobsEnabled();
+    return dataJobsEnabled;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -3463,8 +3471,6 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    result.put(DSM_ENABLED, isDataStreamsEnabled() ? 1 : 0);
-    result.put(DJM_ENABLED, isDataJobsEnabled() ? 1 : 0);
 
     if (reportHostName) {
       final String hostName = getHostName();
@@ -3528,12 +3534,6 @@ public class Config {
     // Do not include runtimeId into span tags: we only want that added to the root span
     final Map<String, String> result = newHashMap(getGlobalTags().size() + spanTags.size());
     result.putAll(getGlobalTags());
-    result.putAll(spanTags);
-    return Collections.unmodifiableMap(result);
-  }
-
-  public Map<String, String> getSpanTags() {
-    final Map<String, String> result = newHashMap(spanTags.size());
     result.putAll(spanTags);
     return Collections.unmodifiableMap(result);
   }
@@ -4568,6 +4568,8 @@ public class Config {
         + telemetryMetricsEnabled
         + ", appSecScaEnabled="
         + appSecScaEnabled
+        + ", dataJobsEnabled="
+        + dataJobsEnabled
         + '}';
   }
 }

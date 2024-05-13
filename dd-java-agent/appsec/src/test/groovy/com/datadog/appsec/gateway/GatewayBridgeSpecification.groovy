@@ -8,7 +8,6 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
-import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -18,6 +17,7 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
@@ -762,5 +762,46 @@ class GatewayBridgeSpecification extends DDSpecification {
     flowBodyProc == NoopFlow.INSTANCE
     flowReqEnd == NoopFlow.INSTANCE
     0 * _
+  }
+
+  void 'default request headers are always set when appsec is enabled'() {
+    final mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.requestHeaders >> [
+      'host': ['localhost'],
+      'accept': ['text/plain'],
+      'content-type': ['application/json'],
+      'user-agent': ['mozilla'],
+      'x-amzn-trace-id': ['Root=1-65ae48bc-04fb551979979b6c57973027'],
+      'cloudfront-viewer-ja3-fingerprint': ['e7d705a3286e19ea42f587b344ee6865'],
+      'cf-ray': ['230b030023ae2822-SJC'],
+      'x-cloud-trace-context': ['105445aa7843bc8bf206b12000100000/1'],
+      'x-appgw-trace-id': ['ac882cd65a2712a0fe1289ec2bb6aee7'],
+      'x-sigsci-requestid': ['55c24b96ca84c02201000001'],
+      'x-sigsci-tags': ['SQLI, XSS'],
+      'akamai-user-risk': ['uuid=913c4545-757b-4d8d-859d-e1361a828361;status=0'],
+    ]
+    final mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    final spanInfo = Mock(AgentSpan)
+
+    when:
+    requestEndedCB.apply(mockCtx, spanInfo)
+
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    0 * traceSegment.setTagTop('http.request.headers.host', _)
+    1 * traceSegment.setTagTop('http.request.headers.accept', 'text/plain')
+    1 * traceSegment.setTagTop('http.request.headers.content-type', 'application/json')
+    1 * traceSegment.setTagTop('http.request.headers.user-agent', 'mozilla')
+    1 * traceSegment.setTagTop('http.request.headers.x-amzn-trace-id', 'Root=1-65ae48bc-04fb551979979b6c57973027')
+    1 * traceSegment.setTagTop('http.request.headers.cloudfront-viewer-ja3-fingerprint', 'e7d705a3286e19ea42f587b344ee6865')
+    1 * traceSegment.setTagTop('http.request.headers.cf-ray', '230b030023ae2822-SJC')
+    1 * traceSegment.setTagTop('http.request.headers.x-cloud-trace-context', '105445aa7843bc8bf206b12000100000/1')
+    1 * traceSegment.setTagTop('http.request.headers.x-appgw-trace-id', 'ac882cd65a2712a0fe1289ec2bb6aee7')
+    1 * traceSegment.setTagTop('http.request.headers.x-sigsci-requestid', '55c24b96ca84c02201000001')
+    1 * traceSegment.setTagTop('http.request.headers.x-sigsci-tags', 'SQLI, XSS')
+    1 * traceSegment.setTagTop('http.request.headers.akamai-user-risk', 'uuid=913c4545-757b-4d8d-859d-e1361a828361;status=0')
   }
 }

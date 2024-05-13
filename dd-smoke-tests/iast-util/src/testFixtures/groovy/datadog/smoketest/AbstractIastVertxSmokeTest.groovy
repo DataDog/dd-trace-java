@@ -94,7 +94,7 @@ abstract class AbstractIastVertxSmokeTest extends AbstractIastServerSmokeTest {
     }
   }
 
-  void 'test parameter names list source'() {
+  void 'test #type parameter names list source'() {
     setup:
     final request = builder.call("http://localhost:${httpPort}/paramnames")
     final name = params.split('=')[0]
@@ -111,9 +111,9 @@ abstract class AbstractIastVertxSmokeTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    params            | builder
-    'postparam=value' | { String url -> new Request.Builder().url(url).post(RequestBody.create(FORM, params)).build() }
-    'getparam=value'  | { String url -> new Request.Builder().url("$url?$params").get().build() }
+    type   | params            | builder
+    'post' | 'postparam=value' | { String url -> new Request.Builder().url(url).post(RequestBody.create(FORM, params)).build() }
+    'get'  | 'getparam=value'  | { String url -> new Request.Builder().url("$url?$params").get().build() }
   }
 
   void 'test form source'() {

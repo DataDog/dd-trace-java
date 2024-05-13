@@ -222,8 +222,10 @@ public class ASMHelper {
   }
 
   public static LocalVariableNode[] createLocalVarNodes(List<LocalVariableNode> sortedLocalVars) {
-    int maxIndex = sortedLocalVars.get(sortedLocalVars.size() - 1).index;
-    LocalVariableNode[] localVars = new LocalVariableNode[maxIndex + 1];
+    LocalVariableNode maxVarNode = sortedLocalVars.get(sortedLocalVars.size() - 1);
+    int maxIndex = maxVarNode.index;
+    org.objectweb.asm.Type localType = org.objectweb.asm.Type.getType(maxVarNode.desc);
+    LocalVariableNode[] localVars = new LocalVariableNode[maxIndex + localType.getSize()];
     for (LocalVariableNode localVariableNode : sortedLocalVars) {
       localVars[localVariableNode.index] = localVariableNode;
     }
@@ -243,6 +245,9 @@ public class ASMHelper {
       int slot = isStatic ? 0 : 1;
       int localVarTableIdx = slot;
       for (org.objectweb.asm.Type t : argTypes) {
+        if (slot >= localVars.length) {
+          break;
+        }
         if (localVars[slot] == null && localVarTableIdx < sortedLocalVars.size()) {
           localVars[slot] = sortedLocalVars.get(localVarTableIdx);
         }

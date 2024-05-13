@@ -2,6 +2,8 @@ package datadog.trace.core;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.api.DDTags.DJM_ENABLED;
+import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
@@ -24,6 +26,7 @@ import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -443,7 +446,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               invertMap(config.getBaggageMapping())));
       // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
-      defaultSpanTags(config.getMergedSpanTags());
+      defaultSpanTags(withTracerTags(config.getMergedSpanTags(), config, null));
       serviceNameMappings(config.getServiceMapping());
       taggedHeaders(config.getRequestHeaderTags());
       baggageMapping(config.getBaggageMapping());
@@ -548,6 +551,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       spanSamplingRules = SpanSamplingRules.deserializeFile(spanSamplingRulesFile);
     }
 
+    this.defaultSpanTags = defaultSpanTags;
+
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
             .setTracingEnabled(true) // implied by installation of CoreTracer
@@ -560,11 +565,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setTraceSampleRate(config.getTraceSampleRate())
             .setSpanSamplingRules(spanSamplingRules.getRules())
             .setTraceSamplingRules(traceSamplingRules.getRules())
-            .setTracingTags(config.getGlobalTags())
+            .setTracingTags(config.getMergedSpanTags())
             .apply();
 
     this.logs128bTraceIdEnabled = InstrumenterConfig.get().isLogs128bTraceIdEnabled();
-    this.defaultSpanTags = defaultSpanTags;
     this.partialFlushMinSpans = partialFlushMinSpans;
     this.idGenerationStrategy =
         null == idGenerationStrategy
@@ -1529,6 +1533,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
       }
 
+      ConfigSnapshot traceConfig = parentTrace.getTraceConfig();
+
       // Use parent pathwayContext if present and started
       pathwayContext =
           parentContext != null
@@ -1544,7 +1550,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
       }
       if (serviceName == null) {
-        serviceName = captureTraceConfig().getPreferredServiceName();
+        serviceName = traceConfig.getPreferredServiceName();
         if (serviceName == null) {
           // it could be on the initial snapshot but may be overridden to null and service name
           // cannot be null
@@ -1555,9 +1561,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final CharSequence operationName =
           this.operationName != null ? this.operationName : resourceName;
 
+      final Map<String, ?> mergedTracerTags = traceConfig.mergedTracerTags;
+
       final int tagsSize =
-          (null == tags ? 0 : tags.size())
-              + defaultSpanTags.size()
+          mergedTracerTags.size()
+              + (null == tags ? 0 : tags.size())
               + (null == coreTags ? 0 : coreTags.size())
               + (null == rootSpanTags ? 0 : rootSpanTags.size());
 
@@ -1600,7 +1608,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
-      context.setAllTags(captureTraceConfig().getMergedSpanTags());
+      context.setAllTags(mergedTracerTags);
       context.setAllTags(tags);
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
@@ -1628,6 +1636,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   protected class ConfigSnapshot extends DynamicConfig.Snapshot {
     final Sampler sampler;
 
+    final Map<String, ?> mergedTracerTags;
+
     protected ConfigSnapshot(
         DynamicConfig<ConfigSnapshot>.Builder builder, ConfigSnapshot oldSnapshot) {
       super(builder, oldSnapshot);
@@ -1640,18 +1650,45 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       } else {
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this);
       }
-    }
 
-    public Map<String, String> getMergedSpanTags() {
-      // Do not include runtimeId into span tags: we only want that added to the root span
-      if (getTracingTags().isEmpty()) {
-        return CoreTracer.this.initialConfig.getMergedSpanTags();
+      if (null == oldSnapshot) {
+        mergedTracerTags = CoreTracer.this.defaultSpanTags;
+      } else if (getTracingTags().equals(oldSnapshot.getTracingTags())) {
+        mergedTracerTags = oldSnapshot.mergedTracerTags;
+      } else {
+        mergedTracerTags = withTracerTags(getTracingTags(), CoreTracer.this.initialConfig, this);
       }
-      int size = getTracingTags().size() + CoreTracer.this.initialConfig.getSpanTags().size();
-      final Map<String, String> result = new HashMap<>(size + 1, 1f);
-      result.putAll(getTracingTags());
-      result.putAll(CoreTracer.this.initialConfig.getSpanTags());
-      return Collections.unmodifiableMap(result);
     }
+  }
+
+  /**
+   * Tags added by the tracer to all spans; combines user-supplied tags with tracer-defined tags.
+   */
+  static Map<String, ?> withTracerTags(
+      Map<String, ?> userSpanTags, Config config, TraceConfig traceConfig) {
+    final Map<String, Object> result = new HashMap<>(userSpanTags.size() + 5, 1f);
+    result.putAll(userSpanTags);
+    if (null != config) { // static
+      if (!config.getEnv().isEmpty()) {
+        result.put("env", config.getEnv());
+      }
+      if (!config.getVersion().isEmpty()) {
+        result.put("version", config.getVersion());
+      }
+      if (config.isDataJobsEnabled()) {
+        result.put(DJM_ENABLED, 1);
+      }
+      if (config.isDataStreamsEnabled()) {
+        result.put(DSM_ENABLED, 1);
+      }
+    }
+    if (null != traceConfig) { // dynamic
+      if (traceConfig.isDataStreamsEnabled()) {
+        result.put(DSM_ENABLED, 1);
+      } else {
+        result.remove(DSM_ENABLED);
+      }
+    }
+    return Collections.unmodifiableMap(result);
   }
 }

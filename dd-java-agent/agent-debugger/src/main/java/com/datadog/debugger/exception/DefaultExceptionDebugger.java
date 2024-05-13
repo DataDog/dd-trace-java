@@ -12,6 +12,7 @@ import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.AgentTaskScheduler;
+import java.time.Duration;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +33,13 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   private final ClassNameFiltering classNameFiltering;
 
   public DefaultExceptionDebugger(
-      ConfigurationUpdater configurationUpdater, ClassNameFiltering classNameFiltering) {
-    this(new ExceptionProbeManager(classNameFiltering), configurationUpdater, classNameFiltering);
+      ConfigurationUpdater configurationUpdater,
+      ClassNameFiltering classNameFiltering,
+      Duration captureInterval) {
+    this(
+        new ExceptionProbeManager(classNameFiltering, captureInterval),
+        configurationUpdater,
+        classNameFiltering);
   }
 
   DefaultExceptionDebugger(
@@ -47,6 +53,12 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
 
   @Override
   public void handleException(Throwable t, AgentSpan span) {
+    if (t instanceof Error) {
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("Skip handling error: {}", t.toString());
+      }
+      return;
+    }
     String fingerprint = Fingerprinter.fingerprint(t, classNameFiltering);
     if (fingerprint == null) {
       LOGGER.debug("Unable to fingerprint exception", t);
@@ -64,6 +76,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
         return;
       }
       processSnapshotsAndSetTags(t, span, state, innerMostException);
+      exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
       if (exceptionProbeManager.createProbesForException(innerMostException.getStackTrace())) {
         AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
