@@ -222,6 +222,21 @@ public class ProbeConditionTest {
     assertTrue(probeCondition.execute(ctx));
   }
 
+  @Test
+  void testLiterals() throws Exception {
+    ProbeCondition probeCondition = load("/test_conditional_13.json");
+    Map<String, Object> fields = new HashMap<>();
+    fields.put("boolVal", true);
+    fields.put("intVal", 1);
+    fields.put("longVal", 1L);
+    fields.put("doubleVal", 1.0);
+    fields.put("strVal", "foo");
+    fields.put("objVal", null);
+    fields.put("charVal", 'a');
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, fields);
+    assertTrue(probeCondition.execute(ctx));
+  }
+
   private static ProbeCondition load(String resourcePath) throws IOException {
     InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath);
     Moshi moshi =

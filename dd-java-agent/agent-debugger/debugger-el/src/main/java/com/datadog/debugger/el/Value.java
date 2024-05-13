@@ -64,6 +64,8 @@ public interface Value<T> {
     }
     if (value instanceof Boolean) {
       return new BooleanValue((Boolean) value);
+    } else if (value instanceof Character) {
+      return new StringValue(value.toString());
     } else if (value instanceof Number) {
       return new NumericValue((Number) value);
     } else if (value instanceof String) {
