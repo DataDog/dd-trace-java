@@ -266,7 +266,10 @@ public class InstrumenterConfig {
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
 
-    apmTracinEnabled = !isTraceEnabled() && (getAppSecActivation() == ProductActivation.FULLY_ENABLED || getIastActivation() == ProductActivation.FULLY_ENABLED);
+    apmTracinEnabled =
+        !isTraceEnabled()
+            && (getAppSecActivation() == ProductActivation.FULLY_ENABLED
+                || getIastActivation() == ProductActivation.FULLY_ENABLED);
   }
 
   public boolean isSpanOriginEnabled() {
