@@ -13,7 +13,7 @@ import org.slf4j.Marker;
 
 public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
-  private final boolean telemetryLogCollectionEnabled = getLogCollectionEnabled(false);
+  private final boolean telemetryLogCollectionEnabled = isLogCollectionEnabled();
 
   private volatile LoggerHelperFactory helperFactory = null;
   private volatile LogLevel override = null;
@@ -88,17 +88,30 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
     helperFactory = null;
   }
 
-  // DDLoggerFactory can be called at very early stage, before Config loaded
+  // DDLoggerFactory can be called at very early stage, before Config is loaded
   // So to get property/env we use this custom function
-  private static boolean getLogCollectionEnabled(boolean defaultValue) {
-    String value = System.getProperty("dd.telemetry.log-collection.enabled");
+  private static boolean isLogCollectionEnabled() {
+    // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
+    // users. This should be removed once we default to true.
+    final boolean defaultValue =
+        isFlagEnabled("dd.iast.enabled", "DD_IAST_ENABLED", false)
+            || isFlagEnabled("dd.civisibility.enabled", "DD_CIVISIBILITY_ENABLED", false)
+            || isFlagEnabled(
+                "dd.dynamic.instrumentation.enabled", "DD_DYNAMIC_INSTRUMENTATION_ENABLED", false);
+    return isFlagEnabled(
+        "dd.telemetry.log-collection.enabled", "DD_TELEMETRY_LOG_COLLECTION_ENABLED", defaultValue);
+  }
+
+  private static boolean isFlagEnabled(
+      final String systemProperty, final String envVar, final boolean defaultValue) {
+    String value = System.getProperty(systemProperty);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }
     if ("false".equalsIgnoreCase(value)) {
       return false;
     }
-    value = System.getenv("DD_TELEMETRY_LOG_COLLECTION_ENABLED");
+    value = System.getenv(envVar);
     if ("true".equalsIgnoreCase(value)) {
       return true;
     }
