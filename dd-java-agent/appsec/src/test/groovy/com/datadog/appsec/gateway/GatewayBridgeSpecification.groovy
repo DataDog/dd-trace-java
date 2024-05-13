@@ -763,4 +763,29 @@ class GatewayBridgeSpecification extends DDSpecification {
     flowReqEnd == NoopFlow.INSTANCE
     0 * _
   }
+
+  void 'default request headers are always set when appsec is enabled'() {
+    final mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.requestHeaders >> [
+      'accept': ['text/plain'],
+      'content-type': ['application/json'],
+      'host': ['localhost'],
+      'user-agent': ['mozilla']
+    ]
+    final mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    final spanInfo = Mock(AgentSpan)
+
+    when:
+    requestEndedCB.apply(mockCtx, spanInfo)
+
+    then:
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    1 * traceSegment.setTagTop('http.request.headers.accept', 'text/plain')
+    1 * traceSegment.setTagTop('http.request.headers.content-type', 'application/json')
+    1 * traceSegment.setTagTop('http.request.headers.user-agent', 'mozilla')
+    0 * traceSegment.setTagTop('http.request.headers.host', _)
+  }
 }

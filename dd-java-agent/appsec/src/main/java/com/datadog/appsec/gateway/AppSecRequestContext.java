@@ -49,6 +49,10 @@ public class AppSecRequestContext implements DataBundle, Closeable {
               "accept-encoding",
               "accept-language"));
 
+  // request headers that will always be set when appsec is enabled
+  public static final Set<String> DEFAULT_REQUEST_HEADERS_ALLOW_LIST =
+      new TreeSet<>(Arrays.asList("accept", "content-type", "user-agent"));
+
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
   private Collection<AppSecEvent> collectedEvents; // guarded by this
 
