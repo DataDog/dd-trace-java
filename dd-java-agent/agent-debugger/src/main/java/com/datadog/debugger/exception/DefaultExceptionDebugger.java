@@ -53,6 +53,12 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
 
   @Override
   public void handleException(Throwable t, AgentSpan span) {
+    if (t instanceof Error) {
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("Skip handling error: {}", t.toString());
+      }
+      return;
+    }
     String fingerprint = Fingerprinter.fingerprint(t, classNameFiltering);
     if (fingerprint == null) {
       LOGGER.debug("Unable to fingerprint exception", t);
