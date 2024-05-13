@@ -14,6 +14,8 @@ import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.postprocessor.AppSecSpanPostProcessor;
+import datadog.trace.core.postprocessor.SpanPostProcessor;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -145,6 +147,7 @@ public class DDAgentWriter extends RemoteWriter {
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
       final PayloadDispatcher dispatcher =
           new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
+      final SpanPostProcessor spanPostProcessor = new AppSecSpanPostProcessor();
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,
@@ -155,7 +158,7 @@ public class DDAgentWriter extends RemoteWriter {
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,
               singleSpanSampler,
-              null);
+              spanPostProcessor);
 
       return new DDAgentWriter(traceProcessingWorker, dispatcher, healthMetrics, alwaysFlush);
     }

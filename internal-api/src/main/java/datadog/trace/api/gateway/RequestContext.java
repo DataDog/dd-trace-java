@@ -17,6 +17,10 @@ public interface RequestContext extends Closeable {
 
   BlockResponseFunction getBlockResponseFunction();
 
+  void setRequiresPostProcessing(boolean postProcessing);
+
+  boolean isRequiresPostProcessing();
+
   class Noop implements RequestContext {
     public static final RequestContext INSTANCE = new Noop();
 
@@ -38,6 +42,14 @@ public interface RequestContext extends Closeable {
     @Override
     public BlockResponseFunction getBlockResponseFunction() {
       return null;
+    }
+
+    @Override
+    public void setRequiresPostProcessing(boolean postProcessing) {}
+
+    @Override
+    public boolean isRequiresPostProcessing() {
+      return false;
     }
 
     @Override

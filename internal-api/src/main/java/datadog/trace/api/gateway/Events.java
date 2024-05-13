@@ -3,9 +3,11 @@ package datadog.trace.api.gateway;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -200,6 +202,17 @@ public final class Events<D> {
       graphqlServerRequestMessage() {
     return (EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>)
         GRAPHQL_SERVER_REQUEST_MESSAGE;
+  }
+
+  static final int POST_PROCESSING_ID = 16;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType POST_PROCESSING =
+      new ET<>("trace.post.processing", POST_PROCESSING_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<BiConsumer<RequestContext, AgentSpan>> postProcessing() {
+    return (EventType<BiConsumer<RequestContext, AgentSpan>>) POST_PROCESSING;
   }
 
   static final int MAX_EVENTS = nextId.get();

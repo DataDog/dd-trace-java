@@ -3,6 +3,7 @@ package datadog.trace.api.gateway;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
+import static datadog.trace.api.gateway.Events.POST_PROCESSING_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
@@ -21,9 +22,11 @@ import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -357,6 +360,18 @@ public class InstrumentationGateway {
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case POST_PROCESSING_ID:
+        return (C)
+            new BiConsumer<RequestContext, AgentSpan>() {
+              @Override
+              public void accept(RequestContext ctx, AgentSpan span) {
+                try {
+                  ((BiConsumer<RequestContext, AgentSpan>) callback).accept(ctx, span);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
                 }
               }
             };
