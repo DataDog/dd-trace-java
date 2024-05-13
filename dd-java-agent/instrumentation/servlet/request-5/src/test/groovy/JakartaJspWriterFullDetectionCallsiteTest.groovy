@@ -34,10 +34,8 @@ class JakartaJspWriterFullDetectionCallsiteTest extends AgentTestRunner{
     "printTest" | [STRING]
     "printlnTest" | [STRING]
     "write" | [STRING]
-    "write" | [STRING, 0, 0]
     "printTest" | [CHAR_ARRAY]
     "printlnTest" | [CHAR_ARRAY]
     "write" | [CHAR_ARRAY]
-    "write" | [CHAR_ARRAY, 0, 0]
   }
 }

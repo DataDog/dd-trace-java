@@ -15,7 +15,6 @@ public class JspWriterCallSite {
   @CallSite.Before("void javax.servlet.jsp.JspWriter.print(java.lang.String)")
   @CallSite.Before("void javax.servlet.jsp.JspWriter.println(java.lang.String)")
   @CallSite.Before("void javax.servlet.jsp.JspWriter.write(java.lang.String)")
-  @CallSite.Before("void javax.servlet.jsp.JspWriter.write(java.lang.String, int, int)")
   public static void beforeStringParam(@CallSite.Argument(0) @Nonnull final String s) {
     final XssModule module = InstrumentationBridge.XSS;
     if (module != null) {

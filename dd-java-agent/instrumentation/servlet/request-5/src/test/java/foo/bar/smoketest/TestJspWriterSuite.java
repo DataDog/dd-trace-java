@@ -34,12 +34,4 @@ public class TestJspWriterSuite {
   public void write(String s) throws IOException {
     writer.write(s);
   }
-
-  public void write(String s, int i, int j) throws IOException {
-    writer.write(s, i, j);
-  }
-
-  public void write(char s[], int i, int j) throws IOException {
-    writer.write(s, i, j);
-  }
 }

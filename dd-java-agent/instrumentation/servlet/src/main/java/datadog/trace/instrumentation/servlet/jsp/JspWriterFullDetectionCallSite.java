@@ -17,7 +17,6 @@ public class JspWriterFullDetectionCallSite {
   @CallSite.Before("void javax.servlet.jsp.JspWriter.print(char[])")
   @CallSite.Before("void javax.servlet.jsp.JspWriter.println(char[])")
   @CallSite.Before("void javax.servlet.jsp.JspWriter.write(char[])")
-  @CallSite.Before("void javax.servlet.jsp.JspWriter.write(char[], int, int)")
   public static void beforeCharArrayParam(@CallSite.Argument(0) @Nonnull final char[] buf) {
     final XssModule module = InstrumentationBridge.XSS;
     if (module != null) {

@@ -34,10 +34,8 @@ class JspWriterCallSiteTest extends AgentTestRunner{
     "printTest" | [STRING]  | 1
     "printlnTest" | [STRING]  | 1
     "write" | [STRING]  | 1
-    "write" | [STRING, 0, 0]  | 1
     "printTest" | [CHAR_ARRAY]  | 0
     "printlnTest" | [CHAR_ARRAY]  | 0
     "write" | [CHAR_ARRAY]  | 0
-    "write" | [CHAR_ARRAY, 0, 0]  | 0
   }
 }
