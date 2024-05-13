@@ -65,27 +65,6 @@ command line should be Java 8.
       ![import layout](https://user-images.githubusercontent.com/734411/43430811-28442636-94ae-11e8-86f1-f270ddcba023.png)
 * [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format) plugin
 
-### Git pre-commit hook
-
-There is a pre-commit hook setup to verify formatting before committing. It can be activated with this command:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-### Git submodule setup
-
-Git does not automatically update submodules when switching branches.
-
-Add the following configuration setting, or you will need to remember to add `--recurse-submodules` to `git checkout`
-when switching to old branches.
-
-```bash
-git config --local submodule.recurse true
-```
-
-This will keep the submodule in `dd-java-agent/agent-jmxfetch/integrations-core` up to date.
-
 ### Troubleshooting
 
 * Gradle fails with a "too many open files" error.
