@@ -2,7 +2,8 @@ package com.datadog.appsec.gateway;
 
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
-import static com.datadog.appsec.gateway.AppSecRequestContext.HEADERS_ALLOW_LIST;
+import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
+import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
@@ -151,8 +152,9 @@ public class GatewayBridge {
                 traceSeg.setDataTop("appsec", wrapper);
 
                 // Report collected request and response headers based on allow list
-                writeRequestHeaders(traceSeg, HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
-                writeResponseHeaders(traceSeg, HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+                writeResponseHeaders(
+                    traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
               } else {
                 // Report minimum set of collected request headers
                 writeRequestHeaders(
