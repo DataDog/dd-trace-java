@@ -429,7 +429,7 @@ public class GatewayBridge {
   }
 
   private static boolean isTruthy(final Object value) {
-    return value != null && "true".equals(value.toString());
+    return value != null && "true".equalsIgnoreCase(value.toString());
   }
 
   private static void writeRequestHeaders(
