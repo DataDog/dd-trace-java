@@ -401,6 +401,11 @@ public class JsonToExpressionConverter {
           reader.nextNull();
           return DSL.nullValue();
         }
+      case BOOLEAN:
+        {
+          boolean boolValue = reader.nextBoolean();
+          return DSL.value(boolValue);
+        }
       default:
         throw new UnsupportedOperationException(
             "Invalid value definition, not supported token: " + currentToken);
