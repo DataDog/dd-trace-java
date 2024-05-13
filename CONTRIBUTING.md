@@ -88,31 +88,3 @@ command line should be Java 8.
       to `Add New` -> `Gradle` -> `Environmental Variables`
 
 </details>
-
-## Running tests on another JVM
-
-To run tests on a different JVM than the one used for doing the build, you need two things:
-
-1) An environment variable pointing to the JVM to use on the form `JAVA_[JDKNAME]_HOME`,
-   e.g. `JAVA_ZULU15_HOME`, `JAVA_GRAALVM17_HOME`
-
-2) A command line option to the gradle task on the form `-PtestJvm=[JDKNAME]`,
-   e.g. `-PtestJvm=ZULU15`, `-PtestJvm=GRAALVM17`
-
-Please note that the JDK name needs to end with the JDK version, e.g. `11`, `ZULU15`, `ORACLE8`, `GRAALVM17`, etc.
-
-## The APM test agent
-
-The APM test agent emulates the APM endpoints of the Datadog Agent.
-The APM Test Agent container runs alongside Java tracer Instrumentation Tests in CI,
-handling all traces during test runs and performing a number of `Trace Checks`.
-Trace Check results are returned within the `Get APM Test Agent Trace Check Results` step for all instrumentation test
-jobs.
-Check [trace invariant checks](https://github.com/DataDog/dd-apm-test-agent#trace-invariant-checks) for more
-informations.
-
-The APM Test Agent also emits helpful logging, including logging received traces' headers, spans, errors encountered,
-ands information on trace checks being performed.
-Logs can be viewed in CircleCI within the Test-Agent container step for all instrumentation test suites,
-ie: `z_test_8_inst` job.
-Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agent#readme).
