@@ -63,9 +63,9 @@ public class GatewayBridge {
   private static final Map<String, List<String>> EMPTY_QUERY_PARAMS = Collections.emptyMap();
 
   /** User tracking tags that will force the collection of request headers */
-  private static final List<String> USER_TRACKING_TAGS =
-      Arrays.asList(
-          "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track");
+  private static final String[] USER_TRACKING_TAGS = {
+    "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track"
+  };
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
@@ -421,15 +421,12 @@ public class GatewayBridge {
 
   private static boolean hasUserTrackingEvent(final TraceSegment traceSeg) {
     for (String tagName : USER_TRACKING_TAGS) {
-      if (isTruthy(traceSeg.getTagTop(tagName))) {
+      final Object value = traceSeg.getTagTop(tagName);
+      if (value != null && "true".equalsIgnoreCase(value.toString())) {
         return true;
       }
     }
     return false;
-  }
-
-  private static boolean isTruthy(final Object value) {
-    return value != null && "true".equalsIgnoreCase(value.toString());
   }
 
   private static void writeRequestHeaders(
