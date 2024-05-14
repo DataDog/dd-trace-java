@@ -23,31 +23,53 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   // Values MUST be lowercase! Lookup with Ignore Case
   // was removed due performance reason
-  public static final Set<String> HEADERS_ALLOW_LIST =
+  // request headers that will always be set when appsec is enabled
+  public static final Set<String> DEFAULT_REQUEST_HEADERS_ALLOW_LIST =
+      new TreeSet<>(
+          Arrays.asList(
+              "content-type",
+              "user-agent",
+              "accept",
+              "x-amzn-trace-id",
+              "cloudfront-viewer-ja3-fingerprint",
+              "cf-ray",
+              "x-cloud-trace-context",
+              "x-appgw-trace-id",
+              "x-sigsci-requestid",
+              "x-sigsci-tags",
+              "akamai-user-risk"));
+
+  // request headers when there are security events
+  public static final Set<String> REQUEST_HEADERS_ALLOW_LIST =
       new TreeSet<>(
           Arrays.asList(
               "x-forwarded-for",
-              "x-client-ip",
               "x-real-ip",
-              "x-forwarded",
-              "x-cluster-client-ip",
-              "forwarded-for",
-              "forwarded",
-              "via",
-              "client-ip",
               "true-client-ip",
+              "x-client-ip",
+              "x-forwarded",
+              "forwarded-for",
+              "x-cluster-client-ip",
               "fastly-client-ip",
               "cf-connecting-ip",
               "cf-connecting-ipv6",
+              "forwarded",
+              "via",
               "content-length",
-              "content-type",
               "content-encoding",
               "content-language",
               "host",
-              "user-agent",
-              "accept",
               "accept-encoding",
               "accept-language"));
+
+  // response headers when there are security events
+  public static final Set<String> RESPONSE_HEADERS_ALLOW_LIST =
+      new TreeSet<>(
+          Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
+
+  static {
+    REQUEST_HEADERS_ALLOW_LIST.addAll(DEFAULT_REQUEST_HEADERS_ALLOW_LIST);
+  }
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
   private Collection<AppSecEvent> collectedEvents; // guarded by this

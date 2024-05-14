@@ -6,6 +6,7 @@ import static com.datadog.debugger.exception.DefaultExceptionDebugger.ERROR_DEBU
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
 import static com.datadog.debugger.util.MoshiSnapshotTestHelper.getValue;
 import static com.datadog.debugger.util.TestHelper.assertWithTimeout;
+import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -79,6 +80,8 @@ public class ExceptionProbeInstrumentationTest {
     globalSampler = new MockSampler();
     ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
     ProbeRateLimiter.setGlobalSnapshotRate(1000);
+    // to activate the call to DebuggerContext.handleException
+    setFieldInConfig(Config.get(), "debuggerEnabled", true);
   }
 
   @AfterEach

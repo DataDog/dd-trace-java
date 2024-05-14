@@ -56,7 +56,7 @@ dependencies {
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
   // for span exception debugging
-  implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+  compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
   implementation deps.slf4j
   implementation deps.moshi

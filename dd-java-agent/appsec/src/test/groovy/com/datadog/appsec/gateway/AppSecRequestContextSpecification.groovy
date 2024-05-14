@@ -120,9 +120,15 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
   void 'headers allow list should contains only lowercase names'() {
     expect:
-    AppSecRequestContext.HEADERS_ALLOW_LIST.each {
-      assert it == it.toLowerCase() : "REASON: Allow header name \"$it\" MUST be lowercase"
+    headers.each {
+      assert it == it.toLowerCase(): "REASON: Allow header name \"$it\" MUST be lowercase"
     }
+
+    where:
+    headers                                                 | name
+    AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST | 'Default request headers'
+    AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST         | 'Request headers'
+    AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST        | 'Response headers'
   }
 
   void 'basic headers collection test'() {
