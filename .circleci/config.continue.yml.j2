@@ -933,7 +933,24 @@ jobs:
             export TEST_LIBRARY=java
             export PYTEST_WORKER_COUNT=8
             ./build.sh -i runner
-            ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
+            set +e
+            RUN_ATTEMPTS=1
+            while [ $RUN_ATTEMPTS -le 3 ]; do
+              echo "Running parametric test attempt $RUN_ATTEMPTS"
+              timeout 780s ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
+              status=$?
+              #timneout returns 124 if it times out
+              #if the return code is not 124, then we exit with the status
+              if [ $status -ne 124 ]; then
+                exit $status
+                break
+              fi
+              RUN_ATTEMPTS=$((RUN_ATTEMPTS+1))
+              if [ $RUN_ATTEMPTS -eq 4 ]; then
+                #Max attempts reached, exit with 124
+                exit 124
+              fi
+            done
 
       - store_test_results:
           path: system-tests/logs_parametric
