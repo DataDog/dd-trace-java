@@ -6,6 +6,7 @@ import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
+import java.util.Collection;
 import java.util.Set;
 
 public class SetValue implements CollectionValue<Object>, ValueExpression<SetValue> {
@@ -35,7 +36,10 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
   @Override
   public boolean isEmpty() {
     if (setHolder instanceof Set) {
-      return ((Set<?>) setHolder).isEmpty();
+      if (WellKnownClasses.isSafe((Collection<?>) setHolder)) {
+        return ((Set<?>) setHolder).isEmpty();
+      }
+      throw new RuntimeException("Unsupported Set class: " + setHolder.getClass().getTypeName());
     } else if (setHolder instanceof Value) {
       Value<?> val = (Value<?>) setHolder;
       return val.isNull() || val.isUndefined();
@@ -46,7 +50,7 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
   @Override
   public int count() {
     if (setHolder instanceof Set) {
-      if (WellKnownClasses.isSizeSafe((Set<?>) setHolder)) {
+      if (WellKnownClasses.isSafe((Collection<?>) setHolder)) {
         return ((Set<?>) setHolder).size();
       }
       throw new RuntimeException("Unsupported Set class: " + setHolder.getClass().getTypeName());
@@ -66,9 +70,12 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
     }
 
     if (setHolder instanceof Set) {
-      Set<?> set = (Set<?>) setHolder;
-      key = key instanceof Value ? ((Value<?>) key).getValue() : key;
-      return Value.of(set.contains(key));
+      if (WellKnownClasses.isSafe((Collection<?>) setHolder)) {
+        Set<?> set = (Set<?>) setHolder;
+        key = key instanceof Value ? ((Value<?>) key).getValue() : key;
+        return Value.of(set.contains(key));
+      }
+      throw new RuntimeException("Unsupported Set class: " + setHolder.getClass().getTypeName());
     }
     // the result will be either Value.nullValue() or Value.undefinedValue() depending on the holder
     // value
