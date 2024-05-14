@@ -211,6 +211,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_HEAP_HISTOGRAM_MODE = "profiling.heap.histogram.mode";
   public static final String PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT = "aftergc";
 
+  public static final String PROFILING_HEAP_TRACK_GENERATIONS = "profiling.heap.track.generations";
+  public static final boolean PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT = false;
+
   public static final String PROFILING_TIMELINE_EVENTS_ENABLED =
       "profiling.timeline.events.enabled";
   public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = false;
