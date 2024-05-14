@@ -5,6 +5,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
+import datadog.trace.test.util.Flaky
 import datadog.trace.util.Strings
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -45,6 +46,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   @TempDir
   Path projectHome
 
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/7025")
   def "test #projectName, v#mavenVersion"() {
     givenWrapperPropertiesFile(mavenVersion)
     givenMavenProjectFiles(projectName)
