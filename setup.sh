@@ -18,7 +18,7 @@ function check-jvm() {
     fi
 }
 
-echo "ℹ️  Checking required JVM:"
+echo "ℹ️ Checking required JVM:"
 if [ -e "$JAVA_HOME" ]; then
     check-jvm "JAVA_HOME" "1.8"
 fi
@@ -76,7 +76,7 @@ function check-git-config() {
     fi
 }
 
-echo "ℹ️  Checking git configuration:"
+echo "ℹ️ Checking git configuration:"
 check-command "git"
 look-for-hook "pre-commit"
 check-git-config "submodule.recurse" "true"
@@ -95,7 +95,7 @@ function check-docker-server() {
     fi
 }
 
-echo "ℹ️  Checking Docker environment:"
+echo "ℹ️ Checking Docker environment:"
 check-command "docker"
 check-docker-server
 
