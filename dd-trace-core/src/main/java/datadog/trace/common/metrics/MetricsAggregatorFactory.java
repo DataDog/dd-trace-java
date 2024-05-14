@@ -10,7 +10,7 @@ public class MetricsAggregatorFactory {
 
   public static MetricsAggregator createMetricsAggregator(
       Config config, SharedCommunicationObjects sharedCommunicationObjects) {
-    if (config.isTracerMetricsEnabled()) {
+    if (config.isTraceEnabled() && config.isTracerMetricsEnabled()) {
       log.debug("tracer metrics enabled");
       return new ConflatingMetricsAggregator(config, sharedCommunicationObjects);
     }
