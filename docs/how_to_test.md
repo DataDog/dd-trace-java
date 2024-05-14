@@ -10,14 +10,20 @@ JUnit framework is recommended for most unit tests for its simplicity and perfor
 Spock framework provides an alternative for more complex test scenarios, or tests that requires Groovy Script to access data outside their scope limitation (eg private fields).
 
 2. A variant of unit tests are **instrumented tests**.  
-Their purpose is similar to the unit tests but the tested code is instrumented by the java agent (`:dd-trace-java:java-agent`) while running. They extend the Spock specification `datadog.trace.agent.test.AgentTestRunner` which allows to test produced traces and metrics. 
+Their purpose is similar to the unit tests but the tested code is instrumented by the java agent (`:dd-trace-java:java-agent`) while running. They extend the Spock specification `datadog.trace.agent.test.AgentTestRunner` which allows to test produced traces and metrics.
 
-3. The third type of tests are **integration tests**.  
+3. The third type of tests are **Muzzle checks.  
+Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.
+
+3. The fourth type of tests are **integration tests**.  
 They test features that requires a more complex environment setup.
 In order to build such enviroments, integration tests use Testcontainers to setup the services needed to run the tests.
 
-4. The last type of test are **smoke tests**.  
+4. The fifth type of test are **smoke tests**.  
 They are dedicated to test the java agent (`:dd-java-agent`) behavior against demo applications to prevent any regression. All smoke tests are located into the `:dd-smoke-tests` module. 
+
+5. The last type of test are **system tests**.  
+They are intended to test behavior consistency between all the client libraries, and relies on [their on GitHub repository](https://github.com/DataDog/system-tests).
 
 > [!TIP]
 > Most of the instrumented tests and integration tests are instrumentation tests.
