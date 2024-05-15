@@ -1,5 +1,7 @@
 package datadog.trace.api.internal;
 
+import java.util.Map;
+
 /**
  * A {@code TraceSegment} represents the local, i.e. in the scope of this {@code Tracer}, part of a
  * a {@code Trace}. It can consist of multiple spans, and the {@code TraceSegment} instance can only
@@ -118,6 +120,28 @@ public interface TraceSegment {
    */
   Object getDataCurrent(String key);
 
+  /**
+   * Add a field to the metaStruct of the top of this {@code TraceSegment}.
+   *
+   * @param field field name
+   * @param value value of the data
+   * @see #setMetaStructCurrent(String, Object) (String, Object)
+   */
+  void setMetaStructTop(String field, Object value);
+
+  /**
+   * Add a field to the current span metaStruct in this {@code TraceSegment}.
+   *
+   * <p>For non JDK classes (primitives, wrappers, collections, ...) a custom {@link
+   * datadog.communication.serialization.ValueWriter} has to be registered with {@link
+   * datadog.communication.serialization.Codec#Codec(Map)} or the {@code toString} representation
+   * will be used instead
+   *
+   * @param field field name
+   * @param value value of the data
+   */
+  void setMetaStructCurrent(String field, Object value);
+
   class NoOp implements TraceSegment {
     public static final TraceSegment INSTANCE = new NoOp();
 
@@ -157,5 +181,11 @@ public interface TraceSegment {
     public Object getDataCurrent(String key) {
       return null;
     }
+
+    @Override
+    public void setMetaStructTop(String key, Object value) {}
+
+    @Override
+    public void setMetaStructCurrent(String key, Object value) {}
   }
 }

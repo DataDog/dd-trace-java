@@ -547,6 +547,18 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     @Override
+    void setMetaStructTop(String key, Object value) {
+      check()
+      delegate.setMetaStructTop(key, value)
+    }
+
+    @Override
+    void setMetaStructCurrent(String key, Object value) {
+      check()
+      delegate.setMetaStructCurrent(key, value)
+    }
+
+    @Override
     void effectivelyBlocked() {
       check()
       delegate.effectivelyBlocked()

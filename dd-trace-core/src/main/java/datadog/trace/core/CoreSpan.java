@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDTraceId;
+import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
 
@@ -87,4 +88,8 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   T setFlag(CharSequence name, boolean value);
 
   int samplingPriority();
+
+  Map<String, Object> getMetaStruct();
+
+  T setMetaStruct(final String field, final Object value);
 }

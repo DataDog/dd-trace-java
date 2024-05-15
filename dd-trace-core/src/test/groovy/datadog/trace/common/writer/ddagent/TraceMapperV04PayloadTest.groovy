@@ -5,6 +5,7 @@ import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.DD64bTraceId
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
@@ -83,22 +84,22 @@ class TraceMapperV04PayloadTest extends DDSpecification {
   def "test full 64-bit trace and span identifiers"() {
     setup:
     def span = new TraceGenerator.PojoSpan(
-      "service",
-      "operation",
-      "resource",
-      traceId,
-      spanId,
-      parentId,
-      123L,
-      456L,
-      0,
-      [:],
-      [:],
-      "type",
-      false,
-      0,
-      0,
-      "origin")
+    "service",
+    "operation",
+    "resource",
+    traceId,
+    spanId,
+    parentId,
+    123L,
+    456L,
+    0,
+    [:],
+    [:],
+    "type",
+    false,
+    0,
+    0,
+    "origin")
     def traces = [[span]]
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
@@ -118,17 +119,68 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     DD64bTraceId.from(-10) | -11L   | -12L
   }
 
+  void 'test metaStruct support'() {
+    def span = new TraceGenerator.PojoSpan(
+    'service',
+    'operation',
+    'resource',
+    DDTraceId.ONE,
+    1L,
+    -1L,
+    123L,
+    456L,
+    0,
+    [:],
+    [:],
+    'type',
+    false,
+    0,
+    0,
+    'origin')
+    span.setMetaStruct('stack', Thread.currentThread().stackTrace.take(3).toList().collect {
+      [
+        file: it.fileName,
+        class_name: it.className,
+        function: it.methodName
+      ]
+    })
+    def traces = [[span]]
+    TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
+    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper, (List<?> expected, received) -> {
+      int size = received.unpackArrayHeader()
+      assertEquals(expected.size(), size)
+      expected.eachWithIndex {
+        def stackEntry, int i ->
+        int fields = received.unpackMapHeader()
+        (0..<fields).each {
+          String field = received.unpackString()
+          assertEquals(stackEntry[field], received.unpackString())
+        }
+      }
+    })
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
+
+    when:
+    packer.format([span], traceMapper)
+    packer.flush()
+
+    then:
+    verifier.verifyTracesConsumed()
+  }
+
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
     private final TraceMapperV0_4 mapper
     private ByteBuffer captured = ByteBuffer.allocate(200 << 10)
+    private MetaStructVerifier<?> metaStructVerifier
 
     private int position = 0
 
-    private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV0_4 mapper) {
+    private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV0_4 mapper, MetaStructVerifier<?> metaStructVerifier = null) {
       this.expectedTraces = traces
       this.mapper = mapper
+      this.metaStructVerifier = metaStructVerifier
     }
 
     void skipLargeTrace() {
@@ -153,7 +205,8 @@ class TraceMapperV04PayloadTest extends DDSpecification {
           for (int k = 0; k < spanCount; ++k) {
             TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k)
             int elementCount = unpacker.unpackMapHeader()
-            assertEquals(12, elementCount)
+            boolean hasMetaStruct = !expectedSpan.getMetaStruct().isEmpty()
+            assertEquals(hasMetaStruct ? 13 : 12, elementCount)
             assertEquals("service", unpacker.unpackString())
             String serviceName = unpacker.unpackString()
             assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), serviceName)
@@ -200,20 +253,20 @@ class TraceMapperV04PayloadTest extends DDSpecification {
                 case UINT16:
                 case INT32:
                 case UINT32:
-                  n = unpacker.unpackInt()
-                  break
+                n = unpacker.unpackInt()
+                break
                 case INT64:
                 case UINT64:
-                  n = unpacker.unpackLong()
-                  break
+                n = unpacker.unpackLong()
+                break
                 case FLOAT32:
-                  n = unpacker.unpackFloat()
-                  break
+                n = unpacker.unpackFloat()
+                break
                 case FLOAT64:
-                  n = unpacker.unpackDouble()
-                  break
+                n = unpacker.unpackDouble()
+                break
                 default:
-                  Assertions.fail("Unexpected type in metrics values: " + format)
+                Assertions.fail("Unexpected type in metrics values: " + format)
               }
               if (DD_MEASURED.toString() == key) {
                 assert ((n == 1) && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
@@ -252,6 +305,17 @@ class TraceMapperV04PayloadTest extends DDSpecification {
                   assertEquals(String.valueOf(tag), entry.getValue())
                 } else {
                   assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue())
+                }
+              }
+            }
+            if (hasMetaStruct) {
+              Map<String, Object> metaStruct = expectedSpan.getMetaStruct()
+              assertEquals("meta_struct", unpacker.unpackString())
+              int metaStructSize = unpacker.unpackMapHeader()
+              for (int j = 0; j < metaStructSize; ++j) {
+                String field = unpacker.unpackString()
+                if (metaStructVerifier != null) {
+                  metaStructVerifier.verify(metaStruct.get(field), unpacker)
                 }
               }
             }
@@ -299,5 +363,9 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     } else {
       assertEquals(expected.toString(), actual.toString())
     }
+  }
+
+  private static interface MetaStructVerifier<E> {
+    void verify(final E expected, final MessageUnpacker received)
   }
 }

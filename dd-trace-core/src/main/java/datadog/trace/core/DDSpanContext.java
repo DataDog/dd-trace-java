@@ -53,6 +53,8 @@ public class DDSpanContext
     implements AgentSpan.Context, RequestContext, TraceSegment, ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
+  private static final int INITIAL_META_STRUCT_SIZE = 1 << 3;
+
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
 
@@ -141,6 +143,15 @@ public class DDSpanContext
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
   private volatile boolean requiresPostProcessing;
+
+  /**
+   * Metastruct keys are associated to the current span, they will not propagate to the children
+   * span, they are an efficient way to send binary data to the agent without relying on bulky json
+   * payloads inside tags.
+   *
+   * <p>Metastruct follows the same assumptions as tags in terms of concurrency
+   */
+  private Map<String, Object> unsafeMetaStruct;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -781,6 +792,41 @@ public class DDSpanContext
     }
   }
 
+  /** Builds a readonly copy holding the current state of the metaStruct */
+  public Map<String, Object> getMetaStruct() {
+    synchronized (this) {
+      if (null == unsafeMetaStruct || unsafeMetaStruct.isEmpty()) {
+        return Collections.emptyMap();
+      }
+      return Collections.unmodifiableMap(new HashMap<>(unsafeMetaStruct));
+    }
+  }
+
+  /**
+   * Adds a new field to the metaStruct.
+   *
+   * <p>Existing field value with the same value will be replaced. Setting a field with a {@code
+   * null} value will remove the field from the metaStruct.
+   *
+   * @param field The field name.
+   * @param value The nullable field value.
+   */
+  public <T> void setMetaStruct(final String field, final T value) {
+    if (null == field) {
+      return;
+    }
+    synchronized (this) {
+      if (null == unsafeMetaStruct) {
+        unsafeMetaStruct = new HashMap<>(INITIAL_META_STRUCT_SIZE);
+      }
+      if (null == value) {
+        unsafeMetaStruct.remove(field);
+      } else {
+        unsafeMetaStruct.put(field, value);
+      }
+    }
+  }
+
   public void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
     synchronized (unsafeTags) {
@@ -957,6 +1003,16 @@ public class DDSpanContext
   private String getTagName(String key) {
     // TODO is this decided?
     return "_dd." + key + ".json";
+  }
+
+  @Override
+  public void setMetaStructTop(String field, Object value) {
+    getRootSpanContextOrThis().setMetaStructCurrent(field, value);
+  }
+
+  @Override
+  public void setMetaStructCurrent(String field, Object value) {
+    setMetaStruct(field, value);
   }
 
   public void setRequiresPostProcessing(boolean postProcessing) {

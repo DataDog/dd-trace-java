@@ -4,6 +4,7 @@ import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
 import datadog.communication.serialization.Writable;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
@@ -177,14 +178,44 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
   }
 
+  /**
+   * The MetaStruct field can be used with v4 agents.
+   *
+   * <p>Any type that needs to be serialized as part of the metaStruct field has to either be a JDK
+   * known type (primitives, wrappers, collections ...) or registered with {@link
+   * datadog.communication.serialization.Codec#Codec(Map)}.
+   */
+  public static class MetaStructWriter {
+
+    private static final UTF8BytesString META_STRUCT = UTF8BytesString.create("meta_struct");
+
+    private Writable writable;
+
+    MetaStructWriter withWritable(final Writable writable) {
+      this.writable = writable;
+      return this;
+    }
+
+    public void write(final Map<String, Object> metaStruct) {
+      writable.writeUTF8(META_STRUCT);
+      writable.startMap(metaStruct.size());
+      for (Map.Entry<String, Object> entry : metaStruct.entrySet()) {
+        writable.writeString(entry.getKey(), null);
+        writable.writeObject(entry.getValue(), null);
+      }
+    }
+  }
+
   private final MetaWriter metaWriter = new MetaWriter();
+  private final MetaStructWriter metaStructWriter = new MetaStructWriter();
 
   @Override
   public void map(List<? extends CoreSpan<?>> trace, final Writable writable) {
     writable.startArray(trace.size());
     for (int i = 0; i < trace.size(); i++) {
       final CoreSpan<?> span = trace.get(i);
-      writable.startMap(12);
+      final Map<String, Object> metaStruct = span.getMetaStruct();
+      writable.startMap(metaStruct.isEmpty() ? 12 : 13);
       /* 1  */
       writable.writeUTF8(SERVICE);
       writable.writeString(span.getServiceName(), null);
@@ -220,6 +251,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
           metaWriter
               .withWritable(writable)
               .withWriteSamplingPriority(i == 0 || i == trace.size() - 1));
+      if (!metaStruct.isEmpty()) {
+        /* 13 */
+        metaStructWriter.withWritable(writable).write(metaStruct);
+      }
     }
   }
 
