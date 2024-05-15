@@ -13,6 +13,8 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
 
+  public static final String TRACE_EXTENSIONS_PATH = "trace.extensions.path";
+
   public static final String INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME =
       "integration.synapse.legacy-operation-name";
   public static final String TRACE_ANNOTATIONS = "trace.annotations";

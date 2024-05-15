@@ -22,8 +22,10 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -172,11 +174,14 @@ public class AgentInstaller {
     // pre-size state before registering instrumentations to reduce number of allocations
     InstrumenterState.initialize(instrumenterIndex.instrumentationCount());
 
+    // combine known modules indexed at build-time with extensions contributed at run-time
+    Iterable<InstrumenterModule> instrumenterModules = withExtensions(instrumenterIndex.modules());
+
     // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
     // immediately and we don't have the ability to express dependencies between different
     // instrumentations to control the load order.
-    for (InstrumenterModule module : instrumenterIndex.modules()) {
+    for (InstrumenterModule module : instrumenterModules) {
       if (module instanceof ExcludeFilterProvider) {
         ExcludeFilterProvider provider = (ExcludeFilterProvider) module;
         ExcludeFilter.add(provider.excludedClasses());
@@ -191,7 +196,7 @@ public class AgentInstaller {
         new CombiningTransformerBuilder(agentBuilder, instrumenterIndex);
 
     int installedCount = 0;
-    for (InstrumenterModule module : instrumenterIndex.modules()) {
+    for (InstrumenterModule module : instrumenterModules) {
       if (!module.isApplicable(enabledSystems)) {
         if (DEBUG) {
           log.debug("Not applicable - instrumentation.class={}", module.getClass().getName());
@@ -232,6 +237,53 @@ public class AgentInstaller {
     } finally {
       SharedTypePools.endInstall();
     }
+  }
+
+  /** Returns an iterable that combines the original sequence with any discovered extensions. */
+  private static Iterable<InstrumenterModule> withExtensions(Iterable<InstrumenterModule> initial) {
+    String extensionsPath = InstrumenterConfig.get().getTraceExtensionsPath();
+    if (null == extensionsPath) {
+      return initial;
+    }
+    final List<InstrumenterModule> extensions = new ExtensionsLoader(extensionsPath).loadModules();
+    if (extensions.isEmpty()) {
+      return initial;
+    }
+    return new Iterable<InstrumenterModule>() {
+      @Override
+      public Iterator<InstrumenterModule> iterator() {
+        return withExtensions(initial.iterator(), extensions);
+      }
+    };
+  }
+
+  /** Returns an iterator that combines the original sequence with any discovered extensions. */
+  private static Iterator<InstrumenterModule> withExtensions(
+      final Iterator<InstrumenterModule> initial, final Iterable<InstrumenterModule> extensions) {
+    return new Iterator<InstrumenterModule>() {
+      private Iterator<InstrumenterModule> delegate = initial;
+
+      @Override
+      public boolean hasNext() {
+        if (delegate.hasNext()) {
+          return true;
+        } else if (delegate == initial) {
+          delegate = extensions.iterator();
+          return delegate.hasNext();
+        } else {
+          return false;
+        }
+      }
+
+      @Override
+      public InstrumenterModule next() {
+        if (hasNext()) {
+          return delegate.next();
+        } else {
+          throw new NoSuchElementException();
+        }
+      }
+    };
   }
 
   public static Set<InstrumenterModule.TargetSystem> getEnabledSystems() {
