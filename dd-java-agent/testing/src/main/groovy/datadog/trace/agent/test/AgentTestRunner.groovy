@@ -523,6 +523,18 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     @Override
+    Object getTagTop(String key, boolean sanitize) {
+      check()
+      return delegate.getTagTop(key, sanitize)
+    }
+
+    @Override
+    Object getTagCurrent(String key, boolean sanitize) {
+      check()
+      return delegate.getTagCurrent(key, sanitize)
+    }
+
+    @Override
     void setDataTop(String key, Object value) {
       check()
       delegate.setDataTop(key, value)

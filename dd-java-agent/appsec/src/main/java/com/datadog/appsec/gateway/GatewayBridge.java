@@ -62,6 +62,11 @@ public class GatewayBridge {
   private static final Pattern QUERY_PARAM_SPLITTER = Pattern.compile("&");
   private static final Map<String, List<String>> EMPTY_QUERY_PARAMS = Collections.emptyMap();
 
+  /** User tracking tags that will force the collection of request headers */
+  private static final String[] USER_TRACKING_TAGS = {
+    "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track"
+  };
+
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
   private final RateLimiter rateLimiter;
@@ -155,6 +160,9 @@ public class GatewayBridge {
                 writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
                 writeResponseHeaders(
                     traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+              } else if (hasUserTrackingEvent(traceSeg)) {
+                // Report all collected request headers on user tracking event
+                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
               } else {
                 // Report minimum set of collected request headers
                 writeRequestHeaders(
@@ -409,6 +417,16 @@ public class GatewayBridge {
 
   public void stop() {
     subscriptionService.reset();
+  }
+
+  private static boolean hasUserTrackingEvent(final TraceSegment traceSeg) {
+    for (String tagName : USER_TRACKING_TAGS) {
+      final Object value = traceSeg.getTagTop(tagName);
+      if (value != null && "true".equalsIgnoreCase(value.toString())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static void writeRequestHeaders(
