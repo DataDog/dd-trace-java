@@ -58,6 +58,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CODESOUR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
@@ -105,6 +106,8 @@ public class InstrumenterConfig {
   private final ProductActivation iastActivation;
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
+
+  private final String traceExtensionsPath;
 
   private final boolean traceExecutorsAll;
   private final List<String> traceExecutors;
@@ -192,6 +195,8 @@ public class InstrumenterConfig {
       telemetryEnabled = false;
       usmEnabled = false;
     }
+
+    traceExtensionsPath = configProvider.getString(TRACE_EXTENSIONS_PATH);
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
@@ -309,6 +314,10 @@ public class InstrumenterConfig {
 
   public boolean isTelemetryEnabled() {
     return telemetryEnabled;
+  }
+
+  public String getTraceExtensionsPath() {
+    return traceExtensionsPath;
   }
 
   public boolean isTraceExecutorsAll() {
@@ -506,6 +515,8 @@ public class InstrumenterConfig {
         + usmEnabled
         + ", telemetryEnabled="
         + telemetryEnabled
+        + ", traceExtensionsPath="
+        + traceExtensionsPath
         + ", traceExecutorsAll="
         + traceExecutorsAll
         + ", traceExecutors="
