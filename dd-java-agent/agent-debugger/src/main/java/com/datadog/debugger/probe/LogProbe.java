@@ -715,7 +715,8 @@ public class LogProbe extends ProbeDefinition {
   @Generated
   @Override
   public String toString() {
-    return "LogProbe{"
+    return getClass().getSimpleName()
+        + "{"
         + "language='"
         + language
         + '\''
