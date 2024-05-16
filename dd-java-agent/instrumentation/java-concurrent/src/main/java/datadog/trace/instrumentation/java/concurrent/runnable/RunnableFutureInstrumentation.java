@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.java.concurrent.runnable;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;

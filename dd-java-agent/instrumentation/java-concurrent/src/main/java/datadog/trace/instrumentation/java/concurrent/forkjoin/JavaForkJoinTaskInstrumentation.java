@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.java.concurrent.forkjoin;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
@@ -41,7 +41,9 @@ public final class JavaForkJoinTaskInstrumentation extends InstrumenterModule.Tr
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
   public JavaForkJoinTaskInstrumentation() {
-    super(AbstractExecutorInstrumentation.EXEC_NAME);
+    super(
+        AbstractExecutorInstrumentation
+            .EXEC_NAME); // TODO BBUJON: Should fjp added as additional name?
   }
 
   @Override

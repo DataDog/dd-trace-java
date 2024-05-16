@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.java.concurrent.timer;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -12,6 +12,8 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import datadog.trace.instrumentation.java.concurrent.executor.AbstractExecutorInstrumentation;
+import datadog.trace.instrumentation.java.concurrent.runnable.RunnableInstrumentation;
 import java.util.Map;
 import java.util.TimerTask;
 import net.bytebuddy.asm.Advice;
