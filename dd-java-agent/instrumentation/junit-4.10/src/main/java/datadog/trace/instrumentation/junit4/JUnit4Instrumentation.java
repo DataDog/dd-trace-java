@@ -26,6 +26,8 @@ import org.junit.runner.notification.RunNotifier;
 public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy {
 
+  static final int ORDER = 0;
+
   public JUnit4Instrumentation() {
     super("ci-visibility", "junit-4");
   }
@@ -33,6 +35,11 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String hierarchyMarkerType() {
     return "org.junit.runner.Runner";
+  }
+
+  @Override
+  public int order() {
+    return ORDER;
   }
 
   @Override
