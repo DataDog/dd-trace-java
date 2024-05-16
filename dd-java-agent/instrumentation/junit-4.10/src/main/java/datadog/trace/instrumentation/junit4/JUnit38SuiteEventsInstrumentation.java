@@ -40,6 +40,13 @@ public class JUnit38SuiteEventsInstrumentation extends InstrumenterModule.CiVisi
   }
 
   @Override
+  public int order() {
+    // Should be applied after datadog.trace.instrumentation.junit4.JUnit4Instrumentation,
+    // because it relies on JUnit4TracingListener to be registered
+    return JUnit4Instrumentation.ORDER + 1;
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
