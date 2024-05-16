@@ -16,8 +16,9 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Scheduled;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadInfo;
@@ -294,18 +295,15 @@ final class TracerFlareService {
       try {
         long size = Files.size(path);
         if (size > MAX_LOGFILE_SIZE_BYTES) {
-          try (InputStream in = Files.newInputStream(path)) {
-            final byte[] bufferBeg = new byte[MAX_LOGFILE_SIZE_BYTES / 2];
-            int dataReadBeg = in.read(bufferBeg);
-            long skipped = in.skip(size - MAX_LOGFILE_SIZE_BYTES);
-            final byte[] bufferEnd = new byte[MAX_LOGFILE_SIZE_BYTES - dataReadBeg];
-            int dataReadEnd = in.read(bufferEnd);
-            TracerFlare.addBinary(zip, "tracer_begin.log", bufferBeg);
-            TracerFlare.addBinary(zip, "tracer_end.log", bufferEnd);
-            log.debug(
-                "{} bytes from the log file have been copied. {} have been ignored ",
-                dataReadBeg + dataReadEnd,
-                skipped);
+          int maxSizeOfSplit = MAX_LOGFILE_SIZE_BYTES / 2;
+          File originalFile = new File(path.toString());
+          try (RandomAccessFile ras = new RandomAccessFile(originalFile, "r")) {
+            final byte[] buffer = new byte[maxSizeOfSplit];
+            ras.readFully(buffer);
+            TracerFlare.addBinary(zip, "tracer_begin.log", buffer);
+            ras.seek(size - maxSizeOfSplit);
+            ras.readFully(buffer);
+            TracerFlare.addBinary(zip, "tracer_end.log", buffer);
           }
         } else {
           TracerFlare.addBinary(zip, "tracer.log", readAllBytes(path));
