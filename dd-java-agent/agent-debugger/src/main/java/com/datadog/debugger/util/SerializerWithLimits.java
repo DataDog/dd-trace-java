@@ -170,7 +170,7 @@ public class SerializerWithLimits {
     int size = 0;
     try {
       map = (Map<?, ?>) value;
-      if (WellKnownClasses.isSizeSafe(map)) {
+      if (WellKnownClasses.isSafe(map)) {
         size = map.size(); // /!\ alien call /!\
         Set<? extends Map.Entry<?, ?>> entries = map.entrySet(); // /!\ alien call /!\
         isComplete = serializeMapEntries(entries, limits); // /!\ contains alien calls /!\
@@ -191,7 +191,7 @@ public class SerializerWithLimits {
     int size = 0;
     try {
       col = (Collection<?>) value;
-      if (WellKnownClasses.isSizeSafe(col)) {
+      if (WellKnownClasses.isSafe(col)) {
         size = col.size(); // /!\ alien call /!\
         isComplete = serializeCollection(col, limits); // /!\ contains alien calls /!\
       } else {
