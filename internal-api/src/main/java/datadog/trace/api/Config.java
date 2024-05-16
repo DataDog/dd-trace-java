@@ -2691,20 +2691,18 @@ public class Config {
       // let's be conservative about GraalVM and require opt-in from the users
       return false;
     }
-    boolean result =
-        Platform.isJ9()
-            || !Platform.isJavaVersion(18) // missing AGCT fixes
-            || Platform.isJavaVersionAtLeast(17, 0, 5)
-            || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
-            || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
-
-    if (result && Platform.isJ9()) {
-      // Semeru JDK 11 and JDK 17 have problems with unloaded classes and jmethodids, leading to JVM
-      // crash
-      // The ASGCT based profilers are only activated in JDK 11.0.18+ and JDK 17.0.6+
-      result &=
-          !((Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 18))
-              || ((Platform.isJavaVersion(17) && Platform.isJavaVersionAtLeast(17, 0, 6))));
+    boolean result = false;
+    if (Platform.isJ9()) {
+      // OpenJ9 will activate only JVMTI GetAllStackTraces based profiling which is safe
+      result = true;
+    } else {
+      // JDK 18 is missing ASGCT fixes, so we can't use it
+      if (!Platform.isJavaVersion(18)) {
+        result =
+            Platform.isJavaVersionAtLeast(17, 0, 5)
+                || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
+                || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
+      }
     }
     return result;
   }
