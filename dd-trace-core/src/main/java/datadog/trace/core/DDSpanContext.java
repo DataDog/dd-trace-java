@@ -53,8 +53,6 @@ public class DDSpanContext
     implements AgentSpan.Context, RequestContext, TraceSegment, ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
-  private static final int INITIAL_META_STRUCT_SIZE = 1 << 3;
-
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
 
@@ -66,6 +64,7 @@ public class DDSpanContext
       DDCaches.newFixedSizeCache(256);
 
   private static final Map<String, String> EMPTY_BAGGAGE = Collections.emptyMap();
+  private static final Map<String, Object> EMPTY_META_STRUCT = Collections.emptyMap();
 
   /** The collection of all span related to this one */
   private final PendingTrace trace;
@@ -146,12 +145,10 @@ public class DDSpanContext
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
-   * span, they are an efficient way to send binary data to the agent without relying on bulky json
+   * span. They are an efficient way to send binary data to the agent without relying on bulky json
    * payloads inside tags.
-   *
-   * <p>Metastruct follows the same assumptions as tags in terms of concurrency
    */
-  private Map<String, Object> unsafeMetaStruct;
+  private volatile Map<String, Object> metaStruct = EMPTY_META_STRUCT;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -792,14 +789,9 @@ public class DDSpanContext
     }
   }
 
-  /** Builds a readonly copy holding the current state of the metaStruct */
+  /** Builds a readonly view of the metaStruct */
   public Map<String, Object> getMetaStruct() {
-    synchronized (this) {
-      if (null == unsafeMetaStruct || unsafeMetaStruct.isEmpty()) {
-        return Collections.emptyMap();
-      }
-      return Collections.unmodifiableMap(new HashMap<>(unsafeMetaStruct));
-    }
+    return Collections.unmodifiableMap(metaStruct);
   }
 
   /**
@@ -815,15 +807,17 @@ public class DDSpanContext
     if (null == field) {
       return;
     }
-    synchronized (this) {
-      if (null == unsafeMetaStruct) {
-        unsafeMetaStruct = new HashMap<>(INITIAL_META_STRUCT_SIZE);
+    if (metaStruct == EMPTY_META_STRUCT) {
+      synchronized (this) {
+        if (metaStruct == EMPTY_META_STRUCT) {
+          metaStruct = new ConcurrentHashMap<>(4);
+        }
       }
-      if (null == value) {
-        unsafeMetaStruct.remove(field);
-      } else {
-        unsafeMetaStruct.put(field, value);
-      }
+    }
+    if (null == value) {
+      metaStruct.remove(field);
+    } else {
+      metaStruct.put(field, value);
     }
   }
 
