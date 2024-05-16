@@ -2,7 +2,10 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
+import datadog.communication.serialization.Codec;
+import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -179,7 +182,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
   }
 
   /**
-   * The MetaStruct field can be used with v4 agents.
+   * The MetaStruct field can safely be used with v4 agents and will be discarded for other
+   * versions.
    *
    * <p>Any type that needs to be serialized as part of the metaStruct field has to either be a JDK
    * known type (primitives, wrappers, collections ...) or registered with {@link
@@ -188,6 +192,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
   public static class MetaStructWriter {
 
     private static final UTF8BytesString META_STRUCT = UTF8BytesString.create("meta_struct");
+    private static final int BUFFER_SIZE = 1 << 10;
 
     private Writable writable;
 
@@ -199,9 +204,26 @@ public final class TraceMapperV0_4 implements TraceMapper {
     public void write(final Map<String, Object> metaStruct) {
       writable.writeUTF8(META_STRUCT);
       writable.startMap(metaStruct.size());
+      final GrowableBuffer buffer = new GrowableBuffer(BUFFER_SIZE);
+      final MsgPackWriter metaStructWriter = new MsgPackWriter(Codec.INSTANCE, buffer);
       for (Map.Entry<String, Object> entry : metaStruct.entrySet()) {
-        writable.writeString(entry.getKey(), null);
-        writable.writeObject(entry.getValue(), null);
+        writeMetaStructEntry(metaStructWriter, buffer, entry.getKey(), entry.getValue());
+      }
+    }
+
+    private void writeMetaStructEntry(
+        final MsgPackWriter writer,
+        final GrowableBuffer buffer,
+        final String key,
+        final Object value) {
+      buffer.mark();
+      try {
+        writer.writeObject(value, null);
+        writer.flush();
+        writable.writeString(key, null);
+        writable.writeBinary(buffer.slice());
+      } finally {
+        buffer.reset();
       }
     }
   }

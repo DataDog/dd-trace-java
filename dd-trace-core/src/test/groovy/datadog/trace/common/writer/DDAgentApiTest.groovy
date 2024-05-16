@@ -343,6 +343,8 @@ class DDAgentApiTest extends DDCoreSpecification {
   void 'test metaStruct support on the encoded spans'() {
     setup:
     def agentVersion = 'v0.4/traces'
+    def meta1 = 'Hello World!'
+    def meta2 = [Hello: ' World!']
     def agent = httpServer {
       handlers {
         put(agentVersion) {
@@ -351,15 +353,18 @@ class DDAgentApiTest extends DDCoreSpecification {
       }
     }
     def client = createAgentApi(agent.address.toString())[1]
-    def span = buildSpan(1L, "fakeType", [:]).setMetaStruct('Hello', 'World!')
+    def span = buildSpan(1L, "fakeType", [:])
+    .setMetaStruct('meta_1', meta1)
+    .setMetaStruct('meta_2', meta2)
     def payload = prepareTraces(agentVersion, [[span]])
 
     expect:
     client.sendSerializedTraces(payload).success()
     def body = convertList(agentVersion, agent.lastRequest.body)[0][0]
-    body.containsKey('meta_struct')
-    def metaStruct = body['meta_struct'] as Map<String, Object>
-    metaStruct['Hello'] == 'World!'
+    def metaStruct = body['meta_struct'] as Map<String, byte[]>
+    assert metaStruct.size() == 2
+    assert mapper.readValue(metaStruct['meta_1'], String) == meta1
+    assert mapper.readValue(metaStruct['meta_2'], Map) == meta2
 
     cleanup:
     agent.close()

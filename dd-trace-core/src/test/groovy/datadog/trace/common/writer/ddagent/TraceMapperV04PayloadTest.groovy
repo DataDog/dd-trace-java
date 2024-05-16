@@ -120,6 +120,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
   }
 
   void 'test metaStruct support'() {
+    given:
     def span = new TraceGenerator.PojoSpan(
     'service',
     'operation',
@@ -137,24 +138,25 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     0,
     0,
     'origin')
-    span.setMetaStruct('stack', Thread.currentThread().stackTrace.take(3).toList().collect {
+    span.setMetaStruct('stack', Thread.currentThread().stackTrace.toList().collect {
       [
-        file: it.fileName,
-        class_name: it.className,
-        function: it.methodName
+        file: it.fileName ?: '',
+        class_name: it.className ?: '',
+        function: it.methodName ?: ''
       ]
     })
     def traces = [[span]]
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
-    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper, (List<?> expected, received) -> {
-      int size = received.unpackArrayHeader()
+    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper, (List<?> expected, byte[] received) -> {
+      def unpacker = MessagePack.newDefaultUnpacker(received)
+      def size = unpacker.unpackArrayHeader()
       assertEquals(expected.size(), size)
       expected.eachWithIndex {
         def stackEntry, int i ->
-        int fields = received.unpackMapHeader()
+        int fields = unpacker.unpackMapHeader()
         (0..<fields).each {
-          String field = received.unpackString()
-          assertEquals(stackEntry[field], received.unpackString())
+          String field = unpacker.unpackString()
+          assertEquals(stackEntry[field], unpacker.unpackString())
         }
       }
     })
@@ -315,7 +317,9 @@ class TraceMapperV04PayloadTest extends DDSpecification {
               for (int j = 0; j < metaStructSize; ++j) {
                 String field = unpacker.unpackString()
                 if (metaStructVerifier != null) {
-                  metaStructVerifier.verify(metaStruct.get(field), unpacker)
+                  byte[] binary = new byte[unpacker.unpackBinaryHeader()]
+                  unpacker.readPayload(binary)
+                  metaStructVerifier.verify(metaStruct.get(field), binary)
                 }
               }
             }
@@ -366,6 +370,6 @@ class TraceMapperV04PayloadTest extends DDSpecification {
   }
 
   private static interface MetaStructVerifier<E> {
-    void verify(final E expected, final MessageUnpacker received)
+    void verify(final E expected, final byte[] received)
   }
 }
