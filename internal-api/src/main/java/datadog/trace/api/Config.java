@@ -2258,8 +2258,8 @@ public class Config {
     return instrumenterConfig.isTraceEnabled();
   }
 
-  public boolean isApmTracingEnabled() {
-    return instrumenterConfig.isApmTracingEnabled();
+  public boolean areTracingDependantProductsEnabled() {
+    return instrumenterConfig.areTracingDependantProductsEnabled();
   }
 
   public boolean isLongRunningTraceEnabled() {
@@ -3604,7 +3604,7 @@ public class Config {
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
     result.put(DSM_ENABLED, isDataStreamsEnabled() ? 1 : 0);
     result.put(DJM_ENABLED, isDataJobsEnabled() ? 1 : 0);
-    if (isApmTracingEnabled()) {
+    if (areTracingDependantProductsEnabled()) {
       result.put(APM_ENABLED, 0);
     }
 

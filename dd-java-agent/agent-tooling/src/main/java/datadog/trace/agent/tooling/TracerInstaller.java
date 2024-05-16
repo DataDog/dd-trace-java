@@ -17,7 +17,7 @@ public class TracerInstaller {
       ProfilingContextIntegration profilingContextIntegration) {
     if (Config.get().isTraceEnabled()
         || Config.get().isCiVisibilityEnabled()
-        || Config.get().isApmTracingEnabled()) {
+        || Config.get().areTracingDependantProductsEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
         CoreTracer tracer =
             CoreTracer.builder()

@@ -73,4 +73,6 @@ public class DDTags {
   public static final String BASE_SERVICE = "_dd.base_service";
   public static final String PARENT_ID = "_dd.parent_id";
   public static final String APM_ENABLED = "_dd.apm.enabled";
+
+  public static final String APPSEC = "_dd.p.appsec";
 }
