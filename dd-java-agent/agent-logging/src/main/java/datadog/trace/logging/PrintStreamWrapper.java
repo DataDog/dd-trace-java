@@ -5,7 +5,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 
 public class PrintStreamWrapper extends PrintStream {
-  private static final int MAX_LOGFILE_SIZE_MB = 1;
+  private static final int MAX_LOGFILE_SIZE_MB = 15;
 
   private static final int MAX_LOGFILE_SIZE_BYTES = MAX_LOGFILE_SIZE_MB << 20;
   private static final int lineSeparatorLength =
@@ -19,7 +19,6 @@ public class PrintStreamWrapper extends PrintStream {
   public PrintStreamWrapper(OutputStream out) {
     super(out);
   }
-
 
   @Override
   public void println(String x) {
@@ -36,9 +35,16 @@ public class PrintStreamWrapper extends PrintStream {
     }
   }
 
+  @Override
+  public void println(Object x) {
+    String s = String.valueOf(x);
+    println(s);
+  }
+
   public static void start() {
-    outputStream = new ByteArrayOutputStream(); //
+    outputStream = new ByteArrayOutputStream();
     printStream = new PrintStream(outputStream, true);
+    currentSize = 0; // reset the size in case clean was not called yet
     activate = true;
   }
 
