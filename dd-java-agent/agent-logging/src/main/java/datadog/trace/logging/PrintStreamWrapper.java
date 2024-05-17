@@ -13,7 +13,7 @@ public class PrintStreamWrapper extends PrintStream {
   private static final byte[] lineSeparatorBytes = System.getProperty("line.separator").getBytes();
   private static boolean activate = false;
   private static PrintStream printStream;
-  private static ByteArrayOutputStream outputStream;
+  private static ByteArrayOutputStream byteArrayOutputStream;
   private static int currentSize = 0;
 
   public PrintStreamWrapper(OutputStream out) {
@@ -42,18 +42,19 @@ public class PrintStreamWrapper extends PrintStream {
   }
 
   public static void start() {
-    outputStream = new ByteArrayOutputStream();
-    printStream = new PrintStream(outputStream, true);
-    currentSize = 0; // reset the size in case clean was not called yet
+    clean();
+    byteArrayOutputStream = new ByteArrayOutputStream();
+    printStream = new PrintStream(byteArrayOutputStream, true);
     activate = true;
   }
 
   public static byte[] getBuffer() {
-    return outputStream.toByteArray();
+    return byteArrayOutputStream.toByteArray();
   }
 
   public static void clean() {
-    outputStream = null;
+    byteArrayOutputStream = null;
+    printStream = null;
     activate = false;
     currentSize = 0;
   }
