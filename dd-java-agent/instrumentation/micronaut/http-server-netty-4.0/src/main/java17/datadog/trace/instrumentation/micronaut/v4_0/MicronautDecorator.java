@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.micronaut;
+package datadog.trace.instrumentation.micronaut.v4_0;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -9,13 +9,11 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.MutableHttpResponse;
-import io.micronaut.web.router.MethodBasedRouteMatch;
-import io.micronaut.web.router.RouteMatch;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.web.router.UriRouteMatch;
 
 public class MicronautDecorator
-    extends HttpServerDecorator<HttpRequest, HttpRequest, MutableHttpResponse, Void> {
+    extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse, Void> {
   private static final CharSequence MICRONAUT_CONTROLLER =
       UTF8BytesString.create("micronaut-controller");
   public static final String SPAN_ATTRIBUTE = "datadog.trace.instrumentation.micronaut-netty.Span";
@@ -35,7 +33,7 @@ public class MicronautDecorator
   }
 
   @Override
-  protected AgentPropagation.ContextVisitor<MutableHttpResponse> responseGetter() {
+  protected AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
     return null;
   }
 
@@ -65,7 +63,7 @@ public class MicronautDecorator
   }
 
   @Override
-  protected int status(MutableHttpResponse mutableHttpResponse) {
+  protected int status(HttpResponse mutableHttpResponse) {
     return mutableHttpResponse.getStatus().getCode();
   }
 
@@ -83,24 +81,15 @@ public class MicronautDecorator
       final AgentSpan span,
       final AgentSpan parent,
       final HttpRequest<?> request,
-      final RouteMatch<?> routeMatch) {
-    CharSequence resourceName;
+      final UriRouteMatch uriRouteMatch) {
     String route = null;
-
-    if (routeMatch instanceof UriRouteMatch) {
-      UriRouteMatch uriRouteMatch = (UriRouteMatch) routeMatch;
-      resourceName = DECORATE.spanNameForMethod(uriRouteMatch.getTargetMethod());
-      route = uriRouteMatch.getRoute().getUriMatchTemplate().toPathString();
-    } else if (routeMatch instanceof MethodBasedRouteMatch) {
-      MethodBasedRouteMatch methodBasedRouteMatch = (MethodBasedRouteMatch) routeMatch;
-      resourceName = DECORATE.spanNameForMethod(methodBasedRouteMatch.getTargetMethod());
-    } else {
-      resourceName = DECORATE.className(routeMatch.getDeclaringType());
+    if (uriRouteMatch.getRouteInfo() != null
+        && uriRouteMatch.getRouteInfo().getUriMatchTemplate() != null) {
+      route = uriRouteMatch.getRouteInfo().getUriMatchTemplate().toPathString();
     }
-
     if (null != route) {
       HTTP_RESOURCE_DECORATOR.withRoute(parent, request.getMethod().name(), route);
     }
-    span.setResourceName(resourceName);
+    span.setResourceName(DECORATE.spanNameForMethod(uriRouteMatch.getTargetMethod()));
   }
 }
