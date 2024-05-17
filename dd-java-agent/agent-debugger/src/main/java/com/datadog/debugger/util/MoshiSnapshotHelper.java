@@ -288,7 +288,7 @@ public class MoshiSnapshotHelper {
     }
 
     private static class JsonTokenWriter implements SerializerWithLimits.TokenWriter {
-      private static final Logger LOG = LoggerFactory.getLogger(JsonTokenWriter.class);
+      private static final Logger LOGGER = LoggerFactory.getLogger(JsonTokenWriter.class);
 
       private final JsonWriter jsonWriter;
 
@@ -424,10 +424,13 @@ public class MoshiSnapshotHelper {
 
       @Override
       public void handleFieldException(Exception ex, Field field) {
-        LOG.debug(
-            "Exception when extracting field={} exception={}",
-            field.getName(),
-            ExceptionHelper.foldExceptionStackTrace(ex));
+        if (LOGGER.isDebugEnabled()) {
+          // foldExceptionStackTrace can be expensive, only do it if debug is enabled
+          LOGGER.debug(
+              "Exception when extracting field={} exception={}",
+              field.getName(),
+              ExceptionHelper.foldExceptionStackTrace(ex));
+        }
         String fieldName = field.getName();
         try {
           jsonWriter.name(fieldName);
@@ -438,7 +441,7 @@ public class MoshiSnapshotHelper {
           jsonWriter.value(ex.toString());
           jsonWriter.endObject();
         } catch (IOException e) {
-          LOG.debug("Serialization error: failed to extract field", e);
+          LOGGER.debug("Serialization error: failed to extract field", e);
         }
       }
 
