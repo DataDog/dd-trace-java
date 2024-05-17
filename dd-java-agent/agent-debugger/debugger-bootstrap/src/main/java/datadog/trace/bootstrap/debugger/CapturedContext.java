@@ -136,10 +136,20 @@ public class CapturedContext implements ValueReferenceResolver {
         CapturedValue specialField = specialFieldAccess.apply(target);
         if (specialField != null && specialField.getName().equals(memberName)) {
           return specialField.getValue();
-        } else {
-          target = Values.UNDEFINED_OBJECT;
         }
+        target = Values.UNDEFINED_OBJECT;
       } else {
+        Map<String, Function<Object, CapturedValue>> specialTypeAccess =
+            WellKnownClasses.getSpecialTypeAccess(target);
+        if (specialTypeAccess != null) {
+          specialFieldAccess = specialTypeAccess.get(memberName);
+          if (specialFieldAccess != null) {
+            CapturedValue specialField = specialFieldAccess.apply(target);
+            if (specialField != null && specialField.getName().equals(memberName)) {
+              return specialField.getValue();
+            }
+          }
+        }
         target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
       }
     }

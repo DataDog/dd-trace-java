@@ -260,11 +260,12 @@ public class SerializerWithLimits {
     Function<Object, CapturedContext.CapturedValue> specialFieldAccess =
         WellKnownClasses.getSpecialFieldAccess(value.getClass().getTypeName());
     if (specialFieldAccess != null) {
-      CapturedContext.CapturedValue specialField = specialFieldAccess.apply(value);
-      onSpecialField(specialField, limits);
+      onSpecialField(specialFieldAccess, value, limits);
       tokenWriter.objectEpilogue(value);
       return;
     }
+    Map<String, Function<Object, CapturedContext.CapturedValue>> specialTypeAccess =
+        WellKnownClasses.getSpecialTypeAccess(value);
     Class<?> currentClass = value.getClass();
     int processedFieldCount = 0;
     NotCapturedReason reason = null;
@@ -273,16 +274,23 @@ public class SerializerWithLimits {
       Field[] fields = currentClass.getDeclaredFields();
       for (Field field : fields) {
         try {
-          if (!tokenWriter.objectFilterInField(field)) {
-            continue;
-          }
-          field.setAccessible(true);
-          Object fieldValue = field.get(value);
-          onField(field, fieldValue, limits);
-          processedFieldCount++;
           if (processedFieldCount >= limits.maxFieldCount) {
             reason = NotCapturedReason.FIELD_COUNT;
             break classLoop;
+          }
+          if (!tokenWriter.objectFilterInField(field)) {
+            continue;
+          }
+          processedFieldCount++;
+          if (specialTypeAccess != null) {
+            specialFieldAccess = specialTypeAccess.get(field.getName());
+            if (specialFieldAccess != null) {
+              onSpecialField(specialFieldAccess, value, limits);
+            } else {
+              onField(field, value, limits);
+            }
+          } else {
+            onField(field, value, limits);
           }
         } catch (Exception e) {
           tokenWriter.handleFieldException(e, field);
@@ -295,11 +303,18 @@ public class SerializerWithLimits {
     }
   }
 
-  private void onField(Field field, Object value, Limits limits) throws Exception {
-    internalOnField(field.getName(), field.getType().getTypeName(), value, limits);
+  private void onField(Field field, Object obj, Limits limits) throws Exception {
+    field.setAccessible(true);
+    Object fieldValue = field.get(obj);
+    internalOnField(field.getName(), field.getType().getTypeName(), fieldValue, limits);
   }
 
-  private void onSpecialField(CapturedContext.CapturedValue field, Limits limits) throws Exception {
+  private void onSpecialField(
+      Function<Object, CapturedContext.CapturedValue> specialFieldAccess,
+      Object value,
+      Limits limits)
+      throws Exception {
+    CapturedContext.CapturedValue field = specialFieldAccess.apply(value);
     internalOnField(field.getName(), field.getType(), field.getValue(), limits);
   }
 

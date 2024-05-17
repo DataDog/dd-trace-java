@@ -74,16 +74,10 @@ jar {
 
 tasks.withType(Test).configureEach {
   onlyIf { !project.rootProject.hasProperty("skipDebuggerTests") }
-  // DebuggerTransformerTest made some Reflective calls on java.lang package
-  // needs to open it since jdk16
-  def matcher = it.name =~ /testJava(\d+)Generated/
-  if (matcher) {
-    def javaVersion = matcher.group(1) as int
-    if (javaVersion >= 16) {
-      jvmArgs '--add-opens', 'java.base/java.lang=ALL-UNNAMED'
-    }
-  }
 }
+
+// we want to test with no special reflective access (no --add-opens)
+ext.allowReflectiveAccessToJdk = false
 
 subprojects { Project subProj ->
   subProj.tasks.withType(Test).configureEach { subTask ->
