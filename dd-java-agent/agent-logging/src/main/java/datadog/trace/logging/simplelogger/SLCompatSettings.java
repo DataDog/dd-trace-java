@@ -1,6 +1,8 @@
 package datadog.trace.logging.simplelogger;
 
 import datadog.trace.logging.LogLevel;
+import datadog.trace.logging.LogReporter;
+import datadog.trace.logging.PrintStreamWrapper;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -167,9 +169,16 @@ public class SLCompatSettings {
   static PrintStream getPrintStream(String logFile) {
     switch (logFile.toLowerCase(Locale.ROOT)) {
       case "system.err":
-        return System.err;
+        {
+          LogReporter.register();
+          return new PrintStreamWrapper(System.err);
+        }
       case "system.out":
-        return System.out;
+        {
+          LogReporter.register();
+          return new PrintStreamWrapper(System.out);
+        }
+
       default:
         FileOutputStream outputStream = null;
         try {
