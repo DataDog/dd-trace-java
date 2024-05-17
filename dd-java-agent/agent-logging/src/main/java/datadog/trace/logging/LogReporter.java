@@ -22,7 +22,7 @@ public class LogReporter implements TracerFlare.Reporter {
 
   @Override
   public void addReportToFlare(ZipOutputStream zip) throws IOException {
-    TracerFlare.addBinary(zip, "tracerfirst_attempt1705.log", PrintStreamWrapper.getBuffer());
+    TracerFlare.addBinary(zip, "tracer.log", PrintStreamWrapper.getBuffer());
   }
 
   @Override

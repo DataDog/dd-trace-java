@@ -287,7 +287,11 @@ final class TracerFlareService {
     // dd-java-agent jar
     String logFile = System.getProperty("org.slf4j.simpleLogger.logFile");
     if (logFile == null || logFile.isEmpty()) {
-      TracerFlare.addText(zip, "tracer.log", "No tracer log file specified");
+      //we should do this only when tracer flare was requested by RC without debug logs requested
+      //This will be handled by LogReporter in the other cases
+      if (!logLevelOverridden) {
+        TracerFlare.addText(zip, "tracer.log", "No tracer log file specified");
+      }
       return;
     }
     Path path = Paths.get(logFile);
