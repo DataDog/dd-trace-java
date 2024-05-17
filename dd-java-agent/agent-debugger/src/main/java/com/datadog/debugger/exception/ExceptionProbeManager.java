@@ -96,6 +96,10 @@ public class ExceptionProbeManager {
     return probes.values();
   }
 
+  public Map<String, Instant> getFingerprints() {
+    return fingerprints;
+  }
+
   public boolean shouldCaptureException(String fingerprint) {
     return shouldCaptureException(fingerprint, clock);
   }

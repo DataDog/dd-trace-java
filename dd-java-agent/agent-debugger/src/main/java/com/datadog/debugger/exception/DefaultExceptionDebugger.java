@@ -145,7 +145,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     return true;
   }
 
-  ExceptionProbeManager getExceptionProbeManager() {
+  public ExceptionProbeManager getExceptionProbeManager() {
     return exceptionProbeManager;
   }
 }

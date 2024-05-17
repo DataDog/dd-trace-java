@@ -4,6 +4,7 @@ import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CON
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
+import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.symbol.SymDBEnablement;
@@ -81,8 +82,9 @@ public class DebuggerAgent {
     snapshotSerializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
+    DefaultExceptionDebugger defaultExceptionDebugger = null;
     if (config.isDebuggerExceptionEnabled()) {
-      DefaultExceptionDebugger defaultExceptionDebugger =
+      defaultExceptionDebugger =
           new DefaultExceptionDebugger(
               configurationUpdater, classNameFiltering, EXCEPTION_CAPTURE_INTERVAL);
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
@@ -126,7 +128,12 @@ public class DebuggerAgent {
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
-    TracerFlare.addReporter(new DebuggerReporter(configurationUpdater, sink));
+    ExceptionProbeManager exceptionProbeManager =
+        defaultExceptionDebugger != null
+            ? defaultExceptionDebugger.getExceptionProbeManager()
+            : null;
+    TracerFlare.addReporter(
+        new DebuggerReporter(configurationUpdater, sink, exceptionProbeManager));
   }
 
   private static String getDiagnosticEndpoint(
@@ -267,39 +274,40 @@ public class DebuggerAgent {
 
     private final ConfigurationUpdater configurationUpdater;
     private final DebuggerSink sink;
+    private final ExceptionProbeManager exceptionProbeManager;
 
-    public DebuggerReporter(ConfigurationUpdater configurationUpdater, DebuggerSink sink) {
+    public DebuggerReporter(
+        ConfigurationUpdater configurationUpdater,
+        DebuggerSink sink,
+        ExceptionProbeManager exceptionProbeManager) {
       this.configurationUpdater = configurationUpdater;
       this.sink = sink;
+      this.exceptionProbeManager = exceptionProbeManager;
     }
 
     @Override
     public void addReportToFlare(ZipOutputStream zip) throws IOException {
       String content =
-          "Snapshot url: "
-              + sink.getSnapshotUploader().getUrl()
-              + System.lineSeparator()
-              + "Diagnostic url: "
-              + sink.getProbeStatusSink().getUrl()
-              + System.lineSeparator()
-              + "SymbolDB url: "
-              + sink.getSymbolSink().getUrl()
-              + System.lineSeparator()
-              + "Probe definitions:"
-              + System.lineSeparator()
-              + configurationUpdater.getAppliedDefinitions()
-              + System.lineSeparator()
-              + "Instrumented probes:"
-              + System.lineSeparator()
-              + configurationUpdater.getInstrumentationResults()
-              + System.lineSeparator()
-              + "Probe statuses:"
-              + System.lineSeparator()
-              + sink.getProbeStatusSink().getProbeStatuses()
-              + System.lineSeparator()
-              + "SymbolDB stats:"
-              + System.lineSeparator()
-              + sink.getSymbolSink().getStats();
+          String.join(
+              System.lineSeparator(),
+              "Snapshot url: ",
+              sink.getSnapshotUploader().getUrl().toString(),
+              "Diagnostic url: ",
+              sink.getProbeStatusSink().getUrl().toString(),
+              "SymbolDB url: ",
+              sink.getSymbolSink().getUrl().toString(),
+              "Probe definitions:",
+              configurationUpdater.getAppliedDefinitions().toString(),
+              "Instrumented probes:",
+              configurationUpdater.getInstrumentationResults().toString(),
+              "Probe statuses:",
+              sink.getProbeStatusSink().getProbeStatuses().toString(),
+              "SymbolDB stats:",
+              sink.getSymbolSink().getStats().toString(),
+              "Exception Fingerprints:",
+              exceptionProbeManager != null
+                  ? exceptionProbeManager.getFingerprints().toString()
+                  : "N/A");
       TracerFlare.addText(zip, "dynamic_instrumentation.txt", content);
     }
   }
