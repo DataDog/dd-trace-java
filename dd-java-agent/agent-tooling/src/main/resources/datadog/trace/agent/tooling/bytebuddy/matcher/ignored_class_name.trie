@@ -355,6 +355,7 @@
 2 org.yaml.snakeyaml.*
 # saves ~0.5s skipping instrumentation of almost ~470 classes
 2 scala.collection.*
+1 org.mockito.codegen.*
 
 # -------- SPECIAL CASES --------
 
