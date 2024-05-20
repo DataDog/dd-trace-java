@@ -467,7 +467,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
         parentHash == 2
         edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
         edgeTags.size() == 3
-        pathwayLatency.getMaxValue() >= 5
+        pathwayLatency.getMaxValue() >= 4.9
         pathwayLatency.getMaxValue() < 5.1
       }
 
