@@ -101,10 +101,12 @@ public class ExtensionHandler {
 
     private byte[] mapBytecode() throws IOException {
       if (null == cachedBytecode) {
-        ClassReader cr = new ClassReader(super.getInputStream());
-        ClassWriter cw = new ClassWriter(cr, 0);
-        cr.accept(mapping.apply(cw), 0);
-        cachedBytecode = cw.toByteArray();
+        try (InputStream in = super.getInputStream()) {
+          ClassReader cr = new ClassReader(in);
+          ClassWriter cw = new ClassWriter(cr, 0);
+          cr.accept(mapping.apply(cw), 0);
+          cachedBytecode = cw.toByteArray();
+        }
       }
       return cachedBytecode;
     }
