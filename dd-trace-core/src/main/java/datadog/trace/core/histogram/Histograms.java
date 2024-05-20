@@ -10,7 +10,8 @@ public final class Histograms {
 
   private static final BitwiseLinearlyInterpolatedMapping INDEX_MAPPING =
       new BitwiseLinearlyInterpolatedMapping(1.0 / 128.0);
-  // use the same gamma and index offset as the Datadog backend, to avoid doing any conversions in the backend
+  // use the same gamma and index offset as the Datadog backend, to avoid doing any conversions in
+  // the backend
   // that would lead to a loss of precision
   private static final LogarithmicMapping LOG_INDEX_MAPPING =
       new LogarithmicMapping(1.015625, 1.8761281912861705);
