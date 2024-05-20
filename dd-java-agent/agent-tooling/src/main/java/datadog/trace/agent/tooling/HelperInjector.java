@@ -29,6 +29,9 @@ import org.slf4j.LoggerFactory;
 public class HelperInjector implements Instrumenter.TransformingAdvice {
   private static final Logger log = LoggerFactory.getLogger(HelperInjector.class);
 
+  private static final ClassFileLocator classFileLocator =
+      ClassFileLocator.ForClassLoader.of(Utils.getExtendedClassLoader());
+
   private final boolean useAgentCodeSource;
   private final String requestingName;
 
@@ -39,6 +42,7 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
       Collections.synchronizedMap(new WeakHashMap<ClassLoader, Boolean>());
 
   private final List<WeakReference<Object>> helperModules = new CopyOnWriteArrayList<>();
+
   /**
    * Construct HelperInjector.
    *
@@ -75,11 +79,8 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
     if (dynamicTypeMap.isEmpty()) {
       final Map<String, byte[]> classnameToBytes = new LinkedHashMap<>();
 
-      final ClassFileLocator locator =
-          ClassFileLocator.ForClassLoader.of(Utils.getAgentClassLoader());
-
       for (final String helperClassName : helperClassNames) {
-        final byte[] classBytes = locator.locate(helperClassName).resolve();
+        final byte[] classBytes = classFileLocator.locate(helperClassName).resolve();
         classnameToBytes.put(helperClassName, classBytes);
       }
 

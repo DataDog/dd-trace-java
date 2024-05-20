@@ -247,7 +247,7 @@ public final class CombiningTransformerBuilder
     }
     advice.add(
         new AgentBuilder.Transformer.ForAdvice(customMapping)
-            .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
+            .include(Utils.getBootstrapProxy(), Utils.getExtendedClassLoader())
             .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
             .advice(not(ignoredMethods).and(matcher), adviceClass));
   }
