@@ -1,7 +1,6 @@
 
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
-import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -11,7 +10,6 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sns.SnsClient
-import software.amazon.awssdk.services.sns.model.PublishRequest
 import software.amazon.awssdk.services.sns.model.PublishResponse
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName
@@ -123,8 +121,14 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
 
     and:
     messageBody["Message"] == "sometext"
-    messageBody["MessageAttributes"]["X-Amzn-Trace-Id"]["Value"] =~
-      /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
+    String base64EncodedString = messageBody["MessageAttributes"]["_datadog"]["Value"]
+    byte[] decodedBytes = base64EncodedString.decodeBase64()
+    String decodedString = new String(decodedBytes, "UTF-8")
+    JsonSlurper slurper = new JsonSlurper()
+    Map traceContextInJson = slurper.parseText(decodedString)
+    traceContextInJson['x-datadog-trace-id'] == sendSpan.traceId.toString()
+    traceContextInJson['x-datadog-parent-id'] == sendSpan.spanId.toString()
+    traceContextInJson['x-datadog-sampling-priority'] == "1"
   }
 }
 
@@ -156,7 +160,7 @@ class SnsClientV1ForkedTest extends SnsClientTest {
 
   @Override
   String expectedOperation(String awsService, String awsOperation) {
-    if (awsService == "SNS"&& awsOperation == "Publish") {
+    if (awsService == "Sns" && awsOperation == "Publish") {
       return "aws.sns.send"
     }
     return "http.client.request"

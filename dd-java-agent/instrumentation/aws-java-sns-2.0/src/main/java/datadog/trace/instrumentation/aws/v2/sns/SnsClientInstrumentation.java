@@ -16,10 +16,8 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 @AutoService(InstrumenterModule.class)
 public final class SnsClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
-  private static final String INSTRUMENTATION_NAME = "aws-sdk";
-
   public SnsClientInstrumentation() {
-    super(INSTRUMENTATION_NAME);
+    super("sns", "aws-sdk");
   }
 
   @Override
@@ -36,9 +34,7 @@ public final class SnsClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SnsInterceptor", packageName + ".MessageAttributeInjector"
-    };
+    return new String[] {packageName + ".SnsInterceptor", packageName + ".TextMapInjectAdapter"};
   }
 
   @Override
