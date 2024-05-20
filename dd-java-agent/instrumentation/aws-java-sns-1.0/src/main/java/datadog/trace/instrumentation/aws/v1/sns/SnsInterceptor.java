@@ -66,7 +66,6 @@ public class SnsInterceptor extends RequestHandler2 {
       for (PublishBatchRequestEntry entry : pmbRequest.getPublishBatchRequestEntries()) {
         Map<String, MessageAttributeValue> messageAttributes = entry.getMessageAttributes();
         if (messageAttributes.size() < 10) {
-          binaryValue.rewind();
           messageAttributes.put(
               "_datadog",
               new MessageAttributeValue().withDataType("Binary").withBinaryValue(binaryValue));
