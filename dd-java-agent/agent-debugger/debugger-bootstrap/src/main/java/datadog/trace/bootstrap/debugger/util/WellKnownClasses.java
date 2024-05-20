@@ -85,11 +85,8 @@ public class WellKnownClasses {
     return safeToStringFunctions.containsKey(concreteType);
   }
 
-  /**
-   * @return true if collection is the implementation of size method is side effect free and O(1)
-   *     complexity
-   */
-  public static boolean isSizeSafe(Collection<?> collection) {
+  /** @return true if collection implementation is safe to call (only in-memory) */
+  public static boolean isSafe(Collection<?> collection) {
     String className = collection.getClass().getTypeName();
     if (className.startsWith("java.")) {
       // All Collection implementations from JDK base module are considered as safe
@@ -98,11 +95,8 @@ public class WellKnownClasses {
     return false;
   }
 
-  /**
-   * @return true if map is the implementation of size method is side effect free and O(1)
-   *     complexity
-   */
-  public static boolean isSizeSafe(Map<?, ?> map) {
+  /** @return true if map implementation is safe to call (only in-memory) */
+  public static boolean isSafe(Map<?, ?> map) {
     String className = map.getClass().getTypeName();
     if (className.startsWith("java.")) {
       // All Map implementations from JDK base module are considered as safe

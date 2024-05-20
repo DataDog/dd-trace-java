@@ -123,8 +123,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
-import static datadog.trace.api.DDTags.DJM_ENABLED;
-import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
@@ -2693,20 +2691,18 @@ public class Config {
       // let's be conservative about GraalVM and require opt-in from the users
       return false;
     }
-    boolean result =
-        Platform.isJ9()
-            || !Platform.isJavaVersion(18) // missing AGCT fixes
-            || Platform.isJavaVersionAtLeast(17, 0, 5)
-            || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
-            || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
-
-    if (result && Platform.isJ9()) {
-      // Semeru JDK 11 and JDK 17 have problems with unloaded classes and jmethodids, leading to JVM
-      // crash
-      // The ASGCT based profilers are only activated in JDK 11.0.18+ and JDK 17.0.6+
-      result &=
-          !((Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 18))
-              || ((Platform.isJavaVersion(17) && Platform.isJavaVersionAtLeast(17, 0, 6))));
+    boolean result = false;
+    if (Platform.isJ9()) {
+      // OpenJ9 will activate only JVMTI GetAllStackTraces based profiling which is safe
+      result = true;
+    } else {
+      // JDK 18 is missing ASGCT fixes, so we can't use it
+      if (!Platform.isJavaVersion(18)) {
+        result =
+            Platform.isJavaVersionAtLeast(17, 0, 5)
+                || (Platform.isJavaVersion(11) && Platform.isJavaVersionAtLeast(11, 0, 17))
+                || (Platform.isJavaVersion(8) && Platform.isJavaVersionAtLeast(8, 0, 352));
+      }
     }
     return result;
   }
@@ -3473,8 +3469,6 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    result.put(DSM_ENABLED, isDataStreamsEnabled() ? 1 : 0);
-    result.put(DJM_ENABLED, isDataJobsEnabled() ? 1 : 0);
 
     if (reportHostName) {
       final String hostName = getHostName();

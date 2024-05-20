@@ -418,7 +418,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     // even though the agent is already installed
     configurePreAgent()
 
-    println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
+    println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()} from ${specificationContext.currentSpec.name}"
     TEST_TRACER.flush()
     TEST_SPANS.clear()
 
@@ -520,6 +520,18 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     void setTagCurrent(String key, Object value, boolean sanitize) {
       check()
       delegate.setTagCurrent(key, value, sanitize)
+    }
+
+    @Override
+    Object getTagTop(String key, boolean sanitize) {
+      check()
+      return delegate.getTagTop(key, sanitize)
+    }
+
+    @Override
+    Object getTagCurrent(String key, boolean sanitize) {
+      check()
+      return delegate.getTagCurrent(key, sanitize)
     }
 
     @Override

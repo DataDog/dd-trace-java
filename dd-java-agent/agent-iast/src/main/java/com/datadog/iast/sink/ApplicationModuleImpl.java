@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -60,14 +61,28 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   private static final String SECURITY_CONSTRAINT_END_TAG = "</security-constraint>";
   public static final String PARAM_VALUE_START_TAG = "<param-value>";
   public static final String PARAM_VALUE_END_TAG = "</param-value>";
-  public static final String DISPLAY_NAME_START_TAG = "<display-name>";
-  public static final String DISPLAY_NAME_END_TAG = "</display-name>";
+  public static final String DISPLAY_NAME_PATTERN = "<display-name>(.*?)</display-name>";
   static final String TOMCAT_MANAGER_APP = "Tomcat Manager Application";
-  private static final String TOMCAT_MANAGER_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + TOMCAT_MANAGER_APP + DISPLAY_NAME_END_TAG;
   static final String TOMCAT_HOST_MANAGER_APP = "Tomcat Host Manager Application";
-  private static final String TOMCAT_HOST_MANAGER_APP_PATTERN =
-      DISPLAY_NAME_START_TAG + TOMCAT_HOST_MANAGER_APP + DISPLAY_NAME_END_TAG;
+  static final String TOMCAT_SAMPLES_APP = "Servlet and JSP Examples";
+  static final String JETTY_ASYNC_REST_APP = "Async REST Webservice Example";
+  static final String JETTY_JAVADOC_APP = "Transparent Proxy WebApp";
+  static final String JETTY_JAAS_APP = "JAAS Test";
+  static final String JETTY_JNDI_APP = "Test JNDI WebApp";
+  static final String JETTY_SPEC_APP = "Test Annotations WebApp";
+  static final String JETTY_TEST_APP = "Test WebApp";
+  public static final Set<String> ADMIN_CONSOLE_LIST =
+      new HashSet<>(Arrays.asList(TOMCAT_MANAGER_APP, TOMCAT_HOST_MANAGER_APP));
+  public static final Set<String> DEFAULT_APP_LIST =
+      new HashSet<>(
+          Arrays.asList(
+              TOMCAT_SAMPLES_APP,
+              JETTY_ASYNC_REST_APP,
+              JETTY_JAVADOC_APP,
+              JETTY_JAAS_APP,
+              JETTY_JNDI_APP,
+              JETTY_SPEC_APP,
+              JETTY_TEST_APP));
   public static final String WEB_INF = "WEB-INF";
   public static final String WEB_XML = "web.xml";
   public static final String WEBLOGIC_XML = "weblogic.xml";
@@ -81,13 +96,11 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
                   CONTEXT_LOADER_LISTENER,
                   DISPATCHER_SERVLET,
                   DEFAULT_HTML_ESCAPE,
-                  TOMCAT_MANAGER_APP_PATTERN,
-                  TOMCAT_HOST_MANAGER_APP_PATTERN,
                   LISTINGS_PATTERN,
                   JETTY_LISTINGS_PATTERN,
                   SESSION_TIMEOUT_START_TAG,
-                  SECURITY_CONSTRAINT_START_TAG)
-              .map(Pattern::quote)
+                  SECURITY_CONSTRAINT_START_TAG,
+                  DISPLAY_NAME_PATTERN)
               .collect(Collectors.joining("|")));
 
   private static final Pattern WEBLOGIC_PATTERN =
@@ -206,12 +219,6 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case DEFAULT_HTML_ESCAPE:
           defaultHtmlEscapeIndex = matcher.start();
           break;
-        case TOMCAT_MANAGER_APP_PATTERN:
-          reportAdminConsoleActive(span, TOMCAT_MANAGER_APP);
-          break;
-        case TOMCAT_HOST_MANAGER_APP_PATTERN:
-          reportAdminConsoleActive(span, TOMCAT_HOST_MANAGER_APP);
-          break;
         case LISTINGS_PATTERN:
         case JETTY_LISTINGS_PATTERN:
           checkDirectoryListingLeak(webXmlContent, matcher.start(), span);
@@ -222,7 +229,13 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case SECURITY_CONSTRAINT_START_TAG:
           checkVerbTampering(webXmlContent, matcher.start(), span);
           break;
-        default:
+        default: // DISPLAY NAME MATCH
+          String displayName = matcher.group(1);
+          if (ADMIN_CONSOLE_LIST.contains(displayName)) {
+            reportAdminConsoleActive(span, displayName);
+          } else if (DEFAULT_APP_LIST.contains(displayName)) {
+            reportDefaultAppDeployed(span, displayName);
+          }
           break;
       }
     }
@@ -262,6 +275,15 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         span,
         new Vulnerability(
             VulnerabilityType.ADMIN_CONSOLE_ACTIVE,
+            Location.forSpan(span),
+            new Evidence(evidence)));
+  }
+
+  private void reportDefaultAppDeployed(final AgentSpan span, final String evidence) {
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.DEFAULT_APP_DEPLOYED,
             Location.forSpan(span),
             new Evidence(evidence)));
   }

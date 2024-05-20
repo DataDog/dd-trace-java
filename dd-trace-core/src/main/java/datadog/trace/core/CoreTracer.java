@@ -2,6 +2,8 @@ package datadog.trace.core;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.api.DDTags.DJM_ENABLED;
+import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
@@ -1664,14 +1666,27 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    */
   static Map<String, ?> withTracerTags(
       Map<String, ?> userSpanTags, Config config, TraceConfig traceConfig) {
-    final Map<String, Object> result = new HashMap<>(userSpanTags.size() + 3, 1f);
+    final Map<String, Object> result = new HashMap<>(userSpanTags.size() + 5, 1f);
     result.putAll(userSpanTags);
-    if (null != config) {
+    if (null != config) { // static
       if (!config.getEnv().isEmpty()) {
         result.put("env", config.getEnv());
       }
       if (!config.getVersion().isEmpty()) {
         result.put("version", config.getVersion());
+      }
+      if (config.isDataJobsEnabled()) {
+        result.put(DJM_ENABLED, 1);
+      }
+      if (config.isDataStreamsEnabled()) {
+        result.put(DSM_ENABLED, 1);
+      }
+    }
+    if (null != traceConfig) { // dynamic
+      if (traceConfig.isDataStreamsEnabled()) {
+        result.put(DSM_ENABLED, 1);
+      } else {
+        result.remove(DSM_ENABLED);
       }
     }
     return Collections.unmodifiableMap(result);

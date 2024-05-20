@@ -69,7 +69,7 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
 
   public int count() {
     if (listHolder instanceof Collection) {
-      if (WellKnownClasses.isSizeSafe((Collection<?>) listHolder)) {
+      if (WellKnownClasses.isSafe((Collection<?>) listHolder)) {
         return ((Collection<?>) listHolder).size();
       } else {
         throw new RuntimeException(

@@ -9,9 +9,12 @@ package datadog.trace.api.config;
  * @see TracerConfig for more tracer config options
  */
 public final class TraceInstrumentationConfig {
+  public static final String SPAN_ORIGIN_ENABLED = "span.origin.enabled";
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
+
+  public static final String TRACE_EXTENSIONS_PATH = "trace.extensions.path";
 
   public static final String INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME =
       "integration.synapse.legacy-operation-name";
@@ -124,6 +127,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME =
       "spring-data.repository.interface.resource-name";
+
+  public static final String INSTRUMENTATION_CONFIG_ID = "instrumentation_config_id";
 
   public static final String RESOLVER_CACHE_CONFIG = "resolver.cache.config";
   public static final String RESOLVER_CACHE_DIR = "resolver.cache.dir";

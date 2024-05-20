@@ -42,8 +42,8 @@ class MapValueTest {
     assertEquals(Value.of("a"), instance.get(Value.of("a")));
     assertEquals(Value.nullValue(), instance.get("b"));
     assertEquals(Value.nullValue(), instance.get(Value.of("b")));
-    assertEquals(Value.undefinedValue(), instance.get("c"));
-    assertEquals(Value.undefinedValue(), instance.get(Value.of("c")));
+    assertEquals(Value.nullValue(), instance.get("c"));
+    assertEquals(Value.nullValue(), instance.get(Value.of("c")));
     assertEquals(Value.undefinedValue(), instance.get(Values.UNDEFINED_OBJECT));
     assertEquals(Value.undefinedValue(), instance.get(Value.undefinedValue()));
   }

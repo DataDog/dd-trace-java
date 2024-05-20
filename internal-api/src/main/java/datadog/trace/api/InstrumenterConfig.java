@@ -8,6 +8,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SPAN_ORIGIN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
@@ -32,6 +33,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
@@ -46,6 +48,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_L
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPAN_ORIGIN_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
@@ -57,6 +60,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CODESOUR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
@@ -95,6 +99,7 @@ public class InstrumenterConfig {
 
   private final boolean integrationsEnabled;
 
+  private final boolean spanOriginEnabled;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean logs128bTraceIdEnabled;
@@ -104,6 +109,8 @@ public class InstrumenterConfig {
   private final ProductActivation iastActivation;
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
+
+  private final String traceExtensionsPath;
 
   private final boolean traceExecutorsAll;
   private final List<String> traceExecutors;
@@ -116,6 +123,8 @@ public class InstrumenterConfig {
   private final String axisTransportClassName;
 
   private final boolean directAllocationProfilingEnabled;
+
+  private final String instrumentationConfigId;
 
   private final List<String> excludedClasses;
   private final String excludedClassesFile;
@@ -163,6 +172,7 @@ public class InstrumenterConfig {
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
 
+    spanOriginEnabled = configProvider.getBoolean(SPAN_ORIGIN_ENABLED, DEFAULT_SPAN_ORIGIN_ENABLED);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     logs128bTraceIdEnabled =
@@ -189,6 +199,8 @@ public class InstrumenterConfig {
       telemetryEnabled = false;
       usmEnabled = false;
     }
+
+    traceExtensionsPath = configProvider.getString(TRACE_EXTENSIONS_PATH);
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
@@ -236,6 +248,8 @@ public class InstrumenterConfig {
         configProvider.getBoolean(
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
+    instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
+
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
     traceAnnotationAsync =
         configProvider.getBoolean(TRACE_ANNOTATION_ASYNC, DEFAULT_TRACE_ANNOTATION_ASYNC);
@@ -249,6 +263,10 @@ public class InstrumenterConfig {
 
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
+  }
+
+  public boolean isSpanOriginEnabled() {
+    return spanOriginEnabled;
   }
 
   public boolean isTriageEnabled() {
@@ -304,6 +322,10 @@ public class InstrumenterConfig {
 
   public boolean isTelemetryEnabled() {
     return telemetryEnabled;
+  }
+
+  public String getTraceExtensionsPath() {
+    return traceExtensionsPath;
   }
 
   public boolean isTraceExecutorsAll() {
@@ -392,6 +414,10 @@ public class InstrumenterConfig {
 
   public String getResolverCacheDir() {
     return resolverCacheDir;
+  }
+
+  public String getInstrumentationConfigId() {
+    return instrumentationConfigId;
   }
 
   public boolean isResolverNamesAreUnique() {
@@ -497,6 +523,8 @@ public class InstrumenterConfig {
         + usmEnabled
         + ", telemetryEnabled="
         + telemetryEnabled
+        + ", traceExtensionsPath="
+        + traceExtensionsPath
         + ", traceExecutorsAll="
         + traceExecutorsAll
         + ", traceExecutors="
@@ -543,6 +571,8 @@ public class InstrumenterConfig {
         + runtimeContextFieldInjection
         + ", serialVersionUIDFieldInjection="
         + serialVersionUIDFieldInjection
+        + ", spanOriginEnabled="
+        + spanOriginEnabled
         + ", traceAnnotations='"
         + traceAnnotations
         + '\''

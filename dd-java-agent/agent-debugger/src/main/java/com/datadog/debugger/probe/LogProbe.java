@@ -412,7 +412,6 @@ public class LogProbe extends ProbeDefinition {
       return;
     }
     boolean sampled = ProbeRateLimiter.tryProbe(id);
-    LOGGER.debug("Probe[{}] sampled={}", probeId.getId(), sampled);
     logStatus.setSampled(sampled);
     if (!sampled) {
       DebuggerAgent.getSink().skipSnapshot(id, DebuggerContext.SkipCause.RATE);
@@ -716,7 +715,8 @@ public class LogProbe extends ProbeDefinition {
   @Generated
   @Override
   public String toString() {
-    return "LogProbe{"
+    return getClass().getSimpleName()
+        + "{"
         + "language='"
         + language
         + '\''

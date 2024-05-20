@@ -365,7 +365,7 @@ public class DDSpan
 
       setTag(DDTags.ERROR_MSG, message);
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
-      if (isLocalRootSpan()) {
+      if (Config.get().isDebuggerEnabled() && isLocalRootSpan()) {
         DebuggerContext.handleException(error, this);
       }
     }

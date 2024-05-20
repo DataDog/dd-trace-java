@@ -7,6 +7,7 @@ import datadog.trace.api.Platform
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
+import datadog.trace.test.util.Flaky
 import datadog.trace.util.Strings
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -63,6 +64,7 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     givenGradleProperties()
   }
 
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/7024")
   def "test #projectName, v#gradleVersion, configCache: #configurationCache"() {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache)

@@ -146,9 +146,15 @@ public abstract class CiVisibilityPluginExtension {
   private void applyJacocoSettings(Path jvmExecutable, JacocoTaskExtension jacocoTaskExtension) {
     CiVisibilityService ciVisibilityService = getCiVisibilityService().get();
 
-    List<String> taskExcludeClassLoader = jacocoTaskExtension.getExcludeClassLoaders();
-    if (taskExcludeClassLoader != null) {
-      taskExcludeClassLoader.addAll(ciVisibilityService.getExcludeClassLoaders());
+    List<String> taskExcludeClassLoaders = jacocoTaskExtension.getExcludeClassLoaders();
+    if (taskExcludeClassLoaders != null) {
+      // taskExcludeClassLoaders list may be immutable, so we need to construct a new one
+      List<String> ciVisExcludedClassLoaders = ciVisibilityService.getExcludeClassLoaders();
+      List<String> updatedTaskExcludeClassLoaders =
+          new ArrayList<>(taskExcludeClassLoaders.size() + ciVisExcludedClassLoaders.size());
+      updatedTaskExcludeClassLoaders.addAll(taskExcludeClassLoaders);
+      updatedTaskExcludeClassLoaders.addAll(ciVisExcludedClassLoaders);
+      jacocoTaskExtension.setExcludeClassLoaders(updatedTaskExcludeClassLoaders);
     } else {
       jacocoTaskExtension.setExcludeClassLoaders(
           new ArrayList<>(ciVisibilityService.getExcludeClassLoaders()));
