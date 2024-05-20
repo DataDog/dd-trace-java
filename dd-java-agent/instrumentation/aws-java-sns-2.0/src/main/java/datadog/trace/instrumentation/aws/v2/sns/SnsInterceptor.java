@@ -32,6 +32,7 @@ public class SnsInterceptor implements ExecutionInterceptor {
   @Override
   public SdkRequest modifyRequest(
       Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+    // Injecting the trace context into SNS messageAttributes.
     if (context.request() instanceof PublishRequest) {
       PublishRequest request = (PublishRequest) context.request();
       Map<String, MessageAttributeValue> messageAttributes =

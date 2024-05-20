@@ -27,7 +27,7 @@ public class SnsInterceptor extends RequestHandler2 {
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(AmazonWebServiceRequest request) {
-    // Injecting the AWSTraceHeader into SNS messageAttributes. This is consistent with SQS cases.
+    // Injecting the trace context into SNS messageAttributes.
     if (request instanceof PublishRequest) {
       PublishRequest pRequest = (PublishRequest) request;
       final AgentSpan span = newSpan(request);
