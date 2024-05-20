@@ -82,6 +82,8 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo graphqlServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo requestEndSubInfo;
+  private volatile DataSubscriberInfo dbConnectionSubInfo;
+  private volatile DataSubscriberInfo dbSqlQuerySubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -410,6 +412,58 @@ public class GatewayBridge {
               return producerService.publishDataEvent(subInfo, ctx, bundle, true);
             } catch (ExpiredSubscriberInfoException e) {
               graphqlServerRequestMsgSubInfo = null;
+            }
+          }
+        });
+
+    subscriptionService.registerCallback(
+        EVENTS.databaseConnection(),
+        (ctx_, dbType) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null) {
+            return;
+          }
+          while (true) {
+            DataSubscriberInfo subInfo = dbConnectionSubInfo;
+            if (subInfo == null) {
+              subInfo = producerService.getDataSubscribers(KnownAddresses.DB_TYPE);
+              dbConnectionSubInfo = subInfo;
+            }
+            if (subInfo == null || subInfo.isEmpty()) {
+              return;
+            }
+            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DB_TYPE, dbType);
+            try {
+              producerService.publishDataEvent(subInfo, ctx, bundle, true);
+              return;
+            } catch (ExpiredSubscriberInfoException e) {
+              dbConnectionSubInfo = null;
+            }
+          }
+        });
+
+    subscriptionService.registerCallback(
+        EVENTS.databaseSqlQuery(),
+        (ctx_, sql) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null) {
+            return;
+          }
+          while (true) {
+            DataSubscriberInfo subInfo = dbSqlQuerySubInfo;
+            if (subInfo == null) {
+              subInfo = producerService.getDataSubscribers(KnownAddresses.DB_SQL_QUERY);
+              dbSqlQuerySubInfo = subInfo;
+            }
+            if (subInfo == null || subInfo.isEmpty()) {
+              return;
+            }
+            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DB_SQL_QUERY, sql);
+            try {
+              producerService.publishDataEvent(subInfo, ctx, bundle, true);
+              return;
+            } catch (ExpiredSubscriberInfoException e) {
+              dbSqlQuerySubInfo = null;
             }
           }
         });

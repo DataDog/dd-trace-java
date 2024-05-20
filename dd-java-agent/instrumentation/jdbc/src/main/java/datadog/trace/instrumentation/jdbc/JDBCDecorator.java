@@ -1,14 +1,18 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -22,6 +26,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +55,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
+
+  // Extract this to allow for easier testing
+  protected AgentTracer.TracerAPI tracer() {
+    return AgentTracer.get();
+  }
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -133,6 +143,20 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       setTagIfPresent(span, DB_WAREHOUSE, dbInfo.getWarehouse());
       setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
+
+      BiConsumer<RequestContext, String> connectDbCallback =
+          tracer()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.databaseConnection());
+      if (connectDbCallback != null) {
+        RequestContext ctx = span.getRequestContext();
+        if (ctx != null) {
+          String dbType = dbInfo.getType();
+          if (dbType != null) {
+            connectDbCallback.accept(ctx, dbType);
+          }
+        }
+      }
     }
     return super.onConnection(span, dbInfo);
   }
@@ -217,6 +241,21 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     if (null != info) {
       span.setResourceName(info.getSql());
       span.setTag(DB_OPERATION, info.getOperation());
+
+      BiConsumer<RequestContext, String> sqlQueryCallback =
+          tracer()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.databaseSqlQuery());
+      if (sqlQueryCallback != null) {
+        RequestContext ctx = span.getRequestContext();
+        if (ctx != null) {
+          UTF8BytesString sqlQuery = info.getSql();
+          if (sqlQuery != null) {
+            sqlQueryCallback.accept(ctx, sqlQuery.toString());
+          }
+        }
+      }
+
     } else {
       span.setResourceName(DB_QUERY);
     }
