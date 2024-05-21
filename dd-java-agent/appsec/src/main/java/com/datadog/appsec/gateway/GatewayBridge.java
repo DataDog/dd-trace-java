@@ -434,7 +434,7 @@ public class GatewayBridge {
             }
             DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DB_TYPE, dbType);
             try {
-              producerService.publishDataEvent(subInfo, ctx, bundle, true);
+              producerService.publishDataEvent(subInfo, ctx, bundle, false);
               return;
             } catch (ExpiredSubscriberInfoException e) {
               dbConnectionSubInfo = null;
@@ -460,7 +460,7 @@ public class GatewayBridge {
             }
             DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DB_SQL_QUERY, sql);
             try {
-              producerService.publishDataEvent(subInfo, ctx, bundle, true);
+              producerService.publishDataEvent(subInfo, ctx, bundle, false);
               return;
             } catch (ExpiredSubscriberInfoException e) {
               dbSqlQuerySubInfo = null;

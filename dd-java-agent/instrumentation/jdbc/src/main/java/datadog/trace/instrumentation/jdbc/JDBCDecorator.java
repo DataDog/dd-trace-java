@@ -229,6 +229,27 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return dbInfo;
   }
 
+  /**
+   * The method used to provide raw sql to prevent SQL-injection attacks
+   * SQL query should never be exposed because it may contain sensitive data.
+   */
+  public AgentSpan onStatementRaw(AgentSpan span, String sql) {
+    System.out.println("JDBCDecorator.onStatementRaw: " + sql);
+    BiConsumer<RequestContext, String> sqlQueryCallback =
+            tracer()
+                    .getCallbackProvider(RequestContextSlot.APPSEC)
+                    .getCallback(EVENTS.databaseSqlQuery());
+    if (sqlQueryCallback != null) {
+      RequestContext ctx = span.getRequestContext();
+      if (ctx != null) {
+        if (sql != null && !sql.isEmpty()) {
+          sqlQueryCallback.accept(ctx, sql);
+        }
+      }
+    }
+    return span;
+  }
+
   public AgentSpan onStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
     return withQueryInfo(span, dbQueryInfo, JDBC_STATEMENT);
   }
@@ -241,21 +262,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     if (null != info) {
       span.setResourceName(info.getSql());
       span.setTag(DB_OPERATION, info.getOperation());
-
-      BiConsumer<RequestContext, String> sqlQueryCallback =
-          tracer()
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.databaseSqlQuery());
-      if (sqlQueryCallback != null) {
-        RequestContext ctx = span.getRequestContext();
-        if (ctx != null) {
-          UTF8BytesString sqlQuery = info.getSql();
-          if (sqlQuery != null) {
-            sqlQueryCallback.accept(ctx, sqlQuery.toString());
-          }
-        }
-      }
-
     } else {
       span.setResourceName(DB_QUERY);
     }
