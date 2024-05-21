@@ -36,6 +36,13 @@ public final class AvroSerializerInstrumentation extends InstrumenterModule.Trac
         AvroSerializerInstrumentation.class.getName() + "$SerializeAdvice");
   }
 
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".SchemaExtractor",
+    };
+  }
+
   public static class SerializeAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(

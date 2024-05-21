@@ -11,14 +11,14 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.ExecutionException;
 import net.bytebuddy.asm.Advice;
-import org.apache.hadoop.io.serializer.Deserializer;
+import org.apache.avro.hadoop.io.AvroDeserializer;
 
 @AutoService(InstrumenterModule.class)
 public final class AvroDeserializerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   static final String instrumentationName = "avro";
-  static final String TARGET_TYPE = "org.apache.avro.hadoop.io.AvroSerializer";
+  static final String TARGET_TYPE = "org.apache.avro.hadoop.io.AvroDeserializer";
 
   public AvroDeserializerInstrumentation() {
     super(instrumentationName);
@@ -40,13 +40,14 @@ public final class AvroDeserializerInstrumentation extends InstrumenterModule.Tr
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("deserialize")).and(takesArguments(1)),
-        AvroSerializerInstrumentation.class.getName() + "$DeserializeAdvice");
+        AvroDeserializerInstrumentation.class.getName() + "$DeserializeAdvice");
   }
 
   public static class DeserializeAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.This final Deserializer serializer, @Advice.Thrown final Throwable throwable) {
+        @Advice.This final AvroDeserializer deserializer,
+        @Advice.Thrown final Throwable throwable) {
       AgentSpan span = activeSpan();
       if (span == null) {
         return;
@@ -54,6 +55,10 @@ public final class AvroDeserializerInstrumentation extends InstrumenterModule.Tr
       if (throwable != null) {
         span.addThrowable(
             throwable instanceof ExecutionException ? throwable.getCause() : throwable);
+      }
+      if (deserializer != null) {
+        SchemaExtractor.attachSchemaOnSpan(
+            deserializer.getWriterSchema(), span, SchemaExtractor.deserialization);
       }
     }
   }
