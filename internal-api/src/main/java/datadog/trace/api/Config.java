@@ -3602,8 +3602,6 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    result.put(DSM_ENABLED, isDataStreamsEnabled() ? 1 : 0);
-    result.put(DJM_ENABLED, isDataJobsEnabled() ? 1 : 0);
     if (areTracingDependantProductsEnabled()) {
       result.put(APM_ENABLED, 0);
     }
