@@ -1,9 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
 
 public class DBInfo {
   public static DBInfo DEFAULT = new Builder().type("database").build();
@@ -42,8 +39,6 @@ public class DBInfo {
   }
 
   public static class Builder {
-    private static final Set<String> extraArgs = new HashSet<>(Arrays.asList("", ""));
-
     private String type;
     private String subtype;
     // most DBs do support full propagation (inserting trace ID in query comments), so we default to
@@ -175,6 +170,10 @@ public class DBInfo {
 
   public Integer getPort() {
     return port;
+  }
+
+  public String getRawUrl() {
+    return rawUrl;
   }
 
   public Builder toBuilder() {

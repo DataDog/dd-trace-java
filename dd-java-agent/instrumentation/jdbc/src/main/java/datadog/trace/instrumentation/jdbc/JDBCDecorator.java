@@ -122,6 +122,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public AgentSpan onConnection(final AgentSpan span, DBInfo dbInfo) {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
+      span.setTag("db.raw_url", dbInfo.getRawUrl());
+      span.setTag("db.url", dbInfo.getUrl());
     }
     return super.onConnection(span, dbInfo);
   }
