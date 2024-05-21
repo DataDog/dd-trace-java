@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.git;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -18,6 +19,7 @@ public class GitConfig {
     load(path);
   }
 
+  @SuppressForbidden // split with one-char String use a fast-path without regex usage
   private void load(final String path) {
     if (path == null || path.isEmpty()) {
       return;
