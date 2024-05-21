@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -122,8 +124,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public AgentSpan onConnection(final AgentSpan span, DBInfo dbInfo) {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
-      span.setTag("db.raw_url", dbInfo.getRawUrl());
-      span.setTag("db.url", dbInfo.getUrl());
+      span.setTag(DB_WAREHOUSE, dbInfo.getWarehouse());
+      span.setTag(DB_SCHEMA, dbInfo.getSchema());
     }
     return super.onConnection(span, dbInfo);
   }
