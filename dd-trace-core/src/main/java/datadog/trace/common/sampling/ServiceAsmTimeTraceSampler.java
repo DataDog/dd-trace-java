@@ -6,8 +6,6 @@ import datadog.trace.core.util.SimpleRateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-
 public class ServiceAsmTimeTraceSampler implements Sampler, PrioritySampler {
 
   private static final Logger log = LoggerFactory.getLogger(ServiceAsmTimeTraceSampler.class);
@@ -15,7 +13,7 @@ public class ServiceAsmTimeTraceSampler implements Sampler, PrioritySampler {
   private final SimpleRateLimiter rateLimiter;
 
   public ServiceAsmTimeTraceSampler() {
-    this.rateLimiter = new SimpleRateLimiter(60); //one per minute
+    this.rateLimiter = new SimpleRateLimiter(60); // one per minute
   }
 
   @Override
@@ -28,18 +26,12 @@ public class ServiceAsmTimeTraceSampler implements Sampler, PrioritySampler {
   @Override
   public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
 
-    //TODO check how to short circuit this for ASM
+    // TODO check how to short circuit this for ASM
 
     if (rateLimiter.tryAcquire()) {
-      span.setSamplingPriority(
-          PrioritySampling.SAMPLER_KEEP,
-          SamplingMechanism.DEFAULT);
+      span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
     } else {
-      span.setSamplingPriority(
-          PrioritySampling.SAMPLER_DROP,
-          SamplingMechanism.DEFAULT);
+      span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
     }
-
   }
-
 }
