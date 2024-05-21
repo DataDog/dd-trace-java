@@ -299,6 +299,8 @@ public class SnapshotSerializationTest {
     URI uri = URI.create("https://www.datadoghq.com");
     Optional<Date> maybeDate = Optional.of(new Date());
     Optional<Object> empty = Optional.empty();
+    Exception ex = new IllegalArgumentException("invalid arg");
+    StackTraceElement element = new StackTraceElement("Foo", "bar", "foo.java", 42);
   }
 
   @Test
@@ -344,6 +346,19 @@ public class SnapshotSerializationTest {
     value = (Map<String, Object>) emptyFields.get("value");
     assertEquals(Object.class.getTypeName(), value.get(TYPE));
     assertTrue((Boolean) value.get(IS_NULL));
+    Map<String, Object> ex = (Map<String, Object>) objLocalFields.get("ex");
+    assertComplexClass(ex, IllegalArgumentException.class.getTypeName());
+    Map<String, Object> exFields = (Map<String, Object>) ex.get(FIELDS);
+    assertPrimitiveValue(exFields, "detailMessage", String.class.getTypeName(), "invalid arg");
+    Map<String, Object> stackTrace = (Map<String, Object>) exFields.get("stackTrace");
+    Assertions.assertEquals(StackTraceElement[].class.getTypeName(), stackTrace.get(TYPE));
+    Map<String, Object> element = (Map<String, Object>) objLocalFields.get("element");
+    assertComplexClass(element, StackTraceElement.class.getTypeName());
+    Map<String, Object> elementFields = (Map<String, Object>) element.get(FIELDS);
+    assertPrimitiveValue(elementFields, "declaringClass", String.class.getTypeName(), "Foo");
+    assertPrimitiveValue(elementFields, "methodName", String.class.getTypeName(), "bar");
+    assertPrimitiveValue(elementFields, "fileName", String.class.getTypeName(), "foo.java");
+    assertPrimitiveValue(elementFields, "lineNumber", Integer.class.getTypeName(), "42");
   }
 
   @Test

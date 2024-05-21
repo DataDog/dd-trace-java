@@ -130,18 +130,18 @@ public class CapturedContext implements ValueReferenceResolver {
         }
       }
     } else {
-      Function<Object, CapturedValue> specialFieldAccess =
-          WellKnownClasses.getSpecialFieldAccess(target.getClass().getTypeName());
-      if (specialFieldAccess != null) {
-        CapturedValue specialField = specialFieldAccess.apply(target);
-        if (specialField != null && specialField.getName().equals(memberName)) {
-          return specialField.getValue();
-        } else {
-          target = Values.UNDEFINED_OBJECT;
+      Map<String, Function<Object, CapturedValue>> specialTypeAccess =
+          WellKnownClasses.getSpecialTypeAccess(target);
+      if (specialTypeAccess != null) {
+        Function<Object, CapturedValue> specialFieldAccess = specialTypeAccess.get(memberName);
+        if (specialFieldAccess != null) {
+          CapturedValue specialField = specialFieldAccess.apply(target);
+          if (specialField != null && specialField.getName().equals(memberName)) {
+            return specialField.getValue();
+          }
         }
-      } else {
-        target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
       }
+      target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
     }
     checkUndefined(target, memberName, "Cannot dereference to field: ");
     return target;
