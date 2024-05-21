@@ -110,8 +110,7 @@ public class DDAgentApi extends RemoteApi {
               .addHeader(
                   DATADOG_CLIENT_COMPUTED_STATS,
                   (metricsEnabled && featuresDiscovery.supportsMetrics())
-                          || (!Config.get().isTraceEnabled()
-                              && Config.get().areTracingDependantProductsEnabled())
+                          || Config.get().isExperimentalAppSecStandaloneEnabled()
                       ? "true"
                       : "")
               .put(payload.toRequest())

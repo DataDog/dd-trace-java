@@ -6,13 +6,14 @@ import datadog.trace.core.util.SimpleRateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ServiceAsmTimeTraceSampler implements Sampler, PrioritySampler {
+public class ExperimentalAppSecStandaloneSampler implements Sampler, PrioritySampler {
 
-  private static final Logger log = LoggerFactory.getLogger(ServiceAsmTimeTraceSampler.class);
+  private static final Logger log =
+      LoggerFactory.getLogger(ExperimentalAppSecStandaloneSampler.class);
 
   private final SimpleRateLimiter rateLimiter;
 
-  public ServiceAsmTimeTraceSampler() {
+  public ExperimentalAppSecStandaloneSampler() {
     this.rateLimiter = new SimpleRateLimiter(60); // one per minute
   }
 
