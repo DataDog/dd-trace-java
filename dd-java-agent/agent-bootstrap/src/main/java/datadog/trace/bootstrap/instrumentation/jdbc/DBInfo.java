@@ -1,6 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 public class DBInfo {
   public static DBInfo DEFAULT = new Builder().type("database").build();
@@ -13,6 +16,7 @@ public class DBInfo {
   private final String db;
   private final String host;
   private final Integer port;
+  private final String rawUrl;
 
   DBInfo(
       String type,
@@ -23,7 +27,8 @@ public class DBInfo {
       String instance,
       String db,
       String host,
-      Integer port) {
+      Integer port,
+      String rawUrl) {
     this.type = type;
     this.subtype = subtype;
     this.fullPropagationSupport = fullPropagationSupport;
@@ -33,9 +38,12 @@ public class DBInfo {
     this.db = db;
     this.host = host;
     this.port = port;
+    this.rawUrl = rawUrl;
   }
 
   public static class Builder {
+    private static final Set<String> extraArgs = new HashSet<>(Arrays.asList("", ""));
+
     private String type;
     private String subtype;
     // most DBs do support full propagation (inserting trace ID in query comments), so we default to
@@ -47,6 +55,7 @@ public class DBInfo {
     private String db;
     private String host;
     private Integer port;
+    private String rawUrl;
 
     Builder() {}
 
@@ -59,7 +68,8 @@ public class DBInfo {
         String instance,
         String db,
         String host,
-        Integer port) {
+        Integer port,
+        String rawUrl) {
       this.type = type;
       this.subtype = subtype;
       this.fullPropagationSupport = fullPropagationSupport;
@@ -69,6 +79,7 @@ public class DBInfo {
       this.db = db;
       this.host = host;
       this.port = port;
+      this.rawUrl = rawUrl;
     }
 
     public Builder type(String type) {
@@ -119,8 +130,14 @@ public class DBInfo {
       return this;
     }
 
+    public Builder rawUrl(String rawUrl) {
+      this.rawUrl = rawUrl;
+      return this;
+    }
+
     public DBInfo build() {
-      return new DBInfo(type, subtype, fullPropagationSupport, url, user, instance, db, host, port);
+      return new DBInfo(
+          type, subtype, fullPropagationSupport, url, user, instance, db, host, port, rawUrl);
     }
   }
 
@@ -161,7 +178,8 @@ public class DBInfo {
   }
 
   public Builder toBuilder() {
-    return new Builder(type, subtype, fullPropagationSupport, url, user, instance, db, host, port);
+    return new Builder(
+        type, subtype, fullPropagationSupport, url, user, instance, db, host, port, rawUrl);
   }
 
   @Override
@@ -177,11 +195,13 @@ public class DBInfo {
         && Objects.equals(instance, dbInfo.instance)
         && Objects.equals(db, dbInfo.db)
         && Objects.equals(host, dbInfo.host)
-        && Objects.equals(port, dbInfo.port);
+        && Objects.equals(port, dbInfo.port)
+        && Objects.equals(rawUrl, dbInfo.rawUrl);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, subtype, fullPropagationSupport, url, user, instance, db, host, port);
+    return Objects.hash(
+        type, subtype, fullPropagationSupport, url, user, instance, db, host, port, rawUrl);
   }
 }

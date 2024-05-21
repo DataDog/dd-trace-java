@@ -12,6 +12,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -79,6 +81,12 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
+        if (dbInfo != null && dbInfo.getType().equalsIgnoreCase("snowflake")) {
+          span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
+          for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+            System.out.println("####" + ste + "\n");
+          }
+        }
         return activateSpan(span);
       } catch (SQLException e) {
         logSQLException(e);

@@ -800,6 +800,7 @@ public enum JDBCConnectionUrlParser {
   }
 
   public static DBInfo parse(String connectionUrl, final Properties props) {
+    System.out.println("#### Parsing " + connectionUrl);
     if (connectionUrl == null) {
       return DEFAULT;
     }
@@ -901,6 +902,27 @@ public enum JDBCConnectionUrlParser {
           ExceptionLogger.LOGGER.debug("Error parsing portNumber property: {}", portNumber, e);
         }
       }
+
+      StringBuilder sb = new StringBuilder();
+      for (final Map.Entry<?, ?> entry : props.entrySet()) {
+        final String key = (String) entry.getKey();
+        final String value = (String) entry.getValue();
+
+        // avoid logging credentials (should be allowlist)
+        if (key.contains("user") || key.contains("password")) {
+          continue;
+        }
+
+        if (sb.length() > 0) {
+          sb.append('&');
+        }
+
+        sb.append(key);
+        sb.append('=');
+        sb.append(value);
+      }
+
+      builder.rawUrl(sb.toString());
     }
   }
 }
