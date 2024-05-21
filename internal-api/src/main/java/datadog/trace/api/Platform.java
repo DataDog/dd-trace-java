@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import java.lang.management.GarbageCollectorMXBean;
-import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -29,12 +28,14 @@ public final class Platform {
     }
 
     static GC current() {
-      for (GarbageCollectorMXBean mxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
-        if (mxBean.isValid()) {
-          String name = mxBean.getName().toLowerCase(Locale.ROOT);
-          for (GC gc : GC.values()) {
-            if (gc != UNKNOWN && name.startsWith(gc.identifierPrefix)) {
-              return gc;
+      if(checkManagementFactory()) {
+        for (GarbageCollectorMXBean mxBean : java.lang.management.ManagementFactory.getGarbageCollectorMXBeans()) {
+          if (mxBean.isValid()) {
+            String name = mxBean.getName().toLowerCase(Locale.ROOT);
+            for (GC gc : GC.values()) {
+              if (gc != UNKNOWN && name.startsWith(gc.identifierPrefix)) {
+                return gc;
+              }
             }
           }
         }
@@ -77,6 +78,13 @@ public final class Platform {
        * Note: the downside of this is that we load some JFR classes at startup.
        */
       return ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+    } catch (Throwable e) {
+      return false;
+    }
+  }
+  private static boolean checkManagementFactory() {
+    try {
+      return ClassLoader.getSystemClassLoader().getResource("java/lang/ManagementFactory.class") != null;
     } catch (Throwable e) {
       return false;
     }
