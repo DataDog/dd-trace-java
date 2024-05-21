@@ -97,6 +97,7 @@
 # USM needs it
 0 sun.security.ssl.*
 0 javax.net.ssl.SSLSocket
+1 org.mockito.codegen.*
 
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
@@ -355,7 +356,6 @@
 2 org.yaml.snakeyaml.*
 # saves ~0.5s skipping instrumentation of almost ~470 classes
 2 scala.collection.*
-1 org.mockito.codegen.*
 
 # -------- SPECIAL CASES --------
 
