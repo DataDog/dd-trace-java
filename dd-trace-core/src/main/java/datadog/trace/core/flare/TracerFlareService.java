@@ -64,6 +64,7 @@ final class TracerFlareService {
   private final CoreTracer tracer;
 
   private boolean logLevelOverridden;
+  private boolean flarePrepared;
   private volatile long flareStartMillis;
 
   private Scheduled<Runnable> scheduledCleanup;
@@ -120,6 +121,7 @@ final class TracerFlareService {
 
   public synchronized void prepareForFlare(String logLevel) {
     // allow turning on debug even part way through preparation
+    flarePrepared = true;
     if (!log.isDebugEnabled() && "debug".equalsIgnoreCase(logLevel)) {
       GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
       logLevelOverridden = true;
@@ -155,6 +157,7 @@ final class TracerFlareService {
       scheduledCleanup = null;
       log.debug("Cleaning up after tracer flare");
       TracerFlare.cleanupAfterFlare();
+      flarePrepared = false;
       if (logLevelOverridden) {
         GlobalLogLevelSwitcher.get().restore();
         logLevelOverridden = false;
@@ -287,9 +290,11 @@ final class TracerFlareService {
     // dd-java-agent jar
     String logFile = System.getProperty("org.slf4j.simpleLogger.logFile");
     if (logFile == null || logFile.isEmpty()) {
-      // we should do this only when tracer flare was requested by RC without debug logs requested
-      // This will be handled by LogReporter in the other cases
-      if (!logLevelOverridden && !config.isTriageEnabled()) {
+      // we should do this only when:
+      // - no log file has been configured
+      // - AND the tracer flare was requested by RC AND we didn't receive an agent config event as
+      // DEBUG was not requested
+      if (!flarePrepared) {
         TracerFlare.addText(zip, "tracer.log", "No tracer log file specified");
       }
       return;

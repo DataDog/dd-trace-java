@@ -49,6 +49,9 @@ public class PrintStreamWrapper extends PrintStream {
   }
 
   public static byte[] getBuffer() {
+    if (byteArrayOutputStream == null) {
+      return null;
+    }
     return byteArrayOutputStream.toByteArray();
   }
 
