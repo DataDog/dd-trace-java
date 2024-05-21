@@ -257,13 +257,6 @@ public class SerializerWithLimits {
 
   private void serializeObjectValue(Object value, Limits limits) throws Exception {
     tokenWriter.objectPrologue(value);
-    Function<Object, CapturedContext.CapturedValue> specialFieldAccess =
-        WellKnownClasses.getSpecialFieldAccess(value.getClass().getTypeName());
-    if (specialFieldAccess != null) {
-      onSpecialField(specialFieldAccess, value, limits);
-      tokenWriter.objectEpilogue(value);
-      return;
-    }
     Map<String, Function<Object, CapturedContext.CapturedValue>> specialTypeAccess =
         WellKnownClasses.getSpecialTypeAccess(value);
     Class<?> currentClass = value.getClass();
@@ -283,7 +276,8 @@ public class SerializerWithLimits {
           }
           processedFieldCount++;
           if (specialTypeAccess != null) {
-            specialFieldAccess = specialTypeAccess.get(field.getName());
+            Function<Object, CapturedContext.CapturedValue> specialFieldAccess =
+                specialTypeAccess.get(field.getName());
             if (specialFieldAccess != null) {
               onSpecialField(specialFieldAccess, value, limits);
             } else {

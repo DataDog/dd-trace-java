@@ -68,13 +68,6 @@ public class WellKnownClasses {
               "java.time.LocalDateTime",
               "java.util.UUID"));
 
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>> SPECIAL_FIELDS =
-      new HashMap<>();
-
-  static {
-    SPECIAL_FIELDS.put("java.util.Optional", WellKnownClasses::optionalSpecialField);
-  }
-
   private static final Map<Class<?>, Map<String, Function<Object, CapturedContext.CapturedValue>>>
       SPECIAL_TYPE_ACCESS = new HashMap<>();
 
@@ -97,8 +90,16 @@ public class WellKnownClasses {
     ;
   }
 
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
+      OPTIONAL_SPECIAL_FIELDS = new HashMap<>();
+
+  static {
+    OPTIONAL_SPECIAL_FIELDS.put("value", OptionalFields::value);
+  }
+
   static {
     SPECIAL_TYPE_ACCESS.put(StackTraceElement.class, STACKTRACEELEMENT_SPECIAL_FIELDS);
+    SPECIAL_TYPE_ACCESS.put(Optional.class, OPTIONAL_SPECIAL_FIELDS);
   }
 
   private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
@@ -157,14 +158,6 @@ public class WellKnownClasses {
   }
 
   /**
-   * @return a function to access special field of a type, or null if type is not supported. This is
-   *     used to avoid using reflection to access fields on well known types
-   */
-  public static Function<Object, CapturedContext.CapturedValue> getSpecialFieldAccess(String type) {
-    return SPECIAL_FIELDS.get(type);
-  }
-
-  /**
    * @return a map of fields with function to access special field of a type, or null if type is not
    *     supported. This is used to avoid using reflection to access fields on well known types
    */
@@ -192,11 +185,6 @@ public class WellKnownClasses {
     return SAFE_TO_STRING_FUNCTIONS.get(type);
   }
 
-  private static CapturedContext.CapturedValue optionalSpecialField(Object o) {
-    return CapturedContext.CapturedValue.of(
-        "value", Object.class.getTypeName(), ((Optional<?>) o).orElse(null));
-  }
-
   private static String classToString(Object o) {
     return ((Class<?>) o).getTypeName();
   }
@@ -205,28 +193,18 @@ public class WellKnownClasses {
     return String.valueOf(o);
   }
 
-  private static boolean isOverridden(
-      Object value, String methodName, Class<?> originalDeclaringClass) {
-    Class<?> declaringClass = null;
-    try {
-      declaringClass = value.getClass().getMethod(methodName).getDeclaringClass();
-    } catch (NoSuchMethodException e) {
-      LOGGER.debug("Failed to get declaring class for Throwable::getMessage", e);
-    }
-    return declaringClass != originalDeclaringClass;
-  }
-
   private static class ThrowableFields {
     public static final String BECAUSE_OVERRIDDEN =
         "Special access method not safe to be called because overridden";
 
     public static CapturedContext.CapturedValue detailMessage(Object o) {
-      if (isOverridden(o, "getMessage", Throwable.class)) {
-        return CapturedContext.CapturedValue.notCapturedReason(
-            "detailMessage", String.class.getTypeName(), BECAUSE_OVERRIDDEN);
-      }
-      return CapturedContext.CapturedValue.of(
-          "detailMessage", String.class.getTypeName(), ((Throwable) o).getMessage());
+      return captureIfNotOverridden(
+          (Throwable) o,
+          "detailMessage",
+          "getMessage",
+          String.class,
+          Throwable.class,
+          Throwable::getMessage);
     }
 
     public static CapturedContext.CapturedValue suppressedExceptions(Object o) {
@@ -235,21 +213,49 @@ public class WellKnownClasses {
     }
 
     public static CapturedContext.CapturedValue stackTrace(Object o) {
-      if (isOverridden(o, "getStackTrace", Throwable.class)) {
-        return CapturedContext.CapturedValue.notCapturedReason(
-            "stackTrace", StackTraceElement[].class.getTypeName(), BECAUSE_OVERRIDDEN);
-      }
-      return CapturedContext.CapturedValue.of(
-          "stackTrace", String.class.getTypeName(), ((Throwable) o).getStackTrace());
+      return captureIfNotOverridden(
+          (Throwable) o,
+          "stackTrace",
+          "getStackTrace",
+          StackTraceElement[].class,
+          Throwable.class,
+          Throwable::getStackTrace);
     }
 
     public static CapturedContext.CapturedValue cause(Object o) {
-      if (isOverridden(o, "getCause", Throwable.class)) {
+      return captureIfNotOverridden(
+          (Throwable) o,
+          "cause",
+          "getCause",
+          Throwable.class,
+          Throwable.class,
+          Throwable::getCause);
+    }
+
+    private static <T, R> CapturedContext.CapturedValue captureIfNotOverridden(
+        T obj,
+        String fieldName,
+        String methodName,
+        Class<R> fieldType,
+        Class<T> orginalDeclaringClass,
+        Function<T, R> supplier) {
+      if (isOverridden(obj, methodName, orginalDeclaringClass)) {
         return CapturedContext.CapturedValue.notCapturedReason(
-            "cause", Throwable.class.getTypeName(), BECAUSE_OVERRIDDEN);
+            fieldName, fieldType.getTypeName(), BECAUSE_OVERRIDDEN);
       }
       return CapturedContext.CapturedValue.of(
-          "cause", String.class.getTypeName(), ((Throwable) o).getCause());
+          fieldName, fieldType.getTypeName(), supplier.apply(obj));
+    }
+
+    private static boolean isOverridden(
+        Object value, String methodName, Class<?> originalDeclaringClass) {
+      Class<?> declaringClass = null;
+      try {
+        declaringClass = value.getClass().getMethod(methodName).getDeclaringClass();
+      } catch (NoSuchMethodException e) {
+        LOGGER.debug("Failed to get declaring class for Throwable::getMessage", e);
+      }
+      return declaringClass != originalDeclaringClass;
     }
   }
 
@@ -285,6 +291,13 @@ public class WellKnownClasses {
         }
       }
       return CapturedContext.CapturedValue.of("moduleName", String.class.getTypeName(), value);
+    }
+  }
+
+  private static class OptionalFields {
+    public static CapturedContext.CapturedValue value(Object o) {
+      return CapturedContext.CapturedValue.of(
+          "value", Object.class.getTypeName(), ((Optional<?>) o).orElse(null));
     }
   }
 }
