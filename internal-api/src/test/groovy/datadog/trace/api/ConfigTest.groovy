@@ -41,6 +41,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_BATCH_SIZE
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_FLUSH_INTERVAL
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_UPLOAD_TIMEOUT
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_VERIFY_BYTECODE
+import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED
 import static datadog.trace.api.config.GeneralConfig.API_KEY
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE
@@ -246,6 +247,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(DEBUGGER_VERIFY_BYTECODE, "true")
     prop.setProperty(DEBUGGER_INSTRUMENT_THE_WORLD, "true")
     prop.setProperty(DEBUGGER_EXCLUDE_FILES, "exclude file")
+    prop.setProperty(EXCEPTION_REPLAY_ENABLED, "true")
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
     when:
@@ -337,6 +339,7 @@ class ConfigTest extends DDSpecification {
     config.debuggerVerifyByteCode == true
     config.debuggerInstrumentTheWorld == true
     config.debuggerExcludeFiles == "exclude file"
+    config.debuggerExceptionEnabled == true
 
     config.xDatadogTagsMaxLength == 128
   }
