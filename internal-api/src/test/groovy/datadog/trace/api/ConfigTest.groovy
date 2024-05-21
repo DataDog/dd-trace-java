@@ -26,7 +26,6 @@ import static datadog.trace.api.TracePropagationStyle.B3SINGLE
 import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
-import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED
@@ -57,7 +56,6 @@ import static datadog.trace.api.config.GeneralConfig.SITE
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.VERSION
-import static datadog.trace.api.config.IastConfig.IAST_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -1190,8 +1188,8 @@ class ConfigTest extends DDSpecification {
     value               | expected // null means default value
     // spotless:off
     "1"                 | [1]
-    "3,13,400-403"      | [3, 13, 400, 401, 402, 403]
-    "2,10,13-15"        | [2, 10, 13, 14, 15]
+    "3,13,400-403"      | [3,13,400,401,402,403]
+    "2,10,13-15"        | [2,10,13,14,15]
     "a"                 | null
     ""                  | null
     "1000"              | null
@@ -1494,12 +1492,12 @@ class ConfigTest extends DDSpecification {
     then:
     config.mergedSpanTags == [a: "1", b: "2", c: "3", (ENV): "eu-east", (VERSION): "43"]
     config.mergedJmxTags == [a               : "1", b: "2", d: "4", (ENV): "eu-east", (VERSION): "43",
-                             (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+      (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
 
     config.mergedProfilingTags == [a            : "1", b: "2", f: "6", (ENV): "eu-east", (VERSION): "43",
-                                   (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(),
-                                   (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+      (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(),
+      (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "verify dd.tags overrides global tags in system properties"() {
@@ -1697,7 +1695,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
-                             version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
+      version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
   }
 
   def "merge env from dd.trace.global.tags and DD_SERVICE and DD_VERSION"() {
@@ -1713,7 +1711,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
-                             version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
+      version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
   }
 
   def "set of dd.trace.global.tags.env exclusively by java properties and without DD_ENV"() {
@@ -1776,7 +1774,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == DEFAULT_SERVICE_NAME
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "DD_SERVICE precedence over 'dd.service.name' java property is set; 'dd.service' overwrites DD_SERVICE"() {
@@ -1794,7 +1792,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-java-prop"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "DD_SERVICE precedence over 'DD_SERVICE_NAME' environment var is set"() {
@@ -1810,7 +1808,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "dd.service overwrites DD_SERVICE"() {
@@ -1826,7 +1824,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-java-prop"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "set servicenaem by DD_SERVICE"() {
@@ -1842,7 +1840,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "explicit service name is not overridden by captured environment"() {
@@ -2390,12 +2388,12 @@ class ConfigTest extends DDSpecification {
 
     where:
     configuredFlushInterval | flushInterval
-    "invalid"               | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "-1"                    | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "9"                     | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "451"                   | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "10"                    | 10
-    "450"                   | 450
+    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "-1"          | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "9"           | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "451"         | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "10"          | 10
+    "450"         | 450
   }
 
   def "long running trace invalid flush_interval set to default: #configuredFlushInterval"() {
@@ -2411,12 +2409,12 @@ class ConfigTest extends DDSpecification {
 
     where:
     configuredFlushInterval | flushInterval
-    "invalid"               | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "-1"                    | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "19"                    | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "451"                   | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "20"                    | 20
-    "450"                   | 450
+    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "-1"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "19"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "451"         | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "20"          | 20
+    "450"         | 450
   }
 
   def "partial flush and min spans interaction"() {
@@ -2441,31 +2439,5 @@ class ConfigTest extends DDSpecification {
     null                     | 47                        | 47
     true                     | 11                        | 11
     false                    | 17                        | 0
-  }
-
-  void "test areTracingDependantProductsEnabled"() {
-    setup:
-    def prop = new Properties()
-    prop.setProperty(TRACE_ENABLED, apmEnabled.toString()) // TRACE_ENABLED == APM enabled
-    prop.setProperty(APPSEC_ENABLED, appsecEnabled.toString())
-    prop.setProperty(IAST_ENABLED, iastEnabled.toString())
-
-    when:
-    Config config = Config.get(prop)
-
-    then:
-    config.isTraceEnabled() == apmEnabled
-    config.areTracingDependantProductsEnabled() == (appsecEnabled || iastEnabled)
-
-    where:
-    apmEnabled | appsecEnabled | iastEnabled
-    true       | true          | true
-    true       | true          | false
-    true       | false         | true
-    true       | false         | false
-    false      | true          | true
-    false      | true          | false
-    false      | false         | true
-
   }
 }
