@@ -165,13 +165,15 @@ public class ReflectiveFieldValueResolver {
 
   private static Field getField(Class<?> container, String name) {
     while (container != null) {
-      try {
-        Field fld = container.getDeclaredField(name);
-        fld.setAccessible(true);
-        return fld;
-      } catch (NoSuchFieldException ignored) {
-        container = container.getSuperclass();
+      Field[] declaredFields = container.getDeclaredFields();
+      for (int i = 0; i < declaredFields.length; i++) {
+        Field declaredField = declaredFields[i];
+        if (declaredField.getName().equals(name)) {
+          declaredField.setAccessible(true);
+          return declaredField;
+        }
       }
+      container = container.getSuperclass();
     }
     return null;
   }
