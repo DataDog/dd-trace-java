@@ -30,6 +30,7 @@ public enum JDBCConnectionUrlParser {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
       try {
+        System.out.println("#### JDBC URL: " + jdbcUrl);
         // Attempt generic parsing
         final URI uri = new URI(jdbcUrl);
 
