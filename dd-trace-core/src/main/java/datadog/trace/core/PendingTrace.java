@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
@@ -489,12 +490,24 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // This check skips potential complex sampling priority logic when we know its redundant
     // Locks inside DDSpanContext ensure the correct behavior in the race case
 
-    if (traceConfig.sampler instanceof PrioritySampler
-        && rootSpan != null
-        && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
+    if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
 
-      ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
+      // TODO check if this is the place to ignore the force-keep priority in the absence of
+      // propagated _dd.p.appsec span tag.
+      if (Config.get().isExperimentalAppSecStandaloneEnabled()
+          && rootSpan.getTag("_dd.p.appsec") != null) {
+        setSamplingPriority();
+        return;
+      }
+
+      if (rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
+        setSamplingPriority();
+      }
     }
+  }
+
+  private void setSamplingPriority() {
+    ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
   }
 
   public boolean sample(DDSpan spanToSample) {
