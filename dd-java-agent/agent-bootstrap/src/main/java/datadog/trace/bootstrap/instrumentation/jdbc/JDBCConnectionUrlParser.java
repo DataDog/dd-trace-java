@@ -800,7 +800,6 @@ public enum JDBCConnectionUrlParser {
   }
 
   public static DBInfo parse(String connectionUrl, final Properties props) {
-    System.out.println("#### Parsing " + connectionUrl);
     if (connectionUrl == null) {
       return DEFAULT;
     }
