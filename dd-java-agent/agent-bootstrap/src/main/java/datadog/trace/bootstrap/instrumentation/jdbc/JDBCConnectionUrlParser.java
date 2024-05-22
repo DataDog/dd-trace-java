@@ -30,7 +30,6 @@ public enum JDBCConnectionUrlParser {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
       try {
-        System.out.println("#### JDBC URL: " + jdbcUrl);
         // Attempt generic parsing
         final URI uri = new URI(jdbcUrl);
 
@@ -770,6 +769,17 @@ public enum JDBCConnectionUrlParser {
         }
       }
       return builder;
+    }
+  },
+
+  SNOWFLAKE("snowflake") {
+    @Override
+    DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
+      String url = jdbcUrl;
+      if (url.startsWith("jdbc:")) {
+        url = url.substring(5);
+      }
+      return GENERIC_URL_LIKE.doParse(url, builder);
     }
   };
 
