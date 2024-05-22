@@ -1,5 +1,7 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.PROPAGATED_APPSEC;
+
 import datadog.communication.monitor.Recording;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -492,10 +494,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
     if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
 
-      // TODO check if this is the place to ignore the force-keep priority in the absence of
-      // propagated _dd.p.appsec span tag.
+      // Ignore the force-keep priority in the absence of propagated _dd.p.appsec span tag.
       if (Config.get().isExperimentalAppSecStandaloneEnabled()
-          && rootSpan.getTag("_dd.p.appsec") != null) {
+          && rootSpan.getTag(PROPAGATED_APPSEC) == null) {
         setSamplingPriority();
         return;
       }
