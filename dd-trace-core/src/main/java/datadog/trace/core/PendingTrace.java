@@ -253,7 +253,11 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // write method.
     healthMetrics.onFinishSpan();
     COMPLETED_SPAN_COUNT.incrementAndGet(this);
-    return decrementRefAndMaybeWrite(span == getRootSpan());
+    final DDSpan rootSpan = getRootSpan();
+    if (span == rootSpan) {
+      tracer.onRootSpanPublished(rootSpan);
+    }
+    return decrementRefAndMaybeWrite(span == rootSpan);
   }
 
   @Override
