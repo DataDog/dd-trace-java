@@ -36,7 +36,7 @@ public interface Sampler {
       if (config != null) {
         if (config.isExperimentalAppSecStandaloneEnabled()) {
           log.debug("APM is disabled. Only 1 trace per minute will be sent.");
-          return new ExperimentalAppSecStandaloneSampler();
+          return new TimeSampler(60000); // 1 trace per minute
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
