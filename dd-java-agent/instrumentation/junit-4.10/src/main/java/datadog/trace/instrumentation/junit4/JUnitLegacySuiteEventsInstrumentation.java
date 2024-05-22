@@ -14,18 +14,24 @@ import org.junit.runner.Runner;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 
-/** Supports suite started/finished events for {@link TestCase} subclasses. */
+/**
+ * Supports suite started/finished events for {@link TestCase} subclasses and Powermock-enabled test
+ * suites.
+ */
 @AutoService(InstrumenterModule.class)
-public class JUnit38SuiteEventsInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType {
+public class JUnitLegacySuiteEventsInstrumentation extends InstrumenterModule.CiVisibility
+    implements Instrumenter.ForKnownTypes {
 
-  public JUnit38SuiteEventsInstrumentation() {
-    super("ci-visibility", "junit-4", "junit-38");
+  public JUnitLegacySuiteEventsInstrumentation() {
+    super("ci-visibility", "junit-4", "junit-38", "powermock");
   }
 
   @Override
-  public String instrumentedType() {
-    return "org.junit.internal.runners.JUnit38ClassRunner";
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.junit.internal.runners.JUnit38ClassRunner",
+      "org.powermock.modules.junit4.PowerMockRunner"
+    };
   }
 
   @Override
@@ -50,10 +56,10 @@ public class JUnit38SuiteEventsInstrumentation extends InstrumenterModule.CiVisi
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("run").and(takesArgument(0, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit38SuiteEventsInstrumentation.class.getName() + "$JUnit38SuiteEventsAdvice");
+        JUnitLegacySuiteEventsInstrumentation.class.getName() + "$JUnitLegacySuiteEventsAdvice");
   }
 
-  public static class JUnit38SuiteEventsAdvice {
+  public static class JUnitLegacySuiteEventsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void fireSuiteStartedEvent(
         @Advice.Argument(0) final RunNotifier runNotifier, @Advice.This final Runner runner) {
