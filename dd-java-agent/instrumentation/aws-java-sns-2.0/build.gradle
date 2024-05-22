@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "software.amazon.awssdk"
     module = "sns"
-    versions = "[2.2.0,3)"
+    versions = "[2.17.84,3)"
     assertInverse = true
   }
 }
