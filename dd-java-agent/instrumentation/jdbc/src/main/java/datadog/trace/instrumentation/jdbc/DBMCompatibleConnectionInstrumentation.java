@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -14,6 +15,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
@@ -116,22 +118,19 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        String dbService = DECORATE.getDbService(dbInfo);
+        dbService =
+            AgentTracer.traceConfig(activeSpan())
+                .getServiceMapping()
+                .getOrDefault(dbService, dbService);
         if (dbInfo.getType().equals("sqlserver")) {
           sql =
               SQLCommenter.append(
-                  sql,
-                  DECORATE.getDbService(dbInfo),
-                  dbInfo.getType(),
-                  dbInfo.getHost(),
-                  dbInfo.getDb());
+                  sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb());
         } else {
           sql =
               SQLCommenter.prepend(
-                  sql,
-                  DECORATE.getDbService(dbInfo),
-                  dbInfo.getType(),
-                  dbInfo.getHost(),
-                  dbInfo.getDb());
+                  sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb());
         }
         return inputSql;
       }
