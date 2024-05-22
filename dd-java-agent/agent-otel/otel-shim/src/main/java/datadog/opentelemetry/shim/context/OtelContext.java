@@ -1,7 +1,10 @@
-package datadog.trace.instrumentation.opentelemetry14.context;
+package datadog.opentelemetry.shim.context;
 
+import datadog.opentelemetry.shim.trace.OtelSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.instrumentation.opentelemetry14.trace.OtelSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextKey;
@@ -54,6 +57,38 @@ public class OtelContext implements Context {
       scope = new OtelScope(scope, agentScope);
     }
     return scope;
+  }
+
+  public static Context current() {
+    // Check empty context
+    AgentSpan agentCurrentSpan = AgentTracer.activeSpan();
+    if (null == agentCurrentSpan) {
+      return OtelContext.ROOT;
+    }
+    // Get OTel current span
+    Span otelCurrentSpan = null;
+    if (agentCurrentSpan instanceof AttachableWrapper) {
+      Object wrapper = ((AttachableWrapper) agentCurrentSpan).getWrapper();
+      if (wrapper instanceof OtelSpan) {
+        otelCurrentSpan = (OtelSpan) wrapper;
+      }
+    }
+    if (otelCurrentSpan == null) {
+      otelCurrentSpan = new OtelSpan(agentCurrentSpan);
+    }
+    // Get OTel root span
+    Span otelRootSpan = null;
+    AgentSpan agentRootSpan = agentCurrentSpan.getLocalRootSpan();
+    if (agentRootSpan instanceof AttachableWrapper) {
+      Object wrapper = ((AttachableWrapper) agentRootSpan).getWrapper();
+      if (wrapper instanceof OtelSpan) {
+        otelRootSpan = (OtelSpan) wrapper;
+      }
+    }
+    if (otelRootSpan == null) {
+      otelRootSpan = new OtelSpan(agentRootSpan);
+    }
+    return new OtelContext(otelCurrentSpan, otelRootSpan);
   }
 
   @Override

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.opentelemetry14.trace;
+package datadog.opentelemetry.shim.trace;
 
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.TracerBuilder;

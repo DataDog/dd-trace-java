@@ -1,6 +1,6 @@
-package datadog.trace.instrumentation.opentelemetry14.trace;
+package datadog.opentelemetry.shim.trace;
 
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL;
+import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentelemetry.api.trace.SpanBuilder;

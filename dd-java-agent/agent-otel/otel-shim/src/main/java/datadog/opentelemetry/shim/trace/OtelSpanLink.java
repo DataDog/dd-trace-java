@@ -1,10 +1,10 @@
-package datadog.trace.instrumentation.opentelemetry14.trace;
+package datadog.opentelemetry.shim.trace;
 
+import datadog.opentelemetry.shim.context.propagation.TraceStateHelper;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanLinkAttributes;
-import datadog.trace.instrumentation.opentelemetry14.context.propagation.TraceStateHelper;
 import io.opentelemetry.api.trace.SpanContext;
 import java.util.List;
 

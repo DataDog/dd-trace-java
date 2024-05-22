@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.opentelemetry14.context.propagation;
+package datadog.opentelemetry.shim.context.propagation;
 
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.api.trace.TraceStateBuilder;

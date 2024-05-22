@@ -219,6 +219,7 @@ dependencies {
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
+  shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared
