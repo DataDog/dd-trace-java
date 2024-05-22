@@ -23,7 +23,7 @@ import static org.testcontainers.containers.localstack.LocalStackContainer.Servi
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.SQS
 
 abstract class SnsClientTest extends VersionedNamingTestBase {
-  static final localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
+  static final LOCALSTACK = new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
   .withServices( SQS, SNS)
   @Shared AmazonSNSClient snsClient
   @Shared SqsClient sqsClient
@@ -33,14 +33,14 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
   @Shared String testTopicARN
 
   def setupSpec() {
-    localstack.start()
+    LOCALSTACK.start()
     snsClient = AmazonSNSClientBuilder.standard()
-      .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration( localstack.getEndpointOverride(SNS).toString(), localstack.getRegion()))
+      .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration( LOCALSTACK.getEndpointOverride(SNS).toString(), LOCALSTACK.getRegion()))
       .withCredentials( new AWSStaticCredentialsProvider(new BasicAWSCredentials("test", "test")))
       .build()
     sqsClient = SqsClient.builder()
-      .endpointOverride(localstack.getEndpointOverride(SQS))
-      .region(Region.of(localstack.getRegion()))
+      .endpointOverride(LOCALSTACK.getEndpointOverride(SQS))
+      .region(Region.of(LOCALSTACK.getRegion()))
       .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
       .build()
     testQueueURL = sqsClient.createQueue {  it.queueName("testqueue") }.queueUrl()
@@ -50,7 +50,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
   }
 
   def cleanupSpec() {
-    localstack.stop()
+    LOCALSTACK.stop()
   }
 
   @Override
@@ -100,14 +100,14 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" localstack.getEndpointOverride(SNS).toString()+'/'
+            "$Tags.HTTP_URL" LOCALSTACK.getEndpointOverride(SNS).toString()+'/'
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
-            "$Tags.PEER_PORT" localstack.getEndpointOverride(SNS).port
-            "$Tags.PEER_HOSTNAME" localstack.getEndpointOverride(SNS).host
+            "$Tags.PEER_PORT" LOCALSTACK.getEndpointOverride(SNS).port
+            "$Tags.PEER_HOSTNAME" LOCALSTACK.getEndpointOverride(SNS).host
             "aws.service" "AmazonSNS"
             "aws_service" "sns"
-            "aws.endpoint" localstack.getEndpointOverride(SNS).toString()
+            "aws.endpoint" LOCALSTACK.getEndpointOverride(SNS).toString()
             "aws.operation" "PublishRequest"
             "aws.agent" "java-aws-sdk"
             "aws.topic.name" "testtopic"
@@ -128,11 +128,11 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" localstack.getEndpointOverride(SNS).toString()+'/'
+            "$Tags.HTTP_URL" LOCALSTACK.getEndpointOverride(SNS).toString()+'/'
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
-            "$Tags.PEER_PORT" localstack.getEndpointOverride(SNS).port
-            "$Tags.PEER_HOSTNAME" localstack.getEndpointOverride(SNS).host
+            "$Tags.PEER_PORT" LOCALSTACK.getEndpointOverride(SNS).port
+            "$Tags.PEER_HOSTNAME" LOCALSTACK.getEndpointOverride(SNS).host
             defaultTags(true)
           }
         }

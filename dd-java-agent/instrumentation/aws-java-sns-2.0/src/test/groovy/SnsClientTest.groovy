@@ -21,7 +21,7 @@ import static org.testcontainers.containers.localstack.LocalStackContainer.Servi
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.SQS
 
 abstract class SnsClientTest extends VersionedNamingTestBase {
-  static final localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
+  static final LOCALSTACK = new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
   .withServices( SQS, SNS)
   @Shared SnsClient snsClient
   @Shared SqsClient sqsClient
@@ -31,15 +31,15 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
   @Shared String testTopicARN
 
   def setupSpec() {
-    localstack.start()
+    LOCALSTACK.start()
     snsClient = SnsClient.builder()
-      .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SNS))
-      .region(Region.of(localstack.getRegion()))
+      .endpointOverride(LOCALSTACK.getEndpointOverride(LocalStackContainer.Service.SNS))
+      .region(Region.of(LOCALSTACK.getRegion()))
       .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
       .build()
     sqsClient = SqsClient.builder()
-      .endpointOverride(localstack.getEndpointOverride(SQS))
-      .region(Region.of(localstack.getRegion()))
+      .endpointOverride(LOCALSTACK.getEndpointOverride(SQS))
+      .region(Region.of(LOCALSTACK.getRegion()))
       .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
       .build()
     testQueueURL = sqsClient.createQueue {  it.queueName("testqueue") }.queueUrl()
@@ -49,7 +49,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
   }
 
   def cleanupSpec() {
-    localstack.stop()
+    LOCALSTACK.stop()
   }
 
   @Override
@@ -100,11 +100,11 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" localstack.getEndpointOverride(SNS).toString()+'/'
+            "$Tags.HTTP_URL" LOCALSTACK.getEndpointOverride(SNS).toString()+'/'
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
-            "$Tags.PEER_PORT" localstack.getEndpointOverride(SNS).port
-            "$Tags.PEER_HOSTNAME" localstack.getEndpointOverride(SNS).host
+            "$Tags.PEER_PORT" LOCALSTACK.getEndpointOverride(SNS).port
+            "$Tags.PEER_HOSTNAME" LOCALSTACK.getEndpointOverride(SNS).host
             "aws.service" "Sns"
             "aws_service" "Sns"
             "aws.operation" "Publish"
