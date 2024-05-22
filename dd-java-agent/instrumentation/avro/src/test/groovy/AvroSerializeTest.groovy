@@ -1,70 +1,130 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
-import org.apache.avro.hadoop.io.AvroSerializer
 import org.apache.avro.generic.GenericRecord
-import org.apache.avro.generic.GenericData
-import org.apache.avro.io.parsing.Parser
+import org.apache.avro.hadoop.io.AvroSerializer
 import org.apache.avro.mapred.AvroWrapper
-import org.apache.hadoop.io.BytesWritable
 
-import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
-import java.util.Arrays
-import java.util.Collections
+
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class AvroSerializeTest extends AgentTestRunner {
+
+
+
   @Override
+
   protected boolean isDataStreamsEnabled() {
+
     return true
   }
+  String schemaID = "14336524272808601124"
+  String openApiSchemaDef = "{\"components\":{\"schemas\":{\"TestRecord\":{\"properties\":{\"stringField\":{\"type\":\"string\"},\"intField\":{\"format\":\"int32\",\"type\":\"integer\"},\"longField\":{\"format\":\"int64\",\"type\":\"integer\"},\"floatField\":{\"format\":\"float\",\"type\":\"number\"},\"doubleField\":{\"format\":\"double\",\"type\":\"number\"},\"booleanField\":{\"type\":\"boolean\"},\"bytesField\":{\"format\":\"byte\",\"type\":\"string\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
+  String schemaStr = '''{
 
-  String schemaStr = "{\"type\":\"record\",\"name\":\"TestRecord\",\"fields\":[{\"name\":\"stringField\",\"type\":\"string\"},{\"name\":\"intField\",\"type\":\"int\"},{\"name\":\"longField\",\"type\":\"long\"},{\"name\":\"floatField\",\"type\":\"float\"},{\"name\":\"doubleField\",\"type\":\"double\"},{\"name\":\"booleanField\",\"type\":\"boolean\"},{\"name\":\"bytesField\",\"type\":\"bytes\"},{\"name\":\"arrayField\",\"type\":{\"type\":\"array\",\"items\":\"string\"}},{\"name\":\"mapField\",\"type\":{\"type\":\"map\",\"values\":\"string\"}},{\"name\":\"unionField\",\"type\":[\"null\",\"string\"]},{\"name\":\"fixedField\",\"type\":{\"name\":\"fixedField\",\"type\":\"fixed\",\"size\":4}},{\"name\":\"enumField\",\"type\":{\"name\":\"enumField\",\"type\":\"enum\",\"symbols\":[\"A\",\"B\",\"C\"]}}]}"
-  Schema schema = new Schema.Parser().parse(schemaStr)
+        "type":"record",
+
+        "name":"TestRecord",
+
+        "fields":[
+
+            {"name":"stringField","type":"string"},
+
+            {"name":"intField","type":"int"},
+
+            {"name":"longField","type":"long"},
+
+            {"name":"floatField","type":"float"},
+
+            {"name":"doubleField","type":"double"},
+
+            {"name":"booleanField","type":"boolean"},
+
+            {"name":"bytesField","type":"bytes"}
+
+        ]
+
+    }'''
+
+
+
+  Schema schemaDef = new Schema.Parser().parse(schemaStr)
+
 
 
   void 'test extract avro schema on serialize & deserialize'() {
+
     setup:
-    GenericRecord datum = new GenericData.Record(schema)
+
+    GenericRecord datum = new GenericData.Record(schemaDef)
+
     datum.put("stringField", "testString")
+
     datum.put("intField", 123)
+
     datum.put("longField", 456L)
+
     datum.put("floatField", 7.89f)
+
     datum.put("doubleField", 1.23e2)
+
     datum.put("booleanField", true)
+
     datum.put("bytesField", ByteBuffer.wrap(new byte[]{
       0x01, 0x02, 0x03
     }))
-    datum.put("arrayField", Arrays.asList("abc", "bca", "csd"))
-    datum.put("mapField", Collections.singletonMap("key", "value"))
-    datum.put("unionField", "unionString")
-    datum.put("fixedField", new GenericData.Fixed(schema.getField("fixedField").schema(), new byte[]{
-      0x04, 0x05, 0x06, 0x07
-    }))
-    datum.put("enumField", new GenericData.EnumSymbol(schema.getField("enumField").schema(), "B"))
+
+
+
     when:
 
-    var bytes
+    def bytes
 
-    runUnderTrace("parent_serialize"){
+    runUnderTrace("parent_serialize") {
 
       ByteArrayOutputStream out = new ByteArrayOutputStream()
-      AvroSerializer<AvroWrapper<GenericRecord>> serializer = new AvroSerializer<>(schema)
+
+      AvroSerializer<AvroWrapper<GenericRecord>> serializer = new AvroSerializer<>(schemaDef)
+
       AvroWrapper<GenericRecord> wrapper = new AvroWrapper<>(datum)
+
       serializer.open(out)
+
       serializer.serialize(wrapper)
+
       serializer.close()
+
       bytes = out.toByteArray()
+      println(activeSpan().getTag(DDTags.SCHEMA_ID)+"]]]]]")
     }
 
-    then:
-    System.out.println("----------Serialized data: " + Arrays.toString(bytes))
+    TEST_WRITER.waitForTraces(1)
 
-    assert bytes.size() == -12
+
+    then:
+
+    assertTraces(1, SORT_TRACES_BY_ID) {
+      trace(1) {
+        span {
+          hasServiceName()
+          operationName "parent_serialize"
+          resourceName "parent_serialize"
+          errored false
+          measured false
+          tags {
+            "$DDTags.SCHEMA_DEFINITION" openApiSchemaDef
+            "$DDTags.SCHEMA_WEIGHT" 1
+            "$DDTags.SCHEMA_TYPE" "avro"
+            "$DDTags.SCHEMA_NAME" "TestRecord"
+            "$DDTags.SCHEMA_OPERATION" "serialization"
+            "$DDTags.SCHEMA_ID" schemaID
+            defaultTags(false)
+          }
+        }
+      }
+    }
   }
 }
-
