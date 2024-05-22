@@ -365,11 +365,21 @@ public class DDSpan
 
       setTag(DDTags.ERROR_MSG, message);
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
-      if (Config.get().isDebuggerEnabled() && isLocalRootSpan()) {
+      if (isExceptionDebuggingEnabled()) {
         DebuggerContext.handleException(error, this);
       }
     }
     return this;
+  }
+
+  private boolean isExceptionDebuggingEnabled() {
+    if (!Config.get().isDebuggerExceptionEnabled()) {
+      return false;
+    }
+    if (Config.get().isDebuggerExceptionOnlyLocalRoot() && !isLocalRootSpan()) {
+      return false;
+    }
+    return true;
   }
 
   @Override
