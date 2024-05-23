@@ -189,6 +189,7 @@ public class SLCompatSettings {
           }
           outputStream = new FileOutputStream(outputFile);
           PrintStream printStream = new PrintStream(outputStream, true);
+          LogReporter.register();
           return printStream;
         } catch (IOException | SecurityException e) {
           if (outputStream != null) {

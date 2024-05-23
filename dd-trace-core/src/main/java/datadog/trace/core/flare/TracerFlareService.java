@@ -1,7 +1,6 @@
 package datadog.trace.core.flare;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACER_FLARE;
-import static java.nio.file.Files.readAllBytes;
 
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
@@ -16,9 +15,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Scheduled;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadInfo;
@@ -64,7 +61,7 @@ final class TracerFlareService {
   private final CoreTracer tracer;
 
   private boolean logLevelOverridden;
-  private boolean flarePrepared;
+  // private boolean flarePrepared;
   private volatile long flareStartMillis;
 
   private Scheduled<Runnable> scheduledCleanup;
@@ -121,7 +118,7 @@ final class TracerFlareService {
 
   public synchronized void prepareForFlare(String logLevel) {
     // allow turning on debug even part way through preparation
-    flarePrepared = true;
+    /// flarePrepared = true;
     if (!log.isDebugEnabled() && "debug".equalsIgnoreCase(logLevel)) {
       GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
       logLevelOverridden = true;
@@ -157,7 +154,7 @@ final class TracerFlareService {
       scheduledCleanup = null;
       log.debug("Cleaning up after tracer flare");
       TracerFlare.cleanupAfterFlare();
-      flarePrepared = false;
+      // flarePrepared = false;
       if (logLevelOverridden) {
         GlobalLogLevelSwitcher.get().restore();
         logLevelOverridden = false;
@@ -224,7 +221,7 @@ final class TracerFlareService {
       if (dumpThreads) {
         addThreadDump(zip);
       }
-      addLogs(zip);
+      // addLogs(zip);
       zip.finish();
 
       return bytes.toByteArray();
@@ -285,7 +282,7 @@ final class TracerFlareService {
     TracerFlare.addText(zip, "threads.txt", buf.toString());
   }
 
-  private void addLogs(ZipOutputStream zip) throws IOException {
+  /*private void addLogs(ZipOutputStream zip) throws IOException {
     // org.slf4j.simpleLogger.logFile transformed as datadog.slf4j.simpleLogger.logFile in the final
     // dd-java-agent jar
     String logFile = System.getProperty("org.slf4j.simpleLogger.logFile");
@@ -321,7 +318,7 @@ final class TracerFlareService {
         TracerFlare.addText(zip, "tracer.log", "Problem collecting tracer log: " + e);
       }
     }
-  }
+  }*/
 
   final class CleanupTask implements Runnable {
     @Override

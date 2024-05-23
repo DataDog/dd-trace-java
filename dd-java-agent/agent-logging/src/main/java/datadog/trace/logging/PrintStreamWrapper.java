@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import datadog.trace.api.Config;
 
 public class PrintStreamWrapper extends PrintStream {
   private static final int MAX_LOGFILE_SIZE_MB = 15;
@@ -47,6 +48,7 @@ public class PrintStreamWrapper extends PrintStream {
 
   public static void start(String filepath) {
     //
+    //Config.get().getAppSecTraceRateLimit();
     clean();
     logFile = filepath;
     try {
