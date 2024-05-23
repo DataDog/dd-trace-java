@@ -125,6 +125,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
     sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
 
+    // make sure we pick up service name correctly on the driver's side
+    if (databricksServiceName != null) {
+      tracer.getDataStreamsMonitoring().updateServiceName(databricksServiceName + "-TEST");
+      tracer.updatePreferredServiceName(databricksServiceName);
+    } else if (sparkServiceName != null) {
+      tracer.getDataStreamsMonitoring().updateServiceName(sparkServiceName + "-TEST");
+      tracer.updatePreferredServiceName(sparkServiceName);
+    }
+
     log.info("Created datadog spark listener: {}", this.getClass().getSimpleName());
   }
 

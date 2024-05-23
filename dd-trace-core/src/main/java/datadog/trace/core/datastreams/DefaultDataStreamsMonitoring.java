@@ -64,7 +64,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
-  private final WellKnownTags wellKnownTags;
+  private WellKnownTags wellKnownTags;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
   private final DataStreamContextInjector injector;
@@ -178,6 +178,18 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public Schema getSchema(String schemaName, SchemaIterator iterator) {
     return SchemaBuilder.getSchema(schemaName, iterator);
+  }
+
+  @Override
+  public void updateServiceName(String serviceName) {
+    wellKnownTags =
+        new WellKnownTags(
+            wellKnownTags.getRuntimeId(),
+            wellKnownTags.getHostname(),
+            wellKnownTags.getEnv(),
+            serviceName,
+            wellKnownTags.getVersion(),
+            wellKnownTags.getLanguage());
   }
 
   @Override

@@ -1115,6 +1115,9 @@ public class AgentTracer {
     }
 
     @Override
+    public void updateServiceName(String serviceName) {}
+
+    @Override
     public void setConsumeCheckpoint(
         String type, String source, DataStreamsContextCarrier carrier) {}
 
