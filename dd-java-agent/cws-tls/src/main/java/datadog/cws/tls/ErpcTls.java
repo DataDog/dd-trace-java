@@ -26,18 +26,27 @@ public class ErpcTls implements Tls {
   // Thread local storage
   private Pointer tls;
   private long maxThreads;
+  private int gettidSyscallId;
 
   private final ThreadLocal<Integer> threadLocal = new ThreadLocal<>();
 
   public interface CLibrary extends Library {
     CLibrary Instance = (CLibrary) Native.load("c", CLibrary.class);
 
-    NativeLong gettid();
+    NativeLong syscall(NativeLong number, Object... args);
   }
 
   static boolean isSupported() {
+    String arch = System.getProperty("os.arch");
+    if (!arch.equals("amd64") && !arch.equals("arm64")) {
+      return false;
+    }
     try {
-      CLibrary.Instance.gettid();
+      if (arch.equals("amd64")) {
+        CLibrary.Instance.syscall(new NativeLong(186L));
+      } else {
+        CLibrary.Instance.syscall(new NativeLong(178L));
+      }
     } catch (UnsatisfiedLinkError error) {
       return false;
     }
@@ -46,8 +55,8 @@ public class ErpcTls implements Tls {
 
   private int getTID() {
     Integer thread = threadLocal.get();
-    if (thread == null) {
-      int threadId = CLibrary.Instance.gettid().intValue();
+    if (thread == null && this.gettidSyscallId > 0) {
+      int threadId = CLibrary.Instance.syscall(new NativeLong(this.gettidSyscallId)).intValue();
       threadLocal.set(threadId);
     }
     return thread;
@@ -56,6 +65,13 @@ public class ErpcTls implements Tls {
   public ErpcTls(int maxThreads, int refresh) {
     Memory tls = new Memory(maxThreads * ENTRY_SIZE);
     tls.clear();
+
+    String arch = System.getProperty("os.arch");
+    if (arch.equals("amd64")) {
+      this.gettidSyscallId = 186;
+    } else if (arch.equals("arm64")) {
+      this.gettidSyscallId = 178;
+    }
 
     this.maxThreads = maxThreads;
     this.tls = tls;
