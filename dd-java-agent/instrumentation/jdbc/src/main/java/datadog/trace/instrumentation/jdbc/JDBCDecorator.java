@@ -230,15 +230,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   /**
-   * The method used to provide raw sql to prevent SQL-injection attacks
-   * SQL query should never be exposed because it may contain sensitive data.
+   * The method used to provide raw sql to prevent SQL-injection attacks SQL query should never be
+   * exposed because it may contain sensitive data.
    */
   public AgentSpan onStatementRaw(AgentSpan span, String sql) {
     System.out.println("JDBCDecorator.onStatementRaw: " + sql);
     BiConsumer<RequestContext, String> sqlQueryCallback =
-            tracer()
-                    .getCallbackProvider(RequestContextSlot.APPSEC)
-                    .getCallback(EVENTS.databaseSqlQuery());
+        tracer()
+            .getCallbackProvider(RequestContextSlot.APPSEC)
+            .getCallback(EVENTS.databaseSqlQuery());
     if (sqlQueryCallback != null) {
       RequestContext ctx = span.getRequestContext();
       if (ctx != null) {
