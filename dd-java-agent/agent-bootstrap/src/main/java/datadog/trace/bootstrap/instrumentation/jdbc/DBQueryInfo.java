@@ -1,11 +1,17 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public final class DBQueryInfo {
 
@@ -26,9 +32,20 @@ public final class DBQueryInfo {
 
   private final UTF8BytesString operation;
   private final UTF8BytesString sql;
+  private Map<Integer, String> vals;
+  private UTF8BytesString originSql;
+
+  public boolean SqlObfuscation = Config.get().getJdbcSqlObfuscation();
 
   public DBQueryInfo(String sql) {
     this.sql = SQLNormalizer.normalize(sql);
+
+    if (SqlObfuscation) {
+      this.originSql = UTF8BytesString.create(sql.getBytes(UTF_8));
+    } else {
+      this.originSql = UTF8BytesString.EMPTY;
+    }
+    this.vals = new HashMap<>();
     this.operation = UTF8BytesString.create(extractOperation(this.sql));
   }
 
@@ -36,12 +53,24 @@ public final class DBQueryInfo {
     return operation;
   }
 
+  public Map<Integer, String> getVals() {
+    return vals;
+  }
+
+  public void setVal(int index, String val) {
+    vals.put(index, val);
+  }
+
   public UTF8BytesString getSql() {
     return sql;
   }
 
+
   int weight() {
     return sql.length();
+  }
+  public UTF8BytesString getOriginSql() {
+    return originSql;
   }
 
   public static CharSequence extractOperation(CharSequence sql) {

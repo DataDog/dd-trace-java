@@ -4,6 +4,7 @@ import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.getCo
 
 import com.lambdaworks.redis.RedisURI;
 import com.lambdaworks.redis.protocol.RedisCommand;
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -13,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
 
   public static final CharSequence REDIS_CLIENT = UTF8BytesString.create("redis-client");
+  public boolean RedisCommandRaw = Config.get().getRedisCommandArgs();
 
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
@@ -82,5 +84,12 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
         + redisURI.getPort()
         + "/"
         + redisURI.getDatabase();
+  }
+
+  public AgentSpan setArgs(final AgentSpan span,String raw){
+    if (RedisCommandRaw){
+      span.setTag("redis.command.args",raw);
+    }
+    return span;
   }
 }

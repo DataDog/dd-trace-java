@@ -79,16 +79,21 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_STACKTRACE_LEAK_SUPP
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JDBC_SQL_OBFUSCATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOG_PATTERN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOG_PATTERN_REPLACE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_MONGO_OBFUSCATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REDIS_COMMAND_ARGS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES;
@@ -113,6 +118,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GEN
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HEADER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
@@ -120,7 +127,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REQUEST_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESPONSE_BODY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESPONSE_BODY_ENCODING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
@@ -377,6 +387,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_E
 import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_INCLUDE_KEYS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_EXCEPTION_AS_ERROR_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_SQL_OBFUSCATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_UNACKNOWLEDGED_MAX_AGE;
@@ -384,12 +395,17 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_B
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_PATTERN;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_PATTERN_REPLACE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.MONGO_OBFUSCATION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OBFUSCATION_QUERY_STRING_REGEXP;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.REDIS_COMMAND_ARGS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
@@ -438,7 +454,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_HEADER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
@@ -453,7 +471,10 @@ import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE_INJE
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
+import static datadog.trace.api.config.TracerConfig.TRACE_REQUEST_BODY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_RESPONSE_BODY_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_RESPONSE_BODY_ENCODING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
@@ -675,6 +696,8 @@ public class Config {
   private final int tracerMetricsMaxPending;
 
   private final boolean reportHostName;
+  private final String logPattern;
+  private final boolean logPatternReplace;
 
   private final boolean traceAnalyticsEnabled;
   private final String traceClientIpHeader;
@@ -711,6 +734,8 @@ public class Config {
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingUploadSummaryOn413Enabled;
+
+  private final boolean logsMDCTagsInjectionEnabled;
   private final boolean profilingRecordExceptionMessage;
 
   private final boolean crashTrackingAgentless;
@@ -927,6 +952,12 @@ public class Config {
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
 
+  private final boolean jdbcSqlObfuscation;
+
+  private final boolean mongoObfuscation;
+
+  private final boolean redisCommandArgs;
+
   private String env;
   private String version;
   private final String primaryTag;
@@ -943,10 +974,17 @@ public class Config {
   private final boolean sparkTaskHistogramEnabled;
   private final boolean sparkAppNameAsService;
   private final boolean jaxRsExceptionAsErrorsEnabled;
+  private final boolean tracerHeaderEnabled;
+  private final boolean tracerRequestBodyEnabled;
 
+  private final boolean tracerResponseBodyEnabled;
+
+  private final String tracerResponseBodyEncoding;
   private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
   private final long tracePostProcessingTimeout;
+
+  private final boolean dubboProviderPropagateEnabled;
 
   private final boolean telemetryDebugRequestsEnabled;
 
@@ -1429,6 +1467,12 @@ public class Config {
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
+    logPattern = configProvider.getString(LOGS_PATTERN, DEFAULT_LOG_PATTERN);
+    logPatternReplace =
+        configProvider.getBoolean(LOGS_PATTERN_REPLACE, DEFAULT_LOG_PATTERN_REPLACE);
+
+    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
+
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
@@ -1893,6 +1937,11 @@ public class Config {
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
 
+    jdbcSqlObfuscation =
+        configProvider.getBoolean(JDBC_SQL_OBFUSCATION, DEFAULT_JDBC_SQL_OBFUSCATION);
+    mongoObfuscation = configProvider.getBoolean(MONGO_OBFUSCATION, DEFAULT_MONGO_OBFUSCATION);
+    redisCommandArgs = configProvider.getBoolean(REDIS_COMMAND_ARGS, DEFAULT_REDIS_COMMAND_ARGS);
+
     kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
@@ -1980,6 +2029,21 @@ public class Config {
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+    tracerHeaderEnabled =
+        configProvider.getBoolean(TRACE_HEADER_ENABLED, DEFAULT_TRACE_HEADER_ENABLED);
+    tracerRequestBodyEnabled =
+        configProvider.getBoolean(TRACE_REQUEST_BODY_ENABLED, DEFAULT_TRACE_REQUEST_BODY_ENABLED);
+
+    dubboProviderPropagateEnabled =
+        configProvider.getBoolean(
+            TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED, DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED);
+
+    tracerResponseBodyEnabled =
+        configProvider.getBoolean(TRACE_RESPONSE_BODY_ENABLED, DEFAULT_TRACE_RESPONSE_BODY_ENABLED);
+
+    tracerResponseBodyEncoding =
+        configProvider.getString(
+            TRACE_RESPONSE_BODY_ENCODING, DEFAULT_TRACE_RESPONSE_BODY_ENCODING);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -2522,6 +2586,18 @@ public class Config {
 
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
+  }
+
+  public String getLogPattern() {
+    return logPattern;
+  }
+
+  public boolean isLogPatternReplace() {
+    return logPatternReplace;
+  }
+
+  public boolean isLogsMDCTagsInjectionEnabled() {
+    return logsMDCTagsInjectionEnabled;
   }
 
   public boolean isReportHostName() {
@@ -3465,7 +3541,32 @@ public class Config {
     return dataJobsEnabled;
   }
 
-  /** @return A map of tags to be applied only to the local application root span. */
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
+  public boolean isTracerHeaderEnabled() {
+    return tracerHeaderEnabled;
+  }
+
+  public boolean isTracerRequestBodyEnabled() {
+    return tracerRequestBodyEnabled;
+  }
+
+  public boolean isDubboProviderPropagateEnabled() {
+    return dubboProviderPropagateEnabled;
+  }
+
+  public boolean isTracerResponseBodyEnabled() {
+    return tracerResponseBodyEnabled;
+  }
+
+  public String getTracerResponseBodyEncoding() {
+    return tracerResponseBodyEncoding.toLowerCase();
+  }
+
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public Map<String, Object> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, Object> result = new HashMap<>(runtimeTags.size() + 2);
@@ -4178,6 +4279,18 @@ public class Config {
     }
   }
 
+  public boolean getJdbcSqlObfuscation() {
+    return jdbcSqlObfuscation;
+  }
+
+  public boolean getMongoObfuscation() {
+    return mongoObfuscation;
+  }
+
+  public boolean getRedisCommandArgs() {
+    return redisCommandArgs;
+  }
+
   @Override
   public String toString() {
     return "Config{"
@@ -4268,6 +4381,14 @@ public class Config {
         + httpClientSplitByDomain
         + ", httpResourceRemoveTrailingSlash="
         + httpResourceRemoveTrailingSlash
+        + ", tracerHeaderEnabled="
+        + tracerHeaderEnabled
+        + ", tracerRequestBodyEnabled="
+        + tracerRequestBodyEnabled
+        + ", tracerResponseBodyEnabled="
+        + tracerResponseBodyEnabled
+        + ", tracerResponseBodyEncoding="
+        + tracerResponseBodyEncoding
         + ", dbClientSplitByInstance="
         + dbClientSplitByInstance
         + ", dbClientSplitByInstanceTypeSuffix="
@@ -4341,6 +4462,14 @@ public class Config {
         + tracerMetricsMaxAggregates
         + ", tracerMetricsMaxPending="
         + tracerMetricsMaxPending
+        + ", logsInjectionEnabled="
+        + logsInjectionEnabled
+        + ", logsMDCTagsInjectionEnabled="
+        + logsMDCTagsInjectionEnabled
+        + ", logPattern="
+        + logPattern
+        + ", logPatternReplace="
+        + logPatternReplace
         + ", reportHostName="
         + reportHostName
         + ", traceAnalyticsEnabled="
@@ -4580,6 +4709,12 @@ public class Config {
         + appSecScaEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
+        + ", jdbcSqlObfuscation="
+        + jdbcSqlObfuscation
+        + ", mongoObfuscation="
+        + mongoObfuscation
+        + ", dubboProviderPropagateEnabled="
+        + dubboProviderPropagateEnabled
         + '}';
   }
 }

@@ -1,0 +1,20 @@
+muzzle {
+  pass {
+    group = "org.apache.rocketmq"
+    module = "rocketmq-client-java"
+    versions = "[5.0.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+
+dependencies {
+  compileOnly group: 'org.apache.rocketmq', name: 'rocketmq-client-java', version: '5.0.0'
+}
+
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
