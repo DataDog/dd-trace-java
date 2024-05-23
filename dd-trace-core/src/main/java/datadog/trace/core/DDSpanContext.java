@@ -789,20 +789,12 @@ public class DDSpanContext
     }
   }
 
-  /** Builds a readonly view of the metaStruct */
+  /** @see CoreSpan#getMetaStruct() */
   public Map<String, Object> getMetaStruct() {
     return Collections.unmodifiableMap(metaStruct);
   }
 
-  /**
-   * Adds a new field to the metaStruct.
-   *
-   * <p>Existing field value with the same value will be replaced. Setting a field with a {@code
-   * null} value will remove the field from the metaStruct.
-   *
-   * @param field The field name.
-   * @param value The nullable field value.
-   */
+  /** @see CoreSpan#setMetaStruct(String, Object) */
   public <T> void setMetaStruct(final String field, final T value) {
     if (null == field) {
       return;

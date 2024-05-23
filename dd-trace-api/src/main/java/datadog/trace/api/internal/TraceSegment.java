@@ -1,7 +1,5 @@
 package datadog.trace.api.internal;
 
-import java.util.Map;
-
 /**
  * A {@code TraceSegment} represents the local, i.e. in the scope of this {@code Tracer}, part of a
  * a {@code Trace}. It can consist of multiple spans, and the {@code TraceSegment} instance can only
@@ -121,7 +119,7 @@ public interface TraceSegment {
   Object getDataCurrent(String key);
 
   /**
-   * Add a field to the metaStruct of the top of this {@code TraceSegment}.
+   * Add a field to the meta_struct of the top of this {@code TraceSegment}.
    *
    * @param field field name
    * @param value value of the data
@@ -130,15 +128,12 @@ public interface TraceSegment {
   void setMetaStructTop(String field, Object value);
 
   /**
-   * Add a field to the current span metaStruct in this {@code TraceSegment}.
-   *
-   * <p>For non JDK classes (primitives, wrappers, collections, ...) a custom {@link
-   * datadog.communication.serialization.ValueWriter} has to be registered with {@link
-   * datadog.communication.serialization.Codec#Codec(Map)} or the {@code toString} representation
-   * will be used instead
+   * Add a field to the current span meta_struct in this {@code TraceSegment}.
    *
    * @param field field name
    * @param value value of the data
+   * @see datadog.trace.common.writer.ddagent.TraceMapperV0_4.MetaStructWriter
+   * @see datadog.trace.core.CoreSpan#setMetaStruct(String, Object)
    */
   void setMetaStructCurrent(String field, Object value);
 

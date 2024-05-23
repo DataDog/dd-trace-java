@@ -185,9 +185,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
    * The MetaStruct field can safely be used with v4 agents and will be discarded for other
    * versions.
    *
-   * <p>Any type that needs to be serialized as part of the metaStruct field has to either be a JDK
+   * <p>Any type that needs to be serialized as part of the meta_struct field has to either be a JDK
    * known type (primitives, wrappers, collections ...) or registered with {@link
-   * datadog.communication.serialization.Codec#Codec(Map)}.
+   * datadog.communication.serialization.Codec#Codec(Map)}, in the rest of the cases the {@code
+   * toString} representation of the object will be used instead
    */
   public static class MetaStructWriter {
 
