@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
 
+import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -78,6 +79,8 @@ class GatewayBridgeSpecification extends DDSpecification {
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
+  BiConsumer<RequestContext, String> databaseConnectionCB
+  BiConsumer<RequestContext, String> databaseSqlQueryCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -412,6 +415,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.databaseConnection(), _) >> { databaseConnectionCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.databaseSqlQuery(), _) >> { databaseSqlQueryCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
