@@ -66,6 +66,10 @@ public abstract class PropagationTags {
 
   public abstract void updateTraceIdHighOrderBits(long highOrderBits);
 
+  public abstract CharSequence getLastParentId();
+
+  public abstract void updateLastParentId(CharSequence lastParentId);
+
   /**
    * Gets the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
    * tracestate header</a> value.

@@ -94,6 +94,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
     int maxUnknownSize = 0;
+    CharSequence lastParentId = null;
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -162,6 +163,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           samplingPriority = validateSamplingPriority(value, tagValuePos, tagValueEndsAt);
         } else if (keyLength == 1 && c == 'o') {
           origin = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+        } else if (keyLength == 1 && c == 'p') {
+          lastParentId = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
         } else {
           if (maxUnknownSize != 0) {
             maxUnknownSize++; // delimiter
@@ -182,7 +185,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         firstMemberStart,
         ddMemberStart,
         ddMemberValueEnd,
-        maxUnknownSize);
+        maxUnknownSize,
+        lastParentId);
   }
 
   @Override
@@ -210,6 +214,19 @@ public class W3CPTagsCodec extends PTagsCodec {
     return size;
   }
 
+  private void appendKeyAndChar(StringBuilder sb, char c) {
+    if (sb.length() > EMPTY_SIZE) {
+      sb.append(';');
+    }
+    sb.append(c);
+    sb.append(':');
+  }
+
+  private boolean ddSpanCreated() {
+    // Check if Datadog span was created
+    return true;
+  }
+
   @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags) {
     sb.append(DATADOG_MEMBER_KEY);
@@ -231,6 +248,34 @@ public class W3CPTagsCodec extends PTagsCodec {
         sb.append(origin);
       }
     }
+
+    // append last ParentId (p)
+    CharSequence lastParent = ptags.getLastParentId();
+    if (lastParent != null) {
+      // last parent was found in extracted context.
+      appendKeyAndChar(sb, 'p');
+      if (ddSpanCreated()) {
+        // Span ID -> 'p'
+        sb.append("TEST-spanId-1");
+      } else {
+        // ddSpan Not created - prev 'p' carries over to tracestate
+        if (lastParent instanceof TagValue) {
+          sb.append(((TagValue) lastParent).forType(Encoding.W3C));
+        } else {
+          sb.append(lastParent);
+        }
+      }
+    } else {
+      // last parent was not found in extracted context.
+      if (ddSpanCreated()) {
+        // Span ID -> 'p'
+        appendKeyAndChar(sb, 'p');
+        sb.append("TEST-spanId-2");
+      } else {
+        // no not inject 'p' into tracestate when span is not created
+      }
+    }
+
     return sb.length();
   }
 
@@ -692,7 +737,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         firstMemberStart,
         ddMemberStart,
         ddMemberValueEnd,
-        0);
+        0,
+        null);
   }
 
   private static class W3CPTags extends PTags {
@@ -722,8 +768,9 @@ public class W3CPTagsCodec extends PTagsCodec {
         int firstMemberStart,
         int ddMemberStart,
         int ddMemberValueEnd,
-        int maxUnknownSize) {
-      super(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, samplingPriority, origin);
+        int maxUnknownSize,
+        CharSequence lastParentId){
+      super(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, samplingPriority, origin, lastParentId);
       this.tracestate = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;

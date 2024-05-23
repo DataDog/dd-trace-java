@@ -83,6 +83,9 @@ class W3CHttpCodec {
     private <C> void injectTraceState(
         DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
       PropagationTags propagationTags = context.getPropagationTags();
+      if (propagationTags.getLastParentId() == null) {
+        propagationTags.updateLastParentId(DDSpanId.toHexStringPadded(context.getSpanId()));
+      }
       String tracestate = propagationTags.headerValue(W3C);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
@@ -323,6 +326,7 @@ class W3CHttpCodec {
       } else {
         this.propagationTags = this.propagationTagsFactory.fromHeaderValue(W3C, tracestate);
       }
+      this.lastParentId = this.propagationTags.getLastParentId();
       int ptagsPriority = this.propagationTags.getSamplingPriority();
       int contextPriority = this.samplingPriority;
       if ((contextPriority == SAMPLER_DROP && ptagsPriority > 0)

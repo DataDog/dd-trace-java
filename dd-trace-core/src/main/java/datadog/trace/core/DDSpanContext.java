@@ -141,6 +141,7 @@ public class DDSpanContext
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
   private volatile boolean requiresPostProcessing;
+  private volatile CharSequence lastParentId;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -360,6 +361,7 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    setLastParentId(this.propagationTags.getLastParentId());
   }
 
   @Override
@@ -965,5 +967,13 @@ public class DDSpanContext
 
   public boolean isRequiresPostProcessing() {
     return requiresPostProcessing;
+  }
+
+  public void setLastParentId(CharSequence lastParentId) {
+    if (lastParentId != null) {
+      synchronized (unsafeTags) {
+        unsafeSetTag("_dd.parent_id", lastParentId);
+      }
+    }
   }
 }

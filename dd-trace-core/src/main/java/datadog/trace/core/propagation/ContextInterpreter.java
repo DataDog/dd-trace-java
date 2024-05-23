@@ -44,6 +44,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
 
+  protected CharSequence lastParentId;
   protected CharSequence origin;
   protected long endToEndStartTime;
   protected boolean valid;
@@ -254,6 +255,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             httpHeaders,
             propagationTags,
             traceConfig,
+            lastParentId,
             style());
       } else if (origin != null
           || !tags.isEmpty()

@@ -98,13 +98,14 @@ public class PTagsFactory implements PropagationTags.Factory {
      * if no error while parsing header}.
      */
     protected volatile String error;
+    private volatile CharSequence lastParentId;
 
     public PTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue) {
-      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, PrioritySampling.UNSET, null);
+      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, PrioritySampling.UNSET, null, null);
     }
 
     PTags(
@@ -113,7 +114,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
         int samplingPriority,
-        CharSequence origin) {
+        CharSequence origin,
+        CharSequence lastParentId) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
@@ -121,6 +123,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.decisionMakerTagValue = decisionMakerTagValue;
       this.samplingPriority = samplingPriority;
       this.origin = origin;
+      this.lastParentId = lastParentId;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -132,7 +135,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     static PTags withError(PTagsFactory factory, String error) {
-      PTags pTags = new PTags(factory, null, null, null, PrioritySampling.UNSET, null);
+      PTags pTags = new PTags(factory, null, null, null, PrioritySampling.UNSET, null, null);
       pTags.error = error;
       return pTags;
     }
@@ -211,6 +214,21 @@ public class PTagsFactory implements PropagationTags.Factory {
                 : TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
         clearCachedHeader(DATADOG);
       }
+    }
+
+    @Override
+    public CharSequence getLastParentId() {
+      return lastParentId;
+    }
+
+    @Override
+    public void updateLastParentId(CharSequence lastParentId) {
+      CharSequence existing = this.lastParentId;
+      if (Objects.equals(existing, lastParentId)) {
+        return;
+      }
+      clearCachedHeader(W3C);
+      this.lastParentId = TagValue.from(lastParentId);
     }
 
     @Override
