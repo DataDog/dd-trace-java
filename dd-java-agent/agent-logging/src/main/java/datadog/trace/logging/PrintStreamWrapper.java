@@ -1,20 +1,24 @@
 package datadog.trace.logging;
 
-import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 
 public class PrintStreamWrapper extends PrintStream {
   private static final int MAX_LOGFILE_SIZE_MB = 15;
-
   private static final int MAX_LOGFILE_SIZE_BYTES = MAX_LOGFILE_SIZE_MB << 20;
-  private static final int lineSeparatorLength =
-      System.getProperty("line.separator").getBytes().length;
-  private static final byte[] lineSeparatorBytes = System.getProperty("line.separator").getBytes();
+
+  private static final String lineSeparator = System.getProperty("line.separator");
+  private static final byte[] lineSeparatorBytes = lineSeparator.getBytes();
+  private static final int lineSeparatorLength = lineSeparatorBytes.length;
+
   private static boolean activate = false;
-  private static PrintStream printStream;
-  private static ByteArrayOutputStream byteArrayOutputStream;
   private static int currentSize = 0;
+  private static PrintStream printStream = null;
+  // private static ByteArrayOutputStream byteArrayOutputStream = null;
+  private static FileOutputStream fileOutputStream = null;
+  private static String logFile = null;
 
   public PrintStreamWrapper(OutputStream out) {
     super(out);
@@ -41,23 +45,44 @@ public class PrintStreamWrapper extends PrintStream {
     println(s);
   }
 
-  public static void start() {
+  public static void start(String filepath) {
+    //
     clean();
-    byteArrayOutputStream = new ByteArrayOutputStream();
-    printStream = new PrintStream(byteArrayOutputStream, true);
-    activate = true;
+    logFile = filepath;
+    try {
+      if (logFile != null) {
+        fileOutputStream = new FileOutputStream(logFile);
+        printStream = new PrintStream(fileOutputStream, true);
+        activate = true;
+      } /*else {
+          byteArrayOutputStream = new ByteArrayOutputStream(MAX_LOGFILE_SIZE_BYTES);
+          printStream = new PrintStream(byteArrayOutputStream, true);
+        }*/
+    } catch (FileNotFoundException e) {
+      // byteArrayOutputStream = new ByteArrayOutputStream(MAX_LOGFILE_SIZE_BYTES);
+      //  printStream = new PrintStream(byteArrayOutputStream, true);
+    }
+
+    // activate = true;
   }
 
-  public static byte[] getBuffer() {
-    if (byteArrayOutputStream == null) {
-      return null;
+  /*public static byte[] getBuffer() {
+    if (byteArrayOutputStream != null) {
+      return byteArrayOutputStream.toByteArray();
     }
-    return byteArrayOutputStream.toByteArray();
-  }
+    return null;
+  }*/
 
   public static void clean() {
-    byteArrayOutputStream = null;
-    printStream = null;
+
+    if (printStream != null) {
+      printStream.close();
+      printStream = null;
+    }
+    // byteArrayOutputStream = null;
+    fileOutputStream = null;
+
+    logFile = null;
     activate = false;
     currentSize = 0;
   }
