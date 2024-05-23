@@ -121,11 +121,18 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return info.getHost();
   }
 
+  private void setTagIfPresent(final AgentSpan span, final String key, final String value) {
+    if (value != null && !value.isEmpty()) {
+      span.setTag(key, value);
+    }
+  }
+
   public AgentSpan onConnection(final AgentSpan span, DBInfo dbInfo) {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
-      span.setTag(DB_WAREHOUSE, dbInfo.getWarehouse());
-      span.setTag(DB_SCHEMA, dbInfo.getSchema());
+
+      setTagIfPresent(span, DB_WAREHOUSE, dbInfo.getWarehouse());
+      setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
     }
     return super.onConnection(span, dbInfo);
   }
