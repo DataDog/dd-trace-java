@@ -26,3 +26,7 @@ dependencies {
 
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
