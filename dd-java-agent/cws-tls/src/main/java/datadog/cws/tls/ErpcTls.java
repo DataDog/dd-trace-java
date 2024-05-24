@@ -39,7 +39,7 @@ public class ErpcTls implements Tls {
   static int getGettidSyscallId() {
     String arch = System.getProperty("os.arch");
     if (arch.equals("amd64")) {
-        return 186; // 186 is the syscall ID for "gettid" on amd64
+      return 186; // 186 is the syscall ID for "gettid" on amd64
     } else if (arch.equals("arm64")) {
       return 178; // 78 is the syscall ID for "gettid" on arm64
     }
@@ -52,7 +52,7 @@ public class ErpcTls implements Tls {
       return false;
     }
     try {
-        CLibrary.Instance.syscall(new NativeLong(syscallID));
+      CLibrary.Instance.syscall(new NativeLong(syscallID));
     } catch (UnsatisfiedLinkError error) {
       return false;
     }
