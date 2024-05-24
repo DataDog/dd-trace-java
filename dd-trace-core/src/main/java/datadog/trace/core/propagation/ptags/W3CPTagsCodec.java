@@ -94,7 +94,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
     int maxUnknownSize = 0;
-    CharSequence lastParentId = null;
+    CharSequence lastParentId = "0000000000000000";
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -215,16 +215,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private void appendKeyAndChar(StringBuilder sb, char c) {
-    if (sb.length() > EMPTY_SIZE) {
-      sb.append(';');
-    }
-    sb.append(c);
-    sb.append(':');
-  }
 
-  private boolean ddSpanCreated() {
-    // Check if Datadog span was created
-    return true;
   }
 
   @Override
@@ -248,34 +239,19 @@ public class W3CPTagsCodec extends PTagsCodec {
         sb.append(origin);
       }
     }
-
     // append last ParentId (p)
     CharSequence lastParent = ptags.getLastParentId();
     if (lastParent != null) {
-      // last parent was found in extracted context.
-      appendKeyAndChar(sb, 'p');
-      if (ddSpanCreated()) {
-        // Span ID -> 'p'
-        sb.append("TEST-spanId-1");
-      } else {
-        // ddSpan Not created - prev 'p' carries over to tracestate
-        if (lastParent instanceof TagValue) {
-          sb.append(((TagValue) lastParent).forType(Encoding.W3C));
-        } else {
-          sb.append(lastParent);
-        }
+      if (sb.length() > EMPTY_SIZE) {
+        sb.append(';');
       }
-    } else {
-      // last parent was not found in extracted context.
-      if (ddSpanCreated()) {
-        // Span ID -> 'p'
-        appendKeyAndChar(sb, 'p');
-        sb.append("TEST-spanId-2");
+      sb.append("p:");
+      if (lastParent instanceof TagValue) {
+        sb.append(((TagValue) lastParent).forType(Encoding.W3C));
       } else {
-        // no not inject 'p' into tracestate when span is not created
+        sb.append(lastParent);
       }
     }
-
     return sb.length();
   }
 
