@@ -166,7 +166,7 @@ class SnsClientV1ForkedTest extends SnsClientTest {
 
   @Override
   String expectedOperation(String awsService, String awsOperation) {
-    if (awsService == "Sns" && awsOperation == "Publish") {
+    if (awsService == "SNS" && awsOperation == "Publish") {
       return "aws.sns.send"
     }
     return "http.client.request"
