@@ -101,7 +101,7 @@ public final class Memoizer {
 
   /** Prepares a matcher for memoization. */
   static <T> MemoizingMatcher prepare(
-      MatcherKind kind, ElementMatcher.Junction<T> matcher, boolean inherited) {
+      MatcherKind kind, ElementMatcher<T> matcher, boolean inherited) {
 
     MemoizingMatcher memoizingMatcher =
         memoizingMatcherCache.computeIfAbsent(matcher, Memoizer::withMatcherId);

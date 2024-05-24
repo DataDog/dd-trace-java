@@ -30,19 +30,19 @@ public final class MemoizedMatchers implements HierarchyMatchers.Supplier {
 
   @Override
   public ElementMatcher.Junction<TypeDescription> declaresAnnotation(
-      ElementMatcher.Junction<? super NamedElement> matcher) {
+      ElementMatcher<? super NamedElement> matcher) {
     return Memoizer.prepare(ANNOTATION, matcher, false);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> declaresField(
-      ElementMatcher.Junction<? super FieldDescription> matcher) {
+      ElementMatcher<? super FieldDescription> matcher) {
     return Memoizer.prepare(FIELD, matcher, false);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> declaresMethod(
-      ElementMatcher.Junction<? super MethodDescription> matcher) {
+      ElementMatcher<? super MethodDescription> matcher) {
     return Memoizer.prepare(METHOD, matcher, false);
   }
 
@@ -53,31 +53,31 @@ public final class MemoizedMatchers implements HierarchyMatchers.Supplier {
 
   @Override
   public ElementMatcher.Junction<TypeDescription> extendsClass(
-      ElementMatcher.Junction<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher) {
     return Memoizer.prepare(CLASS, matcher, true);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> implementsInterface(
-      ElementMatcher.Junction<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher) {
     return Memoizer.isClass.and(Memoizer.prepare(INTERFACE, matcher, true));
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> hasInterface(
-      ElementMatcher.Junction<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher) {
     return Memoizer.prepare(INTERFACE, matcher, true);
   }
 
   @Override
   public ElementMatcher.Junction<TypeDescription> hasSuperType(
-      ElementMatcher.Junction<? super TypeDescription> matcher) {
+      ElementMatcher<? super TypeDescription> matcher) {
     return Memoizer.isClass.and(Memoizer.prepare(TYPE, matcher, true));
   }
 
   @Override
   public ElementMatcher.Junction<MethodDescription> hasSuperMethod(
-      ElementMatcher.Junction<? super MethodDescription> matcher) {
+      ElementMatcher<? super MethodDescription> matcher) {
     return new HasSuperMethod(Memoizer.prepare(METHOD, matcher, true), matcher);
   }
 
