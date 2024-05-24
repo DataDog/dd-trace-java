@@ -214,10 +214,6 @@ public class W3CPTagsCodec extends PTagsCodec {
     return size;
   }
 
-  private void appendKeyAndChar(StringBuilder sb, char c) {
-
-  }
-
   @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags) {
     sb.append(DATADOG_MEMBER_KEY);
