@@ -2,7 +2,6 @@ package com.datadog.profiling.controller.openjdk.events;
 
 import jdk.jfr.Category;
 import jdk.jfr.Description;
-import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.StackTrace;
@@ -12,13 +11,13 @@ import jdk.jfr.StackTrace;
 @Description("Entry from the smaps file for the JVM")
 @Category("Datadog")
 @StackTrace(false)
-public class SmapEntryEvent extends Event {
+public class SmapEntryEvent {
 
-  // todo maybe the labels should be explicitly what is used in smaps
-  // while the description should be more human readable
-  // this would make it easier to map the fields to the smaps file
-  // and also make it easier to understand what the fields are
-  // for someone who is not familiar with the smaps file
+  //todo maybe the labels should be explicitly what is used in smaps
+  //while the description should be more human readable
+  //this would make it easier to map the fields to the smaps file
+  //and also make it easier to understand what the fields are
+  //for someone who is not familiar with the smaps file
 
   @Label("Region Start Address")
   private final long startAddress;
@@ -32,8 +31,11 @@ public class SmapEntryEvent extends Event {
   @Label("Offset into mapping")
   private final long offset;
 
-  @Label("Device")
-  private final String major;
+  @Label("Device Major ID")
+  private final int majorID;
+
+  @Label("Device Minor ID")
+  private final int minorID;
 
   @Label("INode ID")
   private final int inodeID;
@@ -107,41 +109,13 @@ public class SmapEntryEvent extends Event {
   @Label("VM Flags")
   private final String[] vmFlags;
 
-  public SmapEntryEvent(
-      long startAddress,
-      long endAddress,
-      String perms,
-      long offset,
-      String major,
-      int inodeID,
-      String pathname,
-      long size,
-      long kernelPageSize,
-      long mmuPageSize,
-      long rss,
-      long pss,
-      long sharedClean,
-      long sharedDirty,
-      long privateClean,
-      long privateDirty,
-      long referenced,
-      long anonymous,
-      long lazyFree,
-      long anonHugePages,
-      long shmemPmdMapped,
-      long filePmdMapped,
-      long sharedHugetlb,
-      long privateHugetlb,
-      long swap,
-      long swapPss,
-      long locked,
-      boolean thpEligible,
-      String[] vmFlags) {
+  public SmapEntryEvent(long startAddress, long endAddress, String perms, long offset, int majorID, int minorID, int inodeID, String pathname, long size, long kernelPageSize, long mmuPageSize, long rss, long pss, long sharedClean, long sharedDirty, long privateClean, long privateDirty, long referenced, long anonymous, long lazyFree, long anonHugePages, long shmemPmdMapped, long filePmdMapped, long sharedHugetlb, long privateHugetlb, long swap, long swapPss, long locked, boolean thpEligible, String[] vmFlags) {
     this.startAddress = startAddress;
     this.endAddress = endAddress;
     this.perms = perms;
     this.offset = offset;
-    this.major = major;
+    this.majorID = majorID;
+    this.minorID = minorID;
     this.inodeID = inodeID;
     this.pathname = pathname;
     this.size = size;
