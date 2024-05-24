@@ -4,7 +4,7 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import org.testcontainers.containers.localstack.LocalStackContainer
+import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
@@ -16,13 +16,17 @@ import software.amazon.awssdk.services.sqs.model.QueueAttributeName
 import spock.lang.Shared
 import groovy.json.JsonSlurper
 
+import java.time.Duration
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static org.testcontainers.containers.localstack.LocalStackContainer.Service.SNS
-import static org.testcontainers.containers.localstack.LocalStackContainer.Service.SQS
 
 abstract class SnsClientTest extends VersionedNamingTestBase {
-  static final LOCALSTACK = new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
-  .withServices( SQS, SNS)
+  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
+  .withExposedPorts(4566) // Default LocalStack port
+  .withEnv("SERVICES", "sns,sqs") // Enable SNS and SQS service
+  .withReuse(true)
+  .withStartupTimeout(Duration.ofSeconds(120))
+
   @Shared SnsClient snsClient
   @Shared SqsClient sqsClient
 
@@ -32,14 +36,15 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
 
   def setupSpec() {
     LOCALSTACK.start()
+    def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
     snsClient = SnsClient.builder()
-      .endpointOverride(LOCALSTACK.getEndpointOverride(LocalStackContainer.Service.SNS))
-      .region(Region.of(LOCALSTACK.getRegion()))
+      .endpointOverride(URI.create(endPoint))
+      .region(Region.of("us-east-1"))
       .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
       .build()
     sqsClient = SqsClient.builder()
-      .endpointOverride(LOCALSTACK.getEndpointOverride(SQS))
-      .region(Region.of(LOCALSTACK.getRegion()))
+      .endpointOverride(URI.create(endPoint))
+      .region(Region.of("us-east-1"))
       .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
       .build()
     testQueueURL = sqsClient.createQueue {  it.queueName("testqueue") }.queueUrl()
@@ -83,6 +88,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     def message = sqsClient.receiveMessage {it.queueUrl(testQueueURL).waitTimeSeconds(3)}.messages().get(0)
     def jsonSlurper = new JsonSlurper()
     def messageBody = jsonSlurper.parseText(message.body())
+    def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
 
     then:
     def sendSpan
@@ -100,11 +106,11 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" LOCALSTACK.getEndpointOverride(SNS).toString()+'/'
+            "$Tags.HTTP_URL" endPoint+'/'
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
-            "$Tags.PEER_PORT" LOCALSTACK.getEndpointOverride(SNS).port
-            "$Tags.PEER_HOSTNAME" LOCALSTACK.getEndpointOverride(SNS).host
+            "$Tags.PEER_PORT" LOCALSTACK.getMappedPort(4566)
+            "$Tags.PEER_HOSTNAME" LOCALSTACK.getHost()
             "aws.service" "Sns"
             "aws_service" "Sns"
             "aws.operation" "Publish"
