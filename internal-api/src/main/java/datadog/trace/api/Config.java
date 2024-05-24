@@ -315,6 +315,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_BACKPRESSURE_SAMPLE_LIMIT_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_BACKPRESSURE_SAMPLING_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT;
@@ -713,6 +716,8 @@ public class Config {
   private final String profilingProxyUsername;
   private final String profilingProxyPassword;
   private final int profilingExceptionSampleLimit;
+  private final int profilingBackPressureSampleLimit;
+  private final boolean profilingBackPressureEnabled;
   private final int profilingDirectAllocationSampleLimit;
   private final int profilingExceptionHistogramTopItems;
   private final int profilingExceptionHistogramMaxCollectionSize;
@@ -1543,6 +1548,13 @@ public class Config {
     profilingExceptionSampleLimit =
         configProvider.getInteger(
             PROFILING_EXCEPTION_SAMPLE_LIMIT, PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT);
+    profilingBackPressureSampleLimit =
+        configProvider.getInteger(
+            PROFILING_EXCEPTION_SAMPLE_LIMIT, PROFILING_BACKPRESSURE_SAMPLE_LIMIT_DEFAULT);
+    profilingBackPressureEnabled =
+        configProvider.getBoolean(
+            PROFILING_BACKPRESSURE_SAMPLING_ENABLED,
+            PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT);
     profilingDirectAllocationSampleLimit =
         configProvider.getInteger(
             PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT,
@@ -2676,6 +2688,14 @@ public class Config {
 
   public int getProfilingDirectAllocationSampleLimit() {
     return profilingDirectAllocationSampleLimit;
+  }
+
+  public int getProfilingBackPressureSampleLimit() {
+    return profilingBackPressureSampleLimit;
+  }
+
+  public boolean isProfilingBackPressureSamplingEnabled() {
+    return profilingBackPressureEnabled;
   }
 
   public int getProfilingExceptionHistogramTopItems() {
