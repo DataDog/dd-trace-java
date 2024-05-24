@@ -239,6 +239,10 @@ public final class OpenJdkController implements Controller {
 
     // Register periodic events
     AvailableProcessorCoresEvent.register();
+
+    // todo register runnable with agenttaskscheduler to parse smaps file all at once and emit
+    // events for each group
+    // methods and helpers will go in here, could be extracted out
   }
 
   private static String getJfrRepositoryBase(ConfigProvider configProvider) {
