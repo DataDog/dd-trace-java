@@ -741,8 +741,15 @@ public class W3CPTagsCodec extends PTagsCodec {
         int ddMemberStart,
         int ddMemberValueEnd,
         int maxUnknownSize,
-        CharSequence lastParentId){
-      super(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, samplingPriority, origin, lastParentId);
+        CharSequence lastParentId) {
+      super(
+          factory,
+          tagPairs,
+          decisionMakerTagValue,
+          traceIdTagValue,
+          samplingPriority,
+          origin,
+          lastParentId);
       this.tracestate = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;

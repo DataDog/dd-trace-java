@@ -98,6 +98,7 @@ public class PTagsFactory implements PropagationTags.Factory {
      * if no error while parsing header}.
      */
     protected volatile String error;
+
     private volatile CharSequence lastParentId;
 
     public PTags(
@@ -105,7 +106,14 @@ public class PTagsFactory implements PropagationTags.Factory {
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue) {
-      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, PrioritySampling.UNSET, null, null);
+      this(
+          factory,
+          tagPairs,
+          decisionMakerTagValue,
+          traceIdTagValue,
+          PrioritySampling.UNSET,
+          null,
+          null);
     }
 
     PTags(
