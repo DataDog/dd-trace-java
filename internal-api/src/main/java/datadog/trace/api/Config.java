@@ -2671,7 +2671,7 @@ public class Config {
   }
 
   public boolean isDatadogProfilerEnabled() {
-    return isDatadogProfilerEnabled;
+    return profilingEnabled && isDatadogProfilerEnabled;
   }
 
   public static boolean isDatadogProfilerEnablementOverridden() {
