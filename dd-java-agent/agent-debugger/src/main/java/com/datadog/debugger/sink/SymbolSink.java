@@ -9,6 +9,10 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.util.TagsHelper;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -75,6 +79,7 @@ public class SymbolSink {
             "Sending scope: {}, size={}",
             serviceVersion.getScopes().get(0).getName(),
             json.length());
+        dumpScope(serviceVersion.getScopes().get(0).getName(), json);
         List<Scope> classScopes = serviceVersion.getScopes().get(0).getScopes();
         int classScopeCount = classScopes != null ? classScopes.size() : 0;
         stats.updateStats(classScopeCount, json.length());
@@ -86,6 +91,22 @@ public class SymbolSink {
       } catch (Exception e) {
         ExceptionHelper.logException(LOGGER, e, "Error during scope serialization:");
       }
+    }
+  }
+
+  private void dumpScope(String name, String json) {
+    String filename = "/tmp/debugger" + name + ".json";
+    Path path = Paths.get(filename);
+    try {
+      Files.createDirectories(path.getParent());
+      int i = 0;
+      while (path.toFile().exists()) {
+        path = Paths.get(path.toString(), "." + i);
+      }
+      LOGGER.debug("Dumping json Scope: {} -> {}", name, path);
+      Files.write(path, json.getBytes(), StandardOpenOption.CREATE);
+    } catch (Exception e) {
+      LOGGER.debug("Error writing scope to file: {}", path, e);
     }
   }
 
