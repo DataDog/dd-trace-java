@@ -60,7 +60,8 @@ class DefaultExceptionDebuggerTest {
     configurationUpdater = mock(ConfigurationUpdater.class);
     classNameFiltering = new ClassNameFiltering(emptySet());
     exceptionDebugger =
-        new DefaultExceptionDebugger(configurationUpdater, classNameFiltering, Duration.ofHours(1));
+        new DefaultExceptionDebugger(
+            configurationUpdater, classNameFiltering, Duration.ofHours(1), 100);
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }
@@ -203,7 +204,7 @@ class DefaultExceptionDebuggerTest {
   public void filteringOutErrors() {
     ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
     exceptionDebugger =
-        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering);
+        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering, 100);
     exceptionDebugger.handleException(new AssertionError("test"), mock(AgentSpan.class));
     verify(manager, times(0)).isAlreadyInstrumented(any());
   }

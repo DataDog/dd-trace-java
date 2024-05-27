@@ -47,6 +47,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
@@ -213,6 +214,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER_SECOND;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
@@ -837,6 +839,7 @@ public class Config {
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
   private final boolean debuggerExceptionEnabled;
+  private final int debuggerMaxExceptionPerSecond;
   private final boolean debuggerExceptionOnlyLocalRoot;
 
   private final Set<String> debuggerThirdPartyIncludes;
@@ -1891,6 +1894,9 @@ public class Config {
             DEBUGGER_EXCEPTION_ENABLED,
             DEFAULT_DEBUGGER_EXCEPTION_ENABLED,
             EXCEPTION_REPLAY_ENABLED);
+    debuggerMaxExceptionPerSecond =
+        configProvider.getInteger(
+            DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
     debuggerExceptionOnlyLocalRoot =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT, DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT);
@@ -3213,6 +3219,10 @@ public class Config {
 
   public boolean isDebuggerExceptionEnabled() {
     return debuggerExceptionEnabled;
+  }
+
+  public int getDebuggerMaxExceptionPerSecond() {
+    return debuggerMaxExceptionPerSecond;
   }
 
   public boolean isDebuggerExceptionOnlyLocalRoot() {

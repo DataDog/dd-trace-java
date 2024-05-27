@@ -86,7 +86,10 @@ public class DebuggerAgent {
     if (config.isDebuggerExceptionEnabled()) {
       defaultExceptionDebugger =
           new DefaultExceptionDebugger(
-              configurationUpdater, classNameFiltering, EXCEPTION_CAPTURE_INTERVAL);
+              configurationUpdater,
+              classNameFiltering,
+              EXCEPTION_CAPTURE_INTERVAL,
+              config.getDebuggerMaxExceptionPerSecond());
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerInstrumentTheWorld()) {
