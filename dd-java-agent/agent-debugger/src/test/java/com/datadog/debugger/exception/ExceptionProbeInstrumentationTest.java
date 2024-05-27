@@ -81,7 +81,7 @@ public class ExceptionProbeInstrumentationTest {
     ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
     ProbeRateLimiter.setGlobalSnapshotRate(1000);
     // to activate the call to DebuggerContext.handleException
-    setFieldInConfig(Config.get(), "debuggerEnabled", true);
+    setFieldInConfig(Config.get(), "debuggerExceptionEnabled", true);
   }
 
   @AfterEach

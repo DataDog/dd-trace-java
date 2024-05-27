@@ -770,6 +770,17 @@ public enum JDBCConnectionUrlParser {
       }
       return builder;
     }
+  },
+
+  SNOWFLAKE("snowflake") {
+    @Override
+    DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
+      String url = jdbcUrl;
+      if (url.startsWith("jdbc:")) {
+        url = url.substring(5);
+      }
+      return GENERIC_URL_LIKE.doParse(url, builder);
+    }
   };
 
   private static final Map<String, JDBCConnectionUrlParser> typeParsers = new HashMap<>();
@@ -876,7 +887,15 @@ public enum JDBCConnectionUrlParser {
       if (props.containsKey("databaseName")) {
         builder.db((String) props.get("databaseName"));
       }
-
+      if (props.containsKey("db")) {
+        builder.db((String) props.get("db"));
+      }
+      if (props.containsKey("warehouse")) {
+        builder.warehouse((String) props.get("warehouse"));
+      }
+      if (props.containsKey("schema")) {
+        builder.schema((String) props.get("schema"));
+      }
       if (props.containsKey("servername")) {
         builder.host((String) props.get("servername"));
       }
