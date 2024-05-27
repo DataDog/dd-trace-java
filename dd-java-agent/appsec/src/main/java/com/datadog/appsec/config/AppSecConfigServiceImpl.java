@@ -8,6 +8,7 @@ import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_DD_RULES;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_EXCLUSIONS;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_IP_BLOCKING;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_RASP_SQLI;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_REQUEST_BLOCKING;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_TRUSTED_IPS;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_USER_BLOCKING;
@@ -96,7 +97,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_USER_BLOCKING
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-            | CAPABILITY_ASM_TRUSTED_IPS);
+            | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ASM_RASP_SQLI);
   }
 
   private void subscribeRulesAndData() {
@@ -334,7 +336,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
-            | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE);
+            | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
+            | CAPABILITY_ASM_RASP_SQLI);
     this.configurationPoller.removeListeners(Product.ASM_DD);
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);
