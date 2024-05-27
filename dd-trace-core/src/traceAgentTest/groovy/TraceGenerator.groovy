@@ -385,5 +385,15 @@ class TraceGenerator {
     boolean hasSamplingPriority() {
       return false
     }
+
+    @Override
+    Map<String, Object> getMetaStruct() {
+      return [:]
+    }
+
+    @Override
+    PojoSpan setMetaStruct(String field, Object value) {
+      return this
+    }
   }
 }
