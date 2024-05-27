@@ -835,4 +835,15 @@ public class DDSpan
   public long getStartTimeNano() {
     return startTimeNano;
   }
+
+  @Override
+  public Map<String, Object> getMetaStruct() {
+    return context.getMetaStruct();
+  }
+
+  @Override
+  public DDSpan setMetaStruct(final String field, final Object value) {
+    context.setMetaStruct(field, value);
+    return this;
+  }
 }

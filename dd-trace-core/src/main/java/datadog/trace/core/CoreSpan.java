@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDTraceId;
+import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
 
@@ -87,4 +88,23 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   T setFlag(CharSequence name, boolean value);
 
   int samplingPriority();
+
+  /**
+   * Returns a readonly view of the current meta_struct data stored in the span
+   *
+   * @return readonly map with all the fields
+   */
+  Map<String, Object> getMetaStruct();
+
+  /**
+   * Adds a new field to the meta_struct stored in the span
+   *
+   * <p>Existing field value with the same value will be replaced. Setting a field with a {@code
+   * null} value will remove the field from the metaStruct.
+   *
+   * @param field name of the field
+   * @param value value of the field
+   * @return this
+   */
+  T setMetaStruct(final String field, final Object value);
 }
