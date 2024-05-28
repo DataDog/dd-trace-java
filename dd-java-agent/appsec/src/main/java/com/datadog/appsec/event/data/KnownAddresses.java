@@ -93,6 +93,8 @@ public interface KnownAddresses {
   Address<CaseInsensitiveMap<List<String>>> HEADERS_NO_COOKIES =
       new Address<>("server.request.headers.no_cookies");
 
+  Address<Object> GRPC_SERVER_METHOD = new Address<>("grpc.server.method");
+
   Address<Object> GRPC_SERVER_REQUEST_MESSAGE = new Address<>("grpc.server.request.message");
 
   // XXX: Not really used yet, but it's a known address and we should not treat it as unknown.
@@ -159,6 +161,8 @@ public interface KnownAddresses {
         return REQUEST_QUERY;
       case "server.request.headers.no_cookies":
         return HEADERS_NO_COOKIES;
+      case "grpc.server.method":
+        return GRPC_SERVER_METHOD;
       case "grpc.server.request.message":
         return GRPC_SERVER_REQUEST_MESSAGE;
       case "grpc.server.request.metadata":
