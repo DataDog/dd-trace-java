@@ -102,11 +102,10 @@ class ExceptionProbeManagerTest {
                     "worker.org.gradle.",
                     "org.junit.")
                 .collect(Collectors.toSet()));
-    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
+    ExceptionProbeManager exceptionProbeManager =
+        new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), Clock.systemUTC(), 3);
     exceptionProbeManager.createProbesForException(deepException.getStackTrace());
-    assertEquals(
-        Config.get().getDebuggerExceptionMaxCapturedFrames(),
-        exceptionProbeManager.getProbes().size());
+    assertEquals(3, exceptionProbeManager.getProbes().size());
   }
 
   RuntimeException level1() {
