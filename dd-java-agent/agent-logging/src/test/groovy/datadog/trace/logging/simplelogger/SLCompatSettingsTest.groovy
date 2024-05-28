@@ -84,7 +84,7 @@ class SLCompatSettingsTest extends Specification {
     then:
     settings.warnLevelString == "WRN"
     settings.levelInBrackets == true
-    ((PrintStreamWrapper) settings.printStream).sgetMainPrintStream()  == System.out
+    ((PrintStreamWrapper) settings.printStream).getMainPrintStream()  == System.out
     settings.showShortLogName == true
     settings.showLogName == false
     settings.showThreadName == false
