@@ -178,7 +178,7 @@ public class MoshiSnapshotHelper {
       jsonWriter.endObject();
       handleSerializationResult(jsonWriter, resultLocals, resultArgs, resultStaticFields);
       jsonWriter.name(THROWABLE);
-      throwableAdapter.toJson(jsonWriter, capturedContext.getThrowable());
+      throwableAdapter.toJson(jsonWriter, capturedContext.getCapturedThrowable());
       jsonWriter.endObject();
     }
 

@@ -24,6 +24,7 @@ public final class GeneralConfig {
   public static final String ENV = "env";
   public static final String VERSION = "version";
   public static final String PRIMARY_TAG = "primary.tag";
+  public static final String TRACE_TAGS = "trace.tags";
   public static final String TAGS = "tags";
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
@@ -65,6 +66,8 @@ public final class GeneralConfig {
   public static final String AZURE_APP_SERVICES = "azure.app.services";
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
 
+  public static final String DATA_JOBS_ENABLED = "data.jobs.enabled";
+
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
       "data.streams.bucket_duration.seconds";
@@ -78,7 +81,8 @@ public final class GeneralConfig {
   public static final String TELEMETRY_DEPENDENCY_COLLECTION_ENABLED =
       "telemetry.dependency-collection.enabled";
   public static final String TELEMETRY_LOG_COLLECTION_ENABLED = "telemetry.log-collection.enabled";
-
+  public static final String TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE =
+      "telemetry.dependency-resolution.queue.size";
   public static final String TELEMETRY_DEBUG_REQUESTS_ENABLED = "telemetry.debug.requests.enabled";
 
   private GeneralConfig() {}

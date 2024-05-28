@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.MethodNode;
 
 /** Stores probe location definition */
@@ -41,11 +42,12 @@ public class Where {
     this(typeName, methodName, signature, sourceLines(lines), sourceFile);
   }
 
-  public static Where from(String typeName, String methodName, String signature, String... lines) {
+  public static Where convertLineToMethod(
+      String typeName, String methodName, String signature, String... lines) {
     return new Where(typeName, methodName, signature, lines, null);
   }
 
-  public static Where from(String sourceFile, int line) {
+  public static Where convertLineToMethod(String sourceFile, int line) {
     return new Where(null, null, null, new SourceLine[] {new SourceLine(line)}, sourceFile);
   }
 
@@ -58,6 +60,14 @@ public class Where {
       lines[i] = SourceLine.fromString(defs[i]);
     }
     return lines;
+  }
+
+  public static Where convertLineToMethod(Where lineWhere, ClassFileLines classFileLines) {
+    if (lineWhere.methodName != null && lineWhere.lines != null) {
+      MethodNode method = classFileLines.getMethodByLine(lineWhere.lines[0].getFrom());
+      return new Where(lineWhere.typeName, method.name, method.desc, (SourceLine[]) null, null);
+    }
+    throw new IllegalArgumentException("Invalid where to convert from line to method " + lineWhere);
   }
 
   public String getTypeName() {
@@ -103,7 +113,8 @@ public class Where {
     String targetName = methodNode.name;
     String targetMethodDescriptor = methodNode.desc;
     // try exact matching: name + FQN signature
-    if (!isMethodNameMatching(targetName)) {
+    if (!isMethodNameMatching(targetName)
+        || ((methodNode.access & Opcodes.ACC_BRIDGE) == Opcodes.ACC_BRIDGE)) {
       return false;
     }
     if (signature == null) {

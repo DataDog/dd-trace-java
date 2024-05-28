@@ -22,7 +22,7 @@ import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.model.HttpResponse;
 import scala.concurrent.Future;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public PekkoHttpSingleRequestInstrumentation() {

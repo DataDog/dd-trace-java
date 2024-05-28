@@ -13,6 +13,8 @@ public class SQLCommenter {
   private static final String UTF8 = StandardCharsets.UTF_8.toString();
   private static final String PARENT_SERVICE = encode("ddps");
   private static final String DATABASE_SERVICE = encode("dddbs");
+  private static final String DD_HOSTNAME = encode("ddh");
+  private static final String DD_DB_NAME = encode("dddb");
   private static final String DD_ENV = encode("dde");
   private static final String DD_VERSION = encode("ddpv");
   private static final String TRACEPARENT = encode("traceparent");
@@ -24,26 +26,69 @@ public class SQLCommenter {
   private static final String CLOSE_COMMENT = "*/";
   private static final int INITIAL_CAPACITY = computeInitialCapacity();
 
-  public static String append(final String sql, final String dbService) {
-    return inject(sql, dbService, null, false, true);
+  public static String append(
+      final String sql,
+      final String dbService,
+      final String dbType,
+      final String hostname,
+      final String dbName) {
+    return inject(sql, dbService, dbType, hostname, dbName, null, false, true);
   }
 
-  public static String prepend(final String sql, final String dbService) {
-    return inject(sql, dbService, null, false, false);
+  public static String prepend(
+      final String sql,
+      final String dbService,
+      final String dbType,
+      final String hostname,
+      final String dbName) {
+    return inject(sql, dbService, dbType, hostname, dbName, null, false, false);
+  }
+
+  public static String getFirstWord(String sql) {
+    int beginIndex = 0;
+    while (beginIndex < sql.length() && Character.isWhitespace(sql.charAt(beginIndex))) {
+      beginIndex++;
+    }
+    int endIndex = beginIndex;
+    while (endIndex < sql.length() && !Character.isWhitespace(sql.charAt(endIndex))) {
+      endIndex++;
+    }
+    return sql.substring(beginIndex, endIndex);
   }
 
   public static String inject(
       final String sql,
       final String dbService,
+      final String dbType,
+      final String hostname,
+      final String dbName,
       final String traceParent,
       final boolean injectTrace,
-      final boolean appendComment) {
+      boolean appendComment) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
     if (hasDDComment(sql, appendComment)) {
       return sql;
     }
+
+    if (dbType != null) {
+      final String firstWord = getFirstWord(sql);
+
+      // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC callable statements
+      // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
+      // TODO: Could we inject the comment after the JDBC has been converted to standard SQL?
+      if (firstWord.startsWith("{") && dbType.startsWith("postgres")) {
+        return sql;
+      }
+
+      // Both Postgres and MySQL are unhappy with anything before CALL in a stored procedure
+      // invocation but they seem ok with it after so we force append mode
+      if (firstWord.equalsIgnoreCase("call")) {
+        appendComment = true;
+      }
+    }
+
     final Config config = Config.get();
     final String parentService = config.getServiceName();
     final String env = config.getEnv();
@@ -56,12 +101,30 @@ public class SQLCommenter {
       sb.append(SPACE);
       sb.append(OPEN_COMMENT);
       commentAdded =
-          toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
+          toComment(
+              sb,
+              injectTrace,
+              parentService,
+              dbService,
+              hostname,
+              dbName,
+              env,
+              version,
+              traceParent);
       sb.append(CLOSE_COMMENT);
     } else {
       sb.append(OPEN_COMMENT);
       commentAdded =
-          toComment(sb, injectTrace, parentService, dbService, env, version, traceParent);
+          toComment(
+              sb,
+              injectTrace,
+              parentService,
+              dbService,
+              hostname,
+              dbName,
+              env,
+              version,
+              traceParent);
       sb.append(CLOSE_COMMENT);
       sb.append(SPACE);
       sb.append(sql);
@@ -89,6 +152,10 @@ public class SQLCommenter {
       if (hasMatchingSubstring(sql, startIdx, PARENT_SERVICE)) {
         found = true;
       } else if (hasMatchingSubstring(sql, startIdx, DATABASE_SERVICE)) {
+        found = true;
+      } else if (hasMatchingSubstring(sql, startIdx, DD_HOSTNAME)) {
+        found = true;
+      } else if (hasMatchingSubstring(sql, startIdx, DD_DB_NAME)) {
         found = true;
       } else if (hasMatchingSubstring(sql, startIdx, DD_ENV)) {
         found = true;
@@ -125,12 +192,16 @@ public class SQLCommenter {
       final boolean injectTrace,
       final String parentService,
       final String dbService,
+      final String hostname,
+      final String dbName,
       final String env,
       final String version,
       final String traceparent) {
     int emptySize = sb.length();
     append(sb, PARENT_SERVICE, parentService, false);
     append(sb, DATABASE_SERVICE, dbService, sb.length() > emptySize);
+    append(sb, DD_HOSTNAME, hostname, sb.length() > emptySize);
+    append(sb, DD_DB_NAME, dbName, sb.length() > emptySize);
     append(sb, DD_ENV, env, sb.length() > emptySize);
     append(sb, DD_VERSION, version, sb.length() > emptySize);
     if (injectTrace) {
@@ -187,6 +258,8 @@ public class SQLCommenter {
     int tagKeysLen =
         PARENT_SERVICE.length()
             + DATABASE_SERVICE.length()
+            + DD_HOSTNAME.length()
+            + DD_DB_NAME.length()
             + DD_ENV.length()
             + DD_VERSION.length()
             + TRACEPARENT.length();

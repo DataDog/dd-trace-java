@@ -1,12 +1,16 @@
 package datadog.trace.instrumentation.iastinstrumenter;
 
+import static net.bytebuddy.matcher.ElementMatchers.not;
+
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier;
 import datadog.trace.agent.tooling.csi.CallSites;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.instrumentation.iastinstrumenter.telemetry.TelemetryCallSiteSupplier;
@@ -15,7 +19,7 @@ import java.util.Set;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastInstrumentation extends CallSiteInstrumentation {
 
   public IastInstrumentation() {
@@ -24,12 +28,14 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
   @Override
   public ElementMatcher<TypeDescription> callerType() {
-    return IastMatcher.INSTANCE;
+    return IastMatchers.INSTANCE;
   }
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.IAST);
+    return enabledSystems.contains(TargetSystem.IAST)
+        || (isOptOutEnabled()
+            && InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED);
   }
 
   @Override
@@ -46,13 +52,28 @@ public class IastInstrumentation extends CallSiteInstrumentation {
     }
   }
 
-  public static final class IastMatcher
-      extends ElementMatcher.Junction.ForNonNullValues<TypeDescription> {
-    public static final IastMatcher INSTANCE = new IastMatcher();
+  protected boolean isOptOutEnabled() {
+    return false;
+  }
 
-    @Override
-    protected boolean doMatch(TypeDescription target) {
-      return IastExclusionTrie.apply(target.getName()) != 1;
+  public static final class IastMatchers {
+
+    public static final ElementMatcher<TypeDescription> INSTANCE;
+
+    private static final ElementMatcher.Junction<TypeDescription> TRIE_MATCHER =
+        new ElementMatcher.Junction.ForNonNullValues<TypeDescription>() {
+          @Override
+          protected boolean doMatch(TypeDescription target) {
+            return IastExclusionTrie.apply(target.getName()) != 1;
+          }
+        };
+
+    static {
+      if (Config.get().isIastAnonymousClassesEnabled()) {
+        INSTANCE = TRIE_MATCHER;
+      } else {
+        INSTANCE = TRIE_MATCHER.and(not(TypeDescription::isAnonymousType));
+      }
     }
   }
 

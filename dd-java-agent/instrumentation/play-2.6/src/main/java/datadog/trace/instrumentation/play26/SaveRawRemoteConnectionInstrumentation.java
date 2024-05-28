@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.request.RemoteConnection;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class SaveRawRemoteConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public SaveRawRemoteConnectionInstrumentation() {

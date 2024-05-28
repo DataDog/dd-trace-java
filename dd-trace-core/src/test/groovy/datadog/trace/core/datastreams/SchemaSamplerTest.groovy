@@ -10,17 +10,27 @@ class SchemaSamplerTest  extends DDCoreSpecification {
     SchemaSampler sampler = new SchemaSampler()
 
     when:
-    int weight1 = sampler.shouldSample(currentTimeMillis)
-    int weight2 = sampler.shouldSample(currentTimeMillis + 1000)
-    int weight3 = sampler.shouldSample(currentTimeMillis + 2000)
-    int weight4 = sampler.shouldSample(currentTimeMillis + 30000)
-    int weight5 = sampler.shouldSample(currentTimeMillis + 30001)
+    boolean canSample1 = sampler.canSample(currentTimeMillis)
+    int weight1 = sampler.trySample(currentTimeMillis)
+    boolean canSample2= sampler.canSample(currentTimeMillis + 1000)
+    int weight2 = sampler.trySample(currentTimeMillis + 1000)
+    boolean canSample3 = sampler.canSample(currentTimeMillis + 2000)
+    int weight3 = sampler.trySample(currentTimeMillis + 2000)
+    boolean canSample4 = sampler.canSample(currentTimeMillis + 30000)
+    int weight4 = sampler.trySample(currentTimeMillis + 30000)
+    boolean canSample5 = sampler.canSample(currentTimeMillis + 30001)
+    int weight5 = sampler.trySample(currentTimeMillis + 30001)
 
     then:
+    canSample1
     weight1 == 1
+    !canSample2
     weight2 == 0
+    !canSample3
     weight3 == 0
+    canSample4
     weight4 == 3
+    !canSample5
     weight5 == 0
   }
 }

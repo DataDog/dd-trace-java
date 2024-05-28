@@ -15,8 +15,9 @@ public class SQLCommenterBenchmark {
 
   private static final String traceParent =
       "00-00000000000000007fffffffffffffff-000000024cb016ea-01";
-  private static final String injectionMode = "full";
   private static final String dbService = "users-db";
+  private static final String hostname = "my-host";
+  private static final String dbName = "credit-card-numbers";
   private static final String parentService = "parent";
   private static final String env = "env";
   private static final String version = "version";
@@ -26,6 +27,14 @@ public class SQLCommenterBenchmark {
   public void testToComment() {
     StringBuilder stringBuilder = new StringBuilder();
     SQLCommenter.toComment(
-        stringBuilder, injectTrace, parentService, dbService, env, version, traceParent);
+        stringBuilder,
+        injectTrace,
+        parentService,
+        dbService,
+        hostname,
+        dbName,
+        env,
+        version,
+        traceParent);
   }
 }

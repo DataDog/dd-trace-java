@@ -257,4 +257,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
     return INJECT_TRACE_CONTEXT;
   }
+
+  public boolean shouldInjectSQLComment() {
+    return Config.get().getDBMPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
+        || Config.get().getDBMPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
+  }
 }

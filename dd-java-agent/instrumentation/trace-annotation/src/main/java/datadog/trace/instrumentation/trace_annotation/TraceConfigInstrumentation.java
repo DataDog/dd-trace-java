@@ -36,7 +36,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * <p>If this becomes a more common use case the building logic should be abstracted out into a
  * super class.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TraceConfigInstrumentation extends InstrumenterModule {
   private final Map<String, Set<String>> classMethodsToTrace;
 

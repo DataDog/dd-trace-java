@@ -33,7 +33,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Obtain template and matrix variables for AbstractUrlHandlerMapping */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType,
         Instrumenter.HasMethodAdvice,
@@ -154,7 +154,7 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
               if (parameterName == null || value == null) {
                 continue; // should not happen
               }
-              module.taint(
+              module.taintString(
                   iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
             }
           }

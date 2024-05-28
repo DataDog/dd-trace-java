@@ -23,7 +23,7 @@ import scala.collection.Iterator;
 import scala.util.Either;
 
 /** @see play.core.routing.PathPattern#apply(String) */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PathPatternInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public PathPatternInstrumentation() {

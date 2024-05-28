@@ -2,7 +2,6 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
 import com.datadog.debugger.sink.DebuggerSink;
@@ -29,6 +28,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.zip.ZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 /** Debugger agent implementation */
 public class DebuggerAgent {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerAgent.class);
+  public static final Duration EXCEPTION_CAPTURE_INTERVAL = Duration.ofHours(1);
   private static ConfigurationPoller configurationPoller;
   private static DebuggerSink sink;
   private static String agentVersion;
@@ -63,8 +64,7 @@ public class DebuggerAgent {
             config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
     DebuggerSink debuggerSink = new DebuggerSink(config, probeStatusSink);
     debuggerSink.start();
-    // TODO filtering out thirdparty code
-    ClassNameFiltering classNameFiltering = new ClassNameFiltering(emptyList());
+    ClassNameFiltering classNameFiltering = new ClassNameFiltering(config);
     ConfigurationUpdater configurationUpdater =
         new ConfigurationUpdater(
             instrumentation,
@@ -82,8 +82,10 @@ public class DebuggerAgent {
     DebuggerContext.initValueSerializer(snapshotSerializer);
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     if (config.isDebuggerExceptionEnabled()) {
-      DebuggerContext.initExceptionDebugger(
-          new DefaultExceptionDebugger(configurationUpdater, classNameFiltering));
+      DefaultExceptionDebugger defaultExceptionDebugger =
+          new DefaultExceptionDebugger(
+              configurationUpdater, classNameFiltering, EXCEPTION_CAPTURE_INTERVAL);
+      DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(
@@ -103,7 +105,8 @@ public class DebuggerAgent {
                 instrumentation,
                 config,
                 new SymbolAggregator(
-                    debuggerSink.getSymbolSink(), config.getDebuggerSymbolFlushThreshold()));
+                    debuggerSink.getSymbolSink(), config.getDebuggerSymbolFlushThreshold()),
+                classNameFiltering);
         if (config.isDebuggerSymbolForceUpload()) {
           symDBEnablement.startSymbolExtraction();
         }

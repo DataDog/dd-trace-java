@@ -78,7 +78,7 @@ public class CiVisibilityServices {
 
     if (ProcessHierarchyUtils.isChild()) {
       InetSocketAddress signalServerAddress = ProcessHierarchyUtils.getSignalServerAddress();
-      this.signalClientFactory = new SignalClient.Factory(signalServerAddress);
+      this.signalClientFactory = new SignalClient.Factory(signalServerAddress, config);
 
       RepoIndexProvider indexFetcher = new RepoIndexFetcher(signalClientFactory);
       this.repoIndexProviderFactory = (repoRoot, scanRoot) -> indexFetcher;

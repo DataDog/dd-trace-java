@@ -9,8 +9,13 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -27,7 +32,7 @@ import org.apache.pekko.http.scaladsl.model.HttpRequest;
  * @see HttpRequestInstrumentation propagates taint from {@link HttpRequest} to the headers, when
  *     they're retrieved
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public HttpHeaderSubclassesInstrumentation() {
@@ -53,17 +58,21 @@ public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
         HttpHeaderSubclassesInstrumentation.class.getName() + "$HttpHeaderSubclassesAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   static class HttpHeaderSubclassesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
-    static void onExit(@Advice.This HttpHeader h, @Advice.Return String retVal) {
+    static void onExit(
+        @Advice.This HttpHeader h,
+        @Advice.Return String retVal,
+        @ActiveRequestContext RequestContext reqCtx) {
 
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null) {
         return;
       }
-
-      propagation.taintIfTainted(retVal, h);
+      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      propagation.taintStringIfTainted(ctx, retVal, h);
     }
   }
 }

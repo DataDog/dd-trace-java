@@ -25,6 +25,7 @@ import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Platform;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.profiling.RecordingData;
@@ -168,6 +169,9 @@ public final class ProfileUploader {
       GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
       tagsMap.put(Tags.GIT_REPOSITORY_URL, gitInfo.getRepositoryURL());
       tagsMap.put(Tags.GIT_COMMIT_SHA, gitInfo.getCommit().getSha());
+    }
+    if (Platform.isNativeImage()) {
+      tagsMap.put(DDTags.RUNTIME_VERSION_TAG, tagsMap.get(DDTags.RUNTIME_VERSION_TAG) + "-aot");
     }
 
     // Comma separated tags string for V2.4 format

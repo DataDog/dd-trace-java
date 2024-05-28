@@ -27,8 +27,11 @@ public class CapturedSnapshot20 {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     AgentSpan span = tracerAPI.buildSpan("process").start();
     try (AgentScope scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL)) {
-      if (arg.equals("exception")) {
+      if (arg.equals("exception") || arg.equals("illegal")) {
         return new CapturedSnapshot20().processWithException(arg);
+      }
+      if (arg.equals("recursive")) {
+        return new CapturedSnapshot20().fiboException(10);
       }
       return new CapturedSnapshot20().process(arg);
     } catch (Exception ex) {
@@ -46,6 +49,20 @@ public class CapturedSnapshot20 {
 
   private int processWithException(String arg) {
     int intLocal = intField + 42;
+    if (arg.equals("illegal")) {
+      throw new IllegalArgumentException("illegal argument");
+    }
     throw new RuntimeException("oops");
+  }
+
+  private int fiboException(int n) {
+    if (n <= 1) {
+      throw new RuntimeException("oops fibo");
+    }
+    try {
+      return fiboException(n - 1) + fiboException(n - 2);
+    } catch (Exception ex) {
+      throw new RuntimeException(ex.getMessage(), ex);
+    }
   }
 }

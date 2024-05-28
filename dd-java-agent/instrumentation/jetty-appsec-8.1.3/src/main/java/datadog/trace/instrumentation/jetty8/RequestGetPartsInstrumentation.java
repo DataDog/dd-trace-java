@@ -38,7 +38,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.pool.TypePool;
 import org.eclipse.jetty.server.Request;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
   public RequestGetPartsInstrumentation() {

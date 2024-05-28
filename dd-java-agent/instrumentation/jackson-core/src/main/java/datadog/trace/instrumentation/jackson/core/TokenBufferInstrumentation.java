@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
  * @see TokenBuffer#asParser(ObjectCodec codec)
  * @see TokenBuffer#asParser(JsonParser codec)
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TokenBufferInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public TokenBufferInstrumentation() {
@@ -50,7 +50,7 @@ public class TokenBufferInstrumentation extends InstrumenterModule.Iast
         @Advice.This TokenBuffer tokenBuffer, @Advice.Return JsonParser parser) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfTainted(parser, tokenBuffer);
+        module.taintObjectIfTainted(parser, tokenBuffer);
       }
     }
   }

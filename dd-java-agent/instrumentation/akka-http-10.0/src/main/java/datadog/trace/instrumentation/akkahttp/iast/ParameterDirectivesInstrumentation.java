@@ -28,7 +28,7 @@ import net.bytebuddy.asm.Advice;
  *
  * @see akka.http.scaladsl.server.directives.ParameterDirectives
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
   private static final String TRAIT_NAME =

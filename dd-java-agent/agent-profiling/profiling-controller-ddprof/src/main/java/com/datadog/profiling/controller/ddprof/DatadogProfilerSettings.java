@@ -9,7 +9,7 @@ public class DatadogProfilerSettings extends ProfilerSettingsSupport {
   private final DatadogProfiler datadogProfiler;
 
   public DatadogProfilerSettings(DatadogProfiler datadogProfiler) {
-    super(ConfigProvider.getInstance());
+    super(ConfigProvider.getInstance(), null, false);
     this.datadogProfiler = datadogProfiler;
   }
 

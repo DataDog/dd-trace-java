@@ -11,28 +11,30 @@ import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityType;
-import com.datadog.iast.model.VulnerabilityType.InjectionType;
 import com.datadog.iast.overhead.Operations;
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.taint.Ranges;
-import com.datadog.iast.taint.Ranges.RangesProvider;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.ObjectVisitor;
-import com.datadog.iast.util.ObjectVisitor.State;
-import com.datadog.iast.util.ObjectVisitor.Visitor;
+import com.datadog.iast.util.RangeBuilder;
+import datadog.trace.api.Config;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.util.stacktrace.StackWalker;
+import java.util.Iterator;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.jetbrains.annotations.Contract;
 
 /** Base class with utility methods for with sinks */
 @SuppressWarnings({"UnusedReturnValue", "SameParameterValue"})
 public abstract class SinkModuleBase {
+
+  private static final int MAX_EVIDENCE_LENGTH = Config.get().getIastTruncationMaxValueLength();
 
   protected final OverheadController overheadController;
   protected final Reporter reporter;
@@ -44,154 +46,262 @@ public abstract class SinkModuleBase {
     stackWalker = dependencies.getStackWalker();
   }
 
-  protected final <E> @Nullable Evidence checkInjection(
-      @Nonnull final IastContext ctx, @Nonnull final InjectionType type, @Nonnull final E value) {
+  protected void report(final Vulnerability vulnerability) {
+    report(AgentTracer.activeSpan(), vulnerability);
+  }
+
+  protected void report(@Nullable final AgentSpan span, final Vulnerability vulnerability) {
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+    reporter.report(span, vulnerability);
+  }
+
+  protected void report(final VulnerabilityType type, final Evidence evidence) {
+    report(AgentTracer.activeSpan(), type, evidence);
+  }
+
+  protected void report(
+      @Nullable final AgentSpan span, final VulnerabilityType type, final Evidence evidence) {
+    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+      return;
+    }
+    final Vulnerability vulnerability =
+        new Vulnerability(type, buildLocation(span, null), evidence);
+    reporter.report(span, vulnerability);
+  }
+
+  @Nullable
+  protected final Evidence checkInjection(final VulnerabilityType type, final Object value) {
+    return checkInjection(type, value, null, null);
+  }
+
+  @Nullable
+  protected final Evidence checkInjection(
+      final VulnerabilityType type, final Object value, final LocationSupplier locationSupplier) {
+    return checkInjection(type, value, null, locationSupplier);
+  }
+
+  @Nullable
+  protected final Evidence checkInjection(
+      final VulnerabilityType type, final Object value, final EvidenceBuilder evidenceBuilder) {
+    return checkInjection(type, value, evidenceBuilder, null);
+  }
+
+  @Nullable
+  protected final Evidence checkInjection(
+      final VulnerabilityType type,
+      final Object value,
+      @Nullable final EvidenceBuilder evidenceBuilder,
+      @Nullable final LocationSupplier locationSupplier) {
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return null;
+    }
+
+    return checkInjection(ctx, type, value, evidenceBuilder, locationSupplier);
+  }
+
+  @Nullable
+  protected final Evidence checkInjection(
+      final IastContext ctx,
+      final VulnerabilityType type,
+      final Object value,
+      @Nullable final EvidenceBuilder evidenceBuilder,
+      @Nullable final LocationSupplier locationSupplier) {
+
     final TaintedObjects to = ctx.getTaintedObjects();
-    final TaintedObject taintedObject = to.get(value);
-    if (taintedObject == null) {
+    final TaintedObject tainted = to.get(value);
+    if (tainted == null) {
       return null;
     }
-    Range[] ranges = Ranges.getNotMarkedRanges(taintedObject.getRanges(), type.mark());
-    if (ranges == null || ranges.length == 0) {
+
+    final Range[] valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+    if (valueRanges == null || valueRanges.length == 0) {
       return null;
     }
+
+    final StringBuilder evidence = new StringBuilder();
+    final RangeBuilder ranges = new RangeBuilder();
+    addToEvidence(type, evidence, ranges, value, valueRanges, evidenceBuilder);
+
+    // check if finally we have an injection
+    if (ranges.isEmpty()) {
+      return null;
+    }
+
     final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
       return null;
     }
-    final Evidence result = buildEvidence(value, ranges);
-    report(span, type, result);
-    return result;
+
+    return report(span, type, evidence, ranges, locationSupplier);
   }
 
-  protected final <E> @Nullable Evidence checkInjectionDeeply(
-      @Nonnull final IastContext ctx, @Nonnull final InjectionType type, @Nonnull final E value) {
-    final InjectionVisitor visitor = new InjectionVisitor(ctx, type);
+  @Nullable
+  protected final Evidence checkInjection(final VulnerabilityType type, final Iterator<?> items) {
+    return checkInjection(type, items, null, null);
+  }
+
+  @Nullable
+  protected final Evidence checkInjection(
+      final VulnerabilityType type,
+      final Iterator<?> items,
+      final LocationSupplier locationSupplier) {
+    return checkInjection(type, items, null, locationSupplier);
+  }
+
+  @Nullable
+  protected final Evidence checkInjection(
+      final VulnerabilityType type,
+      final Iterator<?> items,
+      final EvidenceBuilder evidenceBuilder) {
+    return checkInjection(type, items, evidenceBuilder, null);
+  }
+
+  @Nullable
+  protected final Evidence checkInjection(
+      final VulnerabilityType type,
+      final Iterator<?> items,
+      @Nullable final EvidenceBuilder evidenceBuilder,
+      @Nullable final LocationSupplier locationSupplier) {
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return null;
+    }
+
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final StringBuilder evidence = new StringBuilder();
+    final RangeBuilder ranges = new RangeBuilder();
+    boolean spanFetched = false;
+    AgentSpan span = null;
+    while (items.hasNext()) {
+      final Object value = items.next();
+      if (value == null) {
+        continue;
+      }
+
+      final TaintedObject tainted = to.get(value);
+      Range[] valueRanges = null;
+      if (tainted != null) {
+        valueRanges = Ranges.getNotMarkedRanges(tainted.getRanges(), type.mark());
+      }
+      addToEvidence(type, evidence, ranges, value, valueRanges, evidenceBuilder);
+
+      // in case we have an injection let's check if we can report it and exit early if not
+      if (!spanFetched && valueRanges != null && valueRanges.length > 0) {
+        span = AgentTracer.activeSpan();
+        spanFetched = true;
+        if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
+          return null;
+        }
+      }
+
+      if (ranges.isFull() || evidence.length() >= MAX_EVIDENCE_LENGTH) {
+        break;
+      }
+    }
+    return report(span, type, evidence, ranges, locationSupplier);
+  }
+
+  @Nullable
+  protected Evidence checkInjectionDeeply(final VulnerabilityType type, final Object value) {
+    return checkInjectionDeeply(type, value, null, null);
+  }
+
+  @Nullable
+  protected Evidence checkInjectionDeeply(
+      final VulnerabilityType type,
+      final Object value,
+      @Nullable final EvidenceBuilder evidenceBuilder) {
+    return checkInjectionDeeply(type, value, evidenceBuilder, null);
+  }
+
+  @Nullable
+  protected Evidence checkInjectionDeeply(
+      final VulnerabilityType type,
+      final Object value,
+      @Nullable final LocationSupplier locationSupplier) {
+    return checkInjectionDeeply(type, value, null, locationSupplier);
+  }
+
+  @Nullable
+  protected Evidence checkInjectionDeeply(
+      final VulnerabilityType type,
+      final Object value,
+      @Nullable final EvidenceBuilder evidenceBuilder,
+      @Nullable final LocationSupplier locationSupplier) {
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return null;
+    }
+
+    final InjectionVisitor visitor =
+        new InjectionVisitor(ctx, type, evidenceBuilder, locationSupplier);
     ObjectVisitor.visit(value, visitor);
     return visitor.evidence;
   }
 
-  protected final <E> @Nullable Evidence checkInjection(
-      @Nonnull final InjectionType type, @Nonnull final RangesProvider<E> rangeProvider) {
-    final int rangeCount = rangeProvider.rangeCount();
-    if (rangeCount == 0) {
-      return null;
-    }
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
-      return null;
-    }
-    String evidence;
-    Range[] targetRanges;
-    if (rangeProvider.size() == 1) {
-      // only one item and has ranges
-      final E item = rangeProvider.value(0);
-      if (item == null) {
-        return null; // should never happen
-      }
-      evidence = item.toString();
-      targetRanges = rangeProvider.ranges(item);
-    } else {
-      final StringBuilder builder = new StringBuilder();
-      targetRanges = new Range[rangeCount];
-      int rangeIndex = 0;
-      for (int i = 0; i < rangeProvider.size(); i++) {
-        final E item = rangeProvider.value(i);
-        if (item != null) {
-          if (builder.length() > 0) {
-            builder.append(type.evidenceSeparator());
-          }
-          final Range[] taintedRanges = rangeProvider.ranges(item);
-          if (taintedRanges != null) {
-            Ranges.copyShift(taintedRanges, targetRanges, rangeIndex, builder.length());
-            rangeIndex += taintedRanges.length;
-          }
-          builder.append(item);
-        }
-      }
-      evidence = builder.toString();
-    }
-
-    Range[] notMarkedRanges = Ranges.getNotMarkedRanges(targetRanges, type.mark());
-    if (notMarkedRanges == null || notMarkedRanges.length == 0) {
-      return null;
-    }
-
-    final Evidence result = buildEvidence(evidence, notMarkedRanges);
-    report(span, type, result);
-    return result;
-  }
-
-  protected final <E> @Nullable Evidence checkInjection(
-      @Nonnull final InjectionType type, @Nonnull final RangesProvider<E>... rangeProviders) {
-    int rangeCount = 0;
-    for (final RangesProvider<E> provider : rangeProviders) {
-      rangeCount += provider.rangeCount();
-    }
-    if (rangeCount == 0) {
-      return null;
-    }
-    final AgentSpan span = AgentTracer.activeSpan();
-    if (!overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, span)) {
-      return null;
-    }
-    final StringBuilder evidence = new StringBuilder();
-    final Range[] targetRanges = new Range[rangeCount];
-    int rangeIndex = 0;
-    for (final RangesProvider<E> rangeProvider : rangeProviders) {
-      for (int i = 0; i < rangeProvider.size(); i++) {
-        final E item = rangeProvider.value(i);
-        if (item != null) {
-          if (evidence.length() > 0) {
-            evidence.append(type.evidenceSeparator());
-          }
-          final Range[] taintedRanges = rangeProvider.ranges(item);
-          if (taintedRanges != null) {
-            Ranges.copyShift(taintedRanges, targetRanges, rangeIndex, evidence.length());
-            rangeIndex += taintedRanges.length;
-          }
-          evidence.append(item);
-        }
-      }
-    }
-    Range[] notMarkedRanges = Ranges.getNotMarkedRanges(targetRanges, type.mark());
-    if (notMarkedRanges == null || notMarkedRanges.length == 0) {
-      return null;
-    }
-    final Evidence result = buildEvidence(evidence, notMarkedRanges);
-    report(span, type, result);
-    return result;
-  }
-
-  protected final void report(
+  @Nullable
+  private Evidence report(
       @Nullable final AgentSpan span,
-      @Nonnull final VulnerabilityType type,
-      @Nonnull final Evidence evidence) {
-    reporter.report(
-        span,
-        new Vulnerability(type, Location.forSpanAndStack(span, getCurrentStackTrace()), evidence));
+      final VulnerabilityType type,
+      final StringBuilder evidenceString,
+      final RangeBuilder ranges,
+      @Nullable final LocationSupplier locationSupplier) {
+    if (ranges.isEmpty()) {
+      return null;
+    }
+    final Evidence evidence = new Evidence(evidenceString.toString(), ranges.toArray());
+    final Location location = buildLocation(span, locationSupplier);
+    final Vulnerability vulnerability = new Vulnerability(type, location, evidence);
+    reporter.report(span, vulnerability);
+    return evidence;
   }
 
-  protected StackTraceElement getCurrentStackTrace() {
-    return stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
-  }
-
-  protected Evidence buildEvidence(final Object value, final Range[] ranges) {
-    final Range unbound = Ranges.findUnbound(ranges);
-    if (unbound != null) {
-      final Source source = unbound.getSource();
-      if (source != null && source.getValue() != null) {
-        final String sourceValue = source.getValue();
-        final String evidenceValue = value.toString();
-        final int start = evidenceValue.indexOf(sourceValue);
-        if (start >= 0) {
-          return new Evidence(
-              evidenceValue,
-              new Range[] {new Range(start, sourceValue.length(), source, unbound.getMarks())});
+  protected void addToEvidence(
+      final VulnerabilityType type,
+      final StringBuilder evidence,
+      final RangeBuilder ranges,
+      final Object value,
+      @Nullable final Range[] valueRanges,
+      @Nullable final EvidenceBuilder evidenceBuilder) {
+    if (evidenceBuilder != null) {
+      if (isTainted(valueRanges)) {
+        evidenceBuilder.tainted(evidence, ranges, value, valueRanges);
+      } else {
+        evidenceBuilder.nonTainted(evidence, value);
+      }
+    } else {
+      int offset = evidence.length();
+      if (offset > 0) {
+        evidence.append(type.separator());
+        offset++;
+      }
+      evidence.append(value);
+      if (isTainted(valueRanges)) {
+        final Range unbound = Ranges.findUnbound(valueRanges);
+        if (unbound != null) {
+          // use a single range covering the whole value for unbound items
+          final Source source = unbound.getSource();
+          ranges.add(new Range(offset, evidence.length() - offset, source, unbound.getMarks()));
+        } else {
+          ranges.add(valueRanges, offset);
         }
       }
     }
-    return new Evidence(value instanceof String ? (String) value : value.toString(), ranges);
+  }
+
+  protected Location buildLocation(
+      @Nullable final AgentSpan span, @Nullable final LocationSupplier supplier) {
+    if (supplier != null) {
+      return supplier.build(span);
+    }
+    return Location.forSpanAndStack(span, getCurrentStackTrace());
+  }
+
+  protected final StackTraceElement getCurrentStackTrace() {
+    return stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
   }
 
   static StackTraceElement findValidPackageForVulnerability(
@@ -209,21 +319,52 @@ public abstract class SinkModuleBase {
         .orElse(first[0]);
   }
 
-  private class InjectionVisitor implements Visitor {
+  @Contract("null -> false")
+  private static boolean isTainted(@Nullable final Range[] ranges) {
+    return ranges != null && ranges.length > 0;
+  }
+
+  /**
+   * Building the location of a vulnerability might be expensive (e.g. when computing the call stack
+   * to traverse until customer code), this interface makes the construction of the location a lazy
+   * op that only happens when a vulnerability has been discovered.
+   */
+  public interface LocationSupplier {
+    Location build(@Nullable AgentSpan span);
+  }
+
+  /** Builder instance to construct the final evidence of a vulnerability */
+  public interface EvidenceBuilder {
+    void tainted(StringBuilder evidence, RangeBuilder ranges, Object value, Range[] valueRanges);
+
+    default void nonTainted(StringBuilder evidence, Object value) {
+      // do nothing by default if the value is not tainted
+    }
+  }
+
+  private class InjectionVisitor implements ObjectVisitor.Visitor {
 
     private final IastContext ctx;
-    private final InjectionType type;
+    private final VulnerabilityType type;
+    @Nullable private final EvidenceBuilder evidenceBuilder;
+    @Nullable private final LocationSupplier locationSupplier;
     @Nullable private Evidence evidence;
 
-    private InjectionVisitor(final IastContext ctx, final InjectionType type) {
+    private InjectionVisitor(
+        final IastContext ctx,
+        final VulnerabilityType type,
+        @Nullable final EvidenceBuilder evidenceBuilder,
+        @Nullable final LocationSupplier locationSupplier) {
       this.ctx = ctx;
       this.type = type;
+      this.evidenceBuilder = evidenceBuilder;
+      this.locationSupplier = locationSupplier;
     }
 
     @Nonnull
     @Override
-    public State visit(@Nonnull final String path, @Nonnull final Object value) {
-      evidence = checkInjection(ctx, type, value);
+    public ObjectVisitor.State visit(@Nonnull final String path, @Nonnull final Object value) {
+      evidence = checkInjection(ctx, type, value, evidenceBuilder, locationSupplier);
       return evidence != null ? EXIT : CONTINUE; // report first tainted value only
     }
   }

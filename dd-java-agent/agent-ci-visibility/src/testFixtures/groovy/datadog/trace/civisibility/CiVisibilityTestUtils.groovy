@@ -34,7 +34,6 @@ abstract class CiVisibilityTestUtils {
     path("content.meta.['runtime.version']"),
     path("content.meta.['ci.workspace_path']"),
     path("content.meta.['error.message']"),
-    path("content.meta.['error.stack']"),
     path("content.meta.library_version"),
     path("content.meta.runtime-id"),
     // Different events might or might not have the same start or duration.
@@ -42,6 +41,7 @@ abstract class CiVisibilityTestUtils {
     path("content.start", false),
     path("content.duration", false),
     path("content.meta.['_dd.p.tid']", false),
+    path("content.meta.['error.stack']", false),
   ]
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
@@ -65,7 +65,7 @@ abstract class CiVisibilityTestUtils {
     Files.write(Paths.get(baseTemplatesPath, "coverages.ftl"), templateGenerator.generateTemplate(coverages, COVERAGE_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
   }
 
-  static void assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def labelGenerator = new LabelGenerator()
@@ -94,6 +94,8 @@ abstract class CiVisibilityTestUtils {
     } catch (AssertionError e) {
       throw new org.opentest4j.AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
     }
+
+    return replacementMap
   }
 
   static final Configuration JSON_PATH_CONFIG = Configuration.builder()

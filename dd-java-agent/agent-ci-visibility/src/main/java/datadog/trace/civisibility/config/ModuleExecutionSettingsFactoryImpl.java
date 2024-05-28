@@ -3,6 +3,7 @@ package datadog.trace.civisibility.config;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.Configurations;
+import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.config.CiVisibilityConfig;
@@ -62,34 +63,62 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
     boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
     boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
+    boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
     Map<String, String> systemProperties =
         getPropertiesPropagatedToChildProcess(
-            codeCoverageEnabled, itrEnabled, flakyTestRetriesEnabled);
+            codeCoverageEnabled, itrEnabled, flakyTestRetriesEnabled, earlyFlakeDetectionEnabled);
 
     LOGGER.info(
-        "Remote CI Visibility settings received: per-test code coverage - {}, ITR - {}, flaky test retries - {}; {}, {}",
+        "CI Visibility settings ({}, {}):\n"
+            + "Per-test code coverage - {},\n"
+            + "Intelligent Test Runner - {},\n"
+            + "Early flakiness detection - {},\n"
+            + "Flaky test retries - {}",
+        repositoryRoot,
+        jvmInfo,
         codeCoverageEnabled,
         itrEnabled,
-        flakyTestRetriesEnabled,
-        repositoryRoot,
-        jvmInfo);
+        earlyFlakeDetectionEnabled,
+        flakyTestRetriesEnabled);
 
-    Map<String, Collection<TestIdentifier>> skippableTestsByModuleName =
-        itrEnabled && repositoryRoot != null
-            ? getSkippableTestsByModuleName(Paths.get(repositoryRoot), tracerEnvironment)
-            : Collections.emptyMap();
+    String itrCorrelationId = null;
+    Map<String, Collection<TestIdentifier>> skippableTestsByModuleName = Collections.emptyMap();
+    if (itrEnabled && repositoryRoot != null) {
+      SkippableTests skippableTests =
+          getSkippableTests(Paths.get(repositoryRoot), tracerEnvironment);
+      if (skippableTests != null) {
+        itrCorrelationId = skippableTests.getCorrelationId();
+        skippableTestsByModuleName =
+            (Map<String, Collection<TestIdentifier>>)
+                groupTestsByModule(tracerEnvironment, skippableTests.getIdentifiers());
+      }
+    }
 
     Collection<TestIdentifier> flakyTests =
-        flakyTestRetriesEnabled ? getFlakyTests(tracerEnvironment) : Collections.emptyList();
+        flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
+            ? getFlakyTests(tracerEnvironment)
+            : null;
+
+    Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
+        earlyFlakeDetectionEnabled ? getKnownTests(tracerEnvironment) : null;
 
     List<String> coverageEnabledPackages = getCoverageEnabledPackages(codeCoverageEnabled);
     return new ModuleExecutionSettings(
         codeCoverageEnabled,
         itrEnabled,
         flakyTestRetriesEnabled,
+        // knownTests being null covers the following cases:
+        //  - early flake detection is disabled in remote settings
+        //  - early flake detection is disabled via local config killswitch
+        //  - the list of known tests could not be obtained
+        knownTestsByModuleName != null
+            ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
+            : EarlyFlakeDetectionSettings.DEFAULT,
         systemProperties,
+        itrCorrelationId,
         skippableTestsByModuleName,
         flakyTests,
+        knownTestsByModuleName,
         coverageEnabledPackages);
   }
 
@@ -131,7 +160,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     try {
       CiVisibilitySettings settings = configurationApi.getSettings(tracerEnvironment);
       if (settings.isGitUploadRequired()) {
-        LOGGER.info("Git data upload needs to finish before remote settings can be retrieved");
+        LOGGER.debug("Git data upload needs to finish before remote settings can be retrieved");
         gitDataUploader
             .startOrObserveGitDataUpload()
             .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
@@ -142,9 +171,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
       }
 
     } catch (Exception e) {
-      LOGGER.warn(
-          "Could not obtain CI Visibility settings, will default to disabled code coverage and tests skipping");
-      LOGGER.debug("Error while obtaining CI Visibility settings", e);
+      LOGGER.warn("Error while obtaining CI Visibility settings", e);
       return CiVisibilitySettings.DEFAULT;
     }
   }
@@ -163,14 +190,24 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         && config.isCiVisibilityFlakyRetryEnabled();
   }
 
+  private boolean isEarlyFlakeDetectionEnabled(CiVisibilitySettings ciVisibilitySettings) {
+    return ciVisibilitySettings.getEarlyFlakeDetectionSettings().isEnabled()
+        && config.isCiVisibilityEarlyFlakeDetectionEnabled();
+  }
+
   private Map<String, String> getPropertiesPropagatedToChildProcess(
-      boolean codeCoverageEnabled, boolean itrEnabled, boolean flakyTestRetriesEnabled) {
+      boolean codeCoverageEnabled,
+      boolean itrEnabled,
+      boolean flakyTestRetriesEnabled,
+      boolean earlyFlakeDetectionEnabled) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
     Properties systemProperties = System.getProperties();
     for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
       String propertyName = (String) e.getKey();
       Object propertyValue = e.getValue();
-      if (propertyName.startsWith(Config.PREFIX) && propertyValue != null) {
+      if ((propertyName.startsWith(Config.PREFIX)
+              || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
+          && propertyValue != null) {
         propagatedSystemProperties.put(propertyName, propertyValue.toString());
       }
     }
@@ -189,6 +226,11 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
             CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED),
         Boolean.toString(flakyTestRetriesEnabled));
 
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED),
+        Boolean.toString(earlyFlakeDetectionEnabled));
+
     // explicitly disable build instrumentation in child processes,
     // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
     // and we don't want to show those as if they were regular build executions
@@ -205,7 +247,8 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     return propagatedSystemProperties;
   }
 
-  private Map<String, Collection<TestIdentifier>> getSkippableTestsByModuleName(
+  @Nullable
+  private SkippableTests getSkippableTests(
       Path repositoryRoot, TracerEnvironment tracerEnvironment) {
     try {
       // ensure git data upload is finished before asking for tests
@@ -213,22 +256,22 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
           .startOrObserveGitDataUpload()
           .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
 
-      Collection<TestIdentifier> skippableTests =
-          configurationApi.getSkippableTests(tracerEnvironment);
-      LOGGER.info(
-          "Received {} skippable tests in total for {}", skippableTests.size(), repositoryRoot);
+      SkippableTests skippableTests = configurationApi.getSkippableTests(tracerEnvironment);
+      LOGGER.debug(
+          "Received {} skippable tests in total for {}",
+          skippableTests.getIdentifiers().size(),
+          repositoryRoot);
 
-      return (Map<String, Collection<TestIdentifier>>)
-          groupTestsByModule(tracerEnvironment, skippableTests);
+      return skippableTests;
 
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while waiting for git data upload", e);
-      return Collections.emptyMap();
+      return null;
 
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of skippable tests, will proceed without skipping", e);
-      return Collections.emptyMap();
+      return null;
     }
   }
 
@@ -249,13 +292,32 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   private Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {
     try {
       Collection<TestIdentifier> flakyTests = configurationApi.getFlakyTests(tracerEnvironment);
-      LOGGER.info("Received {} flaky tests in total for {}", flakyTests.size(), repositoryRoot);
+      LOGGER.debug("Received {} flaky tests in total for {}", flakyTests.size(), repositoryRoot);
       return flakyTests;
 
     } catch (Exception e) {
       LOGGER.error(
           "Could not obtain list of flaky tests, flaky test retries will not be available", e);
       return Collections.emptyList();
+    }
+  }
+
+  private Map<String, Collection<TestIdentifier>> getKnownTests(
+      TracerEnvironment tracerEnvironment) {
+    try {
+      Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
+          configurationApi.getKnownTestsByModuleName(tracerEnvironment);
+      LOGGER.debug(
+          "Received known tests for {} modules for {}",
+          knownTestsByModuleName.size(),
+          repositoryRoot);
+      return knownTestsByModuleName;
+
+    } catch (Exception e) {
+      LOGGER.error(
+          "Could not obtain list of known tests, early flakiness detection will not be available",
+          e);
+      return null;
     }
   }
 

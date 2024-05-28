@@ -15,6 +15,7 @@ public class DDTags {
   public static final String SCHEMA_ID = "schema.id";
   public static final String SCHEMA_TOPIC = "schema.topic";
   public static final String SCHEMA_OPERATION = "schema.operation";
+  public static final String SCHEMA_NAME = "schema.name";
 
   public static final String HTTP_QUERY = "http.query.string";
   public static final String HTTP_FRAGMENT = "http.fragment.string";
@@ -58,6 +59,8 @@ public class DDTags {
   public static final String INTERNAL_GIT_COMMIT_SHA = "_dd.git.commit.sha";
 
   public static final String PROFILING_ENABLED = "_dd.profiling.enabled";
+  public static final String DSM_ENABLED = "_dd.dsm.enabled";
+  public static final String DJM_ENABLED = "_dd.djm.enabled";
 
   public static final String PROFILING_CONTEXT_ENGINE = "_dd.profiling.ctx";
   public static final String BASE_SERVICE = "_dd.base_service";

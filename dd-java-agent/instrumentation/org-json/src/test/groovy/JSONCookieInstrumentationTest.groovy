@@ -22,8 +22,8 @@ class JSONCookieInstrumentationTest extends AgentTestRunner {
 
 
     then:
-    1 * module.taintIfTainted(_ as JSONObject, cookie)
-    1 * module.taintIfTainted(_ as JSONTokener, cookie)
+    1 * module.taintObjectIfTainted(_ as JSONObject, cookie)
+    1 * module.taintObjectIfTainted(_ as JSONTokener, cookie)
     0 * _
   }
 }

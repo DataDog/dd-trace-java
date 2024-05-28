@@ -1,5 +1,8 @@
 package datadog.communication.http;
 
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.net.ConnectException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -34,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * instance.
  */
 @NotThreadSafe
-public class HttpRetryPolicy {
+public class HttpRetryPolicy implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(HttpRetryPolicy.class);
 
@@ -47,12 +50,35 @@ public class HttpRetryPolicy {
 
   private int retriesLeft;
   private long delay;
+  private boolean interrupted;
   private final double delayFactor;
+  private final boolean suppressInterrupts;
 
-  private HttpRetryPolicy(int retriesLeft, long delay, double delayFactor) {
+  private HttpRetryPolicy(
+      int retriesLeft, long delay, double delayFactor, boolean suppressInterrupts) {
     this.retriesLeft = retriesLeft;
     this.delay = delay;
     this.delayFactor = delayFactor;
+    this.suppressInterrupts = suppressInterrupts;
+  }
+
+  public boolean shouldRetry(Exception e) {
+    if (e instanceof ConnectException) {
+      return shouldRetry((okhttp3.Response) null);
+    }
+    if (e instanceof InterruptedIOException) {
+      if (suppressInterrupts) {
+        return shouldRetry((okhttp3.Response) null);
+      }
+    }
+    if (e instanceof InterruptedException) {
+      if (suppressInterrupts) {
+        // remember interrupted status to restore the thread's interrupted flag later
+        interrupted = true;
+        return shouldRetry((okhttp3.Response) null);
+      }
+    }
+    return false;
   }
 
   public boolean shouldRetry(@Nullable okhttp3.Response response) {
@@ -106,25 +132,52 @@ public class HttpRetryPolicy {
     }
   }
 
-  public long backoff() {
+  long getBackoffDelay() {
     long currentDelay = delay;
     delay = (long) (delay * delayFactor);
     return currentDelay;
+  }
+
+  public void backoff() throws IOException {
+    try {
+      Thread.sleep(getBackoffDelay());
+    } catch (InterruptedException e) {
+      if (suppressInterrupts) {
+        // remember interrupted status to restore the thread's interrupted flag later
+        interrupted = true;
+      } else {
+        Thread.currentThread().interrupt();
+        throw new InterruptedIOException("thread interrupted");
+      }
+    }
+  }
+
+  @Override
+  public void close() {
+    if (interrupted) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   public static class Factory {
     private final int maxRetries;
     private final long initialDelay;
     private final double delayFactor;
+    private final boolean retryInterrupts;
 
     public Factory(int maxRetries, int initialDelay, double delayFactor) {
+      this(maxRetries, initialDelay, delayFactor, false);
+    }
+
+    public Factory(int maxRetries, int initialDelay, double delayFactor, boolean retryInterrupts) {
       this.maxRetries = maxRetries;
       this.initialDelay = initialDelay;
       this.delayFactor = delayFactor;
+      this.retryInterrupts = retryInterrupts;
     }
 
     public HttpRetryPolicy create() {
-      return new HttpRetryPolicy(maxRetries, initialDelay, delayFactor);
+      return new HttpRetryPolicy(maxRetries, initialDelay, delayFactor, retryInterrupts);
     }
   }
 }

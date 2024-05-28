@@ -10,6 +10,7 @@ import io.undertow.servlet.api.DeploymentInfo
 import io.undertow.servlet.api.DeploymentManager
 import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
+import spock.lang.IgnoreIf
 
 import javax.servlet.MultipartConfigElement
 
@@ -157,6 +158,9 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (!generateHttpRoute()) {
+      return super.expectedResourceName(endpoint, method, address)
+    }
     if (endpoint.status == 404 && endpoint.path == "/not-found") {
       return "404"
     } else if (endpoint.hasPathParam) {
@@ -198,8 +202,15 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     }
   }
 
+  def generateHttpRoute() {
+    true
+  }
+
   @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
+    if (!generateHttpRoute()) {
+      return null
+    }
     switch (endpoint) {
       case LOGIN:
       case NOT_FOUND:
@@ -211,6 +222,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     }
   }
 
+  @IgnoreIf({ !instance.generateHttpRoute() })
   def "test not-here"() {
     setup:
     def request = request(NOT_HERE, method, body).build()
@@ -257,7 +269,19 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   }
 }
 
-class UndertowServletV0ForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
+class UndertowServletV0Test extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
+}
+class UndertowServletNoHttpRouteForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
+  @Override
+  def generateHttpRoute() {
+    false
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("undertow.legacy.tracing.enabled", "false")
+  }
 }
 
 class UndertowServletV1ForkedTest extends UndertowServletTest implements TestingGenericHttpNamingConventions.ServerV1 {

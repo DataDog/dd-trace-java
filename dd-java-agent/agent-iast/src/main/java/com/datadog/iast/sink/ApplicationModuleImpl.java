@@ -1,5 +1,9 @@
 package com.datadog.iast.sink;
 
+import static com.datadog.iast.util.StringUtils.endsWithIgnoreCase;
+import static com.datadog.iast.util.StringUtils.substringTrim;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
@@ -11,64 +15,89 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitOption;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ApplicationModuleImpl extends SinkModuleBase implements ApplicationModule {
 
-  private static final String CONTEXT_LOADER_LISTENER_PATTERN =
-      "org\\.springframework\\.web\\.context\\.ContextLoaderListener";
+  private static final Logger LOGGER = LoggerFactory.getLogger(ApplicationModule.class);
 
-  private static final String CONTEXT_LOADER_LISTENER_VALUE =
+  /** Bounds for the file visitor depth when trying to locate insecure JSP folders */
+  private static final int JSP_MAX_WALK_DEPTH = 32;
+
+  private static final String CONTEXT_LOADER_LISTENER =
       "org.springframework.web.context.ContextLoaderListener";
-
-  private static final String DISPATCHER_SERVLET_PATTERN =
-      "org\\.springframework\\.web\\.servlet\\.DispatcherServlet";
-
-  private static final String DISPATCHER_SERVLET_VALUE =
+  private static final String DISPATCHER_SERVLET =
       "org.springframework.web.servlet.DispatcherServlet";
-
   private static final String DEFAULT_HTML_ESCAPE = "defaultHtmlEscape";
-
-  private static final String TOMCAT_MANAGER_APPLICATION = "Tomcat Manager Application";
-
   private static final String LISTINGS_PATTERN = "<param-name>listings</param-name>";
-
+  private static final String JETTY_LISTINGS_PATTERN = "<param-name>dirAllowed</param-name>";
+  private static final String WEBLOGIC_LISTING_PATTERN =
+      "<index-directory-enabled>true</index-directory-enabled>";
+  private static final String WEBSPHERE_XMI_LISTING_PATTERN = "directoryBrowsingEnabled=\"true\"";
+  private static final String WEBSPHERE_XML_LISTING_PATTERN =
+      "<enable-directory-browsing value=\"true\"/>";
   private static final String SESSION_TIMEOUT_START_TAG = "<session-timeout>";
-
   private static final String SESSION_TIMEOUT_END_TAG = "</session-timeout>";
-
   private static final String SECURITY_CONSTRAINT_START_TAG = "<security-constraint>";
-
   private static final String SECURITY_CONSTRAINT_END_TAG = "</security-constraint>";
-
   public static final String PARAM_VALUE_START_TAG = "<param-value>";
-
   public static final String PARAM_VALUE_END_TAG = "</param-value>";
-
+  public static final String DISPLAY_NAME_START_TAG = "<display-name>";
+  public static final String DISPLAY_NAME_END_TAG = "</display-name>";
+  static final String TOMCAT_MANAGER_APP = "Tomcat Manager Application";
+  private static final String TOMCAT_MANAGER_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + TOMCAT_MANAGER_APP + DISPLAY_NAME_END_TAG;
+  static final String TOMCAT_HOST_MANAGER_APP = "Tomcat Host Manager Application";
+  private static final String TOMCAT_HOST_MANAGER_APP_PATTERN =
+      DISPLAY_NAME_START_TAG + TOMCAT_HOST_MANAGER_APP + DISPLAY_NAME_END_TAG;
   public static final String WEB_INF = "WEB-INF";
-
   public static final String WEB_XML = "web.xml";
+  public static final String WEBLOGIC_XML = "weblogic.xml";
+  public static final String IBM_WEB_EXT_XMI = "ibm-web-ext.xmi";
+  public static final String IBM_WEB_EXT_XML = "ibm-web-ext.xml";
+  static final String SESSION_REWRITING_EVIDENCE_VALUE = "Servlet URL Session Tracking Mode";
 
-  private static final String REGEX =
-      String.join(
-          "|",
-          CONTEXT_LOADER_LISTENER_PATTERN,
-          DISPATCHER_SERVLET_PATTERN,
-          DEFAULT_HTML_ESCAPE,
-          TOMCAT_MANAGER_APPLICATION,
-          LISTINGS_PATTERN,
-          SESSION_TIMEOUT_START_TAG,
-          SECURITY_CONSTRAINT_START_TAG);
+  private static final Pattern PATTERN =
+      Pattern.compile(
+          Stream.of(
+                  CONTEXT_LOADER_LISTENER,
+                  DISPATCHER_SERVLET,
+                  DEFAULT_HTML_ESCAPE,
+                  TOMCAT_MANAGER_APP_PATTERN,
+                  TOMCAT_HOST_MANAGER_APP_PATTERN,
+                  LISTINGS_PATTERN,
+                  JETTY_LISTINGS_PATTERN,
+                  SESSION_TIMEOUT_START_TAG,
+                  SECURITY_CONSTRAINT_START_TAG)
+              .map(Pattern::quote)
+              .collect(Collectors.joining("|")));
 
-  private static final Pattern PATTERN = Pattern.compile(REGEX);
+  private static final Pattern WEBLOGIC_PATTERN =
+      Pattern.compile(WEBLOGIC_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern WEBSPHERE_XMI_PATTERN =
+      Pattern.compile(WEBSPHERE_XMI_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern WEBSPHERE_XML_PATTERN =
+      Pattern.compile(WEBSPHERE_XML_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
 
   private static final int NO_LINE = -1;
 
@@ -76,18 +105,89 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     super(dependencies);
   }
 
+  /**
+   * Overhead is not checked here as it's called once per application context
+   *
+   * @param realPath the real path of the application
+   */
   @Override
   public void onRealPath(final @Nullable String realPath) {
-
     if (realPath == null) {
       return;
     }
-
+    final Path root = Paths.get(realPath);
+    if (!Files.exists(root)) {
+      return;
+    }
     final AgentSpan span = AgentTracer.activeSpan();
+    checkInsecureJSPLayout(root, span);
+    checkWebXmlVulnerabilities(root, span);
+    // WEBLOGIC
+    checkWeblogicVulnerabilities(root, span);
+    // WEBSPHERE
+    checkWebsphereVulnerabilities(root, span);
+  }
 
-    checkInsecureJSPLayout(realPath, span);
+  /**
+   * Overhead is not checked here as it's called once per application context
+   *
+   * @param sessionTrackingModes the session tracking modes
+   */
+  @Override
+  public void checkSessionTrackingModes(@Nonnull Set<String> sessionTrackingModes) {
+    if (!sessionTrackingModes.contains("URL")) {
+      return;
+    }
+    final AgentSpan span = AgentTracer.activeSpan();
+    // No deduplication is needed as same service can have multiple applications
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.SESSION_REWRITING,
+            Location.forSpan(span),
+            new Evidence(SESSION_REWRITING_EVIDENCE_VALUE)));
+  }
 
-    String webXmlContent = webXmlContent(realPath);
+  private void checkWebsphereVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    checkWebsphereXMLVulnerabilities(path, span);
+    checkWebsphereXMIVulnerabilities(path, span);
+  }
+
+  private void checkWebsphereXMIVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String xmlContent = getXmlContent(path, IBM_WEB_EXT_XMI);
+    if (xmlContent == null) {
+      return;
+    }
+    Matcher matcher = WEBSPHERE_XMI_PATTERN.matcher(xmlContent);
+    while (matcher.find()) {
+      reportDirectoryListingLeak(xmlContent, matcher.start(), span);
+    }
+  }
+
+  private void checkWebsphereXMLVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String xmlContent = getXmlContent(path, IBM_WEB_EXT_XML);
+    if (xmlContent == null) {
+      return;
+    }
+    Matcher matcher = WEBSPHERE_XML_PATTERN.matcher(xmlContent);
+    while (matcher.find()) {
+      reportDirectoryListingLeak(xmlContent, matcher.start(), span);
+    }
+  }
+
+  private void checkWeblogicVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String xmlContent = getXmlContent(path, WEBLOGIC_XML);
+    if (xmlContent == null) {
+      return;
+    }
+    Matcher matcher = WEBLOGIC_PATTERN.matcher(xmlContent);
+    while (matcher.find()) {
+      reportDirectoryListingLeak(xmlContent, matcher.start(), span);
+    }
+  }
+
+  private void checkWebXmlVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String webXmlContent = getXmlContent(path, WEB_XML);
     if (webXmlContent == null) {
       return;
     }
@@ -99,17 +199,21 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     while (matcher.find()) {
       String match = matcher.group();
       switch (match) {
-        case DISPATCHER_SERVLET_VALUE:
-        case CONTEXT_LOADER_LISTENER_VALUE:
+        case DISPATCHER_SERVLET:
+        case CONTEXT_LOADER_LISTENER:
           isSpring = true;
           break;
         case DEFAULT_HTML_ESCAPE:
           defaultHtmlEscapeIndex = matcher.start();
           break;
-        case TOMCAT_MANAGER_APPLICATION:
-          reportAdminConsoleActive(span);
+        case TOMCAT_MANAGER_APP_PATTERN:
+          reportAdminConsoleActive(span, TOMCAT_MANAGER_APP);
+          break;
+        case TOMCAT_HOST_MANAGER_APP_PATTERN:
+          reportAdminConsoleActive(span, TOMCAT_HOST_MANAGER_APP);
           break;
         case LISTINGS_PATTERN:
+        case JETTY_LISTINGS_PATTERN:
           checkDirectoryListingLeak(webXmlContent, matcher.start(), span);
           break;
         case SESSION_TIMEOUT_START_TAG:
@@ -124,19 +228,19 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
 
     if (isSpring) {
-      checkDefaultHtmlEscapeInvalid(webXmlContent, span, defaultHtmlEscapeIndex);
+      checkDefaultHtmlEscapeInvalid(webXmlContent, defaultHtmlEscapeIndex, span);
     }
   }
 
   private void checkDefaultHtmlEscapeInvalid(
-      String webXmlContent, AgentSpan span, int defaultHtmlEscapeIndex) {
+      @Nonnull String webXmlContent, int defaultHtmlEscapeIndex, AgentSpan span) {
     if (defaultHtmlEscapeIndex != -1) {
       int start =
           webXmlContent.indexOf(PARAM_VALUE_START_TAG, defaultHtmlEscapeIndex)
               + PARAM_VALUE_START_TAG.length();
       String value =
-          webXmlContent.substring(start, webXmlContent.indexOf(PARAM_VALUE_END_TAG, start));
-      if (!value.trim().toLowerCase().equals("true")) {
+          substringTrim(webXmlContent, start, webXmlContent.indexOf(PARAM_VALUE_END_TAG, start));
+      if (!value.equalsIgnoreCase("true")) {
         report(
             span,
             VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID,
@@ -152,8 +256,14 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
   }
 
-  private void reportAdminConsoleActive(AgentSpan span) {
-    report(span, VulnerabilityType.ADMIN_CONSOLE_ACTIVE, "Tomcat Manager Application", NO_LINE);
+  private void reportAdminConsoleActive(AgentSpan span, final String evidence) {
+    // No deduplication is needed as same service can have multiple applications
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.ADMIN_CONSOLE_ACTIVE,
+            Location.forSpan(span),
+            new Evidence(evidence)));
   }
 
   private void checkDirectoryListingLeak(
@@ -161,24 +271,28 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     int valueIndex =
         webXmlContent.indexOf(PARAM_VALUE_START_TAG, index) + PARAM_VALUE_START_TAG.length();
     int valueLast = webXmlContent.indexOf(PARAM_VALUE_END_TAG, valueIndex);
-    String data = webXmlContent.substring(valueIndex, valueLast);
-    if (data.trim().toLowerCase().equals("true")) {
-      report(
-          span,
-          VulnerabilityType.DIRECTORY_LISTING_LEAK,
-          "Directory listings configured",
-          getLine(webXmlContent, index));
+    String data = substringTrim(webXmlContent, valueIndex, valueLast);
+    if (data.equalsIgnoreCase("true")) {
+      reportDirectoryListingLeak(webXmlContent, index, span);
     }
+  }
+
+  private void reportDirectoryListingLeak(
+      final String webXmlContent, int index, final AgentSpan span) {
+    report(
+        span,
+        VulnerabilityType.DIRECTORY_LISTING_LEAK,
+        "Directory listings configured",
+        getLine(webXmlContent, index));
   }
 
   private void checkSessionTimeOut(final String webXmlContent, int index, final AgentSpan span) {
     try {
       String innerText =
-          webXmlContent
-              .substring(
-                  index + SESSION_TIMEOUT_START_TAG.length(),
-                  webXmlContent.indexOf(SESSION_TIMEOUT_END_TAG, index))
-              .trim();
+          substringTrim(
+              webXmlContent,
+              index + SESSION_TIMEOUT_START_TAG.length(),
+              webXmlContent.indexOf(SESSION_TIMEOUT_END_TAG, index));
       int timeoutValue = Integer.parseInt(innerText);
       if (timeoutValue > 30 || timeoutValue == -1) {
         report(
@@ -194,11 +308,10 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
 
   private void checkVerbTampering(final String webXmlContent, int index, final AgentSpan span) {
     String innerText =
-        webXmlContent
-            .substring(
-                index + SECURITY_CONSTRAINT_START_TAG.length(),
-                webXmlContent.indexOf(SECURITY_CONSTRAINT_END_TAG, index))
-            .trim();
+        substringTrim(
+            webXmlContent,
+            index + SECURITY_CONSTRAINT_START_TAG.length(),
+            webXmlContent.indexOf(SECURITY_CONSTRAINT_END_TAG, index));
     if (!innerText.contains("<http-method>")) {
       report(
           span,
@@ -208,7 +321,29 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
   }
 
-  private int getLine(String webXmlContent, int index) {
+  private void report(AgentSpan span, VulnerabilityType type, String value, int line) {
+    reporter.report(
+        span,
+        new Vulnerability(
+            type, Location.forSpanAndFileAndLine(span, WEB_XML, line), new Evidence(value)));
+  }
+
+  private void checkInsecureJSPLayout(@Nonnull Path path, AgentSpan span) {
+    final Collection<Path> jspPaths = findInsecureJspPaths(path);
+    if (jspPaths.isEmpty()) {
+      return;
+    }
+    String result =
+        jspPaths.stream()
+            .map(jspFolder -> relativize(path, jspFolder))
+            .collect(Collectors.joining(System.lineSeparator()));
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.INSECURE_JSP_LAYOUT, Location.forSpan(span), new Evidence(result)));
+  }
+
+  private static int getLine(String webXmlContent, int index) {
     int line = 1;
     int limit = Math.min(index, webXmlContent.length());
     for (int i = limit; i > 0; i--) {
@@ -219,71 +354,71 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     return line;
   }
 
-  private void report(AgentSpan span, VulnerabilityType type, String value, int line) {
-    reporter.report(
-        span,
-        new Vulnerability(
-            type, Location.forSpanAndFileAndLine(span, WEB_XML, line), new Evidence(value)));
-  }
-
-  private void checkInsecureJSPLayout(String realPath, AgentSpan span) {
-    List<String> jspPaths = findRecursively(new File(realPath));
-    if (jspPaths.isEmpty()) {
-      return;
-    }
-    String result =
-        jspPaths.stream()
-            .map(s -> File.separatorChar + s)
-            .collect(Collectors.joining(System.lineSeparator()));
-    reporter.report(
-        span,
-        new Vulnerability(
-            VulnerabilityType.INSECURE_JSP_LAYOUT, Location.forSpan(span), new Evidence(result)));
-  }
-
   @Nullable
-  private String webXmlContent(final String realPath) {
-    if (realPath != null) {
-      Path path = Paths.get(realPath + File.separatorChar + WEB_INF + File.separatorChar + WEB_XML);
-      if (path.toFile().exists()) {
-        try {
-          return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-          // Nothing to do
-        }
+  private static String getXmlContent(final Path realPath, final String fileName) {
+    Path path = realPath.resolve(WEB_INF).resolve(fileName);
+    if (Files.exists(path)) {
+      try {
+        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+      } catch (IOException e) {
+        LOGGER.debug(SEND_TELEMETRY, "Failed to read {}, encoding issue?", path, e);
       }
     }
     return null;
   }
 
-  private List<String> findRecursively(final File root) {
-    List<String> jspPaths = new ArrayList<>();
-    if (root.listFiles() != null) {
-      for (File file : root.listFiles()) {
-        if (file.isFile() && isJsp(file.getName().toLowerCase())) {
-          jspPaths.add(file.getName());
-        } else if (file.isDirectory() && !WEB_INF.equals(file.getName())) {
-          addDirectoryJSPs("", file, jspPaths);
-        }
-      }
-    }
-    return jspPaths;
-  }
-
-  private void addDirectoryJSPs(final String path, final File dir, final List<String> jspPaths) {
-    String currentPath = path + dir.getName() + File.separatorChar;
-    if (dir.listFiles() != null) {
-      for (File file : dir.listFiles()) {
-        if (file.isFile() && isJsp(file.getName().toLowerCase())) {
-          jspPaths.add(currentPath + file.getName());
-        } else if (file.isDirectory()) {
-          addDirectoryJSPs(currentPath, file, jspPaths);
-        }
-      }
+  private static Collection<Path> findInsecureJspPaths(final Path root) {
+    try {
+      final InsecureJspFolderVisitor visitor = new InsecureJspFolderVisitor();
+      // TODO is it OK to ignore symlinks here?
+      Files.walkFileTree(root, EnumSet.noneOf(FileVisitOption.class), JSP_MAX_WALK_DEPTH, visitor);
+      return visitor.folders;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 
-  private boolean isJsp(final String name) {
-    return name.endsWith(".jsp") || name.endsWith(".jspx");
+  private static String relativize(final Path root, final Path path) {
+    final String relative = root.relativize(path).toString();
+    if (relative.isEmpty()) {
+      return File.separator;
+    }
+    if (relative.charAt(0) == File.separatorChar) {
+      return relative;
+    }
+    return File.separatorChar + relative;
+  }
+
+  private static class InsecureJspFolderVisitor implements FileVisitor<Path> {
+    private final Set<Path> folders = new HashSet<>();
+
+    @Override
+    public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs) {
+      final String folder = dir.getFileName().toString();
+      if (endsWithIgnoreCase(folder, WEB_INF)) {
+        return FileVisitResult.SKIP_SUBTREE;
+      }
+      return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
+      final String fileName = file.getFileName().toString();
+      if (endsWithIgnoreCase(fileName, ".jsp") || endsWithIgnoreCase(fileName, ".jspx")) {
+        folders.add(file.getParent());
+        return FileVisitResult.SKIP_SIBLINGS;
+      }
+      return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult visitFileFailed(final Path file, final IOException exc) {
+      return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult postVisitDirectory(final Path dir, final IOException exc) {
+      return FileVisitResult.CONTINUE;
+    }
   }
 }

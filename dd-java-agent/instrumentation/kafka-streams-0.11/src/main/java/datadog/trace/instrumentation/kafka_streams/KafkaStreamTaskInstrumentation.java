@@ -48,7 +48,7 @@ import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 import org.apache.kafka.streams.processor.internals.StreamTask;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
@@ -64,6 +64,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      "datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapterInterface",
       "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
@@ -255,7 +256,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
         final long payloadSize =
             span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
-        if (STREAMING_CONTEXT.empty()) {
+        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, sortedTags, record.timestamp, payloadSize);
@@ -337,7 +338,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
         }
 
-        if (STREAMING_CONTEXT.empty()) {
+        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setCheckpoint(span, sortedTags, record.timestamp(), payloadSize);

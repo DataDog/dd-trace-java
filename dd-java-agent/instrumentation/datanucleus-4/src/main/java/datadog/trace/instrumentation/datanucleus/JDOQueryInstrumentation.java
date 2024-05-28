@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import org.datanucleus.api.jdo.JDOQuery;
 import org.datanucleus.store.query.Query;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JDOQueryInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

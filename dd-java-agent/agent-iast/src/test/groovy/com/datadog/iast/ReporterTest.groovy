@@ -24,7 +24,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-import static com.datadog.iast.IastTag.ANALYZED
+import static com.datadog.iast.IastTag.Enabled.ANALYZED
 import static com.datadog.iast.test.TaintedObjectsUtils.noOpTaintedObjects
 import static datadog.trace.api.config.IastConfig.IAST_DEDUPLICATION_ENABLED
 
@@ -447,6 +447,30 @@ class ReporterTest extends DDSpecification {
     then: 'there are vulnerabilities reported'
     1 * scheduler.scheduleAtFixedRate(_, 1, 1, TimeUnit.HOURS)
     0 * _
+  }
+
+  void 'Reporter when vulnerability is no deduplicable does not prevent duplicates'() {
+    given:
+    final Reporter reporter = new Reporter()
+    final batch = new VulnerabilityBatch()
+    final span = spanWithBatch(batch)
+    final vulnerability = new Vulnerability(
+      VulnerabilityType.SESSION_REWRITING,
+      Location.forSpan(span),
+      new Evidence("SESSION_REWRITING")
+      )
+
+    when: 'first time a vulnerability is reported'
+    reporter.report(span, vulnerability)
+
+    then:
+    batch.vulnerabilities.size() == 1
+
+    when: 'second time the a vulnerability is reported'
+    reporter.report(span, vulnerability)
+
+    then:
+    batch.vulnerabilities.size() == 2
   }
 
   private AgentSpan spanWithBatch(final VulnerabilityBatch batch) {

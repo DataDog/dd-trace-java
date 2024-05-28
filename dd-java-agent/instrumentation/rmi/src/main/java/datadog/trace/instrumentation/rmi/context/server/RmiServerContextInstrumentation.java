@@ -17,7 +17,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import sun.rmi.transport.Target;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RmiServerContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 

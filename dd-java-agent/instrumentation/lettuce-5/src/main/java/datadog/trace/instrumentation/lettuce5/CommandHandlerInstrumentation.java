@@ -22,7 +22,7 @@ import net.bytebuddy.asm.Advice;
  * This instrumentation activates the span associated with {@code
  * io.lettuce.core.protocol.AsyncCommand} during decoding.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class CommandHandlerInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForSingleType {
 

@@ -101,6 +101,7 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     requestSpan.setTag("graphql.operation.name", operationName);
     String resourceName = operationName != null ? operationName : state.getQuery();
     requestSpan.setResourceName(resourceName);
+    DECORATE.onRequest(requestSpan, parameters.getExecutionContext());
     return SimpleInstrumentationContext.noOp();
   }
 

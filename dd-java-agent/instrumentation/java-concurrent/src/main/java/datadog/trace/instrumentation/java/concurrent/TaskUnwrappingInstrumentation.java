@@ -7,7 +7,7 @@ import datadog.trace.agent.tooling.bytebuddy.profiling.UnwrappingVisitor;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
   public TaskUnwrappingInstrumentation() {
@@ -40,6 +40,8 @@ public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
     "runnable",
     "java.util.concurrent.ForkJoinTask$RunnableExecuteAction",
     "runnable",
+    "java.util.concurrent.ForkJoinTask$AdaptedInterruptibleCallable",
+    "callable",
     // netty
     "io.netty.util.concurrent.PromiseTask$RunnableAdapter",
     "task",
@@ -49,7 +51,15 @@ public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
     "io.grpc.netty.shaded.io.netty.util.concurrent.PromiseTask$RunnableAdapter",
     "task",
     "io.grpc.netty.shaded.io.netty.util.concurrent.PromiseTask",
-    "task"
+    "task",
+    "io.grpc.Context$1",
+    "val$r",
+    "io.grpc.Context$2",
+    "val$c",
+    "akka.dispatch.TaskInvocation",
+    "runnable",
+    "scala.concurrent.impl.CallbackRunnable",
+    "onComplete"
   };
 
   @Override

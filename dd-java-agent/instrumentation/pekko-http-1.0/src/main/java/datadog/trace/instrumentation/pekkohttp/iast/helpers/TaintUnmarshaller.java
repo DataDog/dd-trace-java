@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.pekkohttp.iast.helpers;
 
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.pekkohttp.iast.UnmarshallerInstrumentation;
 import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller;
 import org.apache.pekko.stream.Materializer;
@@ -28,7 +30,10 @@ public class TaintUnmarshaller<A, B> implements Unmarshaller<A, B> {
 
   @Override
   public Future<B> apply(A value, ExecutionContext ec, Materializer materializer) {
-    propagationModule.taint(value, SourceTypes.REQUEST_BODY);
+    IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
+    if (ctx != null) {
+      propagationModule.taintObject(ctx, value, SourceTypes.REQUEST_BODY);
+    }
     return delegate.apply(value, ec, materializer);
   }
 

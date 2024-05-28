@@ -22,7 +22,7 @@ import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
@@ -47,6 +47,7 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".TextMapInjectAdapterInterface",
       packageName + ".KafkaConsumerInfo",
       packageName + ".KafkaConsumerInstrumentationHelper",
       packageName + ".KafkaDecorator",

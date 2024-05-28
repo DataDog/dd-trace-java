@@ -5,10 +5,12 @@ import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_SAMPLING_PRIORITY;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
@@ -23,6 +25,7 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.normalize.HttpResourceNames;
+import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -97,6 +100,8 @@ public class TagInterceptor {
       case DDTags.MANUAL_DROP:
         return interceptSamplingPriority(
             FORCE_MANUAL_DROP, USER_DROP, SamplingMechanism.MANUAL, span, value);
+      case Tags.SAMPLING_PRIORITY:
+        return interceptSamplingPriority(span, value);
       case InstrumentationTags.SERVLET_CONTEXT:
         return interceptServletContext(span, value);
       case SPAN_TYPE:
@@ -217,7 +222,9 @@ public class TagInterceptor {
   private boolean interceptServiceName(
       RuleFlags.Feature feature, DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(feature)) {
-      span.setServiceName(String.valueOf(value));
+      String serviceName = String.valueOf(value);
+      span.setServiceName(serviceName);
+      ServiceNameCollector.get().addService(serviceName);
       return true;
     }
     return false;
@@ -232,6 +239,18 @@ public class TagInterceptor {
     if (ruleFlags.isEnabled(feature)) {
       if (asBoolean(value)) {
         span.setSamplingPriority(samplingPriority, samplingMechanism);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private boolean interceptSamplingPriority(DDSpanContext span, Object value) {
+    if (ruleFlags.isEnabled(FORCE_SAMPLING_PRIORITY)) {
+      Number samplingPriority = getOrTryParse(value);
+      if (null != samplingPriority) {
+        span.setSamplingPriority(
+            samplingPriority.intValue() > 0 ? USER_KEEP : USER_DROP, SamplingMechanism.MANUAL);
       }
       return true;
     }
@@ -253,15 +272,20 @@ public class TagInterceptor {
     }
     String contextName = String.valueOf(value).trim();
     if (!contextName.isEmpty()) {
+      String serviceName = null;
       if (contextName.equals("/")) {
-        span.setServiceName(Config.get().getRootContextServiceName());
+        serviceName = Config.get().getRootContextServiceName();
+        span.setServiceName(serviceName);
       } else if (contextName.charAt(0) == '/') {
         if (contextName.length() > 1) {
-          span.setServiceName(contextName.substring(1));
+          serviceName = contextName.substring(1);
+          span.setServiceName(serviceName);
         }
       } else {
-        span.setServiceName(contextName);
+        serviceName = contextName;
+        span.setServiceName(serviceName);
       }
+      ServiceNameCollector.get().addService(serviceName);
     }
     return false;
   }

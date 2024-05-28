@@ -14,12 +14,14 @@ muzzle {
     extraDependency "org.springframework:spring-aop:1.2"
     assertInverse = true
   }
+
   pass {
     group = 'org.springframework'
     module = 'spring-aop'
     versions = "[1.2,6)"
     extraDependency "org.springframework.data:spring-data-commons:1.8.0.RELEASE"
     assertInverse = true
+    skipFromReport = true
   }
 }
 

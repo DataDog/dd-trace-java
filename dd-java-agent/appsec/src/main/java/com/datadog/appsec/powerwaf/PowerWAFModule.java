@@ -384,6 +384,7 @@ public class PowerWAFModule implements AppSecModule {
     addressList.add(KnownAddresses.REQUEST_BODY_RAW);
     addressList.add(KnownAddresses.RESPONSE_HEADERS_NO_COOKIES);
     addressList.add(KnownAddresses.RESPONSE_BODY_OBJECT);
+    addressList.add(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS);
 
     return addressList;
   }
@@ -511,8 +512,7 @@ public class PowerWAFModule implements AppSecModule {
       PowerwafMetrics metrics = reqCtx.getWafMetrics();
 
       if (isTransient) {
-        DataBundle bundle = DataBundle.unionOf(newData, reqCtx);
-        return runPowerwafTransient(metrics, bundle, ctxAndAddr);
+        return runPowerwafTransient(additive, metrics, newData, ctxAndAddr);
       } else {
         return runPowerwafAdditive(additive, metrics, newData, ctxAndAddr);
       }
@@ -527,9 +527,9 @@ public class PowerWAFModule implements AppSecModule {
   }
 
   private Powerwaf.ResultWithData runPowerwafTransient(
-      PowerwafMetrics metrics, DataBundle bundle, CtxAndAddresses ctxAndAddr)
+      Additive additive, PowerwafMetrics metrics, DataBundle bundle, CtxAndAddresses ctxAndAddr)
       throws AbstractPowerwafException {
-    return ctxAndAddr.ctx.runRules(
+    return additive.runEphemeral(
         new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, bundle), LIMITS, metrics);
   }
 

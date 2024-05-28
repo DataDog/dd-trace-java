@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpRequest;
 import org.apache.http.nio.NHttpServerConnection;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class SynapseServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

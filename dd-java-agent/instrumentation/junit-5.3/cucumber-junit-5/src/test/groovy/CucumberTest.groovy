@@ -17,47 +17,48 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 class CucumberTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    setup:
     runFeatures(features, parallel)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName                                 | features                                                                                                                         | parallel | expectedTracesCount
-    "test-succeed"                               | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                                                                     | false    | 2
-    "test-scenario-outline-${version()}"         | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]                                                       | false    | 5
-    "test-skipped"                               | ["org/example/cucumber/calculator/basic_arithmetic_skipped.feature"]                                                             | false    | 3
-    "test-skipped-feature"                       | ["org/example/cucumber/calculator/basic_arithmetic_skipped_feature.feature"]                                                     | false    | 3
-    "test-skipped-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_skipped.feature"]                                               | false    | 5
+    testcaseName                                 | features                                                                           | parallel | expectedTracesCount
+    "test-succeed"                               | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                       | false    | 2
+    "test-scenario-outline-${version()}"         | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]         | false    | 5
+    "test-skipped"                               | ["org/example/cucumber/calculator/basic_arithmetic_skipped.feature"]               | false    | 3
+    "test-skipped-feature"                       | ["org/example/cucumber/calculator/basic_arithmetic_skipped_feature.feature"]       | false    | 3
+    "test-skipped-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_skipped.feature"] | false    | 5
     "test-parallel"                              | [
       "org/example/cucumber/calculator/basic_arithmetic.feature",
       "org/example/cucumber/calculator/basic_arithmetic_skipped.feature"
-    ] | true     | 4
+    ]                                                                                                                                 | true     | 4
   }
 
   def "test ITR #testcaseName"() {
-    setup:
     givenSkippableTests(skippedTests)
+
     runFeatures(features, false)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
     testcaseName                 | features                                                                       | expectedTracesCount | skippedTests
-    "test-itr-skipping"          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                   | 2                   | [new TestIdentifier("Basic Arithmetic", "Addition", null, null)]
-    "test-itr-unskippable"       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]       | 2                   | [new TestIdentifier("Basic Arithmetic", "Addition", null, null)]
-    "test-itr-unskippable-suite" | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"] | 2                   | [new TestIdentifier("Basic Arithmetic", "Addition", null, null)]
+    "test-itr-skipping"          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                   | 2                   | [
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null, null)
+    ]
+    "test-itr-unskippable"       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]       | 2                   | [
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_unskippable.feature:Basic Arithmetic", "Addition", null, null)
+    ]
+    "test-itr-unskippable-suite" | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"] | 2                   | [
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature:Basic Arithmetic", "Addition", null, null)
+    ]
   }
 
   def "test flaky retries #testcaseName"() {
-    setup:
     givenFlakyTests(retriedTests)
 
     runFeatures(features, false)
 
-    expect:
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
@@ -74,6 +75,23 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     ]
   }
 
+  def "test early flakiness detection #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runFeatures(features, false)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                                 | features                                                                   | expectedTracesCount | knownTestsList
+    "test-efd-known-test"                        | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | 2                   | [
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null, null)
+    ]
+    "test-efd-new-test"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | 4                   | []
+    "test-efd-new-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | 9                   | []
+    "test-efd-new-slow-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_slow.feature"]          | 3                   | []
+  }
+
   private String parameterizedTestNameSuffix() {
     // older releases report different example names
     version() == "5.4.0" ? "Example #1" : "Example #1.1"
@@ -85,7 +103,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   protected void runFeatures(List<String> classpathFeatures, boolean parallel) {
-    TestEventsHandlerHolder.start()
+    TestEventsHandlerHolder.startForcefully()
 
     DiscoverySelector[] selectors = new DiscoverySelector[classpathFeatures.size()]
     for (i in 0..<classpathFeatures.size()) {

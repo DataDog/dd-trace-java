@@ -5,6 +5,7 @@ import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
@@ -903,5 +904,85 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
       vul.type == 'INSECURE_AUTH_PROTOCOL'
     }
   }
+
+  void "Check reflection injection forName"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/class?param=java.lang.String"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionClass'
+      && vul.evidence.valueParts[0].value == "java.lang.String"
+    }
+  }
+
+  void "Check reflection injection getMethod"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/method?param=isEmpty"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionMethod'
+      && vul.evidence.valueParts[0].value == "java.lang.String#"
+      && vul.evidence.valueParts[1].value == "isEmpty"
+      && vul.evidence.valueParts[2].value == "()"
+    }
+  }
+
+  void "Check reflection injection getField"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/field?param=hash"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionField'
+      && vul.evidence.valueParts[0].value == "java.lang.String#"
+      && vul.evidence.valueParts[1].value == "hash"
+    }
+  }
+
+  void "Check reflection injection lookup"() {
+    setup:
+    String url = "http://localhost:${httpPort}/reflection_injection/lookup?param=hash"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+      && vul.location.method == 'reflectionInjectionLookup'
+      && vul.evidence.valueParts[0].value == "java.lang.String#"
+      && vul.evidence.valueParts[1].value == "hash"
+    }
+  }
+
+  void 'find session rewriting'() {
+    given:
+    String url = "http://localhost:${httpPort}/greeting"
+
+    when:
+    Response response = client.newCall(new Request.Builder().url(url).get().build()).execute()
+
+    then:
+    response.successful
+    hasVulnerabilityInLogs { vul ->
+      vul.type == 'SESSION_REWRITING'
+    }
+  }
+
+
 
 }

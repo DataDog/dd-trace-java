@@ -92,7 +92,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   }
 
   public final class Builder {
-
+    boolean tracingEnabled;
     boolean runtimeMetricsEnabled;
     boolean logsInjectionEnabled;
     boolean dataStreamsEnabled;
@@ -100,11 +100,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     Map<String, String> serviceMapping;
     Map<String, String> requestHeaderTags;
     Map<String, String> responseHeaderTags;
+    Map<String, String> tracingTags;
     Map<String, String> baggageMapping;
 
     List<? extends SpanSamplingRule> spanSamplingRules;
     List<? extends TraceSamplingRule> traceSamplingRules;
-
     Double traceSampleRate;
 
     String preferredServiceName;
@@ -113,6 +113,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     Builder(Snapshot snapshot) {
 
+      this.tracingEnabled = snapshot.tracingEnabled;
       this.runtimeMetricsEnabled = snapshot.runtimeMetricsEnabled;
       this.logsInjectionEnabled = snapshot.logsInjectionEnabled;
       this.dataStreamsEnabled = snapshot.dataStreamsEnabled;
@@ -122,7 +123,12 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.responseHeaderTags = snapshot.responseHeaderTags;
       this.baggageMapping = snapshot.baggageMapping;
 
+      this.spanSamplingRules = snapshot.spanSamplingRules;
+      this.traceSamplingRules = snapshot.traceSamplingRules;
       this.traceSampleRate = snapshot.traceSampleRate;
+
+      this.tracingTags = snapshot.tracingTags;
+
       this.preferredServiceName = snapshot.preferredServiceName;
     }
 
@@ -192,6 +198,16 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setTraceSamplingRules(List<? extends TraceSamplingRule> traceSamplingRules) {
       this.traceSamplingRules = traceSamplingRules;
+      return this;
+    }
+
+    public Builder setTracingTags(Map<String, String> tracingTags) {
+      this.tracingTags = tracingTags;
+      return this;
+    }
+
+    public Builder setTracingEnabled(boolean tracingEnabled) {
+      this.tracingEnabled = tracingEnabled;
       return this;
     }
 
@@ -283,6 +299,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
   /** Immutable snapshot of the configuration. */
   public static class Snapshot implements TraceConfig {
+    final boolean tracingEnabled;
     final boolean runtimeMetricsEnabled;
     final boolean logsInjectionEnabled;
     final boolean dataStreamsEnabled;
@@ -296,11 +313,13 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final List<? extends TraceSamplingRule> traceSamplingRules;
 
     final Double traceSampleRate;
+    final Map<String, String> tracingTags;
 
     final String preferredServiceName;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
+      this.tracingEnabled = builder.tracingEnabled;
       this.runtimeMetricsEnabled = builder.runtimeMetricsEnabled;
       this.logsInjectionEnabled = builder.logsInjectionEnabled;
       this.dataStreamsEnabled = builder.dataStreamsEnabled;
@@ -310,15 +329,26 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.responseHeaderTags = nullToEmpty(builder.responseHeaderTags);
       this.baggageMapping = nullToEmpty(builder.baggageMapping);
 
+      this.spanSamplingRules = nullToEmpty(builder.spanSamplingRules);
+      this.traceSamplingRules = nullToEmpty(builder.traceSamplingRules);
       this.traceSampleRate = builder.traceSampleRate;
 
-      this.spanSamplingRules = builder.spanSamplingRules;
-      this.traceSamplingRules = builder.traceSamplingRules;
+      this.tracingTags = nullToEmpty(builder.tracingTags);
+
       this.preferredServiceName = builder.preferredServiceName;
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
       return null != mapping ? mapping : Collections.emptyMap();
+    }
+
+    private static <V> List<V> nullToEmpty(List<V> list) {
+      return null != list ? list : Collections.emptyList();
+    }
+
+    @Override
+    public boolean isTraceEnabled() {
+      return tracingEnabled;
     }
 
     @Override
@@ -377,6 +407,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     @Override
+    public Map<String, String> getTracingTags() {
+      return tracingTags;
+    }
+
+    @Override
     public String toString() {
       return "DynamicConfig{"
           + "debugEnabled="
@@ -401,6 +436,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
           + traceSamplingRules
           + ", traceSampleRate="
           + traceSampleRate
+          + ", tracingTags="
+          + tracingTags
           + ", preferredServiceName="
           + preferredServiceName
           + '}';

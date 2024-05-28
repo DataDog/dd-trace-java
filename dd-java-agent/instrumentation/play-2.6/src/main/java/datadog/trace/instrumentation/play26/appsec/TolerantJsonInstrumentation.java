@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 import play.mvc.Http;
 
 /** @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString) */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public TolerantJsonInstrumentation() {

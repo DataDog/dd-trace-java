@@ -1,5 +1,14 @@
 package datadog.trace.core;
 
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_CUSTOM_TAGS;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_HTTP_HEADER_TAGS;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_LOGS_INJECTION;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_SAMPLE_RATE;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_SAMPLE_RULES;
+import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_TRACING_ENABLED;
+import static datadog.trace.api.sampling.SamplingRule.normalizeGlob;
+
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -11,19 +20,24 @@ import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
+import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
 import datadog.trace.logging.LogLevel;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class TracingConfigPoller {
-  private static final Logger log = LoggerFactory.getLogger(TracingConfigPoller.class);
+  static final Logger log = LoggerFactory.getLogger(TracingConfigPoller.class);
 
   private final DynamicConfig<?> dynamicConfig;
 
@@ -37,8 +51,19 @@ final class TracingConfigPoller {
 
   public void start(Config config, SharedCommunicationObjects sco) {
     this.startupLogsEnabled = config.isStartupLogsEnabled();
+    ConfigurationPoller configPoller = sco.configurationPoller(config);
 
-    stopPolling = new Updater().register(config, sco);
+    if (configPoller != null) {
+      configPoller.addCapabilities(
+          CAPABILITY_APM_TRACING_TRACING_ENABLED
+              | CAPABILITY_APM_TRACING_SAMPLE_RATE
+              | CAPABILITY_APM_LOGS_INJECTION
+              | CAPABILITY_APM_HTTP_HEADER_TAGS
+              | CAPABILITY_APM_CUSTOM_TAGS
+              | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED
+              | CAPABILITY_APM_TRACING_SAMPLE_RULES);
+    }
+    stopPolling = new Updater().register(config, configPoller);
   }
 
   public void stop() {
@@ -49,16 +74,17 @@ final class TracingConfigPoller {
 
   final class Updater implements ProductListener {
     private final JsonAdapter<ConfigOverrides> CONFIG_OVERRIDES_ADAPTER;
+    private final JsonAdapter<TracingSamplingRule> TRACE_SAMPLING_RULE;
 
     {
       Moshi MOSHI = new Moshi.Builder().build();
       CONFIG_OVERRIDES_ADAPTER = MOSHI.adapter(ConfigOverrides.class);
+      TRACE_SAMPLING_RULE = MOSHI.adapter(TracingSamplingRule.class);
     }
 
     private boolean receivedOverrides = false;
 
-    public Runnable register(Config config, SharedCommunicationObjects sco) {
-      ConfigurationPoller poller = sco.configurationPoller(config);
+    public Runnable register(Config config, ConfigurationPoller poller) {
       if (null != poller) {
         poller.addListener(Product.APM_TRACING, this);
         return poller::stop;
@@ -94,9 +120,8 @@ final class TracingConfigPoller {
             throw new IllegalArgumentException("env mismatch");
           }
         }
-
         receivedOverrides = true;
-        applyConfigOverrides(overrides.libConfig);
+        applyConfigOverrides(checkConfig(overrides.libConfig));
         if (log.isDebugEnabled()) {
           log.debug(
               "Applied APM_TRACING overrides: {}", CONFIG_OVERRIDES_ADAPTER.toJson(overrides));
@@ -117,6 +142,51 @@ final class TracingConfigPoller {
       } else {
         receivedOverrides = false;
       }
+    }
+
+    private LibConfig checkConfig(LibConfig libConfig) {
+      libConfig.traceSampleRate = checkSampleRate(libConfig.traceSampleRate);
+      libConfig.tracingSamplingRules = checkSamplingRules(libConfig.tracingSamplingRules);
+      return libConfig;
+    }
+
+    private Double checkSampleRate(Double sampleRate) {
+      if (null != sampleRate) {
+        if (sampleRate > 1.0) {
+          log.debug("Unexpected sample rate {}, using 1.0", sampleRate);
+          return 1.0;
+        }
+        if (sampleRate < 0.0) {
+          log.debug("Unexpected sample rate {}, using 0.0", sampleRate);
+          return 0.0;
+        }
+      }
+      return sampleRate;
+    }
+
+    private List<TracingSamplingRule> checkSamplingRules(List<TracingSamplingRule> rules) {
+      if (null != rules) {
+        for (Iterator<TracingSamplingRule> itr = rules.iterator(); itr.hasNext(); ) {
+          TracingSamplingRule rule = itr.next();
+          // check for required fields
+          if ((null == rule.service
+                  && null == rule.name
+                  && null == rule.resource
+                  && null == rule.tags)
+              || null == rule.sampleRate
+              || null == rule.provenance) {
+            log.debug(
+                "Invalid sampling rule from remote-config, rule will be removed: {}",
+                TRACE_SAMPLING_RULE.toJson(rule));
+            itr.remove();
+          }
+          rule.service = normalizeGlob(rule.service);
+          rule.name = normalizeGlob(rule.name);
+          rule.resource = normalizeGlob(rule.resource);
+          rule.sampleRate = checkSampleRate(rule.sampleRate);
+        }
+      }
+      return rules;
     }
   }
 
@@ -140,6 +210,7 @@ final class TracingConfigPoller {
       GlobalLogLevelSwitcher.get().restore();
     }
 
+    maybeOverride(builder::setTracingEnabled, libConfig.tracingEnabled);
     maybeOverride(builder::setRuntimeMetricsEnabled, libConfig.runtimeMetricsEnabled);
     maybeOverride(builder::setLogsInjectionEnabled, libConfig.logsInjectionEnabled);
     maybeOverride(builder::setDataStreamsEnabled, libConfig.dataStreamsEnabled);
@@ -147,7 +218,10 @@ final class TracingConfigPoller {
     maybeOverride(builder::setServiceMapping, libConfig.serviceMapping);
     maybeOverride(builder::setHeaderTags, libConfig.headerTags);
 
+    maybeOverride(builder::setTraceSamplingRules, libConfig.tracingSamplingRules);
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
+
+    maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
 
     builder.apply();
   }
@@ -161,6 +235,27 @@ final class TracingConfigPoller {
     if (null != override) {
       setter.accept(override);
     }
+  }
+
+  private Map<String, String> parseTagListToMap(List<String> input) {
+    Map<String, String> resultMap = Collections.emptyMap();
+    if (null == input || input.isEmpty()) {
+      return resultMap;
+    }
+    resultMap = new HashMap<>(input.size());
+    for (String s : input) {
+      int colonIndex = s.indexOf(":");
+      if (colonIndex > -1
+          && colonIndex < s.length() - 1) { // ensure there's a colon that's not at the start or end
+        String key = s.substring(0, colonIndex);
+        String value = s.substring(colonIndex + 1);
+        if (!key.isEmpty() && !value.isEmpty()) {
+          resultMap.put(key, value);
+        }
+      }
+    }
+
+    return resultMap;
   }
 
   static final class ConfigOverrides {
@@ -180,6 +275,9 @@ final class TracingConfigPoller {
   }
 
   static final class LibConfig {
+    @Json(name = "tracing_enabled")
+    public Boolean tracingEnabled;
+
     @Json(name = "tracing_debug")
     public Boolean debugEnabled;
 
@@ -200,6 +298,12 @@ final class TracingConfigPoller {
 
     @Json(name = "tracing_sampling_rate")
     public Double traceSampleRate;
+
+    @Json(name = "tracing_tags")
+    public List<String> tracingTags;
+
+    @Json(name = "tracing_sampling_rules")
+    public List<TracingSamplingRule> tracingSamplingRules;
   }
 
   static final class ServiceMappingEntry implements Map.Entry<String, String> {
@@ -240,6 +344,94 @@ final class TracingConfigPoller {
     @Override
     public String getValue() {
       return tagName;
+    }
+
+    @Override
+    public String setValue(String value) {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  static final class TracingSamplingRule implements SamplingRule.TraceSamplingRule {
+    @Json(name = "service")
+    public String service;
+
+    @Json(name = "name")
+    public String name;
+
+    @Json(name = "resource")
+    public String resource;
+
+    @Json(name = "tags")
+    public List<SamplingRuleTagEntry> tags;
+
+    @Json(name = "sample_rate")
+    public Double sampleRate;
+
+    @Json(name = "provenance")
+    public String provenance;
+
+    private transient Map<String, String> tagMap;
+
+    @Override
+    public String getService() {
+      return service;
+    }
+
+    @Override
+    public String getName() {
+      return name;
+    }
+
+    @Override
+    public String getResource() {
+      return resource;
+    }
+
+    @Override
+    public Map<String, String> getTags() {
+      if (null == tagMap) {
+        tagMap =
+            null == tags
+                ? Collections.emptyMap()
+                : tags.stream()
+                    .collect(
+                        Collectors.toMap(
+                            SamplingRuleTagEntry::getKey, e -> normalizeGlob(e.getValue())));
+      }
+      return tagMap;
+    }
+
+    @Override
+    public double getSampleRate() {
+      return sampleRate;
+    }
+
+    @Override
+    public Provenance getProvenance() {
+      if ("dynamic".equals(provenance)) {
+        return Provenance.DYNAMIC;
+      } else {
+        return Provenance.CUSTOMER;
+      }
+    }
+  }
+
+  static final class SamplingRuleTagEntry implements Map.Entry<String, String> {
+    @Json(name = "key")
+    public String key;
+
+    @Json(name = "value_glob")
+    public String value;
+
+    @Override
+    public String getKey() {
+      return key;
+    }
+
+    @Override
+    public String getValue() {
+      return value;
     }
 
     @Override

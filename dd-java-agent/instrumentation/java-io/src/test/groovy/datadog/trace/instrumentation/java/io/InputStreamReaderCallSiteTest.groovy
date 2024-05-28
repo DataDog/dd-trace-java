@@ -17,7 +17,7 @@ class InputStreamReaderCallSiteTest extends  BaseIoCallSiteTest{
     TestInputStreamReaderSuite.init(new ByteArrayInputStream("test".getBytes()), Charset.defaultCharset())
 
     then:
-    1 * iastModule.taintIfTainted(_ as InputStreamReader, _ as InputStream)
+    1 * iastModule.taintObjectIfTainted(_ as InputStreamReader, _ as InputStream)
     0 * _
   }
 }

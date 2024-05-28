@@ -7,7 +7,12 @@ import org.example.TestFailedKarate
 import org.example.TestFailedParameterizedKarate
 import org.example.TestFailedThenSucceedKarate
 import org.example.TestParameterizedKarate
+import org.example.TestParameterizedMoreCasesKarate
+import org.example.TestSkippedFeatureKarate
 import org.example.TestSucceedKarate
+import org.example.TestSucceedKarateSlow
+import org.example.TestSucceedOneCaseKarate
+import org.example.TestSucceedParallelKarate
 import org.example.TestUnskippableKarate
 import org.example.TestWithSetupKarate
 import org.junit.jupiter.api.Assumptions
@@ -23,7 +28,6 @@ import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 class KarateTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
-    setup:
     Assumptions.assumeTrue(assumption)
 
     runTests(tests)
@@ -31,15 +35,16 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName         | tests                     | expectedTracesCount | assumption
-    "test-succeed"       | [TestSucceedKarate]       | 3                   | true
-    "test-with-setup"    | [TestWithSetupKarate]     | 3                   | isSetupTagSupported(FileUtils.KARATE_VERSION)
-    "test-parameterized" | [TestParameterizedKarate] | 3                   | true
-    "test-failed"        | [TestFailedKarate]        | 3                   | true
+    testcaseName            | tests                       | expectedTracesCount | assumption
+    "test-succeed"          | [TestSucceedKarate]         | 3                   | true
+    "test-succeed-parallel" | [TestSucceedParallelKarate] | 3                   | true
+    "test-with-setup"       | [TestWithSetupKarate]       | 3                   | isSetupTagSupported(FileUtils.KARATE_VERSION)
+    "test-parameterized"    | [TestParameterizedKarate]   | 3                   | true
+    "test-failed"           | [TestFailedKarate]          | 3                   | true
+    "test-skipped-feature"  | [TestSkippedFeatureKarate]  | 1                   | true
   }
 
   def "test ITR #testcaseName"() {
-    setup:
     Assumptions.assumeTrue(isSkippingSupported(FileUtils.KARATE_VERSION))
 
     givenSkippableTests(skippedTests)
@@ -58,7 +63,6 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test flaky retries #testcaseName"() {
-    setup:
     givenFlakyTests(retriedTests)
 
     runTests(tests)
@@ -75,6 +79,27 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     "test-retry-parameterized" | [TestFailedParameterizedKarate] | 3                   | [
       new TestIdentifier("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline", null, null)
     ]
+  }
+
+  def "test early flakiness detection #testcaseName"() {
+    givenKnownTests(knownTestsList)
+
+    runTests(tests)
+
+    assertSpansData(testcaseName, expectedTracesCount)
+
+    where:
+    testcaseName                        | tests                              | expectedTracesCount | knownTestsList
+    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | 2                   | [
+      new TestIdentifier("[org/example/test_succeed_one_case] test succeed", "first scenario", null, null)
+    ]
+    "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | 3                   | [
+      new TestIdentifier("[org/example/test_parameterized] test parameterized", "first scenario as an outline", null, null)
+    ]
+    "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | 4                   | []
+    "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | 7                   | []
+    "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | 3                   | [] // is executed only twice
+    "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | 8                   | []
   }
 
   private void runTests(List<Class<?>> tests) {

@@ -1,7 +1,6 @@
 package datadog.common.container
 
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Unroll
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -10,7 +9,6 @@ import java.text.ParseException
 
 class ContainerInfoTest extends DDSpecification {
 
-  @Unroll
   def "CGroupInfo is parsed from individual lines"() {
     when:
     ContainerInfo.CGroupInfo cGroupInfo = ContainerInfo.parseLine(line)
@@ -90,7 +88,6 @@ class ContainerInfoTest extends DDSpecification {
     // spotless:on
   }
 
-  @Unroll
   def "Container info parsed from file content"() {
     when:
     ContainerInfo containerInfo = ContainerInfo.parse(content)
@@ -234,10 +231,10 @@ class ContainerInfoTest extends DDSpecification {
     Path path = f.toPath()
 
     then:
-    ContainerInfo.getIno(path) == readInode(path)
+    ContainerInfo.readInode(path) == readInode(path)
   }
 
-  private Long readInode(Path path) {
+  private long readInode(Path path) {
     ProcessBuilder pb = new ProcessBuilder("ls", "-id", path.toString())
     Process ps = pb.start()
     BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getInputStream()))
@@ -329,5 +326,25 @@ class ContainerInfoTest extends DDSpecification {
     Arrays.asList("memory", "") | true
     Arrays.asList("memory")     | true
     Arrays.asList("")           | false
+  }
+
+  def "readEntityID return id-<ino> for a parent when path is /"() {
+    setup:
+    File mountPath = File.createTempDir("container-info-test-", "-sys-fs-cgroup")
+    mountPath.deleteOnExit()
+    File memoryController = Files.createDirectory(mountPath.toPath().resolve("memory")).toFile()
+    memoryController.deleteOnExit()
+    Long ino = readInode(memoryController.toPath())
+
+    when:
+    ContainerInfo containerInfo = new ContainerInfo()
+    ContainerInfo.CGroupInfo cGroupInfo = new ContainerInfo.CGroupInfo()
+    cGroupInfo.setControllers(Arrays.asList("memory"))
+    cGroupInfo.setPath("/")
+    List<ContainerInfo.CGroupInfo> cGroups = Arrays.asList(cGroupInfo)
+    containerInfo.setcGroups(cGroups)
+
+    then:
+    containerInfo.readEntityID(containerInfo, false, mountPath.toPath()) == "in-" + ino
   }
 }

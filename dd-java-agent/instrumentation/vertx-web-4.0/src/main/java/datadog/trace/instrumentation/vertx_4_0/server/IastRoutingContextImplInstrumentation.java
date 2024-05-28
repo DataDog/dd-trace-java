@@ -17,7 +17,7 @@ import net.bytebuddy.asm.Advice;
  * @see RoutingContextImpl#getBodyAsJson(int)
  * @see RoutingContextImpl#getBodyAsJsonArray(int)
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

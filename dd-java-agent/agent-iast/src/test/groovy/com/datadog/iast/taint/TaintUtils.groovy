@@ -55,7 +55,9 @@ class TaintUtils {
         int start = pos
         int length = (upTo - i) - OPEN_MARK.length()
         assert length >= 0
-        ranges.add(new Range(start, length, new Source(SourceTypes.NONE, null, null), mark))
+        int from = i + OPEN_MARK.length()
+        String value = s.substring(from, from + length)
+        ranges.add(new Range(start, length, new Source(SourceTypes.NONE, null, value), mark))
         pos += length
         i += OPEN_MARK.length() + length + CLOSE_MARK.length() - 1
       } else {
@@ -118,18 +120,19 @@ class TaintUtils {
     return result
   }
 
-  static Range toRange(List<Integer> lst) {
-    toRange(lst.get(0), lst.get(1))
+  static Range toRange(String string, List<Integer> lst) {
+    toRange(string, lst.get(0), lst.get(1))
   }
 
-  static Range toRange(int start, int length) {
-    new Range(start, length, new Source(SourceTypes.NONE, null, null), NOT_MARKED)
+  static Range toRange(String string, int start, int length) {
+    final value = string.substring(start, start + length)
+    new Range(start, length, new Source(SourceTypes.NONE, null, value), NOT_MARKED)
   }
 
-  static Range[] toRanges(List<List<Integer>> lst) {
+  static Range[] toRanges(String string, List<List<Integer>> lst) {
     if (lst == null) {
       return null
     }
-    lst.collect { toRange(it) } as Range[]
+    lst.collect { toRange(string, it) } as Range[]
   }
 }

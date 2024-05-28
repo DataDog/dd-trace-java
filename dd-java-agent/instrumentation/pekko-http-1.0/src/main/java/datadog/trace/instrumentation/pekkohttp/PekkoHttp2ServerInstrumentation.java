@@ -18,7 +18,7 @@ import scala.concurrent.Future;
  * Http2 support in pekko-http is handled by a separate {@code Http2} extension that only supports
  * {@code bindAndHandleAsync}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
   public PekkoHttp2ServerInstrumentation() {

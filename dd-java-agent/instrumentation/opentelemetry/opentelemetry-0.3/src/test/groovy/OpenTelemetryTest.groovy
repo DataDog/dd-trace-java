@@ -215,7 +215,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
     then:
     tracer.currentSpan.delegate == secondScope.delegate.span()
-    _ * TEST_CHECKPOINTER._
+    _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
 
     when:
@@ -224,7 +224,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
     then:
     tracer.currentSpan == null
-    _ * TEST_CHECKPOINTER._
+    _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
   }
 

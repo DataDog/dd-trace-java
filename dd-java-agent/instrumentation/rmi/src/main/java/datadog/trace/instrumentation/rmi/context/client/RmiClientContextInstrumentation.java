@@ -43,7 +43,7 @@ import sun.rmi.transport.Connection;
  * that instruction will essentially be garbage data and will cause the parsing loop to throw
  * exception and shutdown the connection which we do not want
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RmiClientContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 

@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.spark
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.test.util.Flaky
 import org.apache.spark.sql.SparkSession
-import spock.lang.Unroll
 
-@Unroll
 abstract class AbstractSpark32SqlTest extends AgentTestRunner {
 
   @Override
@@ -99,6 +98,7 @@ abstract class AbstractSpark32SqlTest extends AgentTestRunner {
     }
   }
 
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/6957")
   def "compute a JOIN sql query plan"() {
     def sparkSession = SparkSession.builder()
       .config("spark.master", "local[2]")

@@ -1,13 +1,24 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import foo.bar.smoketest.MockPart
 
 class MultipartInstrumentationForkedTest extends AgentTestRunner {
+
+  private Object iastCtx
+
   @Override
   protected void configurePreAgent() {
     injectSysConfig('dd.iast.enabled', 'true')
+  }
+
+  @Override
+  void setup() {
+    iastCtx = Stub(IastContext)
   }
 
   @Override
@@ -22,10 +33,10 @@ class MultipartInstrumentationForkedTest extends AgentTestRunner {
     final part = new MockPart('partName', 'headerName', 'headerValue')
 
     when:
-    part.getName()
+    runUnderIastTrace { part.getName() }
 
     then:
-    1 * module.taint('partName', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'Content-Disposition')
+    1 * module.taintString(iastCtx, 'partName', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'Content-Disposition')
     0 * _
   }
 
@@ -36,10 +47,10 @@ class MultipartInstrumentationForkedTest extends AgentTestRunner {
     final part = new MockPart('partName', 'headerName', 'headerValue')
 
     when:
-    part.getHeader('headerName')
+    runUnderIastTrace { part.getHeader('headerName') }
 
     then:
-    1 * module.taint('headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
+    1 * module.taintString(iastCtx, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
     0 * _
   }
 
@@ -50,10 +61,10 @@ class MultipartInstrumentationForkedTest extends AgentTestRunner {
     final part = new MockPart('partName', 'headerName', 'headerValue')
 
     when:
-    part.getHeaders('headerName')
+    runUnderIastTrace { part.getHeaders('headerName') }
 
     then:
-    1 * module.taint(_, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
+    1 * module.taintString(iastCtx, 'headerValue', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'headerName')
     0 * _
   }
 
@@ -64,10 +75,20 @@ class MultipartInstrumentationForkedTest extends AgentTestRunner {
     final part = new MockPart('partName', 'headerName', 'headerValue')
 
     when:
-    part.getHeaderNames()
+    runUnderIastTrace { part.getHeaderNames() }
 
     then:
-    1 * module.taint(_, 'headerName', SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    1 * module.taintString(iastCtx, 'headerName', SourceTypes.REQUEST_MULTIPART_PARAMETER)
     0 * _
+  }
+
+  protected <E> E runUnderIastTrace(Closure<E> cl) {
+    final ddctx = new TagContext().withRequestContextDataIast(iastCtx)
+    final span = TEST_TRACER.startSpan("test", "test-iast-span", ddctx)
+    try {
+      return AgentTracer.activateSpan(span).withCloseable(cl)
+    } finally {
+      span.finish()
+    }
   }
 }

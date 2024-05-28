@@ -28,7 +28,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
  * @see FormFieldDirectives
  * @see ParameterDirectivesInstrumentation with which most of the implementation is shared
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class FormFieldDirectivesInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 

@@ -21,7 +21,7 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

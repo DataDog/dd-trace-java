@@ -23,7 +23,7 @@ import java.net.HttpURLConnection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForKnownTypes,

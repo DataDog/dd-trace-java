@@ -32,7 +32,7 @@ public class URLCallSite {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
-          module.taintIfAnyTainted(result, args);
+          module.taintObjectIfAnyTainted(result, args);
         } catch (final Throwable e) {
           module.onUnexpectedException("ctor threw", e);
         }
@@ -49,7 +49,7 @@ public class URLCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfTainted(result, url);
+        module.taintStringIfTainted(result, url);
       } catch (final Throwable e) {
         module.onUnexpectedException("After toString threw", e);
       }
@@ -63,7 +63,7 @@ public class URLCallSite {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintIfTainted(result, url);
+        module.taintObjectIfTainted(result, url);
       } catch (final Throwable e) {
         module.onUnexpectedException("After toURI threw", e);
       }

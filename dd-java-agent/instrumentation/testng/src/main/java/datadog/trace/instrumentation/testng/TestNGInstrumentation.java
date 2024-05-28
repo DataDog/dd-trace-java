@@ -12,7 +12,7 @@ import org.testng.ITestNGListener;
 import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
   public TestNGInstrumentation() {

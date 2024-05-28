@@ -1,5 +1,7 @@
 package com.datadog.debugger.exception;
 
+import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
+
 import com.datadog.debugger.util.ClassNameFiltering;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -32,25 +34,13 @@ public class Fingerprinter {
     StackTraceElement[] stackTrace = t.getStackTrace();
     for (StackTraceElement stackTraceElement : stackTrace) {
       String className = stackTraceElement.getClassName();
-      if (classNameFiltering.apply(className)) {
+      if (classNameFiltering.isExcluded(className)) {
         continue;
       }
       digest.update(stackTraceElement.toString().getBytes());
     }
     byte[] bytes = digest.digest();
     return bytesToHex(bytes);
-  }
-
-  private static Throwable getInnerMostThrowable(Throwable t) {
-    int i = 100;
-    while (t.getCause() != null && i > 0) {
-      t = t.getCause();
-      i--;
-    }
-    if (i == 0) {
-      return null;
-    }
-    return t;
   }
 
   // convert byte[] to hex string

@@ -25,7 +25,7 @@ import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonToken;
 
 /** TODO: keep a stack like structure pointing to the whole path */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class Json1ParserInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 

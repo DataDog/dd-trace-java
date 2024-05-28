@@ -915,6 +915,10 @@ class StringModuleTest extends IastModuleImplTestBase {
     'Hello ==>%s<=='                | ['World!']                          | 'Hello ==>World!<==' // tainted placeholder [non tainted parameter]
     'He==>llo %s!<=='               | ['World']                           | 'He==>llo <====>World<====>!<==' // tainted placeholder (2) [non tainted parameter]
     'He==>llo %s!<=='               | ['W==>or<==ld']                     | 'He==>llo <==W==>or<==ld==>!<==' // tainted placeholder (3) [mixing with tainted parameter]
+    'Hello %n %n %s!%n'             | ['W==>or<==ld']                     | 'Hello \n \n W==>or<==ld!\n' // \n character
+    'Hello %% %% %s!%%'             | ['W==>or<==ld']                     | 'Hello % % W==>or<==ld!%' // % character
+    '==>Hello %n %s!<=='            | ['World']                           | '==>Hello <====>\n<====> <====>World<====>!<==' // \n character in tainted format (each placeholder generates a separate range)
+    '==>Hello %% %s!<=='            | ['World']                           | '==>Hello <====>%<====> <====>World<====>!<==' // % character in tainted format (each placeholder generates a separate range)
   }
 
   void 'onStringFormat literals: #literals args: #argsTainted'() {

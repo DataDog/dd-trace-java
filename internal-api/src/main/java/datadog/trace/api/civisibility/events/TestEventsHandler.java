@@ -1,68 +1,67 @@
 package datadog.trace.api.civisibility.events;
 
+import datadog.trace.api.civisibility.DDTest;
+import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.bootstrap.ContextStore;
 import java.io.Closeable;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public interface TestEventsHandler extends Closeable {
+public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
 
+  /**
+   * @param testFramework Name of the testing framework that executes the suite.
+   * @param instrumentation Instrumentation that emits the event. Can differ from the testing
+   *     framework, because one instrumentation can support multiple frameworks. For example, there
+   *     are many testing frameworks based on JUnit 5. For some of those frameworks we have
+   *     dedicated instrumentations, while others are handled with "generic" JUnit 5 instrumentation
+   */
   void onTestSuiteStart(
+      SuiteKey descriptor,
       String testSuiteName,
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable Class<?> testClass,
       @Nullable Collection<String> categories,
-      boolean parallelized);
+      boolean parallelized,
+      TestFrameworkInstrumentation instrumentation);
 
-  void onTestSuiteFinish(String testSuiteName, @Nullable Class<?> testClass);
+  void onTestSuiteSkip(SuiteKey descriptor, @Nullable String reason);
 
-  void onTestSuiteSkip(String testSuiteName, Class<?> testClass, @Nullable String reason);
+  void onTestSuiteFailure(SuiteKey descriptor, @Nullable Throwable throwable);
 
-  void onTestSuiteFailure(String testSuiteName, Class<?> testClass, @Nullable Throwable throwable);
+  void onTestSuiteFinish(SuiteKey descriptor);
 
   void onTestStart(
+      SuiteKey suiteDescriptor,
+      TestKey descriptor,
       String testSuiteName,
       String testName,
-      @Nullable Object testQualifier,
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable String testParameters,
       @Nullable Collection<String> categories,
       @Nullable Class<?> testClass,
       @Nullable String testMethodName,
-      @Nullable Method testMethod);
+      @Nullable Method testMethod,
+      boolean isRetry);
 
-  void onTestSkip(
-      String testSuiteName,
-      Class<?> testClass,
-      String testName,
-      @Nullable Object testQualifier,
-      @Nullable String testParameters,
-      @Nullable String reason);
+  void onTestSkip(TestKey descriptor, @Nullable String reason);
 
-  void onTestFailure(
-      String testSuiteName,
-      Class<?> testClass,
-      String testName,
-      @Nullable Object testQualifier,
-      @Nullable String testParameters,
-      @Nullable Throwable throwable);
+  void onTestFailure(TestKey descriptor, @Nullable Throwable throwable);
 
-  void onTestFinish(
-      String testSuiteName,
-      Class<?> testClass,
-      String testName,
-      @Nullable Object testQualifier,
-      @Nullable String testParameters);
+  void onTestFinish(TestKey descriptor);
 
   void onTestIgnore(
+      SuiteKey suiteDescriptor,
+      TestKey testDescriptor,
       String testSuiteName,
       String testName,
-      @Nullable Object testQualifier,
       @Nullable String testFramework,
       @Nullable String testFrameworkVersion,
       @Nullable String testParameters,
@@ -74,6 +73,8 @@ public interface TestEventsHandler extends Closeable {
 
   boolean skip(TestIdentifier test);
 
+  boolean isSkippable(TestIdentifier test);
+
   @Nonnull
   TestRetryPolicy retryPolicy(TestIdentifier test);
 
@@ -81,6 +82,11 @@ public interface TestEventsHandler extends Closeable {
   void close();
 
   interface Factory {
-    TestEventsHandler create(String component);
+    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component);
+
+    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(
+        String component,
+        ContextStore<SuiteKey, DDTestSuite> suiteStore,
+        ContextStore<TestKey, DDTest> testStore);
   }
 }

@@ -40,7 +40,7 @@ public class HandleMatchAdvice {
           if (parameterName == null || value == null) {
             continue; // should not happen
           }
-          module.taint(
+          module.taintString(
               iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
         }
       }
@@ -57,7 +57,7 @@ public class HandleMatchAdvice {
           for (Map.Entry<String, Iterable<String>> ie : value.entrySet()) {
             String innerKey = ie.getKey();
             if (innerKey != null) {
-              module.taint(
+              module.taintString(
                   iastRequestContext,
                   innerKey,
                   SourceTypes.REQUEST_MATRIX_PARAMETER,
@@ -66,7 +66,7 @@ public class HandleMatchAdvice {
             Iterable<String> innerValues = ie.getValue();
             if (innerValues != null) {
               for (String iv : innerValues) {
-                module.taint(
+                module.taintString(
                     iastRequestContext, iv, SourceTypes.REQUEST_MATRIX_PARAMETER, parameterName);
               }
             }

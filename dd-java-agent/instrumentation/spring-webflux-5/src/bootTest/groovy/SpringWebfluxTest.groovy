@@ -5,6 +5,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
+import datadog.trace.test.util.Flaky
 import dd.trace.instrumentation.springwebflux.server.EchoHandlerFunction
 import dd.trace.instrumentation.springwebflux.server.FooModel
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
@@ -489,6 +490,7 @@ class SpringWebfluxTest extends AgentTestRunner {
     "annotation API fail Mono" | "/foo-failmono/1"   | "/foo-failmono/{id}"   | "getFooFailMono"
   }
 
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/6909")
   def "Redirect test"() {
     setup:
     String url = "http://localhost:$port/double-greet-redirect"

@@ -22,8 +22,7 @@ import redis.clients.jedis.Protocol;
 import redis.clients.jedis.args.Rawable;
 import redis.clients.jedis.commands.ProtocolCommand;
 
-
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class JedisInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
@@ -66,10 +65,10 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       final ProtocolCommand command = commandObject.getArguments().getCommand();
       final CommandArguments args = commandObject.getArguments();
       StringBuilder args1 = new StringBuilder();
-      for (Rawable arg : args){
+      for (Rawable arg : args) {
         args1.append(new String(arg.getRaw()));
       }
-      DECORATE.setRaw(span,args1.toString());
+      DECORATE.setRaw(span, args1.toString());
       if (command instanceof Protocol.Command) {
         DECORATE.onStatement(span, ((Protocol.Command) command).name());
       } else {

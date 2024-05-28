@@ -58,8 +58,8 @@ class AbstractSinkModuleTest extends IastModuleImplTestBase {
     ctx.getTaintedObjects().taint(input, Ranges.forCharSequence(input, source))
 
     when:
-    propagation.taintIfTainted(toReport, input)
-    final evidence = sink.checkInjection(ctx, SSRF, toReport)
+    propagation.taintObjectIfTainted(toReport, input)
+    final evidence = sink.checkInjection(SSRF, toReport)
 
     then:
     evidence.ranges.length == 1

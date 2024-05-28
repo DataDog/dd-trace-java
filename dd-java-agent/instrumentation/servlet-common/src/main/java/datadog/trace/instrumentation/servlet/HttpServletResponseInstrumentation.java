@@ -24,7 +24,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class HttpServletResponseInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
   public HttpServletResponseInstrumentation() {
@@ -45,6 +45,11 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
         .and(not(extendsClass(named("javax.servlet.http.HttpServletResponseWrapper"))));
+  }
+
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
   }
 
   @Override
@@ -115,10 +120,8 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
     @Propagation
     public static void onExit(@Advice.Argument(0) final String url, @Advice.Return String encoded) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        if (null != url && !url.isEmpty() && null != encoded && !encoded.isEmpty()) {
-          module.taintIfTainted(encoded, url);
-        }
+      if (encoded != null && module != null) {
+        module.taintStringIfTainted(encoded, url);
       }
     }
   }

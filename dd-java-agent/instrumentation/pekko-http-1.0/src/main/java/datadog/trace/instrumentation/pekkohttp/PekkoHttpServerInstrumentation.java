@@ -47,7 +47,7 @@ import org.apache.pekko.stream.scaladsl.Flow;
  * closed by cleanup code in the message processing instrumentation for the {@code Actor} and its
  * {@code Mailbox}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class PekkoHttpServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public PekkoHttpServerInstrumentation() {

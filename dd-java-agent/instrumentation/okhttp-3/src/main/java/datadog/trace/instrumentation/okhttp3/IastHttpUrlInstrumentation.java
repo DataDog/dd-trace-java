@@ -16,7 +16,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.net.URL;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastHttpUrlInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
@@ -77,7 +77,7 @@ public class IastHttpUrlInstrumentation extends InstrumenterModule.Iast
         @Advice.Argument(0) final Object arg, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfTainted(result, arg);
+        module.taintObjectIfTainted(result, arg);
       }
     }
   }

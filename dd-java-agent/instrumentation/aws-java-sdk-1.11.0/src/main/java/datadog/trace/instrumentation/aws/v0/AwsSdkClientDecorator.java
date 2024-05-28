@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import com.amazonaws.http.HttpMethodName;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
@@ -20,7 +22,9 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.core.datastreams.TagsProcessor;
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -33,10 +37,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 
-  public static final boolean AWS_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+  public static final boolean AWS_LEGACY_TRACING = Config.get().isAwsLegacyTracingEnabled();
 
-  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isSqsLegacyTracingEnabled();
 
   private static final String SQS_SERVICE_NAME =
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
@@ -52,6 +55,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   private static final String PUT_RECORD_OPERATION_NAME = "PutRecordRequest";
   private static final String PUT_RECORDS_OPERATION_NAME = "PutRecordsRequest";
+  private static final String PUBLISH_OPERATION_NAME = "PublishRequest";
+  private static final String PUBLISH_BATCH_OPERATION_NAME = "PublishBatchRequest";
 
   private static String simplifyServiceName(String awsServiceName) {
     return serviceNameCache.computeIfAbsent(
@@ -74,19 +79,24 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     super.onRequest(span, request);
 
     final String awsServiceName = request.getServiceName();
+    final String awsSimplifiedServiceName = simplifyServiceName(awsServiceName);
     final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
     final Class<?> awsOperation = originalRequest.getClass();
     final GetterAccess access = GetterAccess.of(originalRequest);
 
     span.setTag(InstrumentationTags.AWS_AGENT, COMPONENT_NAME);
     span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
-    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, simplifyServiceName(awsServiceName));
+    span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsSimplifiedServiceName);
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperation.getSimpleName());
     span.setTag(InstrumentationTags.AWS_ENDPOINT, request.getEndpoint().toString());
 
     CharSequence awsRequestName = AwsNameCache.getQualifiedName(request);
-
     span.setResourceName(awsRequestName, RPC_COMMAND_NAME);
+
+    if ("s3".equalsIgnoreCase(awsSimplifiedServiceName)
+        && span.traceConfig().isDataStreamsEnabled()) {
+      span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(request));
+    }
 
     switch (awsRequestName.toString()) {
       case "SQS.SendMessage":
@@ -99,6 +109,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         }
         break;
       case "SNS.Publish":
+      case "SNS.PublishBatch":
         if (SNS_SERVICE_NAME != null) {
           span.setServiceName(SNS_SERVICE_NAME);
         }
@@ -137,9 +148,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       bestPrecursor = InstrumentationTags.AWS_QUEUE_NAME;
       bestPeerService = queueName;
     }
+    String topicName = null;
     String topicArn = access.getTopicArn(originalRequest);
     if (null != topicArn) {
-      final String topicName = topicArn.substring(topicArn.lastIndexOf(':') + 1);
+      topicName = topicArn.substring(topicArn.lastIndexOf(':') + 1);
       span.setTag(InstrumentationTags.AWS_TOPIC_NAME, topicName);
       span.setTag(InstrumentationTags.TOPIC_NAME, topicName);
       bestPrecursor = InstrumentationTags.AWS_TOPIC_NAME;
@@ -178,29 +190,107 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(DDTags.PEER_SERVICE_SOURCE, bestPrecursor);
     }
 
-    if (span.traceConfig().isDataStreamsEnabled()
-        && null != streamArn
-        && "AmazonKinesis".equals(awsServiceName)) {
-      switch (awsOperation.getSimpleName()) {
-        case PUT_RECORD_OPERATION_NAME:
-          try (AgentScope scope = AgentTracer.activateSpan(span)) {
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
-          }
-          break;
-        case PUT_RECORDS_OPERATION_NAME:
-          try (AgentScope scope = AgentTracer.activateSpan(span)) {
-            List records = access.getRecords(originalRequest);
-            for (Object ignored : records) {
+    // DSM
+    if (span.traceConfig().isDataStreamsEnabled()) {
+      if (null != streamArn && "AmazonKinesis".equals(awsServiceName)) {
+        switch (awsOperation.getSimpleName()) {
+          case PUT_RECORD_OPERATION_NAME:
+            try (AgentScope scope = AgentTracer.activateSpan(span)) {
               AgentTracer.get()
                   .getDataStreamsMonitoring()
                   .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
             }
+            break;
+          case PUT_RECORDS_OPERATION_NAME:
+            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+              List records = access.getRecords(originalRequest);
+              for (Object ignored : records) {
+                AgentTracer.get()
+                    .getDataStreamsMonitoring()
+                    .setProduceCheckpoint("kinesis", streamArn, NoOp.INSTANCE);
+              }
+            }
+            break;
+          default:
+            break;
+        }
+      } else if (null != topicName && "AmazonSNS".equals(awsServiceName)) {
+        switch (awsOperation.getSimpleName()) {
+          case PUBLISH_OPERATION_NAME:
+            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+              AgentTracer.get()
+                  .getDataStreamsMonitoring()
+                  .setProduceCheckpoint("sns", topicName, NoOp.INSTANCE);
+            }
+            break;
+          case PUBLISH_BATCH_OPERATION_NAME:
+            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+              List entries = access.getEntries(originalRequest);
+              for (Object ignored : entries) {
+                AgentTracer.get()
+                    .getDataStreamsMonitoring()
+                    .setProduceCheckpoint("sns", topicName, NoOp.INSTANCE);
+              }
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    }
+
+    return span;
+  }
+
+  public AgentSpan onServiceResponse(
+      final AgentSpan span, final String awsService, final Response response) {
+    if ("s3".equalsIgnoreCase(simplifyServiceName(awsService))
+        && span.traceConfig().isDataStreamsEnabled()) {
+      long responseSize = getResponseContentLength(response);
+      span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
+
+      String key = getSpanTagAsString(span, InstrumentationTags.AWS_OBJECT_KEY);
+      String bucket = getSpanTagAsString(span, InstrumentationTags.AWS_BUCKET_NAME);
+      String awsOperation = getSpanTagAsString(span, InstrumentationTags.AWS_OPERATION);
+
+      if (key != null && bucket != null && awsOperation != null) {
+        // GetObjectMetadataRequest may return the object if it's not "HEAD"
+        if (HttpMethodName.GET.name().equals(span.getTag(Tags.HTTP_METHOD))
+            && ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation)
+                || "GetObjectRequest".equalsIgnoreCase(awsOperation))) {
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+          sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
+          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
+          sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, 0, responseSize);
+        }
+
+        if ("PutObjectRequest".equalsIgnoreCase(awsOperation)
+            || "UploadPartRequest".equalsIgnoreCase(awsOperation)) {
+          Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
+          long payloadSize = 0;
+          if (requestSize != null) {
+            payloadSize = (long) requestSize;
           }
-          break;
-        default:
-          break;
+
+          LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+          sortedTags.put(TagsProcessor.DIRECTION_TAG, DIRECTION_OUT);
+          sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+          sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+          sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
+          sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, sortedTags, 0, payloadSize);
+        }
       }
     }
 
@@ -213,6 +303,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
     }
+
     return super.onResponse(span, response);
   }
 

@@ -23,6 +23,9 @@ dependencies {
   compileOnly group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '7.0.4'
   compileOnly group: 'org.apache.tomcat', name: 'tomcat-coyote', version: '7.0.4'
   implementation project(':dd-java-agent:instrumentation:tomcat-5.5-common')
+
+  testImplementation group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '7.0.4'
+  testImplementation group: 'org.apache.tomcat', name: 'tomcat-coyote', version: '7.0.4'
 }
 
 // testing happens in tomcat-5.5 module

@@ -22,7 +22,7 @@ import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionResponse;
 import org.opensearch.action.ActionType;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class OpensearchTransportClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

@@ -20,9 +20,7 @@ import org.apache.spark.sql.RowFactory
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 import spock.lang.IgnoreIf
-import spock.lang.Unroll
 
-@Unroll
 @IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
   Platform.isJ9()
 })
@@ -220,6 +218,41 @@ abstract class AbstractSparkTest extends AgentTestRunner {
 
     cleanup:
     sparkSession.stop()
+    AbstractDatadogSparkListener.finishTraceOnApplicationEnd = true
+  }
+
+  def "finish pyspark span launched with python onApplicationEnd"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .getOrCreate()
+
+    try {
+      // Generating a fake submit of pyspark-shell
+      def sparkSubmit = new SparkSubmit()
+      sparkSubmit.doSubmit(["--verbose", "pyspark-shell"] as String[])
+    }
+    catch (Exception ignored) {}
+    sparkSession.stop()
+
+    expect:
+    assert AbstractDatadogSparkListener.isPysparkShell
+    assert AbstractDatadogSparkListener.finishTraceOnApplicationEnd
+
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+        }
+      }
+    }
+
+    cleanup:
+    AbstractDatadogSparkListener.isPysparkShell = false
     AbstractDatadogSparkListener.finishTraceOnApplicationEnd = true
   }
 

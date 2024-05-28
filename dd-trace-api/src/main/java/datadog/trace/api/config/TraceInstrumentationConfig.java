@@ -12,7 +12,6 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
-  public static final String LEGACY_INSTALLER_ENABLED = "legacy.installer.enabled";
 
   public static final String INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME =
       "integration.synapse.legacy-operation-name";
@@ -30,6 +29,10 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_CLASSES_EXCLUDE_FILE = "trace.classes.exclude.file";
   public static final String TRACE_CLASSLOADERS_EXCLUDE = "trace.classloaders.exclude";
   public static final String TRACE_CODESOURCES_EXCLUDE = "trace.codesources.exclude";
+  public static final String TRACE_CLASSLOADERS_DEFER = "trace.classloaders.defer";
+
+  public static final String EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL =
+      "experimental.defer.integrations.until";
 
   @SuppressWarnings("unused")
   public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
@@ -57,19 +60,23 @@ public final class TraceInstrumentationConfig {
   public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
 
   public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
-  public static final String JDBC_SQL_OBFUSCATION  = "jdbc.sql.obfuscation";
-  public static final String MONGO_OBFUSCATION  = "mongo.obfuscation";
-  public static final String REDIS_COMMAND_ARGS  = "redis.command.args";
+  public static final String JDBC_SQL_OBFUSCATION = "jdbc.sql.obfuscation";
+  public static final String MONGO_OBFUSCATION = "mongo.obfuscation";
+  public static final String REDIS_COMMAND_ARGS = "redis.command.args";
 
   public static final String HTTP_URL_CONNECTION_CLASS_NAME =
       "trace.http.url.connection.class.name";
+
+  public static final String AXIS_TRANSPORT_CLASS_NAME = "trace.axis.transport.class.name";
 
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
   public static final String SERIALVERSIONUID_FIELD_INJECTION =
       "trace.serialversionuid.field.injection";
 
-  public static final String LOGS_INJECTION_ENABLED = "logs.injection";
+  public static final String LOGS_INJECTION_ENABLED = "logs.injection.enabled";
+  public static final String LOGS_INJECTION = "logs.injection";
+
   public static final String LOGS_PATTERN = "logs.pattern";
   public static final String LOGS_PATTERN_REPLACE = "logs.pattern.replace";
   public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
@@ -126,11 +133,13 @@ public final class TraceInstrumentationConfig {
 
   public static final String RESOLVER_CACHE_CONFIG = "resolver.cache.config";
   public static final String RESOLVER_CACHE_DIR = "resolver.cache.dir";
+  public static final String RESOLVER_SIMPLE_METHOD_GRAPH = "resolver.simple.method.graph";
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
   public static final String RESOLVER_USE_URL_CACHES = "resolver.use.url.caches";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
   public static final String RESOLVER_NAMES_ARE_UNIQUE = "resolver.names.are.unique";
-
+  public static final String COUCHBASE_INTERNAL_SPANS_ENABLED =
+      "trace.couchbase.internal-spans.enabled";
   public static final String ELASTICSEARCH_BODY_ENABLED = "trace.elasticsearch.body.enabled";
   public static final String ELASTICSEARCH_PARAMS_ENABLED = "trace.elasticsearch.params.enabled";
   public static final String ELASTICSEARCH_BODY_AND_PARAMS_ENABLED =

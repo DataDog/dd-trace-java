@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
  * Taints request uri parameters by instrumenting the constructor of {@link
  * akka.http.scaladsl.server.PathMatcher.Matched}.
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PathMatcherInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   public PathMatcherInstrumentation() {
@@ -56,23 +56,23 @@ public class PathMatcherInstrumentation extends InstrumenterModule.Iast
         return;
       }
 
-      PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module == null) {
-        return;
-      }
-
       scala.Tuple1 tuple = (scala.Tuple1) extractions;
       Object value = tuple._1();
 
+      PropagationModule module = InstrumentationBridge.PROPAGATION;
+      if (module == null || !(value instanceof String)) {
+        return;
+      }
+      final String stringValue = (String) value;
+
+      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+
       // in the test, 4 instances of PathMatcher$Match are created, all with the same value
-      if (module.isTainted(value)) {
+      if (module.isTainted(ctx, stringValue)) {
         return;
       }
 
-      if (value instanceof String) {
-        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taint(ctx, value, SourceTypes.REQUEST_PATH_PARAMETER);
-      }
+      module.taintString(ctx, stringValue, SourceTypes.REQUEST_PATH_PARAMETER);
     }
   }
 }

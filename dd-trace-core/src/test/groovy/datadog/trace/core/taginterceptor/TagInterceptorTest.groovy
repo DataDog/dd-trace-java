@@ -1,5 +1,8 @@
 package datadog.trace.core.taginterceptor
 
+import datadog.trace.core.DDSpanContext
+import datadog.trace.api.remoteconfig.ServiceNameCollector
+
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
@@ -405,18 +408,28 @@ class TagInterceptorTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    tag                | value   | expected
-    DDTags.MANUAL_KEEP | true    | PrioritySampling.USER_KEEP
-    DDTags.MANUAL_KEEP | false   | null
-    DDTags.MANUAL_KEEP | "true"  | PrioritySampling.USER_KEEP
-    DDTags.MANUAL_KEEP | "false" | null
-    DDTags.MANUAL_KEEP | "asdf"  | null
+    tag                    | value   | expected
+    DDTags.MANUAL_KEEP     | true    | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP     | false   | null
+    DDTags.MANUAL_KEEP     | "true"  | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP     | "false" | null
+    DDTags.MANUAL_KEEP     | "asdf"  | null
 
-    DDTags.MANUAL_DROP | true    | PrioritySampling.USER_DROP
-    DDTags.MANUAL_DROP | false   | null
-    DDTags.MANUAL_DROP | "true"  | PrioritySampling.USER_DROP
-    DDTags.MANUAL_DROP | "false" | null
-    DDTags.MANUAL_DROP | "asdf"  | null
+    DDTags.MANUAL_DROP     | true    | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP     | false   | null
+    DDTags.MANUAL_DROP     | "true"  | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP     | "false" | null
+    DDTags.MANUAL_DROP     | "asdf"  | null
+
+    Tags.SAMPLING_PRIORITY | -1      | PrioritySampling.USER_DROP
+    Tags.SAMPLING_PRIORITY | 0       | PrioritySampling.USER_DROP
+    Tags.SAMPLING_PRIORITY | 1       | PrioritySampling.USER_KEEP
+    Tags.SAMPLING_PRIORITY | 2       | PrioritySampling.USER_KEEP
+    Tags.SAMPLING_PRIORITY | "-1"    | PrioritySampling.USER_DROP
+    Tags.SAMPLING_PRIORITY | "0"     | PrioritySampling.USER_DROP
+    Tags.SAMPLING_PRIORITY | "1"     | PrioritySampling.USER_KEEP
+    Tags.SAMPLING_PRIORITY | "2"     | PrioritySampling.USER_KEEP
+    Tags.SAMPLING_PRIORITY | "asdf"  | null
   }
 
   def "set error flag when error tag reported"() {
@@ -673,5 +686,41 @@ class TagInterceptorTest extends DDCoreSpecification {
     cleanup:
     span.finish()
     tracer.close()
+  }
+
+  void "when interceptServiceName extraServiceProvider is called"(){
+    setup:
+    final extraServiceProvider = Mock(ServiceNameCollector)
+    ServiceNameCollector.INSTANCE = extraServiceProvider
+    final ruleFlags = Mock(RuleFlags)
+    ruleFlags.isEnabled(_) >> true
+    final interceptor = new TagInterceptor(true, "my-service", Collections.singleton(DDTags.SERVICE_NAME), ruleFlags)
+
+    when:
+    interceptor.interceptServiceName(null, Mock(DDSpanContext), "some-service")
+
+    then:
+    1 * extraServiceProvider.addService("some-service")
+  }
+
+  void "when interceptServletContext extraServiceProvider is called"(){
+    setup:
+    final extraServiceProvider = Mock(ServiceNameCollector)
+    ServiceNameCollector.INSTANCE = extraServiceProvider
+    final ruleFlags = Mock(RuleFlags)
+    ruleFlags.isEnabled(_) >> true
+    final interceptor = new TagInterceptor(true, "my-service", Collections.singleton("servlet.context"), ruleFlags)
+
+    when:
+    interceptor.interceptServletContext(Mock(DDSpanContext), value)
+
+    then:
+    1 * extraServiceProvider.addService(expected)
+
+    where:
+    value | expected
+    "/"   | "root-servlet"
+    "/test"   | "test"
+    "test"   | "test"
   }
 }

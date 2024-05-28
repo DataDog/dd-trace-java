@@ -19,7 +19,7 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class AkkaActorCellInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

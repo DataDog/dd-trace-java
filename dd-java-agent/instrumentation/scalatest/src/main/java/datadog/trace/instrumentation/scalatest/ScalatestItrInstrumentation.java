@@ -20,7 +20,7 @@ import org.scalatest.Filter;
 import org.scalatest.Tracker;
 import scala.Tuple2;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ScalatestItrInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
 

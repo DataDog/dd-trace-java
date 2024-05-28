@@ -59,6 +59,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       assert exitCode != 0
     }
     verifyEventsAndCoverages(projectName, "maven", mavenVersion, expectedEvents, expectedCoverages)
+    verifyTelemetryMetrics(expectedEvents)
 
     where:
     projectName                                         | mavenVersion         | expectedEvents | expectedCoverages | expectSuccess | flakyRetries | jacocoCoverage
@@ -66,13 +67,15 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run"                         | "3.5.4"              | 5              | 1                 | true          | false        | true
     "test_successful_maven_run"                         | "3.6.3"              | 5              | 1                 | true          | false        | true
     "test_successful_maven_run"                         | "3.8.8"              | 5              | 1                 | true          | false        | true
-    "test_successful_maven_run"                         | "3.9.5"              | 5              | 1                 | true          | false        | true
-    "test_successful_maven_run_surefire_3_0_0"          | "3.9.5"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run"                         | "3.9.6"              | 5              | 1                 | true          | false        | true
+    "test_successful_maven_run_surefire_3_0_0"          | "3.9.6"              | 5              | 1                 | true          | false        | true
     "test_successful_maven_run_surefire_3_0_0"          | LATEST_MAVEN_VERSION | 5              | 1                 | true          | false        | true
-    "test_successful_maven_run_builtin_coverage"        | "3.9.5"              | 5              | 1                 | true          | false        | false
-    "test_successful_maven_run_with_jacoco_and_argline" | "3.9.5"              | 5              | 1                 | true          | false        | true
-    "test_successful_maven_run_with_cucumber"           | "3.9.5"              | 7              | 1                 | true          | false        | true
-    "test_failed_maven_run_flaky_retries"               | "3.9.5"              | 8              | 1                 | false         | true         | true
+    "test_successful_maven_run_builtin_coverage"        | "3.9.6"              | 5              | 1                 | true          | false        | false
+    "test_successful_maven_run_with_jacoco_and_argline" | "3.9.6"              | 5              | 1                 | true          | false        | true
+    // "expectedEvents" count for this test case does not include the spans that correspond to Cucumber steps
+    "test_successful_maven_run_with_cucumber"           | "3.9.6"              | 4              | 1                 | true          | false        | true
+    "test_failed_maven_run_flaky_retries"               | "3.9.6"              | 8              | 1                 | false         | true         | true
+    "test_successful_maven_run_junit_platform_runner"   | "3.9.6"              | 4              | 0                 | true          | false        | false
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {
@@ -218,7 +221,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED)}=false," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()},"
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}," +
+        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES)}=true," // to cover flaky test retrieval logic
 
       if (injectJacoco) {
         agentArgument += "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED)}=true," +

@@ -96,7 +96,7 @@ class TaintedObjectCollection {
         return false
       }
       TaintedObject tobj = obj
-      valueMatcher.matches(tobj.get() as String) &&
+      valueMatcher.matches(tobj.get()) &&
         ranges.every { RangeMatcher rm ->
           tobj.ranges.any { range ->
             rm.matches(range)
@@ -121,8 +121,15 @@ class TaintedObjectCollection {
         return false
       }
       Source source = actual
-      name.matches(source.name) && source.origin == origin &&
-        value.matches(source.value)
+      source.origin == origin && matchesName(source) && matchesValue(source)
+    }
+
+    private boolean matchesName(final Source source) {
+      source.name == Source.GARBAGE_COLLECTED_REF || name.matches(source.name)
+    }
+
+    private boolean matchesValue(final Source source) {
+      source.value == Source.GARBAGE_COLLECTED_REF || value.matches(source.value)
     }
 
     @Override

@@ -28,7 +28,7 @@ import net.bytebuddy.asm.Advice;
 import scala.concurrent.impl.Promise.Transformation;
 import scala.util.Try;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class PromiseTransformationInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, ExcludeFilterProvider {
 

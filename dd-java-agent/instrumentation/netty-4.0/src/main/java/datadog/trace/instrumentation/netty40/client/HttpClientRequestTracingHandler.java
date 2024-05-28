@@ -42,8 +42,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     SSL_HANDLER = (Class<ChannelHandler>) sslHandler;
   }
 
-  private static final boolean AWS_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+  private static final boolean AWS_LEGACY_TRACING = Config.get().isAwsLegacyTracingEnabled();
 
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {

@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class InputStreamInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
@@ -57,7 +57,7 @@ public class InputStreamInstrumentation extends InstrumenterModule.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
         if (module != null) {
-          module.taintIfTainted(self, param);
+          module.taintObjectIfTainted(self, param);
         }
       } catch (final Throwable e) {
         module.onUnexpectedException("InputStreamAdvice onExit threw", e);

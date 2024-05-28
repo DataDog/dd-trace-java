@@ -16,7 +16,7 @@ import play.mvc.BodyParser;
 import play.mvc.Http;
 
 /** @see play.mvc.BodyParser.DelegatingBodyParser */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class DelegatingBodyParserInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType {
   public DelegatingBodyParserInstrumentation() {

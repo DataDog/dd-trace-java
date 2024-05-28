@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<weblogic-web-app xmlns="http://xmlns.oracle.com/weblogic/weblogic-web-app">
+  <container-descriptor>
+    <prefer-web-inf-classes>false</prefer-web-inf-classes>
+    <prefer-application-packages>
+      <package-name>javax.faces.*</package-name>
+      <package-name>com.sun.faces.*</package-name>
+      <package-name>com.bea.faces.*</package-name>
+    </prefer-application-packages>
+
+    <prefer-application-resources>
+      <resource-name>javax.faces.*</resource-name>
+      <resource-name>com.sun.faces.*</resource-name>
+      <resource-name>com.bea.faces.*</resource-name>
+      <resource-name>META-INF/services/javax.servlet.ServletContainerInitializer</resource-name>
+    </prefer-application-resources>
+    <index-directory-enabled>true</index-directory-enabled>
+  </container-descriptor>
+</weblogic-web-app>

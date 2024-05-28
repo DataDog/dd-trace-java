@@ -15,7 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AerospikeClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public AerospikeClientInstrumentation() {

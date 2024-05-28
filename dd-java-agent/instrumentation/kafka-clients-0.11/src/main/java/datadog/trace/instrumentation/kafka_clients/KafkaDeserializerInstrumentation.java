@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -10,17 +10,19 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.common.serialization.Deserializer;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
@@ -28,7 +30,7 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
       "org.apache.kafka.common.serialization.Deserializer";
 
   /** Ensure same compatibility as the tracer */
-  private static final Reference[] MUZZLE_CHECK = {
+  static final Reference[] MUZZLE_CHECK = {
     new Reference.Builder("org.apache.kafka.clients.consumer.ConsumerRecord")
         .withMethod(
             new String[0],
@@ -49,7 +51,7 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
+    return hasInterface(named(hierarchyMarkerType()));
   }
 
   @Override
@@ -74,9 +76,14 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
         named("configure").and(takesArguments(Map.class, boolean.class)),
         baseName + "$ConfigureAdvice");
     transformer.applyAdvice(
-        named("deserialize").and(takesArgument(1, byte[].class)), baseName + "$Deserialize2Advice");
+        named("deserialize").and(takesArguments(2)).and(takesArgument(1, byte[].class)),
+        baseName + "$Deserialize2Advice");
     transformer.applyAdvice(
-        named("deserialize").and(takesArgument(2, byte[].class)), baseName + "$Deserialize3Advice");
+        named("deserialize").and(takesArguments(3)).and(takesArgument(2, byte[].class)),
+        baseName + "$Deserialize3Advice");
+    transformer.applyAdvice(
+        named("deserialize").and(takesArguments(3)).and(takesArgument(2, ByteBuffer.class)),
+        baseName + "$DeserializeByteBufferAdvice");
   }
 
   @SuppressWarnings("rawtypes")
@@ -96,23 +103,72 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
     @Source(SourceTypes.KAFKA_MESSAGE)
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void deserialize(
-        @Advice.This final Deserializer<?> deserializer, @Advice.Argument(1) byte[] data) {
+        @Advice.This final Deserializer<?> deserializer,
+        @Advice.Argument(1) byte[] data,
+        @Advice.Local("iastCtx") IastContext ctx) {
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
-      KafkaIastHelper.taint(store, deserializer, data);
+      ctx = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void afterDeserialize(
+        @Advice.This final Deserializer<?> deserializer,
+        @Advice.Return Object result,
+        @Advice.Local("iastCtx") IastContext ctx) {
+      final ContextStore<Deserializer, Boolean> store =
+          InstrumentationContext.get(Deserializer.class, Boolean.class);
+      KafkaIastHelper.afterDeserialize(ctx, store, deserializer, result);
     }
   }
 
-  @SuppressWarnings("rawtypes")
+  @SuppressWarnings({"rawtypes", "JavaExistingMethodCanBeUsed"})
   public static class Deserialize3Advice {
 
     @Source(SourceTypes.KAFKA_MESSAGE)
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void deserialize(
-        @Advice.This final Deserializer<?> deserializer, @Advice.Argument(2) byte[] data) {
+        @Advice.This final Deserializer<?> deserializer,
+        @Advice.Argument(2) byte[] data,
+        @Advice.Local("iastCtx") IastContext ctx) {
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
-      KafkaIastHelper.taint(store, deserializer, data);
+      ctx = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void afterDeserialize(
+        @Advice.This final Deserializer<?> deserializer,
+        @Advice.Return Object result,
+        @Advice.Local("iastCtx") IastContext ctx) {
+      final ContextStore<Deserializer, Boolean> store =
+          InstrumentationContext.get(Deserializer.class, Boolean.class);
+      KafkaIastHelper.afterDeserialize(ctx, store, deserializer, result);
+    }
+  }
+
+  @SuppressWarnings({"rawtypes", "JavaExistingMethodCanBeUsed"})
+  public static class DeserializeByteBufferAdvice {
+
+    @Source(SourceTypes.KAFKA_MESSAGE)
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void deserialize(
+        @Advice.This final Deserializer<?> deserializer,
+        @Advice.Argument(2) ByteBuffer data,
+        @Advice.Local("iastCtx") IastContext ctx) {
+      final ContextStore<Deserializer, Boolean> store =
+          InstrumentationContext.get(Deserializer.class, Boolean.class);
+      ctx = KafkaIastHelper.beforeDeserialize(store, deserializer, data);
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void afterDeserialize(
+        @Advice.This final Deserializer<?> deserializer,
+        @Advice.Return final Object result,
+        @Advice.Local("iastCtx") IastContext ctx) {
+      final ContextStore<Deserializer, Boolean> store =
+          InstrumentationContext.get(Deserializer.class, Boolean.class);
+      KafkaIastHelper.afterDeserialize(ctx, store, deserializer, result);
     }
   }
 }

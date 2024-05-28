@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes {
   public HttpPostRequestDecoderInstrumentation() {

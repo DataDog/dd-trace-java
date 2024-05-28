@@ -6,7 +6,6 @@ import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
-import com.datadog.appsec.event.data.SingletonDataBundle
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
 import datadog.trace.api.internal.TraceSegment
@@ -78,6 +77,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriConsumer<RequestContext, String, String> respHeaderCB
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
   BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
+  BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -380,8 +380,10 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'path params is not published twice'() {
     Flow flow
 
+    setup:
+    pathParamsCB.apply(ctx, [a: 'b'])
+
     when:
-    arCtx.addAll(new SingletonDataBundle(KnownAddresses.REQUEST_PATH_PARAMS, [a: 'b']))
     flow = pathParamsCB.apply(ctx, [c: 'd'])
 
     then:
@@ -409,6 +411,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()

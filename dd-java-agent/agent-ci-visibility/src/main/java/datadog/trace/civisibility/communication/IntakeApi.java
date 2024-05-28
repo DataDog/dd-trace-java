@@ -6,6 +6,7 @@ import datadog.trace.civisibility.utils.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
+import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -61,7 +62,10 @@ public class IntakeApi implements BackendApi {
 
   @Override
   public <T> T post(
-      String uri, RequestBody requestBody, IOThrowingFunction<InputStream, T> responseParser)
+      String uri,
+      RequestBody requestBody,
+      IOThrowingFunction<InputStream, T> responseParser,
+      @Nullable OkHttpUtils.CustomListener requestListener)
       throws IOException {
     HttpUrl url = hostUrl.resolve(uri);
     Request.Builder requestBuilder =
@@ -72,14 +76,17 @@ public class IntakeApi implements BackendApi {
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
+    if (requestListener != null) {
+      requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);
+    }
+
     if (gzipEnabled) {
       requestBuilder.addHeader(ACCEPT_ENCODING_HEADER, GZIP_ENCODING);
     }
 
     Request request = requestBuilder.build();
-    HttpRetryPolicy retryPolicy = retryPolicyFactory.create();
     try (okhttp3.Response response =
-        OkHttpUtils.sendWithRetries(httpClient, retryPolicy, request)) {
+        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         log.debug("Request to {} returned successful response: {}", uri, response.code());
         InputStream responseBodyStream = response.body().byteStream();

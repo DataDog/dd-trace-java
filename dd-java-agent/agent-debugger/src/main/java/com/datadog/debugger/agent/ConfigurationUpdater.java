@@ -177,18 +177,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
   }
 
-  private Configuration createEmptyConfiguration() {
-    if (currentConfiguration != null) {
-      return Configuration.builder()
-          .setService(currentConfiguration.getService())
-          .addAllowList(currentConfiguration.getAllowList())
-          .addDenyList(currentConfiguration.getDenyList())
-          .setSampling(currentConfiguration.getSampling())
-          .build();
-    }
-    return Configuration.builder().setService(serviceName).build();
-  }
-
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
     for (Class<?> clazz : classesToBeTransformed) {
       try {

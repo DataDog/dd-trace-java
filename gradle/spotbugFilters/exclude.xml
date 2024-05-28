@@ -2,6 +2,7 @@
 <FindBugsFilter>
   <Match>
     <Or>
+      <Class name="~com.datadog.debugger.util.WeakIdentityHashMap.*" />
       <Package name="io.sqreen.testapp.sampleapp" />
       <Package name="datadog.trace.bootstrap.instrumentation.decorator.http.utils" />
       <!-- these are auto-generated -->

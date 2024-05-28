@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.bson.BsonDocument;
 import org.bson.ByteBuf;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class MongoClient31Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes, Instrumenter.WithTypeStructure {
 

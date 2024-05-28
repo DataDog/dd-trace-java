@@ -21,22 +21,27 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
+import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
-import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_INSTALLER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_SIMPLE_METHOD_GRAPH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -46,6 +51,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATI
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE_FILE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_DEFER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSLOADERS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CODESOURCES_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
@@ -85,6 +91,8 @@ import java.util.Set;
 public class InstrumenterConfig {
   private final ConfigProvider configProvider;
 
+  private final boolean triageEnabled;
+
   private final boolean integrationsEnabled;
 
   private final boolean traceEnabled;
@@ -105,6 +113,7 @@ public class InstrumenterConfig {
   private final String jdbcConnectionClassName;
 
   private final String httpURLConnectionClassName;
+  private final String axisTransportClassName;
 
   private final boolean directAllocationProfilingEnabled;
 
@@ -112,10 +121,14 @@ public class InstrumenterConfig {
   private final String excludedClassesFile;
   private final Set<String> excludedClassLoaders;
   private final List<String> excludedCodeSources;
+  private final Set<String> deferredClassLoaders;
+
+  private final String deferIntegrationsUntil;
 
   private final ResolverCacheConfig resolverCacheConfig;
   private final String resolverCacheDir;
   private final boolean resolverNamesAreUnique;
+  private final boolean resolverSimpleMethodGraph;
   private final boolean resolverUseLoadClass;
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
@@ -130,8 +143,6 @@ public class InstrumenterConfig {
 
   private final boolean internalExitOnFailure;
 
-  private final boolean legacyInstallerEnabled;
-
   private final Collection<String> additionalJaxRsAnnotations;
 
   private InstrumenterConfig() {
@@ -140,6 +151,14 @@ public class InstrumenterConfig {
 
   InstrumenterConfig(ConfigProvider configProvider) {
     this.configProvider = configProvider;
+
+    if (null != configProvider.getString(TRIAGE_REPORT_TRIGGER)) {
+      triageEnabled = true; // explicitly setting a trigger implies triage mode
+    } else {
+      // default to same state as debug mode, unless explicitly overridden
+      boolean debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
+      triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, debugEnabled);
+    }
 
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
@@ -181,6 +200,7 @@ public class InstrumenterConfig {
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
+    axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
 
     directAllocationProfilingEnabled =
         configProvider.getBoolean(
@@ -190,12 +210,18 @@ public class InstrumenterConfig {
     excludedClassesFile = configProvider.getString(TRACE_CLASSES_EXCLUDE_FILE);
     excludedClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_EXCLUDE));
     excludedCodeSources = tryMakeImmutableList(configProvider.getList(TRACE_CODESOURCES_EXCLUDE));
+    deferredClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_DEFER));
+
+    deferIntegrationsUntil = configProvider.getString(EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL);
 
     resolverCacheConfig =
         configProvider.getEnum(
             RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
+    resolverSimpleMethodGraph =
+        // use simpler approach everywhere except GraalVM, where it affects reachability analysis
+        configProvider.getBoolean(RESOLVER_SIMPLE_METHOD_GRAPH, !Platform.isNativeImageBuilder());
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverUseUrlCaches = configProvider.getBoolean(RESOLVER_USE_URL_CACHES);
     resolverResetInterval =
@@ -221,9 +247,12 @@ public class InstrumenterConfig {
             configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
-    legacyInstallerEnabled = configProvider.getBoolean(LEGACY_INSTALLER_ENABLED, false);
     this.additionalJaxRsAnnotations =
         tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
+  }
+
+  public boolean isTriageEnabled() {
+    return triageEnabled;
   }
 
   public boolean isIntegrationsEnabled() {
@@ -301,6 +330,10 @@ public class InstrumenterConfig {
     return httpURLConnectionClassName;
   }
 
+  public String getAxisTransportClassName() {
+    return axisTransportClassName;
+  }
+
   public boolean isDirectAllocationProfilingEnabled() {
     return directAllocationProfilingEnabled;
   }
@@ -321,8 +354,20 @@ public class InstrumenterConfig {
     return excludedCodeSources;
   }
 
+  public Set<String> getDeferredClassLoaders() {
+    return deferredClassLoaders;
+  }
+
+  public String deferIntegrationsUntil() {
+    return deferIntegrationsUntil;
+  }
+
   public int getResolverNoMatchesSize() {
     return resolverCacheConfig.noMatchesSize();
+  }
+
+  public int getResolverVisibilitySize() {
+    return resolverCacheConfig.visibilitySize();
   }
 
   public boolean isResolverMemoizingEnabled() {
@@ -351,6 +396,10 @@ public class InstrumenterConfig {
 
   public boolean isResolverNamesAreUnique() {
     return resolverNamesAreUnique;
+  }
+
+  public boolean isResolverSimpleMethodGraph() {
+    return resolverSimpleMethodGraph;
   }
 
   public boolean isResolverUseLoadClass() {
@@ -407,10 +456,6 @@ public class InstrumenterConfig {
     return internalExitOnFailure;
   }
 
-  public boolean isLegacyInstallerEnabled() {
-    return legacyInstallerEnabled;
-  }
-
   public boolean isLegacyInstrumentationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
     return configProvider.isEnabled(
@@ -465,6 +510,9 @@ public class InstrumenterConfig {
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
         + '\''
+        + ", axisTransportClassName='"
+        + axisTransportClassName
+        + '\''
         + ", excludedClasses="
         + excludedClasses
         + ", excludedClassesFile="
@@ -473,12 +521,18 @@ public class InstrumenterConfig {
         + excludedClassLoaders
         + ", excludedCodeSources="
         + excludedCodeSources
+        + ", deferredClassLoaders="
+        + deferredClassLoaders
+        + ", deferIntegrationsUntil="
+        + deferIntegrationsUntil
         + ", resolverCacheConfig="
         + resolverCacheConfig
         + ", resolverCacheDir="
         + resolverCacheDir
         + ", resolverNamesAreUnique="
         + resolverNamesAreUnique
+        + ", resolverSimpleMethodGraph="
+        + resolverSimpleMethodGraph
         + ", resolverUseLoadClass="
         + resolverUseLoadClass
         + ", resolverUseUrlCaches="
@@ -502,8 +556,6 @@ public class InstrumenterConfig {
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure
-        + ", legacyInstallerEnabled="
-        + legacyInstallerEnabled
         + ", additionalJaxRsAnnotations="
         + additionalJaxRsAnnotations
         + '}';

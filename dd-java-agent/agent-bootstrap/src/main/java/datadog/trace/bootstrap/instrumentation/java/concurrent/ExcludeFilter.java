@@ -117,7 +117,7 @@ public class ExcludeFilter {
 
   /**
    * This should only be called during startup to initialize this based on information gathered from
-   * the {@code Instrumenter} instances.
+   * the loaded {@code InstrumenterModule}s.
    *
    * @param excludeTypes the types to exclude
    */

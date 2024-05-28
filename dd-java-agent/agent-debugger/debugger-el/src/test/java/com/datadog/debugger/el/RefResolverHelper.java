@@ -2,6 +2,7 @@ package com.datadog.debugger.el;
 
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.lang.reflect.Field;
 import java.util.*;
 
@@ -19,9 +20,15 @@ public class RefResolverHelper {
     for (Field field : fields) {
       try {
         field.setAccessible(true);
-        fieldValues[index++] =
-            CapturedContext.CapturedValue.of(
-                field.getName(), field.getType().getTypeName(), field.get(instance));
+        if (Redaction.isRedactedKeyword(field.getName())) {
+          fieldValues[index++] =
+              CapturedContext.CapturedValue.redacted(
+                  field.getName(), field.getType().getTypeName());
+        } else {
+          fieldValues[index++] =
+              CapturedContext.CapturedValue.of(
+                  field.getName(), field.getType().getTypeName(), field.get(instance));
+        }
       } catch (Exception ex) {
         ex.printStackTrace();
       }
@@ -54,11 +61,18 @@ public class RefResolverHelper {
     int index = 0;
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
       Object value = entry.getValue();
-      fieldValues[index++] =
-          CapturedContext.CapturedValue.of(
-              entry.getKey(),
-              value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
-              value);
+      if (Redaction.isRedactedKeyword(entry.getKey())) {
+        fieldValues[index++] =
+            CapturedContext.CapturedValue.redacted(
+                entry.getKey(),
+                value != null ? value.getClass().getTypeName() : Object.class.getTypeName());
+      } else {
+        fieldValues[index++] =
+            CapturedContext.CapturedValue.of(
+                entry.getKey(),
+                value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
+                value);
+      }
     }
   }
 }

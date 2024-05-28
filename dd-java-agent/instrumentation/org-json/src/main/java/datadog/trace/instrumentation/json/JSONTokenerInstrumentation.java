@@ -11,7 +11,7 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JSONTokenerInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
@@ -37,7 +37,7 @@ public class JSONTokenerInstrumentation extends InstrumenterModule.Iast
     public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final Object input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
-        iastModule.taintIfTainted(self, input);
+        iastModule.taintObjectIfTainted(self, input);
       }
     }
   }

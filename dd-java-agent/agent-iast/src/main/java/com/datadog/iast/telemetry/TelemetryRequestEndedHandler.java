@@ -5,6 +5,7 @@ import static datadog.trace.api.iast.telemetry.IastMetric.Scope.REQUEST;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
@@ -33,7 +34,7 @@ public class TelemetryRequestEndedHandler
   }
 
   private static void onRequestEnded(final RequestContext context) {
-    final IastContext iastCtx = IastContext.Provider.get(context);
+    final IastContext iastCtx = context.getData(RequestContextSlot.IAST);
     if (!(iastCtx instanceof HasMetricCollector)) {
       return;
     }

@@ -11,9 +11,12 @@ import scala.collection.Iterable;
 import scala.collection.Iterator;
 
 public class TaintParametersFunction<T> implements Function1<Tuple1<T>, Tuple1<T>> {
+
+  private final IastContext ctx;
   private final String paramName;
 
-  public TaintParametersFunction(String paramName) {
+  public TaintParametersFunction(IastContext ctx, String paramName) {
+    this.ctx = ctx;
     this.paramName = paramName;
   }
 
@@ -34,16 +37,15 @@ public class TaintParametersFunction<T> implements Function1<Tuple1<T>, Tuple1<T
     }
 
     if (value instanceof Iterable) {
-      final IastContext ctx = IastContext.Provider.get();
       Iterator<?> iterator = ((Iterable<?>) value).iterator();
       while (iterator.hasNext()) {
         Object o = iterator.next();
         if (o instanceof String) {
-          mod.taint(ctx, (String) o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+          mod.taintString(ctx, (String) o, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
         }
       }
     } else if (value instanceof String) {
-      mod.taint((String) value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
+      mod.taintString(ctx, (String) value, SourceTypes.REQUEST_PARAMETER_VALUE, paramName);
     }
 
     return v1;

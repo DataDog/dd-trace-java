@@ -17,7 +17,7 @@ import org.testng.annotations.CustomAttribute;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlTest;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes {
 

@@ -15,7 +15,7 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ByteBufInputStreamInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
@@ -54,7 +54,7 @@ public class ByteBufInputStreamInstrumentation extends InstrumenterModule.Iast
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
         if (module != null) {
-          module.taintIfTainted(self, buffer);
+          module.taintObjectIfTainted(self, buffer);
         }
       } catch (final Throwable e) {
         module.onUnexpectedException("ByteBufInputStream ctor threw", e);

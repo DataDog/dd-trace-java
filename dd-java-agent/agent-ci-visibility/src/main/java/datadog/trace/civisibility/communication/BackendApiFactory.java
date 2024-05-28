@@ -23,7 +23,7 @@ public class BackendApiFactory {
   }
 
   public @Nullable BackendApi createBackendApi() {
-    HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0);
+    HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
     if (config.isCiVisibilityAgentlessEnabled()) {
       HttpUrl agentlessUrl = getAgentlessUrl();

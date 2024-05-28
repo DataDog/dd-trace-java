@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
@@ -22,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.core.datastreams.TagsProcessor;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
@@ -53,10 +55,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   // We only want tag interceptor to take priority
   private static final byte RESOURCE_NAME_PRIORITY = ResourceNamePriorities.TAG_INTERCEPTOR - 1;
 
-  public static final boolean AWS_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(false, "aws-sdk");
+  public static final boolean AWS_LEGACY_TRACING = Config.get().isAwsLegacyTracingEnabled();
 
-  public static final boolean SQS_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "sqs");
+  public static final boolean SQS_LEGACY_TRACING = Config.get().isSqsLegacyTracingEnabled();
 
   private static final String SQS_SERVICE_NAME =
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
@@ -72,6 +73,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     KINESIS_PUT_RECORD_OPERATION_NAMES = new HashSet<>();
     KINESIS_PUT_RECORD_OPERATION_NAMES.add("PutRecord");
     KINESIS_PUT_RECORD_OPERATION_NAMES.add("PutRecords");
+  }
+
+  private static final Set<String> SNS_PUBLISH_OPERATION_NAMES;
+
+  static {
+    SNS_PUBLISH_OPERATION_NAMES = new HashSet<>();
+    SNS_PUBLISH_OPERATION_NAMES.add("Publish");
+    SNS_PUBLISH_OPERATION_NAMES.add("PublishBatch");
   }
 
   public static final ExecutionAttribute<String> KINESIS_STREAM_ARN_ATTRIBUTE =
@@ -99,13 +108,24 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   public AgentSpan onSdkRequest(
-      final AgentSpan span, final SdkRequest request, final ExecutionAttributes attributes) {
+      final AgentSpan span,
+      final SdkRequest request,
+      final SdkHttpRequest httpRequest,
+      final ExecutionAttributes attributes) {
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
+    if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
+      request
+          .getValueForField("Key", String.class)
+          .ifPresent(key -> span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key));
+      span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(httpRequest));
+    }
+
+    getRequestKey(request).ifPresent(key -> setObjectKey(span, key));
     request
         .getValueForField("StorageClass", String.class)
         .ifPresent(
@@ -122,9 +142,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
     // SNS
-    request
-        .getValueForField("TopicArn", String.class)
-        .ifPresent(arn -> setTopicName(span, arn.substring(arn.lastIndexOf(':') + 1)));
+    Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
+    if (!snsTopicArn.isPresent()) {
+      snsTopicArn = request.getValueForField("TargetArn", String.class);
+    }
+    Optional<String> snsTopicName = snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+    snsTopicName.ifPresent(topic -> setTopicName(span, topic));
 
     // Kinesis
     request
@@ -146,20 +169,34 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
 
     // DSM
-    if (span.traceConfig().isDataStreamsEnabled()
-        && kinesisStreamArn.isPresent()
-        && "kinesis".equalsIgnoreCase(awsServiceName)
-        && KINESIS_PUT_RECORD_OPERATION_NAMES.contains(awsOperationName)) {
-      // https://github.com/DataDog/dd-trace-py/blob/864abb6c99e1cb0449904260bac93e8232261f2a/ddtrace/contrib/botocore/patch.py#L368
-      List records =
-          request
-              .getValueForField("Records", List.class)
-              .orElse(Collections.singletonList(request)); // For PutRecord use request
+    if (span.traceConfig().isDataStreamsEnabled()) {
+      if (kinesisStreamArn.isPresent()
+          && "kinesis".equalsIgnoreCase(awsServiceName)
+          && KINESIS_PUT_RECORD_OPERATION_NAMES.contains(awsOperationName)) {
+        // https://github.com/DataDog/dd-trace-py/blob/864abb6c99e1cb0449904260bac93e8232261f2a/ddtrace/contrib/botocore/patch.py#L368
+        List records =
+            request
+                .getValueForField("Records", List.class)
+                .orElse(Collections.singletonList(request)); // For PutRecord use request
 
-      for (Object ignored : records) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .setProduceCheckpoint("kinesis", kinesisStreamArn.get(), NoOp.INSTANCE);
+        for (Object ignored : records) {
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setProduceCheckpoint("kinesis", kinesisStreamArn.get(), NoOp.INSTANCE);
+        }
+      } else if (snsTopicName.isPresent()
+          && "sns".equalsIgnoreCase(awsServiceName)
+          && SNS_PUBLISH_OPERATION_NAMES.contains(awsOperationName)) {
+        List entries =
+            request
+                .getValueForField("PublishBatchRequestEntries", List.class)
+                .orElse(Collections.singletonList(request));
+
+        for (Object ignored : entries) {
+          AgentTracer.get()
+              .getDataStreamsMonitoring()
+              .setProduceCheckpoint("sns", snsTopicName.get(), NoOp.INSTANCE);
+        }
       }
     }
 
@@ -215,6 +252,21 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     setPeerService(span, InstrumentationTags.AWS_BUCKET_NAME, name);
   }
 
+  private static Optional<String> getRequestKey(SdkRequest request) {
+    Optional<String> key = Optional.empty();
+    try {
+      key = request.getValueForField("Key", String.class);
+    } catch (ClassCastException ignored) {
+      // Key is not always a string, like for dynamodb GetItemRequest
+    }
+
+    return key;
+  }
+
+  private static void setObjectKey(AgentSpan span, String key) {
+    span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key);
+  }
+
   private static void setQueueName(AgentSpan span, String name) {
     span.setTag(InstrumentationTags.AWS_QUEUE_NAME, name);
     span.setTag(InstrumentationTags.QUEUE_NAME, name);
@@ -240,7 +292,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   public AgentSpan onSdkResponse(
-      final AgentSpan span, final SdkResponse response, final ExecutionAttributes attributes) {
+      final AgentSpan span,
+      final SdkResponse response,
+      final SdkHttpResponse httpResponse,
+      final ExecutionAttributes attributes) {
     if (response instanceof AwsResponse) {
       span.setTag(
           InstrumentationTags.AWS_REQUEST_ID,
@@ -293,6 +348,51 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                       }
                     }
                   });
+        }
+      }
+
+      if ("s3".equalsIgnoreCase(awsServiceName) && span.traceConfig().isDataStreamsEnabled()) {
+        long responseSize = getResponseContentLength(httpResponse);
+        span.setTag(Tags.HTTP_RESPONSE_CONTENT_LENGTH, responseSize);
+
+        String key = getSpanTagAsString(span, InstrumentationTags.AWS_OBJECT_KEY);
+        String bucket = getSpanTagAsString(span, InstrumentationTags.AWS_BUCKET_NAME);
+        String awsOperation = getSpanTagAsString(span, InstrumentationTags.AWS_OPERATION);
+
+        if (key != null && bucket != null && awsOperation != null) {
+          if ("GetObject".equalsIgnoreCase(awsOperation)) {
+            LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+            sortedTags.put(TagsProcessor.DIRECTION_TAG, TagsProcessor.DIRECTION_IN);
+            sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+            sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+            sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
+            sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .setCheckpoint(span, sortedTags, 0, responseSize);
+          }
+
+          if ("PutObject".equalsIgnoreCase(awsOperation)) {
+            Object requestSize = span.getTag(Tags.HTTP_REQUEST_CONTENT_LENGTH);
+            long payloadSize = 0;
+            if (requestSize != null) {
+              payloadSize = (long) requestSize;
+            }
+
+            LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+
+            sortedTags.put(TagsProcessor.DIRECTION_TAG, DIRECTION_OUT);
+            sortedTags.put(TagsProcessor.DATASET_NAME_TAG, key);
+            sortedTags.put(TagsProcessor.DATASET_NAMESPACE_TAG, bucket);
+            sortedTags.put(TagsProcessor.TOPIC_TAG, bucket);
+            sortedTags.put(TagsProcessor.TYPE_TAG, "s3");
+
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .setCheckpoint(span, sortedTags, 0, payloadSize);
+          }
         }
       }
     }

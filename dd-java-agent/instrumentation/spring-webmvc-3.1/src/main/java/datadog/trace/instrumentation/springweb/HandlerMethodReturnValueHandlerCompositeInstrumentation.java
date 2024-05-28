@@ -18,7 +18,7 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor;
 import org.springframework.web.servlet.view.AbstractUrlBasedView;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class HandlerMethodReturnValueHandlerCompositeInstrumentation
     extends InstrumenterModule.Iast implements Instrumenter.ForSingleType {
 

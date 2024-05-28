@@ -16,7 +16,7 @@ import org.hibernate.Query;
 import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastQueryInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 

@@ -13,12 +13,7 @@ import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
-/**
- * Built-in bytebuddy-based instrumentation for the datadog javaagent.
- *
- * <p>It is strongly recommended to extend {@link InstrumenterModule} rather than implement this
- * interface directly.
- */
+/** Declares bytebuddy-based type instrumentation for the datadog javaagent. */
 public interface Instrumenter {
 
   /** Instrumentation that only matches a single named type. */
@@ -38,6 +33,9 @@ public interface Instrumenter {
 
     ElementMatcher<TypeDescription> hierarchyMatcher();
   }
+
+  /** Instrumentation that transforms types on the bootstrap class-path. */
+  interface ForBootstrap {}
 
   /**
    * Instrumentation that matches a series of types configured at runtime. This is used for last
@@ -107,9 +105,7 @@ public interface Instrumenter {
     void methodAdvice(MethodTransformer transformer);
   }
 
-  /** Instrumentation that transforms types on the bootstrap class-path. */
-  interface ForBootstrap {}
-
+  /** Applies type advice from an instrumentation that {@link HasTypeAdvice}. */
   interface TypeTransformer {
     void applyAdvice(TransformingAdvice typeAdvice);
 
@@ -118,10 +114,12 @@ public interface Instrumenter {
     }
   }
 
+  /** Applies method advice from an instrumentation that {@link HasMethodAdvice}. */
   interface MethodTransformer {
-    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String className);
+    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass);
   }
 
+  /** Contributes a transformation step to the dynamic type builder. */
   interface TransformingAdvice {
     DynamicType.Builder<?> transform(
         DynamicType.Builder<?> builder,

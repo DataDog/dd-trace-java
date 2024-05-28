@@ -4,21 +4,31 @@ import datadog.trace.plugin.csi.AdviceGenerator.CallSiteResult;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public interface CallSiteReporter {
 
   void report(List<CallSiteResult> results, boolean error);
 
-  static CallSiteReporter getReporter(final String type) {
-    if ("CONSOLE".equals(type)) {
-      return new ConsoleReporter();
+  static Set<CallSiteReporter> getReporter(PluginApplication.Configuration configuration) {
+    Set<CallSiteReporter> reporters = new HashSet<>();
+    for (String type : configuration.getReporters()) {
+      if ("CONSOLE".equals(type)) {
+        reporters.add(new ConsoleReporter());
+      } else if ("ERROR_CONSOLE".equals(type)) {
+        reporters.add(new ErrorConsoleReporter());
+      } else {
+        throw new IllegalArgumentException("Reporter of type '" + type + "' not supported");
+      }
     }
-    throw new IllegalArgumentException("Reporter of type '" + type + "' not supported");
+    return reporters;
   }
 
   abstract class FreemarkerReporter implements CallSiteReporter {
@@ -44,7 +54,6 @@ public interface CallSiteReporter {
   }
 
   class ConsoleReporter extends FreemarkerReporter {
-
     protected ConsoleReporter() {
       super("console.ftl");
     }
@@ -55,6 +64,19 @@ public interface CallSiteReporter {
       final StringWriter writer = new StringWriter();
       write(results, writer);
       stream.println(writer);
+    }
+  }
+
+  class ErrorConsoleReporter extends FreemarkerReporter {
+    protected ErrorConsoleReporter() {
+      super("console.ftl");
+    }
+
+    @Override
+    public void report(final List<CallSiteResult> results, final boolean error) {
+      if (error) {
+        write(results, new PrintWriter(System.err));
+      }
     }
   }
 }

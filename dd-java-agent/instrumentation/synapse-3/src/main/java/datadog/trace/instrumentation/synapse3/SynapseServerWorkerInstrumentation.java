@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpResponse;
 import org.apache.synapse.transport.passthru.SourceRequest;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class SynapseServerWorkerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

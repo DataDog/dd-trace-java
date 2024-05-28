@@ -25,7 +25,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class DispatcherServletInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

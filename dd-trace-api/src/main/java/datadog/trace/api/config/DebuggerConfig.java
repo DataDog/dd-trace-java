@@ -29,8 +29,9 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_SYMBOL_FORCE_UPLOAD = "internal.force.symbol.database.upload";
   public static final String DEBUGGER_SYMBOL_INCLUDES = "symbol.database.includes";
   public static final String DEBUGGER_SYMBOL_FLUSH_THRESHOLD = "symbol.database.flush.threshold";
-  public static final String DEBUGGER_EXCEPTION_ENABLED =
-      "dynamic.instrumentation.exception.enabled";
+  public static final String DEBUGGER_EXCEPTION_ENABLED = "exception.debugging.enabled";
+  public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
+  public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
 
   private DebuggerConfig() {}
 }

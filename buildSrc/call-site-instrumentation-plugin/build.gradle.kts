@@ -3,8 +3,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   java
   groovy
-  id("com.diffplug.spotless") version "6.11.0"
-  id("com.github.johnrengelman.shadow") version "7.1.2"
+  id("com.diffplug.spotless") version "6.13.0"
+  id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 java {
@@ -38,7 +38,7 @@ dependencies {
   implementation("org.ow2.asm", "asm-tree", "9.0")
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
-  testImplementation("net.bytebuddy", "byte-buddy", "1.11.10")
+  testImplementation("net.bytebuddy", "byte-buddy", "1.14.13")
   testImplementation("org.spockframework", "spock-core", "2.0-groovy-3.0")
   testImplementation("org.objenesis", "objenesis", "3.0.1")
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
@@ -49,7 +49,7 @@ dependencies {
 sourceSets {
   test {
     java {
-      srcDirs("src/test/java", "$buildDir/generated/sources/csi")
+      srcDirs("src/test/java", "${layout.buildDirectory.get()}/generated/sources/csi")
     }
   }
 }
@@ -77,9 +77,6 @@ tasks {
 
 tasks {
   named<ShadowJar>("shadowJar") {
-    archiveBaseName.set("call-site-instrumentation-plugin")
-    archiveClassifier.set("")
-    archiveVersion.set("")
     mergeServiceFiles()
     manifest {
       attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))

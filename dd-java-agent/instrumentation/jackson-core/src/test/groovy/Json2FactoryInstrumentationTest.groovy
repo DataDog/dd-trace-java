@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.SsrfModule
 import groovy.transform.CompileDynamic
@@ -43,7 +44,7 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, content)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, content)
     0 * _
   }
 
@@ -59,7 +60,7 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, is)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, is)
     2 * is.read(_, _, _)
     0 * _
   }
@@ -76,7 +77,7 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, reader)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, reader)
     0 * _
   }
 
@@ -92,7 +93,22 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
 
     then:
     result != null
-    1 * propagationModule.taintIfTainted(_ as JsonParser, bytes)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, bytes)
+    0 * _
+  }
+
+  void 'test createParser(byte[], int, int)'() {
+    setup:
+    final propagationModule = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(propagationModule)
+    final bytes = '{}'.bytes
+
+    when:
+    final parser = new JsonFactory().createParser(bytes, 0, 2)
+
+    then:
+    parser != null
+    1 * propagationModule.taintObjectIfRangeTainted(_ as JsonParser, bytes, 0, 2, false, VulnerabilityMarks.NOT_MARKED)
     0 * _
   }
 
@@ -111,7 +127,7 @@ class Json2FactoryInstrumentationTest extends AgentTestRunner {
     then:
     parser != null
     json == [key: 'value']
-    1 * propagationModule.taintIfTainted(_ as JsonParser, url)
+    1 * propagationModule.taintObjectIfTainted(_ as JsonParser, url)
     1 * propagationModule.findSource(_ as JsonParser) >> null
     1 * ssrfModule.onURLConnection(url)
     0 * _

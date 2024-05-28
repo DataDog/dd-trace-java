@@ -299,6 +299,8 @@ class DDSpanContextTest extends DDCoreSpecification {
     sourceWithoutCommonTags.remove("_dd.trace_span_attribute_schema")
     sourceWithoutCommonTags.remove(DDTags.PROFILING_ENABLED)
     sourceWithoutCommonTags.remove(DDTags.PROFILING_CONTEXT_ENGINE)
+    sourceWithoutCommonTags.remove(DDTags.DSM_ENABLED)
+    sourceWithoutCommonTags.remove(DDTags.DJM_ENABLED)
     if (removeThread) {
       sourceWithoutCommonTags.remove(DDTags.THREAD_ID)
       sourceWithoutCommonTags.remove(DDTags.THREAD_NAME)

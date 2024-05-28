@@ -4,6 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static datadog.trace.instrumentation.java.concurrent.AbstractExecutorInstrumentation.EXEC_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
@@ -20,6 +22,7 @@ import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
@@ -28,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -57,7 +61,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  *               <- + close AgentScope if available
  * }</pre>
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
 
@@ -91,6 +95,7 @@ public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.
     final Map<String, String> stores = new HashMap<>();
     stores.put(TPE, Boolean.class.getName());
     stores.put(Runnable.class.getName(), State.class.getName());
+    stores.put(RunnableFuture.class.getName(), State.class.getName());
     return Collections.unmodifiableMap(stores);
   }
 
@@ -149,7 +154,19 @@ public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.
         if (TPEHelper.useWrapping(task)) {
           task = Wrapper.wrap(task);
         } else {
-          TPEHelper.capture(InstrumentationContext.get(Runnable.class, State.class), tpe, task);
+          TPEHelper.capture(InstrumentationContext.get(Runnable.class, State.class), task);
+          // queue time needs to be handled separately because there are RunnableFutures which are
+          // excluded as
+          // Runnables but it is not until now that they will be put on the executor's queue
+          if (!exclude(RUNNABLE, task)) {
+            QueueTimerHelper.startQueuingTimer(
+                InstrumentationContext.get(Runnable.class, State.class), tpe.getClass(), task);
+          } else if (!exclude(RUNNABLE_FUTURE, task) && task instanceof RunnableFuture) {
+            QueueTimerHelper.startQueuingTimer(
+                InstrumentationContext.get(RunnableFuture.class, State.class),
+                tpe.getClass(),
+                (RunnableFuture<?>) task);
+          }
         }
       }
     }

@@ -58,7 +58,9 @@ public final class ScriptInitializer {
     if (scriptPath.getFileName().toString().toLowerCase(Locale.ROOT).contains("dd_crash_uploader")
         && Files.notExists(scriptPath)) {
       try {
-        Files.createDirectories(scriptPath.getParent());
+        Files.createDirectories(
+            scriptPath.getParent(),
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxrwx")));
       } catch (FileAlreadyExistsException ignored) {
         // can be safely ignored; if the folder exists we will just reuse it
       }
@@ -86,7 +88,7 @@ public final class ScriptInitializer {
             .forEach(line -> writeLine(bw, line));
       }
     }
-    Files.setPosixFilePermissions(scriptPath, PosixFilePermissions.fromString("r-xr-x---"));
+    Files.setPosixFilePermissions(scriptPath, PosixFilePermissions.fromString("r-xr-xr-x"));
   }
 
   private static void writeLine(BufferedWriter bw, String line) {

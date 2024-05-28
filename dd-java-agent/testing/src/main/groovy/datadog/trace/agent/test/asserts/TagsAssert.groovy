@@ -62,6 +62,8 @@ class TagsAssert {
     assertedTags.add(DDTags.PROFILING_ENABLED)
     assertedTags.add(DDTags.PROFILING_CONTEXT_ENGINE)
     assertedTags.add(DDTags.BASE_SERVICE)
+    assertedTags.add(DDTags.DSM_ENABLED)
+    assertedTags.add(DDTags.DJM_ENABLED)
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null

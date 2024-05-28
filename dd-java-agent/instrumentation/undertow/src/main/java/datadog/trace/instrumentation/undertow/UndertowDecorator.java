@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.undertow;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
@@ -33,6 +34,8 @@ public class UndertowDecorator
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
   public static final CharSequence UNDERTOW_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
+  public static final boolean UNDERTOW_LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(true, "undertow");
 
   @Override
   protected String[] instrumentationNames() {

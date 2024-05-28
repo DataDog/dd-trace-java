@@ -32,6 +32,9 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.VisibilityBridgeStrategy;
+import net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import net.bytebuddy.dynamic.scaffold.MethodGraph;
 import net.bytebuddy.matcher.LatentMatcher;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
@@ -86,7 +89,7 @@ public class AgentInstaller {
   }
 
   /**
-   * Install the core bytebuddy agent along with all implementations of {@link Instrumenter}.
+   * Install the core bytebuddy agent along with all registered {@link InstrumenterModule}s.
    *
    * @return the agent's class transformer
    */
@@ -114,8 +117,25 @@ public class AgentInstaller {
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
     ByteBuddy byteBuddy =
         new ByteBuddy().ignore(new LatentMatcher.Resolved<>(isDefaultFinalizer()));
-    AgentBuilder agentBuilder =
-        new AgentBuilder.Default(byteBuddy)
+
+    boolean simpleMethodGraph = InstrumenterConfig.get().isResolverSimpleMethodGraph();
+    if (simpleMethodGraph) {
+      // faster compiler that just considers visibility of locally declared methods
+      byteBuddy =
+          byteBuddy
+              .with(MethodGraph.Compiler.ForDeclaredMethods.INSTANCE)
+              .with(VisibilityBridgeStrategy.Default.NEVER)
+              .with(InstrumentedType.Factory.Default.FROZEN);
+    }
+
+    AgentBuilder agentBuilder = new AgentBuilder.Default(byteBuddy);
+    if (simpleMethodGraph) {
+      // faster strategy that assumes transformations use @Advice or AsmVisitorWrapper
+      agentBuilder = agentBuilder.with(AgentBuilder.TypeStrategy.Default.DECORATE);
+    }
+
+    agentBuilder =
+        agentBuilder
             .disableClassFormatChanges()
             .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
             .with(AgentStrategies.transformerDecorator())
@@ -147,53 +167,45 @@ public class AgentInstaller {
       agentBuilder = agentBuilder.with(listener);
     }
 
-    Instrumenters instrumenters = Instrumenters.load(AgentInstaller.class.getClassLoader());
-    int maxInstrumentationId = instrumenters.maxInstrumentationId();
+    InstrumenterIndex instrumenterIndex = InstrumenterIndex.readIndex();
 
     // pre-size state before registering instrumentations to reduce number of allocations
-    InstrumenterState.setMaxInstrumentationId(maxInstrumentationId);
+    InstrumenterState.initialize(instrumenterIndex.instrumentationCount());
 
-    // This needs to be a separate loop through all the instrumenters before we start adding
+    // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
     // immediately and we don't have the ability to express dependencies between different
-    // instrumenters to control the load order.
-    for (Instrumenter instrumenter : instrumenters) {
-      if (instrumenter instanceof ExcludeFilterProvider) {
-        ExcludeFilterProvider provider = (ExcludeFilterProvider) instrumenter;
+    // instrumentations to control the load order.
+    for (InstrumenterModule module : instrumenterIndex.modules()) {
+      if (module instanceof ExcludeFilterProvider) {
+        ExcludeFilterProvider provider = (ExcludeFilterProvider) module;
         ExcludeFilter.add(provider.excludedClasses());
         if (DEBUG) {
           log.debug(
-              "Adding filtered classes - instrumentation.class={}",
-              instrumenter.getClass().getName());
+              "Adding filtered classes - instrumentation.class={}", module.getClass().getName());
         }
       }
     }
 
-    AbstractTransformerBuilder transformerBuilder;
-    if (InstrumenterConfig.get().isLegacyInstallerEnabled()) {
-      transformerBuilder = new LegacyTransformerBuilder(agentBuilder);
-    } else {
-      transformerBuilder = new CombiningTransformerBuilder(agentBuilder, maxInstrumentationId);
-    }
+    CombiningTransformerBuilder transformerBuilder =
+        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex);
 
     int installedCount = 0;
-    for (Instrumenter instrumenter : instrumenters) {
-      if (instrumenter instanceof InstrumenterModule
-          && !((InstrumenterModule) instrumenter).isApplicable(enabledSystems)) {
+    for (InstrumenterModule module : instrumenterIndex.modules()) {
+      if (!module.isApplicable(enabledSystems)) {
         if (DEBUG) {
-          log.debug("Not applicable - instrumentation.class={}", instrumenter.getClass().getName());
+          log.debug("Not applicable - instrumentation.class={}", module.getClass().getName());
         }
         continue;
       }
       if (DEBUG) {
-        log.debug("Loading - instrumentation.class={}", instrumenter.getClass().getName());
+        log.debug("Loading - instrumentation.class={}", module.getClass().getName());
       }
       try {
-        transformerBuilder.applyInstrumentation(instrumenter);
+        transformerBuilder.applyInstrumentation(module);
         installedCount++;
       } catch (Exception | LinkageError e) {
-        log.error(
-            "Failed to load - instrumentation.class={}", instrumenter.getClass().getName(), e);
+        log.error("Failed to load - instrumentation.class={}", module.getClass().getName(), e);
       }
     }
     if (DEBUG) {

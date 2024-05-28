@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class JakartaWSResponseInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
@@ -34,6 +34,11 @@ public class JakartaWSResponseInstrumentation extends InstrumenterModule.Iast
     transformer.applyAdvice(
         named("location").and(isPublic().and(takesArguments(URI.class))),
         JakartaWSResponseInstrumentation.class.getName() + "$RedirectionAdvice");
+  }
+
+  @Override
+  protected boolean isOptOutEnabled() {
+    return true;
   }
 
   @Override

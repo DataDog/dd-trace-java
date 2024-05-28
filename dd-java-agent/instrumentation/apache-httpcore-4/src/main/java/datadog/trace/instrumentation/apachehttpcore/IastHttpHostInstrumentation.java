@@ -11,7 +11,7 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
@@ -38,7 +38,7 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
         @Advice.This final Object self, @Advice.Argument(0) final Object argument) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taintIfTainted(self, argument);
+        module.taintObjectIfTainted(self, argument);
       }
     }
   }
