@@ -70,6 +70,8 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     "org.mariadb.jdbc.Connection",
     // aws-mysql-jdbc
     "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
+    // for testing purposes
+    "test.TestConnection"
   };
 
   @Override
