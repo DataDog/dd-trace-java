@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.opentelemetry14.trace;
+package datadog.opentelemetry.shim.trace;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;

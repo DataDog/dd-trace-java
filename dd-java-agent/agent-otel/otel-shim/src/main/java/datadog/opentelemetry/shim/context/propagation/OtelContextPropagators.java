@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.opentelemetry14.context.propagation;
+package datadog.opentelemetry.shim.context.propagation;
 
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.context.propagation.TextMapPropagator;

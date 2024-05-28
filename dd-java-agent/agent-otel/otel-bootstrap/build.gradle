@@ -1,0 +1,66 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'instrument'
+
+configurations {
+  embeddedClasspath {
+    visible = false
+    canBeConsumed = false
+    canBeResolved = true
+  }
+  instrumentPluginClasspath {
+    visible = false
+    canBeConsumed = false
+    canBeResolved = true
+  }
+}
+
+instrument.plugins = ['datadog.opentelemetry.tooling.OtelShimGradlePlugin']
+
+minimumInstructionCoverage = 0.0
+minimumBranchCoverage = 0.0
+
+forbiddenApis {
+  ignoreFailures = true
+}
+spotbugs {
+  onlyAnalyze = ['none']
+}
+
+dependencies {
+  // latest OpenTelemetry API for drop-in support; instrumented at build-time with our shim
+  embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.38.0'
+
+  implementation project(':dd-java-agent:agent-otel:otel-shim')
+
+  instrumentPluginClasspath project(':dd-java-agent:agent-otel:otel-tooling')
+}
+
+// unpack embeddedClasspath to same path as compiled classes so it can get instrumented
+tasks.register('unpackJars', Copy) {
+  dependsOn configurations.embeddedClasspath
+  exclude 'META-INF/'
+  from {
+    configurations.embeddedClasspath.collect { zipTree(it) }
+  }
+  into compileJava.destinationDirectory
+}
+tasks.named('compileJava') {
+  dependsOn 'unpackJars'
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+
+  exclude 'io/opentelemetry/context/internal/shaded/**'
+
+  relocate 'io.opentelemetry', 'datadog.trace.bootstrap.otel'
+  relocate 'datadog.opentelemetry.shim', 'datadog.trace.bootstrap.otel.shim'
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}

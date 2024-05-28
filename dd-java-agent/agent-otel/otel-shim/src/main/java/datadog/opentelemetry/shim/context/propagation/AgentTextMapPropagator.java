@@ -1,16 +1,16 @@
-package datadog.trace.instrumentation.opentelemetry14.context.propagation;
+package datadog.opentelemetry.shim.context.propagation;
 
+import static datadog.opentelemetry.shim.trace.OtelSpanContext.fromRemote;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelSpanContext.fromRemote;
 
+import datadog.opentelemetry.shim.context.OtelContext;
+import datadog.opentelemetry.shim.trace.OtelExtractedContext;
+import datadog.opentelemetry.shim.trace.OtelSpan;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.instrumentation.opentelemetry14.context.OtelContext;
-import datadog.trace.instrumentation.opentelemetry14.trace.OtelExtractedContext;
-import datadog.trace.instrumentation.opentelemetry14.trace.OtelSpan;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceState;

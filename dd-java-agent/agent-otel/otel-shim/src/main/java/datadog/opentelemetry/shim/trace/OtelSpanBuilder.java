@@ -1,11 +1,11 @@
-package datadog.trace.instrumentation.opentelemetry14.trace;
+package datadog.opentelemetry.shim.trace;
 
+import static datadog.opentelemetry.shim.trace.OtelConventions.ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES;
+import static datadog.opentelemetry.shim.trace.OtelConventions.OPERATION_NAME_SPECIFIC_ATTRIBUTE;
+import static datadog.opentelemetry.shim.trace.OtelConventions.toSpanKindTagValue;
+import static datadog.opentelemetry.shim.trace.OtelExtractedContext.extract;
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES;
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.OPERATION_NAME_SPECIFIC_ATTRIBUTE;
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanKindTagValue;
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelExtractedContext.extract;
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;

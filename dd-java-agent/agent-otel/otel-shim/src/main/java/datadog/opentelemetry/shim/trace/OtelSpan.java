@@ -1,8 +1,8 @@
-package datadog.trace.instrumentation.opentelemetry14.trace;
+package datadog.opentelemetry.shim.trace;
 
+import static datadog.opentelemetry.shim.trace.OtelConventions.applyNamingConvention;
+import static datadog.opentelemetry.shim.trace.OtelConventions.applyReservedAttribute;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.applyNamingConvention;
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.applyReservedAttribute;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
