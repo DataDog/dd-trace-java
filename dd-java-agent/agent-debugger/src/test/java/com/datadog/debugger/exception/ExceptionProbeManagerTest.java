@@ -60,7 +60,6 @@ class ExceptionProbeManagerTest {
     when(config.getThirdPartyIncludes())
         .thenReturn(
             Stream.of(
-                    ",",
                     "org.gradle.",
                     "worker.org.gradle.",
                     "org.junit.",
@@ -87,5 +86,38 @@ class ExceptionProbeManagerTest {
     Clock clock =
         Clock.fixed(Instant.now().plus(Duration.ofMinutes(61)), Clock.systemUTC().getZone());
     assertTrue(exceptionProbeManager.shouldCaptureException(fingerprint, clock));
+  }
+
+  @Test
+  void maxFrames() {
+    RuntimeException deepException = level1();
+    ClassNameFiltering classNameFiltering =
+        new ClassNameFiltering(
+            Stream.of(
+                    "java.",
+                    "jdk.",
+                    "sun.",
+                    "com.sun.",
+                    "org.gradle.",
+                    "worker.org.gradle.",
+                    "org.junit.")
+                .collect(Collectors.toSet()));
+    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
+    exceptionProbeManager.createProbesForException(deepException.getStackTrace());
+    assertEquals(
+        Config.get().getDebuggerExceptionMaxCapturedFrames(),
+        exceptionProbeManager.getProbes().size());
+  }
+
+  RuntimeException level1() {
+    return level2();
+  }
+
+  RuntimeException level2() {
+    return level3();
+  }
+
+  RuntimeException level3() {
+    return new RuntimeException("3 level deep exception");
   }
 }

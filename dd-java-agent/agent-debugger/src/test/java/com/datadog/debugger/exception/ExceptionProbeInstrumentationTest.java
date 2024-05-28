@@ -190,7 +190,8 @@ public class ExceptionProbeInstrumentationTest {
       disabledReason = "Bug in J9: no LocalVariableTable for ClassFileTransformer")
   public void recursive() throws Exception {
     Config config = createConfig();
-    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
+    ExceptionProbeManager exceptionProbeManager =
+        new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), Clock.systemUTC(), 20);
     TestSnapshotListener listener =
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
@@ -227,7 +228,7 @@ public class ExceptionProbeInstrumentationTest {
     Clock clockMock = mock(Clock.class);
     when(clockMock.instant()).thenReturn(Instant.now());
     ExceptionProbeManager exceptionProbeManager =
-        new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), clockMock);
+        new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), clockMock, 3);
     TestSnapshotListener listener =
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";

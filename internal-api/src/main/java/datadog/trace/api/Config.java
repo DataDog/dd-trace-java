@@ -45,6 +45,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_E
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND;
@@ -211,6 +212,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_EN
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
@@ -841,6 +843,7 @@ public class Config {
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
   private final boolean debuggerExceptionOnlyLocalRoot;
+  private final int debuggerExceptionMaxCapturedFrames;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -1900,6 +1903,9 @@ public class Config {
     debuggerExceptionOnlyLocalRoot =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT, DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT);
+    debuggerExceptionMaxCapturedFrames =
+        configProvider.getInteger(
+            DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES, DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES);
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
@@ -3227,6 +3233,10 @@ public class Config {
 
   public boolean isDebuggerExceptionOnlyLocalRoot() {
     return debuggerExceptionOnlyLocalRoot;
+  }
+
+  public int getDebuggerExceptionMaxCapturedFrames() {
+    return debuggerExceptionMaxCapturedFrames;
   }
 
   public Set<String> getThirdPartyIncludes() {
