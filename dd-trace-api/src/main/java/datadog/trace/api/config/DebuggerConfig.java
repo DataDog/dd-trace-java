@@ -35,6 +35,8 @@ public final class DebuggerConfig {
       "exception.replay.max.exception.analysis.limit";
   public static final String DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT =
       "internal.exception.replay.only.local.root";
+  public static final String DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES =
+      "exception.replay.max.frames.to.capture";
   public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
   public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
 
