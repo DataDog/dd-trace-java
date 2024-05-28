@@ -8,7 +8,6 @@ import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
-import datadog.trace.api.Config
 import datadog.trace.api.ProductActivation
 import datadog.trace.test.util.DDSpecification
 
@@ -18,7 +17,7 @@ import java.nio.file.Path
 class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   ConfigurationPoller poller = Mock()
-  Config config = Mock(Class.forName('datadog.trace.api.Config')) as Config
+  def config = Mock(Class.forName('datadog.trace.api.Config'))
   AppSecModuleConfigurer.Reconfiguration reconf = Stub()
   AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, poller, reconf)
 

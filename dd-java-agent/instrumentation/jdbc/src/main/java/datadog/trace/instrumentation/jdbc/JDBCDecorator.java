@@ -103,11 +103,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   @Override
-  protected String dbType(final DBInfo info) {
-    return info.getType();
-  }
-
-  @Override
   protected String dbUser(final DBInfo info) {
     return info.getUser();
   }

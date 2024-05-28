@@ -50,20 +50,11 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
 
   protected abstract String dbType();
 
-  protected String dbType(CONNECTION connection) {
-    return dbType();
-  }
-
   protected abstract String dbUser(CONNECTION connection);
 
   protected abstract String dbInstance(CONNECTION connection);
 
   protected abstract CharSequence dbHostname(CONNECTION connection);
-
-  // Extract this to allow for easier testing
-  protected AgentTracer.TracerAPI tracer() {
-    return AgentTracer.get();
-  }
 
   /**
    * This should be called when the connection is being used, not when it's created.
@@ -89,22 +80,6 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
 
         if (Config.get().isDbClientSplitByHost()) {
           span.setServiceName(hostName.toString());
-        }
-      }
-
-      if (Config.get().getAppSecRaspEnabled()) {
-        BiConsumer<RequestContext, String> connectDbCallback =
-            tracer()
-                .getCallbackProvider(RequestContextSlot.APPSEC)
-                .getCallback(EVENTS.databaseConnection());
-        if (connectDbCallback != null) {
-          RequestContext ctx = span.getRequestContext();
-          if (ctx != null) {
-            String dbType = dbType(connection);
-            if (dbType != null) {
-              connectDbCallback.accept(ctx, dbType);
-            }
-          }
         }
       }
     }
@@ -142,7 +117,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   public AgentSpan onStatementRaw(AgentSpan span, String sql) {
     if (Config.get().getAppSecRaspEnabled()) {
       BiConsumer<RequestContext, String> sqlQueryCallback =
-          tracer()
+          AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)
               .getCallback(EVENTS.databaseSqlQuery());
       if (sqlQueryCallback != null) {
@@ -161,6 +136,21 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     final NamingEntry namingEntry = CACHE.computeIfAbsent(dbType, NamingEntry::new);
     span.setTag(DB_TYPE, namingEntry.dbType);
     postProcessServiceAndOperationName(span, namingEntry);
+
+    if (Config.get().getAppSecRaspEnabled()) {
+      BiConsumer<RequestContext, String> connectDbCallback =
+          AgentTracer.get()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.databaseConnection());
+      if (connectDbCallback != null) {
+        RequestContext ctx = span.getRequestContext();
+        if (ctx != null) {
+          if (dbType != null) {
+            connectDbCallback.accept(ctx, dbType);
+          }
+        }
+      }
+    }
   }
 
   protected void postProcessServiceAndOperationName(AgentSpan span, NamingEntry namingEntry) {}
