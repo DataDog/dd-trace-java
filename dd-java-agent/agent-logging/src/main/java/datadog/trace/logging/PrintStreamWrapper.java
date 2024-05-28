@@ -28,13 +28,13 @@ public class PrintStreamWrapper extends PrintStream {
   public void println(String x) {
     super.println(x); // log as usual
     if (activate) {
-      synchronized (this) {
-        currentSize += x.getBytes().length + lineSeparatorLength;
-        if (currentSize < LogReporter.MAX_LOGFILE_SIZE_BYTES) {
+      currentSize += x.getBytes().length + lineSeparatorLength;
+      if (currentSize < LogReporter.MAX_LOGFILE_SIZE_BYTES) {
+        synchronized (this) {
           printStream.println(x);
-        } else {
-          activate = false;
         }
+      } else {
+        activate = false;
       }
     }
   }
