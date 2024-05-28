@@ -41,6 +41,12 @@ ext {
     'datadog.communication.monitor.DDAgentStatsDConnection',
     'datadog.communication.monitor.DDAgentStatsDConnection.*',
     'datadog.communication.monitor.LoggingStatsDClient',
+    'datadog.communication.BackendApiFactory',
+    'datadog.communication.BackendApiFactory.Intake',
+    'datadog.communication.EvpProxyApi',
+    'datadog.communication.IntakeApi',
+    'datadog.communication.util.IOUtils',
+    'datadog.communication.util.IOUtils.1',
   ]
   excludedClassesBranchCoverage = ['datadog.communication.ddagent.TracerVersion',]
   excludedClassesInstructionCoverage = [
