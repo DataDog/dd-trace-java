@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.utils;
+package datadog.communication.util;
 
 import java.io.IOException;
 
