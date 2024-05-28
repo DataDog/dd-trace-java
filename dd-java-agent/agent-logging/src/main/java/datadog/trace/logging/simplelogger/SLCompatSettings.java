@@ -1,6 +1,8 @@
 package datadog.trace.logging.simplelogger;
 
 import datadog.trace.logging.LogLevel;
+import datadog.trace.logging.LogReporter;
+import datadog.trace.logging.PrintStreamWrapper;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -165,11 +167,17 @@ public class SLCompatSettings {
   }
 
   static PrintStream getPrintStream(String logFile) {
+    LogReporter.register();
     switch (logFile.toLowerCase(Locale.ROOT)) {
       case "system.err":
-        return System.err;
+        {
+          return new PrintStreamWrapper(System.err);
+        }
       case "system.out":
-        return System.out;
+        {
+          return new PrintStreamWrapper(System.out);
+        }
+
       default:
         FileOutputStream outputStream = null;
         try {
@@ -190,7 +198,7 @@ public class SLCompatSettings {
             }
           }
           // TODO maybe have support for delayed logging of early failures?
-          return System.err;
+          return new PrintStreamWrapper(System.err);
         }
     }
   }
