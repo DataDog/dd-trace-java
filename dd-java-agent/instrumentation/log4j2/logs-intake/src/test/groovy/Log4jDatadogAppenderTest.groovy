@@ -71,6 +71,11 @@ class Log4jDatadogAppenderTest extends AgentTestRunner {
     }
 
     @Override
+    void start() {
+      // no op
+    }
+
+    @Override
     void shutdown() {
       // no op
     }
