@@ -23,6 +23,8 @@ public class LogsIntakeSystem {
     BackendApi backendApi = apiFactory.createBackendApi(BackendApiFactory.Intake.LOGS);
     LogsDispatcher dispatcher = new LogsDispatcher(backendApi);
     LogsWriterImpl writer = new LogsWriterImpl(config, dispatcher);
+    writer.start();
+
     LogsIntake.registerWriter(writer);
   }
 

@@ -40,7 +40,10 @@ public class LogsWriterImpl implements LogsWriter {
     messagePollingThread =
         AgentThreadFactory.newAgentThread(
             AgentThreadFactory.AgentThread.LOGS_INTAKE, this::logPollingLoop);
+  }
 
+  @Override
+  public void start() {
     try {
       Runtime.getRuntime()
           .addShutdownHook(
