@@ -362,6 +362,7 @@ public class Agent {
     if (telemetryEnabled) {
       stopTelemetry();
     }
+    shutdownLogsIntake();
   }
 
   public static synchronized Class<?> installAgentCLI() throws Exception {
@@ -487,6 +488,7 @@ public class Agent {
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
+      maybeStartLogsIntake(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -795,6 +797,37 @@ public class Agent {
       }
 
       StaticEventLogger.end("CI Visibility");
+    }
+  }
+
+  private static void maybeStartLogsIntake(Class<?> scoClass, Object sco) {
+    StaticEventLogger.begin("Logs Intake");
+
+    try {
+      final Class<?> logsIntakeSystemClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
+      final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
+      logsIntakeInstallerMethod.invoke(null, sco);
+    } catch (final Throwable e) {
+      log.warn("Not starting Logs Intake subsystem", e);
+    }
+
+    StaticEventLogger.end("Logs Intake");
+  }
+
+  private static void shutdownLogsIntake() {
+    if (AGENT_CLASSLOADER == null) {
+      // It wasn't started, so no need to shut it down
+      return;
+    }
+    try {
+      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+      final Class<?> logsIntakeSystemClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
+      final Method shutdownMethod = logsIntakeSystemClass.getMethod("shutdown");
+      shutdownMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while shutting down logs intake", ex);
     }
   }
 

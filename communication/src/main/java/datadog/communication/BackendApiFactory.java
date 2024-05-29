@@ -67,7 +67,12 @@ public class BackendApiFactory {
   }
 
   public enum Intake {
-    API("api", "v2", Config::isCiVisibilityAgentlessEnabled, Config::getCiVisibilityAgentlessUrl);
+    API("api", "v2", Config::isCiVisibilityAgentlessEnabled, Config::getCiVisibilityAgentlessUrl),
+    LOGS(
+        "http-intake.logs",
+        "v2",
+        Config::isAgentlessLogSubmissionEnabled,
+        Config::getAgentlessLogSubmissionUrl);
 
     public final String urlPrefix;
     public final String version;
