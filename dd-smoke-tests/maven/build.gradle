@@ -8,8 +8,7 @@ description = 'Maven Instrumentation Smoke Tests.'
 dependencies {
   implementation group: 'org.apache.maven.wrapper', name: 'maven-wrapper', version: '3.2.0'
 
-  testImplementation project(':dd-smoke-tests')
-  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+  testImplementation project(':dd-smoke-tests:backend-mock')
 }
 
 jar {
