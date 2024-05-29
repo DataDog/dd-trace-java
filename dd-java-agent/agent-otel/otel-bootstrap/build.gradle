@@ -18,7 +18,7 @@ configurations {
   }
 }
 
-instrument.plugins = ['datadog.opentelemetry.tooling.OtelShimGradlePlugin']
+instrument.plugins = ['datadog.opentelemetry.tooling.shim.OtelShimGradlePlugin']
 
 minimumInstructionCoverage = 0.0
 minimumBranchCoverage = 0.0

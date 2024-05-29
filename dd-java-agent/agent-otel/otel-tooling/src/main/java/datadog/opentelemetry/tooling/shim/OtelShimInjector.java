@@ -1,4 +1,4 @@
-package datadog.opentelemetry.tooling;
+package datadog.opentelemetry.tooling.shim;
 
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;

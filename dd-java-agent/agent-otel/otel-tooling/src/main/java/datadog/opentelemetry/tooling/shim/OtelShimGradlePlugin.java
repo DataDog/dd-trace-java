@@ -1,8 +1,8 @@
-package datadog.opentelemetry.tooling;
+package datadog.opentelemetry.tooling.shim;
 
-import static datadog.opentelemetry.tooling.OtelShimInjector.OTEL_CONTEXT_CLASSES;
-import static datadog.opentelemetry.tooling.OtelShimInjector.OTEL_CONTEXT_STORAGE_CLASSES;
-import static datadog.opentelemetry.tooling.OtelShimInjector.OTEL_ENTRYPOINT_CLASSES;
+import static datadog.opentelemetry.tooling.shim.OtelShimInjector.OTEL_CONTEXT_CLASSES;
+import static datadog.opentelemetry.tooling.shim.OtelShimInjector.OTEL_CONTEXT_STORAGE_CLASSES;
+import static datadog.opentelemetry.tooling.shim.OtelShimInjector.OTEL_ENTRYPOINT_CLASSES;
 import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
