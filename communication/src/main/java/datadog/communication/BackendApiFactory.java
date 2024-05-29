@@ -1,10 +1,11 @@
-package datadog.trace.civisibility.communication;
+package datadog.communication;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -22,11 +23,11 @@ public class BackendApiFactory {
     this.sharedCommunicationObjects = sharedCommunicationObjects;
   }
 
-  public @Nullable BackendApi createBackendApi() {
+  public @Nullable BackendApi createBackendApi(Intake intake) {
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
-    if (config.isCiVisibilityAgentlessEnabled()) {
-      HttpUrl agentlessUrl = getAgentlessUrl();
+    if (intake.agentlessModeEnabled.apply(config)) {
+      HttpUrl agentlessUrl = getAgentlessUrl(intake);
       String apiKey = config.getApiKey();
       if (apiKey == null || apiKey.isEmpty()) {
         throw new FatalAgentMisconfigurationError(
@@ -34,7 +35,7 @@ public class BackendApiFactory {
       }
       String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
       long timeoutMillis = config.getCiVisibilityBackendApiTimeoutMillis();
-      return new IntakeApi(agentlessUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory);
+      return new IntakeApi(agentlessUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, true);
     }
 
     DDAgentFeaturesDiscovery featuresDiscovery =
@@ -45,7 +46,7 @@ public class BackendApiFactory {
       String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
       HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
       return new EvpProxyApi(
-          traceId, evpProxyUrl, retryPolicyFactory, sharedCommunicationObjects.okHttpClient);
+          traceId, evpProxyUrl, retryPolicyFactory, sharedCommunicationObjects.okHttpClient, true);
     }
 
     log.warn(
@@ -54,14 +55,34 @@ public class BackendApiFactory {
     return null;
   }
 
-  private HttpUrl getAgentlessUrl() {
-    final String ciVisibilityAgentlessUrlStr = config.getCiVisibilityAgentlessUrl();
-    if (ciVisibilityAgentlessUrlStr != null && !ciVisibilityAgentlessUrlStr.isEmpty()) {
-      return HttpUrl.get(
-          String.format("%s/api/%s/", ciVisibilityAgentlessUrlStr, IntakeApi.API_VERSION));
+  private HttpUrl getAgentlessUrl(Intake intake) {
+    String customUrl = intake.customUrl.apply(config);
+    if (customUrl != null && !customUrl.isEmpty()) {
+      return HttpUrl.get(String.format("%s/api/%s/", customUrl, intake.version));
     } else {
       String site = config.getSite();
-      return HttpUrl.get(String.format("https://api.%s/api/%s/", site, IntakeApi.API_VERSION));
+      return HttpUrl.get(
+          String.format("https://%s.%s/api/%s/", intake.urlPrefix, site, intake.version));
+    }
+  }
+
+  public enum Intake {
+    API("api", "v2", Config::isCiVisibilityAgentlessEnabled, Config::getCiVisibilityAgentlessUrl);
+
+    public final String urlPrefix;
+    public final String version;
+    public final Function<Config, Boolean> agentlessModeEnabled;
+    public final Function<Config, String> customUrl;
+
+    Intake(
+        String urlPrefix,
+        String version,
+        Function<Config, Boolean> agentlessModeEnabled,
+        Function<Config, String> customUrl) {
+      this.urlPrefix = urlPrefix;
+      this.version = version;
+      this.agentlessModeEnabled = agentlessModeEnabled;
+      this.customUrl = customUrl;
     }
   }
 }

@@ -1,8 +1,8 @@
-package datadog.trace.civisibility.communication;
+package datadog.communication;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
-import datadog.trace.civisibility.utils.IOThrowingFunction;
+import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
@@ -14,50 +14,37 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** API for posting HTTP requests directly to backend, without the need for DD Agent */
-public class IntakeApi implements BackendApi {
+/** API that uses DD Agent as a proxy to post request to backend. */
+public class EvpProxyApi implements BackendApi {
 
-  private static final Logger log = LoggerFactory.getLogger(IntakeApi.class);
+  private static final Logger log = LoggerFactory.getLogger(EvpProxyApi.class);
 
-  public static final String API_VERSION = "v2";
-
-  private static final String DD_API_KEY_HEADER = "dd-api-key";
+  private static final String API_VERSION = "v2";
+  private static final String X_DATADOG_EVP_SUBDOMAIN_HEADER = "X-Datadog-EVP-Subdomain";
   private static final String X_DATADOG_TRACE_ID_HEADER = "x-datadog-trace-id";
   private static final String X_DATADOG_PARENT_ID_HEADER = "x-datadog-parent-id";
   private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
+  private static final String API_SUBDOMAIN = "api";
   private static final String GZIP_ENCODING = "gzip";
 
-  private final String apiKey;
   private final String traceId;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
-  private final boolean gzipEnabled;
-  private final HttpUrl hostUrl;
+  private final HttpUrl evpProxyUrl;
   private final OkHttpClient httpClient;
+  private final boolean responseCompression;
 
-  public IntakeApi(
-      HttpUrl hostUrl,
-      String apiKey,
+  public EvpProxyApi(
       String traceId,
-      long timeoutMillis,
-      HttpRetryPolicy.Factory retryPolicyFactory) {
-    this(hostUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, true);
-  }
-
-  public IntakeApi(
-      HttpUrl hostUrl,
-      String apiKey,
-      String traceId,
-      long timeoutMillis,
+      HttpUrl evpProxyUrl,
       HttpRetryPolicy.Factory retryPolicyFactory,
-      boolean gzipEnabled) {
-    this.hostUrl = hostUrl;
-    this.apiKey = apiKey;
+      OkHttpClient httpClient,
+      boolean responseCompression) {
     this.traceId = traceId;
+    this.evpProxyUrl = evpProxyUrl.resolve(String.format("api/%s/", API_VERSION));
     this.retryPolicyFactory = retryPolicyFactory;
-    this.gzipEnabled = gzipEnabled;
-
-    httpClient = OkHttpUtils.buildHttpClient(hostUrl, timeoutMillis);
+    this.httpClient = httpClient;
+    this.responseCompression = responseCompression;
   }
 
   @Override
@@ -65,14 +52,15 @@ public class IntakeApi implements BackendApi {
       String uri,
       RequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable OkHttpUtils.CustomListener requestListener)
+      @Nullable OkHttpUtils.CustomListener requestListener,
+      boolean requestCompression)
       throws IOException {
-    HttpUrl url = hostUrl.resolve(uri);
+    final HttpUrl url = evpProxyUrl.resolve(uri);
+
     Request.Builder requestBuilder =
         new Request.Builder()
             .url(url)
-            .post(requestBody)
-            .addHeader(DD_API_KEY_HEADER, apiKey)
+            .addHeader(X_DATADOG_EVP_SUBDOMAIN_HEADER, API_SUBDOMAIN)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
@@ -80,15 +68,21 @@ public class IntakeApi implements BackendApi {
       requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);
     }
 
-    if (gzipEnabled) {
+    if (requestCompression) {
+      requestBuilder.addHeader(CONTENT_ENCODING_HEADER, GZIP_ENCODING);
+    }
+
+    if (responseCompression) {
       requestBuilder.addHeader(ACCEPT_ENCODING_HEADER, GZIP_ENCODING);
     }
 
-    Request request = requestBuilder.build();
+    final Request request = requestBuilder.post(requestBody).build();
+
     try (okhttp3.Response response =
         OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         log.debug("Request to {} returned successful response: {}", uri, response.code());
+
         InputStream responseBodyStream = response.body().byteStream();
 
         String contentEncoding = response.header(CONTENT_ENCODING_HEADER);

@@ -1,7 +1,7 @@
-package datadog.trace.civisibility.communication;
+package datadog.communication;
 
 import datadog.communication.http.OkHttpUtils;
-import datadog.trace.civisibility.utils.IOThrowingFunction;
+import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.annotation.Nullable;
@@ -14,6 +14,7 @@ public interface BackendApi {
       String uri,
       RequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable OkHttpUtils.CustomListener requestListener)
+      @Nullable OkHttpUtils.CustomListener requestListener,
+      boolean requestCompression)
       throws IOException;
 }
