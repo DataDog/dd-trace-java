@@ -15,7 +15,7 @@ muzzle {
   pass {
     group = 'org.apache.logging.log4j'
     module = 'log4j-core'
-    versions = '[,]'
+    versions = '[,3.0.0)'
   }
 }
 
@@ -26,5 +26,5 @@ dependencies {
 
   testImplementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: log4jVersion
 
-  latestDepTestImplementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '+'
+  latestDepTestImplementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.+'
 }

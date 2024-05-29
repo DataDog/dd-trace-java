@@ -119,6 +119,7 @@ excludedClassesCoverage += [
   // tested indirectly by dependent modules
   "datadog.trace.api.git.RawParseUtils",
   // tested indirectly by dependent modules
+  "datadog.trace.api.logging.intake.LogsIntake",
   "datadog.trace.logging.LoggingSettingsDescription",
   "datadog.trace.util.AgentProxySelector",
   "datadog.trace.util.AgentTaskScheduler",
