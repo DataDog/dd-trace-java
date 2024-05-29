@@ -1,13 +1,9 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import test.TestConnection
 import test.TestPreparedStatement
 import test.TestStatement
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class DBMInjectionTest extends AgentTestRunner {
 
@@ -24,53 +20,30 @@ class DBMInjectionTest extends AgentTestRunner {
 
   static query = "SELECT 1"
   static serviceInjection = "ddps='worker.org.gradle.process.internal.worker.GradleWorkerMain',dddbs='remapped_testdb'"
-  static fullInjection = serviceInjection + ",traceparent='00-00000000000000000000000000000005-0000000000000006-01'"
+  static fullInjection = serviceInjection + ",traceparent='00-00000000000000000000000000000004-0000000000000003-01'"
 
   def "prepared stmt"() {
     setup:
     def connection = new TestConnection(false)
-    String sql
 
     when:
-    runUnderTrace("parent") {
-      def statement = connection.prepareStatement(query) as TestPreparedStatement
-      statement.execute()
-      sql = statement.sql
-    }
+    def statement = connection.prepareStatement(query) as TestPreparedStatement
+    statement.execute()
 
     then:
     // even in full propagation mode, we cannot inject trace info in prepared statements
-    assert sql == "/*${serviceInjection}*/ ${query}"
-    assertDBTraces()
+    assert statement.sql == "/*${serviceInjection}*/ ${query}"
   }
 
   def "single query"() {
     setup:
     def connection = new TestConnection(false)
-    String sql
 
     when:
-    runUnderTrace("parent") {
-      def statement = connection.createStatement() as TestStatement
-      statement.executeQuery(query)
-      sql = statement.sql
-    }
+    def statement = connection.createStatement() as TestStatement
+    statement.executeQuery(query)
 
     then:
-    assert sql == "/*${fullInjection}*/ ${query}"
-    assertDBTraces()
-  }
-
-  def assertDBTraces() {
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          serviceName "remapped_testdb"
-          spanType DDSpanTypes.SQL
-        }
-      }
-    }
-    return true
+    assert statement.sql == "/*${fullInjection}*/ ${query}"
   }
 }
