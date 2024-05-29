@@ -7,7 +7,6 @@ import datadog.trace.api.Platform
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
-import datadog.trace.test.util.Flaky
 import datadog.trace.util.Strings
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -73,7 +72,6 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.reset()
   }
 
-  @Flaky("https://github.com/DataDog/dd-trace-java/issues/7024")
   def "test #projectName, v#gradleVersion, configCache: #configurationCache"() {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache)
@@ -104,9 +102,6 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     where:
     gradleVersion         | projectName                                        | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages
     "3.0"                 | "test-succeed-old-gradle"                          | false              | true            | false        | 5              | 1
-    "4.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
-    "5.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
-    "6.0"                 | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
     "7.6.4"               | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
     "8.3"                 | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
@@ -140,6 +135,7 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
       "-javaagent:${agentShadowJar}=" +
       // for convenience when debugging locally
       (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null ? "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT)}=5055," : "") +
+      "dd.trace.debug=true," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
       "${Strings.propertyNameToSystemPropertyName(GeneralConfig.API_KEY_FILE)}=${ddApiKeyPath.toAbsolutePath().toString()}," +

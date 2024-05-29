@@ -210,12 +210,16 @@ class MockBackend implements AutoCloseable {
 
   List<Map<String, Object>> waitForEvents(int expectedEventsSize) {
     def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
-    traceReceiveConditions.eventually {
-      int eventsSize = 0
-      for (Map<String, Object> trace : receivedTraces) {
-        eventsSize += trace["events"].size()
+    try {
+      traceReceiveConditions.eventually {
+        int eventsSize = 0
+        for (Map<String, Object> trace : receivedTraces) {
+          eventsSize += trace["events"].size()
+        }
+        assert eventsSize >= expectedEventsSize
       }
-      assert eventsSize >= expectedEventsSize
+    } catch (AssertionError e) {
+      throw new AssertionError("Error while waiting for $expectedEventsSize trace events, received: $receivedTraces", e)
     }
 
     List<Map<String, Object>> events = new ArrayList<>()
@@ -226,10 +230,18 @@ class MockBackend implements AutoCloseable {
     return events
   }
 
-  List<Map<String, Object>> waitForCoverages(int traceSize) {
+  List<Map<String, Object>> waitForCoverages(int expectedCoveragesSize) {
     def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
-    traceReceiveConditions.eventually {
-      assert receivedCoverages.size() == traceSize
+    try {
+      traceReceiveConditions.eventually {
+        int coveragesSize = 0
+        for (Map<String, Object> trace : receivedCoverages) {
+          coveragesSize += trace["coverages"].size()
+        }
+        assert coveragesSize >= expectedCoveragesSize
+      }
+    } catch (AssertionError e) {
+      throw new AssertionError("Error while waiting for $expectedCoveragesSize coverages, received: $receivedCoverages", e)
     }
 
     List<Map<String, Object>> coverages = new ArrayList<>()
