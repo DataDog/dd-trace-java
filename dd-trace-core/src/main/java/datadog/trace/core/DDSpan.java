@@ -365,11 +365,21 @@ public class DDSpan
 
       setTag(DDTags.ERROR_MSG, message);
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
-      if (Config.get().isDebuggerEnabled() && isLocalRootSpan()) {
+      if (isExceptionDebuggingEnabled()) {
         DebuggerContext.handleException(error, this);
       }
     }
     return this;
+  }
+
+  private boolean isExceptionDebuggingEnabled() {
+    if (!Config.get().isDebuggerExceptionEnabled()) {
+      return false;
+    }
+    if (Config.get().isDebuggerExceptionOnlyLocalRoot() && !isLocalRootSpan()) {
+      return false;
+    }
+    return true;
   }
 
   @Override
@@ -824,5 +834,16 @@ public class DDSpan
   // to be accessible in Spock spies, which the field wouldn't otherwise be
   public long getStartTimeNano() {
     return startTimeNano;
+  }
+
+  @Override
+  public Map<String, Object> getMetaStruct() {
+    return context.getMetaStruct();
+  }
+
+  @Override
+  public DDSpan setMetaStruct(final String field, final Object value) {
+    context.setMetaStruct(field, value);
+    return this;
   }
 }

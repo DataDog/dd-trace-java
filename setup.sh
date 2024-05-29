@@ -18,7 +18,7 @@ function check-jvm() {
     fi
 }
 
-echo "ℹ️  Checking required JVM:"
+echo "ℹ️ Checking required JVM:"
 if [ -e "$JAVA_HOME" ]; then
     check-jvm "JAVA_HOME" "1.8"
 fi
@@ -76,14 +76,33 @@ function check-git-config() {
     fi
 }
 
-echo "ℹ️  Checking git configuration:"
+echo "ℹ️ Checking git configuration:"
 check-command "git"
 look-for-hook "pre-commit"
 check-git-config "submodule.recurse" "true"
 
 
 #
-# Check shell configuration.
+# Check Docker environment.
+#
+
+
+function check-docker-server() {
+    if docker info &> /dev/null; then
+        echo "✅ The Docker server is running."
+    else
+        echo "🟨 The Docker server is not running. Please start it be able to run all tests."
+    fi
+}
+
+echo "ℹ️ Checking Docker environment:"
+check-command "docker"
+check-docker-server
+
+
+#
+# Check shell environment.
+# (unused for now)
 #
 
 function check-ulimit() {
@@ -96,16 +115,3 @@ function check-ulimit() {
         echo "🟨 $LIMIT_NAME is set to $ACTUAL_LIMIT, which could be an issue for gradle build. Please set it locally to $EXPECTED_LIMIT or greater using ulimit."
     fi
 }
-
-function check-docker-server() {
-    if docker info &> /dev/null; then
-        echo "✅ The Docker server is running."
-    else
-        echo "🟨 The Docker server is not running. Please start it be able to run all tests."
-    fi
-}
-
-echo "ℹ️  Checking shell configuration:"
-check-ulimit 1024
-check-command "docker"
-check-docker-server

@@ -23,7 +23,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL
+import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
 import static io.opentelemetry.api.trace.SpanKind.CLIENT
 import static io.opentelemetry.api.trace.SpanKind.CONSUMER
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL

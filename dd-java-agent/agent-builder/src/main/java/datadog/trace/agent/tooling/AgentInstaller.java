@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling;
 
+import static datadog.trace.agent.tooling.ExtensionFinder.findExtensions;
+import static datadog.trace.agent.tooling.ExtensionLoader.loadExtensions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
@@ -242,19 +244,18 @@ public class AgentInstaller {
   /** Returns an iterable that combines the original sequence with any discovered extensions. */
   private static Iterable<InstrumenterModule> withExtensions(Iterable<InstrumenterModule> initial) {
     String extensionsPath = InstrumenterConfig.get().getTraceExtensionsPath();
-    if (null == extensionsPath) {
-      return initial;
-    }
-    final List<InstrumenterModule> extensions = new ExtensionsLoader(extensionsPath).loadModules();
-    if (extensions.isEmpty()) {
-      return initial;
-    }
-    return new Iterable<InstrumenterModule>() {
-      @Override
-      public Iterator<InstrumenterModule> iterator() {
-        return withExtensions(initial.iterator(), extensions);
+    if (null != extensionsPath) {
+      if (findExtensions(extensionsPath, InstrumenterModule.class)) {
+        final List<InstrumenterModule> extensions = loadExtensions(InstrumenterModule.class);
+        return new Iterable<InstrumenterModule>() {
+          @Override
+          public Iterator<InstrumenterModule> iterator() {
+            return withExtensions(initial.iterator(), extensions);
+          }
+        };
       }
-    };
+    }
+    return initial;
   }
 
   /** Returns an iterator that combines the original sequence with any discovered extensions. */

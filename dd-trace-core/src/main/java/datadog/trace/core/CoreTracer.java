@@ -240,9 +240,31 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return propagationTagsFactory;
   }
 
+  /**
+   * Called when a root span is finished before it is serialized. This is might be called multiple
+   * times per root span. If a child span is part of a partial flush, this method will be called for
+   * its root even if not finished.
+   */
   @Override
   public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
     profilingContextIntegration.onRootSpanFinished(root, tracker);
+  }
+
+  /**
+   * Called when a root span is finished before it is serialized. This is guaranteed to be called
+   * exactly once per root span.
+   */
+  void onRootSpanPublished(final AgentSpan root) {
+    // Request context is propagated to contexts in child spans.
+    // Assume here that if present it will be so starting in the top span.
+    RequestContext requestContext = root.getRequestContext();
+    if (requestContext != null) {
+      try {
+        requestContext.close();
+      } catch (IOException e) {
+        log.warn("Error closing request context data", e);
+      }
+    }
   }
 
   @Override
@@ -971,17 +993,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     if (null != rootSpan) {
       onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
-
-      // request context is propagated to contexts in child spans
-      // Assume here that if present it will be so starting in the top span
-      RequestContext requestContext = rootSpan.getRequestContext();
-      if (requestContext != null) {
-        try {
-          requestContext.close();
-        } catch (IOException e) {
-          log.warn("Error closing request context data", e);
-        }
-      }
     }
   }
 

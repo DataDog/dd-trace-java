@@ -1122,6 +1122,29 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void shortCircuitingCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe logProbes =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.and(
+                            DSL.isDefined(DSL.ref("@exception")),
+                            DSL.contains(
+                                DSL.getMember(DSL.ref("@exception"), "detailMessage"),
+                                new StringValue("closed")))),
+                    "isDefined(@exception) && contains(@exception.detailMessage, 'closed')"))
+            .build();
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    // no snapshot, no eval error, isDefined returns false and do not evaluate the second part
+    assertEquals(0, listener.snapshots.size());
+  }
+
+  @Test
   public void wellKnownClassesCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     LogProbe logProbes =

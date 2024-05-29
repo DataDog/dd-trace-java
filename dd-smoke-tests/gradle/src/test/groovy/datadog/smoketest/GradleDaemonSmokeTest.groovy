@@ -24,6 +24,7 @@ import org.gradle.wrapper.Install
 import org.gradle.wrapper.PathAssembler
 import org.gradle.wrapper.WrapperConfiguration
 import org.junit.jupiter.api.Assumptions
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
@@ -60,8 +61,16 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
   @TempDir
   Path projectFolder
 
+  @Shared
+  @AutoCleanup
+  MockBackend mockBackend = new MockBackend()
+
   def setupSpec() {
     givenGradleProperties()
+  }
+
+  def setup() {
+    mockBackend.reset()
   }
 
   @Flaky("https://github.com/DataDog/dd-trace-java/issues/7024")
@@ -69,15 +78,19 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache)
     givenGradleProjectFiles(projectName)
-    givenFlakyRetriesEnabled(flakyRetries)
     ensureDependenciesDownloaded(gradleVersion)
+
+    mockBackend.givenFlakyRetries(flakyRetries)
+    mockBackend.givenFlakyTest(":test", "datadog.smoke.TestFailed", "test_failed")
+    mockBackend.givenSkippableTest(":test", "datadog.smoke.TestSucceed", "test_to_skip_with_itr")
 
     BuildResult buildResult = runGradleTests(gradleVersion, successExpected, configurationCache)
 
     if (successExpected) {
       assertBuildSuccessful(buildResult)
     }
-    verifyEventsAndCoverages(projectName, "gradle", gradleVersion, expectedTraces, expectedCoverages)
+
+    verifyEventsAndCoverages(projectName, "gradle", gradleVersion, mockBackend.waitForEvents(expectedTraces), mockBackend.waitForCoverages(expectedCoverages))
 
     if (configurationCache) {
       // if configuration cache is enabled, run the build one more time
@@ -85,7 +98,7 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
       BuildResult buildResultWithConfigCacheEntry = runGradleTests(gradleVersion, successExpected, configurationCache)
 
       assertBuildSuccessful(buildResultWithConfigCacheEntry)
-      verifyEventsAndCoverages(projectName, "gradle", gradleVersion, expectedTraces, expectedCoverages)
+      verifyEventsAndCoverages(projectName, "gradle", gradleVersion, mockBackend.waitForEvents(expectedTraces), mockBackend.waitForCoverages(expectedCoverages))
     }
 
     where:
@@ -136,7 +149,7 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=$JACOCO_PLUGIN_VERSION," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED)}=true," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${intakeServer.address.toString()}"
+      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}"
 
     Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
   }
@@ -289,9 +302,5 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
       JsonNode root = mapper.readTree(responseBody)
       return root.get("version").asText()
     }
-  }
-
-  private void givenFlakyRetriesEnabled(boolean flakyRetries) {
-    this.flakyRetriesEnabled = flakyRetries
   }
 }
