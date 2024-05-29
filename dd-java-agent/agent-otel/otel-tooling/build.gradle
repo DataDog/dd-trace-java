@@ -6,4 +6,6 @@ minimumBranchCoverage = 0.0
 dependencies {
   api deps.bytebuddy
   api deps.bytebuddyagent
+
+  compileOnly project(':dd-java-agent:agent-tooling')
 }
