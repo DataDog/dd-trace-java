@@ -11,7 +11,6 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
 class VirtualThreadTest extends AgentTestRunner {
-
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared
