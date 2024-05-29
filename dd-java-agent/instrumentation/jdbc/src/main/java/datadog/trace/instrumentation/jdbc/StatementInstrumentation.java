@@ -21,7 +21,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
-import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -112,8 +111,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   injectTraceContext,
                   appendComment);
         }
-        DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
-        DECORATE.onStatementRaw(span, sql);
+        DECORATE.onStatement(span, copy);
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
