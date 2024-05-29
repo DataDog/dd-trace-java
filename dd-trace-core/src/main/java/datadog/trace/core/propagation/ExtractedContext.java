@@ -15,6 +15,7 @@ public class ExtractedContext extends TagContext {
   private final long spanId;
   private final long endToEndStartTime;
   private final PropagationTags propagationTags;
+  private final CharSequence lastParentId;
 
   public ExtractedContext(
       final DDTraceId traceId,
@@ -57,6 +58,7 @@ public class ExtractedContext extends TagContext {
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;
     this.propagationTags = propagationTags;
+    this.lastParentId = lastParentId;
   }
 
   @Override
@@ -91,6 +93,9 @@ public class ExtractedContext extends TagContext {
     }
     if (getOrigin() != null) {
       builder.append("origin=").append(getOrigin()).append(", ");
+    }
+    if (lastParentId != null) {
+      builder.append("lastParentId=").append(lastParentId).append(", ");
     }
     if (getTags() != null) {
       builder.append("tags=").append(getTags()).append(", ");

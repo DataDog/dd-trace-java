@@ -138,11 +138,11 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def builder = tracer.spanBuilder("some name")
     if (parentId) {
-      def ctx = new ExtractedContext(DDTraceId.ONE, parentId, SAMPLER_DROP, null, PropagationTags.factory().empty(), NONE)
+      def ctx = new ExtractedContext(DDTraceId.ONE, parentId, SAMPLER_DROP, null, null, PropagationTags.factory().empty(), NONE)
       builder.setParent(tracer.converter.toSpanContext(ctx))
     }
     if (linkId) {
-      def ctx = new ExtractedContext(DDTraceId.ONE, linkId, SAMPLER_DROP, null, PropagationTags.factory().empty(), NONE)
+      def ctx = new ExtractedContext(DDTraceId.ONE, linkId, SAMPLER_DROP, null, null, PropagationTags.factory().empty(), NONE)
       builder.addLink(tracer.converter.toSpanContext(ctx))
     }
     def result = builder.startSpan()
@@ -274,7 +274,7 @@ class OpenTelemetryTest extends AgentTestRunner {
     def expectedTraceparent = "00-${span.delegate.traceId.toHexStringPadded(32)}" +
       "-${DDSpanId.toHexStringPadded(span.delegate.spanId)}" +
       "-" + (propagatedPriority > 0 ? "01" : "00")
-    def expectedTracestate = "dd=s:${propagatedPriority}"
+    def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(span.delegate.spanId)}"
     def expectedDatadogTags = null
     if (propagatedMechanism != UNKNOWN) {
       expectedDatadogTags = "_dd.p.dm=-" + propagatedMechanism
