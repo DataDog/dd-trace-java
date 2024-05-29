@@ -16,20 +16,6 @@ import net.bytebuddy.pool.TypePool;
 public final class OtelShimInjector implements AsmVisitorWrapper {
   static final OtelShimInjector INSTANCE = new OtelShimInjector();
 
-  static final String[] OTEL_ENTRYPOINT_CLASSES = {
-    "io.opentelemetry.api.DefaultOpenTelemetry",
-    "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry",
-  };
-
-  static final String[] OTEL_CONTEXT_STORAGE_CLASSES = {
-    "io.opentelemetry.context.ThreadLocalContextStorage",
-    "io.opentelemetry.context.StrictContextStorage",
-  };
-
-  static final String[] OTEL_CONTEXT_CLASSES = {
-    "io.opentelemetry.context.ArrayBasedContext",
-  };
-
   static final String TRACER_PROVIDER_DESCRIPTOR = "Lio/opentelemetry/api/trace/TracerProvider;";
 
   static final String CONTEXT_PROPAGATORS_DESCRIPTOR =

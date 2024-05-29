@@ -1,8 +1,5 @@
 package datadog.opentelemetry.tooling.shim;
 
-import static datadog.opentelemetry.tooling.shim.OtelShimInjector.OTEL_CONTEXT_CLASSES;
-import static datadog.opentelemetry.tooling.shim.OtelShimInjector.OTEL_CONTEXT_STORAGE_CLASSES;
-import static datadog.opentelemetry.tooling.shim.OtelShimInjector.OTEL_ENTRYPOINT_CLASSES;
 import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -21,12 +18,17 @@ import net.bytebuddy.dynamic.DynamicType;
 public class OtelShimGradlePlugin extends Plugin.ForElementMatcher {
   private final File targetDir;
 
+  static final String[] OTEL_SHIM_INJECTED_CLASSES = {
+    "io.opentelemetry.api.DefaultOpenTelemetry",
+    "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry",
+    "io.opentelemetry.context.ThreadLocalContextStorage",
+    "io.opentelemetry.context.StrictContextStorage",
+    "io.opentelemetry.context.ArrayBasedContext",
+  };
+
   @SuppressForbidden
   public OtelShimGradlePlugin(File targetDir) {
-    super(
-        namedOneOf(OTEL_ENTRYPOINT_CLASSES)
-            .or(namedOneOf(OTEL_CONTEXT_STORAGE_CLASSES))
-            .or(namedOneOf(OTEL_CONTEXT_CLASSES)));
+    super(namedOneOf(OTEL_SHIM_INJECTED_CLASSES));
     this.targetDir = targetDir;
   }
 
