@@ -95,9 +95,13 @@ class DefaultExceptionDebuggerTest {
   @Test
   public void nestedException() {
     RuntimeException exception = createNestException();
+    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     AgentSpan span = mock(AgentSpan.class);
     doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
     exceptionDebugger.handleException(exception, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
     generateSnapshots(exception);
     exception.printStackTrace();
     exceptionDebugger.handleException(exception, span);
@@ -144,7 +148,9 @@ class DefaultExceptionDebuggerTest {
   @Test
   public void doubleNestedException() {
     RuntimeException nestedException = createNestException();
+    String nestedFingerprint = Fingerprinter.fingerprint(nestedException, classNameFiltering);
     RuntimeException simpleException = new RuntimeException("test");
+    String simpleFingerprint = Fingerprinter.fingerprint(simpleException, classNameFiltering);
     AgentSpan span = mock(AgentSpan.class);
     doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
     when(span.getTag(anyString()))
@@ -154,6 +160,12 @@ class DefaultExceptionDebuggerTest {
     exceptionDebugger.handleException(nestedException, span);
     // instrument first simple Exception
     exceptionDebugger.handleException(simpleException, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(nestedFingerprint),
+        Duration.ofSeconds(30));
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(simpleFingerprint),
+        Duration.ofSeconds(30));
     generateSnapshots(nestedException);
     generateSnapshots(simpleException);
     exceptionDebugger.handleException(simpleException, span);
