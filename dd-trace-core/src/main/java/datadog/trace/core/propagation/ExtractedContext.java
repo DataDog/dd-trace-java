@@ -45,6 +45,28 @@ public class ExtractedContext extends TagContext {
       final long spanId,
       final int samplingPriority,
       final CharSequence origin,
+      final PropagationTags propagationTags,
+      final TracePropagationStyle propagationStyle) {
+    this(
+        traceId,
+        spanId,
+        samplingPriority,
+        origin,
+        null,
+        0,
+        null,
+        null,
+        null,
+        propagationTags,
+        null,
+        propagationStyle);
+  }
+
+  public ExtractedContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final int samplingPriority,
+      final CharSequence origin,
       final CharSequence lastParentId,
       final long endToEndStartTime,
       final Map<String, String> baggage,

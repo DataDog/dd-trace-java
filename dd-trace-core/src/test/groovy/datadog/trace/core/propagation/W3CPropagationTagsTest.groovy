@@ -173,7 +173,7 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     def config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
     def propagationTagsFactory = PropagationTags.factory(config)
-    def header = 'dd=s:1,'+(1..memberCount).collect { "k$it=v$it" }.join(',')
+    def header = 'dd=s:1;p:0000000000000000,'+(1..memberCount).collect { "k$it=v$it" }.join(',')
 
     when:
     def headerPT = propagationTagsFactory.fromHeaderValue(HeaderType.W3C, header)
@@ -233,32 +233,32 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     propagationTags.createTagMap() == tags
 
     where:
-    headerValue                                                            | expectedHeaderValue                                  | tags
-    null                                                                   | null                                                 | [:]
-    ''                                                                     | null                                                 | [:]
-    'dd=s:0;t.dm:934086a686-4'                                             | 'dd=s:0;t.dm:934086a686-4'                           | ['_dd.p.dm': '934086a686-4']
-    'other=whatever,dd=s:0;t.dm:934086a686-4'                              | 'dd=s:0;t.dm:934086a686-4,other=whatever'            | ['_dd.p.dm': '934086a686-4']
-    'dd=s:0;t.dm:934086a687-3,other=whatever'                              | 'dd=s:0;t.dm:934086a687-3,other=whatever'            | ['_dd.p.dm': '934086a687-3']
-    'some=thing,dd=s:0;t.dm:934086a687-3,other=whatever'                   | 'dd=s:0;t.dm:934086a687-3,some=thing,other=whatever' | ['_dd.p.dm': '934086a687-3']
-    'some=thing,other=whatever'                                            | 'some=thing,other=whatever'                          | [:]
-    'dd=s:0;o:some;t.dm:934086a686-4'                                      | 'dd=s:0;o:some;t.dm:934086a686-4'                    | ['_dd.p.dm': '934086a686-4']
-    'dd=s:0;x:unknown;t.dm:934086a686-4'                                   | 'dd=s:0;t.dm:934086a686-4;x:unknown'                 | ['_dd.p.dm': '934086a686-4']
-    'other=whatever,dd=s:0;x:unknown;t.dm:934086a686-4'                    | 'dd=s:0;t.dm:934086a686-4;x:unknown,other=whatever'  | ['_dd.p.dm': '934086a686-4']
-    'other=whatever,dd=xyz:unknown;t.dm:934086a686-4'                      | 'dd=t.dm:934086a686-4;xyz:unknown,other=whatever'    | ['_dd.p.dm': '934086a686-4']
-    'other=whatever,dd=t.dm:934086a686-4;xyz:unknown  '                    | 'dd=t.dm:934086a686-4;xyz:unknown,other=whatever'    | ['_dd.p.dm': '934086a686-4']
-    '\tsome=thing \t , dd=s:0;t.dm:934086a687-3\t\t,  other=whatever\t\t ' | 'dd=s:0;t.dm:934086a687-3,some=thing,other=whatever' | ['_dd.p.dm': '934086a687-3']
-    'dd=s:0;t.a:b;t.x:y'                                                   | 'dd=s:0;t.a:b;t.x:y'                                 | ['_dd.p.a': 'b', '_dd.p.x': 'y']
-    'dd=s:0;t.a:b;t.x:y \t'                                                | 'dd=s:0;t.a:b;t.x:y'                                 | ['_dd.p.a': 'b', '_dd.p.x': 'y']
-    'dd=s:0;t.a:b ;t.x:y \t'                                               | 'dd=s:0;t.a:b ;t.x:y'                                | ['_dd.p.a': 'b ', '_dd.p.x': 'y']
-    'dd=s:0;t.a:b \t;t.x:y \t'                                             | null                                                 | [:]
-    'dd=s:0;t.tid:123456789abcdef0'                                        | 'dd=s:0;t.tid:123456789abcdef0'                      | ['_dd.p.tid': '123456789abcdef0']
-    "dd=t.tid:"                                                            | null                                                 | [:] // invalid tid tag value: empty value
-    "dd=t.tid:" + "1" * 1                                                  | null                                                 | ['_dd.propagation_error': 'malformed_tid 1'] // invalid tid tag value: invalid length
-    "dd=t.tid:" + "1" * 15                                                 | null                                                 | ['_dd.propagation_error': 'malformed_tid 111111111111111'] // invalid tid tag value: invalid length
-    "dd=t.tid:" + "1" * 17                                                 | null                                                 | ['_dd.propagation_error': 'malformed_tid 11111111111111111'] // invalid tid tag value: invalid length
-    "dd=t.tid:123456789ABCDEF0"                                            | null                                                 | ['_dd.propagation_error': 'malformed_tid 123456789ABCDEF0'] // invalid tid tag value: upper-case characters
-    "dd=t.tid:123456789abcdefg"                                            | null                                                 | ['_dd.propagation_error': 'malformed_tid 123456789abcdefg'] // invalid tid tag value: non-hexadecimal characters
-    "dd=t.tid:-123456789abcdef"                                            | null                                                 | ['_dd.propagation_error': 'malformed_tid -123456789abcdef'] // invalid tid tag value: non-hexadecimal characters
+    headerValue                                                            | expectedHeaderValue                                                     | tags
+    null                                                                   | null                                                                    | [:]
+    ''                                                                     | null                                                                    | [:]
+    'dd=s:0;t.dm:934086a686-4'                                             | 'dd=s:0;p:0000000000000000;t.dm:934086a686-4'                           | ['_dd.p.dm': '934086a686-4']
+    'other=whatever,dd=s:0;t.dm:934086a686-4'                              | 'dd=s:0;p:0000000000000000;t.dm:934086a686-4,other=whatever'            | ['_dd.p.dm': '934086a686-4']
+    'dd=s:0;t.dm:934086a687-3,other=whatever'                              | 'dd=s:0;p:0000000000000000;t.dm:934086a687-3,other=whatever'            | ['_dd.p.dm': '934086a687-3']
+    'some=thing,dd=s:0;t.dm:934086a687-3,other=whatever'                   | 'dd=s:0;p:0000000000000000;t.dm:934086a687-3,some=thing,other=whatever' | ['_dd.p.dm': '934086a687-3']
+    'some=thing,other=whatever'                                            | 'some=thing,other=whatever'                                             | [:]
+    'dd=s:0;o:some;t.dm:934086a686-4'                                      | 'dd=s:0;o:some;p:0000000000000000;t.dm:934086a686-4'                    | ['_dd.p.dm': '934086a686-4']
+    'dd=s:0;x:unknown;t.dm:934086a686-4'                                   | 'dd=s:0;p:0000000000000000;t.dm:934086a686-4;x:unknown'                 | ['_dd.p.dm': '934086a686-4']
+    'other=whatever,dd=s:0;x:unknown;t.dm:934086a686-4'                    | 'dd=s:0;p:0000000000000000;t.dm:934086a686-4;x:unknown,other=whatever'  | ['_dd.p.dm': '934086a686-4']
+    'other=whatever,dd=xyz:unknown;t.dm:934086a686-4'                      | 'dd=p:0000000000000000;t.dm:934086a686-4;xyz:unknown,other=whatever'    | ['_dd.p.dm': '934086a686-4']
+    'other=whatever,dd=t.dm:934086a686-4;xyz:unknown  '                    | 'dd=p:0000000000000000;t.dm:934086a686-4;xyz:unknown,other=whatever'    | ['_dd.p.dm': '934086a686-4']
+    '\tsome=thing \t , dd=s:0;t.dm:934086a687-3\t\t,  other=whatever\t\t ' | 'dd=s:0;p:0000000000000000;t.dm:934086a687-3,some=thing,other=whatever' | ['_dd.p.dm': '934086a687-3']
+    'dd=s:0;t.a:b;t.x:y'                                                   | 'dd=s:0;p:0000000000000000;t.a:b;t.x:y'                                 | ['_dd.p.a': 'b', '_dd.p.x': 'y']
+    'dd=s:0;t.a:b;t.x:y \t'                                                | 'dd=s:0;p:0000000000000000;t.a:b;t.x:y'                                 | ['_dd.p.a': 'b', '_dd.p.x': 'y']
+    'dd=s:0;t.a:b ;t.x:y \t'                                               | 'dd=s:0;p:0000000000000000;t.a:b ;t.x:y'                                | ['_dd.p.a': 'b ', '_dd.p.x': 'y']
+    'dd=s:0;t.a:b \t;t.x:y \t'                                             | null                                                                    | [:]
+    'dd=s:0;t.tid:123456789abcdef0'                                        | 'dd=s:0;p:0000000000000000;t.tid:123456789abcdef0'                      | ['_dd.p.tid': '123456789abcdef0']
+    "dd=t.tid:"                                                            | null                                                                    | [:] // invalid tid tag value: empty value
+    "dd=t.tid:" + "1" * 1                                                  | null                                                                    | ['_dd.propagation_error': 'malformed_tid 1'] // invalid tid tag value: invalid length
+    "dd=t.tid:" + "1" * 15                                                 | null                                                                    | ['_dd.propagation_error': 'malformed_tid 111111111111111'] // invalid tid tag value: invalid length
+    "dd=t.tid:" + "1" * 17                                                 | null                                                                    | ['_dd.propagation_error': 'malformed_tid 11111111111111111'] // invalid tid tag value: invalid length
+    "dd=t.tid:123456789ABCDEF0"                                            | null                                                                    | ['_dd.propagation_error': 'malformed_tid 123456789ABCDEF0'] // invalid tid tag value: upper-case characters
+    "dd=t.tid:123456789abcdefg"                                            | null                                                                    | ['_dd.propagation_error': 'malformed_tid 123456789abcdefg'] // invalid tid tag value: non-hexadecimal characters
+    "dd=t.tid:-123456789abcdef"                                            | null                                                                    | ['_dd.propagation_error': 'malformed_tid -123456789abcdef'] // invalid tid tag value: non-hexadecimal characters
   }
 
   def "w3c propagation tags should translate to datadog tags #headerValue"() {
@@ -302,12 +302,12 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     propagationTags.createTagMap() == tags
 
     where:
-    headerValue                       | priority                      | mechanism                           | origin  | expectedHeaderValue                | tags
-    'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT           | "other" | 'dd=s:0;o:other;t.dm:934086a686-4' | ['_dd.p.dm': '934086a686-4']
-    'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_KEEP    | SamplingMechanism.LOCAL_USER_RULE   | "same"  | 'dd=s:2;o:same;t.dm:-3;x:unknown'  | ['_dd.p.dm': '-3']
-    'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL            | null    | 'dd=s:-1;x:unknown'                | [:]
-    'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.EXTERNAL_OVERRIDE | "other" | 'dd=s:1;o:other;t.dm:-0'           | ['_dd.p.dm': '-0']
-    'dd=s:1;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_DROP | SamplingMechanism.EXTERNAL_OVERRIDE | "other" | 'dd=s:0;o:other'                   | [:]
+    headerValue                       | priority                      | mechanism                           | origin  | expectedHeaderValue                                   | tags
+    'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT           | "other" | 'dd=s:0;o:other;p:0000000000000000;t.dm:934086a686-4' | ['_dd.p.dm': '934086a686-4']
+    'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_KEEP    | SamplingMechanism.LOCAL_USER_RULE   | "same"  | 'dd=s:2;o:same;p:0000000000000000;t.dm:-3;x:unknown'  | ['_dd.p.dm': '-3']
+    'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL            | null    | 'dd=s:-1;p:0000000000000000;x:unknown'                | [:]
+    'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.EXTERNAL_OVERRIDE | "other" | 'dd=s:1;o:other;p:0000000000000000;t.dm:-0'           | ['_dd.p.dm': '-0']
+    'dd=s:1;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_DROP | SamplingMechanism.EXTERNAL_OVERRIDE | "other" | 'dd=s:0;o:other;p:0000000000000000'                   | [:]
   }
 
   static private String toLcAlpha(String cs) {

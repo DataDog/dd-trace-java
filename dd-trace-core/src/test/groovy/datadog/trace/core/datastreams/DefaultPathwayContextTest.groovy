@@ -744,7 +744,7 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     @Override
     <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-      return new ExtractedContext(DDTraceId.ONE, 1, 0, null, 0, null, null, null, null, traceConfig, DATADOG)
+      return new ExtractedContext(DDTraceId.ONE, 1, 0, null, null, 0, null, null, null, null, traceConfig, DATADOG)
     }
   }
 
