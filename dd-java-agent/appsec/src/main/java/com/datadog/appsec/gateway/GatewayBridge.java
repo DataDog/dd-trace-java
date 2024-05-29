@@ -61,6 +61,7 @@ public class GatewayBridge {
   private static final Pattern QUERY_PARAM_VALUE_SPLITTER = Pattern.compile("=");
   private static final Pattern QUERY_PARAM_SPLITTER = Pattern.compile("&");
   private static final Map<String, List<String>> EMPTY_QUERY_PARAMS = Collections.emptyMap();
+  private static final char GRPC_METHOD_START = '/';
 
   /** User tracking tags that will force the collection of request headers */
   private static final String[] USER_TRACKING_TAGS = {
@@ -366,7 +367,7 @@ public class GatewayBridge {
         EVENTS.grpcServerMethod(),
         (ctx_, method) -> {
           AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null) {
+          if (ctx == null || method == null || method.isEmpty()) {
             return NoopFlow.INSTANCE;
           }
           while (true) {
@@ -377,6 +378,9 @@ public class GatewayBridge {
             }
             if (subInfo == null || subInfo.isEmpty()) {
               return NoopFlow.INSTANCE;
+            }
+            if (method.charAt(0) != GRPC_METHOD_START) {
+              method = GRPC_METHOD_START + method;
             }
             DataBundle bundle =
                 new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_METHOD, method);
