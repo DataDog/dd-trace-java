@@ -11,6 +11,7 @@ configurations {
     canBeConsumed = false
     canBeResolved = true
   }
+  compileClasspath.extendsFrom(embeddedClasspath)
   instrumentPluginClasspath {
     visible = false
     canBeConsumed = false
