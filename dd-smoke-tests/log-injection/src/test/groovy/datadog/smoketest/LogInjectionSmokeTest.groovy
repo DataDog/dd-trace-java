@@ -91,7 +91,6 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
       command.add("-Ddd.$TRACE_128_BIT_TRACEID_LOGGING_ENABLED=true" as String)
     }
     if (supportsDirectLogSubmission()) {
-      // currently direct log submission only works in CI Visibility agentless mode
       command.add("-Ddd.$GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED=true" as String)
       command.add("-Ddd.$GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL=${mockBackend.intakeUrl}" as String)
     }
