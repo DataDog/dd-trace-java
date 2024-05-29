@@ -115,7 +115,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    * exposed because it may contain sensitive data.
    */
   public AgentSpan onStatementRaw(AgentSpan span, String sql) {
-    if (Config.get().getAppSecRaspEnabled()) {
+    if (Config.get().getAppSecRaspEnabled() && sql != null && !sql.isEmpty()) {
       BiConsumer<RequestContext, String> sqlQueryCallback =
           AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)
@@ -123,9 +123,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       if (sqlQueryCallback != null) {
         RequestContext ctx = span.getRequestContext();
         if (ctx != null) {
-          if (sql != null && !sql.isEmpty()) {
-            sqlQueryCallback.accept(ctx, sql);
-          }
+          sqlQueryCallback.accept(ctx, sql);
         }
       }
     }
@@ -137,7 +135,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     span.setTag(DB_TYPE, namingEntry.dbType);
     postProcessServiceAndOperationName(span, namingEntry);
 
-    if (Config.get().getAppSecRaspEnabled()) {
+    if (Config.get().getAppSecRaspEnabled() && dbType != null) {
       BiConsumer<RequestContext, String> connectDbCallback =
           AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)
@@ -145,9 +143,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       if (connectDbCallback != null) {
         RequestContext ctx = span.getRequestContext();
         if (ctx != null) {
-          if (dbType != null) {
-            connectDbCallback.accept(ctx, dbType);
-          }
+          connectDbCallback.accept(ctx, dbType);
         }
       }
     }
