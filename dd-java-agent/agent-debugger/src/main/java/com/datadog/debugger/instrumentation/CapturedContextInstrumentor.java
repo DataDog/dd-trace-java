@@ -191,6 +191,10 @@ public class CapturedContextInstrumentor extends Instrumentor {
             || current.getType() == AbstractInsnNode.LINE)) {
       current = current.getNext();
     }
+    if (current == null) {
+      reportWarning("Cannot add exception local variable to catch block - no instructions.");
+      return -1;
+    }
     if (current.getOpcode() != Opcodes.ASTORE) {
       reportWarning("Cannot add exception local variable to catch block - no store instruction.");
       return -1;
@@ -673,8 +677,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
     List<LocalVariableNode> applicableVars = new ArrayList<>();
     for (LocalVariableNode variableNode : methodNode.localVariables) {
       int idx = variableNode.index - localVarBaseOffset;
-      if (idx >= argOffset && isInScope(variableNode, location)) {
-        applicableVars.add(variableNode);
+      if (idx >= argOffset) {
+        // var is local not arg
+        if (ASMHelper.isInScope(methodNode, variableNode, location)) {
+          applicableVars.add(variableNode);
+        }
       }
     }
 
@@ -1070,22 +1077,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
       clazz = clazz.getSuperclass();
       superClassName = clazz.getTypeName();
     }
-  }
-
-  private boolean isInScope(LocalVariableNode variableNode, AbstractInsnNode location) {
-    AbstractInsnNode startScope =
-        variableNode.start != null ? variableNode.start : methodNode.instructions.getFirst();
-    AbstractInsnNode endScope =
-        variableNode.end != null ? variableNode.end : methodNode.instructions.getLast();
-
-    AbstractInsnNode insn = startScope;
-    while (insn != null && insn != endScope) {
-      if (insn == location) {
-        return true;
-      }
-      insn = insn.getNext();
-    }
-    return false;
   }
 
   private int declareContextVar(InsnList insnList) {
