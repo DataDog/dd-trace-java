@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.utils;
+package datadog.communication.util;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.BufferedReader;
