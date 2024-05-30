@@ -45,7 +45,7 @@ dependencies {
   api group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
   api group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
   api group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
-  api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
+  api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.6'
 
   api deps.slf4j
   implementation project(':dd-trace-ot:correlation-id-injection')
