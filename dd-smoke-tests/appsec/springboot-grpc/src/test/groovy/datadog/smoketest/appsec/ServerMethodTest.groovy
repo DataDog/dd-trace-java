@@ -65,6 +65,7 @@ class ServerMethodTest extends AbstractSpringBootWithGRPCAppSecTest {
     def match = grpcRootSpan.triggers[0]['rule_matches'][0]
     match != null
     match['parameters'][0]['address'] == 'grpc.server.method'
-    match['parameters'][0]['value'] == '/smoketest.Greeter/Hello'
+    match['parameters'][0]['value'] == 'smoketest.Greeter/Hello'
+    grpcRootSpan.meta['rpc.grpc.full_method'] == 'smoketest.Greeter/Hello'
   }
 }
