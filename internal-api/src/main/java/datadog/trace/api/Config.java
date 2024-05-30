@@ -1595,10 +1595,6 @@ public class Config {
         configProvider.getBoolean(
             TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
             DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
-
-    isTelemetryLogCollectionEnabled =
-        configProvider.getBoolean(
-            TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
     telemetryDependencyResolutionQueueSize =
         configProvider.getInteger(
             TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE,
@@ -1909,6 +1905,19 @@ public class Config {
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
+
+    // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
+    // users. This should be removed once we default to true, and then it can also be moved up
+    // together with the rest of telemetry ocnfig.
+    final boolean telemetryLogCollectionEnabledDefault =
+        instrumenterConfig.isTelemetryEnabled()
+                && (instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
+                    || instrumenterConfig.isCiVisibilityEnabled()
+                    || debuggerEnabled)
+            || DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
+    isTelemetryLogCollectionEnabled =
+        configProvider.getBoolean(
+            TELEMETRY_LOG_COLLECTION_ENABLED, telemetryLogCollectionEnabledDefault);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
