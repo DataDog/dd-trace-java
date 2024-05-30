@@ -37,7 +37,7 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
-  instrumentPluginClasspath project(':dd-java-agent:agent-otel:otel-tooling')
+  instrumentPluginClasspath project(path: ':dd-java-agent:agent-otel:otel-tooling', configuration: 'instrumentPluginClasspath')
 }
 
 // unpack embeddedClasspath to same path as compiled classes so it can get instrumented
