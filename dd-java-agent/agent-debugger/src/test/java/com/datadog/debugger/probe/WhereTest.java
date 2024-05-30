@@ -8,6 +8,7 @@ import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import java.io.IOException;
+import java.util.Arrays;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.MethodNode;
@@ -119,7 +120,7 @@ public class WhereTest {
     where = new Where("MyClass", "myMethod", null, new String[] {"42"}, null);
     ClassFileLines classFileLines = mock(ClassFileLines.class);
     MethodNode myMethodNode = createMethodNode("myMethod", "()V");
-    when(classFileLines.getMethodByLine(42)).thenReturn(myMethodNode);
+    when(classFileLines.getMethodsByLine(42)).thenReturn(Arrays.asList(myMethodNode));
     assertTrue(where.isMethodMatching(myMethodNode, classFileLines));
   }
 
