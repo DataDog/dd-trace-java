@@ -18,6 +18,12 @@ class DBMInjectionTest extends AgentTestRunner {
     injectSysConfig("dd.trace.jdbc.connection.class.name", "test.TestConnection")
   }
 
+  @Override
+  void cleanupAfterAgent() {
+    removeSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE)
+    removeSysConfig(TracerConfig.SERVICE_MAPPING)
+  }
+
   static query = "SELECT 1"
   static serviceInjection = "ddps='worker.org.gradle.process.internal.worker.GradleWorkerMain',dddbs='remapped_testdb'"
   static fullInjection = serviceInjection + ",traceparent='00-00000000000000000000000000000004-0000000000000003-01'"
