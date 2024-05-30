@@ -1,5 +1,10 @@
+package executor
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.core.DDSpan
+import executor.recursive.RecursiveThreadPoolExecution
+import executor.recursive.RecursiveThreadPoolMixedSubmissionAndExecution
+import executor.recursive.RecursiveThreadPoolSubmission
 import io.netty.channel.DefaultEventLoopGroup
 import spock.lang.Shared
 

@@ -1,3 +1,5 @@
+package executor
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
@@ -6,6 +8,7 @@ import io.netty.channel.epoll.EpollEventLoopGroup
 import io.netty.channel.local.LocalEventLoopGroup
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.util.concurrent.DefaultEventExecutorGroup
+import runnable.JavaAsyncChild
 import spock.lang.Shared
 
 import java.lang.reflect.InvocationTargetException

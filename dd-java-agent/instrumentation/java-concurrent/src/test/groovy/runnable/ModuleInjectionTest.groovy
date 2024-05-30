@@ -1,3 +1,5 @@
+package runnable
+
 import datadog.trace.agent.test.AgentTestRunner
 
 import javax.swing.*

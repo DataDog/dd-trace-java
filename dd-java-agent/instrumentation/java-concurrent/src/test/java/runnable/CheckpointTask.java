@@ -1,3 +1,5 @@
+package runnable;
+
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 
 import datadog.trace.api.Trace;

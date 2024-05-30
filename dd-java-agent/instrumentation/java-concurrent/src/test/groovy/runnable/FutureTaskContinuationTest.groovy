@@ -1,7 +1,8 @@
+package runnable
+
 import datadog.trace.agent.test.AgentTestRunner
 
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.FutureTask
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace

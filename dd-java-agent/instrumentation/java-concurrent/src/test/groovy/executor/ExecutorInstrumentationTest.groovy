@@ -1,10 +1,15 @@
+package executor
+
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
+import forkjoin.PeriodicTask
 import org.apache.tomcat.util.threads.TaskQueue
+import runnable.ComparableAsyncChild
+import runnable.JavaAsyncChild
 import spock.lang.Shared
 
 import java.lang.reflect.InvocationTargetException
@@ -63,8 +68,8 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
 
-    injectSysConfig("dd.trace.executors", "CustomThreadPoolExecutor")
-    injectSysConfig("trace.thread-pool-executors.exclude", "ExecutorInstrumentationTest\$ToBeIgnoredExecutor")
+    injectSysConfig("dd.trace.executors", CustomThreadPoolExecutor.name)
+    injectSysConfig("trace.thread-pool-executors.exclude", ToBeIgnoredExecutor.name)
   }
 
   def "#poolName '#name' propagates"() {
@@ -481,12 +486,6 @@ abstract class ExecutorInstrumentationTest extends AgentTestRunner {
     //    "schedule Callable"   | scheduleCallable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
 
     poolName = poolImpl.class.simpleName
-  }
-
-  static class ToBeIgnoredExecutor extends ThreadPoolExecutor {
-    ToBeIgnoredExecutor() {
-      super(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(10))
-    }
   }
 }
 
