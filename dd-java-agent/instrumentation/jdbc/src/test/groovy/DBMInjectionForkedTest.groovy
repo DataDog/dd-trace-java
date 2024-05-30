@@ -5,7 +5,7 @@ import test.TestConnection
 import test.TestPreparedStatement
 import test.TestStatement
 
-class DBMInjectionTest extends AgentTestRunner {
+class DBMInjectionForkedTest extends AgentTestRunner {
 
   @Override
   void configurePreAgent() {
@@ -22,6 +22,8 @@ class DBMInjectionTest extends AgentTestRunner {
   void cleanupAfterAgent() {
     removeSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE)
     removeSysConfig(TracerConfig.SERVICE_MAPPING)
+    removeSysConfig("dd.trace.jdbc.prepared.statement.class.name")
+    removeSysConfig("dd.trace.jdbc.connection.class.name")
   }
 
   static query = "SELECT 1"
