@@ -1,11 +1,9 @@
 package datadog.smoketest
 
-
 import datadog.trace.api.Config
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
-import datadog.trace.test.util.Flaky
 import datadog.trace.util.Strings
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -58,7 +56,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.reset()
   }
 
-  @Flaky("https://github.com/DataDog/dd-trace-java/issues/7025")
   def "test #projectName, v#mavenVersion"() {
     Assumptions.assumeTrue(Jvm.current.isJavaVersionCompatible(minSupportedJavaVersion),
       "Current JVM " + Jvm.current.javaVersion + " is not compatible with minimum required version " + minSupportedJavaVersion)
@@ -95,7 +92,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_successful_maven_run_with_jacoco_and_argline" | "3.9.7"              | 5              | 1                 | true          | false        | true           | 8
     // "expectedEvents" count for this test case does not include the spans that correspond to Cucumber steps
     "test_successful_maven_run_with_cucumber"           | "3.9.7"              | 4              | 1                 | true          | false        | true           | 8
-    "test_failed_maven_run_flaky_retries"               | "3.9.7"              | 8              | 1                 | false         | true         | true           | 8
+    "test_failed_maven_run_flaky_retries"               | "3.9.7"              | 8              | 5                 | false         | true         | true           | 8
     "test_successful_maven_run_junit_platform_runner"   | "3.9.7"              | 4              | 0                 | true          | false        | false          | 8
   }
 
@@ -234,6 +231,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       def agentArgument = "-javaagent:${agentShadowJar}=" +
         // for convenience when debugging locally
         (System.getenv("DD_CIVISIBILITY_SMOKETEST_DEBUG_CHILD") != null ? "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT)}=5055," : "") +
+        "${Strings.propertyNameToSystemPropertyName(GeneralConfig.TRACE_DEBUG)}=true," +
         "${Strings.propertyNameToSystemPropertyName(GeneralConfig.ENV)}=${TEST_ENVIRONMENT_NAME}," +
         "${Strings.propertyNameToSystemPropertyName(GeneralConfig.SERVICE_NAME)}=${TEST_SERVICE_NAME}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
