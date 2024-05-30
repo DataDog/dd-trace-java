@@ -3,9 +3,13 @@ package datadog.trace.common.sampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.CoreSpan;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Sampler that samples traces based on a fixed time rate in milliseconds. */
 public class TimeSampler implements Sampler, PrioritySampler {
+
+  private static final Logger log = LoggerFactory.getLogger(TimeSampler.class);
 
   private final AtomicLong lastSampleTime;
   private final int rateInMilliseconds;
@@ -26,8 +30,10 @@ public class TimeSampler implements Sampler, PrioritySampler {
   public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
 
     if (shouldSample()) {
+      log.debug("Set SAMPLER_KEEP for span {}", span.getSpanId());
       span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
     } else {
+      log.debug("Set SAMPLER_DROP for span {}", span.getSpanId());
       span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
     }
   }

@@ -511,6 +511,10 @@ public class DDSpanContext
     }
   }
 
+  public void addAppsecPropagationTag() {
+    propagationTags.updateAppsecPropagation(true);
+  }
+
   /** @return if sampling priority was set by this method invocation */
   public boolean setSamplingPriority(final int newPriority, final int newMechanism) {
     DDSpanContext spanContext = getRootSpanContextOrThis();

@@ -75,6 +75,8 @@ public class PTagsFactory implements PropagationTags.Factory {
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;
 
+    private volatile boolean appsecPropagationEnabled;
+
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
 
@@ -184,6 +186,21 @@ public class PTagsFactory implements PropagationTags.Factory {
           decisionMakerTagValue = null;
         }
       }
+    }
+
+    @Override
+    public void updateAppsecPropagation(boolean enabled) {
+      if (appsecPropagationEnabled != enabled) {
+        // This should invalidate any cached w3c and datadog header
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+      }
+      appsecPropagationEnabled = enabled;
+    }
+
+    @Override
+    public boolean isAppsecPropagationEnabled() {
+      return appsecPropagationEnabled;
     }
 
     @Override

@@ -100,6 +100,11 @@ public abstract class PropagationTags {
    */
   public abstract void fillTagMap(Map<String, String> tagMap);
 
+  /** Add the appsec propagation tag to the propagation tags. */
+  public abstract void updateAppsecPropagation(boolean enabled);
+
+  public abstract boolean isAppsecPropagationEnabled();
+
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();
     fillTagMap(result);

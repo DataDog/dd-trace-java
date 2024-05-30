@@ -15,6 +15,7 @@ abstract class PTagsCodec {
 
   protected static final TagKey DECISION_MAKER_TAG = TagKey.from("dm");
   protected static final TagKey TRACE_ID_TAG = TagKey.from("tid");
+  protected static final TagKey APPSEC_TAG = TagKey.from("appsec");
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
@@ -34,6 +35,9 @@ abstract class PTagsCodec {
       }
       if (ptags.getTraceIdHighOrderBitsHexTagValue() != null) {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
+      }
+      if (ptags.isAppsecPropagationEnabled()) {
+        size = codec.appendTag(sb, APPSEC_TAG, TagValue.from("1"), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -77,6 +81,11 @@ abstract class PTagsCodec {
       tagMap.put(
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getDecisionMakerTagValue().forType(Encoding.DATADOG).toString());
+    }
+    if (propagationTags.isAppsecPropagationEnabled()) {
+      tagMap.put(
+          APPSEC_TAG.forType(Encoding.DATADOG).toString(),
+          TagValue.from("1").forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
       tagMap.put(
