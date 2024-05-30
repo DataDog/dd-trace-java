@@ -729,4 +729,18 @@ class TagInterceptorTest extends DDCoreSpecification {
     "/test"   | "test"
     "test"   | "test"
   }
+
+  void "When intercepts appsec propagation tag addAppsecPropagationTag is called"(){
+    setup:
+    final ruleFlags = Mock(RuleFlags)
+    ruleFlags.isEnabled(_) >> true
+    final interceptor = new TagInterceptor(ruleFlags)
+    final context = Mock(DDSpanContext)
+
+    when:
+    interceptor.interceptTag(context, Tags.PROPAGATED_APPSEC, "1")
+
+    then:
+    1 * context.addAppsecPropagationTag()
+  }
 }
