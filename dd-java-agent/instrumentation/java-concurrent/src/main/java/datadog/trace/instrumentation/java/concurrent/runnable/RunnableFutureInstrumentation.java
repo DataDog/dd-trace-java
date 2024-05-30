@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
+import static datadog.trace.instrumentation.java.concurrent.executor.AbstractExecutorInstrumentation.EXEC_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
@@ -38,7 +39,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class RunnableFutureInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
   public RunnableFutureInstrumentation() {
-    super("java_concurrent", "runnable-future");
+    super(EXEC_NAME, "runnable-future");
   }
 
   @Override

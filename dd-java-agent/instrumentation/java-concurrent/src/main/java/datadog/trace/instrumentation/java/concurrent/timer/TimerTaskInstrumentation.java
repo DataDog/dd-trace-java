@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.java.concurrent.timer;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.java.concurrent.executor.AbstractExecutorInstrumentation.EXEC_NAME;
+import static datadog.trace.instrumentation.java.concurrent.runnable.RunnableInstrumentation.RUNNABLE_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -12,7 +14,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.instrumentation.java.concurrent.executor.AbstractExecutorInstrumentation;
 import datadog.trace.instrumentation.java.concurrent.runnable.RunnableInstrumentation;
 import java.util.Map;
 import java.util.TimerTask;
@@ -31,7 +32,7 @@ public final class TimerTaskInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
   public TimerTaskInstrumentation() {
-    super("java_timer", AbstractExecutorInstrumentation.EXEC_NAME, "runnable");
+    super("java_timer", EXEC_NAME, RUNNABLE_NAME);
   }
 
   @Override

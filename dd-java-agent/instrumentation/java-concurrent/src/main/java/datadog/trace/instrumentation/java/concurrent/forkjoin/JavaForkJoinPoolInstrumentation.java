@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
+import static datadog.trace.instrumentation.java.concurrent.executor.AbstractExecutorInstrumentation.EXEC_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -25,8 +26,10 @@ import net.bytebuddy.asm.Advice;
 public class JavaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
 
+  public static final String FJP_NAME = "fjp";
+
   public JavaForkJoinPoolInstrumentation() {
-    super("java_concurrent", "fjp");
+    super(EXEC_NAME, FJP_NAME);
   }
 
   @Override

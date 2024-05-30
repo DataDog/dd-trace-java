@@ -6,6 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper.startQueuingTimer;
+import static datadog.trace.instrumentation.java.concurrent.executor.AbstractExecutorInstrumentation.EXEC_NAME;
+import static datadog.trace.instrumentation.java.concurrent.runnable.RunnableInstrumentation.RUNNABLE_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
@@ -27,7 +29,7 @@ import net.bytebuddy.asm.Advice;
 public class JavaTimerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
   public JavaTimerInstrumentation() {
-    super("java_timer", "java_concurrent", "runnable");
+    super("java_timer", EXEC_NAME, RUNNABLE_NAME);
   }
 
   @Override
