@@ -55,18 +55,16 @@ class W3cPropagatorTracestateTest extends AgentTestRunner {
     // Check tracestate contains extracted members plus the Datadog one in first position
     def injectedMembers = injectedTracestate.split(',')
     injectedMembers.length == Math.min(1 + members.length, 32)
-    injectedMembers[0] == "dd=s:0;p:0000000000000000;t.tid:1111111111111111"
+    injectedMembers[0] == expect // "dd=s:0;t.tid:1111111111111111"
     for (int i = 0; i< Math.min(members.length, 31); i++) {
       assert injectedMembers[i+1] == members[i]
     }
 
     where:
-    // spotless:off
-    tracestate << [
-      "foo=1,bar=2",
-      "dd=s:0,foo=1,bar=2",
-      "foo=1,dd=s:0,bar=2",
-    ]
-    // spotless:on
+    tracestate            |expect
+    "foo=1,bar=2"         |"dd=s:0;p:0000000000000001;t.tid:1111111111111111"
+    "dd=s:0,foo=1,bar=2"  |"dd=s:0;p:0000000000000000;t.tid:1111111111111111"
+    "foo=1,dd=s:0,bar=2"  |"dd=s:0;p:0000000000000000;t.tid:1111111111111111"
+    "dd=s:3"              |"dd=s:0;p:0000000000000000;t.tid:1111111111111111"
   }
 }
