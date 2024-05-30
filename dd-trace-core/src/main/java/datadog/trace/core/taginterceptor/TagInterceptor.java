@@ -108,7 +108,7 @@ public class TagInterceptor {
         return false;
       case Tags.SAMPLING_PRIORITY:
         return interceptSamplingPriority(span, value);
-      case DDTags.PROPAGATED_APPSEC:
+      case Tags.PROPAGATED_APPSEC:
         span.addAppsecPropagationTag();
         return true;
       case InstrumentationTags.SERVLET_CONTEXT:
