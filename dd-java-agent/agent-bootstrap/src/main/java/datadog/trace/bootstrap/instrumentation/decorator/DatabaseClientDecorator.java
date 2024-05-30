@@ -114,7 +114,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    * The method used to provide raw sql to prevent SQL-injection attacks SQL query should never be
    * exposed because it may contain sensitive data.
    */
-  public AgentSpan onRawStatement(AgentSpan span, String sql) {
+  public void onRawStatement(AgentSpan span, String sql) {
     if (Config.get().getAppSecRaspEnabled() && sql != null && !sql.isEmpty()) {
       BiConsumer<RequestContext, String> sqlQueryCallback =
           AgentTracer.get()
@@ -127,7 +127,6 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
         }
       }
     }
-    return span;
   }
 
   protected void processDatabaseType(AgentSpan span, String dbType) {
