@@ -55,7 +55,7 @@ class W3cPropagatorTracestateTest extends AgentTestRunner {
     // Check tracestate contains extracted members plus the Datadog one in first position
     def injectedMembers = injectedTracestate.split(',')
     injectedMembers.length == Math.min(1 + members.length, 32)
-    injectedMembers[0] == expect // "dd=s:0;t.tid:1111111111111111"
+    injectedMembers[0] == expect
     for (int i = 0; i< Math.min(members.length, 31); i++) {
       assert injectedMembers[i+1] == members[i]
     }
