@@ -1090,14 +1090,17 @@ public class Config {
       }
     }
 
-    if (agentHostFromEnvironment == null) {
-      agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
-      rebuildAgentUrl = true;
-    }
-
-    if (agentPortFromEnvironment < 0) {
-      agentPortFromEnvironment = configProvider.getInteger(TRACE_AGENT_PORT, -1, AGENT_PORT_LEGACY);
-      rebuildAgentUrl = true;
+    // avoid merging in supplementary host/port settings when dealing with unix: URLs
+    if (unixSocketFromEnvironment == null) {
+      if (agentHostFromEnvironment == null) {
+        agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
+        rebuildAgentUrl = true;
+      }
+      if (agentPortFromEnvironment < 0) {
+        agentPortFromEnvironment =
+            configProvider.getInteger(TRACE_AGENT_PORT, -1, AGENT_PORT_LEGACY);
+        rebuildAgentUrl = true;
+      }
     }
 
     if (agentHostFromEnvironment == null) {
