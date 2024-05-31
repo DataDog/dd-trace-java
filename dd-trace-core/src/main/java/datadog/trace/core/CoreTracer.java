@@ -559,10 +559,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.initialSampler = sampler;
 
     // Get initial Trace Sampling Rules from config
-    TraceSamplingRules traceSamplingRules =
-        config.getTraceSamplingRules() == null
-            ? TraceSamplingRules.EMPTY
-            : TraceSamplingRules.deserialize(config.getTraceSamplingRules());
+    String traceSamplingRulesJson = config.getTraceSamplingRules();
+    TraceSamplingRules traceSamplingRules = TraceSamplingRules.EMPTY;
+    if (traceSamplingRulesJson != null) {
+      traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
+    } else {
+      traceSamplingRulesJson = "[]";
+    }
     // Get initial Span Sampling Rules from config
     String spanSamplingRulesJson = config.getSpanSamplingRules();
     String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
@@ -586,7 +589,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setBaggageMapping(baggageMapping)
             .setTraceSampleRate(config.getTraceSampleRate())
             .setSpanSamplingRules(spanSamplingRules.getRules())
-            .setTraceSamplingRules(traceSamplingRules.getRules())
+            .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
             .setTracingTags(config.getMergedSpanTags())
             .apply();
 

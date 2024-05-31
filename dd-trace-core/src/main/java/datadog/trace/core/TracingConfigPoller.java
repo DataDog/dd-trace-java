@@ -9,9 +9,12 @@ import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_APM_TRACING_TRACING_ENABLED;
 import static datadog.trace.api.sampling.SamplingRule.normalizeGlob;
 
+import com.squareup.moshi.FromJson;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.ToJson;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -32,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import okio.BufferedSource;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +81,7 @@ final class TracingConfigPoller {
     private final JsonAdapter<TracingSamplingRule> TRACE_SAMPLING_RULE;
 
     {
-      Moshi MOSHI = new Moshi.Builder().build();
+      Moshi MOSHI = new Moshi.Builder().add(new TracingSamplingRulesAdapter()).build();
       CONFIG_OVERRIDES_ADAPTER = MOSHI.adapter(ConfigOverrides.class);
       TRACE_SAMPLING_RULE = MOSHI.adapter(TracingSamplingRule.class);
     }
@@ -164,27 +168,28 @@ final class TracingConfigPoller {
       return sampleRate;
     }
 
-    private List<TracingSamplingRule> checkSamplingRules(List<TracingSamplingRule> rules) {
-      if (null != rules) {
-        for (Iterator<TracingSamplingRule> itr = rules.iterator(); itr.hasNext(); ) {
-          TracingSamplingRule rule = itr.next();
-          // check for required fields
-          if ((null == rule.service
-                  && null == rule.name
-                  && null == rule.resource
-                  && null == rule.tags)
-              || null == rule.sampleRate
-              || null == rule.provenance) {
-            log.debug(
-                "Invalid sampling rule from remote-config, rule will be removed: {}",
-                TRACE_SAMPLING_RULE.toJson(rule));
-            itr.remove();
-          }
-          rule.service = normalizeGlob(rule.service);
-          rule.name = normalizeGlob(rule.name);
-          rule.resource = normalizeGlob(rule.resource);
-          rule.sampleRate = checkSampleRate(rule.sampleRate);
+    private TracingSamplingRules checkSamplingRules(TracingSamplingRules rules) {
+      if (null == rules || null == rules.data) {
+        return null;
+      }
+      for (Iterator<TracingSamplingRule> itr = rules.data.iterator(); itr.hasNext(); ) {
+        TracingSamplingRule rule = itr.next();
+        // check for required fields
+        if ((null == rule.service
+                && null == rule.name
+                && null == rule.resource
+                && null == rule.tags)
+            || null == rule.sampleRate
+            || null == rule.provenance) {
+          log.debug(
+              "Invalid sampling rule from remote-config, rule will be removed: {}",
+              TRACE_SAMPLING_RULE.toJson(rule));
+          itr.remove();
         }
+        rule.service = normalizeGlob(rule.service);
+        rule.name = normalizeGlob(rule.name);
+        rule.resource = normalizeGlob(rule.resource);
+        rule.sampleRate = checkSampleRate(rule.sampleRate);
       }
       return rules;
     }
@@ -218,7 +223,10 @@ final class TracingConfigPoller {
     maybeOverride(builder::setServiceMapping, libConfig.serviceMapping);
     maybeOverride(builder::setHeaderTags, libConfig.headerTags);
 
-    maybeOverride(builder::setTraceSamplingRules, libConfig.tracingSamplingRules);
+    if (null != libConfig.tracingSamplingRules) {
+      builder.setTraceSamplingRules(
+          libConfig.tracingSamplingRules.data, libConfig.tracingSamplingRules.json);
+    }
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
 
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
@@ -303,7 +311,39 @@ final class TracingConfigPoller {
     public List<String> tracingTags;
 
     @Json(name = "tracing_sampling_rules")
-    public List<TracingSamplingRule> tracingSamplingRules;
+    public TracingSamplingRules tracingSamplingRules;
+  }
+
+  /** Holds the raw JSON string and the parsed rule data. */
+  static final class TracingSamplingRules {
+    public final String json;
+
+    public final List<TracingSamplingRule> data;
+
+    TracingSamplingRules(String json, List<TracingSamplingRule> data) {
+      this.json = json;
+      this.data = data;
+    }
+  }
+
+  /** Extracts the raw JSON first, so it can be saved, then parses it into rules. */
+  static final class TracingSamplingRulesAdapter {
+    @FromJson
+    TracingSamplingRules fromJson(JsonReader reader, JsonAdapter<List<TracingSamplingRule>> parser)
+        throws IOException {
+      if (reader.peek() == JsonReader.Token.NULL) {
+        return reader.nextNull();
+      }
+      try (BufferedSource source = reader.nextSource()) {
+        String json = source.readUtf8();
+        return new TracingSamplingRules(json, parser.fromJson(json));
+      }
+    }
+
+    @ToJson
+    String toJson(TracingSamplingRules rules) {
+      return rules.json;
+    }
   }
 
   static final class ServiceMappingEntry implements Map.Entry<String, String> {
