@@ -62,16 +62,7 @@ public class Controller {
     }
   }
 
-  /**
-   * @GetMapping("/forcekeep") public String forceKeep() { return "Span " + forceKeepSpan() + " will
-   * be kept alive"; } @GetMapping("/call") public String call( @RequestParam(name = "url", required
-   * = false) String url, @RequestParam(name = "forceKeep", required = false) boolean forceKeep) {
-   * if (forceKeep) { forceKeepSpan(); } if (url != null) { RestTemplate restTemplate = new
-   * RestTemplate(); return restTemplate.getForObject(url, String.class); } return "No url
-   * provided"; }
-   */
   private String forceKeepSpan() {
-    // TODO: Configure the keep alive in dd-trace-api
     final Span span = GlobalTracer.get().activeSpan();
     if (span != null) {
       span.setTag("manual.keep", true);
