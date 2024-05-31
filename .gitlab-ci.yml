@@ -25,20 +25,20 @@ variables:
   OCI_PACKAGE_NAME: "datadog-apm-library-java"
   OCI_AGENT_REGISTRY_PACKAGE_NAME: "apm-library-java-package"
   LIB_INJECTION_NAME: "dd-trace-java/dd-lib-java-init"
+  BUILD_JOB_NAME: "build"
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
 
-cache: &default_cache
-  key: '$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
-  paths:
-    - .gradle/wrapper
-    - .gradle/caches
-  policy: pull
-
 .gradle_build: &gradle_build
   <<: *common
   image: ghcr.io/datadog/dd-trace-java-docker-build:v23.10-base
+  cache: &default_cache
+    key: '$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+    policy: pull
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
