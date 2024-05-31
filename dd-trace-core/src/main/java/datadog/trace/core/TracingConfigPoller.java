@@ -179,8 +179,7 @@ final class TracingConfigPoller {
                 && null == rule.name
                 && null == rule.resource
                 && null == rule.tags)
-            || null == rule.sampleRate
-            || null == rule.provenance) {
+            || null == rule.sampleRate) {
           log.debug(
               "Invalid sampling rule from remote-config, rule will be removed: {}",
               TRACE_SAMPLING_RULE.toJson(rule));
