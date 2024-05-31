@@ -28,7 +28,7 @@ public class ExtensionHandler {
               new Remapper() {
                 @Override
                 public String map(String internalName) {
-                  return SHADE_LOGGING.apply(internalName);
+                  return MAP_LOGGING.apply(internalName);
                 }
               });
 
@@ -113,7 +113,7 @@ public class ExtensionHandler {
   }
 
   /** Maps logging references in the extension to use the tracer's embedded logger. */
-  protected static final Function<String, String> SHADE_LOGGING =
+  public static final Function<String, String> MAP_LOGGING =
       new Function<String, String>() {
         // substring stops string literal from being changed by shadow plugin
         private final String ORG_SLF4J = "_org/slf4j/".substring(1);

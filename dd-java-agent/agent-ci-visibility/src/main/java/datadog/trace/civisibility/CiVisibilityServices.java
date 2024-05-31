@@ -1,12 +1,12 @@
 package datadog.trace.civisibility;
 
+import datadog.communication.BackendApi;
+import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
-import datadog.trace.civisibility.communication.BackendApi;
-import datadog.trace.civisibility.communication.BackendApiFactory;
 import datadog.trace.civisibility.config.CachingJvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl;
@@ -61,7 +61,8 @@ public class CiVisibilityServices {
       GitInfoProvider gitInfoProvider) {
     this.config = config;
     this.metricCollector = metricCollector;
-    this.backendApi = new BackendApiFactory(config, sco).createBackendApi();
+    this.backendApi =
+        new BackendApiFactory(config, sco).createBackendApi(BackendApiFactory.Intake.API);
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
     this.gitClientFactory = new GitClient.Factory(config, metricCollector);
     this.ciProviderInfoFactory = new CIProviderInfoFactory(config);

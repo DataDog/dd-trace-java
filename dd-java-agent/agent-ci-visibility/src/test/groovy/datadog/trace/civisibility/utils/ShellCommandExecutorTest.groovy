@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.utils
 
+import datadog.communication.util.IOUtils
 import spock.lang.Specification
 import spock.lang.TempDir
 

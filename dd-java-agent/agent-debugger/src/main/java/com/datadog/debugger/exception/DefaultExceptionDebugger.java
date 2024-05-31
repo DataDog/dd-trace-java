@@ -7,6 +7,7 @@ import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.exception.ExceptionProbeManager.ThrowableState;
 import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.CircuitBreaker;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -31,24 +32,29 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   private final ExceptionProbeManager exceptionProbeManager;
   private final ConfigurationUpdater configurationUpdater;
   private final ClassNameFiltering classNameFiltering;
+  private final CircuitBreaker circuitBreaker;
 
   public DefaultExceptionDebugger(
       ConfigurationUpdater configurationUpdater,
       ClassNameFiltering classNameFiltering,
-      Duration captureInterval) {
+      Duration captureInterval,
+      int maxExceptionPerSecond) {
     this(
         new ExceptionProbeManager(classNameFiltering, captureInterval),
         configurationUpdater,
-        classNameFiltering);
+        classNameFiltering,
+        maxExceptionPerSecond);
   }
 
   DefaultExceptionDebugger(
       ExceptionProbeManager exceptionProbeManager,
       ConfigurationUpdater configurationUpdater,
-      ClassNameFiltering classNameFiltering) {
+      ClassNameFiltering classNameFiltering,
+      int maxExceptionPerSecond) {
     this.exceptionProbeManager = exceptionProbeManager;
     this.configurationUpdater = configurationUpdater;
     this.classNameFiltering = classNameFiltering;
+    this.circuitBreaker = new CircuitBreaker(maxExceptionPerSecond, Duration.ofSeconds(1));
   }
 
   @Override
@@ -57,6 +63,9 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug("Skip handling error: {}", t.toString());
       }
+      return;
+    }
+    if (!circuitBreaker.trip()) {
       return;
     }
     String fingerprint = Fingerprinter.fingerprint(t, classNameFiltering);

@@ -1,12 +1,12 @@
 package datadog.trace.civisibility.git.tree;
 
+import datadog.communication.util.IOUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
-import datadog.trace.civisibility.utils.IOUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.NonNull;

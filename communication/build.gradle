@@ -41,12 +41,29 @@ ext {
     'datadog.communication.monitor.DDAgentStatsDConnection',
     'datadog.communication.monitor.DDAgentStatsDConnection.*',
     'datadog.communication.monitor.LoggingStatsDClient',
+    'datadog.communication.BackendApiFactory',
+    'datadog.communication.BackendApiFactory.Intake',
+    'datadog.communication.EvpProxyApi',
+    'datadog.communication.IntakeApi',
+    'datadog.communication.util.IOUtils',
+    'datadog.communication.util.IOUtils.1',
   ]
-  excludedClassesBranchCoverage = ['datadog.communication.ddagent.TracerVersion',]
+  excludedClassesBranchCoverage = [
+    'datadog.communication.ddagent.TracerVersion',
+    'datadog.communication.BackendApiFactory',
+    'datadog.communication.EvpProxyApi',
+    'datadog.communication.IntakeApi',
+  ]
   excludedClassesInstructionCoverage = [
     // can't reach the error condition now
     'datadog.communication.fleet.FleetServiceImpl',
     'datadog.communication.ddagent.SharedCommunicationObjects',
     'datadog.communication.ddagent.TracerVersion',
+    'datadog.communication.BackendApiFactory',
+    'datadog.communication.BackendApiFactory.Intake',
+    'datadog.communication.EvpProxyApi',
+    'datadog.communication.IntakeApi',
+    'datadog.communication.util.IOUtils',
+    'datadog.communication.util.IOUtils.1',
   ]
 }

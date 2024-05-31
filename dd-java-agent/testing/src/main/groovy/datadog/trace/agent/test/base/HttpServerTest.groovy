@@ -1638,6 +1638,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/7061", suites = ["JettyContinuationHandlerV0ForkedTest", "JettyContinuationHandlerV1ForkedTest"])
   def 'test blocking of request for request body variant #variant'() {
     setup:
     assumeTrue(testBlocking())

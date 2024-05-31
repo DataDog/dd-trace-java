@@ -81,10 +81,10 @@ public class ExtractedContext extends TagContext {
       builder.append("traceId=").append(traceId).append(", ");
     }
     if (spanId != 0) {
-      builder.append("endToEndStartTime=").append(spanId).append(", ");
+      builder.append("spanId=").append(spanId).append(", ");
     }
     if (endToEndStartTime != 0) {
-      builder.append("spanId=").append(spanId).append(", ");
+      builder.append("endToEndStartTime=").append(endToEndStartTime).append(", ");
     }
     if (getOrigin() != null) {
       builder.append("origin=").append(getOrigin()).append(", ");

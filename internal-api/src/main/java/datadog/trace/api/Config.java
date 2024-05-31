@@ -45,7 +45,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_E
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_INSTRUMENT_THE_WORLD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
@@ -209,8 +212,11 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_EN
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_INSTRUMENT_THE_WORLD;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER_SECOND;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
@@ -835,6 +841,9 @@ public class Config {
   private final String debuggerSymbolIncludes;
   private final int debuggerSymbolFlushThreshold;
   private final boolean debuggerExceptionEnabled;
+  private final int debuggerMaxExceptionPerSecond;
+  private final boolean debuggerExceptionOnlyLocalRoot;
+  private final int debuggerExceptionMaxCapturedFrames;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -1081,14 +1090,17 @@ public class Config {
       }
     }
 
-    if (agentHostFromEnvironment == null) {
-      agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
-      rebuildAgentUrl = true;
-    }
-
-    if (agentPortFromEnvironment < 0) {
-      agentPortFromEnvironment = configProvider.getInteger(TRACE_AGENT_PORT, -1, AGENT_PORT_LEGACY);
-      rebuildAgentUrl = true;
+    // avoid merging in supplementary host/port settings when dealing with unix: URLs
+    if (unixSocketFromEnvironment == null) {
+      if (agentHostFromEnvironment == null) {
+        agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
+        rebuildAgentUrl = true;
+      }
+      if (agentPortFromEnvironment < 0) {
+        agentPortFromEnvironment =
+            configProvider.getInteger(TRACE_AGENT_PORT, -1, AGENT_PORT_LEGACY);
+        rebuildAgentUrl = true;
+      }
     }
 
     if (agentHostFromEnvironment == null) {
@@ -1586,10 +1598,6 @@ public class Config {
         configProvider.getBoolean(
             TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
             DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED);
-
-    isTelemetryLogCollectionEnabled =
-        configProvider.getBoolean(
-            TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
     telemetryDependencyResolutionQueueSize =
         configProvider.getInteger(
             TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE,
@@ -1888,9 +1896,31 @@ public class Config {
             DEBUGGER_EXCEPTION_ENABLED,
             DEFAULT_DEBUGGER_EXCEPTION_ENABLED,
             EXCEPTION_REPLAY_ENABLED);
+    debuggerMaxExceptionPerSecond =
+        configProvider.getInteger(
+            DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
+    debuggerExceptionOnlyLocalRoot =
+        configProvider.getBoolean(
+            DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT, DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT);
+    debuggerExceptionMaxCapturedFrames =
+        configProvider.getInteger(
+            DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES, DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES);
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
+
+    // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
+    // users. This should be removed once we default to true, and then it can also be moved up
+    // together with the rest of telemetry ocnfig.
+    final boolean telemetryLogCollectionEnabledDefault =
+        instrumenterConfig.isTelemetryEnabled()
+                && (instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
+                    || instrumenterConfig.isCiVisibilityEnabled()
+                    || debuggerEnabled)
+            || DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
+    isTelemetryLogCollectionEnabled =
+        configProvider.getBoolean(
+            TELEMETRY_LOG_COLLECTION_ENABLED, telemetryLogCollectionEnabledDefault);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -2665,7 +2695,7 @@ public class Config {
   }
 
   public boolean isDatadogProfilerEnabled() {
-    return isDatadogProfilerEnabled;
+    return profilingEnabled && isDatadogProfilerEnabled;
   }
 
   public static boolean isDatadogProfilerEnablementOverridden() {
@@ -3207,6 +3237,18 @@ public class Config {
 
   public boolean isDebuggerExceptionEnabled() {
     return debuggerExceptionEnabled;
+  }
+
+  public int getDebuggerMaxExceptionPerSecond() {
+    return debuggerMaxExceptionPerSecond;
+  }
+
+  public boolean isDebuggerExceptionOnlyLocalRoot() {
+    return debuggerExceptionOnlyLocalRoot;
+  }
+
+  public int getDebuggerExceptionMaxCapturedFrames() {
+    return debuggerExceptionMaxCapturedFrames;
   }
 
   public Set<String> getThirdPartyIncludes() {
