@@ -95,21 +95,4 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
       "http://localhost:${httpPorts[0]}/rest-api/iast?injection=vulnerable&"
     ]
   }
-
-  /*
-   void 'test _dd.p.appsec propagation for iast event'() {
-   setup:
-   final downstreamUrl = "http://localhost:${httpPorts[1]}/rest-api/greetings"
-   final url = "http://localhost:${httpPorts[0]}/rest-api/iast?injection=vulnerable&url=${downstreamUrl}"
-   final request = new Request.Builder().url(url1).get().build()
-   when: "Request to an endpoint that triggers ASM events and then calls another endpoint"
-   final response1 = client.newCall(request1).execute()
-   then: "Both traces should have a root span with _dd.p.appsec=1 tag"
-   response1.successful
-   waitForTraceCount(2)
-   assert traces.size() == 2
-   hasAppsecPropagationTag(traces.get(0))
-   hasAppsecPropagationTag(traces.get(1))
-   }
-   */
 }
