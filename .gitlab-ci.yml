@@ -229,7 +229,7 @@ generate-lib-init-tag-values:
   variables:
     IMG_DESTINATION_BASE: dd-lib-java-init
   script:
-    - ./.gitlab/build-lib-init.sh
+    - .gitlab/build-lib-init.sh
   artifacts:
     reports:
       dotenv: build.env
