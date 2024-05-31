@@ -17,9 +17,15 @@ import org.springframework.web.client.RestTemplate;
 public class Controller {
 
   @GetMapping("/greetings")
-  public String greetings(@RequestParam(name = "forceKeep", required = false) boolean forceKeep) {
+  public String greetings(
+      @RequestParam(name = "url", required = false) String url,
+      @RequestParam(name = "forceKeep", required = false) boolean forceKeep) {
     if (forceKeep) {
       forceKeepSpan();
+    }
+    if (url != null) {
+      RestTemplate restTemplate = new RestTemplate();
+      return restTemplate.getForObject(url, String.class);
     }
     return "Hello  I'm service " + System.getProperty("dd.service.name");
   }
