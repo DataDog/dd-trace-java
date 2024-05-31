@@ -20,9 +20,25 @@ import java.util.Map;
 public class SnsInterceptor extends RequestHandler2 {
 
   private final ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore;
+  private ByteBuffer messageAttributeValueToInject;
 
   public SnsInterceptor(ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore) {
     this.contextStore = contextStore;
+  }
+
+  private ByteBuffer getMessageAttributeValueToInject(AmazonWebServiceRequest request) {
+    if (this.messageAttributeValueToInject == null) {
+      final AgentSpan span = newSpan(request);
+      StringBuilder jsonBuilder = new StringBuilder();
+      jsonBuilder.append("{");
+      propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+      jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
+      jsonBuilder.append("}");
+      this.messageAttributeValueToInject =
+          ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    return this.messageAttributeValueToInject;
   }
 
   @Override
@@ -30,18 +46,12 @@ public class SnsInterceptor extends RequestHandler2 {
     // Injecting the trace context into SNS messageAttributes.
     if (request instanceof PublishRequest) {
       PublishRequest pRequest = (PublishRequest) request;
-      final AgentSpan span = newSpan(request);
       // note: modifying message attributes has to be done before marshalling, otherwise the changes
       // are not reflected in the actual request (and the MD5 check on send will fail).
       Map<String, MessageAttributeValue> messageAttributes = pRequest.getMessageAttributes();
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
       if (messageAttributes.size() < 10) {
-        StringBuilder jsonBuilder = new StringBuilder();
-        jsonBuilder.append("{");
-        propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
-        jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-        jsonBuilder.append("}");
         messageAttributes.put(
             "_datadog",
             new MessageAttributeValue()
@@ -49,26 +59,19 @@ public class SnsInterceptor extends RequestHandler2 {
                     "Binary") // Use Binary since SNS subscription filter policies fail silently
                 // with JSON strings
                 // https://github.com/DataDog/datadog-lambda-js/pull/269
-                .withBinaryValue(
-                    ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8))));
+                .withBinaryValue(this.getMessageAttributeValueToInject(request)));
       }
     } else if (request instanceof PublishBatchRequest) {
       PublishBatchRequest pmbRequest = (PublishBatchRequest) request;
 
-      final AgentSpan span = newSpan(request);
-      StringBuilder jsonBuilder = new StringBuilder();
-      jsonBuilder.append("{");
-      propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
-      jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-      jsonBuilder.append("}");
-      ByteBuffer binaryValue =
-          ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8));
       for (PublishBatchRequestEntry entry : pmbRequest.getPublishBatchRequestEntries()) {
         Map<String, MessageAttributeValue> messageAttributes = entry.getMessageAttributes();
         if (messageAttributes.size() < 10) {
           messageAttributes.put(
               "_datadog",
-              new MessageAttributeValue().withDataType("Binary").withBinaryValue(binaryValue));
+              new MessageAttributeValue()
+                  .withDataType("Binary")
+                  .withBinaryValue(this.getMessageAttributeValueToInject(request)));
         }
       }
     }

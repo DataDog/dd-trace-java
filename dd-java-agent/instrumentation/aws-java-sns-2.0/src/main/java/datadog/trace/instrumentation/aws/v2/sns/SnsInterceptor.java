@@ -26,6 +26,21 @@ public class SnsInterceptor implements ExecutionInterceptor {
   public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
           .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
+  private SdkBytes messageAttributeValueToInject;
+
+  private SdkBytes getMessageAttributeValueToInject(ExecutionAttributes executionAttributes) {
+    if (this.messageAttributeValueToInject == null) {
+      final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+      StringBuilder jsonBuilder = new StringBuilder();
+      jsonBuilder.append("{");
+      propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+      jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
+      jsonBuilder.append("}");
+      this.messageAttributeValueToInject =
+          SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
+    }
+    return this.messageAttributeValueToInject;
+  }
 
   public SnsInterceptor() {}
 
@@ -37,41 +52,30 @@ public class SnsInterceptor implements ExecutionInterceptor {
       PublishRequest request = (PublishRequest) context.request();
       Map<String, MessageAttributeValue> messageAttributes =
           new HashMap<>(request.messageAttributes());
-      final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
       if (messageAttributes.size() < 10) {
-        StringBuilder jsonBuilder = new StringBuilder();
-        jsonBuilder.append("{");
-        propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
-        jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-        jsonBuilder.append("}");
-
         messageAttributes.put(
             "_datadog", // Use Binary since SNS subscription filter policies fail silently with JSON
             // strings https://github.com/DataDog/datadog-lambda-js/pull/269
             MessageAttributeValue.builder()
                 .dataType("Binary")
-                .binaryValue(SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8))
+                .binaryValue(this.getMessageAttributeValueToInject(executionAttributes))
                 .build());
       }
       return request.toBuilder().messageAttributes(messageAttributes).build();
     } else if (context.request() instanceof PublishBatchRequest) {
       PublishBatchRequest request = (PublishBatchRequest) context.request();
-      final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
       ArrayList<PublishBatchRequestEntry> entries = new ArrayList<>();
-      StringBuilder jsonBuilder = new StringBuilder();
-      jsonBuilder.append("{");
-      propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
-      jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-      jsonBuilder.append("}");
-      SdkBytes binaryValue = SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
       for (PublishBatchRequestEntry entry : request.publishBatchRequestEntries()) {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.messageAttributes());
         messageAttributes.put(
             "_datadog",
-            MessageAttributeValue.builder().dataType("Binary").binaryValue(binaryValue).build());
+            MessageAttributeValue.builder()
+                .dataType("Binary")
+                .binaryValue(this.getMessageAttributeValueToInject(executionAttributes))
+                .build());
         entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
       }
       return request.toBuilder().publishBatchRequestEntries(entries).build();
