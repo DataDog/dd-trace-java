@@ -39,6 +39,7 @@ excludedClassesCoverage += [
   'datadog.trace.common.sampling.SpanSamplingRules.RuleAdapter',
   'datadog.trace.core.TracingConfigPoller.SamplingRuleTagEntry',
   'datadog.trace.core.TracingConfigPoller.TracingSamplingRule',
+  'datadog.trace.core.TracingConfigPoller.TracingSamplingRules',
   'datadog.trace.core.TracingConfigPoller.Updater',
 ]
 
