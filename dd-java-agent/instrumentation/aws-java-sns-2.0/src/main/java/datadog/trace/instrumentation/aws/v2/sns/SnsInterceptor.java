@@ -26,20 +26,15 @@ public class SnsInterceptor implements ExecutionInterceptor {
   public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
           .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
-  private SdkBytes messageAttributeValueToInject;
 
   private SdkBytes getMessageAttributeValueToInject(ExecutionAttributes executionAttributes) {
-    if (this.messageAttributeValueToInject == null) {
-      final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-      StringBuilder jsonBuilder = new StringBuilder();
-      jsonBuilder.append("{");
-      propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
-      jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-      jsonBuilder.append("}");
-      this.messageAttributeValueToInject =
-          SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
-    }
-    return this.messageAttributeValueToInject;
+    final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+    StringBuilder jsonBuilder = new StringBuilder();
+    jsonBuilder.append("{");
+    propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
+    jsonBuilder.append("}");
+    return SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
   }
 
   public SnsInterceptor() {}
@@ -67,15 +62,13 @@ public class SnsInterceptor implements ExecutionInterceptor {
     } else if (context.request() instanceof PublishBatchRequest) {
       PublishBatchRequest request = (PublishBatchRequest) context.request();
       ArrayList<PublishBatchRequestEntry> entries = new ArrayList<>();
+      final SdkBytes sdkBytes = this.getMessageAttributeValueToInject(executionAttributes);
       for (PublishBatchRequestEntry entry : request.publishBatchRequestEntries()) {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.messageAttributes());
         messageAttributes.put(
             "_datadog",
-            MessageAttributeValue.builder()
-                .dataType("Binary")
-                .binaryValue(this.getMessageAttributeValueToInject(executionAttributes))
-                .build());
+            MessageAttributeValue.builder().dataType("Binary").binaryValue(sdkBytes).build());
         entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
       }
       return request.toBuilder().publishBatchRequestEntries(entries).build();

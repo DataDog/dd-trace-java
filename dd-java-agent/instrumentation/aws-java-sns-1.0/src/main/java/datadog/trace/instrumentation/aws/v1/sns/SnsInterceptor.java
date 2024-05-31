@@ -20,25 +20,19 @@ import java.util.Map;
 public class SnsInterceptor extends RequestHandler2 {
 
   private final ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore;
-  private ByteBuffer messageAttributeValueToInject;
 
   public SnsInterceptor(ContextStore<AmazonWebServiceRequest, AgentSpan> contextStore) {
     this.contextStore = contextStore;
   }
 
   private ByteBuffer getMessageAttributeValueToInject(AmazonWebServiceRequest request) {
-    if (this.messageAttributeValueToInject == null) {
-      final AgentSpan span = newSpan(request);
-      StringBuilder jsonBuilder = new StringBuilder();
-      jsonBuilder.append("{");
-      propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
-      jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-      jsonBuilder.append("}");
-      this.messageAttributeValueToInject =
-          ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8));
-    }
-
-    return this.messageAttributeValueToInject;
+    final AgentSpan span = newSpan(request);
+    StringBuilder jsonBuilder = new StringBuilder();
+    jsonBuilder.append("{");
+    propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
+    jsonBuilder.append("}");
+    return ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8));
   }
 
   @Override
@@ -63,15 +57,13 @@ public class SnsInterceptor extends RequestHandler2 {
       }
     } else if (request instanceof PublishBatchRequest) {
       PublishBatchRequest pmbRequest = (PublishBatchRequest) request;
-
+      final ByteBuffer bytebuffer = this.getMessageAttributeValueToInject(request);
       for (PublishBatchRequestEntry entry : pmbRequest.getPublishBatchRequestEntries()) {
         Map<String, MessageAttributeValue> messageAttributes = entry.getMessageAttributes();
         if (messageAttributes.size() < 10) {
           messageAttributes.put(
               "_datadog",
-              new MessageAttributeValue()
-                  .withDataType("Binary")
-                  .withBinaryValue(this.getMessageAttributeValueToInject(request)));
+              new MessageAttributeValue().withDataType("Binary").withBinaryValue(bytebuffer));
         }
       }
     }
