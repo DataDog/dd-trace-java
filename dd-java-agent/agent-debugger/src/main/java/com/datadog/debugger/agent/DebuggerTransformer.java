@@ -655,10 +655,15 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
     Where.SourceLine sourceLine = lines[0]; // assume only 1 range
     int matchingLine = sourceLine.getFrom();
-    MethodNode matchingMethod = classFileLines.getMethodByLine(matchingLine);
-    if (matchingMethod != null) {
-      log.debug("Found lineNode {} method: {}", matchingLine, matchingMethod.name);
-      return matchingMethod;
+    List<MethodNode> matchingMethods = classFileLines.getMethodsByLine(matchingLine);
+    if (matchingMethods != null) {
+      matchingMethods.forEach(
+          methodNode -> {
+            log.debug("Found lineNode {} method: {}", matchingLine, methodNode.name);
+          });
+      // pick the first matching method.
+      // TODO need a way to disambiguate if multiple methods match the same line
+      return matchingMethods.isEmpty() ? null : matchingMethods.get(0);
     }
     log.debug("Cannot find line: {} in class {}", matchingLine, classNode.name);
     return null;
