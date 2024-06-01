@@ -68,7 +68,7 @@ class TypeConverterTest extends AgentTestRunner {
 
   def createTestSpanContext() {
     def trace = Stub(PendingTrace)
-    return dd-java-agent/instrumentation/opentracing/api-0.32/src/test/groovy/TypeConverterTest.groovynew DDSpanContext(
+    return new DDSpanContext(
       DDTraceId.ONE,
       1,
       DDSpanId.ZERO,

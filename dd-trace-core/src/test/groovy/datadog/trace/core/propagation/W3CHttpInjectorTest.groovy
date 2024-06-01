@@ -48,7 +48,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, tracestate ? "_dd.p.usr=123" : ""),
-        true)
+      true)
     final Map<String, String> carrier = [:]
     Map<String, String> expected = [
       (TRACE_PARENT_KEY)        : buildTraceParent(traceId, spanId, samplingPriority),
