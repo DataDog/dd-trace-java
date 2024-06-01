@@ -126,7 +126,8 @@ public class InjectorBenchmark {
             null,
             null,
             false,
-            propagationTags);
+            propagationTags,
+            true);
   }
 
   int mechanism = 0;

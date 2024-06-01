@@ -367,7 +367,8 @@ class DDSpanTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      propagationTagsFactory.empty())
+      propagationTagsFactory.empty(),
+      true)
     then:
     context.isTopLevel() == expectTopLevel
 

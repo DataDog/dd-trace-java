@@ -68,7 +68,7 @@ class TypeConverterTest extends AgentTestRunner {
 
   def createTestSpanContext() {
     def trace = Stub(PendingTrace)
-    return new DDSpanContext(
+    return dd-java-agent/instrumentation/opentracing/api-0.32/src/test/groovy/TypeConverterTest.groovynew DDSpanContext(
       DDTraceId.ONE,
       1,
       DDSpanId.ZERO,
@@ -87,7 +87,8 @@ class TypeConverterTest extends AgentTestRunner {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty()) {
+      PropagationTags.factory().empty(),
+      true) {
         @Override void setServiceName(final String serviceName) {
           // override this method that is called from the DDSpanContext constructor
           // because it causes NPE when calls trace.getTracer from within setServiceName

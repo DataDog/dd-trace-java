@@ -735,7 +735,8 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       null,
       AgentTracer.NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      true)
   }
 
   def createMinimalTrace() {

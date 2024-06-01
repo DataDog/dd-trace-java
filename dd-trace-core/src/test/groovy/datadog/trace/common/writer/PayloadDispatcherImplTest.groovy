@@ -171,7 +171,8 @@ class PayloadDispatcherImplTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      true)
     return new DDSpan("test", 0, context, null)
   }
 }

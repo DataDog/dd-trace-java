@@ -474,7 +474,8 @@ class PendingTraceBufferTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      true)
     return DDSpan.create("test", 0, context, null)
   }
 
@@ -499,7 +500,8 @@ class PendingTraceBufferTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty())
+      PropagationTags.factory().empty(),
+      true)
     return DDSpan.create("test", 0, context, null)
   }
 }

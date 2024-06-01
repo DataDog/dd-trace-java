@@ -62,7 +62,8 @@ public class PendingTraceWrite {
                 NoopPathwayContext.INSTANCE,
                 false,
                 null),
-            null);
+            null,
+            true);
     span =
         DDSpan.create(
             "benchmark",
@@ -87,7 +88,8 @@ public class PendingTraceWrite {
                 NoopPathwayContext.INSTANCE,
                 false,
                 null),
-            null);
+            null,
+            true);
   }
 
   @Threads(4)
