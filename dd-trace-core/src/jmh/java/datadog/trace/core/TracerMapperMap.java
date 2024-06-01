@@ -119,8 +119,8 @@ public class TracerMapperMap {
             null,
             NoopPathwayContext.INSTANCE,
             false,
-            null),
-        null,
-        true);
+            null,
+            true),
+        null);
   }
 }
