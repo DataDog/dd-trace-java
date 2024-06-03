@@ -27,10 +27,7 @@ ext {
   excludeJdk = ['SEMERU8', 'SEMERU11']
 
   // Spark does not support Java > 11 until 3.3.0 https://issues.apache.org/jira/browse/SPARK-33772
-  baseTestMaxJavaVersionForTests = JavaVersion.VERSION_11
-  latest212DepTestMaxJavaVersionForTests = JavaVersion.VERSION_11
-  latest213DepTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  latest213DepTestMaxJavaVersionForTests = JavaVersion.VERSION_17
+  maxJavaVersionForTests = JavaVersion.VERSION_11
 }
 
 dependencies {
