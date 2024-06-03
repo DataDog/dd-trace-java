@@ -142,11 +142,8 @@ public class DDSpanContext
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
   private volatile boolean requiresPostProcessing;
-<<<<<<< andrew.munn/phase2
-  private volatile CharSequence lastParentId;
-=======
+  // private volatile CharSequence lastParentId;
   private final boolean isRemote;
->>>>>>> master
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
@@ -377,11 +374,8 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
-<<<<<<< andrew.munn/phase2
     setLastParentId(this.propagationTags.getLastParentId());
-=======
     this.isRemote = isRemote;
->>>>>>> master
   }
 
   @Override
@@ -1023,16 +1017,14 @@ public class DDSpanContext
     return requiresPostProcessing;
   }
 
-<<<<<<< andrew.munn/phase2
   public void setLastParentId(CharSequence lastParentId) {
     if (lastParentId != null) {
       synchronized (unsafeTags) {
         unsafeSetTag("_dd.parent_id", lastParentId);
       }
     }
-=======
+
   public boolean isRemote() {
     return isRemote;
->>>>>>> master
   }
 }
