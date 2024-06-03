@@ -10,6 +10,7 @@ import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
 
+import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.opentelemetry.api.common.AttributeKey;
@@ -27,6 +28,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class OtelSpanBuilder implements SpanBuilder {
   private final AgentTracer.SpanBuilder delegate;
   private boolean spanKindSet;
+  private boolean ignoreActiveSpan;
   /**
    * Operation name overridden value by {@link OtelConventions#OPERATION_NAME_SPECIFIC_ATTRIBUTE}
    * reserved attribute ({@code null} if not set).
@@ -51,14 +53,15 @@ public class OtelSpanBuilder implements SpanBuilder {
     AgentSpan.Context extractedContext = extract(context);
     if (extractedContext != null) {
       this.delegate.asChildOf(extractedContext);
+      this.ignoreActiveSpan = true;
     }
     return this;
   }
 
   @Override
   public SpanBuilder setNoParent() {
-    this.delegate.asChildOf(null);
-    this.delegate.ignoreActiveSpan();
+    this.delegate.ignoreActiveSpan().asChildOf(null);
+    this.ignoreActiveSpan = true;
     return this;
   }
 
@@ -162,6 +165,13 @@ public class OtelSpanBuilder implements SpanBuilder {
     // Ensure the span kind is set
     if (!this.spanKindSet) {
       setSpanKind(INTERNAL);
+    }
+    if (!this.ignoreActiveSpan) {
+      // support automatic parenting from propagated context not on the scope stack
+      Context context = OtelContext.lastPropagated();
+      if (null != context) {
+        setParent(context);
+      }
     }
     AgentSpan delegate = this.delegate.start();
     // Apply overrides
