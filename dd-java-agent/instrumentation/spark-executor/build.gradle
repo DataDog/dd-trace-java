@@ -40,9 +40,9 @@ dependencies {
   baseTestImplementation group: 'org.apache.spark', name: "spark-core_2.12", version: "2.4.0"
   baseTestImplementation group: 'org.apache.spark', name: "spark-sql_2.12", version: "2.4.0"
 
-  latest212DepTestImplementation group: 'org.apache.spark', name: "spark-core_2.12", version: '+'
-  latest212DepTestImplementation group: 'org.apache.spark', name: "spark-sql_2.12", version: '+'
+  latest212DepTestImplementation group: 'org.apache.spark', name: "spark-core_2.12", version: '3.+'
+  latest212DepTestImplementation group: 'org.apache.spark', name: "spark-sql_2.12", version: '3.+'
 
-  latest213DepTestImplementation group: 'org.apache.spark', name: "spark-core_2.13", version: '+'
-  latest213DepTestImplementation group: 'org.apache.spark', name: "spark-sql_2.13", version: '+'
+  latest213DepTestImplementation group: 'org.apache.spark', name: "spark-core_2.13", version: '3.+'
+  latest213DepTestImplementation group: 'org.apache.spark', name: "spark-sql_2.13", version: '3.+'
 }
