@@ -9,6 +9,7 @@ import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
@@ -105,6 +106,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     List<? extends SpanSamplingRule> spanSamplingRules;
     List<? extends TraceSamplingRule> traceSamplingRules;
+    String traceSamplingRulesJson;
     Double traceSampleRate;
 
     String preferredServiceName;
@@ -125,6 +127,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.spanSamplingRules = snapshot.spanSamplingRules;
       this.traceSamplingRules = snapshot.traceSamplingRules;
+      this.traceSamplingRulesJson = snapshot.traceSamplingRulesJson;
       this.traceSampleRate = snapshot.traceSampleRate;
 
       this.tracingTags = snapshot.tracingTags;
@@ -196,8 +199,10 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return this;
     }
 
-    public Builder setTraceSamplingRules(List<? extends TraceSamplingRule> traceSamplingRules) {
+    public Builder setTraceSamplingRules(
+        List<? extends TraceSamplingRule> traceSamplingRules, String traceSamplingRulesJson) {
       this.traceSamplingRules = traceSamplingRules;
+      this.traceSamplingRulesJson = traceSamplingRulesJson;
       return this;
     }
 
@@ -285,6 +290,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     update.put(RESPONSE_HEADER_TAGS, newSnapshot.responseHeaderTags);
     update.put(BAGGAGE_MAPPING, newSnapshot.baggageMapping);
 
+    update.put(TRACE_SAMPLING_RULES, newSnapshot.traceSamplingRulesJson);
     maybePut(update, TRACE_SAMPLE_RATE, newSnapshot.traceSampleRate);
 
     ConfigCollector.get().putAll(update, ConfigOrigin.REMOTE);
@@ -311,6 +317,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     final List<? extends SpanSamplingRule> spanSamplingRules;
     final List<? extends TraceSamplingRule> traceSamplingRules;
+    final String traceSamplingRulesJson;
 
     final Double traceSampleRate;
     final Map<String, String> tracingTags;
@@ -331,6 +338,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.spanSamplingRules = nullToEmpty(builder.spanSamplingRules);
       this.traceSamplingRules = nullToEmpty(builder.traceSamplingRules);
+      this.traceSamplingRulesJson = builder.traceSamplingRulesJson;
       this.traceSampleRate = builder.traceSampleRate;
 
       this.tracingTags = nullToEmpty(builder.tracingTags);
@@ -433,7 +441,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
           + ", spanSamplingRules="
           + spanSamplingRules
           + ", traceSamplingRules="
-          + traceSamplingRules
+          + traceSamplingRulesJson
           + ", traceSampleRate="
           + traceSampleRate
           + ", tracingTags="
