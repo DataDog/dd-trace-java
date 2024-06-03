@@ -142,7 +142,9 @@ public class DebuggerAgent {
   private static String getDiagnosticEndpoint(
       Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
     if (ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()) {
-      return config.getAgentUrl() + "/" + DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT;
+      return ddAgentFeaturesDiscovery
+          .buildUrl(DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT)
+          .toString();
     }
     return config.getFinalDebuggerSnapshotUrl();
   }

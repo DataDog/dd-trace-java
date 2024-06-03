@@ -10,4 +10,6 @@ public interface ConfigurationAcceptor {
   }
 
   void accept(Source source, Collection<? extends ProbeDefinition> definitions);
+
+  void handleException(String configId, Exception ex);
 }

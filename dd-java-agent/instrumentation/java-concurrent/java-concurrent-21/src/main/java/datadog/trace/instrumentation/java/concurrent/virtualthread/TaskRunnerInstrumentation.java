@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.java.concurrent.virtualthread;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
@@ -11,12 +11,17 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
+/**
+ * Instruments {@code TaskRunner}, internal runnable for {@code ThreadPerTaskExecutor} (JDK 19+ as
+ * preview, 21+ as stable), the executor with default virtual thread factory.
+ */
 @AutoService(InstrumenterModule.class)
 public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType {
@@ -27,6 +32,11 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String instrumentedType() {
     return "java.util.concurrent.ThreadPerTaskExecutor$TaskRunner";
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return Platform.isJavaVersionAtLeast(19) && super.isEnabled();
   }
 
   @Override
