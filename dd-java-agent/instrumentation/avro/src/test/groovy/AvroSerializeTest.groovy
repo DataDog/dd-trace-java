@@ -3,8 +3,13 @@ import datadog.trace.api.DDTags
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.apache.avro.generic.GenericRecord
+import org.apache.avro.hadoop.io.AvroDeserializer
 import org.apache.avro.hadoop.io.AvroSerializer
+import org.apache.avro.io.DatumReader
+import org.apache.avro.io.Decoder
 import org.apache.avro.mapred.AvroWrapper
+import org.apache.avro.specific.SpecificDatumReader
+import org.apache.hadoop.io.serializer.avro.AvroSerialization
 
 import java.nio.ByteBuffer
 
@@ -98,9 +103,19 @@ class AvroSerializeTest extends AgentTestRunner {
       serializer.close()
 
       bytes = out.toByteArray()
-      println(activeSpan().getTag(DDTags.SCHEMA_ID)+"]]]]]")
     }
+    GenericRecord result = null
 
+    runUnderTrace("parent_deserialize") {
+
+      ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes)
+
+      DatumReader<GenericRecord> datumReader = new SpecificDatumReader<>(schemaDef)
+
+      Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null)
+
+      result = datumReader.read(null, decoder)
+    }
     TEST_WRITER.waitForTraces(1)
 
 
