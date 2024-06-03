@@ -21,7 +21,7 @@ public final class BinaryExpression implements BooleanExpression {
 
   @Override
   public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-    return operator.apply(left.evaluate(valueRefResolver), right.evaluate(valueRefResolver));
+    return operator.apply(left, right, valueRefResolver);
   }
 
   @Override

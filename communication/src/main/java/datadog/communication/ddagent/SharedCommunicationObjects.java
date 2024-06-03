@@ -29,7 +29,7 @@ public class SharedCommunicationObjects {
       monitoring = Monitoring.DISABLED;
     }
     if (agentUrl == null) {
-      agentUrl = HttpUrl.parse(config.getAgentUrl());
+      agentUrl = parseAgentUrl(config);
       if (agentUrl == null) {
         throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
       }
@@ -41,6 +41,15 @@ public class SharedCommunicationObjects {
           OkHttpUtils.buildHttpClient(
               agentUrl, unixDomainSocket, namedPipe, getHttpClientTimeout(config));
     }
+  }
+
+  private static HttpUrl parseAgentUrl(Config config) {
+    String agentUrl = config.getAgentUrl();
+    if (agentUrl.startsWith("unix:")) {
+      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
+      agentUrl = "http://" + config.getAgentHost() + ":" + config.getAgentPort();
+    }
+    return HttpUrl.parse(agentUrl);
   }
 
   private static long getHttpClientTimeout(Config config) {

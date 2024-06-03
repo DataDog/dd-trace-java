@@ -81,7 +81,7 @@ public class ExceptionProbeInstrumentationTest {
     ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
     ProbeRateLimiter.setGlobalSnapshotRate(1000);
     // to activate the call to DebuggerContext.handleException
-    setFieldInConfig(Config.get(), "debuggerEnabled", true);
+    setFieldInConfig(Config.get(), "debuggerExceptionEnabled", true);
   }
 
   @AfterEach
@@ -190,7 +190,8 @@ public class ExceptionProbeInstrumentationTest {
       disabledReason = "Bug in J9: no LocalVariableTable for ClassFileTransformer")
   public void recursive() throws Exception {
     Config config = createConfig();
-    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
+    ExceptionProbeManager exceptionProbeManager =
+        new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), Clock.systemUTC(), 20);
     TestSnapshotListener listener =
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
@@ -227,7 +228,7 @@ public class ExceptionProbeInstrumentationTest {
     Clock clockMock = mock(Clock.class);
     when(clockMock.instant()).thenReturn(Instant.now());
     ExceptionProbeManager exceptionProbeManager =
-        new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), clockMock);
+        new ExceptionProbeManager(classNameFiltering, Duration.ofHours(1), clockMock, 3);
     TestSnapshotListener listener =
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
@@ -326,7 +327,7 @@ public class ExceptionProbeInstrumentationTest {
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     DefaultExceptionDebugger exceptionDebugger =
         new DefaultExceptionDebugger(
-            exceptionProbeManager, configurationUpdater, classNameFiltering);
+            exceptionProbeManager, configurationUpdater, classNameFiltering, 100);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     configurationUpdater.accept(REMOTE_CONFIG, null);
     return listener;

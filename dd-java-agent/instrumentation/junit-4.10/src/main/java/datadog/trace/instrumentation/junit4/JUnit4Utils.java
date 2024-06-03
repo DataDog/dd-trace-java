@@ -310,7 +310,8 @@ public abstract class JUnit4Utils {
   public static TestSuiteDescriptor toSuiteDescriptor(Description description) {
     Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
-    return new TestSuiteDescriptor(testSuiteName, testClass);
+    // relying exclusively on class name: some runners (such as PowerMock) may redefine test classes
+    return new TestSuiteDescriptor(testSuiteName, null);
   }
 
   /**

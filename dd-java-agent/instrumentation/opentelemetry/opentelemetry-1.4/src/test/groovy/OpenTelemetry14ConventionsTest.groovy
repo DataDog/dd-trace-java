@@ -6,9 +6,9 @@ import io.opentelemetry.context.ThreadLocalContextStorage
 import spock.lang.Subject
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.OPERATION_NAME_SPECIFIC_ATTRIBUTE
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.SPAN_KIND_INTERNAL
-import static datadog.trace.instrumentation.opentelemetry14.trace.OtelConventions.toSpanKindTagValue
+import static datadog.opentelemetry.shim.trace.OtelConventions.OPERATION_NAME_SPECIFIC_ATTRIBUTE
+import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
+import static datadog.opentelemetry.shim.trace.OtelConventions.toSpanKindTagValue
 import static io.opentelemetry.api.trace.SpanKind.CLIENT
 import static io.opentelemetry.api.trace.SpanKind.CONSUMER
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL

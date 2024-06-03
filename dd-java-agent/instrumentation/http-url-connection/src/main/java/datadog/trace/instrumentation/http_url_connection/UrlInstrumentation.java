@@ -26,6 +26,11 @@ public class UrlInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
   public String instrumentedType() {
     return "java.net.URL";
   }

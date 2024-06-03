@@ -86,7 +86,10 @@ public class DebuggerAgent {
     if (config.isDebuggerExceptionEnabled()) {
       defaultExceptionDebugger =
           new DefaultExceptionDebugger(
-              configurationUpdater, classNameFiltering, EXCEPTION_CAPTURE_INTERVAL);
+              configurationUpdater,
+              classNameFiltering,
+              EXCEPTION_CAPTURE_INTERVAL,
+              config.getDebuggerMaxExceptionPerSecond());
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
     if (config.isDebuggerInstrumentTheWorld()) {
@@ -139,7 +142,9 @@ public class DebuggerAgent {
   private static String getDiagnosticEndpoint(
       Config config, DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery) {
     if (ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics()) {
-      return config.getAgentUrl() + "/" + DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT;
+      return ddAgentFeaturesDiscovery
+          .buildUrl(DDAgentFeaturesDiscovery.DEBUGGER_DIAGNOSTICS_ENDPOINT)
+          .toString();
     }
     return config.getFinalDebuggerSnapshotUrl();
   }

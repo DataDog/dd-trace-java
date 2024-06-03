@@ -1122,6 +1122,29 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void shortCircuitingCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe logProbes =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.and(
+                            DSL.isDefined(DSL.ref("@exception")),
+                            DSL.contains(
+                                DSL.getMember(DSL.ref("@exception"), "detailMessage"),
+                                new StringValue("closed")))),
+                    "isDefined(@exception) && contains(@exception.detailMessage, 'closed')"))
+            .build();
+    TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    // no snapshot, no eval error, isDefined returns false and do not evaluate the second part
+    assertEquals(0, listener.snapshots.size());
+  }
+
+  @Test
   public void wellKnownClassesCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     LogProbe logProbes =
@@ -1420,12 +1443,12 @@ public class CapturedSnapshotTest {
     setCorrelationSingleton(spyCorrelationAccess);
     doReturn(true).when(spyCorrelationAccess).isAvailable();
     TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "33"));
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "37"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "static", "email@address").get();
     assertEquals(8, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    CapturedContext context = snapshot.getCaptures().getLines().get(33);
+    CapturedContext context = snapshot.getCaptures().getLines().get(37);
     assertNotNull(context);
     assertCaptureLocals(context, "idx", "int", "5");
   }
@@ -1437,15 +1460,32 @@ public class CapturedSnapshotTest {
     setCorrelationSingleton(spyCorrelationAccess);
     doReturn(true).when(spyCorrelationAccess).isAvailable();
     TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "44"));
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "48"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "capturing", "email@address").get();
     assertEquals(8, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    CapturedContext context = snapshot.getCaptures().getLines().get(44);
+    CapturedContext context = snapshot.getCaptures().getLines().get(48);
     assertNotNull(context);
     assertCaptureLocals(context, "idx", "int", "5");
     assertCaptureFields(context, "strValue", "java.lang.String", "email@address");
+  }
+
+  @Test
+  public void multiLambdas() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot07";
+    CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
+    setCorrelationSingleton(spyCorrelationAccess);
+    doReturn(true).when(spyCorrelationAccess).isAvailable();
+    TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "58"));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "multi", "FOO1,FOO2,FOO3").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    CapturedContext context = snapshot.getCaptures().getLines().get(58);
+    assertNotNull(context);
+    assertCaptureArgs(context, "arg", String.class.getTypeName(), "FOO1,FOO2,FOO3");
   }
 
   @Test

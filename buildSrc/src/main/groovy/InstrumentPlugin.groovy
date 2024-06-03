@@ -178,17 +178,20 @@ interface InstrumentWorkParameters extends WorkParameters {
 abstract class InstrumentAction implements WorkAction<InstrumentWorkParameters> {
   private static final Object lock = new Object()
   private static ClassLoader pluginCL
-  private static volatile long lastBuildStamp
+  private static String cachedPluginPath
+  private static volatile long cachedBuildStamp
 
   @Override
   void execute() {
     // reset shared class-loaders each time a new build starts
     long buildStamp = parameters.buildStartedTime.get()
-    if (lastBuildStamp < buildStamp || !pluginCL) {
+    String pluginPath = parameters.pluginClassPath.join(':')
+    if (rebuildSharedClassLoader(buildStamp, pluginPath)) {
       synchronized (lock) {
-        if (lastBuildStamp < buildStamp || !pluginCL) {
+        if (rebuildSharedClassLoader(buildStamp, pluginPath)) {
           pluginCL = createClassLoader(parameters.pluginClassPath)
-          lastBuildStamp = buildStamp
+          cachedPluginPath = pluginPath
+          cachedBuildStamp = buildStamp
         }
       }
     }
@@ -197,6 +200,10 @@ abstract class InstrumentAction implements WorkAction<InstrumentWorkParameters> 
     File targetDirectory = parameters.getTargetDirectory().get().asFile
     ClassLoader instrumentingCL = createClassLoader(parameters.instrumentingClassPath, pluginCL)
     InstrumentingPlugin.instrumentClasses(plugins, instrumentingCL, sourceDirectory, targetDirectory)
+  }
+
+  static boolean rebuildSharedClassLoader(long buildStamp, String pluginPath) {
+    return cachedBuildStamp < buildStamp || cachedPluginPath != pluginPath
   }
 
   static ClassLoader createClassLoader(cp, parent = InstrumentAction.classLoader) {

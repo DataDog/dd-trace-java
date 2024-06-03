@@ -3,6 +3,7 @@ package datadog.trace.civisibility.config;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.communication.BackendApi;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
@@ -13,7 +14,6 @@ import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
-import datadog.trace.civisibility.communication.BackendApi;
 import datadog.trace.civisibility.communication.TelemetryListener;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
@@ -109,7 +109,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             SETTINGS_URI,
             requestBody,
             is -> settingsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
-            telemetryListener);
+            telemetryListener,
+            false);
 
     metricCollector.add(
         CiVisibilityCountMetric.GIT_REQUESTS_SETTINGS_RESPONSE,
@@ -145,7 +146,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             SKIPPABLE_TESTS_URI,
             requestBody,
             is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))),
-            telemetryListener);
+            telemetryListener,
+            false);
 
     List<TestIdentifier> testIdentifiers =
         response.data.stream().map(DataDto::getAttributes).collect(Collectors.toList());
@@ -170,7 +172,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             FLAKY_TESTS_URI,
             requestBody,
             is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data,
-            null);
+            null,
+            false);
     return response.stream().map(DataDto::getAttributes).collect(Collectors.toList());
   }
 
@@ -196,7 +199,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             requestBody,
             is ->
                 testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
-            telemetryListener);
+            telemetryListener,
+            false);
     return parseTestIdentifiers(knownTests);
   }
 

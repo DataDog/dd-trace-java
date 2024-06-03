@@ -50,6 +50,6 @@ dependencies {
   boot3ForkedTestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '3.0.0'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '+'
   latestDepForkedTestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '+'
-  latestDepTestImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.8' // otherwise clashes with RootLogLevelConfigurator
-  latestDepForkedTestImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.8'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-logging', version: '+'
+  latestDepForkedTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-logging', version: '+'
 }
