@@ -1017,7 +1017,7 @@ public class DDSpanContext
     return requiresPostProcessing;
   }
 
-  public CharSequence getLastParentId(){
+  public CharSequence getLastParentId() {
     return lastParentId;
   }
 
