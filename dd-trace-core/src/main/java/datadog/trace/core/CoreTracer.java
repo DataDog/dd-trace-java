@@ -560,11 +560,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     // Get initial Trace Sampling Rules from config
     String traceSamplingRulesJson = config.getTraceSamplingRules();
-    TraceSamplingRules traceSamplingRules = TraceSamplingRules.EMPTY;
-    if (traceSamplingRulesJson != null) {
-      traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
-    } else {
+    TraceSamplingRules traceSamplingRules;
+    if (traceSamplingRulesJson == null) {
       traceSamplingRulesJson = "[]";
+      traceSamplingRules = TraceSamplingRules.EMPTY;
+    } else {
+      traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
     }
     // Get initial Span Sampling Rules from config
     String spanSamplingRulesJson = config.getSpanSamplingRules();
