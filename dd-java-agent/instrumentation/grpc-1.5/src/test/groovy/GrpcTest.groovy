@@ -692,3 +692,26 @@ class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
     return "grpc.server"
   }
 }
+
+class GrpcProfilingForkedTest extends GrpcTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.profiling.enabled", "true")
+  }
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server"
+  }
+}
