@@ -23,6 +23,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
@@ -247,6 +248,7 @@ public class AgentInstaller {
     if (null != extensionsPath) {
       if (findExtensions(extensionsPath, InstrumenterModule.class)) {
         final List<InstrumenterModule> extensions = loadExtensions(InstrumenterModule.class);
+        extensions.sort(Comparator.comparingInt(InstrumenterModule::order));
         return new Iterable<InstrumenterModule>() {
           @Override
           public Iterator<InstrumenterModule> iterator() {
