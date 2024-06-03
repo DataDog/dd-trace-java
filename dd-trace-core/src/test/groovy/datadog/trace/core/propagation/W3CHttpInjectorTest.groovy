@@ -47,8 +47,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, tracestate ? "_dd.p.usr=123" : ""),
-      true)
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, tracestate ? "_dd.p.usr=123" : ""))
     final Map<String, String> carrier = [:]
     Map<String, String> expected = [
       (TRACE_PARENT_KEY)        : buildTraceParent(traceId, spanId, samplingPriority),
@@ -102,8 +101,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"),
-      true)
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"))
 
     mockedContext.beginEndToEnd()
 
@@ -149,8 +147,7 @@ class W3CHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty(),
-      true)
+      PropagationTags.factory().empty())
 
     mockedContext.setSamplingPriority(USER_KEEP, MANUAL)
 

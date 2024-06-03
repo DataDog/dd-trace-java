@@ -93,7 +93,6 @@ class TypeConverterTest extends DDSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty(),
-      true)
+      PropagationTags.factory().empty())
   }
 }

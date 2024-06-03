@@ -79,8 +79,7 @@ class TypeConverterTest extends AgentTestRunner {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().empty(),
-      true) {
+      PropagationTags.factory().empty()) {
         @Override void setServiceName(final String serviceName) {
           // override this method that is called from the DDSpanContext constructor
           // because it causes NPE when calls trace.getTracer from within setServiceName

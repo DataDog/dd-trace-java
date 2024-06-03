@@ -122,8 +122,7 @@ public class TraceMapperBenchmark {
             null,
             NoopPathwayContext.INSTANCE,
             false,
-            propagationTags,
-            true);
+            propagationTags);
     DDSpanHelper.setAllTags(rootContext, tags);
     DDSpan root = DDSpanHelper.create("benchmark", System.currentTimeMillis() * 1000, rootContext);
     root.setResourceName(UTF8BytesString.create("benchmark"));

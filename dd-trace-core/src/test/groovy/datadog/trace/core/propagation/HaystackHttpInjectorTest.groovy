@@ -41,8 +41,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null,
-      true)
+      null)
 
     final Map<String, String> carrier = Mock()
 
@@ -96,8 +95,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null,
-      true)
+      null)
 
     final Map<String, String> carrier = Mock()
 

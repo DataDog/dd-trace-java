@@ -238,8 +238,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"),
-      true)
+      PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"))
   }
 }
 

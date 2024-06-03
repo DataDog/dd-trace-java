@@ -170,8 +170,7 @@ public class DDSpanContext
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
-      final PropagationTags propagationTags,
-      final boolean isRemote) {
+      final PropagationTags propagationTags) {
     this(
         traceId,
         spanId,
@@ -195,7 +194,7 @@ public class DDSpanContext
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
         true,
-        isRemote);
+        false);
   }
 
   public DDSpanContext(
@@ -218,8 +217,7 @@ public class DDSpanContext
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
-      final boolean injectBaggageAsTags,
-      final boolean isRemote) {
+      final boolean injectBaggageAsTags) {
     this(
         traceId,
         spanId,
@@ -243,7 +241,7 @@ public class DDSpanContext
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
         injectBaggageAsTags,
-        isRemote);
+        false);
   }
 
   public DDSpanContext(
@@ -266,8 +264,7 @@ public class DDSpanContext
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
-      final ProfilingContextIntegration profilingContextIntegration,
-      final boolean isRemote) {
+      final ProfilingContextIntegration profilingContextIntegration) {
     this(
         traceId,
         spanId,
@@ -291,7 +288,7 @@ public class DDSpanContext
         propagationTags,
         profilingContextIntegration,
         true,
-        isRemote);
+        false);
   }
 
   public DDSpanContext(

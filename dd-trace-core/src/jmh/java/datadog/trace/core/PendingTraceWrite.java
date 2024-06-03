@@ -61,8 +61,7 @@ public class PendingTraceWrite {
                 null,
                 NoopPathwayContext.INSTANCE,
                 false,
-                null,
-                true),
+                null),
             null);
     span =
         DDSpan.create(
@@ -87,8 +86,7 @@ public class PendingTraceWrite {
                 null,
                 NoopPathwayContext.INSTANCE,
                 false,
-                null,
-                true),
+                null),
             null);
   }
 

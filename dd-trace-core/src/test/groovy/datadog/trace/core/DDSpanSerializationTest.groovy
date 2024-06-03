@@ -171,8 +171,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       null,
-      injectBaggage,
-      true)
+      injectBaggage)
     context.setAllTags(tags)
     def span = DDSpan.create("test", 0, context, null)
     CaptureBuffer capture = new CaptureBuffer()
@@ -248,8 +247,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       null,
-      injectBaggage,
-      true)
+      injectBaggage)
     context.setAllTags(tags)
     def span = DDSpan.create("test", 0, context, null)
     CaptureBuffer capture = new CaptureBuffer()
@@ -323,8 +321,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null,
-      true)
+      null)
     context.setTag('key1', 'value1')
     context.setTag('key2', [
       'sub1': 'v1',
@@ -394,8 +391,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null,
-      true)
+      null)
     context.setTag('key1', 'value1')
     context.setTag('key2', [
       'sub1': 'v1',
@@ -476,8 +472,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null,
-      true)
+      null)
     ctx.setAllTags(["k1": "v1"])
     return ctx
   }

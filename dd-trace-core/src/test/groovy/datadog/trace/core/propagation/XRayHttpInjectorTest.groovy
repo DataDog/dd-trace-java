@@ -46,8 +46,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null,
-      true)
+      null)
 
     final Map<String, String> carrier = Mock()
 
@@ -107,8 +106,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null,
-      true)
+      null)
     final Map<String, String> carrier = Mock()
 
     when:
@@ -159,8 +157,7 @@ class XRayHttpInjectorTest extends DDCoreSpecification {
       null,
       NoopPathwayContext.INSTANCE,
       false,
-      null,
-      true)
+      null)
     final Map<String, String> carrier = Mock()
 
     when:
