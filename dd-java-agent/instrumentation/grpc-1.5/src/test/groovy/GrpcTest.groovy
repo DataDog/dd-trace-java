@@ -707,11 +707,11 @@ class GrpcProfilingForkedTest extends GrpcTest {
 
   @Override
   protected String clientOperation() {
-    return "grpc.client"
+    return "grpc.client.request"
   }
 
   @Override
   protected String serverOperation() {
-    return "grpc.server"
+    return "grpc.server.request"
   }
 }
