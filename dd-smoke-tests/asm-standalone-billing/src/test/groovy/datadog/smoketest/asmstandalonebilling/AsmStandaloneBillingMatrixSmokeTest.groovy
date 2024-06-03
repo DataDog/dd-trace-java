@@ -5,40 +5,40 @@ import okhttp3.Request
 
 class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSmokeTest {
 
-  static final String standAloneBillingServiceName = "asm-standalone-billing-matrix-smoketest-app"
-  static final String standAloneBillingServiceName2 = "asm-standalone-billing-matrix-smoketest-app2"
-  static final String apmEnabledServiceName = "apm-enabled-matrix-smoketest-app"
-  static final String asmEnabledServiceName = "asm-enabled-matrix-smoketest-app"
+  static final String STANDALONE_BILLING_SERVICE_NAME = "asm-standalone-billing-matrix-smoketest-app"
+  static final String STANDALONE_BILLING_SERVICE_NAME_2 = "asm-standalone-billing-matrix-smoketest-app2"
+  static final String APM_ENABLED_SERVICE_NAME = "apm-enabled-matrix-smoketest-app"
+  static final String ASM_ENABLED_SERVICE_NAME = "asm-enabled-matrix-smoketest-app"
 
-  static final String[] standAloneBillingProperties = [
+  static final String[] STANDALONE_BILLING_PROPERTIES = [
     "-Ddd.experimental.appsec.standalone.enabled=true",
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
     //"-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
-    "-Ddd.service.name=${standAloneBillingServiceName}",
+    "-Ddd.service.name=${STANDALONE_BILLING_SERVICE_NAME}",
   ]
 
-  static final String[] standAloneBillingProperties2 = [
+  static final String[] STANDALONE_BILLING_PROPERTIES_2 = [
     "-Ddd.experimental.appsec.standalone.enabled=true",
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
     //"-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
-    "-Ddd.service.name=${standAloneBillingServiceName2}",
+    "-Ddd.service.name=${STANDALONE_BILLING_SERVICE_NAME_2}",
   ]
 
-  static final String[] apmEnabledProperties = ["-Ddd.service.name=${apmEnabledServiceName}", "-Ddd.trace.tracer.metrics.enabled=true",]
+  static final String[] APM_ENABLED_PROPERTIES = ["-Ddd.service.name=${APM_ENABLED_SERVICE_NAME}", "-Ddd.trace.tracer.metrics.enabled=true",]
 
-  static final String[] asmEnabledProperties = [
+  static final String[] ASM_ENABLED_PROPERTIES = [
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
     //"-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
-    "-Ddd.service.name=${asmEnabledServiceName}",
+    "-Ddd.service.name=${ASM_ENABLED_SERVICE_NAME}",
   ]
 
   protected int numberOfProcesses() {
@@ -49,13 +49,13 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
   ProcessBuilder createProcessBuilder(int processIndex) {
     switch (processIndex) {
       case 0:
-        return createProcess(processIndex, standAloneBillingProperties)
+        return createProcess(processIndex, STANDALONE_BILLING_PROPERTIES)
       case 1:
-        return createProcess(processIndex, apmEnabledProperties)
+        return createProcess(processIndex, APM_ENABLED_PROPERTIES)
       case 2:
-        return createProcess(processIndex, asmEnabledProperties)
+        return createProcess(processIndex, ASM_ENABLED_PROPERTIES)
       case 3:
-        return createProcess(processIndex, standAloneBillingProperties2)
+        return createProcess(processIndex, STANDALONE_BILLING_PROPERTIES_2)
       default:
         throw new IllegalArgumentException("Invalid process index: ${processIndex}")
     }
@@ -79,19 +79,19 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     waitForTraceCount(3)
 
     and: "No traced upstream service, resulting in no propagated sampling decision"
-    def upstreamTrace = getServiceTrace(apmEnabledServiceName)
+    def upstreamTrace = getServiceTrace(APM_ENABLED_SERVICE_NAME)
     isSampledBySampler(upstreamTrace)
     !hasAppsecPropagationTag (upstreamTrace)
     !hasApmDisabledTag (upstreamTrace)
 
     and:"No ASM events, resulting in the local sampling decision"
-    def standAloneBillingTrace = getServiceTrace(standAloneBillingServiceName)
+    def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
     isSampledBySampler(standAloneBillingTrace)
     !hasAppsecPropagationTag (standAloneBillingTrace)
     hasApmDisabledTag (standAloneBillingTrace)
 
     and:"No assumption can be done about the setup of the downstream services, so the default APM tracing behavior must be kept"
-    def downstreamTrace = getServiceTrace(asmEnabledServiceName)
+    def downstreamTrace = getServiceTrace(ASM_ENABLED_SERVICE_NAME)
     isSampledBySampler(downstreamTrace)
     !hasAppsecPropagationTag (downstreamTrace)
     !hasApmDisabledTag (downstreamTrace)
@@ -115,19 +115,19 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     waitForTraceCount(3)
 
     and: "No traced upstream service, resulting in no propagated sampling decision"
-    def upstreamTrace = getServiceTrace(apmEnabledServiceName)
+    def upstreamTrace = getServiceTrace(APM_ENABLED_SERVICE_NAME)
     isSampledBySampler(upstreamTrace)
     !hasAppsecPropagationTag (upstreamTrace)
     !hasApmDisabledTag (upstreamTrace)
 
     and:"ASM events"
-    def standAloneBillingTrace = getServiceTrace(standAloneBillingServiceName)
+    def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
     checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.USER_KEEP)
     hasAppsecPropagationTag (standAloneBillingTrace)
     hasApmDisabledTag (standAloneBillingTrace)
 
     and:"ASM requires the distributed trace"
-    def downstreamTrace = getServiceTrace(asmEnabledServiceName)
+    def downstreamTrace = getServiceTrace(ASM_ENABLED_SERVICE_NAME)
     checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.USER_KEEP)
     hasAppsecPropagationTag (standAloneBillingTrace)
     !hasApmDisabledTag (downstreamTrace)
@@ -151,20 +151,20 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     waitForTraceCount(3)
 
     and: "Upstream APM service propagating the force keep"
-    def upstreamTrace = getServiceTrace(apmEnabledServiceName)
+    def upstreamTrace = getServiceTrace(APM_ENABLED_SERVICE_NAME)
     checkRootSpanPrioritySampling(upstreamTrace, PrioritySampling.USER_KEEP)
     !hasAppsecPropagationTag (upstreamTrace)
     !hasApmDisabledTag (upstreamTrace)
 
     and:"No ASM events, resulting in the local sampling decision"
-    def standAloneBillingTrace = getServiceTrace(standAloneBillingServiceName)
+    def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
     //TODO Check RFC as it said isSampledBySampler(standAloneBillingTrace) but sampling priority it's set in the upstream service and locked for all downstream processes
     checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.USER_KEEP)
     !hasAppsecPropagationTag (standAloneBillingTrace)
     hasApmDisabledTag (standAloneBillingTrace)
 
     and:"Only the local trace is expected to be “muted” and no assumption must be done about the downstream one, so the sampling decision propagated by upstream services must be honored"
-    def downstreamTrace = getServiceTrace(asmEnabledServiceName)
+    def downstreamTrace = getServiceTrace(ASM_ENABLED_SERVICE_NAME)
     checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.USER_KEEP)
     !hasAppsecPropagationTag (downstreamTrace)
     !hasApmDisabledTag (downstreamTrace)
@@ -188,20 +188,20 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     waitForTraceCount(3)
 
     and: "Upstream standalone ASM service having ASM events result in force keep and propagation of the tag"
-    def upstreamTrace = getServiceTrace(standAloneBillingServiceName2)
+    def upstreamTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME_2)
     checkRootSpanPrioritySampling(upstreamTrace, PrioritySampling.USER_KEEP)
     hasAppsecPropagationTag (upstreamTrace)
     hasApmDisabledTag (upstreamTrace)
 
     and:"standalone service must keep the local trace with the local sampling priority"
-    def standAloneBillingTrace = getServiceTrace(standAloneBillingServiceName)
+    def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
     checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.USER_KEEP)
     //TODO Check RFC as it said !hasAppsecPropagationTag (standAloneBillingTrace) but the tag is propagated from the upstream service
     hasAppsecPropagationTag (standAloneBillingTrace)
     hasApmDisabledTag (standAloneBillingTrace)
 
     and:"Only the local trace is expected to be “muted” and no assumption must be done about the downstream one, so the sampling decision propagated by upstream services must be honored"
-    def downstreamTrace = getServiceTrace(asmEnabledServiceName)
+    def downstreamTrace = getServiceTrace(ASM_ENABLED_SERVICE_NAME)
     checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.USER_KEEP)
     hasAppsecPropagationTag (downstreamTrace)
     !hasApmDisabledTag (downstreamTrace)

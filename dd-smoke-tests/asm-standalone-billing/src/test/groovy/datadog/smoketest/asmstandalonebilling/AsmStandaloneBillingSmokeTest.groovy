@@ -4,20 +4,20 @@ import okhttp3.Request
 
 class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTest {
 
-  private static final String standAloneBillingServiceName = "asm-standalone-billing-smoketest-app"
-  private static final String apmEnabledServiceName = "apm-enabled-smoketest-app"
+  private static final String STANDALONE_BILLING_SERVICE_NAME = "asm-standalone-billing-smoketest-app"
+  private static final String APM_ENABLED_SERVICE_NAME = "apm-enabled-smoketest-app"
 
-  static final String[] standAloneBillingProperties = [
+  static final String[] STANDALONE_BILLING_PROPERTIES = [
     "-Ddd.experimental.appsec.standalone.enabled=true",
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
     "-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
-    "-Ddd.service.name=${standAloneBillingServiceName}",
+    "-Ddd.service.name=${STANDALONE_BILLING_SERVICE_NAME}",
   ]
 
-  static final String[] apmEnabledProperties = ["-Ddd.service.name=${apmEnabledServiceName}", "-Ddd.trace.tracer.metrics.enabled=true",]
+  static final String[] APM_ENABLED_PROPERTIES = ["-Ddd.service.name=${APM_ENABLED_SERVICE_NAME}", "-Ddd.trace.tracer.metrics.enabled=true",]
 
   protected int numberOfProcesses() {
     return 2
@@ -26,10 +26,9 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
   @Override
   ProcessBuilder createProcessBuilder(int processIndex) {
     if(processIndex == 0){
-      return createProcess(processIndex, standAloneBillingProperties)
-    } else {
-      return createProcess(processIndex, apmEnabledProperties)
+      return createProcess(processIndex, STANDALONE_BILLING_PROPERTIES)
     }
+    return createProcess(processIndex, APM_ENABLED_PROPERTIES)
   }
 
   void 'When APM is disabled, numeric tag _dd.apm.enabled:0 must be added to the metrics map of the service entry spans.'() {
@@ -47,8 +46,8 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
     response1.successful
     response2.successful
     waitForTraceCount(2)
-    hasApmDisabledTag(getServiceTrace(standAloneBillingServiceName))
-    !hasApmDisabledTag(getServiceTrace(apmEnabledServiceName))
+    hasApmDisabledTag(getServiceTrace(STANDALONE_BILLING_SERVICE_NAME))
+    !hasApmDisabledTag(getServiceTrace(APM_ENABLED_SERVICE_NAME))
   }
 
   void 'When APM is disabled, libraries must completely disable the generation of APM trace metrics'(){
@@ -66,10 +65,7 @@ class AsmStandaloneBillingSmokeTest extends AbstractAsmStandaloneBillingSmokeTes
 
     then:'metrics should be disabled'
     checkLogPostExit { log ->
-      if (log.contains('datadog.trace.agent.common.metrics.MetricsAggregatorFactory - tracer metrics disabled')) {
-        return true
-      }
-      return false
+      return log.contains('datadog.trace.agent.common.metrics.MetricsAggregatorFactory - tracer metrics disabled')
     }
   }
 

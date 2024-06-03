@@ -55,10 +55,7 @@ abstract class AbstractAsmStandaloneBillingSmokeTest extends AbstractServerSmoke
 
   protected isSampledBySampler(DecodedTrace trace) {
     def samplingPriority = trace.spans[0].metrics['_sampling_priority_v1']
-    if(samplingPriority == PrioritySampling.SAMPLER_KEEP || samplingPriority == PrioritySampling.SAMPLER_DROP) {
-      return true
-    }
-    return false
+    return samplingPriority == PrioritySampling.SAMPLER_KEEP || samplingPriority == PrioritySampling.SAMPLER_DROP
   }
 
   protected hasAppsecPropagationTag(DecodedTrace trace) {
