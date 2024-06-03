@@ -738,9 +738,9 @@ class TagInterceptorTest extends DDCoreSpecification {
     final context = Mock(DDSpanContext)
 
     when:
-    interceptor.interceptTag(context, Tags.PROPAGATED_APPSEC, "1")
+    interceptor.interceptTag(context, Tags.PROPAGATED_APPSEC, true)
 
     then:
-    1 * context.addAppsecPropagationTag()
+    1 * context.updateAppsecPropagation(true)
   }
 }

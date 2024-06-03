@@ -511,8 +511,8 @@ public class DDSpanContext
     }
   }
 
-  public void addAppsecPropagationTag() {
-    propagationTags.updateAppsecPropagation(true);
+  public void updateAppsecPropagation(boolean value) {
+    propagationTags.updateAppsecPropagation(value);
   }
 
   /** @return if sampling priority was set by this method invocation */
