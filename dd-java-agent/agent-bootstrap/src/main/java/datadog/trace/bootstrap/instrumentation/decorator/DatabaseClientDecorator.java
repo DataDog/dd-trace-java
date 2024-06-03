@@ -1,15 +1,20 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.function.BiConsumer;
 
 public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorator {
   protected static class NamingEntry {
@@ -105,10 +110,42 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     return span;
   }
 
+  /**
+   * The method used to provide raw sql to prevent SQL-injection attacks SQL query should never be
+   * exposed because it may contain sensitive data.
+   */
+  public void onRawStatement(AgentSpan span, String sql) {
+    if (Config.get().getAppSecRaspEnabled() && sql != null && !sql.isEmpty()) {
+      BiConsumer<RequestContext, String> sqlQueryCallback =
+          AgentTracer.get()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.databaseSqlQuery());
+      if (sqlQueryCallback != null) {
+        RequestContext ctx = span.getRequestContext();
+        if (ctx != null) {
+          sqlQueryCallback.accept(ctx, sql);
+        }
+      }
+    }
+  }
+
   protected void processDatabaseType(AgentSpan span, String dbType) {
     final NamingEntry namingEntry = CACHE.computeIfAbsent(dbType, NamingEntry::new);
     span.setTag(DB_TYPE, namingEntry.dbType);
     postProcessServiceAndOperationName(span, namingEntry);
+
+    if (Config.get().getAppSecRaspEnabled() && dbType != null) {
+      BiConsumer<RequestContext, String> connectDbCallback =
+          AgentTracer.get()
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.databaseConnection());
+      if (connectDbCallback != null) {
+        RequestContext ctx = span.getRequestContext();
+        if (ctx != null) {
+          connectDbCallback.accept(ctx, dbType);
+        }
+      }
+    }
   }
 
   protected void postProcessServiceAndOperationName(AgentSpan span, NamingEntry namingEntry) {}
