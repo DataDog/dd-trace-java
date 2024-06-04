@@ -1,0 +1,47 @@
+name: Update Gradle dependencies
+on:
+  schedule:
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+  # TODO: For testing purposes only
+  push:
+    branches:
+      - bbujon/ci-gradle-dependencies
+
+jobs:
+  update-gradle-dependencies:
+    runs-on: ubuntu-latest
+    name: Update Gradle dependencies
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
+        with:
+          submodules: 'recursive'
+      - name: Pick a branch name
+        run: echo "BRANCH_NAME=ci/update-gradle-dependencies-$(date +'%Y%m%d')" >> $GITHUB_ENV
+      - name: Create branch
+        run: |
+          git checkout -b $BRANCH_NAME
+      - name: Update Gradle dependencies
+        run: |
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
+          JAVA_HOME=$JAVA_HOME_8_X64 \
+          JAVA_8_HOME=$JAVA_HOME_8_X64 \
+          JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_17_HOME=$JAVA_HOME_17_X64 \
+          JAVA_21_HOME=$JAVA_HOME_21_X64 \
+          ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add **/gradle.lockfile
+          git commit -m "chore: Update Gradle dependencies"
+          git push -u origin $BRANCH_NAME
+          gh pr create --title "Update Gradle dependencies" \
+            --body "This PR updates the Gradle dependencies" \
+            --base master \
+            --label "tag: dependencies" \
+            --label "tag: no release notes"
