@@ -26,7 +26,7 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("java.net.http.HttpClient");
   }
 

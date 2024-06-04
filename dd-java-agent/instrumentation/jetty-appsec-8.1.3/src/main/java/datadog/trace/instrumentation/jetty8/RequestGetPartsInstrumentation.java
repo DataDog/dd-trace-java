@@ -75,17 +75,17 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return RequestImplementationClassLoaderMatcher.INSTANCE;
   }
 
   public static class RequestImplementationClassLoaderMatcher
-      implements ElementMatcher<ClassLoader> {
-    public static final ElementMatcher<ClassLoader> INSTANCE =
+      extends ElementMatcher.Junction.ForNonNullValues<ClassLoader> {
+    public static final ElementMatcher.Junction<ClassLoader> INSTANCE =
         new RequestImplementationClassLoaderMatcher();
 
     @Override
-    public boolean matches(ClassLoader cl) {
+    protected boolean doMatch(ClassLoader cl) {
       InputStream is = cl.getResourceAsStream("org/eclipse/jetty/server/Request.class");
       if (is == null) {
         return false;

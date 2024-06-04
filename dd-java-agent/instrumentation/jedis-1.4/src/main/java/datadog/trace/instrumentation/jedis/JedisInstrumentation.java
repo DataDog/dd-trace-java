@@ -29,7 +29,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching Jedis 3+ which has its own instrumentation.
     return not(hasClassNamed("redis.clients.jedis.commands.ProtocolCommand"));
   }
