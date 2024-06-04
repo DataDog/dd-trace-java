@@ -80,7 +80,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();
     final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).getAndSet(parent);
-    if (span != null) {
+    if (span != null && span != parent) {
       try (final AgentScope scope = activateSpan(span)) {
         DECORATE.beforeFinish(span);
         span.finish();
