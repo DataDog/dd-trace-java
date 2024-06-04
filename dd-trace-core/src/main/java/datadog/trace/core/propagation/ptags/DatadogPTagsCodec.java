@@ -61,6 +61,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
     int tagPos = 0;
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
+    boolean appsecPropagationEnabled = false;
     while (tagPos < len) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -95,6 +96,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
             decisionMakerTagValue = tagValue;
           } else if (tagKey.equals(TRACE_ID_TAG)) {
             traceIdTagValue = tagValue;
+          } else if (tagKey.equals(APPSEC_TAG)) {
+            appsecPropagationEnabled = true;
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
@@ -107,7 +110,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
       }
       tagPos = tagValueEndsAt + 1;
     }
-    return tagsFactory.createValid(tagPairs, decisionMakerTagValue, traceIdTagValue);
+    return tagsFactory.createValid(
+        tagPairs, decisionMakerTagValue, traceIdTagValue, appsecPropagationEnabled);
   }
 
   @Override

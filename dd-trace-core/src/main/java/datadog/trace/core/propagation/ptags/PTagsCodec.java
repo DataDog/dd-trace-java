@@ -149,6 +149,8 @@ abstract class PTagsCodec {
       return false;
     } else if (tagKey.equals(TRACE_ID_TAG) && !validateTraceId(tagValue)) {
       return false;
+    } else if (tagKey.equals(APPSEC_TAG) && !validateAppsecTagValue(tagValue)) {
+      return false;
     }
     return true;
   }
@@ -209,6 +211,10 @@ abstract class PTagsCodec {
       }
     }
     return true;
+  }
+
+  private static boolean validateAppsecTagValue(TagValue value) {
+    return value.length() == 1 && value.charAt(0) == '1';
   }
 
   protected static boolean isDigit(char c) {
