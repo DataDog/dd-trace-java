@@ -1,5 +1,7 @@
 package datadog.trace.api.gateway;
 
+import static datadog.trace.api.gateway.Events.DATABASE_CONNECTION_ID;
+import static datadog.trace.api.gateway.Events.DATABASE_SQL_QUERY_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
@@ -24,6 +26,7 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -357,6 +360,19 @@ public class InstrumentationGateway {
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case DATABASE_CONNECTION_ID:
+      case DATABASE_SQL_QUERY_ID:
+        return (C)
+            new BiConsumer<RequestContext, String>() {
+              @Override
+              public void accept(RequestContext ctx, String arg) {
+                try {
+                  ((BiConsumer<RequestContext, String>) callback).accept(ctx, arg);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
                 }
               }
             };

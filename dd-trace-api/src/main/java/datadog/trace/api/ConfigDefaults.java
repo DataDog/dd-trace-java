@@ -101,7 +101,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
   static final boolean DEFAULT_API_SECURITY_ENABLED = false;
   static final float DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE = 0.1f; // 10 %
-
+  static final boolean DEFAULT_APPSEC_RASP_ENABLED = false;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;

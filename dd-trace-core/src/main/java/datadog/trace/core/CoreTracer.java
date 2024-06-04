@@ -1459,6 +1459,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
 
       String parentServiceName = null;
+      boolean isRemote = false;
 
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
@@ -1493,6 +1494,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         if (parentContext instanceof ExtractedContext) {
           // Propagate external trace
+          isRemote = true;
           final ExtractedContext extractedContext = (ExtractedContext) parentContext;
           traceId = extractedContext.getTraceId();
           parentSpanId = extractedContext.getSpanId();
@@ -1618,7 +1620,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               disableSamplingMechanismValidation,
               propagationTags,
               profilingContextIntegration,
-              injectBaggageAsTags);
+              injectBaggageAsTags,
+              isRemote);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

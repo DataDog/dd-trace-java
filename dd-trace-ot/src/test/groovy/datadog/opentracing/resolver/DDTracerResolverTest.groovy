@@ -6,7 +6,7 @@ import io.opentracing.contrib.tracerresolver.TracerResolver
 
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
 
-class DDTracerResolverForkedTest extends DDSpecification {
+class DDTracerResolverTest extends DDSpecification {
 
   def resolver = new DDTracerResolver()
 
