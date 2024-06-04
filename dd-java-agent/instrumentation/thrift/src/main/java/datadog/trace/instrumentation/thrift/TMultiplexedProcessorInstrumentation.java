@@ -18,7 +18,7 @@ import org.apache.thrift.TMultiplexedProcessor;
 import org.apache.thrift.TProcessor;
 import org.apache.thrift.protocol.TProtocol;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TMultiplexedProcessorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 

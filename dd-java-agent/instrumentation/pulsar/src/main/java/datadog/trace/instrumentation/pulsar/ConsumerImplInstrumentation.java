@@ -28,7 +28,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class ConsumerImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForKnownTypes {
 

@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.rocketmq.client.apis.message.Message;
 import org.apache.rocketmq.client.java.message.MessageBuilderImpl;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MessageImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy{
   public static String CLASS_NAME = "";

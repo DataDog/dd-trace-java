@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.thrift.TBase;
 import org.apache.thrift.TServiceClient;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TServiceClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
   public TServiceClientInstrumentation() {

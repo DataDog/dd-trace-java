@@ -19,7 +19,7 @@ import org.apache.thrift.TBaseAsyncProcessor;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.server.AbstractNonblockingServer;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TBaseAsyncProcessorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

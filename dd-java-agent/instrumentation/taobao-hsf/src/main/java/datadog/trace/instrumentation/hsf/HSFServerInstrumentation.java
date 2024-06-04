@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
  * @Author liurui
  * @Date 2022/12/26 9:11
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class HSFServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public HSFServerInstrumentation() {

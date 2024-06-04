@@ -11,7 +11,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

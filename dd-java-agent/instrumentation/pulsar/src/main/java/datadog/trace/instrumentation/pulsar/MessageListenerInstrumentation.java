@@ -14,7 +14,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MessageListenerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

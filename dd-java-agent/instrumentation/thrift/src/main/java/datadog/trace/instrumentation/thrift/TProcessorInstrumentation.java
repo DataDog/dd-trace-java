@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * @Author lenovo
  * @Date 2022/11/24 9:34
  */
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class TProcessorInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

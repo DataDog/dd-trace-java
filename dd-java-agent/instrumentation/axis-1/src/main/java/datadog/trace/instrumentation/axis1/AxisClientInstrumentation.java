@@ -18,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.axis.MessageContext;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public final class AxisClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

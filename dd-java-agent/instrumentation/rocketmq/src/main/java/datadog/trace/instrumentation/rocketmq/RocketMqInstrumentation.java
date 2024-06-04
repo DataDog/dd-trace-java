@@ -13,7 +13,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class RocketMqInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 

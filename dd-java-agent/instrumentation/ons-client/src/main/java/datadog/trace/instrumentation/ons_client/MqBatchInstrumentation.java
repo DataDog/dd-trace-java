@@ -14,7 +14,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class MqBatchInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy{
   public static final String CLASS_NAME = "com.aliyun.openservices.ons.api.batch.BatchMessageListener";

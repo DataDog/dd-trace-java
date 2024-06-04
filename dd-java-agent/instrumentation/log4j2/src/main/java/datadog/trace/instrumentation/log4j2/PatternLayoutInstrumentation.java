@@ -13,7 +13,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class PatternLayoutInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public PatternLayoutInstrumentation() {

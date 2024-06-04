@@ -11,7 +11,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.rocketmq.client.apis.consumer.MessageListener;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class ConsumeServiceInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy{
   public ConsumeServiceInstrumentation() {

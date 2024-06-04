@@ -15,7 +15,7 @@ import org.apache.rocketmq.shaded.com.google.common.util.concurrent.Futures;
 import org.apache.rocketmq.shaded.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.rocketmq.shaded.com.google.common.util.concurrent.MoreExecutors;
 
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public  class ConsumerImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy{
 

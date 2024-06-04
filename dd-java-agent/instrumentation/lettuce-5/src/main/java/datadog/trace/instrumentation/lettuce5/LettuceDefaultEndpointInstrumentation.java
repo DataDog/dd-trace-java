@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.lettuce5;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
-@AutoService(Instrumenter.class)
+@AutoService(InstrumenterModule.class)
 public class LettuceDefaultEndpointInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
   public LettuceDefaultEndpointInstrumentation() {
