@@ -32,9 +32,11 @@ import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
+import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureProfiling;
 import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
 import datadog.trace.util.PidHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -229,6 +231,10 @@ public final class OpenJdkController implements Controller {
 
     if (isEventEnabled(this.recordingSettings, "datadog.ExceptionSample")) {
       ExceptionProfiling.getInstance().start();
+    }
+
+    if (Config.get().isProfilingBackPressureSamplingEnabled()) {
+      BackpressureProfiling.getInstance().start();
     }
 
     // Register periodic events
