@@ -35,7 +35,7 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Only apply instrumentation when guava's ListenableFuture is also deployed.
     return hasClassNamed("com.google.common.util.concurrent.ListenableFuture");
   }

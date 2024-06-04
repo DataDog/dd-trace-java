@@ -54,7 +54,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching JAX-RS 2 which has its own instrumentation.
     return not(hasClassNamed("javax.ws.rs.container.AsyncResponse"));
   }

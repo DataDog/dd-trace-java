@@ -142,7 +142,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /** Override this to supply additional class-loader requirements. */
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return ANY_CLASS_LOADER;
   }
 

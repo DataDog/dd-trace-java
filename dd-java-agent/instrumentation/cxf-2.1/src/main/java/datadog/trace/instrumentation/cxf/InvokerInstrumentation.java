@@ -24,7 +24,7 @@ public class InvokerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return ClassLoaderMatchers.hasClassNamed("javax.servlet.ServletRequest")
         .or(ClassLoaderMatchers.hasClassNamed("jakarta.servlet.ServletRequest"));
   }

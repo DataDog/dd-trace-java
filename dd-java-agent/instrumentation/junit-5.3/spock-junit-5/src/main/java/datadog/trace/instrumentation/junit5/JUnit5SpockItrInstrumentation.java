@@ -32,7 +32,7 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("org.spockframework.runtime.SpockEngine");
   }
 
