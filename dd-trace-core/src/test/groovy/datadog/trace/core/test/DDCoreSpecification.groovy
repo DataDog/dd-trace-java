@@ -80,7 +80,8 @@ abstract class DDCoreSpecification extends DDSpecification {
       false,
       propagationTags,
       ProfilingContextIntegration.NoOp.INSTANCE,
-      true)
+      true,
+      false)
 
     def span = DDSpan.create("test", timestamp, context, null)
     for (Map.Entry<String, Object> e : tags.entrySet()) {
