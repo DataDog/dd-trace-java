@@ -86,17 +86,15 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
 
     @Override
     protected boolean doMatch(ClassLoader cl) {
-      InputStream is = cl.getResourceAsStream("org/eclipse/jetty/server/Request.class");
-      if (is == null) {
-        return false;
-      }
-      try {
+      try (InputStream is = cl.getResourceAsStream("org/eclipse/jetty/server/Request.class")) {
+        if (is == null) {
+          return false;
+        }
         ClassReader classReader = new ClassReader(is);
         final boolean[] foundField = new boolean[1];
         final boolean[] foundGetParameters = new boolean[1];
         classReader.accept(new ClassLoaderMatcherClassVisitor(foundField, foundGetParameters), 0);
         return !foundField[0] && foundGetParameters[0];
-
       } catch (IOException e) {
         return false;
       }
