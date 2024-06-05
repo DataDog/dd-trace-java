@@ -3,6 +3,7 @@ package datadog.opentelemetry.tooling;
 import static datadog.trace.agent.tooling.ExtensionHandler.MAP_LOGGING;
 
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ContextStore;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -93,6 +94,9 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder",
           Type.getInternalName(OtelInstrumenterModule.VirtualFieldBuilder.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/shaded/instrumentation/api/util/VirtualField",
+          Type.getInternalName(ContextStore.class));
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/bootstrap/Java8BytecodeBridge",
           "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
