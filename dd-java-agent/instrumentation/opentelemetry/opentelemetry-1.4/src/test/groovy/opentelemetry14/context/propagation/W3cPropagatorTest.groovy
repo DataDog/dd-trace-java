@@ -24,7 +24,7 @@ class W3cPropagatorTest extends AgentPropagatorTest {
     def traceFlags = sampling == SAMPLER_KEEP ? '01' : '00'
     assert headers['traceparent'] == "00-$traceId-$spanId-$traceFlags"
 
-    // 'p:' not expected in tracestate here because Context.lastParentId is null in W3CHttpCodec
+    // 'p:' not expected in tracestate here because 'p' is not supplied in values()
     assert !headers['tracestate'].contains("p:")
   }
 
