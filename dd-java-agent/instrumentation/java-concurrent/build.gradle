@@ -1,7 +1,3 @@
-ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_21
-}
-
 muzzle {
   pass {
     coreJdk()
@@ -10,11 +6,6 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-addTestSuite('latestDepTest')
-
-compileLatestDepTestGroovy.configure {
-  javaLauncher = getJavaLauncherFor(21)
-}
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
@@ -22,5 +13,4 @@ dependencies {
   testImplementation 'org.apache.tomcat.embed:tomcat-embed-core:7.0.0'
   testImplementation deps.guava
   testImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
-  latestDepTestImplementation group: 'io.netty', name: 'netty-all', version: '4.+'
 }

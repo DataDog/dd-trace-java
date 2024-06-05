@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import static datadog.opentelemetry.tooling.OtelExtensionHandler.OPENTELEMETRY;
 import static datadog.trace.agent.tooling.ExtensionHandler.DATADOG;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -23,7 +24,7 @@ import org.slf4j.LoggerFactory;
 public final class ExtensionFinder {
   private static final Logger log = LoggerFactory.getLogger(ExtensionFinder.class);
 
-  private static final ExtensionHandler[] handlers = {DATADOG};
+  private static final ExtensionHandler[] handlers = {OPENTELEMETRY, DATADOG};
 
   /**
    * Discovers extensions on the configured path and creates a classloader for each extension.

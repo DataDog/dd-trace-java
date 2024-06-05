@@ -1,0 +1,19 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+minimumInstructionCoverage = 0.0
+minimumBranchCoverage = 0.0
+
+configurations {
+  instrumentPluginClasspath {
+    canBeConsumed = true
+    canBeResolved = false
+    extendsFrom runtimeElements
+  }
+}
+
+dependencies {
+  api deps.bytebuddy
+  api deps.bytebuddyagent
+
+  compileOnly project(':dd-java-agent:agent-tooling')
+}

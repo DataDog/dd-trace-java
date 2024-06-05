@@ -290,6 +290,8 @@ public abstract class MavenUtils {
   private static final MethodHandle SESSION_FIELD =
       METHOD_HANDLES.privateFieldGetter(MavenSession.class, "session");
   private static final MethodHandle LOOKUP_FIELD =
+      METHOD_HANDLES.privateFieldGetter("org.apache.maven.internal.impl.AbstractSession", "lookup");
+  private static final MethodHandle ALTERNATIVE_LOOKUP_FIELD =
       METHOD_HANDLES.privateFieldGetter("org.apache.maven.internal.impl.DefaultSession", "lookup");
   private static final MethodHandle LOOKUP_METHOD =
       METHOD_HANDLES.method("org.apache.maven.api.services.Lookup", "lookup", Class.class);
@@ -301,8 +303,12 @@ public abstract class MavenUtils {
     }
     Object /* org.apache.maven.internal.impl.DefaultSession */ session =
         METHOD_HANDLES.invoke(SESSION_FIELD, mavenSession);
-    Object /* org.apache.maven.api.services.Lookup */ lookup =
-        METHOD_HANDLES.invoke(LOOKUP_FIELD, session);
+    Object /* org.apache.maven.api.services.Lookup */ lookup;
+    if (LOOKUP_FIELD != null) {
+      lookup = METHOD_HANDLES.invoke(LOOKUP_FIELD, session);
+    } else {
+      lookup = METHOD_HANDLES.invoke(ALTERNATIVE_LOOKUP_FIELD, session);
+    }
     return METHOD_HANDLES.invoke(LOOKUP_METHOD, lookup, PlexusContainer.class);
   }
 }

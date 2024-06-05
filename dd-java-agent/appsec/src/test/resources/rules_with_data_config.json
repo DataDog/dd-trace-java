@@ -40,6 +40,16 @@
           "expiration": 0
         }
       ]
+    },
+    {
+      "id": "ip_data",
+      "type": "ip_with_expiration",
+      "data": [
+        {
+          "value": "1.1.1.1",
+          "expiration": 9223372036854775807
+        }
+      ]
     }
   ]
 }

@@ -51,6 +51,9 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
 
     where:
     url                                                                                                                                                                                                                                         | props    | type         | subtype       | user          | host                                                                | port  | instance                           | db
+    // snowflake
+    "jdbc:snowflake://sza96462.us-east-1.snowflakecomputing.com:443/?db=DATA_OBSERVABILITY_SANDBOX&user=user"                                                                                                                                   | null     | "snowflake"  | null          | "user"        | "sza96462.us-east-1.snowflakecomputing.com"                         | 443   | null                               | "data_observability_sandbox"
+
     // https://jdbc.postgresql.org/documentation/94/connect.html
     "jdbc:postgresql:///"                                                                                                                                                                                                                       | null     | "postgresql" | null          | null          | "localhost"                                                         | 5432  | null                               | null
     "jdbc:postgresql:///"                                                                                                                                                                                                                       | stdProps | "postgresql" | null          | "stdUserName" | "stdServerName"                                                     | 9999  | null                               | "stdDatabaseName"

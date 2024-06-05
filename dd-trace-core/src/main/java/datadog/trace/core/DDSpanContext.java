@@ -64,6 +64,7 @@ public class DDSpanContext
       DDCaches.newFixedSizeCache(256);
 
   private static final Map<String, String> EMPTY_BAGGAGE = Collections.emptyMap();
+  private static final Map<String, Object> EMPTY_META_STRUCT = Collections.emptyMap();
 
   /** The collection of all span related to this one */
   private final PendingTrace trace;
@@ -141,6 +142,14 @@ public class DDSpanContext
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
   private volatile boolean requiresPostProcessing;
+  private final boolean isRemote;
+
+  /**
+   * Metastruct keys are associated to the current span, they will not propagate to the children
+   * span. They are an efficient way to send binary data to the agent without relying on bulky json
+   * payloads inside tags.
+   */
+  private volatile Map<String, Object> metaStruct = EMPTY_META_STRUCT;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -184,7 +193,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        true);
+        true,
+        false);
   }
 
   public DDSpanContext(
@@ -230,7 +240,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        injectBaggageAsTags);
+        injectBaggageAsTags,
+        false);
   }
 
   public DDSpanContext(
@@ -276,7 +287,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         profilingContextIntegration,
-        true);
+        true,
+        false);
   }
 
   public DDSpanContext(
@@ -301,7 +313,8 @@ public class DDSpanContext
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean injectBaggageAsTags) {
+      final boolean injectBaggageAsTags,
+      final boolean isRemote) {
 
     assert trace != null;
     this.trace = trace;
@@ -360,6 +373,7 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    this.isRemote = isRemote;
   }
 
   @Override
@@ -781,6 +795,30 @@ public class DDSpanContext
     }
   }
 
+  /** @see CoreSpan#getMetaStruct() */
+  public Map<String, Object> getMetaStruct() {
+    return Collections.unmodifiableMap(metaStruct);
+  }
+
+  /** @see CoreSpan#setMetaStruct(String, Object) */
+  public <T> void setMetaStruct(final String field, final T value) {
+    if (null == field) {
+      return;
+    }
+    if (metaStruct == EMPTY_META_STRUCT) {
+      synchronized (this) {
+        if (metaStruct == EMPTY_META_STRUCT) {
+          metaStruct = new ConcurrentHashMap<>(4);
+        }
+      }
+    }
+    if (null == value) {
+      metaStruct.remove(field);
+    } else {
+      metaStruct.put(field, value);
+    }
+  }
+
   public void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
     synchronized (unsafeTags) {
@@ -959,11 +997,25 @@ public class DDSpanContext
     return "_dd." + key + ".json";
   }
 
+  @Override
+  public void setMetaStructTop(String field, Object value) {
+    getRootSpanContextOrThis().setMetaStructCurrent(field, value);
+  }
+
+  @Override
+  public void setMetaStructCurrent(String field, Object value) {
+    setMetaStruct(field, value);
+  }
+
   public void setRequiresPostProcessing(boolean postProcessing) {
     this.requiresPostProcessing = postProcessing;
   }
 
   public boolean isRequiresPostProcessing() {
     return requiresPostProcessing;
+  }
+
+  public boolean isRemote() {
+    return isRemote;
   }
 }

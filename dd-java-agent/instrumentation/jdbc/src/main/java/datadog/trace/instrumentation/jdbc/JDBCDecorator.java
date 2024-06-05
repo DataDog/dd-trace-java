@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -119,9 +121,18 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return info.getHost();
   }
 
+  private void setTagIfPresent(final AgentSpan span, final String key, final String value) {
+    if (value != null && !value.isEmpty()) {
+      span.setTag(key, value);
+    }
+  }
+
   public AgentSpan onConnection(final AgentSpan span, DBInfo dbInfo) {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
+
+      setTagIfPresent(span, DB_WAREHOUSE, dbInfo.getWarehouse());
+      setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
     }
     return super.onConnection(span, dbInfo);
   }
@@ -194,7 +205,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return dbInfo;
   }
 
-  public AgentSpan onStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
+  public AgentSpan onStatement(AgentSpan span, final String statement) {
+    onRawStatement(span, statement);
+    DBQueryInfo dbQueryInfo = DBQueryInfo.ofStatement(statement);
     return withQueryInfo(span, dbQueryInfo, JDBC_STATEMENT);
   }
 

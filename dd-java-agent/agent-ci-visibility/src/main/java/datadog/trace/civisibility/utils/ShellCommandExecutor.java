@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.utils;
 
+import datadog.communication.util.IOUtils;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.AgentThreadFactory;

@@ -2036,8 +2036,45 @@ class ConfigTest extends DDSpecification {
     !config.perfMetricsEnabled
   }
 
-  def "trace_agent_url overrides either host and port or unix domain"() {
+  def "trace_agent_url overrides default host and port or unix domain"() {
     setup:
+    if (configuredUrl != null) {
+      System.setProperty(PREFIX + TRACE_AGENT_URL, configuredUrl)
+    } else {
+      System.clearProperty(PREFIX + TRACE_AGENT_URL)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.agentUrl == expectedUrl
+    config.agentHost == expectedHost
+    config.agentPort == expectedPort
+    config.agentUnixDomainSocket == expectedUnixDomainSocket
+
+    where:
+    // spotless:off
+    configuredUrl                     | expectedUrl                       | expectedHost | expectedPort | expectedUnixDomainSocket
+    null                              | "http://localhost:8126"           | "localhost"  | 8126         | null
+    ""                                | "http://localhost:8126"           | "localhost"  | 8126         | null
+    "http://localhost:1234"           | "http://localhost:1234"           | "localhost"  | 1234         | null
+    "http://somehost"                 | "http://somehost:8126"            | "somehost"   | 8126         | null
+    "http://somehost:80"              | "http://somehost:80"              | "somehost"   | 80           | null
+    "https://somehost:8143"           | "https://somehost:8143"           | "somehost"   | 8143         | null
+    "unix:///another/socket/path"     | "unix:///another/socket/path"     | "localhost"  | 8126         | "/another/socket/path"
+    "unix:///another%2Fsocket%2Fpath" | "unix:///another%2Fsocket%2Fpath" | "localhost"  | 8126         | "/another/socket/path"
+    "http:"                           | "http://localhost:8126"           | "localhost"  | 8126         | null
+    "unix:"                           | "http://localhost:8126"           | "localhost"  | 8126         | null
+    "1234"                            | "http://localhost:8126"           | "localhost"  | 8126         | null
+    ":1234"                           | "http://localhost:8126"           | "localhost"  | 8126         | null
+    // spotless:on
+  }
+
+  def "trace_agent_url overrides configured host and port or unix domain"() {
+    setup:
+    System.setProperty(PREFIX + AGENT_HOST, "test-host")
+    System.setProperty(PREFIX + TRACE_AGENT_PORT, "8888")
     System.setProperty(PREFIX + AGENT_UNIX_DOMAIN_SOCKET, "/path/to/socket")
     if (configuredUrl != null) {
       System.setProperty(PREFIX + TRACE_AGENT_URL, configuredUrl)
@@ -2056,19 +2093,19 @@ class ConfigTest extends DDSpecification {
 
     where:
     // spotless:off
-    configuredUrl                     | expectedUrl             | expectedHost | expectedPort | expectedUnixDomainSocket
-    null                              | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    ""                                | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    "http://localhost:1234"           | "http://localhost:1234" | "localhost"  | 1234         | "/path/to/socket"
-    "http://somehost"                 | "http://somehost:8126"  | "somehost"   | 8126         | "/path/to/socket"
-    "http://somehost:80"              | "http://somehost:80"    | "somehost"   | 80           | "/path/to/socket"
-    "https://somehost:8143"           | "https://somehost:8143" | "somehost"   | 8143         | "/path/to/socket"
-    "unix:///another/socket/path"     | "http://localhost:8126" | "localhost"  | 8126         | "/another/socket/path"
-    "unix:///another%2Fsocket%2Fpath" | "http://localhost:8126" | "localhost"  | 8126         | "/another/socket/path"
-    "http:"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    "unix:"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    "1234"                            | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
-    ":1234"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    configuredUrl                     | expectedUrl                       | expectedHost | expectedPort | expectedUnixDomainSocket
+    null                              | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    ""                                | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    "http://localhost:1234"           | "http://localhost:1234"           | "localhost"  | 1234         | "/path/to/socket"
+    "http://somehost"                 | "http://somehost:8888"            | "somehost"   | 8888         | "/path/to/socket"
+    "http://somehost:80"              | "http://somehost:80"              | "somehost"   | 80           | "/path/to/socket"
+    "https://somehost:8143"           | "https://somehost:8143"           | "somehost"   | 8143         | "/path/to/socket"
+    "unix:///another/socket/path"     | "unix:///another/socket/path"     | "localhost"  | 8126         | "/another/socket/path"
+    "unix:///another%2Fsocket%2Fpath" | "unix:///another%2Fsocket%2Fpath" | "localhost"  | 8126         | "/another/socket/path"
+    "http:"                           | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    "unix:"                           | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    "1234"                            | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
+    ":1234"                           | "http://test-host:8888"           | "test-host"  | 8888         | "/path/to/socket"
     // spotless:on
   }
 

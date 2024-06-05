@@ -46,6 +46,13 @@ public final class ProfilingConfig {
       "profiling.exception.record.message";
   public static final boolean PROFILING_EXCEPTION_RECORD_MESSAGE_DEFAULT = true;
 
+  public static final String PROFILING_BACKPRESSURE_SAMPLING_ENABLED =
+      "profiling.backpressure.sampling.enabled";
+  public static final boolean PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT = false;
+  public static final String PROFILING_BACKPRESSURE_SAMPLE_LIMIT =
+      "profiling.backpressure.sample.limit";
+  public static final int PROFILING_BACKPRESSURE_SAMPLE_LIMIT_DEFAULT = 10_000;
+
   public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
       "profiling.direct.allocation.sample.limit";
   public static final int PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT = 2_000;
@@ -207,6 +214,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_TIMELINE_EVENTS_ENABLED =
       "profiling.timeline.events.enabled";
   public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_DETAILED_DEBUG_LOGGING = "profiling.detailed.debug.logging";
+  public static final boolean PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT = false;
 
   private ProfilingConfig() {}
 }

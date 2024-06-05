@@ -32,6 +32,8 @@ class KnownAddressesSpecification extends Specification {
       'grpc.server.request.metadata',
       'graphql.server.all_resolvers',
       'graphql.server.resolver',
+      'server.db.system',
+      'server.db.statement',
       'usr.id',
       'waf.context.processor',
     ]
@@ -39,7 +41,7 @@ class KnownAddressesSpecification extends Specification {
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 27
+    Address.instanceCount() == 29
     KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 1
   }
 }

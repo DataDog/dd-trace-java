@@ -848,6 +848,11 @@ public class AgentTracer {
 
     @Override
     public void addLink(AgentSpanLink link) {}
+
+    @Override
+    public AgentSpan setMetaStruct(String field, Object value) {
+      return this;
+    }
   }
 
   public static final class NoopAgentScope implements AgentScope {

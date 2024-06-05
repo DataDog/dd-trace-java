@@ -240,9 +240,31 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return propagationTagsFactory;
   }
 
+  /**
+   * Called when a root span is finished before it is serialized. This is might be called multiple
+   * times per root span. If a child span is part of a partial flush, this method will be called for
+   * its root even if not finished.
+   */
   @Override
   public void onRootSpanFinished(AgentSpan root, EndpointTracker tracker) {
     profilingContextIntegration.onRootSpanFinished(root, tracker);
+  }
+
+  /**
+   * Called when a root span is finished before it is serialized. This is guaranteed to be called
+   * exactly once per root span.
+   */
+  void onRootSpanPublished(final AgentSpan root) {
+    // Request context is propagated to contexts in child spans.
+    // Assume here that if present it will be so starting in the top span.
+    RequestContext requestContext = root.getRequestContext();
+    if (requestContext != null) {
+      try {
+        requestContext.close();
+      } catch (IOException e) {
+        log.warn("Error closing request context data", e);
+      }
+    }
   }
 
   @Override
@@ -537,10 +559,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.initialSampler = sampler;
 
     // Get initial Trace Sampling Rules from config
-    TraceSamplingRules traceSamplingRules =
-        config.getTraceSamplingRules() == null
-            ? TraceSamplingRules.EMPTY
-            : TraceSamplingRules.deserialize(config.getTraceSamplingRules());
+    String traceSamplingRulesJson = config.getTraceSamplingRules();
+    TraceSamplingRules traceSamplingRules;
+    if (traceSamplingRulesJson == null) {
+      traceSamplingRulesJson = "[]";
+      traceSamplingRules = TraceSamplingRules.EMPTY;
+    } else {
+      traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
+    }
     // Get initial Span Sampling Rules from config
     String spanSamplingRulesJson = config.getSpanSamplingRules();
     String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
@@ -564,7 +590,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .setBaggageMapping(baggageMapping)
             .setTraceSampleRate(config.getTraceSampleRate())
             .setSpanSamplingRules(spanSamplingRules.getRules())
-            .setTraceSamplingRules(traceSamplingRules.getRules())
+            .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
             .setTracingTags(config.getMergedSpanTags())
             .apply();
 
@@ -971,17 +997,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     if (null != rootSpan) {
       onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
-
-      // request context is propagated to contexts in child spans
-      // Assume here that if present it will be so starting in the top span
-      RequestContext requestContext = rootSpan.getRequestContext();
-      if (requestContext != null) {
-        try {
-          requestContext.close();
-        } catch (IOException e) {
-          log.warn("Error closing request context data", e);
-        }
-      }
     }
   }
 
@@ -1444,6 +1459,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
 
       String parentServiceName = null;
+      boolean isRemote = false;
 
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
@@ -1478,6 +1494,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         if (parentContext instanceof ExtractedContext) {
           // Propagate external trace
+          isRemote = true;
           final ExtractedContext extractedContext = (ExtractedContext) parentContext;
           traceId = extractedContext.getTraceId();
           parentSpanId = extractedContext.getSpanId();
@@ -1603,7 +1620,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               disableSamplingMechanismValidation,
               propagationTags,
               profilingContextIntegration,
-              injectBaggageAsTags);
+              injectBaggageAsTags,
+              isRemote);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

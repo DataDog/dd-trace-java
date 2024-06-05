@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 public final class ClassLoaderMatchers {
   private static final Logger log = LoggerFactory.getLogger(ClassLoaderMatchers.class);
 
-  public static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
+  public static final ElementMatcher.Junction<ClassLoader> ANY_CLASS_LOADER = any();
 
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null;
 

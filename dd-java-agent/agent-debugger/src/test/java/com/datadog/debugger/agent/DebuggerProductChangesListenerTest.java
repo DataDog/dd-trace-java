@@ -7,7 +7,9 @@ import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLO
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.lenient;
 
@@ -44,14 +46,24 @@ public class DebuggerProductChangesListenerTest {
 
   class SimpleAcceptor implements ConfigurationAcceptor {
     private Collection<? extends ProbeDefinition> definitions;
+    private Exception lastException;
 
     @Override
     public void accept(Source source, Collection<? extends ProbeDefinition> definitions) {
       this.definitions = definitions;
     }
 
+    @Override
+    public void handleException(String configId, Exception ex) {
+      lastException = ex;
+    }
+
     public Collection<? extends ProbeDefinition> getDefinitions() {
       return definitions;
+    }
+
+    public Exception getLastException() {
+      return lastException;
     }
   }
 
@@ -254,6 +266,24 @@ public class DebuggerProductChangesListenerTest {
     }
     listener.commit(pollingHinter);
     assertEquals(MAX_ALLOWED_SPAN_DECORATION_PROBES, acceptor.getDefinitions().size());
+  }
+
+  @Test
+  public void parsingException() throws IOException {
+    SimpleAcceptor acceptor = new SimpleAcceptor();
+    DebuggerProductChangesListener listener =
+        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    String probeUUID = UUID.randomUUID().toString();
+    IOException ioException =
+        assertThrows(
+            IOException.class,
+            () ->
+                listener.accept(
+                    createConfigKey("logProbe_" + probeUUID),
+                    "{bad json}".getBytes(StandardCharsets.UTF_8),
+                    pollingHinter));
+    assertNotNull(acceptor.lastException);
+    assertEquals(ioException.getCause(), acceptor.lastException);
   }
 
   private void assertDefinitions(

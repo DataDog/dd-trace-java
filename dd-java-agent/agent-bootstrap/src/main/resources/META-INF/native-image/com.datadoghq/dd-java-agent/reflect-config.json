@@ -48,6 +48,12 @@
     ]
   },
   {
+    "name" : "datadog.trace.agent.core.TracingConfigPoller$TracingSamplingRulesAdapter",
+    "methods": [
+      {"name": "fromJson"}
+    ]
+  },
+  {
     "name" : "datadog.trace.agent.core.DDSpanLink$SpanLinkAdapter",
     "methods": [
       {"name": "toSpanLinkJson"}
