@@ -31,6 +31,11 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
   }
 
   @Override
+  protected MethodVisitor createMethodRemapper(MethodVisitor methodVisitor) {
+    return new OtelMethodCallMapper(methodVisitor, remapper);
+  }
+
+  @Override
   public void visit(
       int version,
       int access,
