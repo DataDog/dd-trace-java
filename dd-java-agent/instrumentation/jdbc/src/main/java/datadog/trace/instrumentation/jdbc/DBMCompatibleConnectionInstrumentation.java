@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -15,7 +16,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
@@ -123,9 +123,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         String dbService = DECORATE.getDbService(dbInfo);
         if (dbService != null) {
           dbService =
-              AgentTracer.traceConfig(activeSpan())
-                  .getServiceMapping()
-                  .getOrDefault(dbService, dbService);
+              traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
         }
         if (dbInfo.getType().equals("sqlserver")) {
           sql =

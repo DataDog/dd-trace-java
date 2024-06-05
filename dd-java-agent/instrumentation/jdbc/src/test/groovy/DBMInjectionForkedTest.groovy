@@ -13,21 +13,14 @@ class DBMInjectionForkedTest extends AgentTestRunner {
 
     injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "full")
     // to check that we use the remapped service name in dddbs
+    injectSysConfig("service.name", "my_service_name")
     injectSysConfig(TracerConfig.SERVICE_MAPPING, "testdb:remapped_testdb")
     injectSysConfig("dd.trace.jdbc.prepared.statement.class.name", "test.TestPreparedStatement")
     injectSysConfig("dd.trace.jdbc.connection.class.name", "test.TestConnection")
   }
 
-  @Override
-  void cleanupAfterAgent() {
-    removeSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE)
-    removeSysConfig(TracerConfig.SERVICE_MAPPING)
-    removeSysConfig("dd.trace.jdbc.prepared.statement.class.name")
-    removeSysConfig("dd.trace.jdbc.connection.class.name")
-  }
-
   static query = "SELECT 1"
-  static serviceInjection = "ddps='worker.org.gradle.process.internal.worker.GradleWorkerMain',dddbs='remapped_testdb'"
+  static serviceInjection = "ddps='my_service_name',dddbs='remapped_testdb'"
   static fullInjection = serviceInjection + ",traceparent='00-00000000000000000000000000000004-0000000000000003-01'"
 
   def "prepared stmt"() {
