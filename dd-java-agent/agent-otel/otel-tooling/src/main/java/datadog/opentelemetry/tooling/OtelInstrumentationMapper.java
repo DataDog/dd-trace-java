@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.MethodVisitor;
+import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.jar.asm.commons.ClassRemapper;
 import net.bytebuddy.jar.asm.commons.Remapper;
 
@@ -74,19 +75,19 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
     static {
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/extension/instrumentation/InstrumentationModule",
-          "datadog/opentelemetry/tooling/OtelInstrumenterModule");
+          Type.getInternalName(OtelInstrumenterModule.class));
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/extension/instrumentation/TypeInstrumentation",
-          "datadog/opentelemetry/tooling/OtelInstrumenter");
+          Type.getInternalName(OtelInstrumenter.class));
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/extension/instrumentation/TypeTransformer",
-          "datadog/opentelemetry/tooling/OtelTransformer");
+          Type.getInternalName(OtelTransformer.class));
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/extension/matcher/AgentElementMatchers",
-          "datadog/opentelemetry/tooling/OtelElementMatchers");
+          Type.getInternalName(OtelElementMatchers.class));
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder",
-          "datadog/opentelemetry/tooling/OtelInstrumenterModule$VirtualFieldBuilder");
+          Type.getInternalName(OtelInstrumenterModule.VirtualFieldBuilder.class));
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/bootstrap/Java8BytecodeBridge",
           "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
