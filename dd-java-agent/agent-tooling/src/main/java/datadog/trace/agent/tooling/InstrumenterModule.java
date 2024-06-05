@@ -54,6 +54,8 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
 
+  protected static final String[] NO_HELPERS = {};
+
   private final List<String> instrumentationNames;
   private final String instrumentationPrimaryName;
   private final boolean enabled;
@@ -106,7 +108,7 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   /** @return Class names of helpers to inject into the user's classloader */
   public String[] helperClassNames() {
-    return new String[0];
+    return NO_HELPERS;
   }
 
   /**

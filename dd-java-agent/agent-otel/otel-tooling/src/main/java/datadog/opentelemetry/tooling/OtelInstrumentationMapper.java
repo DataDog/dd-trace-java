@@ -23,9 +23,7 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           Arrays.asList("io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle"));
 
   private static final Set<String> UNSUPPORTED_METHODS =
-      new HashSet<>(
-          Arrays.asList(
-              "getMuzzleReferences", "getMuzzleHelperClassNames", "registerMuzzleVirtualFields"));
+      new HashSet<>(Arrays.asList("getMuzzleReferences", "registerMuzzleVirtualFields"));
 
   public OtelInstrumentationMapper(ClassVisitor classVisitor) {
     super(classVisitor, Renamer.INSTANCE);
