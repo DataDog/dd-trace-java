@@ -5,8 +5,8 @@ import static datadog.trace.agent.tooling.ExtensionHandler.MAP_LOGGING;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,11 +20,11 @@ import net.bytebuddy.jar.asm.commons.Remapper;
 public final class OtelInstrumentationMapper extends ClassRemapper {
 
   private static final Set<String> UNSUPPORTED_TYPES =
-      new HashSet<>(
-          Arrays.asList("io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle"));
+      Collections.singleton(
+          "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle");
 
   private static final Set<String> UNSUPPORTED_METHODS =
-      new HashSet<>(Arrays.asList("getMuzzleReferences"));
+      Collections.singleton("getMuzzleReferences");
 
   public OtelInstrumentationMapper(ClassVisitor classVisitor) {
     super(classVisitor, Renamer.INSTANCE);
