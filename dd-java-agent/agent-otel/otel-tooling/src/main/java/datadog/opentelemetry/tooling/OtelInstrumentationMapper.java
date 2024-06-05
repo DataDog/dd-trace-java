@@ -23,7 +23,7 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           Arrays.asList("io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle"));
 
   private static final Set<String> UNSUPPORTED_METHODS =
-      new HashSet<>(Arrays.asList("getMuzzleReferences", "registerMuzzleVirtualFields"));
+      new HashSet<>(Arrays.asList("getMuzzleReferences"));
 
   public OtelInstrumentationMapper(ClassVisitor classVisitor) {
     super(classVisitor, Renamer.INSTANCE);
@@ -84,6 +84,9 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/extension/matcher/AgentElementMatchers",
           "datadog/opentelemetry/tooling/OtelElementMatchers");
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder",
+          "datadog/opentelemetry/tooling/OtelInstrumenterModule$VirtualFieldBuilder");
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/bootstrap/Java8BytecodeBridge",
           "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
