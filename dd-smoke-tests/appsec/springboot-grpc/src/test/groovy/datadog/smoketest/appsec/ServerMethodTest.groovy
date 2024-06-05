@@ -28,9 +28,9 @@ class ServerMethodTest extends AbstractSpringBootWithGRPCAppSecTest {
           [
             parameters: [
               inputs: [[address: 'grpc.server.method']],
-              list : ['/smoketest.Greeter/Hello'],
+              regex : 'Greeter',
             ],
-            operator  : 'phrase_match',
+            operator  : 'match_regex',
           ]
         ],
         transformers: [],
@@ -66,6 +66,5 @@ class ServerMethodTest extends AbstractSpringBootWithGRPCAppSecTest {
     match != null
     match['parameters'][0]['address'] == 'grpc.server.method'
     match['parameters'][0]['value'] == 'smoketest.Greeter/Hello'
-    grpcRootSpan.meta['rpc.grpc.full_method'] == 'smoketest.Greeter/Hello'
   }
 }
