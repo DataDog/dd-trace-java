@@ -31,11 +31,11 @@ public final class IastServlet2Instrumentation extends InstrumenterModule.Iast
   }
 
   // Avoid matching servlet 3 which has its own instrumentation
-  static final ElementMatcher<ClassLoader> NOT_SERVLET_3 =
+  static final ElementMatcher.Junction<ClassLoader> NOT_SERVLET_3 =
       not(hasClassNamed("javax.servlet.AsyncEvent"));
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return NOT_SERVLET_3;
   }
 

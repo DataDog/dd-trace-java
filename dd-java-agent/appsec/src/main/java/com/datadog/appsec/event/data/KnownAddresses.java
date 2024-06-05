@@ -109,6 +109,12 @@ public interface KnownAddresses {
 
   Address<String> USER_ID = new Address<>("usr.id");
 
+  /** The database type (ex: mysql, postgresql, sqlite) */
+  Address<String> DB_TYPE = new Address<>("server.db.system");
+
+  /** The SQL query being executed */
+  Address<String> DB_SQL_QUERY = new Address<>("server.db.statement");
+
   Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
 
   static Address<?> forName(String name) {
@@ -165,6 +171,10 @@ public interface KnownAddresses {
         return SERVER_GRAPHQL_ALL_RESOLVERS;
       case "usr.id":
         return USER_ID;
+      case "server.db.system":
+        return DB_TYPE;
+      case "server.db.statement":
+        return DB_SQL_QUERY;
       case "waf.context.processor":
         return WAF_CONTEXT_PROCESSOR;
       default:

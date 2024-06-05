@@ -205,7 +205,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return dbInfo;
   }
 
-  public AgentSpan onStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
+  public AgentSpan onStatement(AgentSpan span, final String statement) {
+    onRawStatement(span, statement);
+    DBQueryInfo dbQueryInfo = DBQueryInfo.ofStatement(statement);
     return withQueryInfo(span, dbQueryInfo, JDBC_STATEMENT);
   }
 

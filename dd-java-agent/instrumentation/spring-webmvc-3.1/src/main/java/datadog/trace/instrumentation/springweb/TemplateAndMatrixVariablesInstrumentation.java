@@ -56,7 +56,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Only apply to versions of spring-webmvc that include request mapping information
     return hasClassNamed("org.springframework.web.servlet.mvc.method.RequestMappingInfo");
   }

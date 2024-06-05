@@ -31,7 +31,7 @@ public class JUnit5CucumberItrInstrumentation extends InstrumenterModule.CiVisib
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("io.cucumber.junit.platform.engine.CucumberTestEngine");
   }
 

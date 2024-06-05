@@ -11,9 +11,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
+import datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureProfiling;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -81,13 +83,19 @@ public class RejectedExecutionHandlerInstrumentation extends InstrumenterModule.
     // remove our wrapper before calling the handler (save wrapper, so we can cancel it later)
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Wrapper<?> handle(
-        @Advice.Argument(readOnly = false, value = 0) Runnable runnable) {
+        @Advice.This Object zis, @Advice.Argument(readOnly = false, value = 0) Runnable runnable) {
+      Wrapper<?> wrapper = null;
       if (runnable instanceof Wrapper) {
-        Wrapper<?> wrapper = (Wrapper<?>) runnable;
+        wrapper = (Wrapper<?>) runnable;
         runnable = wrapper.unwrap();
-        return wrapper;
       }
-      return null;
+      if (Config.get().isProfilingBackPressureSamplingEnabled()) {
+        // record this event before the handler executes, which will help
+        // explain why the task is running on the submitter thread for
+        // rejection policies which run on the caller (CallerRunsPolicy or user-provided)
+        BackpressureProfiling.getInstance().process(zis.getClass(), runnable);
+      }
+      return wrapper;
     }
 
     // must execute after in case the handler actually runs the runnable,

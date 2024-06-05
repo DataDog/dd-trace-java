@@ -34,7 +34,7 @@ public class JsonReaderInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("com.google.gson.stream.JsonReader");
   }
 

@@ -40,7 +40,7 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching Tomcat 5.0.x which is not supported by this instrumentation.
     return hasClassNamed("org.apache.tomcat.util.buf.StringCache");
   }

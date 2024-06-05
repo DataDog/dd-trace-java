@@ -29,7 +29,7 @@ public final class BundleReferenceInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching older versions of OSGi that don't have the wiring API.
     return hasClassNamed("org.osgi.framework.wiring.BundleWiring");
   }

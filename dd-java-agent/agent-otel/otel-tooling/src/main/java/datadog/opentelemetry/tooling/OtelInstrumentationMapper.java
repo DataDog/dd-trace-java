@@ -23,9 +23,7 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           Arrays.asList("io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle"));
 
   private static final Set<String> UNSUPPORTED_METHODS =
-      new HashSet<>(
-          Arrays.asList(
-              "getMuzzleReferences", "getMuzzleHelperClassNames", "registerMuzzleVirtualFields"));
+      new HashSet<>(Arrays.asList("getMuzzleReferences", "registerMuzzleVirtualFields"));
 
   public OtelInstrumentationMapper(ClassVisitor classVisitor) {
     super(classVisitor, Renamer.INSTANCE);
@@ -45,11 +43,10 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
   @Override
   public MethodVisitor visitMethod(
       int access, String name, String descriptor, String signature, String[] exceptions) {
-    if (!UNSUPPORTED_METHODS.contains(name)) {
-      return super.visitMethod(access, name, descriptor, signature, exceptions);
-    } else {
+    if (UNSUPPORTED_METHODS.contains(name)) {
       return null; // remove unsupported method
     }
+    return super.visitMethod(access, name, descriptor, signature, exceptions);
   }
 
   private String[] removeUnsupportedTypes(String[] interfaces) {
@@ -85,11 +82,11 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           "io/opentelemetry/javaagent/extension/instrumentation/TypeTransformer",
           "datadog/opentelemetry/tooling/OtelTransformer");
       RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/extension/matcher/AgentElementMatchers",
+          "datadog/opentelemetry/tooling/OtelElementMatchers");
+      RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/bootstrap/Java8BytecodeBridge",
           "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
-      RENAMED_TYPES.put(
-          "io/opentelemetry/javaagent/extension/matcher/AgentElementMatchers",
-          "datadog/trace/agent/tooling/bytebuddy/matcher/HierarchyMatchers");
     }
 
     @Override
