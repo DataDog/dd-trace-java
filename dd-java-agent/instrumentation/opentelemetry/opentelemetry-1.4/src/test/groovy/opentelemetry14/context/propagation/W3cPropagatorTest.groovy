@@ -23,5 +23,9 @@ class W3cPropagatorTest extends AgentPropagatorTest {
   void assertInjectedHeaders(Map<String, String> headers, String traceId, String spanId, byte sampling) {
     def traceFlags = sampling == SAMPLER_KEEP ? '01' : '00'
     assert headers['traceparent'] == "00-$traceId-$spanId-$traceFlags"
+
+    // 'p:' not expected in tracestate here because Context.lastParentId is null in W3CHttpCodec
+    assert !headers['tracestate'].contains("p:")
   }
+
 }
