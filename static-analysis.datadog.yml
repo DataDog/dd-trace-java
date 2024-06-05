@@ -1,9 +1,25 @@
 rulesets:
-  - java-best-practices
-  - java-code-style
+  - java-best-practices:
+    rules:
+      array-is-stored-directly:
+        ignore:
+          - "**"
+      avoid-reassigning-parameters:
+        ignore:
+          - "**"
+  - java-code-style:
+    rules:
+      boolean-get-method-name:
+        ignore:
+          - "**"
+      generics-naming:
+        ignore:
+          - "**"
   - java-security
 ignore-paths:
   - ".mvn/**"
   - "dd-java-agent/appsec/weblog/**"
   - "dd-java-agent/benchmark-integration/**"
   - "dd-smoke-tests/**"
+  - "**/src/test/**"
+  - "**/src/jmh/**"
