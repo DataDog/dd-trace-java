@@ -20,6 +20,9 @@ public class OtelContext implements Context {
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
   private static final String OTEL_CONTEXT_ROOT_SPAN_KEY = "opentelemetry-traces-local-root-span";
 
+  /** Keep track of propagated context that has not been captured on the scope stack. */
+  private static final ThreadLocal<OtelContext> lastPropagated = new ThreadLocal<>();
+
   private final Span currentSpan;
   private final Span rootSpan;
 
@@ -51,15 +54,31 @@ public class OtelContext implements Context {
 
   @Override
   public Scope makeCurrent() {
-    Scope scope = Context.super.makeCurrent();
+    final Scope scope = Context.super.makeCurrent();
     if (this.currentSpan instanceof OtelSpan) {
+      // only keep propagated context until next span activation
+      lastPropagated.remove();
       AgentScope agentScope = ((OtelSpan) this.currentSpan).activate();
-      scope = new OtelScope(scope, agentScope);
+      return new OtelScope(scope, agentScope);
+    } else {
+      // propagated context not on the scope stack, capture it here
+      lastPropagated.set(this);
+      return new Scope() {
+        @Override
+        public void close() {
+          lastPropagated.remove();
+          scope.close();
+        }
+      };
     }
-    return scope;
   }
 
   public static Context current() {
+    // Check for propagated context not on the scope stack
+    Context context = lastPropagated.get();
+    if (null != context) {
+      return context;
+    }
     // Check empty context
     AgentSpan agentCurrentSpan = AgentTracer.activeSpan();
     if (null == agentCurrentSpan) {
@@ -89,6 +108,12 @@ public class OtelContext implements Context {
       otelRootSpan = new OtelSpan(agentRootSpan);
     }
     return new OtelContext(otelCurrentSpan, otelRootSpan);
+  }
+
+  /** Last propagated context not on the scope stack; {@code null} if there's no such context. */
+  @Nullable
+  public static Context lastPropagated() {
+    return lastPropagated.get();
   }
 
   @Override
