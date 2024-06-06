@@ -3,18 +3,15 @@ import datadog.trace.api.DDTags
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.apache.avro.generic.GenericRecord
-import org.apache.avro.hadoop.io.AvroDeserializer
+import org.apache.avro.hadoop.io.AvroKeyDeserializer
 import org.apache.avro.hadoop.io.AvroSerializer
-import org.apache.avro.io.DatumReader
-import org.apache.avro.io.Decoder
+import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapred.AvroWrapper
-import org.apache.avro.specific.SpecificDatumReader
-import org.apache.hadoop.io.serializer.avro.AvroSerialization
+
 
 import java.nio.ByteBuffer
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class AvroSerializeTest extends AgentTestRunner {
 
@@ -60,7 +57,7 @@ class AvroSerializeTest extends AgentTestRunner {
 
 
 
-  void 'test extract avro schema on serialize & deserialize'() {
+  void 'test extract avro schema on serialize'() {
 
     setup:
 
@@ -106,16 +103,6 @@ class AvroSerializeTest extends AgentTestRunner {
     }
     GenericRecord result = null
 
-    runUnderTrace("parent_deserialize") {
-
-      ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes)
-
-      DatumReader<GenericRecord> datumReader = new SpecificDatumReader<>(schemaDef)
-
-      Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null)
-
-      result = datumReader.read(null, decoder)
-    }
     TEST_WRITER.waitForTraces(1)
 
 
@@ -135,6 +122,63 @@ class AvroSerializeTest extends AgentTestRunner {
             "$DDTags.SCHEMA_TYPE" "avro"
             "$DDTags.SCHEMA_NAME" "TestRecord"
             "$DDTags.SCHEMA_OPERATION" "serialization"
+            "$DDTags.SCHEMA_ID" schemaID
+            defaultTags(false)
+          }
+        }
+      }
+    }
+  }
+  void 'test extract avro schema on deserialize'() {
+    setup:
+    GenericRecord datum = new GenericData.Record(schemaDef)
+    datum.put("stringField", "testString")
+    datum.put("intField", 123)
+    datum.put("longField", 456L)
+    datum.put("floatField", 7.89f)
+    datum.put("doubleField", 1.23e2)
+    datum.put("booleanField", true)
+    datum.put("bytesField", ByteBuffer.wrap(new byte[]{
+      0x01, 0x02, 0x03
+    }))
+
+    when:
+    def bytes
+    ByteArrayOutputStream out = new ByteArrayOutputStream()
+    AvroSerializer<AvroWrapper<GenericRecord>> serializer = new AvroSerializer<>(schemaDef)
+    AvroWrapper<GenericRecord> wrapper = new AvroWrapper<>(datum)
+    serializer.open(out)
+    serializer.serialize(wrapper)
+    serializer.close()
+    bytes = out.toByteArray()
+
+    GenericRecord result = null
+
+    runUnderTrace("parent_deserialize") {
+      ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes)
+      AvroKeyDeserializer<GenericRecord> deserializer = new AvroKeyDeserializer<>(schemaDef, schemaDef, this.getClass().getClassLoader())
+      deserializer.open(inputStream)
+      AvroWrapper<GenericRecord> record = null
+
+      AvroKey key = deserializer.deserialize(record)
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    assertTraces(1, SORT_TRACES_BY_ID) {
+      trace(1) {
+        span {
+          hasServiceName()
+          operationName "parent_deserialize"
+          resourceName "parent_deserialize"
+          errored false
+          measured false
+          tags {
+            "$DDTags.SCHEMA_DEFINITION" openApiSchemaDef
+            "$DDTags.SCHEMA_WEIGHT" 1
+            "$DDTags.SCHEMA_TYPE" "avro"
+            "$DDTags.SCHEMA_NAME" "TestRecord"
+            "$DDTags.SCHEMA_OPERATION" "deserialization"
             "$DDTags.SCHEMA_ID" schemaID
             defaultTags(false)
           }

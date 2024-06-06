@@ -29,7 +29,6 @@ public class SchemaExtractor implements SchemaIterator {
     String description = null;
     String ref = null;
     List<String> enumValues = null;
-    System.out.println("--------------" + field.schema().getType());
     if (field.schema().getType() == org.apache.avro.Schema.Type.ARRAY) {
       array = true;
     }
@@ -110,8 +109,6 @@ public class SchemaExtractor implements SchemaIterator {
     if (!builder.shouldExtractSchema(schemaName, depth)) {
       return false;
     }
-    System.out.println("+++----------" + schema.getFullName());
-    System.out.println("+++-----------" + schema.toString());
     for (Field field : schema.getFields()) {
       if (!extractProperty(field, schemaName, field.name(), builder, depth)) {
         return false;
