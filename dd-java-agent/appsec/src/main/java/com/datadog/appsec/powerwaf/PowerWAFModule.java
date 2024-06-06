@@ -27,6 +27,8 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafConfig;
@@ -580,6 +582,12 @@ public class PowerWAFModule implements AppSecModule {
       ruleMatchList.add(ruleMatch);
     }
 
+    Long spanId = null;
+    AgentSpan agentSpan = AgentTracer.get().activeSpan();
+    if (agentSpan != null) {
+      spanId = agentSpan.getSpanId();
+    }
+
     return new AppSecEvent.Builder()
         .withRule(
             new Rule.Builder()
@@ -588,6 +596,7 @@ public class PowerWAFModule implements AppSecModule {
                 .withTags(wafResult.rule.tags)
                 .build())
         .withRuleMatches(ruleMatchList)
+        .withSpanId(spanId)
         .build();
   }
 

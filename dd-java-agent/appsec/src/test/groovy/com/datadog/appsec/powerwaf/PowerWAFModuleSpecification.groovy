@@ -21,11 +21,14 @@ import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.internal.TraceSegment
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Additive
 import io.sqreen.powerwaf.Powerwaf
 import io.sqreen.powerwaf.PowerwafContext
 import io.sqreen.powerwaf.PowerwafMetrics
+import spock.lang.Shared
 import spock.lang.Unroll
 
 import java.util.concurrent.CountDownLatch
@@ -35,8 +38,18 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER
 import static org.hamcrest.Matchers.hasSize
 
 class PowerWAFModuleSpecification extends DDSpecification {
+  @Shared
+  protected static final AgentTracer.TracerAPI ORIGINAL_TRACER = AgentTracer.get()
+
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
   new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']))
+
+  protected AgentTracer.TracerAPI tracer = Mock(AgentTracer.TracerAPI) {
+    activeSpan() >> Mock(AgentSpan) {
+      getSpanId() >> 777
+    }
+    getSpanId() >> 777
+  }
 
   AppSecRequestContext ctx = Spy()
 
@@ -47,7 +60,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
   Additive pwafAdditive
   PowerwafMetrics metrics
 
+  void setup() {
+    AgentTracer.forceRegister(tracer)
+  }
+
   void cleanup() {
+    AgentTracer.forceRegister(ORIGINAL_TRACER)
     pwafAdditive?.close()
     release pwafModule
   }
@@ -757,6 +775,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       .withHighlight(['Arachni/v'])
       .build()
     ]
+    event.spanId == 777
   }
 
   void 'redaction with default settings'() {
