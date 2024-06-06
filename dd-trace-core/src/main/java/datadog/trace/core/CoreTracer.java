@@ -1501,7 +1501,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           samplingPriority = extractedContext.getSamplingPriority();
           endToEndStartTime = extractedContext.getEndToEndStartTime();
           propagationTags = extractedContext.getPropagationTags();
-          lastParentId = propagationTags.getLastParentId();
         } else if (parentContext != null) {
           traceId =
               parentContext.getTraceId() == DDTraceId.ZERO
