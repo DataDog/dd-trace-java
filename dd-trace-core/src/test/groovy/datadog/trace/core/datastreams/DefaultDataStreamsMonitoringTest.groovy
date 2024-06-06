@@ -451,8 +451,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
         edgeTags.size() == 3
         hash == 1
         parentHash == 2
-        pathwayLatency.getMaxValue() >= 10
-        pathwayLatency.getMaxValue() < 10.1
+        Math.abs((pathwayLatency.getMaxValue()-10)/10) < 0.01
       }
     }
 
@@ -467,8 +466,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
         parentHash == 2
         edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
         edgeTags.size() == 3
-        pathwayLatency.getMaxValue() >= 4.9
-        pathwayLatency.getMaxValue() < 5.1
+        Math.abs((pathwayLatency.getMaxValue()-5)/5) < 0.01
       }
 
       with(sortedGroups[1]) {
@@ -476,8 +474,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
         parentHash == 4
         edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic2"])
         edgeTags.size() == 3
-        pathwayLatency.getMaxValue() >= 2
-        pathwayLatency.getMaxValue() < 2.1
+        Math.abs((pathwayLatency.getMaxValue()-2)/2) < 0.01
       }
     }
 
