@@ -249,7 +249,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             spanId,
             samplingPriorityOrDefault(traceId, samplingPriority),
             origin,
-            lastParentId,
             endToEndStartTime,
             baggage,
             tags,
