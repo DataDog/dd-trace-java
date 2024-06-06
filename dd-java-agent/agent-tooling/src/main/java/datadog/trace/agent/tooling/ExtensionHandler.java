@@ -1,8 +1,11 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.function.Function;
@@ -76,8 +79,9 @@ public class ExtensionHandler {
 
   /** Provides access to bytecode mapped from the extension. */
   protected static class ClassMappingConnection extends JarFileConnection {
+    private static final DDCache<String, byte[]> bytecodeCache = DDCaches.newFixedSizeCache(32);
+
     private final Function<ClassVisitor, ClassVisitor> mapping;
-    private byte[] cachedBytecode;
 
     public ClassMappingConnection(
         URL url, JarFile jar, JarEntry entry, Function<ClassVisitor, ClassVisitor> mapping) {
@@ -87,28 +91,35 @@ public class ExtensionHandler {
 
     @Override
     public InputStream getInputStream() throws IOException {
-      return new ByteArrayInputStream(mapBytecode());
+      try {
+        return new ByteArrayInputStream(mapBytecode());
+      } catch (UncheckedIOException e) {
+        throw e.getCause();
+      }
     }
 
     @Override
     public long getContentLengthLong() {
       try {
         return mapBytecode().length;
-      } catch (IOException e) {
+      } catch (UncheckedIOException e) {
         return -1;
       }
     }
 
-    private byte[] mapBytecode() throws IOException {
-      if (null == cachedBytecode) {
-        try (InputStream in = super.getInputStream()) {
-          ClassReader cr = new ClassReader(in);
-          ClassWriter cw = new ClassWriter(cr, 0);
-          cr.accept(mapping.apply(cw), 0);
-          cachedBytecode = cw.toByteArray();
-        }
+    private byte[] mapBytecode() {
+      return bytecodeCache.computeIfAbsent(url.getFile(), this::doMapBytecode);
+    }
+
+    private byte[] doMapBytecode(String unused) {
+      try (InputStream in = super.getInputStream()) {
+        ClassReader cr = new ClassReader(in);
+        ClassWriter cw = new ClassWriter(cr, 0);
+        cr.accept(mapping.apply(cw), 0);
+        return cw.toByteArray();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
       }
-      return cachedBytecode;
     }
   }
 
