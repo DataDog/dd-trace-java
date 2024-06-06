@@ -22,9 +22,6 @@ stages:
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   SONATYPE_USERNAME: robot-sonatype-apm-java
-  OCI_PACKAGE_NAME: "datadog-apm-library-java"
-  OCI_AGENT_REGISTRY_PACKAGE_NAME: "apm-library-java-package"
-  LIB_INJECTION_NAME: "dd-trace-java/dd-lib-java-init"
   BUILD_JOB_NAME: "build"
 
 .common: &common
