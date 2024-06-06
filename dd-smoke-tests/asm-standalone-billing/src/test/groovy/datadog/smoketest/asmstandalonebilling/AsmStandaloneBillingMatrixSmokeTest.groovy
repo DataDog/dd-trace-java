@@ -159,13 +159,13 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     and:"No ASM events, resulting in the local sampling decision"
     def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
     //TODO Check RFC as it said isSampledBySampler(standAloneBillingTrace) but sampling priority it's set in the upstream service and locked for all downstream processes
-    checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.USER_KEEP)
+    isSampledBySampler(standAloneBillingTrace)
     !hasAppsecPropagationTag (standAloneBillingTrace)
     hasApmDisabledTag (standAloneBillingTrace)
 
     and:"Only the local trace is expected to be “muted” and no assumption must be done about the downstream one, so the sampling decision propagated by upstream services must be honored"
     def downstreamTrace = getServiceTrace(ASM_ENABLED_SERVICE_NAME)
-    checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.USER_KEEP)
+    isSampledBySampler(downstreamTrace)
     !hasAppsecPropagationTag (downstreamTrace)
     !hasApmDisabledTag (downstreamTrace)
   }
@@ -196,7 +196,6 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     and:"standalone service must keep the local trace with the local sampling priority"
     def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
     checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.USER_KEEP)
-    //TODO Check RFC as it said !hasAppsecPropagationTag (standAloneBillingTrace) but the tag is propagated from the upstream service
     hasAppsecPropagationTag (standAloneBillingTrace)
     hasApmDisabledTag (standAloneBillingTrace)
 

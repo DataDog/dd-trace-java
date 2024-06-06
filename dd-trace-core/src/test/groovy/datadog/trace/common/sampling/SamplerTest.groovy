@@ -14,7 +14,7 @@ class SamplerTest extends DDSpecification{
     Sampler sampler = Sampler.Builder.forConfig(config, null)
 
     then:
-    sampler instanceof TimeSampler
-    ((TimeSampler)sampler).rateInMilliseconds == 60000 //1 minute
+    sampler instanceof AsmStandaloneSampler
+    ((AsmStandaloneSampler)sampler).rateInMilliseconds == 60000 //1 minute
   }
 }

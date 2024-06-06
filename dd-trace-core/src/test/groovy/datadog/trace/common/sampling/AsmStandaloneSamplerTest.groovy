@@ -4,14 +4,14 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.api.sampling.PrioritySampling
 
-class TimeSamplerTest extends DDCoreSpecification{
+class AsmStandaloneSamplerTest extends DDCoreSpecification{
 
   def writer = new ListWriter()
 
   void "test setSamplingPriority"(){
     setup:
     final rate = 1000 // 1 trace per second
-    def sampler = new TimeSampler(rate)
+    def sampler = new AsmStandaloneSampler(rate)
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:

@@ -49,11 +49,11 @@ class AsmStandaloneBillingSamplingSmokeTest extends AbstractAsmStandaloneBilling
     when: "Request without ASM events and force kept span"
     final forceKeepResponse = client.newCall(forceKeepRequest).execute()
 
-    then: "This trace should have a root span with USER_KEEP sampling priority as although it's not the first span checked in a minute, it's force kept'"
+    then: "This trace should have a root span with SAMPLER_DROP sampling priority although it's force kept, as it's not the first span checked in a minute and it has not ASM events"
     forceKeepResponse.successful
     waitForTraceCount(3)
     assert traces.size() == 3
-    checkRootSpanPrioritySampling(traces[2], PrioritySampling.USER_KEEP)
+    checkRootSpanPrioritySampling(traces[2], PrioritySampling.SAMPLER_DROP)
     !hasAppsecPropagationTag(traces[2])
 
     when: "Second request without ASM events and no force kept span"

@@ -7,14 +7,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Sampler that samples traces based on a fixed time rate in milliseconds. */
-public class TimeSampler implements Sampler, PrioritySampler {
+public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
-  private static final Logger log = LoggerFactory.getLogger(TimeSampler.class);
+  private static final Logger log = LoggerFactory.getLogger(AsmStandaloneSampler.class);
 
   private final AtomicLong lastSampleTime;
   private final int rateInMilliseconds;
 
-  public TimeSampler(int rateInMilliseconds) {
+  public AsmStandaloneSampler(int rateInMilliseconds) {
     this.rateInMilliseconds = rateInMilliseconds;
     this.lastSampleTime = new AtomicLong(-1);
   }
@@ -31,10 +31,10 @@ public class TimeSampler implements Sampler, PrioritySampler {
 
     if (shouldSample()) {
       log.debug("Set SAMPLER_KEEP for span {}", span.getSpanId());
-      span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
+      span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.APPSEC);
     } else {
       log.debug("Set SAMPLER_DROP for span {}", span.getSpanId());
-      span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+      span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, SamplingMechanism.APPSEC);
     }
   }
 

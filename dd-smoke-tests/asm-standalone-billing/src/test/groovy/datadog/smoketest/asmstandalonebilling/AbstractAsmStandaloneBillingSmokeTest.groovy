@@ -65,4 +65,8 @@ abstract class AbstractAsmStandaloneBillingSmokeTest extends AbstractServerSmoke
   protected hasApmDisabledTag(DecodedTrace trace) {
     return trace.spans[0].metrics['_dd.apm.enabled'] == 0
   }
+
+  protected hasASMEvents(DecodedTrace trace){
+    return trace.spans[0].meta['_dd.iast.json'] != null || trace.spans[0].meta['_dd.appsec.json'] != null
+  }
 }

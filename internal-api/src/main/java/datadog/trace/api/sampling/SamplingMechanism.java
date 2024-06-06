@@ -46,6 +46,10 @@ public class SamplingMechanism {
         return priority == USER_DROP || priority == USER_KEEP;
 
       case APPSEC:
+        return priority == PrioritySampling.USER_KEEP
+            || priority == SAMPLER_DROP
+            || priority == SAMPLER_KEEP; // Necessary for ASM standalone billing
+
       case DATA_JOBS:
         return priority == PrioritySampling.USER_KEEP;
 
