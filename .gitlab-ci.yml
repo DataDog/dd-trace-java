@@ -13,6 +13,7 @@ stages:
   - package
   - publish
   - deploy
+  - release
   - benchmarks
   - exploration-tests
   - ci-visibility-tests
