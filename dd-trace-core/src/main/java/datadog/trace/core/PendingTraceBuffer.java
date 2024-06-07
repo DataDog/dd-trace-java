@@ -16,6 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class PendingTraceBuffer implements AutoCloseable {
+
+  private static final Logger log = LoggerFactory.getLogger(PendingTraceBuffer.class);
+
   private static final int BUFFER_SIZE = 1 << 12; // 4096
 
   public boolean longRunningSpansEnabled() {
@@ -63,15 +66,23 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     @Override
     public void enqueue(Element pendingTrace) {
+      DDSpan rootSpan = pendingTrace.getRootSpan();
       if (pendingTrace.setEnqueued(true)) {
         if (!queue.offer(pendingTrace)) {
+          log.debug(
+              "t_id={} -> could not enqueue trace", rootSpan != null ? rootSpan.getTraceId() : -1);
+
           // Mark it as not in the queue
           pendingTrace.setEnqueued(false);
 
           if (!pendingTrace.writeOnBufferFull()) {
+            log.debug(
+                "t_id={} -> will NOT enqueue trace", rootSpan != null ? rootSpan.getTraceId() : -1);
             return;
           }
           pendingTrace.write();
+        } else {
+          log.debug("t_id={} -> enqueued trace", rootSpan != null ? rootSpan.getTraceId() : -1);
         }
       }
     }
@@ -83,13 +94,16 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     @Override
     public void close() {
+      log.debug("[FLUSH] closing pending trace buffer");
       flush();
       closed = true;
       worker.interrupt();
       try {
         worker.join(THREAD_JOIN_TIMOUT_MS);
       } catch (InterruptedException ignored) {
+        log.debug("[FLUSH] interrupted");
       }
+      log.debug("[FLUSH] closed");
     }
 
     private void yieldOrSleep(final int loop) {
@@ -105,6 +119,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     @Override
     public void flush() {
+      log.debug("[FLUSH] flushing pending trace buffer");
       if (worker.isAlive()) {
         int count = flushCounter.get();
         int loop = 1;
@@ -118,6 +133,9 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           yieldOrSleep(loop++);
           newCount = flushCounter.get();
         }
+        log.debug("[FLUSH] flush finished");
+      } else {
+        log.debug("[FLUSH] worker dead, will not flush");
       }
     }
 
@@ -126,6 +144,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
       @Override
       public void accept(Element pendingTrace) {
+        DDSpan rootSpan = pendingTrace.getRootSpan();
+        log.debug("t_id={} -> drain to write", rootSpan != null ? rootSpan.getTraceId() : -1);
         pendingTrace.write();
       }
     }
@@ -181,6 +201,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             }
 
             if (pendingTrace instanceof FlushElement) {
+              log.debug("[FLUSH] flush element popped");
               // Since this is an MPSC queue, the drain needs to be called on the consumer thread
               queue.drain(WriteDrain.WRITE_DRAIN);
               flushCounter.incrementAndGet();
@@ -190,8 +211,13 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             // The element is no longer in the queue
             pendingTrace.setEnqueued(false);
 
+            DDSpan rootSpan = pendingTrace.getRootSpan();
+            log.debug("t_id={} -> dequeued", rootSpan != null ? rootSpan.getTraceId() : -1);
+
             if (longRunningSpansEnabled()) {
               if (runningTracesTracker.add(pendingTrace)) {
+                log.debug(
+                    "t_id={} -> long running span", rootSpan != null ? rootSpan.getTraceId() : -1);
                 continue;
               }
             }
@@ -200,21 +226,32 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
             long finishTimestampMillis = TimeUnit.NANOSECONDS.toMillis(oldestFinishedTime);
             if (finishTimestampMillis <= timeSource.getCurrentTimeMillis() - FORCE_SEND_DELAY_MS) {
               // Root span is getting old. Send the trace to avoid being discarded by agent.
+              log.debug(
+                  "t_id={} -> root span too old", rootSpan != null ? rootSpan.getTraceId() : -1);
               pendingTrace.write();
               continue;
             }
 
             if (pendingTrace.lastReferencedNanosAgo(SEND_DELAY_NS)) {
               // Trace has been unmodified long enough, go ahead and write whatever is finished.
+              log.debug(
+                  "t_id={} -> trace unmodified long enough",
+                  rootSpan != null ? rootSpan.getTraceId() : -1);
               pendingTrace.write();
             } else {
               // Trace is too new.  Requeue it and sleep to avoid a hot loop.
+              log.debug(
+                  "t_id={} -> trace too new, requeuing",
+                  rootSpan != null ? rootSpan.getTraceId() : -1);
               enqueue(pendingTrace);
               Thread.sleep(SLEEP_TIME_MS);
             }
           }
+          log.debug("[FLUSH] finished trace buffer polling");
+
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
+          log.debug("[FLUSH] interrupted");
         }
       }
     }

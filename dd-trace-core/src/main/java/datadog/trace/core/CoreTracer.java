@@ -994,6 +994,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // checking that a hard reference on a continuation prevents
       // reporting fail without this, so will need to be fixed first.
       writer.incrementDropCounts(writtenTrace.size());
+      log.debug("{} -> dropped trace", trace.iterator().next().getTraceId());
     }
     if (null != rootSpan) {
       onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
@@ -1117,6 +1118,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void close() {
+    log.debug("[FLUSH] closing core tracer");
     if (flushOnClose) {
       flush();
     }
@@ -1149,6 +1151,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void flush() {
+    log.debug("[FLUSH] flushing core tracer");
     pendingTraceBuffer.flush();
     writer.flush();
   }

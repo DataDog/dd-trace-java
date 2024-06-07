@@ -74,6 +74,7 @@ public class MsgPackWriter implements WritableFormatter {
   @Override
   public void flush() {
     if (buffer.isDirty()) {
+      log.debug("[FLUSH] flushing msg pack writer");
       buffer.flush();
     }
   }

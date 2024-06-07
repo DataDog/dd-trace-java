@@ -102,6 +102,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public boolean flush(long timeout, TimeUnit timeUnit) {
+    log.debug("[FLUSH] flush trace processing worker");
     CountDownLatch latch = new CountDownLatch(1);
     FlushEvent flush = new FlushEvent(latch);
     boolean offered;
@@ -109,8 +110,11 @@ public class TraceProcessingWorker implements AutoCloseable {
       offered = primaryQueue.offer(flush);
     } while (!offered && serializerThread.isAlive());
     try {
-      return latch.await(timeout, timeUnit);
+      boolean await = latch.await(timeout, timeUnit);
+      log.debug("[FLUSH] flush finished: {}", await);
+      return await;
     } catch (InterruptedException e) {
+      log.debug("[FLUSH] trace processing worker flush interrupted");
       Thread.currentThread().interrupt();
       return false;
     }
@@ -118,11 +122,14 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   @Override
   public void close() {
+    log.debug("[FLUSH] closing trace processing worker");
     spanSamplingWorker.close();
     serializerThread.interrupt();
     try {
       serializerThread.join(THREAD_JOIN_TIMOUT_MS);
+      log.debug("[FLUSH] trace processing worker closed");
     } catch (InterruptedException ignored) {
+      log.debug("[FLUSH] trace processing worker closure interrupted");
     }
   }
 

@@ -48,9 +48,11 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
 
   @Override
   public void flush() {
+    log.debug("[FLUSH] flushing payload dispatcher");
     if (null != packer) {
       packer.flush();
     }
+    log.debug("[FLUSH] flushed payload dispatcher");
   }
 
   @Override
@@ -66,6 +68,8 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
 
   @Override
   public void addTrace(List<? extends CoreSpan<?>> trace) {
+    CoreSpan<?> span = !trace.isEmpty() ? trace.iterator().next() : null;
+    log.debug("t_id={} -> adding trace", span != null ? span.getTraceId() : null);
     selectMapper();
     // the call below is blocking and will trigger IO if a flush is necessary
     // there are alternative approaches to avoid blocking here, such as

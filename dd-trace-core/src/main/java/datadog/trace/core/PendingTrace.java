@@ -343,6 +343,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   private int write(boolean isPartial) {
+    log.debug("t_id={} -> writing trace, partial {}", traceId, isPartial);
     if (!spans.isEmpty()) {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time

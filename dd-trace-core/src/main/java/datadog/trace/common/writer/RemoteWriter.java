@@ -109,11 +109,17 @@ public abstract class RemoteWriter implements Writer {
 
   @Override
   public boolean flush() {
+    log.debug("[FLUSH] flushing writer");
     if (!closed) {
       if (traceProcessingWorker.flush(flushTimeout, flushTimeoutUnit)) {
+        log.debug("[FLUSH] flush finished");
         healthMetrics.onFlush(false);
         return true;
+      } else {
+        log.debug("[FLUSH] flush NOT finished");
       }
+    } else {
+      log.debug("[FLUSH] writer closed, will not flush");
     }
     return false;
   }
@@ -129,7 +135,9 @@ public abstract class RemoteWriter implements Writer {
 
   @Override
   public void close() {
+    log.debug("[FLUSH] closing remote writer");
     final boolean flushed = flush();
+    log.debug("[FLUSH] closed remote writer, flushed: {}", flushed);
     closed = true;
     traceProcessingWorker.close();
     healthMetrics.onShutdown(flushed);
