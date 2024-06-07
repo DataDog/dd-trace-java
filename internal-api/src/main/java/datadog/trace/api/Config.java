@@ -743,7 +743,7 @@ public class Config {
   private final String appSecHttpBlockedTemplateJson;
   private final UserEventTrackingMode appSecUserEventsTracking;
   private final Boolean appSecScaEnabled;
-  private final Boolean appSecRaspEnabled;
+  private final boolean appSecRaspEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
 
@@ -4036,7 +4036,7 @@ public class Config {
     return appSecScaEnabled;
   }
 
-  public Boolean getAppSecRaspEnabled() {
+  public boolean isAppSecRaspEnabled() {
     return appSecRaspEnabled;
   }
 
