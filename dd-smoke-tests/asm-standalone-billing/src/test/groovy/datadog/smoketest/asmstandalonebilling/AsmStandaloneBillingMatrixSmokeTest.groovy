@@ -206,6 +206,120 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     !hasApmDisabledTag (downstreamTrace)
   }
 
+  void 'Behave as a non APM-instrumented service: Anything but upstream ASM events - determined by the absence of _dd.p.appsec:1 AND No local ASM security events '() {
+    setup:
+    final downstreamUrl = "http://localhost:${httpPorts[2]}/rest-api/greetings"
+    final standAloneBillingUrl = "http://localhost:${httpPorts[0]}/rest-api/greetings?url=${downstreamUrl}"
+    final upstreamUrl = "http://localhost:${httpPorts[1]}/rest-api/greetings?forceKeep=true&url=${standAloneBillingUrl}"
+    final request = new Request.Builder().url(upstreamUrl).get().build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    response.successful
+    waitForTraceCount(3)
+
+    and: 'No upstream ASM events but force keep span'
+    def upstreamTrace = getServiceTrace(APM_ENABLED_SERVICE_NAME)
+    checkRootSpanPrioritySampling(upstreamTrace, PrioritySampling.USER_KEEP)
+    !hasAppsecPropagationTag (upstreamTrace)
+    !hasApmDisabledTag (upstreamTrace)
+    def upstreamTraceId = getServiceTrace(APM_ENABLED_SERVICE_NAME).spans[0].traceId
+
+    and: 'No ASM events, resulting in the local sampling decision'
+    def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
+    isSampledBySampler(standAloneBillingTrace)
+    !hasAppsecPropagationTag (standAloneBillingTrace)
+    hasApmDisabledTag (standAloneBillingTrace)
+    def standAloneBillingTraceId = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME).spans[0].traceId
+    upstreamTraceId == standAloneBillingTraceId //There is propagation
+
+    and: 'Propagation is stopped'
+    def downstreamTrace = getServiceTrace(ASM_ENABLED_SERVICE_NAME)
+    isSampledBySampler(downstreamTrace)
+    !hasAppsecPropagationTag (downstreamTrace)
+    !hasApmDisabledTag (downstreamTrace)
+    def downstreamTraceId = getServiceTrace(ASM_ENABLED_SERVICE_NAME).spans[0].traceId
+    standAloneBillingTraceId != downstreamTraceId //There is no propagation
+  }
+
+  void 'Behave as an APM-instrumented service: Upstream sampling decision involving ASM with the presence of _dd.p.appsec:1 along with Force Keep (2)'(){
+    setup:
+    final downstreamUrl = "http://localhost:${httpPorts[2]}/rest-api/greetings"
+    final standAloneBillingUrl = "http://localhost:${httpPorts[0]}/rest-api/greetings?url=${downstreamUrl}"
+    final upstreamUrl = "http://localhost:${httpPorts[3]}/rest-api/iast?injection=vulnerable&url=${standAloneBillingUrl}"
+    final request = new Request.Builder().url(upstreamUrl).get().build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    response.successful
+    waitForTraceCount(3)
+
+    and: 'Upstream ASM events'
+    def upstreamTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME_2)
+    checkRootSpanPrioritySampling(upstreamTrace, PrioritySampling.USER_KEEP)
+    hasAppsecPropagationTag (upstreamTrace)
+    hasApmDisabledTag (upstreamTrace)
+    def upstreamTraceId = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME_2).spans[0].traceId
+
+    and: 'No ASM events, resulting in the local sampling decision'
+    def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
+    checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.USER_KEEP)
+    hasAppsecPropagationTag (standAloneBillingTrace)
+    hasApmDisabledTag (standAloneBillingTrace)
+    def standAloneBillingTraceId = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME).spans[0].traceId
+    upstreamTraceId == standAloneBillingTraceId //There is propagation
+
+    and: 'Default APM distributed tracing behavior with'
+    def downstreamTrace = getServiceTrace(ASM_ENABLED_SERVICE_NAME)
+    checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.USER_KEEP)
+    hasAppsecPropagationTag (downstreamTrace)
+    !hasApmDisabledTag (downstreamTrace)
+    def downstreamTraceId = getServiceTrace(ASM_ENABLED_SERVICE_NAME).spans[0].traceId
+    standAloneBillingTraceId == downstreamTraceId //There is propagation
+  }
+
+  void 'Behave as an APM-instrumented service: Upstream sampling decision involving ASM with the presence of _dd.p.appsec:1 along with Force Keep (2)'(){
+    setup:
+    final downstreamUrl = "http://localhost:${httpPorts[2]}/rest-api/greetings"
+    final standAloneBillingUrl = "http://localhost:${httpPorts[0]}/rest-api/iast?injection=vulnerable%26url=${downstreamUrl}"
+    final upstreamUrl = "http://localhost:${httpPorts[1]}/rest-api/greetings?&url=${standAloneBillingUrl}"
+    final request = new Request.Builder().url(upstreamUrl).get().build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    response.successful
+    waitForTraceCount(3)
+
+    and: 'No upstream ASM events'
+    def upstreamTrace = getServiceTrace(APM_ENABLED_SERVICE_NAME)
+    isSampledBySampler (upstreamTrace)
+    !hasAppsecPropagationTag (upstreamTrace)
+    !hasApmDisabledTag (upstreamTrace)
+    def upstreamTraceId = getServiceTrace(APM_ENABLED_SERVICE_NAME).spans[0].traceId
+
+    and: 'ASM events, resulting in force keep and appsec propagation'
+    def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
+    checkRootSpanPrioritySampling(standAloneBillingTrace, PrioritySampling.USER_KEEP)
+    hasAppsecPropagationTag (standAloneBillingTrace)
+    hasApmDisabledTag (standAloneBillingTrace)
+    def standAloneBillingTraceId = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME).spans[0].traceId
+    upstreamTraceId == standAloneBillingTraceId //There is propagation
+
+    and: 'Default APM distributed tracing behavior with'
+    def downstreamTrace = getServiceTrace(ASM_ENABLED_SERVICE_NAME)
+    checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.USER_KEEP)
+    hasAppsecPropagationTag (downstreamTrace)
+    !hasApmDisabledTag (downstreamTrace)
+    def downstreamTraceId = getServiceTrace(ASM_ENABLED_SERVICE_NAME).spans[0].traceId
+    standAloneBillingTraceId == downstreamTraceId //There is propagation
+  }
+
 
 
 }
