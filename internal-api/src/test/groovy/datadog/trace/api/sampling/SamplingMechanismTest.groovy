@@ -72,8 +72,8 @@ class SamplingMechanismTest extends Specification {
     REMOTE_USER_RATE  | userKeepX    | false
 
     APPSEC            | UNSET        | false
-    APPSEC            | SAMPLER_DROP | false
-    APPSEC            | SAMPLER_KEEP | false
+    APPSEC            | SAMPLER_DROP | true
+    APPSEC            | SAMPLER_KEEP | true
     APPSEC            | USER_DROP    | false
     APPSEC            | USER_KEEP    | true
     APPSEC            | userDropX    | false
