@@ -37,7 +37,7 @@ public class JUnit5CucumberItrInstrumentation extends InstrumenterModule.CiVisib
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityItrEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
   }
 
   @Override

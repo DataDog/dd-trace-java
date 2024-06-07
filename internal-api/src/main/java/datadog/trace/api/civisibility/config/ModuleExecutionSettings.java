@@ -14,6 +14,7 @@ public class ModuleExecutionSettings {
           false,
           false,
           false,
+          false,
           EarlyFlakeDetectionSettings.DEFAULT,
           Collections.emptyMap(),
           null,
@@ -22,8 +23,9 @@ public class ModuleExecutionSettings {
           null,
           Collections.emptyList());
 
-  private final boolean codeCoverageEnabled;
   private final boolean itrEnabled;
+  private final boolean codeCoverageEnabled;
+  private final boolean testSkippingEnabled;
   private final boolean flakyTestRetriesEnabled;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final Map<String, String> systemProperties;
@@ -34,8 +36,9 @@ public class ModuleExecutionSettings {
   private final List<String> coverageEnabledPackages;
 
   public ModuleExecutionSettings(
-      boolean codeCoverageEnabled,
       boolean itrEnabled,
+      boolean codeCoverageEnabled,
+      boolean testSkippingEnabled,
       boolean flakyTestRetriesEnabled,
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       Map<String, String> systemProperties,
@@ -44,8 +47,9 @@ public class ModuleExecutionSettings {
       Collection<TestIdentifier> flakyTests,
       Map<String, Collection<TestIdentifier>> knownTestsByModule,
       List<String> coverageEnabledPackages) {
-    this.codeCoverageEnabled = codeCoverageEnabled;
     this.itrEnabled = itrEnabled;
+    this.codeCoverageEnabled = codeCoverageEnabled;
+    this.testSkippingEnabled = testSkippingEnabled;
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.systemProperties = systemProperties;
@@ -56,12 +60,20 @@ public class ModuleExecutionSettings {
     this.coverageEnabledPackages = coverageEnabledPackages;
   }
 
+  /**
+   * @return {@code true} if ITR is enabled. Enabled ITR does not necessarily imply test skipping:
+   *     for an excluded branch ITR will be enabled, but not skipping.
+   */
+  public boolean isItrEnabled() {
+    return itrEnabled;
+  }
+
   public boolean isCodeCoverageEnabled() {
     return codeCoverageEnabled;
   }
 
-  public boolean isItrEnabled() {
-    return itrEnabled;
+  public boolean isTestSkippingEnabled() {
+    return testSkippingEnabled;
   }
 
   public boolean isFlakyTestRetriesEnabled() {
@@ -128,8 +140,9 @@ public class ModuleExecutionSettings {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ModuleExecutionSettings that = (ModuleExecutionSettings) o;
-    return codeCoverageEnabled == that.codeCoverageEnabled
-        && itrEnabled == that.itrEnabled
+    return itrEnabled == that.itrEnabled
+        && codeCoverageEnabled == that.codeCoverageEnabled
+        && testSkippingEnabled == that.testSkippingEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
         && Objects.equals(systemProperties, that.systemProperties)
         && Objects.equals(itrCorrelationId, that.itrCorrelationId)
@@ -142,8 +155,9 @@ public class ModuleExecutionSettings {
   @Override
   public int hashCode() {
     return Objects.hash(
-        codeCoverageEnabled,
         itrEnabled,
+        codeCoverageEnabled,
+        testSkippingEnabled,
         earlyFlakeDetectionSettings,
         systemProperties,
         itrCorrelationId,

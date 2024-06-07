@@ -38,7 +38,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final InstrumentationType instrumentationType;
   private final TestFrameworkInstrumentation instrumentation;
   private final Config config;
-  CiVisibilityMetricCollector metricCollector;
+  private final CiVisibilityMetricCollector metricCollector;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
@@ -189,6 +189,14 @@ public class TestSuiteImpl implements DDTestSuite {
   @Override
   public TestImpl testStart(
       String testName, @Nullable Method testMethod, @Nullable Long startTime) {
+    return testStart(testName, null, testMethod, startTime);
+  }
+
+  public TestImpl testStart(
+      String testName,
+      @Nullable String testParameters,
+      @Nullable Method testMethod,
+      @Nullable Long startTime) {
     return new TestImpl(
         sessionId,
         moduleId,
@@ -196,6 +204,7 @@ public class TestSuiteImpl implements DDTestSuite {
         moduleName,
         testSuiteName,
         testName,
+        testParameters,
         itrCorrelationId,
         startTime,
         testClass,

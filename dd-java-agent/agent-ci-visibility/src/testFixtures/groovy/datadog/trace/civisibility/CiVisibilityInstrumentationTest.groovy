@@ -99,7 +99,9 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED)          : String.valueOf(flakyRetryEnabled),
         (CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED): String.valueOf(earlyFlakinessDetectionEnabled)
       ]
-      return new ModuleExecutionSettings(false,
+      return new ModuleExecutionSettings(
+      itrEnabled,
+      false,
       itrEnabled,
       flakyRetryEnabled,
       earlyFlakinessDetectionEnabled

@@ -31,6 +31,7 @@ class MockBackend implements AutoCloseable {
   private final Collection<Map<String, Object>> skippableTests = new CopyOnWriteArrayList<>()
   private final Collection<Map<String, Object>> flakyTests = new CopyOnWriteArrayList<>()
 
+  private boolean itrEnabled = true
   private boolean codeCoverageEnabled = true
 
   private boolean testsSkippingEnabled = true
@@ -100,10 +101,18 @@ class MockBackend implements AutoCloseable {
         // it may choose to compress the response or not based on its size,
         // so smaller responses (like those of /setting endpoint) are uncompressed,
         // while the larger ones (skippable and flaky test lists) are compressed
-        response.status(200).send(('{ "data": { "type": "ci_app_tracers_test_service_settings", "id": "uuid", "attributes": { '
-          + '"code_coverage": ' + codeCoverageEnabled
-          + ', "tests_skipping": ' + testsSkippingEnabled
-          + ', "flaky_test_retries_enabled": ' + flakyRetriesEnabled +  '} } }').bytes)
+        response.status(200).send(("""{
+          "data": {
+            "type": "ci_app_tracers_test_service_settings", 
+            "id": "uuid", 
+            "attributes": {
+              "itr_enabled": $itrEnabled,
+              "code_coverage": $codeCoverageEnabled,
+              "tests_skipping": $testsSkippingEnabled,
+              "flaky_test_retries_enabled": $flakyRetriesEnabled
+            }
+          }
+        }""").bytes)
       }
 
       prefix("/api/v2/ci/tests/skippable") {

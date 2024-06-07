@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage;
 
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
@@ -178,7 +179,8 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
     }
 
     @Override
-    public CoverageProbeStore create(SourcePathResolver sourcePathResolver) {
+    public CoverageProbeStore create(
+        TestIdentifier testIdentifier, SourcePathResolver sourcePathResolver) {
       return new SegmentlessTestProbes(sourcePathResolver, metricCollector);
     }
   }
