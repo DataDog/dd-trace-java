@@ -63,8 +63,8 @@ class W3cPropagatorTracestateTest extends AgentTestRunner {
     where:
     tracestate            |expect
     "foo=1,bar=2"         |"dd=s:0;t.tid:1111111111111111"
-    "dd=s:0,foo=1,bar=2"  |"dd=s:0;p:0000000000000000;t.tid:1111111111111111"
-    "foo=1,dd=s:0,bar=2"  |"dd=s:0;p:0000000000000000;t.tid:1111111111111111"
-    "dd=s:3"              |"dd=s:0;p:0000000000000000;t.tid:1111111111111111"
+    "dd=s:0,foo=1,bar=2"  |"dd=s:0;t.tid:1111111111111111"
+    "foo=1,dd=s:0,bar=2"  |"dd=s:0;t.tid:1111111111111111"
+    "dd=s:3"              |"dd=s:0;t.tid:1111111111111111"
   }
 }

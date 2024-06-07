@@ -36,7 +36,7 @@ class DDSpanLinkTest extends DDCoreSpecification {
     setup:
     def traceId = "11223344556677889900aabbccddeeff"
     def spanId = "123456789abcdef0"
-    def traceState = "dd=s:$sample;o:some;p:0000000000000000;t.dm:-4"
+    def traceState = "dd=s:$sample;o:some;t.dm:-4"
     Map<String, String> headers = [
       (TRACE_PARENT_KEY.toUpperCase()): "00-$traceId-$spanId-$traceFlags",
       (TRACE_STATE_KEY.toUpperCase()) : "$traceState"

@@ -26,6 +26,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
   private static final int MAX_MEMBER_COUNT = 32;
+  private static final String LAST_PARENT_ZERO = "0000000000000000";
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -94,7 +95,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
     int maxUnknownSize = 0;
-    CharSequence lastParentId = "0000000000000000";
+    CharSequence lastParentId = LAST_PARENT_ZERO;
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -237,7 +238,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     }
     // append last ParentId (p)
     CharSequence lastParent = ptags.getLastParentId();
-    if (lastParent != null) {
+    if (lastParent != null && !lastParent.equals(LAST_PARENT_ZERO)) {
       if (sb.length() > EMPTY_SIZE) {
         sb.append(';');
       }
