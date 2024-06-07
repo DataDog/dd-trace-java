@@ -24,9 +24,6 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       Collections.singleton(
           "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle");
 
-  private static final Set<String> UNSUPPORTED_METHODS =
-      Collections.singleton("getMuzzleReferences");
-
   public OtelInstrumentationMapper(ClassVisitor classVisitor) {
     super(classVisitor, Renamer.INSTANCE);
   }
@@ -45,15 +42,6 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       String superName,
       String[] interfaces) {
     super.visit(version, access, name, signature, superName, removeUnsupportedTypes(interfaces));
-  }
-
-  @Override
-  public MethodVisitor visitMethod(
-      int access, String name, String descriptor, String signature, String[] exceptions) {
-    if (UNSUPPORTED_METHODS.contains(name)) {
-      return null; // remove unsupported method
-    }
-    return super.visitMethod(access, name, descriptor, signature, exceptions);
   }
 
   private String[] removeUnsupportedTypes(String[] interfaces) {
