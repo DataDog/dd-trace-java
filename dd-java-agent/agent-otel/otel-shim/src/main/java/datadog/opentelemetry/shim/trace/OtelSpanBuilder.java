@@ -1,6 +1,7 @@
 package datadog.opentelemetry.shim.trace;
 
 import static datadog.opentelemetry.shim.trace.OtelConventions.ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES;
+import static datadog.opentelemetry.shim.trace.OtelConventions.HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE;
 import static datadog.opentelemetry.shim.trace.OtelConventions.OPERATION_NAME_SPECIFIC_ATTRIBUTE;
 import static datadog.opentelemetry.shim.trace.OtelConventions.toSpanKindTagValue;
 import static datadog.opentelemetry.shim.trace.OtelExtractedContext.extract;
@@ -40,12 +41,19 @@ public class OtelSpanBuilder implements SpanBuilder {
    * set).
    */
   private int overriddenAnalyticsSampleRate;
+  /**
+   * HTTP status code overridden value by {@link
+   * OtelConventions#HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE} reserved attribute ({@code -1} if not
+   * set).
+   */
+  private int overriddenHttpStatusCode;
 
   public OtelSpanBuilder(AgentTracer.SpanBuilder delegate) {
     this.delegate = delegate;
     this.spanKindSet = false;
     this.overriddenOperationName = null;
     this.overriddenAnalyticsSampleRate = -1;
+    this.overriddenHttpStatusCode = -1;
   }
 
   @Override
@@ -98,6 +106,11 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public SpanBuilder setAttribute(String key, long value) {
+    // Check reserved attributes
+    if (HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE.equals(key)) {
+      this.overriddenHttpStatusCode = (int) value;
+      return this;
+    }
     this.delegate.withTag(key, value);
     return this;
   }
@@ -121,7 +134,28 @@ public class OtelSpanBuilder implements SpanBuilder {
 
   @Override
   public <T> SpanBuilder setAttribute(AttributeKey<T> key, T value) {
+    String name = key.getKey();
     switch (key.getType()) {
+      case STRING:
+        if (value instanceof String) {
+          setAttribute(name, (String) value);
+          break;
+        }
+      case BOOLEAN:
+        if (value instanceof Boolean) {
+          setAttribute(name, ((Boolean) value).booleanValue());
+          break;
+        }
+      case LONG:
+        if (value instanceof Number) {
+          setAttribute(name, ((Number) value).longValue());
+          break;
+        }
+      case DOUBLE:
+        if (value instanceof Number) {
+          setAttribute(name, ((Number) value).doubleValue());
+          break;
+        }
       case STRING_ARRAY:
       case BOOLEAN_ARRAY:
       case LONG_ARRAY:
@@ -130,16 +164,16 @@ public class OtelSpanBuilder implements SpanBuilder {
           List<?> valueList = (List<?>) value;
           if (valueList.isEmpty()) {
             // Store as object to prevent delegate to remove tag when value is empty
-            this.delegate.withTag(key.getKey(), (Object) "");
+            this.delegate.withTag(name, (Object) "");
           } else {
             for (int index = 0; index < valueList.size(); index++) {
-              this.delegate.withTag(key.getKey() + "." + index, valueList.get(index));
+              this.delegate.withTag(name + "." + index, valueList.get(index));
             }
           }
         }
         break;
       default:
-        this.delegate.withTag(key.getKey(), value);
+        this.delegate.withTag(name, value);
         break;
     }
     return this;
@@ -180,6 +214,9 @@ public class OtelSpanBuilder implements SpanBuilder {
     }
     if (this.overriddenAnalyticsSampleRate != -1) {
       delegate.setMetric(ANALYTICS_SAMPLE_RATE, this.overriddenAnalyticsSampleRate);
+    }
+    if (this.overriddenHttpStatusCode != -1) {
+      delegate.setHttpStatusCode(this.overriddenHttpStatusCode);
     }
     return new OtelSpan(delegate);
   }

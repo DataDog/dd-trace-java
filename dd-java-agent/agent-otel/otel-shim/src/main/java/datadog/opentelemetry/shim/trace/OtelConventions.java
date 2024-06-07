@@ -26,6 +26,8 @@ public final class OtelConventions {
   static final String SPAN_KIND_INTERNAL = "internal";
   static final String OPERATION_NAME_SPECIFIC_ATTRIBUTE = "operation.name";
   static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
+  static final String HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE = "http.response.status_code";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
 
   private OtelConventions() {}
@@ -102,6 +104,11 @@ public final class OtelConventions {
       case BOOLEAN:
         if (ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES.equals(name) && value instanceof Boolean) {
           span.setMetric(ANALYTICS_SAMPLE_RATE, ((Boolean) value) ? 1 : 0);
+          return true;
+        }
+      case LONG:
+        if (HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE.equals(name) && value instanceof Number) {
+          span.setHttpStatusCode(((Number) value).intValue());
           return true;
         }
     }
