@@ -88,6 +88,30 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           "io/opentelemetry/javaagent/shaded/instrumentation/api/util/VirtualField",
           Type.getInternalName(ContextStore.class));
       RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder",
+          Type.getInternalName(OtelMuzzleRefBuilder.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/ClassRef",
+          Type.getInternalName(OtelMuzzleRefBuilder.ClassRef.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$VisibilityFlag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$MinimumVisibilityFlag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$ManifestationFlag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$OwnershipFlag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Source",
+          Type.getInternalName(OtelMuzzleRefBuilder.Source.class));
+      RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/bootstrap/Java8BytecodeBridge",
           "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
     }
