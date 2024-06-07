@@ -142,6 +142,7 @@ public class DDSpanContext
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
   private volatile boolean requiresPostProcessing;
+  private volatile CharSequence lastParentId;
   private final boolean isRemote;
 
   /**
@@ -373,6 +374,7 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    setLastParentId(this.propagationTags.getLastParentId());
     this.isRemote = isRemote;
   }
 
@@ -1013,6 +1015,19 @@ public class DDSpanContext
 
   public boolean isRequiresPostProcessing() {
     return requiresPostProcessing;
+  }
+
+  public CharSequence getLastParentId() {
+    return lastParentId;
+  }
+
+  public void setLastParentId(CharSequence lastParentId) {
+    if (lastParentId != null) {
+      synchronized (unsafeTags) {
+        unsafeSetTag("_dd.parent_id", lastParentId);
+      }
+      this.lastParentId = lastParentId;
+    }
   }
 
   public boolean isRemote() {
