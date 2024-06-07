@@ -231,7 +231,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateLastParentId(CharSequence lastParentId) {
-      lastParentId = lastParentId == "0000000000000000" ? null : lastParentId;
+      lastParentId = "0000000000000000".equals(lastParentId) ? null : lastParentId;
       if (!Objects.equals(this.lastParentId, lastParentId)) {
         clearCachedHeader(W3C);
         this.lastParentId = TagValue.from(lastParentId);
