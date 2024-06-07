@@ -966,6 +966,12 @@ public class Config {
 
   private final boolean telemetryDebugRequestsEnabled;
 
+  private final boolean agentlessLogSubmissionEnabled;
+  private final int agentlessLogSubmissionQueueSize;
+  private final String agentlessLogSubmissionLevel;
+  private final String agentlessLogSubmissionUrl;
+  private final String agentlessLogSubmissionProduct;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -2134,6 +2140,16 @@ public class Config {
         configProvider.getBoolean(
             GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
             ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+
+    this.agentlessLogSubmissionEnabled =
+        configProvider.getBoolean(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+    this.agentlessLogSubmissionQueueSize =
+        configProvider.getInteger(GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
+    this.agentlessLogSubmissionLevel =
+        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
+    this.agentlessLogSubmissionUrl =
+        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
+    this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -3994,6 +4010,26 @@ public class Config {
 
   public boolean isTelemetryDebugRequestsEnabled() {
     return telemetryDebugRequestsEnabled;
+  }
+
+  public boolean isAgentlessLogSubmissionEnabled() {
+    return agentlessLogSubmissionEnabled;
+  }
+
+  public int getAgentlessLogSubmissionQueueSize() {
+    return agentlessLogSubmissionQueueSize;
+  }
+
+  public String getAgentlessLogSubmissionLevel() {
+    return agentlessLogSubmissionLevel;
+  }
+
+  public String getAgentlessLogSubmissionUrl() {
+    return agentlessLogSubmissionUrl;
+  }
+
+  public String getAgentlessLogSubmissionProduct() {
+    return agentlessLogSubmissionProduct;
   }
 
   public Boolean getAppSecScaEnabled() {

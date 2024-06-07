@@ -123,6 +123,7 @@ dependencies {
   floggerSlf4jBackend 'com.google.flogger:flogger-slf4j-backend:0.5.1'
 
   testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:backend-mock')
 }
 
 def generateTestingJar(String interfaceName, String backend, List<Configuration> configurationsList) {

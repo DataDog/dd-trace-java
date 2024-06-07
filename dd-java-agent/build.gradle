@@ -115,6 +115,7 @@ includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 includeSubprojShadowJar ':dd-java-agent:agent-iast', 'iast'
 includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
 includeSubprojShadowJar ':dd-java-agent:agent-ci-visibility', 'ci-visibility'
+includeSubprojShadowJar ':dd-java-agent:agent-logs-intake', 'logs-intake'
 if (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) {
   includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'
 }
