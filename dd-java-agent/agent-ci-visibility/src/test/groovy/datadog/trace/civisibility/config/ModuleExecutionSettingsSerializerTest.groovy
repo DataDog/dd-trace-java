@@ -17,8 +17,8 @@ class ModuleExecutionSettingsSerializerTest extends Specification {
 
     where:
     settings << [
-      new ModuleExecutionSettings(false, false, false, EarlyFlakeDetectionSettings.DEFAULT, [:], null, [:], null, [:], []),
-      new ModuleExecutionSettings(true, false, true,
+      new ModuleExecutionSettings(false, false, false, false, EarlyFlakeDetectionSettings.DEFAULT, [:], null, [:], null, [:], []),
+      new ModuleExecutionSettings(true, true, false, true,
       new EarlyFlakeDetectionSettings(true, [], 10),
       ["a": "b", "propName": "propValue"],
       "",
@@ -26,7 +26,7 @@ class ModuleExecutionSettingsSerializerTest extends Specification {
       [new TestIdentifier("suite", "name", null, null)],
       ["bundle": [new TestIdentifier("a", "b", "c", null)]],
       ["a", "bcde", "f", "ghhi"]),
-      new ModuleExecutionSettings(false, true, false,
+      new ModuleExecutionSettings(false, false, true, false,
       new EarlyFlakeDetectionSettings(true, [new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20)], 10),
       ["a": "b", "propName": "propValue"],
       "itrCorrelationId",
@@ -34,7 +34,7 @@ class ModuleExecutionSettingsSerializerTest extends Specification {
       [new TestIdentifier("suite", "name", null, null), new TestIdentifier("a", "b", "c", null)],
       ["bundle": [new TestIdentifier("a", "b", "c", null), new TestIdentifier("aa", "bb", "cc", null)]],
       ["a", "bcde", "f", "ghhi"]),
-      new ModuleExecutionSettings(true, true, true,
+      new ModuleExecutionSettings(true, true, true, true,
       new EarlyFlakeDetectionSettings(true, [
         new EarlyFlakeDetectionSettings.ExecutionsByDuration(10, 20),
         new EarlyFlakeDetectionSettings.ExecutionsByDuration(30, 40)

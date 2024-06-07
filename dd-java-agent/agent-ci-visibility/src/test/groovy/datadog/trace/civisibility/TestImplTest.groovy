@@ -123,6 +123,7 @@ class TestImplTest extends DDSpecification {
       "moduleName",
       "suiteName",
       "testName",
+      "testParameters",
       null,
       null,
       null,

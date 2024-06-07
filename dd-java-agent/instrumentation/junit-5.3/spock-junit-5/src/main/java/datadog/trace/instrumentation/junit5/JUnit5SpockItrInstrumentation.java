@@ -38,7 +38,7 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityItrEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
   }
 
   @Override
@@ -117,7 +117,7 @@ public class JUnit5SpockItrInstrumentation extends InstrumenterModule.CiVisibili
 
           TestIdentifier featureIdentifier = SpockUtils.toTestIdentifier(feature);
           if (featureIdentifier == null
-              || !TestEventsHandlerHolder.TEST_EVENTS_HANDLER.isSkippable(featureIdentifier)) {
+              || !TestEventsHandlerHolder.TEST_EVENTS_HANDLER.shouldBeSkipped(featureIdentifier)) {
             return;
           }
         }

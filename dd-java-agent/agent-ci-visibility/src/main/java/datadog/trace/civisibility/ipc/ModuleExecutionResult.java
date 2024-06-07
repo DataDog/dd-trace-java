@@ -9,14 +9,14 @@ import javax.annotation.Nullable;
 public class ModuleExecutionResult implements Signal {
 
   private static final int COVERAGE_ENABLED_FLAG = 1;
-  private static final int ITR_ENABLED_FLAG = 2;
+  private static final int TEST_SKIPPING_ENABLED_FLAG = 2;
   private static final int EARLY_FLAKE_DETECTION_ENABLED_FLAG = 4;
   private static final int EARLY_FLAKE_DETECTION_FAULTY_FLAG = 8;
 
   private final long sessionId;
   private final long moduleId;
   private final boolean coverageEnabled;
-  private final boolean itrEnabled;
+  private final boolean testSkippingEnabled;
   private final boolean earlyFlakeDetectionEnabled;
   private final boolean earlyFlakeDetectionFaulty;
   private final long testsSkippedTotal;
@@ -27,7 +27,7 @@ public class ModuleExecutionResult implements Signal {
       long sessionId,
       long moduleId,
       boolean coverageEnabled,
-      boolean itrEnabled,
+      boolean testSkippingEnabled,
       boolean earlyFlakeDetectionEnabled,
       boolean earlyFlakeDetectionFaulty,
       long testsSkippedTotal,
@@ -36,7 +36,7 @@ public class ModuleExecutionResult implements Signal {
     this.sessionId = sessionId;
     this.moduleId = moduleId;
     this.coverageEnabled = coverageEnabled;
-    this.itrEnabled = itrEnabled;
+    this.testSkippingEnabled = testSkippingEnabled;
     this.earlyFlakeDetectionEnabled = earlyFlakeDetectionEnabled;
     this.earlyFlakeDetectionFaulty = earlyFlakeDetectionFaulty;
     this.testsSkippedTotal = testsSkippedTotal;
@@ -56,8 +56,8 @@ public class ModuleExecutionResult implements Signal {
     return coverageEnabled;
   }
 
-  public boolean isItrEnabled() {
-    return itrEnabled;
+  public boolean isTestSkippingEnabled() {
+    return testSkippingEnabled;
   }
 
   public boolean isEarlyFlakeDetectionEnabled() {
@@ -93,7 +93,7 @@ public class ModuleExecutionResult implements Signal {
     return sessionId == that.sessionId
         && moduleId == that.moduleId
         && coverageEnabled == that.coverageEnabled
-        && itrEnabled == that.itrEnabled
+        && testSkippingEnabled == that.testSkippingEnabled
         && testsSkippedTotal == that.testsSkippedTotal
         && Objects.equals(testFrameworks, that.testFrameworks)
         && Arrays.equals(coverageData, that.coverageData);
@@ -105,7 +105,7 @@ public class ModuleExecutionResult implements Signal {
         sessionId,
         moduleId,
         coverageEnabled,
-        itrEnabled,
+        testSkippingEnabled,
         testsSkippedTotal,
         testFrameworks,
         Arrays.hashCode(coverageData));
@@ -120,8 +120,8 @@ public class ModuleExecutionResult implements Signal {
         + moduleId
         + ", coverageEnabled="
         + coverageEnabled
-        + ", itrEnabled="
-        + itrEnabled
+        + ", testSkippingEnabled="
+        + testSkippingEnabled
         + ", itrTestsSkipped="
         + testsSkippedTotal
         + '}';
@@ -142,8 +142,8 @@ public class ModuleExecutionResult implements Signal {
     if (coverageEnabled) {
       flags |= COVERAGE_ENABLED_FLAG;
     }
-    if (itrEnabled) {
-      flags |= ITR_ENABLED_FLAG;
+    if (testSkippingEnabled) {
+      flags |= TEST_SKIPPING_ENABLED_FLAG;
     }
     if (earlyFlakeDetectionEnabled) {
       flags |= EARLY_FLAKE_DETECTION_ENABLED_FLAG;
@@ -166,7 +166,7 @@ public class ModuleExecutionResult implements Signal {
 
     int flags = Serializer.readByte(buffer);
     boolean coverageEnabled = (flags & COVERAGE_ENABLED_FLAG) != 0;
-    boolean itrEnabled = (flags & ITR_ENABLED_FLAG) != 0;
+    boolean testSkippingEnabled = (flags & TEST_SKIPPING_ENABLED_FLAG) != 0;
     boolean earlyFlakeDetectionEnabled = (flags & EARLY_FLAKE_DETECTION_ENABLED_FLAG) != 0;
     boolean earlyFlakeDetectionFaulty = (flags & EARLY_FLAKE_DETECTION_FAULTY_FLAG) != 0;
 
@@ -179,7 +179,7 @@ public class ModuleExecutionResult implements Signal {
         sessionId,
         moduleId,
         coverageEnabled,
-        itrEnabled,
+        testSkippingEnabled,
         earlyFlakeDetectionEnabled,
         earlyFlakeDetectionFaulty,
         testsSkippedTotal,

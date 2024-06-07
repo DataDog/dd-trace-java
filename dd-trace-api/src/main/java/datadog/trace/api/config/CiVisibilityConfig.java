@@ -41,6 +41,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS =
       "civisibility.signal.client.timeout.millis";
   public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
+  public static final String CIVISIBILITY_TEST_SKIPPING_ENABLED =
+      "civisibility.test.skipping.enabled";
   public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
       "civisibility.ciprovider.integration.enabled";
   public static final String CIVISIBILITY_REPO_INDEX_SHARING_ENABLED =
