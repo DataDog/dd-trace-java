@@ -2262,10 +2262,6 @@ public class Config {
     return instrumenterConfig.isTraceEnabled();
   }
 
-  public boolean areTracingDependantProductsEnabled() {
-    return instrumenterConfig.areTracingDependantProductsEnabled();
-  }
-
   public boolean isLongRunningTraceEnabled() {
     return longRunningTraceEnabled;
   }
@@ -3606,7 +3602,7 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    if (areTracingDependantProductsEnabled() || isExperimentalAppSecStandaloneEnabled()) {
+    if (isExperimentalAppSecStandaloneEnabled()) {
       result.put(APM_ENABLED, 0);
     }
 
