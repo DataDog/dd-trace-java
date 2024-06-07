@@ -63,6 +63,8 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
     private static final String OTEL_JAVAAGENT_SHADED_PREFIX =
         "io/opentelemetry/javaagent/shaded/io/opentelemetry/";
 
+    private static final String ASM_PREFIX = "org/objectweb/asm/";
+
     /** Datadog equivalent of OpenTelemetry instrumentation classes. */
     private static final Map<String, String> RENAMED_TYPES = new HashMap<>();
 
@@ -100,6 +102,10 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       if (internalName.startsWith(OTEL_JAVAAGENT_SHADED_PREFIX)) {
         return "datadog/trace/bootstrap/otel/"
             + internalName.substring(OTEL_JAVAAGENT_SHADED_PREFIX.length());
+      }
+      // map unshaded ASM types to the shaded copy in byte-buddy
+      if (internalName.startsWith(ASM_PREFIX)) {
+        return "net/bytebuddy/jar/asm/" + internalName.substring(ASM_PREFIX.length());
       }
       return MAP_LOGGING.apply(internalName);
     }
