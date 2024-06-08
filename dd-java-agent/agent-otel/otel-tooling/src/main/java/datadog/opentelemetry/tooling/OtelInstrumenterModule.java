@@ -40,8 +40,17 @@ public abstract class OtelInstrumenterModule extends InstrumenterModule.Tracing 
     return namespaced;
   }
 
+  private volatile String[] helperClassNames;
+
   @Override
   public String[] helperClassNames() {
+    if (null == helperClassNames) {
+      helperClassNames = buildHelperClassNames();
+    }
+    return helperClassNames;
+  }
+
+  private String[] buildHelperClassNames() {
     List<String> helperClassNames;
     List<String> additionalClassNames = getAdditionalHelperClassNames();
     if (additionalClassNames.isEmpty()) {
@@ -93,13 +102,17 @@ public abstract class OtelInstrumenterModule extends InstrumenterModule.Tracing 
   @Override
   public ReferenceProvider runtimeMuzzleReferences() {
     return new ReferenceProvider() {
-      private Iterable<Reference> muzzleReferences;
+      private volatile Iterable<Reference> muzzleReferences;
 
       @Override
       @SuppressWarnings({"unchecked", "rawtypes"})
       public Iterable<Reference> buildReferences(TypePool ignored) {
         if (null == muzzleReferences) {
-          muzzleReferences = (Iterable) getMuzzleReferences().values();
+          Map<String, ClassRef> muzzleMap = getMuzzleReferences();
+          for (String helper : helperClassNames()) {
+            muzzleMap.remove(helper);
+          }
+          muzzleReferences = (Iterable) muzzleMap.values();
         }
         return muzzleReferences;
       }
