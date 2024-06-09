@@ -34,6 +34,7 @@ spotbugs {
 dependencies {
   // latest OpenTelemetry API for drop-in support; instrumented at build-time with our shim
   embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.39.0'
+  embeddedClasspath group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-api', version: '2.4.0'
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
@@ -57,6 +58,10 @@ shadowJar {
   dependencies deps.excludeShared
 
   exclude 'io/opentelemetry/context/internal/shaded/**'
+  exclude 'io/opentelemetry/instrumentation/api/internal/cache/**'
+  exclude 'io/opentelemetry/instrumentation/api/internal/RuntimeVirtualFieldSupplier*'
+  exclude 'io/opentelemetry/instrumentation/api/util/VirtualField*'
+  exclude 'io/opentelemetry/**/package-info.class'
 
   relocate 'io.opentelemetry', 'datadog.trace.bootstrap.otel'
   relocate 'datadog.opentelemetry.shim', 'datadog.trace.bootstrap.otel.shim'

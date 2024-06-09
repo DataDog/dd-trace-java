@@ -120,6 +120,10 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
 
       RENAMED_PACKAGES.put("io/opentelemetry/api/", "datadog/trace/bootstrap/otel/api/");
       RENAMED_PACKAGES.put("io/opentelemetry/context/", "datadog/trace/bootstrap/otel/context/");
+      RENAMED_PACKAGES.put("io/opentelemetry/semconv/", "datadog/trace/bootstrap/otel/semconv/");
+
+      RENAMED_PACKAGES.put(
+          "io/opentelemetry/instrumentation/", "datadog/trace/bootstrap/otel/instrumentation/");
 
       RENAMED_PACKAGES.put("org/objectweb/asm/", "net/bytebuddy/jar/asm/");
     }
