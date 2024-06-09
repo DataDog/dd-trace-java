@@ -33,7 +33,7 @@ spotbugs {
 
 dependencies {
   // latest OpenTelemetry API for drop-in support; instrumented at build-time with our shim
-  embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.38.0'
+  embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.39.0'
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
