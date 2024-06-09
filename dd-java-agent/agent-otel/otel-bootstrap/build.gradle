@@ -2,6 +2,10 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
+def openTelemetryApiVersion = '1.39.0'
+def openTelemetryInstrumentationApiVersion = '2.4.0'
+def openTelemetryInstrumentationVersion = '2.4.0-alpha'
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'instrument'
 
@@ -33,8 +37,15 @@ spotbugs {
 
 dependencies {
   // latest OpenTelemetry API for drop-in support; instrumented at build-time with our shim
-  embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.39.0'
-  embeddedClasspath group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-api', version: '2.4.0'
+  embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryApiVersion
+  embeddedClasspath group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-api', version: openTelemetryInstrumentationApiVersion
+
+  // selected bootstrap types shared across multiple OpenTelemetry instrumentations
+  embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-executors-bootstrap', version: openTelemetryInstrumentationVersion
+  embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-jaxrs-common-bootstrap', version: openTelemetryInstrumentationVersion
+  embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-jdbc-bootstrap', version: openTelemetryInstrumentationVersion
+  embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-jms-common-bootstrap', version: openTelemetryInstrumentationVersion
+  embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-servlet-common-bootstrap', version: openTelemetryInstrumentationVersion
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
@@ -61,10 +72,12 @@ shadowJar {
   exclude 'io/opentelemetry/instrumentation/api/internal/cache/**'
   exclude 'io/opentelemetry/instrumentation/api/internal/RuntimeVirtualFieldSupplier*'
   exclude 'io/opentelemetry/instrumentation/api/util/VirtualField*'
+  exclude 'io/opentelemetry/javaagent/bootstrap/jaxrs/ClassHierarchyIterable*'
   exclude 'io/opentelemetry/**/package-info.class'
 
-  relocate 'io.opentelemetry', 'datadog.trace.bootstrap.otel'
   relocate 'datadog.opentelemetry.shim', 'datadog.trace.bootstrap.otel.shim'
+  relocate 'io.opentelemetry.javaagent.bootstrap', 'datadog.trace.bootstrap.otel.instrumentation'
+  relocate 'io.opentelemetry', 'datadog.trace.bootstrap.otel'
 }
 
 jar {

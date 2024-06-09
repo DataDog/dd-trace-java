@@ -2,6 +2,7 @@ package datadog.opentelemetry.tooling;
 
 import static datadog.trace.agent.tooling.ExtensionHandler.MAP_LOGGING;
 
+import datadog.trace.agent.tooling.ClassHierarchyIterable;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import java.util.ArrayList;
@@ -107,6 +108,12 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           "io/opentelemetry/javaagent/tooling/muzzle/references/Source",
           Type.getInternalName(OtelMuzzleRefBuilder.Source.class));
       RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/bootstrap/jaxrs/ClassHierarchyIterable",
+          Type.getInternalName(ClassHierarchyIterable.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/bootstrap/jaxrs/ClassHierarchyIterable$ClassIterator",
+          Type.getInternalName(ClassHierarchyIterable.ClassIterator.class));
+      RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/bootstrap/Java8BytecodeBridge",
           "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
     }
@@ -124,6 +131,8 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
 
       RENAMED_PACKAGES.put(
           "io/opentelemetry/instrumentation/", "datadog/trace/bootstrap/otel/instrumentation/");
+      RENAMED_PACKAGES.put(
+          "io/opentelemetry/javaagent/bootstrap/", "datadog/trace/bootstrap/otel/instrumentation/");
 
       RENAMED_PACKAGES.put("org/objectweb/asm/", "net/bytebuddy/jar/asm/");
     }
