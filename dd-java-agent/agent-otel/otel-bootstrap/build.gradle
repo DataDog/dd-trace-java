@@ -47,6 +47,7 @@ dependencies {
   embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-jms-common-bootstrap', version: openTelemetryInstrumentationVersion
   embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-servlet-common-bootstrap', version: openTelemetryInstrumentationVersion
 
+  compileOnly project(':dd-java-agent:agent-bootstrap')
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
   instrumentPluginClasspath project(path: ':dd-java-agent:agent-otel:otel-tooling', configuration: 'instrumentPluginClasspath')
