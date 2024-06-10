@@ -92,7 +92,7 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     headerValue                            | expectedHeaderValue               | tags
     '_dd.p.dm=934086a686-4'                | 'dd=t.dm:934086a686-4'            | ['_dd.p.dm': '934086a686-4']
     '_dd.p.dm=934086a686-4,_dd.p.f=w00t==' | 'dd=t.dm:934086a686-4;t.f:w00t~~' | ['_dd.p.dm': '934086a686-4', '_dd.p.f': 'w00t==']
-    '_dd.p.appsec=1'                       | 'dd=t.appsec:1'                   | ['_dd.p.appsec': '1']
+    '_dd.p.dm=934086a686-4,_dd.p.appsec=1' | 'dd=t.dm:934086a686-4;t.appsec:1' | ['_dd.p.dm': '934086a686-4', '_dd.p.appsec': '1']
   }
 
   def "update propagation tags sampling mechanism #originalTagSet"() {
