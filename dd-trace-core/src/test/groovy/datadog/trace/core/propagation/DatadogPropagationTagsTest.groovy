@@ -154,9 +154,10 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     originalTagSet                         | enabled       | expectedHeaderValue   | tags
     // keep the existing dm tag as is
     "_dd.p.appsec=1"                       | true          | "_dd.p.appsec=1"      | ["_dd.p.appsec": "1"]
+    "_dd.p.appsec=0"                       | false         | null      | [:]
     ""                                     | false         | null                  | [:]
     //Invalid input
-    "_dd.p.appsec=0"                       | false         | null                  | ["_dd.propagation_error": "decoding_error"]
+    "_dd.p.appsec=foo"                       | false         | null                  | ["_dd.propagation_error": "decoding_error"]
   }
 
   def extractionLimitExceeded() {

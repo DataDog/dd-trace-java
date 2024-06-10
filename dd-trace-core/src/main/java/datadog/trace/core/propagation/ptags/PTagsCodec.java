@@ -214,7 +214,7 @@ abstract class PTagsCodec {
   }
 
   private static boolean validateAppsecTagValue(TagValue value) {
-    return value.length() == 1 && value.charAt(0) == '1';
+    return value.length() == 1 && (value.charAt(0) == '1' || value.charAt(0) == '0');
   }
 
   protected static boolean isDigit(char c) {
