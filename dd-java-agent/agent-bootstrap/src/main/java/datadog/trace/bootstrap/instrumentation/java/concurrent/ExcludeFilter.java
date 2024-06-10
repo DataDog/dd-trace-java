@@ -46,6 +46,10 @@ public class ExcludeFilter {
     return SKIP.get(instance.getClass()).contains(type);
   }
 
+  public static boolean exclude(ExcludeType type, Class<?> clazz) {
+    return SKIP.get(clazz).contains(type);
+  }
+
   public static boolean exclude(ExcludeType type, String className) {
     boolean literalMatch = excludedClassNames.get(type).contains(className);
     if (literalMatch) {
