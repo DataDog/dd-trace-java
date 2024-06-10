@@ -1,8 +1,8 @@
 package com.datadog.appsec.util;
 
 import com.datadog.appsec.event.data.Address;
+import com.datadog.appsec.powerwaf.PowerWAFResultData;
 import com.datadog.appsec.report.AppSecEvent;
-import com.datadog.appsec.report.Rule;
 import io.sqreen.powerwaf.Powerwaf;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
@@ -120,7 +120,7 @@ public class StandardizedLogging {
   /*
    * D4: Executing AppSec In-App WAF with parameters: <Parameters_passed_to_the_lib>
    *
-   * Not implemented: traversing the parameters may have side-effects. We could
+   * Not implemented: traversing the parameters may have side effects. We could
    * dump the parameters after the conversion, but the conversion happens inside
    * the binding, not on this module.
    */
@@ -133,18 +133,16 @@ public class StandardizedLogging {
   // D6, I5
   public static void attackDetected(Logger logger, AppSecEvent event) {
     String ruleId = "unknown rule";
-    Rule rule = event.getRule();
+    PowerWAFResultData.Rule rule = event.getRule();
     if (rule != null) {
-      String id = rule.getId();
-      if (id != null) {
-        ruleId = id;
-      }
+      ruleId = rule.id;
     }
 
     if (logger.isDebugEnabled()) {
       logger.info("Detecting an attack from rule {}", ruleId);
+    } else {
+      logger.debug("Detecting an attack from rule {}: {}", ruleId, event.getRuleMatches());
     }
-    logger.debug("Detecting an attack from rule {}: {}", ruleId, event.getRuleMatches());
   }
 
   /*

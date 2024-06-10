@@ -14,7 +14,7 @@ public class PowerWAFResultData {
   }
 
   public static class Rule {
-    String id;
+    public String id;
     String name;
     Map<String, String> tags;
   }
