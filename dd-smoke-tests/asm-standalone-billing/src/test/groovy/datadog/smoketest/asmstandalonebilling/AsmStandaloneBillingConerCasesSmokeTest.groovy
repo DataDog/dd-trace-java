@@ -90,5 +90,4 @@ class AsmStandaloneBillingConerCasesSmokeTest extends AbstractAsmStandaloneBilli
     checkRootSpanPrioritySampling(traces[0], PrioritySampling.USER_KEEP)
   }
 
-
 }
