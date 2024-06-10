@@ -11,9 +11,9 @@ include:
 stages:
   - build
   - package
-  - publish
-  - deploy
-  - release
+  - internal-publish
+  - test
+  - external-publish
   - benchmarks
   - exploration-tests
   - ci-visibility-tests
@@ -81,7 +81,7 @@ build_with_cache:
     policy: push
 
 deploy_to_profiling_backend:
-  stage: deploy
+  stage: internal-publish
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -104,7 +104,7 @@ deploy_to_profiling_backend:
     UPSTREAM_TAG: $CI_COMMIT_TAG
 
 deploy_to_di_backend:manual:
-  stage: deploy
+  stage: internal-publish
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -125,7 +125,7 @@ deploy_to_di_backend:manual:
 
 deploy_to_sonatype:
   <<: *gradle_build
-  stage: deploy
+  stage: external-publish
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
@@ -140,7 +140,7 @@ deploy_to_sonatype:
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository --max-workers=1 --build-cache --stacktrace --no-daemon
 
 deploy_artifacts_to_github:
-  stage: deploy
+  stage: external-publish
   image: registry.ddbuild.io/github-cli:v27480869-eafb11d-2.43.0
   tags: [ "arch:amd64" ]
   rules:
@@ -177,7 +177,7 @@ create_key:
 
 tracer-base-image-release:
   extends: .ci_authenticated_job
-  stage: deploy
+  stage: internal-publish
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -193,7 +193,7 @@ tracer-base-image-release:
 
 tracer-base-image-snapshot:
   extends: .ci_authenticated_job
-  stage: deploy
+  stage: internal-publish
   rules:
     - if: '$POPULATE_CACHE'
       when: never
