@@ -184,7 +184,8 @@ deploy_to_sonatype:
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
-    - if: '$CI_COMMIT_TAG =~ /^v.*/'
+    # Do not deploy release candidate versions
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
     - when: manual
       allow_failure: true
@@ -221,7 +222,7 @@ generate-lib-init-tag-values:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    # We don't tag prerelease versions
+    # Do not tag release candidate versions
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
     - when: manual
