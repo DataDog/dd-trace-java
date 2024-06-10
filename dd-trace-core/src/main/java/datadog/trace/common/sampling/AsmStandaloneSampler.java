@@ -16,7 +16,7 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
   public AsmStandaloneSampler(int rateInMilliseconds) {
     this.rateInMilliseconds = rateInMilliseconds;
-    this.lastSampleTime = new AtomicLong(-1);
+    this.lastSampleTime = new AtomicLong(System.currentTimeMillis() - rateInMilliseconds);
   }
 
   @Override
