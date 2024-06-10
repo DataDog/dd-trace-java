@@ -66,7 +66,6 @@ class AsmStandaloneBillingConerCasesSmokeTest extends AbstractAsmStandaloneBilli
     def asmTrace = getServiceTrace(ASM_ENABLED_SERVICE_NAME)
     checkRootSpanPrioritySampling(asmTrace, PrioritySampling.USER_KEEP)
     hasASMEvents(asmTrace)
-
   }
 
   void "Check that a malicious x-datadog-sampling-priority header can't drop traces with ASM events"() {
@@ -87,5 +86,4 @@ class AsmStandaloneBillingConerCasesSmokeTest extends AbstractAsmStandaloneBilli
     waitForTraceCount(1)
     checkRootSpanPrioritySampling(traces[0], PrioritySampling.USER_KEEP)
   }
-
 }

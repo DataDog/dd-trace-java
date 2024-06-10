@@ -481,6 +481,10 @@ public class PowerWAFModule implements AppSecModule {
             // Keep event related span, because it could be ignored in case of
             // reduced datadog sampling rate.
             activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+            // If APM is disabled, inform downstream services that the current
+            // distributed trace contains at least one ASM event and must inherit
+            // the given force-keep priority
+            activeSpan.getLocalRootSpan().setTag(Tags.PROPAGATED_APPSEC, true);
           } else {
             // If active span is not available the ASK_KEEP tag will be set in the GatewayBridge
             // when the request ends
