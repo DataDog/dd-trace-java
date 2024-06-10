@@ -40,6 +40,8 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
   private boolean shouldSample() {
     long now = System.currentTimeMillis();
-    return lastSampleTime.updateAndGet(lastTime -> now - lastTime >= rateInMilliseconds ? now : lastTime) == now;
+    return lastSampleTime.updateAndGet(
+            lastTime -> now - lastTime >= rateInMilliseconds ? now : lastTime)
+        == now;
   }
 }
