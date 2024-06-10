@@ -24,9 +24,6 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       Collections.singleton(
           "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle");
 
-  private static final Set<String> UNSUPPORTED_METHODS =
-      Collections.singleton("getMuzzleReferences");
-
   public OtelInstrumentationMapper(ClassVisitor classVisitor) {
     super(classVisitor, Renamer.INSTANCE);
   }
@@ -47,15 +44,6 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
     super.visit(version, access, name, signature, superName, removeUnsupportedTypes(interfaces));
   }
 
-  @Override
-  public MethodVisitor visitMethod(
-      int access, String name, String descriptor, String signature, String[] exceptions) {
-    if (UNSUPPORTED_METHODS.contains(name)) {
-      return null; // remove unsupported method
-    }
-    return super.visitMethod(access, name, descriptor, signature, exceptions);
-  }
-
   private String[] removeUnsupportedTypes(String[] interfaces) {
     List<String> filtered = null;
     for (int i = interfaces.length - 1; i >= 0; i--) {
@@ -74,6 +62,8 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
 
     private static final String OTEL_JAVAAGENT_SHADED_PREFIX =
         "io/opentelemetry/javaagent/shaded/io/opentelemetry/";
+
+    private static final String ASM_PREFIX = "org/objectweb/asm/";
 
     /** Datadog equivalent of OpenTelemetry instrumentation classes. */
     private static final Map<String, String> RENAMED_TYPES = new HashMap<>();
@@ -98,6 +88,30 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           "io/opentelemetry/javaagent/shaded/instrumentation/api/util/VirtualField",
           Type.getInternalName(ContextStore.class));
       RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder",
+          Type.getInternalName(OtelMuzzleRefBuilder.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/ClassRef",
+          Type.getInternalName(OtelMuzzleRefBuilder.ClassRef.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$VisibilityFlag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$MinimumVisibilityFlag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$ManifestationFlag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$OwnershipFlag",
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/javaagent/tooling/muzzle/references/Source",
+          Type.getInternalName(OtelMuzzleRefBuilder.Source.class));
+      RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/bootstrap/Java8BytecodeBridge",
           "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
     }
@@ -112,6 +126,10 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       if (internalName.startsWith(OTEL_JAVAAGENT_SHADED_PREFIX)) {
         return "datadog/trace/bootstrap/otel/"
             + internalName.substring(OTEL_JAVAAGENT_SHADED_PREFIX.length());
+      }
+      // map unshaded ASM types to the shaded copy in byte-buddy
+      if (internalName.startsWith(ASM_PREFIX)) {
+        return "net/bytebuddy/jar/asm/" + internalName.substring(ASM_PREFIX.length());
       }
       return MAP_LOGGING.apply(internalName);
     }
