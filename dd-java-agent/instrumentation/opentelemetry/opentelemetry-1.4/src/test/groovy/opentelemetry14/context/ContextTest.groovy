@@ -8,7 +8,6 @@ import io.opentelemetry.context.Context
 import io.opentelemetry.context.ContextKey
 import io.opentelemetry.context.ImplicitContextKeyed
 import io.opentelemetry.context.ThreadLocalContextStorage
-import spock.lang.Ignore
 import spock.lang.Subject
 
 import static datadog.trace.bootstrap.instrumentation.api.ScopeSource.MANUAL
@@ -279,7 +278,6 @@ class ContextTest extends AgentTestRunner {
     parentSpan.end()
   }
 
-  @Ignore("Not supported")
   def "test custom object storage"() {
     setup:
     def context = Context.root()

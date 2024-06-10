@@ -60,24 +60,31 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         buildTracerEnvironment(repositoryRoot, jvmInfo, moduleName);
     CiVisibilitySettings ciVisibilitySettings = getCiVisibilitySettings(tracerEnvironment);
 
-    boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
     boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
+    boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
+    boolean testSkippingEnabled = isTestSkippingEnabled(ciVisibilitySettings);
     boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
     boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
     Map<String, String> systemProperties =
         getPropertiesPropagatedToChildProcess(
-            codeCoverageEnabled, itrEnabled, flakyTestRetriesEnabled, earlyFlakeDetectionEnabled);
+            itrEnabled,
+            codeCoverageEnabled,
+            testSkippingEnabled,
+            flakyTestRetriesEnabled,
+            earlyFlakeDetectionEnabled);
 
     LOGGER.info(
         "CI Visibility settings ({}, {}):\n"
-            + "Per-test code coverage - {},\n"
             + "Intelligent Test Runner - {},\n"
+            + "Per-test code coverage - {},\n"
+            + "Tests skipping - {},\n"
             + "Early flakiness detection - {},\n"
-            + "Flaky test retries - {}",
+            + "Auto test retries - {}",
         repositoryRoot,
         jvmInfo,
-        codeCoverageEnabled,
         itrEnabled,
+        codeCoverageEnabled,
+        testSkippingEnabled,
         earlyFlakeDetectionEnabled,
         flakyTestRetriesEnabled);
 
@@ -104,8 +111,9 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
 
     List<String> coverageEnabledPackages = getCoverageEnabledPackages(codeCoverageEnabled);
     return new ModuleExecutionSettings(
-        codeCoverageEnabled,
         itrEnabled,
+        codeCoverageEnabled,
+        testSkippingEnabled,
         flakyTestRetriesEnabled,
         // knownTests being null covers the following cases:
         //  - early flake detection is disabled in remote settings
@@ -177,7 +185,12 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   }
 
   private boolean isItrEnabled(CiVisibilitySettings ciVisibilitySettings) {
-    return ciVisibilitySettings.isTestsSkippingEnabled() && config.isCiVisibilityItrEnabled();
+    return ciVisibilitySettings.isItrEnabled() && config.isCiVisibilityItrEnabled();
+  }
+
+  private boolean isTestSkippingEnabled(CiVisibilitySettings ciVisibilitySettings) {
+    return ciVisibilitySettings.isTestsSkippingEnabled()
+        && config.isCiVisibilityTestSkippingEnabled();
   }
 
   private boolean isCodeCoverageEnabled(CiVisibilitySettings ciVisibilitySettings) {
@@ -196,8 +209,9 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
-      boolean codeCoverageEnabled,
       boolean itrEnabled,
+      boolean codeCoverageEnabled,
+      boolean testSkippingEnabled,
       boolean flakyTestRetriesEnabled,
       boolean earlyFlakeDetectionEnabled) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
@@ -213,13 +227,18 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     }
 
     propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED),
+        Boolean.toString(itrEnabled));
+
+    propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(
             CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED),
         Boolean.toString(codeCoverageEnabled));
 
     propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED),
-        Boolean.toString(itrEnabled));
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED),
+        Boolean.toString(testSkippingEnabled));
 
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(

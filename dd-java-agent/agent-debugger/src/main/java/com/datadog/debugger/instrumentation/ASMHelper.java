@@ -16,6 +16,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
+import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
@@ -23,6 +24,7 @@ import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 
 /** Helper class for bytecode generation */
@@ -272,6 +274,23 @@ public class ASMHelper {
             org.objectweb.asm.Type.getMethodDescriptor(org.objectweb.asm.Type.VOID_TYPE, argTypes),
             false));
     // stack: []
+  }
+
+  /** Checks if the given variable is in scope at the given location */
+  public static boolean isInScope(
+      MethodNode methodNode, LocalVariableNode variableNode, AbstractInsnNode location) {
+    AbstractInsnNode startScope =
+        variableNode.start != null ? variableNode.start : methodNode.instructions.getFirst();
+    AbstractInsnNode endScope =
+        variableNode.end != null ? variableNode.end : methodNode.instructions.getLast();
+    AbstractInsnNode insn = startScope;
+    while (insn != null && insn != endScope) {
+      if (insn == location) {
+        return true;
+      }
+      insn = insn.getNext();
+    }
+    return false;
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */

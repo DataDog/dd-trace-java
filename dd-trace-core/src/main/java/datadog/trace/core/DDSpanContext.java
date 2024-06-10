@@ -142,6 +142,8 @@ public class DDSpanContext
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
   private volatile boolean requiresPostProcessing;
+  private volatile CharSequence lastParentId;
+  private final boolean isRemote;
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
@@ -192,7 +194,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        true);
+        true,
+        false);
   }
 
   public DDSpanContext(
@@ -238,7 +241,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        injectBaggageAsTags);
+        injectBaggageAsTags,
+        false);
   }
 
   public DDSpanContext(
@@ -284,7 +288,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         profilingContextIntegration,
-        true);
+        true,
+        false);
   }
 
   public DDSpanContext(
@@ -309,7 +314,8 @@ public class DDSpanContext
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean injectBaggageAsTags) {
+      final boolean injectBaggageAsTags,
+      final boolean isRemote) {
 
     assert trace != null;
     this.trace = trace;
@@ -368,6 +374,8 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    setLastParentId(this.propagationTags.getLastParentId());
+    this.isRemote = isRemote;
   }
 
   @Override
@@ -1007,5 +1015,22 @@ public class DDSpanContext
 
   public boolean isRequiresPostProcessing() {
     return requiresPostProcessing;
+  }
+
+  public CharSequence getLastParentId() {
+    return lastParentId;
+  }
+
+  public void setLastParentId(CharSequence lastParentId) {
+    if (lastParentId != null) {
+      synchronized (unsafeTags) {
+        unsafeSetTag("_dd.parent_id", lastParentId);
+      }
+      this.lastParentId = lastParentId;
+    }
+  }
+
+  public boolean isRemote() {
+    return isRemote;
   }
 }

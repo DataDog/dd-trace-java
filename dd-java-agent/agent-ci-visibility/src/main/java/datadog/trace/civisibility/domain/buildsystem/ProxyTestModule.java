@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.SkippableAwareCoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
@@ -59,6 +60,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final LongAdder testsSkipped = new LongAdder();
   private final Collection<TestIdentifier> skippableTests;
+  private final boolean testSkippingEnabled;
   private final boolean flakyTestRetriesEnabled;
   @Nullable private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestIdentifier> knownTests;
@@ -91,9 +93,14 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.itrCorrelationId = executionSettings.getItrCorrelationId();
+
+    this.testSkippingEnabled = executionSettings.isTestSkippingEnabled();
     this.skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
+    this.coverageProbeStoreFactory =
+        executionSettings.isItrEnabled()
+            ? new SkippableAwareCoverageProbeStoreFactory(skippableTests, coverageProbeStoreFactory)
+            : coverageProbeStoreFactory;
 
     this.flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
     Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
@@ -106,18 +113,18 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   @Override
-  public boolean isSkippable(TestIdentifier test) {
-    return test != null && skippableTests.contains(test);
-  }
-
-  @Override
   public boolean isNew(TestIdentifier test) {
     return knownTests != null && !knownTests.contains(test.withoutParameters());
   }
 
   @Override
+  public boolean shouldBeSkipped(TestIdentifier test) {
+    return testSkippingEnabled && test != null && skippableTests.contains(test);
+  }
+
+  @Override
   public boolean skip(TestIdentifier test) {
-    if (isSkippable(test)) {
+    if (shouldBeSkipped(test)) {
       testsSkipped.increment();
       return true;
     } else {
@@ -160,7 +167,7 @@ public class ProxyTestModule implements TestFrameworkModule {
 
   private void sendModuleExecutionResult() {
     boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
-    boolean itrEnabled = config.isCiVisibilityItrEnabled();
+    boolean testSkippingEnabled = config.isCiVisibilityTestSkippingEnabled();
     boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
     boolean earlyFlakeDetectionFaulty =
         earlyFlakeDetectionEnabled
@@ -173,7 +180,7 @@ public class ProxyTestModule implements TestFrameworkModule {
             parentProcessSessionId,
             parentProcessModuleId,
             coverageEnabled,
-            itrEnabled,
+            testSkippingEnabled,
             earlyFlakeDetectionEnabled,
             earlyFlakeDetectionFaulty,
             testsSkippedTotal,

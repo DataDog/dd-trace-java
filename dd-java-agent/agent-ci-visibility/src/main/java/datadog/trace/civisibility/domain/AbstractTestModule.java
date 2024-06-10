@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -30,7 +29,6 @@ public abstract class AbstractTestModule {
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
   protected final MethodLinesResolver methodLinesResolver;
-  protected final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final Consumer<AgentSpan> onSpanFinish;
 
   public AbstractTestModule(
@@ -45,7 +43,6 @@ public abstract class AbstractTestModule {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.sessionId = sessionId;
     this.moduleName = moduleName;
@@ -55,7 +52,6 @@ public abstract class AbstractTestModule {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.onSpanFinish = onSpanFinish;
 
     if (startTime != null) {

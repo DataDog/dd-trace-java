@@ -26,6 +26,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
   private static final int MAX_MEMBER_COUNT = 32;
+  private static final String LAST_PARENT_ZERO = "0000000000000000";
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -94,6 +95,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
     int maxUnknownSize = 0;
+    CharSequence lastParentId = LAST_PARENT_ZERO;
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -162,6 +164,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           samplingPriority = validateSamplingPriority(value, tagValuePos, tagValueEndsAt);
         } else if (keyLength == 1 && c == 'o') {
           origin = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+        } else if (keyLength == 1 && c == 'p') {
+          lastParentId = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
         } else {
           if (maxUnknownSize != 0) {
             maxUnknownSize++; // delimiter
@@ -182,7 +186,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         firstMemberStart,
         ddMemberStart,
         ddMemberValueEnd,
-        maxUnknownSize);
+        maxUnknownSize,
+        lastParentId);
   }
 
   @Override
@@ -229,6 +234,19 @@ public class W3CPTagsCodec extends PTagsCodec {
         sb.append(((TagValue) origin).forType(Encoding.W3C));
       } else {
         sb.append(origin);
+      }
+    }
+    // append last ParentId (p)
+    CharSequence lastParent = ptags.getLastParentId();
+    if (lastParent != null && !lastParent.equals(LAST_PARENT_ZERO)) {
+      if (sb.length() > EMPTY_SIZE) {
+        sb.append(';');
+      }
+      sb.append("p:");
+      if (lastParent instanceof TagValue) {
+        sb.append(((TagValue) lastParent).forType(Encoding.W3C));
+      } else {
+        sb.append(lastParent);
       }
     }
     return sb.length();
@@ -692,7 +710,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         firstMemberStart,
         ddMemberStart,
         ddMemberValueEnd,
-        0);
+        0,
+        null);
   }
 
   private static class W3CPTags extends PTags {
@@ -722,8 +741,16 @@ public class W3CPTagsCodec extends PTagsCodec {
         int firstMemberStart,
         int ddMemberStart,
         int ddMemberValueEnd,
-        int maxUnknownSize) {
-      super(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, samplingPriority, origin);
+        int maxUnknownSize,
+        CharSequence lastParentId) {
+      super(
+          factory,
+          tagPairs,
+          decisionMakerTagValue,
+          traceIdTagValue,
+          samplingPriority,
+          origin,
+          lastParentId);
       this.tracestate = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;

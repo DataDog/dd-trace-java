@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.context.Context
 import io.opentelemetry.context.ThreadLocalContextStorage
@@ -9,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 import static datadog.opentelemetry.shim.trace.OtelConventions.OPERATION_NAME_SPECIFIC_ATTRIBUTE
 import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
 import static datadog.opentelemetry.shim.trace.OtelConventions.toSpanKindTagValue
+import static io.opentelemetry.api.common.AttributeKey.longKey
 import static io.opentelemetry.api.trace.SpanKind.CLIENT
 import static io.opentelemetry.api.trace.SpanKind.CONSUMER
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL
@@ -189,6 +191,65 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
     false        | "TRUE"           | 1
     false        | "something-else" | 0
     false        | ""               | 0
+  }
+
+  def "test span http.response.status_code specific tag"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+
+    when:
+    if (setInBuilder) {
+      if (attributeKey) {
+        builder.setAttribute(longKey("http.response.status_code"), value)
+      } else {
+        builder.setAttribute("http.response.status_code", value)
+      }
+    }
+    def result = builder.startSpan()
+    if (!setInBuilder) {
+      if (attributeKey) {
+        result.setAttribute(longKey("http.response.status_code"), value)
+      } else {
+        result.setAttribute("http.response.status_code", value)
+      }
+    }
+    result.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          parent()
+          operationName "internal"
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            if (value != null) {
+              "$Tags.HTTP_STATUS" expectedStatus
+            }
+          }
+        }
+      }
+    }
+
+    where:
+    setInBuilder | attributeKey | value       | expectedStatus
+    true         | false        | null        | 0 // Not used
+    true         | false        | 200         | 200
+    true         | false        | 404L        | 404
+    true         | false        | 500 as Long | 500
+    false        | false        | null        | 0 // Not used
+    false        | false        | 200         | 200
+    false        | false        | 404L        | 404
+    false        | false        | 500 as Long | 500
+    true         | true         | null        | 0 // Not used
+    true         | true         | 200         | 200
+    true         | true         | 404L        | 404
+    true         | true         | 500 as Long | 500
+    false        | true         | null        | 0 // Not used
+    false        | true         | 200         | 200
+    false        | true         | 404L        | 404
+    false        | true         | 500 as Long | 500
   }
 
   @Override

@@ -1,0 +1,24 @@
+plugins {
+  id 'com.github.johnrengelman.shadow'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+
+excludedClassesCoverage += [
+  "datadog.trace.logging.intake.LogsWriterImpl",
+  "datadog.trace.logging.intake.LogsIntakeSystem",
+]
+
+dependencies {
+  implementation project(':internal-api')
+  implementation project(':communication')
+}
+
+shadowJar {
+  dependencies deps.excludeShared
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}

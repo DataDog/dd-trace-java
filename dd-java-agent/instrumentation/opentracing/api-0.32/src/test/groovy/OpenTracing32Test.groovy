@@ -295,7 +295,7 @@ class OpenTracing32Test extends AgentTestRunner {
     def expectedTraceparent = "00-${context.delegate.traceId.toHexStringPadded(32)}" +
       "-${DDSpanId.toHexStringPadded(context.delegate.spanId)}" +
       "-" + (propagatedPriority > 0 ? "01" : "00")
-    def expectedTracestate = "dd=s:${propagatedPriority}"
+    def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(context.delegate.spanId)}"
     def expectedDatadogTags = null
     if (propagatedPriority > 0) {
       def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism

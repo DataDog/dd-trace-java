@@ -20,7 +20,6 @@ public class Redaction {
       Arrays.asList(
           "2fa",
           "accesstoken",
-          "address",
           "aiohttpsession",
           "apikey",
           "appkey",
@@ -35,7 +34,6 @@ public class Redaction {
           "cipher",
           "clientid",
           "clientsecret",
-          "config",
           "connectionstring",
           "connectsid",
           "cookie",

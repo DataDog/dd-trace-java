@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.domain.TestContext;
@@ -56,6 +57,7 @@ public class TestImpl implements DDTest {
       String moduleName,
       String testSuiteName,
       String testName,
+      @Nullable String testParameters,
       @Nullable String itrCorrelationId,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
@@ -76,7 +78,9 @@ public class TestImpl implements DDTest {
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
-    CoverageProbeStore probeStore = coverageProbeStoreFactory.create(sourcePathResolver);
+    TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters, null);
+    CoverageProbeStore probeStore =
+        coverageProbeStoreFactory.create(identifier, sourcePathResolver);
     CoverageBridge.setThreadLocalCoverageProbeStore(probeStore);
 
     this.context = new TestContextImpl(probeStore);

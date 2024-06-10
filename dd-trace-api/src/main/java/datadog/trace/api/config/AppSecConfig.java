@@ -27,6 +27,10 @@ public final class AppSecConfig {
   public static final String API_SECURITY_REQUEST_SAMPLE_RATE = "api-security.request.sample.rate";
 
   public static final String APPSEC_SCA_ENABLED = "appsec.sca.enabled";
+  public static final String APPSEC_RASP_ENABLED = "appsec.rasp.enabled";
+  public static final String APPSEC_STACK_TRACE_ENABLED = "appsec.stacktrace.enabled";
+  public static final String APPSEC_MAX_STACK_TRACES = "appsec.max.stacktraces";
+  public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stacktrace.depth";
 
   private AppSecConfig() {}
 }

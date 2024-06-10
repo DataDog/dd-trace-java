@@ -29,7 +29,7 @@ public final class IastServlet3Instrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching servlet 2 which has its own instrumentation
     return hasClassNamed("javax.servlet.AsyncEvent");
   }

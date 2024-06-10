@@ -22,6 +22,9 @@ import javax.annotation.Nullable;
  * datadog.trace.api.civisibility.CIVisibility})
  */
 public class ManualApiTestModule extends AbstractTestModule implements DDTestModule {
+
+  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+
   public ManualApiTestModule(
       AgentSpan.Context sessionSpanContext,
       long sessionId,
@@ -47,8 +50,8 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory,
         onSpanFinish);
+    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
   }
 
   @Override

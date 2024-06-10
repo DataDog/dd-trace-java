@@ -29,6 +29,10 @@ public class OtelExtractedContext implements AgentSpan.Context {
 
   public static AgentSpan.Context extract(Context context) {
     Span span = Span.fromContext(context);
+    if (span instanceof OtelSpan) {
+      // avoid creating unnecessary OtelSpanContext
+      return ((OtelSpan) span).getAgentSpanContext();
+    }
     SpanContext spanContext = span.getSpanContext();
     if (spanContext instanceof OtelSpanContext) {
       return ((OtelSpanContext) spanContext).delegate;
