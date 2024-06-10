@@ -39,6 +39,7 @@ dependencies {
   // latest OpenTelemetry API for drop-in support; instrumented at build-time with our shim
   embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryApiVersion
   embeddedClasspath group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-api', version: openTelemetryInstrumentationApiVersion
+  embeddedClasspath group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-api-incubator', version: openTelemetryInstrumentationVersion
 
   // selected bootstrap types shared across multiple OpenTelemetry instrumentations
   embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-executors-bootstrap', version: openTelemetryInstrumentationVersion
