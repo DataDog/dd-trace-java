@@ -491,7 +491,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // Locks inside DDSpanContext ensure the correct behavior in the race case
     if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
       // Ignore the force-keep priority in the absence of propagated _dd.p.appsec span tag.
-      if (Config.get().isExperimentalAppSecStandaloneEnabled()
+      if (Config.get().isAppSecStandaloneEnabled()
           && !rootSpan.context().getPropagationTags().isAppsecPropagationEnabled()) {
         ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
         return;

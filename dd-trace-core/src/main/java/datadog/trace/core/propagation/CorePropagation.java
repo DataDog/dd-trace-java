@@ -63,7 +63,7 @@ public class CorePropagation implements AgentPropagation {
      * If the experimental appsec standalone feature is enabled and appsec propagation is disabled
      * (no ASM events), stop propagation
      */
-    if (Config.get().isExperimentalAppSecStandaloneEnabled()
+    if (Config.get().isAppSecStandaloneEnabled()
         && !ddSpanContext.getPropagationTags().isAppsecPropagationEnabled()) {
       return;
     }

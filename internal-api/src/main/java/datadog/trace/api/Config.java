@@ -160,10 +160,10 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_STACK_TRACE_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_STANDALONE_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
-import static datadog.trace.api.config.AppSecConfig.EXPERIMENTAL_APPSEC_STANDALONE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
@@ -758,7 +758,7 @@ public class Config {
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
-  private final boolean experimentalAppSecStandaloneEnabled;
+  private final boolean appSecStandaloneEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
 
@@ -1672,8 +1672,7 @@ public class Config {
             configProvider.getStringNotEmpty(
                 APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
-    experimentalAppSecStandaloneEnabled =
-        configProvider.getBoolean(EXPERIMENTAL_APPSEC_STANDALONE_ENABLED, false);
+    appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
         configProvider.getBoolean(APPSEC_STACK_TRACE_ENABLED, DEFAULT_APPSEC_STACK_TRACE_ENABLED);
@@ -3602,7 +3601,7 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    if (isExperimentalAppSecStandaloneEnabled()) {
+    if (isAppSecStandaloneEnabled()) {
       result.put(APM_ENABLED, 0);
     }
 
@@ -4086,8 +4085,8 @@ public class Config {
     return appSecScaEnabled;
   }
 
-  public boolean isExperimentalAppSecStandaloneEnabled() {
-    return experimentalAppSecStandaloneEnabled;
+  public boolean isAppSecStandaloneEnabled() {
+    return appSecStandaloneEnabled;
   }
 
   public boolean isAppSecRaspEnabled() {

@@ -34,7 +34,7 @@ public interface Sampler {
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
       Sampler sampler;
       if (config != null) {
-        if (config.isExperimentalAppSecStandaloneEnabled()) {
+        if (config.isAppSecStandaloneEnabled()) {
           log.debug("APM is disabled. Only 1 trace per minute will be sent.");
           return new AsmStandaloneSampler(60000); // 1 trace per minute
         }

@@ -542,8 +542,7 @@ public class DDSpanContext
     if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
     }
-    if (Config.get().isExperimentalAppSecStandaloneEnabled()
-        && newMechanism == SamplingMechanism.APPSEC) {
+    if (Config.get().isAppSecStandaloneEnabled() && newMechanism == SamplingMechanism.APPSEC) {
       SAMPLING_PRIORITY_UPDATER.set(this, newPriority);
       propagationTags.updateTraceSamplingPriority(newPriority, SamplingMechanism.APPSEC);
       return true;
