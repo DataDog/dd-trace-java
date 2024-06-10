@@ -15,7 +15,6 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
-    //"-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
     "-Ddd.service.name=${STANDALONE_BILLING_SERVICE_NAME}",
   ]
@@ -25,7 +24,6 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
-    //"-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
     "-Ddd.service.name=${STANDALONE_BILLING_SERVICE_NAME_2}",
   ]

@@ -13,7 +13,6 @@ class AsmStandaloneBillingConerCasesSmokeTest extends AbstractAsmStandaloneBilli
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
-    //"-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
     "-Ddd.service.name=${STANDALONE_BILLING_SERVICE_NAME}",
   ]
@@ -22,7 +21,6 @@ class AsmStandaloneBillingConerCasesSmokeTest extends AbstractAsmStandaloneBilli
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
-    //"-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
     "-Ddd.service.name=${ASM_ENABLED_SERVICE_NAME}",
   ]
