@@ -140,9 +140,8 @@ public class StandardizedLogging {
 
     if (logger.isDebugEnabled()) {
       logger.info("Detecting an attack from rule {}", ruleId);
-    } else {
-      logger.debug("Detecting an attack from rule {}: {}", ruleId, event.getRuleMatches());
     }
+    logger.debug("Detecting an attack from rule {}: {}", ruleId, event.getRuleMatches());
   }
 
   /*
