@@ -206,6 +206,12 @@ deploy_artifacts_to_github:
       when: on_success
     - when: manual
       allow_failure: true
+  # Requires the deploy_to_sonatype job to have run first as build cache is broken
+  # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
+  needs:
+    - job: deploy_to_sonatype
+      # The deploy_to_sonatype job is not run for release candidate versions
+      optional: true
   script:
     - aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gh_release_token --with-decryption --query "Parameter.Value" --out text > github-token.txt
     - gh auth login --with-token < github-token.txt
