@@ -79,7 +79,7 @@ public class ExtensionHandler {
 
   /** Provides access to bytecode mapped from the extension. */
   protected static class ClassMappingConnection extends JarFileConnection {
-    private static final DDCache<String, byte[]> bytecodeCache = DDCaches.newFixedSizeCache(32);
+    private static final DDCache<String, byte[]> BYTECODE_CACHE = DDCaches.newFixedSizeCache(32);
 
     private final Function<ClassVisitor, ClassVisitor> mapping;
 
@@ -108,7 +108,7 @@ public class ExtensionHandler {
     }
 
     private byte[] mapBytecode() {
-      return bytecodeCache.computeIfAbsent(url.getFile(), this::doMapBytecode);
+      return BYTECODE_CACHE.computeIfAbsent(url.getFile(), this::doMapBytecode);
     }
 
     private byte[] doMapBytecode(String unused) {
