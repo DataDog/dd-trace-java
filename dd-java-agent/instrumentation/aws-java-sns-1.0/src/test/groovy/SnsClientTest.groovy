@@ -3,11 +3,15 @@ import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.client.builder.AwsClientBuilder
 import com.amazonaws.services.sns.AmazonSNSClient
 import com.amazonaws.services.sns.AmazonSNSClientBuilder
+import com.amazonaws.services.sns.model.MessageAttributeValue
+import com.amazonaws.services.sns.model.PublishRequest
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import groovy.json.JsonSlurper
+import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
@@ -15,10 +19,9 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName
 import spock.lang.Shared
-import groovy.json.JsonSlurper
 
 import java.time.Duration
-import org.testcontainers.containers.GenericContainer
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 abstract class SnsClientTest extends VersionedNamingTestBase {
@@ -78,6 +81,27 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
 
   abstract String expectedOperation(String awsService, String awsOperation)
   abstract String expectedService(String awsService, String awsOperation)
+
+  def "trace details propagated when message attributes are readonly"() {
+    when:
+    TEST_WRITER.clear()
+
+    def headers = new HashMap<String, MessageAttributeValue>()
+    headers.put("mykey", new MessageAttributeValue().withStringValue("myvalue"))
+    def readonlyHeaders = Collections.unmodifiableMap(headers)
+    snsClient.publish(new PublishRequest().withMessage("sometext").withTopicArn(testTopicARN).withMessageAttributes(readonlyHeaders))
+
+    def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)
+
+    def messageBody = new JsonSlurper().parseText(message.body())
+
+    then:
+    // injected value is here
+    String injectedValue = messageBody["MessageAttributes"]["_datadog"]["Value"]
+    injectedValue.length() > 0
+    // original header value is still present
+    messageBody["MessageAttributes"]["mykey"] != null
+  }
 
   def "trace details propagated via SNS system message attributes"() {
     when:

@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 
 public class SnsInterceptor extends RequestHandler2 {
@@ -46,7 +47,9 @@ public class SnsInterceptor extends RequestHandler2 {
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
       if (messageAttributes.size() < 10) {
-        messageAttributes.put(
+        HashMap<String, MessageAttributeValue> modifiedMessageAttributes =
+            new HashMap<>(messageAttributes);
+        modifiedMessageAttributes.put(
             "_datadog",
             new MessageAttributeValue()
                 .withDataType(
@@ -54,6 +57,7 @@ public class SnsInterceptor extends RequestHandler2 {
                 // with JSON strings
                 // https://github.com/DataDog/datadog-lambda-js/pull/269
                 .withBinaryValue(this.getMessageAttributeValueToInject(request)));
+        pRequest.setMessageAttributes(modifiedMessageAttributes);
       }
     } else if (request instanceof PublishBatchRequest) {
       PublishBatchRequest pmbRequest = (PublishBatchRequest) request;
@@ -61,9 +65,12 @@ public class SnsInterceptor extends RequestHandler2 {
       for (PublishBatchRequestEntry entry : pmbRequest.getPublishBatchRequestEntries()) {
         Map<String, MessageAttributeValue> messageAttributes = entry.getMessageAttributes();
         if (messageAttributes.size() < 10) {
-          messageAttributes.put(
+          HashMap<String, MessageAttributeValue> modifiedMessageAttributes =
+              new HashMap<>(messageAttributes);
+          modifiedMessageAttributes.put(
               "_datadog",
               new MessageAttributeValue().withDataType("Binary").withBinaryValue(bytebuffer));
+          entry.setMessageAttributes(modifiedMessageAttributes);
         }
       }
     }
