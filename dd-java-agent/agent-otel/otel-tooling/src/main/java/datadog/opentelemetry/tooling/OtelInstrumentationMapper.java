@@ -113,12 +113,6 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/bootstrap/jaxrs/ClassHierarchyIterable$ClassIterator",
           Type.getInternalName(ClassHierarchyIterable.ClassIterator.class));
-      RENAMED_TYPES.put(
-          "io/opentelemetry/javaagent/bootstrap/CallDepth",
-          "datadog/trace/bootstrap/otel/CallDepth");
-      RENAMED_TYPES.put(
-          "io/opentelemetry/javaagent/bootstrap/Java8BytecodeBridge",
-          "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
     }
 
     /** OpenTelemetry and related packages shaded inside the tracer. */

@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.otel;
+package datadog.trace.bootstrap.otel.instrumentation;
 
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.api.trace.Span;

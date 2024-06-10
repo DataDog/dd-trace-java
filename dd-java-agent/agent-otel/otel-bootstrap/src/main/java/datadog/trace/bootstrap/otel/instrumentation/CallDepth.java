@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.otel;
+package datadog.trace.bootstrap.otel.instrumentation;
 
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 
