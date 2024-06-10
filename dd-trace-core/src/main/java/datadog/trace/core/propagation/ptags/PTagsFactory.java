@@ -121,7 +121,7 @@ public class PTagsFactory implements PropagationTags.Factory {
           traceIdTagValue,
           appsecPropagationEnabled,
           PrioritySampling.UNSET,
-         null,
+          null,
           null);
     }
 

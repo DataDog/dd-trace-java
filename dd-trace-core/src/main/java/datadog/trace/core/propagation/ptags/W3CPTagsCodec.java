@@ -748,7 +748,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         int ddMemberStart,
         int ddMemberValueEnd,
         int maxUnknownSize,
-        CharSequence lastParentId) {super(
+        CharSequence lastParentId) {
+      super(
           factory,
           tagPairs,
           decisionMakerTagValue,
