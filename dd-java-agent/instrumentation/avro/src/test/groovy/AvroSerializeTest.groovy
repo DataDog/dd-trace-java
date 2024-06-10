@@ -23,36 +23,29 @@ class AvroSerializeTest extends AgentTestRunner {
 
     return true
   }
-  String schemaID = "14336524272808601124"
-  String openApiSchemaDef = "{\"components\":{\"schemas\":{\"TestRecord\":{\"properties\":{\"stringField\":{\"type\":\"string\"},\"intField\":{\"format\":\"int32\",\"type\":\"integer\"},\"longField\":{\"format\":\"int64\",\"type\":\"integer\"},\"floatField\":{\"format\":\"float\",\"type\":\"number\"},\"doubleField\":{\"format\":\"double\",\"type\":\"number\"},\"booleanField\":{\"type\":\"boolean\"},\"bytesField\":{\"format\":\"byte\",\"type\":\"string\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
-  String schemaStr = '''{
-
-        "type":"record",
-
-        "name":"TestRecord",
-
-        "fields":[
-
-            {"name":"stringField","type":"string"},
-
-            {"name":"intField","type":"int"},
-
-            {"name":"longField","type":"long"},
-
-            {"name":"floatField","type":"float"},
-
-            {"name":"doubleField","type":"double"},
-
-            {"name":"booleanField","type":"boolean"},
-
-            {"name":"bytesField","type":"bytes"}
-
-        ]
-
-    }'''
-
-
-
+  String schemaID = "5493435211744749109"
+  String openApiSchemaDef = "{\"components\":{\"schemas\":{\"TestRecord\":{\"properties\":{\"stringField\":{\"type\":\"string\"},\"intField\":{\"format\":\"int32\",\"type\":\"integer\"},\"longField\":{\"format\":\"int64\",\"type\":\"integer\"},\"floatField\":{\"format\":\"float\",\"type\":\"number\"},\"doubleField\":{\"format\":\"double\",\"type\":\"number\"},\"booleanField\":{\"type\":\"boolean\"},\"bytesField\":{\"format\":\"byte\",\"type\":\"string\"},\"nullField\":{\"type\":\"null\"},\"enumField\":{\"enum\":[\"A\",\"B\",\"C\"],\"type\":\"string\"},\"fixedField\":{\"type\":\"string\"},\"recordField\":{\"type\":\"object\"},\"arrayField\":{\"items\":{\"type\":\"integer\"},\"type\":\"array\"},\"mapField\":{\"description\":\"Map type\",\"type\":\"object\"}},\"type\":\"object\"}}},\"openapi\":\"3.0.0\"}"
+  String schemaStr = '''
+    {
+      "type": "record",
+      "name": "TestRecord",
+      "fields": [
+        {"name": "stringField", "type": "string"},
+        {"name": "intField", "type": "int"},
+        {"name": "longField", "type": "long"},
+        {"name": "floatField", "type": "float"},
+        {"name": "doubleField", "type": "double"},
+        {"name": "booleanField", "type": "boolean"},
+        {"name": "bytesField", "type": "bytes"},
+        {"name": "nullField", "type": "null"},
+        {"name": "enumField", "type": {"type": "enum", "name": "TestEnum", "symbols": ["A", "B", "C"]}},
+        {"name": "fixedField", "type": {"type": "fixed", "name": "TestFixed", "size": 16}},
+        {"name": "recordField", "type": {"type": "record", "name": "NestedRecord", "fields": [{"name": "nestedString", "type": "string"}]}},
+        {"name": "arrayField", "type": {"type": "array", "items": "int"}},
+        {"name": "mapField", "type": {"type": "map", "values": "string"}}
+      ]
+    }
+    '''
   Schema schemaDef = new Schema.Parser().parse(schemaStr)
 
 
@@ -60,49 +53,44 @@ class AvroSerializeTest extends AgentTestRunner {
   void 'test extract avro schema on serialize'() {
 
     setup:
-
     GenericRecord datum = new GenericData.Record(schemaDef)
-
     datum.put("stringField", "testString")
-
     datum.put("intField", 123)
-
     datum.put("longField", 456L)
-
     datum.put("floatField", 7.89f)
-
     datum.put("doubleField", 1.23e2)
-
     datum.put("booleanField", true)
-
     datum.put("bytesField", ByteBuffer.wrap(new byte[]{
       0x01, 0x02, 0x03
     }))
+    datum.put("nullField", null)
+    datum.put("enumField", new GenericData.EnumSymbol(schemaDef.getField("enumField").schema(), "A"));    datum.put("fixedField", new GenericData.Fixed(null, new byte[16]))
+    datum.put("fixedField", new GenericData.Fixed(schemaDef.getField("fixedField").schema(), new byte[16]))
+    GenericRecord nestedRecord = new GenericData.Record(schemaDef.getField("recordField").schema())
+    nestedRecord.put("nestedString", "nestedTestString")
+    datum.put("recordField", nestedRecord)
+    datum.put("arrayField", Arrays.asList(1, 2, 3))
 
-
+    Map<String, String> map = new HashMap<>()
+    map.put("key1", "value1")
+    map.put("key2", "value2")
+    datum.put("mapField", map)
 
     when:
 
     def bytes
 
     runUnderTrace("parent_serialize") {
-
       ByteArrayOutputStream out = new ByteArrayOutputStream()
-
       AvroSerializer<AvroWrapper<GenericRecord>> serializer = new AvroSerializer<>(schemaDef)
-
       AvroWrapper<GenericRecord> wrapper = new AvroWrapper<>(datum)
-
       serializer.open(out)
-
       serializer.serialize(wrapper)
-
       serializer.close()
-
       bytes = out.toByteArray()
     }
-    GenericRecord result = null
 
+    GenericRecord result = null
     TEST_WRITER.waitForTraces(1)
 
 
@@ -141,6 +129,22 @@ class AvroSerializeTest extends AgentTestRunner {
     datum.put("bytesField", ByteBuffer.wrap(new byte[]{
       0x01, 0x02, 0x03
     }))
+    datum.put("nullField", null)
+    datum.put("enumField", new GenericData.EnumSymbol(schemaDef.getField("enumField").schema(), "A"));    datum.put("fixedField", new GenericData.Fixed(null, new byte[16]))
+    datum.put("fixedField", new GenericData.Fixed(schemaDef.getField("fixedField").schema(), new byte[16]))
+    // Nested record field
+    GenericRecord nestedRecord = new GenericData.Record(schemaDef.getField("recordField").schema())
+    nestedRecord.put("nestedString", "nestedTestString")
+    datum.put("recordField", nestedRecord)
+
+    // Array field
+    datum.put("arrayField", Arrays.asList(1, 2, 3))
+
+    // Map field
+    Map<String, String> map = new HashMap<>()
+    map.put("key1", "value1")
+    map.put("key2", "value2")
+    datum.put("mapField", map)
 
     when:
     def bytes

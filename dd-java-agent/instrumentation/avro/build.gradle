@@ -1,15 +1,9 @@
-//muzzle {
-//  pass {
-//    group = 'org.apache.avro'
-//    module = 'avro'
-//    versions = '[, ]'
-//    assertInverse = true
-//  }
-//}
-
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
+  compileOnly group: 'org.apache.hadoop', name: 'hadoop-common', version: '3.3.1'
+  compileOnly group: 'org.apache.avro', name: 'avro', version: '1.11.3'
+
   implementation group: 'org.apache.avro', name: 'avro', version: '1.11.3'
   testImplementation group: 'org.apache.avro', name: 'avro', version: '1.11.3'
 
@@ -18,6 +12,5 @@ dependencies {
 
   implementation group: 'org.apache.avro', name: 'avro-mapred', version: '1.11.3'
   testImplementation group: 'org.apache.avro', name: 'avro-mapred', version: '1.11.3'
-
 }
 

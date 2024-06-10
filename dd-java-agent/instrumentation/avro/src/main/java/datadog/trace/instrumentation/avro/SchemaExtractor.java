@@ -29,17 +29,9 @@ public class SchemaExtractor implements SchemaIterator {
     String description = null;
     String ref = null;
     List<String> enumValues = null;
-    if (field.schema().getType() == org.apache.avro.Schema.Type.ARRAY) {
-      array = true;
-    }
 
     switch (field.schema().getType()) {
       case RECORD:
-        ref = "#/components/schemas/" + field.schema().getFullName();
-        // Recursively add nested schema
-        if (!extractSchema(field.schema(), builder, depth)) {
-          return false;
-        }
         type = "object";
         break;
       case ENUM:
@@ -47,21 +39,13 @@ public class SchemaExtractor implements SchemaIterator {
         enumValues = field.schema().getEnumSymbols();
         break;
       case ARRAY:
-        type = "array";
-        ref = "#/components/schemas/" + field.schema().getElementType().getFullName();
-        // Recursively handle array element type schema
-        if (!extractSchema(field.schema().getElementType(), builder, depth)) {
-          return false;
-        }
+        array = true;
+        type = getType(field.schema().getElementType().getType().getName());
         break;
       case MAP:
         type = "object";
         description = "Map type";
-        ref = "#/components/schemas/" + field.schema().getValueType().getFullName();
         // Recursively handle map value type schema
-        if (!extractSchema(field.schema().getValueType(), builder, depth)) {
-          return false;
-        }
         break;
       case STRING:
         type = "string";
@@ -92,6 +76,9 @@ public class SchemaExtractor implements SchemaIterator {
       case NULL:
         type = "null";
         break;
+      case FIXED:
+        type = "string";
+        break;
       default:
         type = "string";
         description = "Unknown type";
@@ -109,10 +96,14 @@ public class SchemaExtractor implements SchemaIterator {
     if (!builder.shouldExtractSchema(schemaName, depth)) {
       return false;
     }
-    for (Field field : schema.getFields()) {
-      if (!extractProperty(field, schemaName, field.name(), builder, depth)) {
-        return false;
+    try {
+      for (Field field : schema.getFields()) {
+        if (!extractProperty(field, schemaName, field.name(), builder, depth)) {
+          return false;
+        }
       }
+    } catch (Exception e) {
+      return false;
     }
     return true;
   }
@@ -156,5 +147,26 @@ public class SchemaExtractor implements SchemaIterator {
     span.setTag(DDTags.SCHEMA_DEFINITION, schemaData.definition);
     span.setTag(DDTags.SCHEMA_WEIGHT, weight);
     span.setTag(DDTags.SCHEMA_ID, schemaData.id);
+  }
+
+  private static String getType(String type) {
+    switch (type) {
+      case "string":
+        return "string";
+      case "int":
+        return "integer";
+      case "long":
+        return "integer";
+      case "float":
+        return "number";
+      case "double":
+        return "number";
+      case "boolean":
+        return "boolean";
+      case "null":
+        return "null";
+      default:
+        return "string";
+    }
   }
 }
