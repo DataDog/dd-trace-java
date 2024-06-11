@@ -35,9 +35,8 @@ public class PropagationController {
         l -> {
           try {
             String name = Character.toUpperCase(l.charAt(0)) + l.substring(1) + "Propagation";
-            Class<? extends Supplier<List<String>>> instance =
-                (Class<? extends Supplier<List<String>>>) Class.forName(name);
-            return instance.newInstance();
+            Class<?> instance = Thread.currentThread().getContextClassLoader().loadClass(name);
+            return (Supplier<List<String>>) instance.newInstance();
           } catch (final Exception e) {
             throw new RuntimeException(e);
           }
