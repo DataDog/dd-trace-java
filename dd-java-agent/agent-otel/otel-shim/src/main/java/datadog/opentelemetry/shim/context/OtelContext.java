@@ -18,7 +18,7 @@ public class OtelContext implements Context {
   private static final Object[] NO_ENTRIES = {};
 
   /** Overridden root context. */
-  public static final OtelContext ROOT = new OtelContext(OtelSpan.invalid(), OtelSpan.invalid());
+  public static final Context ROOT = new OtelContext(OtelSpan.invalid(), OtelSpan.invalid());
 
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
   private static final String OTEL_CONTEXT_ROOT_SPAN_KEY = "opentelemetry-traces-local-root-span";
