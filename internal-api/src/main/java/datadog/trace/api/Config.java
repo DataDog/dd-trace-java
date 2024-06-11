@@ -262,6 +262,7 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
+import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
@@ -906,6 +907,7 @@ public class Config {
 
   private final boolean traceAgentV05Enabled;
 
+  private final String logLevel;
   private final boolean debugEnabled;
   private final boolean triageEnabled;
   private final String triageReportTrigger;
@@ -2038,6 +2040,7 @@ public class Config {
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
+    logLevel = configProvider.getString(LOG_LEVEL);
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
     triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, instrumenterConfig.isTriageEnabled());
     triageReportTrigger = configProvider.getString(TRIAGE_REPORT_TRIGGER);
@@ -3441,6 +3444,10 @@ public class Config {
     return traceAgentV05Enabled;
   }
 
+  public String getLogLevel() {
+    return logLevel;
+  }
+
   public boolean isDebugEnabled() {
     return debugEnabled;
   }
@@ -4626,6 +4633,8 @@ public class Config {
         + xDatadogTagsMaxLength
         + ", traceAgentV05Enabled="
         + traceAgentV05Enabled
+        + ", logLevel="
+        + logLevel
         + ", debugEnabled="
         + debugEnabled
         + ", triageEnabled="
