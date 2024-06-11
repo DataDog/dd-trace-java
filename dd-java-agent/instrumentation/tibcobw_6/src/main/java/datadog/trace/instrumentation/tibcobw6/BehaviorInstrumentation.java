@@ -10,9 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import com.tibco.bx.core.behaviors.activity.BxEmptyBehavior;
-import com.tibco.bx.core.behaviors.activity.BxFlowBehavior;
-import com.tibco.bx.core.behaviors.activity.BxScopeBehavior;
 import com.tibco.pvm.api.PmProcessInstance;
 import com.tibco.pvm.api.PmTask;
 import com.tibco.pvm.api.PmWorkUnit;
@@ -87,9 +84,7 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
       if (parentSpan == null) {
         parentSpan = contextStore.get(pmTask.getProcess(pmContext));
       }
-      if (self instanceof BxFlowBehavior
-          || self instanceof BxScopeBehavior
-          || self instanceof BxEmptyBehavior) {
+      if (IgnoreHelper.notTracing(self)) {
         // record the parent but do not trace scope or flows
         contextStore.put(pmTask, parentSpan);
         return null;

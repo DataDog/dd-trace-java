@@ -23,7 +23,7 @@ public abstract class AbstractTibcoInstrumentation extends InstrumenterModule.Tr
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TibcoDecorator",
+      packageName + ".TibcoDecorator", packageName + ".IgnoreHelper",
     };
   }
 }

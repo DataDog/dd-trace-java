@@ -14,6 +14,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -35,6 +36,7 @@ public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
   }
 
   public static class JobStartAdvice {
+    @SuppressWarnings("UC_USELESS_OBJECT")
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void after(@Advice.Argument(value = 0) ProcessContext processContext) {
       final Workflow workflow = DDJobMate.getJobWorkflow(processContext);
@@ -47,9 +49,10 @@ public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
       if (suffixIdx > 0) {
         workflowName = workflowName.substring(0, suffixIdx);
       }
-      HashMap<String, AgentSpan> map = new HashMap<>();
       AgentSpan span = startSpan(TIBCO_PROCESS_OPERATION);
+      DECORATE.afterStart(span);
       DECORATE.onProcessStart(span, workflowName);
+      Map<String, AgentSpan> map = new HashMap<>();
       map.put(wId, span);
       InstrumentationContext.get(ProcessContext.class, Map.class).put(processContext, map);
     }
