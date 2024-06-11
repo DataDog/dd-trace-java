@@ -14,9 +14,6 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.report.AppSecEvent;
-import com.datadog.appsec.report.Parameter;
-import com.datadog.appsec.report.Rule;
-import com.datadog.appsec.report.RuleMatch;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -45,7 +42,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -557,31 +553,6 @@ public class PowerWAFModule implements AppSecModule {
       return null;
     }
 
-    List<RuleMatch> ruleMatchList = new ArrayList<>();
-    for (PowerWAFResultData.RuleMatch rule_match : wafResult.rule_matches) {
-
-      List<Parameter> parameterList = new ArrayList<>();
-
-      for (PowerWAFResultData.Parameter parameter : rule_match.parameters) {
-        parameterList.add(
-            new Parameter.Builder()
-                .withAddress(parameter.address)
-                .withKeyPath(parameter.key_path)
-                .withValue(parameter.value)
-                .withHighlight(parameter.highlight)
-                .build());
-      }
-
-      RuleMatch ruleMatch =
-          new RuleMatch.Builder()
-              .withOperator(rule_match.operator)
-              .withOperatorValue(rule_match.operator_value)
-              .withParameters(parameterList)
-              .build();
-
-      ruleMatchList.add(ruleMatch);
-    }
-
     Long spanId = null;
     AgentSpan agentSpan = AgentTracer.get().activeSpan();
     if (agentSpan != null) {
@@ -589,13 +560,8 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     return new AppSecEvent.Builder()
-        .withRule(
-            new Rule.Builder()
-                .withId(wafResult.rule.id)
-                .withName(wafResult.rule.name)
-                .withTags(wafResult.rule.tags)
-                .build())
-        .withRuleMatches(ruleMatchList)
+        .withRule(wafResult.rule)
+        .withRuleMatches(wafResult.rule_matches)
         .withSpanId(spanId)
         .build();
   }

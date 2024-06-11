@@ -15,7 +15,6 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.AppSecEvent
-import com.datadog.appsec.report.Parameter
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.internal.TraceSegment
@@ -774,15 +773,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
     event.rule.tags == [type: 'security_scanner', category: 'attack_attempt']
 
     event.ruleMatches[0].operator == 'match_regex'
-    event.ruleMatches[0].operatorValue == '^Arachni\\/v'
-    event.ruleMatches[0].parameters == [
-      new Parameter.Builder()
-      .withAddress('server.request.headers.no_cookies')
-      .withKeyPath(['user-agent'])
-      .withValue('Arachni/v0')
-      .withHighlight(['Arachni/v'])
-      .build()
-    ]
+    event.ruleMatches[0].operator_value == '^Arachni\\/v'
+    event.ruleMatches[0].parameters[0].address == 'server.request.headers.no_cookies'
+    event.ruleMatches[0].parameters[0].highlight == ['Arachni/v']
+    event.ruleMatches[0].parameters[0].key_path == ['user-agent']
+    event.ruleMatches[0].parameters[0].value == 'Arachni/v0'
+
     event.spanId == 777
   }
 
@@ -802,14 +798,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
     ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
 
-    event.ruleMatches[0].parameters == [
-      new Parameter.Builder()
-      .withAddress('server.request.headers.no_cookies')
-      .withKeyPath(['user-agent', 'password'])
-      .withValue('<Redacted>')
-      .withHighlight(['<Redacted>'])
-      .build()
-    ]
+    event.ruleMatches[0].parameters[0].address == 'server.request.headers.no_cookies'
+    event.ruleMatches[0].parameters[0].highlight == ['<Redacted>']
+    event.ruleMatches[0].parameters[0].key_path == ['user-agent', 'password']
+    event.ruleMatches[0].parameters[0].value == '<Redacted>'
   }
 
   void 'disabling of key regex'() {
@@ -829,14 +821,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
     ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
 
-    event.ruleMatches[0].parameters == [
-      new Parameter.Builder()
-      .withAddress('server.request.headers.no_cookies')
-      .withKeyPath(['user-agent', 'password'])
-      .withValue('Arachni/v0')
-      .withHighlight(['Arachni/v'])
-      .build()
-    ]
+    event.ruleMatches[0].parameters[0].address == 'server.request.headers.no_cookies'
+    event.ruleMatches[0].parameters[0].highlight == ['Arachni/v']
+    event.ruleMatches[0].parameters[0].key_path == ['user-agent', 'password']
+    event.ruleMatches[0].parameters[0].value == 'Arachni/v0'
   }
 
   void 'redaction of values'() {
@@ -855,14 +843,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     }
     ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
 
-    event.ruleMatches[0].parameters == [
-      new Parameter.Builder()
-      .withAddress('server.request.headers.no_cookies')
-      .withKeyPath(['user-agent'])
-      .withValue('<Redacted>')
-      .withHighlight(['<Redacted>'])
-      .build()
-    ]
+    event.ruleMatches[0].parameters[0].address == 'server.request.headers.no_cookies'
+    event.ruleMatches[0].parameters[0].highlight == ['<Redacted>']
+    event.ruleMatches[0].parameters[0].key_path == ['user-agent']
+    event.ruleMatches[0].parameters[0].value == '<Redacted>'
   }
 
   void 'triggers no rule'() {
