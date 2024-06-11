@@ -19,6 +19,8 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
+import com.datadog.appsec.stack_trace.StackTraceCollection;
+import com.datadog.appsec.util.ObjectFlattener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
@@ -163,6 +165,14 @@ public class GatewayBridge {
                 writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
                 writeResponseHeaders(
                     traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+
+                // Report collected stack traces
+                StackTraceCollection stackTraceCollection = ctx.transferStackTracesCollection();
+                if (stackTraceCollection != null) {
+                  Object flatStruct = ObjectFlattener.flatten(stackTraceCollection);
+                  traceSeg.setMetaStructTop("_dd.stack", flatStruct);
+                }
+
               } else if (hasUserTrackingEvent(traceSeg)) {
                 // Report all collected request headers on user tracking event
                 writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());

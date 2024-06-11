@@ -3,7 +3,10 @@ package com.datadog.appsec.gateway;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
+import com.datadog.appsec.stack_trace.StackTraceCollection;
+import com.datadog.appsec.stack_trace.StackTraceEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import io.sqreen.powerwaf.Additive;
@@ -72,7 +75,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private Collection<AppSecEvent> collectedEvents; // guarded by this
+  private Collection<AppSecEvent> appSecEvents; // guarded by this
+  private Collection<StackTraceEvent> stackTraceEvents; // guarded by this
 
   // assume these will always be written and read by the same thread
   private String scheme;
@@ -405,18 +409,33 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return storedRequestBodySupplier.get();
   }
 
-  public void reportEvents(Collection<AppSecEvent> events) {
-    for (AppSecEvent event : events) {
+  public void reportEvents(Collection<AppSecEvent> appSecEvents) {
+    for (AppSecEvent event : appSecEvents) {
       StandardizedLogging.attackDetected(log, event);
     }
     synchronized (this) {
-      if (this.collectedEvents == null) {
-        this.collectedEvents = new ArrayList<>();
+      if (this.appSecEvents == null) {
+        this.appSecEvents = new ArrayList<>();
       }
       try {
-        this.collectedEvents.addAll(events);
+        this.appSecEvents.addAll(appSecEvents);
       } catch (UnsupportedOperationException e) {
         throw new IllegalStateException("Events cannot be added anymore");
+      }
+    }
+  }
+
+  public void reportStackTrace(StackTraceEvent stackTraceEvent) {
+    synchronized (this) {
+      if (this.stackTraceEvents == null) {
+        this.stackTraceEvents = new ArrayList<>();
+      }
+      try {
+        if (stackTraceEvents.size() <= Config.get().getAppSecMaxStackTraces()) {
+          this.stackTraceEvents.add(stackTraceEvent);
+        }
+      } catch (UnsupportedOperationException e) {
+        throw new IllegalStateException("Stacktrace cannot be added anymore");
       }
     }
   }
@@ -424,13 +443,26 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   Collection<AppSecEvent> transferCollectedEvents() {
     Collection<AppSecEvent> events;
     synchronized (this) {
-      events = this.collectedEvents;
-      this.collectedEvents = Collections.emptyList();
+      events = this.appSecEvents;
+      this.appSecEvents = Collections.emptyList();
     }
     if (events != null) {
       return events;
     } else {
       return Collections.emptyList();
+    }
+  }
+
+  StackTraceCollection transferStackTracesCollection() {
+    Collection<StackTraceEvent> stackTraces;
+    synchronized (this) {
+      stackTraces = this.stackTraceEvents;
+      this.stackTraceEvents = Collections.emptyList();
+    }
+    if (stackTraces != null) {
+      return new StackTraceCollection(stackTraces);
+    } else {
+      return null;
     }
   }
 
