@@ -1,7 +1,8 @@
 package com.datadog.appsec.util;
 
+import static com.datadog.appsec.powerwaf.PowerWAFResultData.Rule;
+
 import com.datadog.appsec.event.data.Address;
-import com.datadog.appsec.powerwaf.PowerWAFResultData;
 import com.datadog.appsec.report.AppSecEvent;
 import io.sqreen.powerwaf.Powerwaf;
 import org.slf4j.Logger;
@@ -133,7 +134,7 @@ public class StandardizedLogging {
   // D6, I5
   public static void attackDetected(Logger logger, AppSecEvent event) {
     String ruleId = "unknown rule";
-    PowerWAFResultData.Rule rule = event.getRule();
+    Rule rule = event.getRule();
     if (rule != null) {
       ruleId = rule.id;
     }

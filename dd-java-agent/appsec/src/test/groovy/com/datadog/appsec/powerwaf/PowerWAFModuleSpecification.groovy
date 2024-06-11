@@ -15,7 +15,6 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.AppSecEvent
-import com.datadog.appsec.powerwaf.PowerWAFResultData.Parameter
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.internal.TraceSegment
