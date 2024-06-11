@@ -87,7 +87,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     TEST_WRITER.clear()
 
     def headers = new HashMap<String, MessageAttributeValue>()
-    headers.put("mykey", new MessageAttributeValue().withStringValue("myvalue"))
+    headers.put("mykey", new MessageAttributeValue().withStringValue("myvalue").withDataType("String"))
     def readonlyHeaders = Collections.unmodifiableMap(headers)
     snsClient.publish(new PublishRequest().withMessage("sometext").withTopicArn(testTopicARN).withMessageAttributes(readonlyHeaders))
 
