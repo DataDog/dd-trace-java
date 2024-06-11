@@ -1,20 +1,20 @@
-
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sns.SnsClient
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue
 import software.amazon.awssdk.services.sns.model.PublishResponse
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName
 import spock.lang.Shared
-import groovy.json.JsonSlurper
 
 import java.time.Duration
 
@@ -76,6 +76,27 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
 
   abstract String expectedOperation(String awsService, String awsOperation)
   abstract String expectedService(String awsService, String awsOperation)
+
+  def "trace details propagated when message attributes are readonly"() {
+    when:
+    TEST_WRITER.clear()
+    PublishResponse response
+    def headers = new HashMap<String, MessageAttributeValue>()
+    headers.put("mykey", MessageAttributeValue.builder().stringValue("myvalue").dataType("String").build())
+    def readonlyHeaders = Collections.unmodifiableMap(headers)
+    snsClient.publish(b -> b.message("sometext").topicArn(testTopicARN).messageAttributes(readonlyHeaders))
+
+    def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)
+
+    def messageBody = new JsonSlurper().parseText(message.body())
+
+    then:
+    // injected value is here
+    String injectedValue = messageBody["MessageAttributes"]["_datadog"]["Value"]
+    injectedValue.length() > 0
+    // original header value is still present
+    messageBody["MessageAttributes"]["mykey"] != null
+  }
 
   def "trace details propagated via SNS system message attributes"() {
     when:
