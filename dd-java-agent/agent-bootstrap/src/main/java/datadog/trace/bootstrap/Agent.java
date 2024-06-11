@@ -1047,10 +1047,19 @@ public class Agent {
     setSystemPropertyDefault(
         SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
 
+    String logLevel;
     if (isDebugMode()) {
-      setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, "DEBUG");
-    } else if (!isFeatureEnabled(AgentFeature.STARTUP_LOGS)) {
-      setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, "WARN");
+      logLevel = "DEBUG";
+    } else {
+      logLevel = ddGetProperty("dd.log.level");
+    }
+
+    if (null == logLevel && !isFeatureEnabled(AgentFeature.STARTUP_LOGS)) {
+      logLevel = "WARN";
+    }
+
+    if (null != logLevel) {
+      setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, logLevel);
     }
   }
 
