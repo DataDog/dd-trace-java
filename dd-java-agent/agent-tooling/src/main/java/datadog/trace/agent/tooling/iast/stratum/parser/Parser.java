@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.iast.stratum.parser;
 
+import static datadog.trace.agent.tooling.iast.stratum.parser.Builders.SPLITTER;
+
 import datadog.trace.agent.tooling.iast.stratum.EmbeddedStratum;
 import datadog.trace.agent.tooling.iast.stratum.FileInfo;
 import datadog.trace.agent.tooling.iast.stratum.LineInfo;
@@ -92,7 +94,7 @@ public class Parser {
       return null;
     }
     String sectionName = lines[0];
-    String[] tokens = lines[0].split(" ", 2);
+    String[] tokens = SPLITTER.split(lines[0], 2);
     if (tokens.length > 1) {
       sectionName = tokens[0].trim();
     }
