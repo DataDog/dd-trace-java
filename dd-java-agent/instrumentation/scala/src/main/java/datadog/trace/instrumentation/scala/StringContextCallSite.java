@@ -10,7 +10,13 @@ import scala.StringContext;
 import scala.collection.Seq;
 
 @Propagation
-@CallSite(spi = IastCallSites.class, helpers = ScalaJavaConverters.class)
+@CallSite(
+    spi = IastCallSites.class,
+    helpers = {
+      ScalaJavaConverters.class,
+      ScalaJavaConverters.JavaIterable.class,
+      ScalaJavaConverters.JavaIterator.class
+    })
 public class StringContextCallSite {
 
   @CallSite.After("java.lang.String scala.StringContext.s(scala.collection.Seq)")
