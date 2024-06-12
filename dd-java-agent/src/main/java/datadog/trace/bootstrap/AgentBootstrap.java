@@ -57,7 +57,13 @@ public final class AgentBootstrap {
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     try {
-      if (alreadyInitialized() || lessThanJava8() || isJdkTool()) {
+      if ( alreadyInitialized() ) {
+    	return;
+      }
+      if  ( lessThanJava8() ) {
+        return;
+      }
+      if ( isJdkTool() ) {
         return;
       }
         
