@@ -56,12 +56,12 @@ public final class AgentBootstrap {
   }
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
-    if (alreadyInitialized() || lessThanJava8() || isJdkTool()) {
-      return;
-    }
-
     try {
-      final URL agentJarURL = installAgentJar(inst);
+      if (alreadyInitialized() || lessThanJava8() || isJdkTool()) {
+        return;
+      }
+        
+    	final URL agentJarURL = installAgentJar(inst);
       final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
       if (agentClass.getClassLoader() != null) {
         throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
