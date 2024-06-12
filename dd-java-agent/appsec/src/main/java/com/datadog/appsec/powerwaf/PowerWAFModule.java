@@ -431,11 +431,9 @@ public class PowerWAFModule implements AppSecModule {
           if ("block_request".equals(actionInfo.type)) {
             Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
             flow.setAction(rba);
-            break;
           } else if ("redirect_request".equals(actionInfo.type)) {
             Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
             flow.setAction(rba);
-            break;
           } else if ("generate_stack".equals(actionInfo.type)
               && Config.get().isAppSecStackTraceEnabled()) {
             String stackId = (String) actionInfo.parameters.get("stack_id");

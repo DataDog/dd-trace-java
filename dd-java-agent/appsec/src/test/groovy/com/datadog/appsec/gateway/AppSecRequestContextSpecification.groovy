@@ -5,6 +5,8 @@ import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
+import com.datadog.appsec.stack_trace.StackTraceCollection
+import com.datadog.appsec.stack_trace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Additive
@@ -116,6 +118,30 @@ class AppSecRequestContextSpecification extends DDSpecification {
   void 'collect events when none reported'() {
     expect:
     ctx.transferCollectedEvents().empty
+  }
+
+  void 'can collect stack traces'() {
+    setup:
+    StackTraceElement element = new StackTraceElement('class', 'method', 'file', 1)
+    StackTraceEvent.Frame frame = new StackTraceEvent.Frame(element, 1)
+    StackTraceEvent event = new StackTraceEvent('id', 'message', [frame])
+
+    when:
+    ctx.reportStackTrace(event)
+    StackTraceCollection collection = ctx.transferStackTracesCollection()
+
+    then:
+    collection.exploit.size() == 1
+    collection.exploit[0].id == 'id'
+    collection.exploit[0].message == 'message'
+    collection.exploit[0].language == 'java'
+    collection.exploit[0].frames.size() == 1
+    collection.exploit[0].frames[0].id == 1
+    collection.exploit[0].frames[0].text == 'class.method(file:1)'
+    collection.exploit[0].frames[0].file == 'file'
+    collection.exploit[0].frames[0].line == 1
+    collection.exploit[0].frames[0].class_name == 'class'
+    collection.exploit[0].frames[0].function == 'method'
   }
 
   void 'headers allow list should contains only lowercase names'() {
