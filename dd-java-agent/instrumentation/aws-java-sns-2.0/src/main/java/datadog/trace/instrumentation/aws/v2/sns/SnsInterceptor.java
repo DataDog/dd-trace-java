@@ -45,31 +45,34 @@ public class SnsInterceptor implements ExecutionInterceptor {
     // Injecting the trace context into SNS messageAttributes.
     if (context.request() instanceof PublishRequest) {
       PublishRequest request = (PublishRequest) context.request();
-      Map<String, MessageAttributeValue> messageAttributes =
-          new HashMap<>(request.messageAttributes());
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
-      if (messageAttributes.size() < 10) {
-        messageAttributes.put(
+      if (request.messageAttributes().size() < 10) {
+        Map<String, MessageAttributeValue> modifiedMessageAttributes =
+            new HashMap<>(request.messageAttributes());
+        modifiedMessageAttributes.put(
             "_datadog", // Use Binary since SNS subscription filter policies fail silently with JSON
             // strings https://github.com/DataDog/datadog-lambda-js/pull/269
             MessageAttributeValue.builder()
                 .dataType("Binary")
                 .binaryValue(this.getMessageAttributeValueToInject(executionAttributes))
                 .build());
+        return request.toBuilder().messageAttributes(modifiedMessageAttributes).build();
       }
-      return request.toBuilder().messageAttributes(messageAttributes).build();
+      return request;
     } else if (context.request() instanceof PublishBatchRequest) {
       PublishBatchRequest request = (PublishBatchRequest) context.request();
       ArrayList<PublishBatchRequestEntry> entries = new ArrayList<>();
       final SdkBytes sdkBytes = this.getMessageAttributeValueToInject(executionAttributes);
       for (PublishBatchRequestEntry entry : request.publishBatchRequestEntries()) {
-        Map<String, MessageAttributeValue> messageAttributes =
-            new HashMap<>(entry.messageAttributes());
-        messageAttributes.put(
-            "_datadog",
-            MessageAttributeValue.builder().dataType("Binary").binaryValue(sdkBytes).build());
-        entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
+        if (entry.messageAttributes().size() < 10) {
+          Map<String, MessageAttributeValue> modifiedMessageAttributes =
+              new HashMap<>(entry.messageAttributes());
+          modifiedMessageAttributes.put(
+              "_datadog",
+              MessageAttributeValue.builder().dataType("Binary").binaryValue(sdkBytes).build());
+          entries.add(entry.toBuilder().messageAttributes(modifiedMessageAttributes).build());
+        }
       }
       return request.toBuilder().publishBatchRequestEntries(entries).build();
     }
