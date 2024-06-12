@@ -541,7 +541,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
 }
 
 @Flaky
-class GraphQLV0ForkedTest extends GraphQLTest {
+class GraphQLV0Test extends GraphQLTest {
 
   @Override
   int version() {

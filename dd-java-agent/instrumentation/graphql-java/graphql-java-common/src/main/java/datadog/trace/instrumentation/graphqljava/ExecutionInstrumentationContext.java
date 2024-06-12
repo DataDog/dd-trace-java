@@ -9,9 +9,9 @@ import graphql.execution.instrumentation.SimpleInstrumentationContext;
 import java.util.List;
 
 public class ExecutionInstrumentationContext extends SimpleInstrumentationContext<ExecutionResult> {
-  private final GraphQLInstrumentation.State state;
+  private final State state;
 
-  public ExecutionInstrumentationContext(GraphQLInstrumentation.State state) {
+  public ExecutionInstrumentationContext(State state) {
     this.state = state;
   }
 

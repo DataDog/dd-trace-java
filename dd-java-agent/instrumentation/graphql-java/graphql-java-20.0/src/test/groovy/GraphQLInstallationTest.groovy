@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.instrumentation.graphqljava.GraphQLInstrumentation
+import datadog.trace.instrumentation.graphqljava20.GraphQLInstrumentation
 import graphql.execution.instrumentation.ChainedInstrumentation
 import graphql.execution.instrumentation.SimpleInstrumentation
 

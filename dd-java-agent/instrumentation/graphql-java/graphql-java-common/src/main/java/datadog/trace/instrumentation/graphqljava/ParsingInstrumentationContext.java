@@ -9,11 +9,10 @@ import graphql.language.Document;
 public class ParsingInstrumentationContext extends SimpleInstrumentationContext<Document> {
 
   private final AgentSpan parsingSpan;
-  private final GraphQLInstrumentation.State state;
+  private final State state;
   private final String rawQuery;
 
-  public ParsingInstrumentationContext(
-      AgentSpan parsingSpan, GraphQLInstrumentation.State state, String rawQuery) {
+  public ParsingInstrumentationContext(AgentSpan parsingSpan, State state, String rawQuery) {
     this.parsingSpan = parsingSpan;
     this.state = state;
     this.rawQuery = rawQuery;
