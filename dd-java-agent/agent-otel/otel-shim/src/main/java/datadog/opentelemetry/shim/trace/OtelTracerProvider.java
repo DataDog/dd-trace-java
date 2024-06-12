@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 public class OtelTracerProvider implements TracerProvider {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelTracerProvider.class);
   private static final String DEFAULT_TRACER_NAME = "";
-  public static final OtelTracerProvider INSTANCE = new OtelTracerProvider();
+  public static final TracerProvider INSTANCE = new OtelTracerProvider();
 
   /** Tracer instances, indexed by instrumentation scope name. */
   private final Map<String, Tracer> tracers;
