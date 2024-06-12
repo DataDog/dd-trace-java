@@ -357,12 +357,14 @@ public final class ConfigProvider {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
+          new OtelEnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
+          new OtelEnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -377,6 +379,7 @@ public final class ConfigProvider {
           false,
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
+          new OtelEnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
@@ -384,6 +387,7 @@ public final class ConfigProvider {
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
+          new OtelEnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -401,6 +405,7 @@ public final class ConfigProvider {
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           providedConfigSource,
+          new OtelEnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
@@ -408,6 +413,7 @@ public final class ConfigProvider {
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
+          new OtelEnvironmentConfigSource(),
           new CapturedEnvironmentConfigSource());
     }
   }
