@@ -7,8 +7,10 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.apache.jasper.JasperException
 import org.eclipse.jetty.http.HttpStatus
+import spock.lang.Unroll
 
 class JSPInstrumentationBasicTests extends JSPTestBase {
+  @Unroll
   def "non-erroneous GET #test test"() {
     setup:
     String reqUrl = baseUrl + "/$jspFileName"
@@ -228,6 +230,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
     res.close()
   }
 
+  @Unroll
   def "erroneous runtime errors GET jsp with #test test"() {
     setup:
     String reqUrl = baseUrl + "/$jspFileName"

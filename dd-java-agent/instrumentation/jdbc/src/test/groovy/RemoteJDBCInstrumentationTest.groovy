@@ -11,6 +11,7 @@ import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import spock.lang.Requires
 import spock.lang.Shared
+import spock.lang.Unroll
 
 import javax.sql.DataSource
 import java.sql.CallableStatement
@@ -179,6 +180,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     mysql?.close()
   }
 
+  @Unroll
   def "basic statement with #connection.getClass().getCanonicalName() on #driver generates spans"() {
     setup:
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
@@ -242,6 +244,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
   }
 
+  @Unroll
   def "prepared statement execute on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     PreparedStatement statement = connection.prepareStatement(query)
@@ -302,6 +305,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
+  @Unroll
   def "prepared statement query on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     PreparedStatement statement = connection.prepareStatement(query)
@@ -360,6 +364,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
+  @Unroll
   def "prepared call on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     CallableStatement statement = connection.prepareCall(query)
@@ -417,6 +422,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
+  @Unroll
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
     Statement statement = connection.createStatement()

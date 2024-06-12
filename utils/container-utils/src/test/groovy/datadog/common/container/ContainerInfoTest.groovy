@@ -1,6 +1,7 @@
 package datadog.common.container
 
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Unroll
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -9,6 +10,7 @@ import java.text.ParseException
 
 class ContainerInfoTest extends DDSpecification {
 
+  @Unroll
   def "CGroupInfo is parsed from individual lines"() {
     when:
     ContainerInfo.CGroupInfo cGroupInfo = ContainerInfo.parseLine(line)
@@ -88,6 +90,7 @@ class ContainerInfoTest extends DDSpecification {
     // spotless:on
   }
 
+  @Unroll
   def "Container info parsed from file content"() {
     when:
     ContainerInfo containerInfo = ContainerInfo.parse(content)

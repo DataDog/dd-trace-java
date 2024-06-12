@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api
 
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Unroll
 
 abstract class URIDataAdapterTest extends DDSpecification {
 
@@ -10,6 +11,7 @@ abstract class URIDataAdapterTest extends DDSpecification {
     return true
   }
 
+  @Unroll
   def "test URI parts #input"() {
     setup:
     def adapter = URIDataAdapterBase.fromURI(input, {adapter(it)})

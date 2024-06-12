@@ -43,6 +43,7 @@ import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
 import datadog.trace.common.writer.RemoteMapper
 import datadog.trace.core.DDSpan
 import org.msgpack.jackson.dataformat.MessagePackFactory
+import spock.lang.Unroll
 
 import java.lang.reflect.Method
 import java.nio.ByteBuffer
@@ -50,6 +51,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
+@Unroll
 abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
 
   static String dummyModule
