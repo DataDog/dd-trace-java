@@ -18,12 +18,14 @@ class Builders {
   private static final String LineInfoPattern =
       "(\\d++)(#(\\d++))?(,(\\d++))?:(\\d++)(,(\\d++))?($)";
 
+  static final Pattern SPLITTER = Pattern.compile(" ");
+
   public static final Builder closeStratumBuilder() {
     return new Builder("C") {
 
       @Override
       public void build(final State state, final String[] lines) throws SourceMapException {
-        String[] tokens = lines[0].split(" ", 2);
+        String[] tokens = SPLITTER.split(lines[0], 2);
         if (tokens.length < 2 || tokens[1].equals("")) {
           throw new SourceMapException("Stratum name expected");
         }
@@ -58,7 +60,7 @@ class Builders {
           String fileName = "";
           String filePath = "";
           if (s.startsWith("+")) {
-            String[] tokens = s.split(" ", 3);
+            String[] tokens = SPLITTER.split(s, 3);
             fileId = tokens[1];
             fileName = tokens[2];
             if (i == lines.length) {
@@ -66,7 +68,7 @@ class Builders {
             }
             filePath = lines[i++];
           } else {
-            String[] tokens = s.split(" ", 2);
+            String[] tokens = SPLITTER.split(s, 2);
             fileId = tokens[0];
             fileName = tokens[1];
             filePath = fileName;
@@ -145,7 +147,7 @@ class Builders {
     return new Builder("O") {
       @Override
       public void build(final State state, final String[] lines) throws SourceMapException {
-        String[] tokens = lines[0].split(" ", 2);
+        String[] tokens = SPLITTER.split(lines[0], 2);
         if (tokens.length < 2 || tokens[1].equals("")) {
           throw new SourceMapException("Stratum name expected");
         }
@@ -160,7 +162,7 @@ class Builders {
     return new Builder("S") {
       @Override
       public void build(final State state, final String[] lines) throws SourceMapException {
-        String[] tokens = lines[0].split(" ", 2);
+        String[] tokens = SPLITTER.split(lines[0], 2);
         if (tokens.length < 2 || tokens[1].equals("")) {
           throw new SourceMapException("Stratum name expected");
         }
