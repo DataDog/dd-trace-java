@@ -111,7 +111,7 @@ public class ExtensionHandler {
       return BYTECODE_CACHE.computeIfAbsent(url.getFile(), this::doMapBytecode);
     }
 
-    private byte[] doMapBytecode(String unused) {
+    protected byte[] doMapBytecode(String unused) {
       try (InputStream in = super.getInputStream()) {
         ClassReader cr = new ClassReader(in);
         ClassWriter cw = new ClassWriter(cr, 0);

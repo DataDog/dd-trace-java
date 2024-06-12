@@ -262,6 +262,7 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
+import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
@@ -906,6 +907,7 @@ public class Config {
 
   private final boolean traceAgentV05Enabled;
 
+  private final String logLevel;
   private final boolean debugEnabled;
   private final boolean triageEnabled;
   private final String triageReportTrigger;
@@ -2038,6 +2040,7 @@ public class Config {
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
+    logLevel = configProvider.getString(LOG_LEVEL);
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
     triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, instrumenterConfig.isTriageEnabled());
     triageReportTrigger = configProvider.getString(TRIAGE_REPORT_TRIGGER);
@@ -3323,18 +3326,21 @@ public class Config {
     return debuggerThirdPartyExcludes;
   }
 
-  public String getFinalDebuggerProbeUrl() {
-    // by default poll from datadog agent
-    return "http://" + agentHost + ":" + agentPort;
+  private String getFinalDebuggerBaseUrl() {
+    if (agentUrl.startsWith("unix:")) {
+      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
+      return "http://" + agentHost + ":" + agentPort;
+    } else {
+      return agentUrl;
+    }
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    // by default send to datadog agent
-    return agentUrl + "/debugger/v1/input";
+    return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
   }
 
   public String getFinalDebuggerSymDBUrl() {
-    return agentUrl + "/symdb/v1/input";
+    return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
   }
 
   public String getDebuggerProbeFileLocation() {
@@ -3439,6 +3445,10 @@ public class Config {
 
   public boolean isTraceAgentV05Enabled() {
     return traceAgentV05Enabled;
+  }
+
+  public String getLogLevel() {
+    return logLevel;
   }
 
   public boolean isDebugEnabled() {
@@ -4626,6 +4636,8 @@ public class Config {
         + xDatadogTagsMaxLength
         + ", traceAgentV05Enabled="
         + traceAgentV05Enabled
+        + ", logLevel="
+        + logLevel
         + ", debugEnabled="
         + debugEnabled
         + ", triageEnabled="

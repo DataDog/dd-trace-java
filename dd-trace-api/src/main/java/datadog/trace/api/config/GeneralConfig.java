@@ -29,6 +29,7 @@ public final class GeneralConfig {
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
 
+  public static final String LOG_LEVEL = "log.level";
   public static final String TRACE_DEBUG = "trace.debug";
   public static final String TRACE_TRIAGE = "trace.triage";
   public static final String TRIAGE_REPORT_TRIGGER = "triage.report.trigger";

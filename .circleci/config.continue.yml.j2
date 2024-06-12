@@ -838,26 +838,6 @@ jobs:
             DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E_SINGLE_SPAN
 
       - run:
-          name: Upload data to CI Visibility
-          command: |
-            cd system-tests
-            export DD_API_KEY=$SYSTEM_TESTS_CI_API_KEY
-            export DD_APP_KEY=$SYSTEM_TESTS_CI_APP_KEY
-
-            # Causes conflicts with DD_API_KEY and datadog-ci tool
-            unset DATADOG_API_KEY
-            
-            echo "Uploading tests results to CI Visibility"  
-            utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
-
-            if [[ $CIRCLE_BRANCH == "master" ]]; then
-              echo "Updating dashboard from dd-trace-java main branch"
-              utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
-            else
-              echo "Skipping CI Visibility dashboard update due to it is not a main branch"
-            fi
-
-      - run:
           name: Collect artifacts
           command: tar -cvzf logs_java_<< parameters.weblog-variant >>_dev.tar.gz -C system-tests logs logs_apm_tracing_e2e logs_apm_tracing_e2e_single_span
 

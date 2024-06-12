@@ -12,6 +12,14 @@ _Action:_ Get the last (by name) opened milestone and affect it to the closed pu
 
 _Recovery:_ Attach the milestone by hand to the PR.
 
+### add-release-to-cloudfoundry [🔗](add-release-to-cloudfoundry.yaml)
+
+_Trigger:_ When a release is published.
+
+_Action:_ Append the new release to the Cloud Foundry repository.
+
+_Recovery:_ Manually edit and push the `index.yml` file from [the cloudfoundry branch](https://github.com/DataDog/dd-trace-java/tree/cloudfoundry).
+
 ### create-next-milestone [🔗](create-next-milestone.yaml)
 
 _Trigger:_ When closing a milestone.

@@ -1,0 +1,38 @@
+plugins {
+  id 'com.github.johnrengelman.shadow'
+  id 'java'
+  id 'org.jetbrains.kotlin.jvm' version '1.9.24'
+  id 'scala'
+  id 'groovy'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'IAST propagation Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.runtimeClasspath]
+}
+
+dependencies {
+  implementation project(':dd-trace-api')
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
+  implementation deps.scala
+  implementation deps.groovy
+  implementation deps.kotlin
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "shadowJar"
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+}
