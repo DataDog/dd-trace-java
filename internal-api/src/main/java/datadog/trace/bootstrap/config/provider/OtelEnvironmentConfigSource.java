@@ -40,6 +40,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
 
   private final Properties otelConfigFile = loadOtelConfigFile();
 
+  private final Properties datadogConfigFile;
+
   @Override
   protected String get(String key) {
     return otelEnvironment.get(key);
@@ -51,9 +53,18 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   OtelEnvironmentConfigSource() {
-    if (!traceOtelEnabled()) {
-      return;
+    this(null);
+  }
+
+  OtelEnvironmentConfigSource(Properties datadogConfigFile) {
+    this.datadogConfigFile = datadogConfigFile;
+
+    if (traceOtelEnabled()) {
+      setupOteEnvironment();
     }
+  }
+
+  private void setupOteEnvironment() {
 
     // only applies when OTEL is enabled by default (otherwise TRACE_OTEL_ENABLED takes precedence)
     String sdkDisabled = getOtelProperty("otel.sdk.disabled", "dd." + TRACE_OTEL_ENABLED);
@@ -94,8 +105,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(TRACE_EXTENSIONS_PATH, extensions);
   }
 
-  private static boolean traceOtelEnabled() {
-    String enabled = getProperty("dd." + TRACE_OTEL_ENABLED);
+  private boolean traceOtelEnabled() {
+    String enabled = getDatadogProperty("dd." + TRACE_OTEL_ENABLED);
     if (null != enabled) {
       return Boolean.parseBoolean(enabled);
     } else {
@@ -114,7 +125,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     if (null == otelValue) {
       return null;
     }
-    String ddValue = getProperty(ddSysProp);
+    String ddValue = getDatadogProperty(ddSysProp);
     if (null != ddValue) {
       String otelEnvVar = Strings.toEnvVar(otelSysProp);
       log.warn(
@@ -136,6 +147,19 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     String value = getProperty(sysProp);
     if (null == value && null != otelConfigFile) {
       value = otelConfigFile.getProperty(sysProp);
+    }
+    return value;
+  }
+
+  /**
+   * Gets a Datadog property.
+   *
+   * <p>Checks system properties, environment variables, and the optional Datadog config file.
+   */
+  private String getDatadogProperty(String sysProp) {
+    String value = getProperty(sysProp);
+    if (null == value && null != datadogConfigFile) {
+      value = datadogConfigFile.getProperty(sysProp);
     }
     return value;
   }
