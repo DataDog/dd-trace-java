@@ -15,6 +15,7 @@ import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,8 +76,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private Collection<AppSecEvent> appSecEvents; // guarded by this
-  private Collection<StackTraceEvent> stackTraceEvents; // guarded by this
+  private volatile Queue<AppSecEvent> appSecEvents; // guarded by this
+  private volatile Queue<StackTraceEvent> stackTraceEvents; // guarded by this
 
   // assume these will always be written and read by the same thread
   private String scheme;
@@ -413,53 +414,46 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     for (AppSecEvent event : appSecEvents) {
       StandardizedLogging.attackDetected(log, event);
     }
-    synchronized (this) {
-      if (this.appSecEvents == null) {
-        this.appSecEvents = new ArrayList<>();
-      }
-      try {
-        this.appSecEvents.addAll(appSecEvents);
-      } catch (UnsupportedOperationException e) {
-        throw new IllegalStateException("Events cannot be added anymore");
+    if (this.appSecEvents == null) {
+      synchronized (this) {
+        if (this.appSecEvents == null) {
+          this.appSecEvents = new ConcurrentLinkedQueue<>();
+        }
       }
     }
+    this.appSecEvents.addAll(appSecEvents);
   }
 
   public void reportStackTrace(StackTraceEvent stackTraceEvent) {
-    synchronized (this) {
-      if (this.stackTraceEvents == null) {
-        this.stackTraceEvents = new ArrayList<>();
-      }
-      try {
-        if (stackTraceEvents.size() <= Config.get().getAppSecMaxStackTraces()) {
-          this.stackTraceEvents.add(stackTraceEvent);
+    if (this.stackTraceEvents == null) {
+      synchronized (this) {
+        if (this.stackTraceEvents == null) {
+          this.stackTraceEvents = new ConcurrentLinkedQueue<>();
         }
-      } catch (UnsupportedOperationException e) {
-        throw new IllegalStateException("Stacktrace cannot be added anymore");
       }
+    }
+    if (stackTraceEvents.size() <= Config.get().getAppSecMaxStackTraces()) {
+      this.stackTraceEvents.add(stackTraceEvent);
     }
   }
 
   Collection<AppSecEvent> transferCollectedEvents() {
-    Collection<AppSecEvent> events;
-    synchronized (this) {
-      events = this.appSecEvents;
-      this.appSecEvents = Collections.emptyList();
+    Collection<AppSecEvent> events = new ArrayList<>();
+    AppSecEvent item;
+    while ((item = this.appSecEvents.poll()) != null) {
+      events.add(item);
     }
-    if (events != null) {
-      return events;
-    } else {
-      return Collections.emptyList();
-    }
+    return events;
   }
 
   StackTraceCollection transferStackTracesCollection() {
-    Collection<StackTraceEvent> stackTraces;
-    synchronized (this) {
-      stackTraces = this.stackTraceEvents;
-      this.stackTraceEvents = Collections.emptyList();
+    Collection<StackTraceEvent> stackTraces = new ArrayList<>();
+    StackTraceEvent item;
+    while ((item = this.stackTraceEvents.poll()) != null) {
+      stackTraces.add(item);
     }
-    if (stackTraces != null) {
+
+    if (stackTraces.size() != 0) {
       return new StackTraceCollection(stackTraces);
     } else {
       return null;
