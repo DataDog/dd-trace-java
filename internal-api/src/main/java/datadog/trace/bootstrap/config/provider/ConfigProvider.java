@@ -364,7 +364,7 @@ public final class ConfigProvider {
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
-          new OtelEnvironmentConfigSource(),
+          new OtelEnvironmentConfigSource(configProperties),
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -387,7 +387,7 @@ public final class ConfigProvider {
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
-          new OtelEnvironmentConfigSource(),
+          new OtelEnvironmentConfigSource(configProperties),
           new CapturedEnvironmentConfigSource());
     }
   }
@@ -413,7 +413,7 @@ public final class ConfigProvider {
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
-          new OtelEnvironmentConfigSource(),
+          new OtelEnvironmentConfigSource(configProperties),
           new CapturedEnvironmentConfigSource());
     }
   }
