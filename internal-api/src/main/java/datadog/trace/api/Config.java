@@ -3326,18 +3326,21 @@ public class Config {
     return debuggerThirdPartyExcludes;
   }
 
-  public String getFinalDebuggerProbeUrl() {
-    // by default poll from datadog agent
-    return "http://" + agentHost + ":" + agentPort;
+  private String getFinalDebuggerBaseUrl() {
+    if (agentUrl.startsWith("unix:")) {
+      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
+      return "http://" + agentHost + ":" + agentPort;
+    } else {
+      return agentUrl;
+    }
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    // by default send to datadog agent
-    return agentUrl + "/debugger/v1/input";
+    return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
   }
 
   public String getFinalDebuggerSymDBUrl() {
-    return agentUrl + "/symdb/v1/input";
+    return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
   }
 
   public String getDebuggerProbeFileLocation() {
