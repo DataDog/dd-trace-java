@@ -110,9 +110,11 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     when:
     ctx.reportEvents([new AppSecEvent()])
+    events = ctx.transferCollectedEvents()
 
     then:
-    thrown IllegalStateException
+    events.size() == 1
+    events[0] != null
   }
 
   void 'collect events when none reported'() {
@@ -142,6 +144,11 @@ class AppSecRequestContextSpecification extends DDSpecification {
     collection.exploit[0].frames[0].line == 1
     collection.exploit[0].frames[0].class_name == 'class'
     collection.exploit[0].frames[0].function == 'method'
+  }
+
+  void 'collect stack traces when none reported'() {
+    expect:
+    ctx.transferStackTracesCollection() == null
   }
 
   void 'headers allow list should contains only lowercase names'() {

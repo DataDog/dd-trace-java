@@ -76,8 +76,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private volatile Queue<AppSecEvent> appSecEvents; // guarded by this
-  private volatile Queue<StackTraceEvent> stackTraceEvents; // guarded by this
+  private volatile Queue<AppSecEvent> appSecEvents;
+  private volatile Queue<StackTraceEvent> stackTraceEvents;
 
   // assume these will always be written and read by the same thread
   private String scheme;
@@ -438,15 +438,24 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   Collection<AppSecEvent> transferCollectedEvents() {
+    if (this.appSecEvents == null) {
+      return Collections.emptyList();
+    }
+
     Collection<AppSecEvent> events = new ArrayList<>();
     AppSecEvent item;
     while ((item = this.appSecEvents.poll()) != null) {
       events.add(item);
     }
+
     return events;
   }
 
   StackTraceCollection transferStackTracesCollection() {
+    if (this.stackTraceEvents == null) {
+      return null;
+    }
+
     Collection<StackTraceEvent> stackTraces = new ArrayList<>();
     StackTraceEvent item;
     while ((item = this.stackTraceEvents.poll()) != null) {
