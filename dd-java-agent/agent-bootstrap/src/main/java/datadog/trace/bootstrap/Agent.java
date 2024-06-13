@@ -1052,6 +1052,9 @@ public class Agent {
       logLevel = "DEBUG";
     } else {
       logLevel = ddGetProperty("dd.log.level");
+      if (null == logLevel) {
+        logLevel = System.getenv("OTEL_LOG_LEVEL");
+      }
     }
 
     if (null == logLevel && !isFeatureEnabled(AgentFeature.STARTUP_LOGS)) {
