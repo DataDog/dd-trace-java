@@ -104,7 +104,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
         // otherwise reference to "@{argLine}" that we add when configuring tracer
         // might cause failure
         // (test executions config is changed even if auto configuration is disabled:
-        // for passing module and sesion IDs to child JVM)
+        // for passing module and session IDs to child JVM)
         projectProperties.setProperty("argLine", "");
       }
     }

@@ -4,7 +4,6 @@ import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import org.apache.maven.BuildFailureException;
@@ -162,18 +161,6 @@ public abstract class MavenUtils {
     List<String> goals = request.getGoals();
     for (String goal : goals) {
       command.append(' ').append(goal);
-    }
-
-    Properties userProperties = request.getUserProperties();
-    if (userProperties != null) {
-      for (Map.Entry<Object, Object> e : userProperties.entrySet()) {
-        command
-            .append(" -")
-            .append(CLIManager.SET_SYSTEM_PROPERTY)
-            .append(e.getKey())
-            .append('=')
-            .append(e.getValue());
-      }
     }
 
     if (!request.getActiveProfiles().isEmpty()) {
