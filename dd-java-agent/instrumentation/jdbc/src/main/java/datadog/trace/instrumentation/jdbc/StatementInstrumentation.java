@@ -17,6 +17,7 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -115,6 +116,15 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
+
+        Statement instrumentationStatement = connection.createStatement();
+        instrumentationStatement.execute(
+            "set context_info 0x"
+                + span.getTraceId().toHexString()
+                + DDSpanId.toHexStringPadded(span.getSpanId())
+                + "0");
+        instrumentationStatement.close();
+
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason

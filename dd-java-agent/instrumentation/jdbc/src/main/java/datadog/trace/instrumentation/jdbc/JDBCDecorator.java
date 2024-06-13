@@ -245,6 +245,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public boolean shouldInjectTraceContext(DBInfo dbInfo) {
+    if (dbInfo.getType().equals("sqlserver")) {
+      return false;
+    }
+
     if (INJECT_TRACE_CONTEXT && !dbInfo.getFullPropagationSupport()) {
       if (!warnedAboutDBMPropagationMode) {
         log.warn(
