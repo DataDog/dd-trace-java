@@ -521,7 +521,10 @@ public class PowerWAFModule implements AppSecModule {
           StackWalkerFactory.INSTANCE.walk(
               stream ->
                   stream
-                      .filter(elem -> !elem.getClassName().startsWith("com.datadog"))
+                      .filter(
+                          elem ->
+                              !elem.getClassName().startsWith("com.datadog")
+                                  && !elem.getClassName().startsWith("datadog.trace"))
                       .limit(stackCapacity)
                       .collect(Collectors.toList()));
       return IntStream.range(0, elements.size())
