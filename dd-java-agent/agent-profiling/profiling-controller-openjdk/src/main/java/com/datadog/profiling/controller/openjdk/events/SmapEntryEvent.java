@@ -134,6 +134,9 @@ public class SmapEntryEvent extends Event {
   @Label("Encountered foreign keys")
   private final boolean encounteredForeignKeys;
 
+  @Label("NMT Category")
+  private final String nmtCategory;
+
   private enum ErrorReason {
     PARSING_ERROR,
     SMAP_FILE_NOT_FOUND,
@@ -180,7 +183,8 @@ public class SmapEntryEvent extends Event {
       long locked,
       boolean thpEligible,
       String vmFlags,
-      boolean encounteredForeignKeys) {
+      boolean encounteredForeignKeys,
+      String nmtCategory) {
     this.startAddress = startAddress;
     this.endAddress = endAddress;
     this.perms = perms;
@@ -213,9 +217,10 @@ public class SmapEntryEvent extends Event {
     this.thpEligible = thpEligible;
     this.vmFlags = vmFlags;
     this.encounteredForeignKeys = encounteredForeignKeys;
+    this.nmtCategory = nmtCategory;
   }
 
-  private static HashMap<String, String> getRegionAnnotations() {
+  private static HashMap<Long, String> getAnnotatedRegions() {
     if (annotatedMapsAvailable) {
       try {
         ObjectName objectName = new ObjectName("com.sun.management:type=DiagnosticCommand");
@@ -227,7 +232,7 @@ public class SmapEntryEvent extends Event {
 
         String[] lines =
             ((String) mbs.invoke(objectName, "systemMap", dcmdArgs, signature)).split("\n");
-        HashMap<String, String> annotatedRegions = new HashMap<>();
+        HashMap<Long, String> annotatedRegions = new HashMap<>();
         Pattern pattern =
             Pattern.compile(
                 "([0-9a-fA-Fx]+)\\s+-\\s+([0-9a-fA-Fx]+)\\s+(\\d+)\\s+(\\S+)\\s+(\\S+)(?:\\s+(.*))?");
@@ -235,16 +240,19 @@ public class SmapEntryEvent extends Event {
         for (String line : lines) {
           Matcher matcher = pattern.matcher(line);
           if (matcher.matches()) {
-            String startAddress = matcher.group(1);
+            long startAddress = Long.decode(matcher.group(1));
             String description = matcher.group(6);
             if (description.isEmpty()) {
               annotatedRegions.put(startAddress, "UNDEFINED");
+            } else if (description.startsWith("STACK")) {
+              annotatedRegions.put(startAddress, "STACK");
+            } else if (description.startsWith("[") || description.startsWith("/")) {
+              annotatedRegions.put(startAddress, "SYSTEM");
             } else {
-              annotatedRegions.put(startAddress, description);
+              annotatedRegions.put(startAddress, description.split("\\s+")[0]);
             }
           }
         }
-
         return annotatedRegions;
       } catch (Exception e) {
         return null;
@@ -288,6 +296,8 @@ public class SmapEntryEvent extends Event {
 
     boolean thpEligible = false;
     String vmFlags = null;
+
+    HashMap<Long, String> annotatedRegions = getAnnotatedRegions();
 
     try (Scanner scanner = new Scanner(new File("/proc/self/smaps"))) {
       while (scanner.hasNextLine()) {
@@ -418,6 +428,14 @@ public class SmapEntryEvent extends Event {
               break;
           }
         }
+
+        String nmtCategory;
+        if (annotatedRegions != null && annotatedRegions.containsKey(startAddress)) {
+          nmtCategory = annotatedRegions.get(startAddress);
+        } else {
+          //          System.out.println(annotatedRegions);
+          nmtCategory = "UNKNOWN";
+        }
         new SmapEntryEvent(
                 startAddress,
                 endAddress,
@@ -450,7 +468,8 @@ public class SmapEntryEvent extends Event {
                 locked,
                 thpEligible,
                 vmFlags,
-                encounteredForeignKeys)
+                encounteredForeignKeys,
+                nmtCategory)
             .commit();
       }
     } catch (FileNotFoundException e) {
