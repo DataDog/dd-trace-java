@@ -170,7 +170,9 @@ public class GatewayBridge {
                 StackTraceCollection stackTraceCollection = ctx.transferStackTracesCollection();
                 if (stackTraceCollection != null) {
                   Object flatStruct = ObjectFlattener.flatten(stackTraceCollection);
-                  traceSeg.setMetaStructTop("_dd.stack", flatStruct);
+                  if (flatStruct != null) {
+                    traceSeg.setMetaStructTop("_dd.stack", flatStruct);
+                  }
                 }
 
               } else if (hasUserTrackingEvent(traceSeg)) {

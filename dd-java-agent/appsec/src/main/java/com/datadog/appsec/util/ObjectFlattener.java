@@ -1,6 +1,7 @@
 package com.datadog.appsec.util;
 
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.Moshi;
 
 /**
@@ -18,9 +19,13 @@ public class ObjectFlattener {
    *
    * @param obj the object to flatten
    * @return the flattened object as a Map, or the original object if it's a primitive type or a
-   *     Collection or a Map. Returns null if the input object is null.
+   *     Collection or a Map. Returns null if the input object is null or if it cannot be flattened.
    */
   public static Object flatten(Object obj) {
-    return JSON_ADAPTER.toJsonValue(obj);
+    try {
+      return JSON_ADAPTER.toJsonValue(obj);
+    } catch (JsonDataException e) {
+      return null;
+    }
   }
 }

@@ -91,6 +91,19 @@ class ObjectFlattenerSpecification extends DDSpecification {
     result.map.key1 == [nestedKey: "nestedValue"]
   }
 
+  def "flatten should handle circular references"() {
+    given:
+    def circular = new Circular()
+    circular.name = "circular"
+    circular.circular = circular
+
+    when:
+    def result = ObjectFlattener.flatten(circular)
+
+    then:
+    result == null
+  }
+
   private static class TestObject {
     String name
     int value
@@ -107,5 +120,10 @@ class ObjectFlattenerSpecification extends DDSpecification {
       this.nestedName = nestedName
       this.nestedValue = nestedValue
     }
+  }
+
+  private static class Circular {
+    String name
+    Circular circular
   }
 }
