@@ -245,6 +245,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public boolean shouldInjectTraceContext(DBInfo dbInfo) {
+    // dummy comment
     if (INJECT_TRACE_CONTEXT && !dbInfo.getFullPropagationSupport()) {
       if (!warnedAboutDBMPropagationMode) {
         log.warn(
