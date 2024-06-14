@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.graphqljava;
+package datadog.trace.instrumentation.graphqljava14;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.DECORATE;
@@ -7,11 +7,15 @@ import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_VALIDATION;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.graphqljava.ExecutionInstrumentationContext;
+import datadog.trace.instrumentation.graphqljava.InstrumentedDataFetcher;
+import datadog.trace.instrumentation.graphqljava.ParsingInstrumentationContext;
+import datadog.trace.instrumentation.graphqljava.State;
+import datadog.trace.instrumentation.graphqljava.ValidationInstrumentationContext;
 import graphql.ExecutionResult;
 import graphql.execution.instrumentation.ChainedInstrumentation;
 import graphql.execution.instrumentation.Instrumentation;
 import graphql.execution.instrumentation.InstrumentationContext;
-import graphql.execution.instrumentation.InstrumentationState;
 import graphql.execution.instrumentation.SimpleInstrumentation;
 import graphql.execution.instrumentation.SimpleInstrumentationContext;
 import graphql.execution.instrumentation.parameters.InstrumentationExecuteOperationParameters;
@@ -47,27 +51,6 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     }
     instrumentationList.add(new GraphQLInstrumentation());
     return new ChainedInstrumentation(instrumentationList);
-  }
-
-  public static final class State implements InstrumentationState {
-    private AgentSpan requestSpan;
-    private String query;
-
-    public AgentSpan getRequestSpan() {
-      return requestSpan;
-    }
-
-    public void setRequestSpan(AgentSpan requestSpan) {
-      this.requestSpan = requestSpan;
-    }
-
-    public String getQuery() {
-      return query;
-    }
-
-    public void setQuery(String query) {
-      this.query = query;
-    }
   }
 
   @Override

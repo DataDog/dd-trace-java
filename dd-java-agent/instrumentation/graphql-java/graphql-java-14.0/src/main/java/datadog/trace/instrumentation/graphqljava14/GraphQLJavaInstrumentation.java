@@ -1,8 +1,10 @@
-package datadog.trace.instrumentation.graphqljava;
+package datadog.trace.instrumentation.graphqljava14;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
@@ -11,6 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import graphql.execution.ValueUnboxer;
 import graphql.execution.instrumentation.Instrumentation;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
@@ -28,15 +31,21 @@ public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".GraphQLDecorator",
-      packageName + ".ParsingInstrumentationContext",
-      packageName + ".ExecutionInstrumentationContext",
-      packageName + ".ValidationInstrumentationContext",
-      packageName + ".GraphQLInstrumentation$State",
+      "datadog.trace.instrumentation.graphqljava.GraphQLDecorator",
+      "datadog.trace.instrumentation.graphqljava.ParsingInstrumentationContext",
+      "datadog.trace.instrumentation.graphqljava.ExecutionInstrumentationContext",
+      "datadog.trace.instrumentation.graphqljava.ValidationInstrumentationContext",
+      "datadog.trace.instrumentation.graphqljava.State",
       packageName + ".GraphQLInstrumentation",
-      packageName + ".GraphQLQuerySanitizer",
-      packageName + ".InstrumentedDataFetcher"
+      "datadog.trace.instrumentation.graphqljava.GraphQLQuerySanitizer",
+      "datadog.trace.instrumentation.graphqljava.InstrumentedDataFetcher"
     };
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // introduced in 20.0
+    return not(hasClassNamed("graphql.execution.instrumentation.SimplePerformantInstrumentation"));
   }
 
   @Override
