@@ -2,6 +2,8 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
+def otelApiVersion = '1.38.0'
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'instrument'
 
@@ -33,7 +35,7 @@ spotbugs {
 
 dependencies {
   // latest OpenTelemetry API for drop-in support; instrumented at build-time with our shim
-  embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.38.0'
+  embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelApiVersion
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
