@@ -3,29 +3,9 @@ package datadog.smoketest.appsec
 
 import okhttp3.Request
 
-class SpringBootWithGRPCAppSecTest extends AbstractAppSecServerSmokeTest {
+class ServerRequestMessageTest extends AbstractSpringBootWithGRPCAppSecTest {
 
-  @Override
-  ProcessBuilder createProcessBuilder() {
-    String springBootShadowJar = System.getProperty("datadog.smoketest.appsec.springboot-grpc.shadowJar.path")
-    assert springBootShadowJar != null
-
-    List<String> command = [
-      javaPath(),
-      *defaultJavaProperties,
-      *defaultAppSecProperties,
-      "-jar",
-      springBootShadowJar,
-      "--server.port=${httpPort}"
-    ].collect { it as String }
-
-    ProcessBuilder processBuilder = new ProcessBuilder(command)
-    processBuilder.directory(new File(buildDirectory))
-  }
-
-  static final String ROUTE = 'async_annotation_greeting'
-
-  def greeter() {
+  void 'test grpc.server.request.message address'() {
     setup:
     String url = "http://localhost:${httpPort}/${ROUTE}"
     def request = new Request.Builder()

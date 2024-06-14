@@ -185,6 +185,9 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.requestBodyProcessed(), callback);
     assertThat(cbp.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    ss.registerCallback(events.grpcServerMethod(), callback);
+    assertThat(cbp.getCallback(events.grpcServerMethod()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
     ss.registerCallback(events.grpcServerRequestMessage(), callback);
     assertThat(cbp.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
@@ -237,6 +240,9 @@ public class InstrumentationGatewayTest {
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     ss.registerCallback(events.requestBodyProcessed(), throwback);
     assertThat(cbp.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+    ss.registerCallback(events.grpcServerMethod(), throwback);
+    assertThat(cbp.getCallback(events.grpcServerMethod()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     ss.registerCallback(events.grpcServerRequestMessage(), throwback);
     assertThat(cbp.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
