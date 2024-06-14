@@ -106,9 +106,6 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/Source",
           Type.getInternalName(OtelMuzzleRefBuilder.Source.class));
-      RENAMED_TYPES.put(
-          "io/opentelemetry/javaagent/bootstrap/Java8BytecodeBridge",
-          "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
     }
 
     /** OpenTelemetry and related packages shaded inside the tracer. */
@@ -124,6 +121,8 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
 
       RENAMED_PACKAGES.put(
           "io/opentelemetry/instrumentation/", "datadog/trace/bootstrap/otel/instrumentation/");
+      RENAMED_PACKAGES.put(
+          "io/opentelemetry/javaagent/bootstrap/", "datadog/trace/bootstrap/otel/instrumentation/");
 
       RENAMED_PACKAGES.put("org/objectweb/asm/", "net/bytebuddy/jar/asm/");
     }
