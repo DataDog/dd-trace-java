@@ -60,9 +60,15 @@ tasks.named('compileJava') {
 shadowJar {
   dependencies deps.excludeShared
 
+  include '*.jar'
+  include 'io/opentelemetry/api/**'
+  include 'io/opentelemetry/context/**'
   exclude 'io/opentelemetry/context/internal/shaded/**'
+  include 'datadog/opentelemetry/shim/**'
+  include 'datadog/trace/bootstrap/otel/**'
 
-  relocate 'io.opentelemetry', 'datadog.trace.bootstrap.otel'
+  relocate 'io.opentelemetry.api', 'datadog.trace.bootstrap.otel.api'
+  relocate 'io.opentelemetry.context', 'datadog.trace.bootstrap.otel.context'
   relocate 'datadog.opentelemetry.shim', 'datadog.trace.bootstrap.otel.shim'
 }
 
