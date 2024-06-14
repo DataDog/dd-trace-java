@@ -2,10 +2,18 @@ package com.datadog.profiling.controller.openjdk.events;
 
 import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.lang.management.ManagementFactory;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Enabled;
@@ -26,6 +34,7 @@ import org.slf4j.LoggerFactory;
 @StackTrace(false)
 public class SmapEntryEvent extends Event {
   private static final AtomicBoolean registered = new AtomicBoolean(false);
+  private static boolean annotatedMapsAvailable;
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
   private static final String VSYSCALL_START_ADDRESS = "ffffffffff600000";
 
@@ -206,6 +215,45 @@ public class SmapEntryEvent extends Event {
     this.encounteredForeignKeys = encounteredForeignKeys;
   }
 
+  private static HashMap<String, String> getRegionAnnotations() {
+    if (annotatedMapsAvailable) {
+      try {
+        ObjectName objectName = new ObjectName("com.sun.management:type=DiagnosticCommand");
+        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+
+        String[] emptyStringArgs = {};
+        Object[] dcmdArgs = {emptyStringArgs};
+        String[] signature = {String[].class.getName()};
+
+        String[] lines =
+            ((String) mbs.invoke(objectName, "systemMap", dcmdArgs, signature)).split("\n");
+        HashMap<String, String> annotatedRegions = new HashMap<>();
+        Pattern pattern =
+            Pattern.compile(
+                "([0-9a-fA-Fx]+)\\s+-\\s+([0-9a-fA-Fx]+)\\s+(\\d+)\\s+(\\S+)\\s+(\\S+)(?:\\s+(.*))?");
+
+        for (String line : lines) {
+          Matcher matcher = pattern.matcher(line);
+          if (matcher.matches()) {
+            String startAddress = matcher.group(1);
+            String description = matcher.group(6);
+            if (description.isEmpty()) {
+              annotatedRegions.put(startAddress, "UNDEFINED");
+            } else {
+              annotatedRegions.put(startAddress, description);
+            }
+          }
+        }
+
+        return annotatedRegions;
+      } catch (Exception e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  @SuppressForbidden // split with one-char String use a fast-path without regex usage
   public static void emit() {
     long startAddress;
     long endAddress;
@@ -418,6 +466,16 @@ public class SmapEntryEvent extends Event {
     // Make sure the periodic event is registered only once
     if (registered.compareAndSet(false, true)) {
       JfrHelper.addPeriodicEvent(SmapEntryEvent.class, SmapEntryEvent::emit);
+      try {
+        ObjectName objectName = new ObjectName("com.sun.management:type=DiagnosticCommand");
+        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+
+        annotatedMapsAvailable =
+            Arrays.stream(mbs.getMBeanInfo(objectName).getOperations())
+                .anyMatch(x -> x.getName().equals("systemMap"));
+      } catch (Exception e) {
+        annotatedMapsAvailable = false;
+      }
     }
   }
 }
