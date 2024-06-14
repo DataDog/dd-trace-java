@@ -42,6 +42,17 @@ public class Fingerprinter {
     return bytesToHex(bytes);
   }
 
+  public static String fingerprint(StackTraceElement element) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      digest.update(element.toString().getBytes());
+      return bytesToHex(digest.digest());
+    } catch (NoSuchAlgorithmException e) {
+      LOGGER.debug("Unable to find digest algorithm SHA-256", e);
+      return null;
+    }
+  }
+
   // convert byte[] to hex string
   private static String bytesToHex(byte[] bytes) {
     StringBuilder result = new StringBuilder(bytes.length * 2);

@@ -7,6 +7,7 @@ import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.ExceptionProbe;
+import com.datadog.debugger.probe.FrameAware;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -609,7 +610,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     ProbeId probeId = capturedContextProbes.get(0).getProbeId();
     for (ProbeDefinition definition : capturedContextProbes) {
       if (definition instanceof LogProbe) {
-        if (definition instanceof ExceptionProbe) {
+        if (definition instanceof FrameAware) {
           where = Where.convertLineToMethod(where, classFileLines);
         }
         hasLogProbe = true;

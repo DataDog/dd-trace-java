@@ -79,7 +79,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
       return;
     }
     if (exceptionProbeManager.isAlreadyInstrumented(fingerprint)) {
-      ThrowableState state = exceptionProbeManager.getSateByThrowable(innerMostException);
+      ThrowableState state = exceptionProbeManager.getStateByThrowable(innerMostException);
       if (state == null) {
         LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
         return;

@@ -2,7 +2,10 @@ package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.*;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.APPSEC_ENABLED_TAG_VALUE;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.APPSEC_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -79,6 +82,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile TagValue decisionMakerTagValue;
 
     private volatile boolean appsecPropagationEnabled;
+    private volatile int debugPropagation = 2;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
@@ -208,6 +212,16 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public boolean isAppsecPropagationEnabled() {
       return appsecPropagationEnabled;
+    }
+
+    @Override
+    public void updateDebugPropagation(int level) {
+      debugPropagation = level;
+    }
+
+    @Override
+    public int getDebugPropagation() {
+      return debugPropagation;
     }
 
     @Override

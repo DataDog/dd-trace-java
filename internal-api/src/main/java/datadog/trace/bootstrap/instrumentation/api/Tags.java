@@ -132,4 +132,5 @@ public class Tags {
   public static final String ASM_KEEP = "asm.keep";
 
   public static final String PROPAGATED_APPSEC = "_dd.p.appsec";
+  public static final String PROPAGATED_DEBUG = "_dd.p.debug";
 }

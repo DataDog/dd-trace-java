@@ -1,6 +1,8 @@
 package datadog.trace.util;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.StringJoiner;
 
 /** Helper class for handling tags */
 public final class TagsHelper {
@@ -79,5 +81,15 @@ public final class TagsHelper {
       sb.append(",");
     }
     return sb.substring(0, sb.length() - 1); // Remove last comma
+  }
+
+  public static String concatTags(Map<String, String> tags) {
+    if (tags == null || tags.isEmpty()) {
+      return "";
+    }
+    StringJoiner joiner = new StringJoiner(",");
+    tags.entrySet().stream().forEach(tag -> joiner.add(tag.getKey() + ":" + tag.getValue()));
+
+    return joiner.toString();
   }
 }
