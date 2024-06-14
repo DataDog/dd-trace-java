@@ -14,6 +14,8 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.report.AppSecEvent;
+import com.datadog.appsec.stack_trace.StackTraceEvent;
+import com.datadog.appsec.stack_trace.StackTraceEvent.Frame;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -26,6 +28,7 @@ import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.stacktrace.StackWalkerFactory;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafConfig;
@@ -57,6 +60,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,6 +79,8 @@ public class PowerWAFModule implements AppSecModule {
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
 
   private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
+
+  private static final String EXPLOIT_DETECTED_MSG = "Exploit detected";
 
   private static class ActionInfo {
     final String type;
@@ -425,11 +431,14 @@ public class PowerWAFModule implements AppSecModule {
           if ("block_request".equals(actionInfo.type)) {
             Flow.Action.RequestBlockingAction rba = createBlockRequestAction(actionInfo);
             flow.setAction(rba);
-            break;
           } else if ("redirect_request".equals(actionInfo.type)) {
             Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
             flow.setAction(rba);
-            break;
+          } else if ("generate_stack".equals(actionInfo.type)
+              && Config.get().isAppSecStackTraceEnabled()) {
+            String stackId = (String) actionInfo.parameters.get("stack_id");
+            StackTraceEvent stackTraceEvent = createExploitStackTraceEvent(stackId);
+            reqCtx.reportStackTrace(stackTraceEvent);
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
           }
@@ -495,6 +504,32 @@ public class PowerWAFModule implements AppSecModule {
         log.warn("Invalid blocking action data", cce);
         return null;
       }
+    }
+
+    private StackTraceEvent createExploitStackTraceEvent(String stackId) {
+      if (stackId == null || stackId.isEmpty()) {
+        return null;
+      }
+      List<Frame> result = generateUserCodeStackTrace();
+      return new StackTraceEvent(stackId, EXPLOIT_DETECTED_MSG, result);
+    }
+
+    /** Function generates stack trace of the user code (excluding datadog classes) */
+    private List<Frame> generateUserCodeStackTrace() {
+      int stackCapacity = Config.get().getAppSecMaxStackTraceDepth();
+      List<StackTraceElement> elements =
+          StackWalkerFactory.INSTANCE.walk(
+              stream ->
+                  stream
+                      .filter(
+                          elem ->
+                              !elem.getClassName().startsWith("com.datadog")
+                                  && !elem.getClassName().startsWith("datadog.trace"))
+                      .limit(stackCapacity)
+                      .collect(Collectors.toList()));
+      return IntStream.range(0, elements.size())
+          .mapToObj(idx -> new Frame(elements.get(idx), idx))
+          .collect(Collectors.toList());
     }
 
     private Powerwaf.ResultWithData doRunPowerwaf(
@@ -563,6 +598,7 @@ public class PowerWAFModule implements AppSecModule {
         .withRule(wafResult.rule)
         .withRuleMatches(wafResult.rule_matches)
         .withSpanId(spanId)
+        .withStackId(wafResult.stack_id)
         .build();
   }
 

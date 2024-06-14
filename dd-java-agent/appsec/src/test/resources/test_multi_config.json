@@ -3803,7 +3803,7 @@
         }
       ],
       "transformers": [],
-      "on_match": ["block"]
+      "on_match": ["block", "stack_trace"]
     },
     {
       "id": "ua0-600-13x",
