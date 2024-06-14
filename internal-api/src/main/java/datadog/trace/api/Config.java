@@ -129,7 +129,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REQUEST_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESPONSE_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESPONSE_BODY_ENCODING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
@@ -473,7 +472,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_REMOVE_INTEGRATION_SER
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_REQUEST_BODY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
-import static datadog.trace.api.config.TracerConfig.TRACE_RESPONSE_BODY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESPONSE_BODY_ENCODING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
@@ -976,8 +974,6 @@ public class Config {
   private final boolean jaxRsExceptionAsErrorsEnabled;
   private final boolean tracerHeaderEnabled;
   private final boolean tracerRequestBodyEnabled;
-
-  private final boolean tracerResponseBodyEnabled;
 
   private final String tracerResponseBodyEncoding;
   private final boolean axisPromoteResourceName;
@@ -2037,9 +2033,6 @@ public class Config {
     dubboProviderPropagateEnabled =
         configProvider.getBoolean(
             TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED, DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED);
-
-    tracerResponseBodyEnabled =
-        configProvider.getBoolean(TRACE_RESPONSE_BODY_ENABLED, DEFAULT_TRACE_RESPONSE_BODY_ENABLED);
 
     tracerResponseBodyEncoding =
         configProvider.getString(
@@ -3556,10 +3549,6 @@ public class Config {
     return dubboProviderPropagateEnabled;
   }
 
-  public boolean isTracerResponseBodyEnabled() {
-    return tracerResponseBodyEnabled;
-  }
-
   public String getTracerResponseBodyEncoding() {
     return tracerResponseBodyEncoding.toLowerCase();
   }
@@ -4385,8 +4374,6 @@ public class Config {
         + tracerHeaderEnabled
         + ", tracerRequestBodyEnabled="
         + tracerRequestBodyEnabled
-        + ", tracerResponseBodyEnabled="
-        + tracerResponseBodyEnabled
         + ", tracerResponseBodyEncoding="
         + tracerResponseBodyEncoding
         + ", dbClientSplitByInstance="

@@ -236,17 +236,16 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_REDIS_COMMAND_ARGS = false;
 
-  static final String DEFAULT_LOG_PATTERN="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger - [%method,%line] %X{dd.service} %X{dd.trace_id} %X{dd.span_id} - %msg%n";
+  static final String DEFAULT_LOG_PATTERN =
+      "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger - [%method,%line] %X{dd.service} %X{dd.trace_id} %X{dd.span_id} - %msg%n";
 
-  static final boolean DEFAULT_LOG_PATTERN_REPLACE=false;
+  static final boolean DEFAULT_LOG_PATTERN_REPLACE = false;
 
   static final boolean DEFAULT_TRACE_HEADER_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_REQUEST_BODY_ENABLED = false;
 
-  static final boolean DEFAULT_TRACE_RESPONSE_BODY_ENABLED = false;
-
-  static final String DEFAULT_TRACE_RESPONSE_BODY_ENCODING="utf-8";
+  static final String DEFAULT_TRACE_RESPONSE_BODY_ENCODING = "utf-8";
 
   static final boolean DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED = false;
 
