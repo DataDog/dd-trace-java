@@ -3,6 +3,7 @@ plugins {
 }
 
 def otelApiVersion = '1.38.0'
+def otelInstrumentationApiVersion = '2.4.0'
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'instrument'
@@ -36,6 +37,7 @@ spotbugs {
 dependencies {
   // latest OpenTelemetry API for drop-in support; instrumented at build-time with our shim
   embeddedClasspath group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelApiVersion
+  embeddedClasspath group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-api', version: otelInstrumentationApiVersion
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
@@ -62,13 +64,22 @@ shadowJar {
 
   include '*.jar'
   include 'io/opentelemetry/api/**'
+  exclude 'io/opentelemetry/api/incubator/**'
   include 'io/opentelemetry/context/**'
   exclude 'io/opentelemetry/context/internal/shaded/**'
+  include 'io/opentelemetry/semconv/**'
+  include 'io/opentelemetry/instrumentation/api/**'
+  exclude 'io/opentelemetry/instrumentation/api/incubator/log/**'
+  exclude 'io/opentelemetry/instrumentation/api/internal/cache/**'
+  exclude 'io/opentelemetry/instrumentation/api/internal/RuntimeVirtualFieldSupplier*'
+  exclude 'io/opentelemetry/instrumentation/api/util/VirtualField*'
   include 'datadog/opentelemetry/shim/**'
   include 'datadog/trace/bootstrap/otel/**'
 
   relocate 'io.opentelemetry.api', 'datadog.trace.bootstrap.otel.api'
   relocate 'io.opentelemetry.context', 'datadog.trace.bootstrap.otel.context'
+  relocate 'io.opentelemetry.semconv', 'datadog.trace.bootstrap.otel.semconv'
+  relocate 'io.opentelemetry.instrumentation.api', 'datadog.trace.bootstrap.otel.instrumentation.api'
   relocate 'datadog.opentelemetry.shim', 'datadog.trace.bootstrap.otel.shim'
 }
 
