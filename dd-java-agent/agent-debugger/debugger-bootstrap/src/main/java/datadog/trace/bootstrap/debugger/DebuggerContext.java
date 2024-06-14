@@ -67,12 +67,17 @@ public class DebuggerContext {
     void handleException(Throwable t, AgentSpan span);
   }
 
+  public interface SnapshotHandler {
+    void handleSnapshot(AgentSpan span, StackTraceElement element);
+  }
+
   private static volatile ProbeResolver probeResolver;
-  private static volatile ClassFilter classFilter;
+  public static volatile ClassFilter classFilter;
   private static volatile MetricForwarder metricForwarder;
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
+  private static volatile SnapshotHandler snapshotHandler;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
@@ -96,6 +101,10 @@ public class DebuggerContext {
 
   public static void initExceptionDebugger(ExceptionDebugger exceptionDebugger) {
     DebuggerContext.exceptionDebugger = exceptionDebugger;
+  }
+
+  public static void initSnapshotHandler(SnapshotHandler snapshotHandler) {
+    DebuggerContext.snapshotHandler = snapshotHandler;
   }
 
   /**
@@ -329,6 +338,18 @@ public class DebuggerContext {
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in commit: ", ex);
+    }
+  }
+
+  public static void captureSnapshot(AgentSpan span, StackTraceElement element) {
+    try {
+      SnapshotHandler handler = snapshotHandler;
+      if (handler == null) {
+        return;
+      }
+      handler.handleSnapshot(span, element);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in addSnapshot: ", ex);
     }
   }
 

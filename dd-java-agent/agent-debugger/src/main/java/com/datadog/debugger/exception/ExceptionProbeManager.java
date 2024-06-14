@@ -147,7 +147,7 @@ public class ExceptionProbeManager {
     state.addSnapshot(snapshot);
   }
 
-  public ThrowableState getSateByThrowable(Throwable throwable) {
+  public ThrowableState getStateByThrowable(Throwable throwable) {
     return snapshotsByThrowable.get(throwable);
   }
 

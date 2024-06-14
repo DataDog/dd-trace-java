@@ -3,11 +3,10 @@ package com.datadog.debugger.probe;
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 import static java.util.Collections.emptyList;
 
-import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.snapshot.SnapshotProbeManager;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -17,30 +16,13 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExceptionProbe extends LogProbe {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProbe.class);
-  private final transient ExceptionProbeManager exceptionProbeManager;
+public class DebugSnapshotProbe extends LogProbe {
+  private static final Logger LOGGER = LoggerFactory.getLogger(DebugSnapshotProbe.class);
+  private final transient SnapshotProbeManager probeManager;
 
-  public ExceptionProbe(
-      ProbeId probeId,
-      Where where,
-      ProbeCondition probeCondition,
-      Capture capture,
-      Sampling sampling,
-      ExceptionProbeManager exceptionProbeManager) {
-    super(
-        LANGUAGE,
-        probeId,
-        null,
-        where,
-        MethodLocation.EXIT,
-        null,
-        null,
-        true,
-        probeCondition,
-        capture,
-        sampling);
-    this.exceptionProbeManager = exceptionProbeManager;
+  public DebugSnapshotProbe(ProbeId probeId, Where where, SnapshotProbeManager probeManager) {
+    super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
+    this.probeManager = probeManager;
   }
 
   @Override
@@ -51,13 +33,13 @@ public class ExceptionProbe extends LogProbe {
 
   @Override
   public CapturedContext.Status createStatus() {
-    return new ExceptionProbeStatus(this);
+    return new DebugSnapshotProbeStatus(this);
   }
 
   @Override
   public void evaluate(
       CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
-    if (!(status instanceof ExceptionProbeStatus)) {
+    if (!(status instanceof DebugSnapshotProbeStatus)) {
       throw new IllegalStateException("Invalid status: " + status.getClass());
     }
     if (methodLocation != MethodLocation.EXIT) {
@@ -69,26 +51,12 @@ public class ExceptionProbe extends LogProbe {
     Throwable throwable = context.getCapturedThrowable().getThrowable();
     Throwable innerMostThrowable = getInnerMostThrowable(throwable);
     String fingerprint =
-        Fingerprinter.fingerprint(
-            innerMostThrowable, exceptionProbeManager.getClassNameFiltering());
-    if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
-      LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
-      // capture only on uncaught exception matching the fingerprint
-      ExceptionProbeStatus exceptionStatus = (ExceptionProbeStatus) status;
-      ExceptionProbeManager.ThrowableState state =
-          exceptionProbeManager.getStateByThrowable(innerMostThrowable);
-      if (state != null) {
-        // Already unwinding the exception
-        if (!state.isSampling()) {
-          // skip snapshot because no snapshot from previous stack level
-          return;
-        }
-        // Force for coordinated sampling
-        exceptionStatus.setForceSampling(true);
-      }
-      exceptionStatus.setCapture(true);
-      super.evaluate(context, status, methodLocation);
-    }
+        Fingerprinter.fingerprint(innerMostThrowable, probeManager.getClassNameFiltering());
+    LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
+    // capture only on uncaught exception matching the fingerprint
+    DebugSnapshotProbeStatus exceptionStatus = (DebugSnapshotProbeStatus) status;
+    exceptionStatus.setCapture(true);
+    super.evaluate(context, status, methodLocation);
   }
 
   @Override
@@ -109,7 +77,6 @@ public class ExceptionProbe extends LogProbe {
        */
       snapshot.recordStackTrace(4);
       // add snapshot for later to wait for triggering point (ExceptionDebugger::handleException)
-      exceptionProbeManager.addSnapshot(snapshot);
       LOGGER.debug(
           "committing exception probe id={}, snapshot id={}, exception id={}",
           id,
@@ -130,10 +97,10 @@ public class ExceptionProbe extends LogProbe {
     this.location = new ProbeLocation(type, method, where.getSourceFile(), emptyList());
   }
 
-  public static class ExceptionProbeStatus extends LogStatus {
+  public static class DebugSnapshotProbeStatus extends LogStatus {
     private boolean capture;
 
-    public ExceptionProbeStatus(ProbeImplementation probeImplementation) {
+    public DebugSnapshotProbeStatus(ProbeImplementation probeImplementation) {
       super(probeImplementation);
     }
 

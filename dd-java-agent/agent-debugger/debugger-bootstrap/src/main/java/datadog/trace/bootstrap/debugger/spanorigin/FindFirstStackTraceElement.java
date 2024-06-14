@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.span_origin;
+package datadog.trace.bootstrap.debugger.spanorigin;
 
 import java.lang.reflect.Method;
 import java.util.function.Function;

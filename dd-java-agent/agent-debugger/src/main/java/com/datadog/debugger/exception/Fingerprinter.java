@@ -43,7 +43,7 @@ public class Fingerprinter {
   }
 
   // convert byte[] to hex string
-  private static String bytesToHex(byte[] bytes) {
+  public static String bytesToHex(byte[] bytes) {
     StringBuilder result = new StringBuilder(bytes.length * 2);
     for (byte b : bytes) {
       result.append(Integer.toHexString((b & 0xff)));

@@ -6,7 +6,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptySet;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -108,7 +108,7 @@ class DefaultExceptionDebuggerTest {
     ExceptionProbeManager.ThrowableState state =
         exceptionDebugger
             .getExceptionProbeManager()
-            .getSateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
+            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
     assertEquals(
         state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
     Map<String, Snapshot> snapshotMap =
@@ -174,7 +174,7 @@ class DefaultExceptionDebuggerTest {
     ExceptionProbeManager.ThrowableState state =
         exceptionDebugger
             .getExceptionProbeManager()
-            .getSateByThrowable(ExceptionHelper.getInnerMostThrowable(nestedException));
+            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(nestedException));
     assertEquals(
         state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
     Map<String, Snapshot> snapshotMap =
@@ -311,7 +311,7 @@ class DefaultExceptionDebuggerTest {
       ExceptionProbeManager.ThrowableState state =
           exceptionDebugger
               .getExceptionProbeManager()
-              .getSateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
+              .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
       Snapshot lastSnapshot = state.getSnapshots().get(state.getSnapshots().size() - 1);
       lastSnapshot.getStack().clear();
       lastSnapshot
