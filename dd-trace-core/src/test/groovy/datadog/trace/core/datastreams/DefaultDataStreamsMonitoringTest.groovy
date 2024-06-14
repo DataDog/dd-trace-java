@@ -77,11 +77,14 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     then:
+    dataStreams.canSampleSchema("schema1")
     dataStreams.trySampleSchema("schema1") == 1
+    dataStreams.canSampleSchema("schema2")
     dataStreams.trySampleSchema("schema2") == 1
-    dataStreams.trySampleSchema("schema1") == 0
-    dataStreams.trySampleSchema("schema1") == 0
+    !dataStreams.canSampleSchema("schema1")
+    !dataStreams.canSampleSchema("schema1")
     timeSource.advance(30*1e9 as long)
+    dataStreams.canSampleSchema("schema1")
     dataStreams.trySampleSchema("schema1") == 3
   }
 
