@@ -46,6 +46,8 @@ dependencies {
 tasks.register('unpackJars', Copy) {
   dependsOn configurations.embeddedClasspath
   exclude 'META-INF/'
+  exclude '**/module-info.class'
+  exclude '**/package-info.class'
   from {
     configurations.embeddedClasspath.collect { zipTree(it) }
   }
