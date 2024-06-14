@@ -111,6 +111,12 @@ public interface KnownAddresses {
 
   Address<String> USER_ID = new Address<>("usr.id");
 
+  /** The URL of a network resource being requested (outgoing request) */
+  Address<String> IO_NET_URL = new Address<>("server.io.net.url");
+
+  /** The representation of opened file on the filesystem */
+  Address<String> IO_FS_FILE = new Address<>("server.io.fs.file");
+
   /** The database type (ex: mysql, postgresql, sqlite) */
   Address<String> DB_TYPE = new Address<>("server.db.system");
 
@@ -175,6 +181,10 @@ public interface KnownAddresses {
         return SERVER_GRAPHQL_ALL_RESOLVERS;
       case "usr.id":
         return USER_ID;
+      case "server.io.net.url":
+        return IO_NET_URL;
+      case "server.io.fs.file":
+        return IO_FS_FILE;
       case "server.db.system":
         return DB_TYPE;
       case "server.db.statement":
