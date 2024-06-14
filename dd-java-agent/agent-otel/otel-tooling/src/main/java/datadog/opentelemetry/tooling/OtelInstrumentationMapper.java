@@ -60,11 +60,6 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
   static final class Renamer extends Remapper {
     static final Renamer INSTANCE = new Renamer();
 
-    private static final String OTEL_JAVAAGENT_SHADED_PREFIX =
-        "io/opentelemetry/javaagent/shaded/io/opentelemetry/";
-
-    private static final String ASM_PREFIX = "org/objectweb/asm/";
-
     /** Datadog equivalent of OpenTelemetry instrumentation classes. */
     private static final Map<String, String> RENAMED_TYPES = new HashMap<>();
 
@@ -116,20 +111,29 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           "datadog/trace/bootstrap/otel/Java8BytecodeBridge");
     }
 
+    /** OpenTelemetry and related packages shaded inside the tracer. */
+    private static final Map<String, String> RENAMED_PACKAGES = new HashMap<>();
+
+    static {
+      RENAMED_PACKAGES.put(
+          "io/opentelemetry/javaagent/shaded/io/opentelemetry/", "datadog/trace/bootstrap/otel/");
+
+      RENAMED_PACKAGES.put("io/opentelemetry/api/", "datadog/trace/bootstrap/otel/api/");
+      RENAMED_PACKAGES.put("io/opentelemetry/context/", "datadog/trace/bootstrap/otel/context/");
+
+      RENAMED_PACKAGES.put("org/objectweb/asm/", "net/bytebuddy/jar/asm/");
+    }
+
     @Override
     public String map(String internalName) {
       String rename = RENAMED_TYPES.get(internalName);
       if (null != rename) {
         return rename;
       }
-      // map OpenTelemetry's shaded API to our embedded copy
-      if (internalName.startsWith(OTEL_JAVAAGENT_SHADED_PREFIX)) {
-        return "datadog/trace/bootstrap/otel/"
-            + internalName.substring(OTEL_JAVAAGENT_SHADED_PREFIX.length());
-      }
-      // map unshaded ASM types to the shaded copy in byte-buddy
-      if (internalName.startsWith(ASM_PREFIX)) {
-        return "net/bytebuddy/jar/asm/" + internalName.substring(ASM_PREFIX.length());
+      for (Map.Entry<String, String> mapping : RENAMED_PACKAGES.entrySet()) {
+        if (internalName.startsWith(mapping.getKey())) {
+          return mapping.getValue() + internalName.substring(mapping.getKey().length());
+        }
       }
       return MAP_LOGGING.apply(internalName);
     }
