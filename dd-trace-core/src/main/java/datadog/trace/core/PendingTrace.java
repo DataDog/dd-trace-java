@@ -51,6 +51,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     private final PendingTraceBuffer pendingTraceBuffer;
     private final TimeSource timeSource;
     private final boolean strictTraceWrites;
+    private final boolean noRootBuffering;
     private final HealthMetrics healthMetrics;
 
     Factory(
@@ -58,11 +59,13 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
         PendingTraceBuffer pendingTraceBuffer,
         TimeSource timeSource,
         boolean strictTraceWrites,
+        boolean noRootBuffering,
         HealthMetrics healthMetrics) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
       this.timeSource = timeSource;
       this.strictTraceWrites = strictTraceWrites;
+      this.noRootBuffering = noRootBuffering;
       this.healthMetrics = healthMetrics;
     }
 
@@ -79,6 +82,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
           timeSource,
           traceConfig,
           strictTraceWrites,
+          noRootBuffering,
           healthMetrics);
     }
   }
@@ -90,6 +94,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   private final PendingTraceBuffer pendingTraceBuffer;
   private final TimeSource timeSource;
   private final boolean strictTraceWrites;
+  private final boolean noRootBuffering;
   private final HealthMetrics healthMetrics;
   private final ConfigSnapshot traceConfig;
 
@@ -150,6 +155,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       @Nonnull TimeSource timeSource,
       ConfigSnapshot traceConfig,
       boolean strictTraceWrites,
+      boolean noRootBuffering,
       HealthMetrics healthMetrics) {
     this.tracer = tracer;
     this.traceId = traceId;
@@ -157,6 +163,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     this.timeSource = timeSource;
     this.traceConfig = traceConfig != null ? traceConfig : tracer.captureTraceConfig();
     this.strictTraceWrites = strictTraceWrites;
+    this.noRootBuffering = noRootBuffering;
     this.healthMetrics = healthMetrics;
     this.spans = new ConcurrentLinkedDeque<>();
   }
@@ -312,9 +319,16 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       write();
       return PublishState.WRITTEN;
     } else if (isRootSpan) {
-      // Finished root with pending work ... delay write
-      pendingTraceBuffer.enqueue(this);
-      return PublishState.ROOT_BUFFERED;
+      // Finished root with pending work
+      if (noRootBuffering) {
+        // write anything completed
+        partialFlush();
+        return PublishState.PARTIAL_FLUSH;
+      } else {
+        // delay write
+        pendingTraceBuffer.enqueue(this);
+        return PublishState.ROOT_BUFFERED;
+      }
     } else if (partialFlushMinSpans > 0 && size() >= partialFlushMinSpans) {
       // Trace is getting too big, write anything completed.
       partialFlush();

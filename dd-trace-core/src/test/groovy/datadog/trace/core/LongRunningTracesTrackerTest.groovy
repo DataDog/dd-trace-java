@@ -36,7 +36,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     sharedCommunicationObjects.featuresDiscovery(_) >> features
     buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(maxTrackedTraces, timeSource, config, sharedCommunicationObjects, HealthMetrics.NO_OP)
     tracker = buffer.runningTracesTracker
-    factory = new PendingTrace.Factory(tracer, buffer, timeSource, false, HealthMetrics.NO_OP)
+    factory = new PendingTrace.Factory(tracer, buffer, timeSource, false, false, HealthMetrics.NO_OP)
   }
 
   def "null is not added"() {

@@ -670,9 +670,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             ? PendingTraceBuffer.discarding()
             : PendingTraceBuffer.delaying(
                 this.timeSource, config, sharedCommunicationObjects, healthMetrics);
+
+    boolean noRootBuffering = config.isCiVisibilityEnabled();
     pendingTraceFactory =
         new PendingTrace.Factory(
-            this, pendingTraceBuffer, this.timeSource, strictTraceWrites, healthMetrics);
+            this,
+            pendingTraceBuffer,
+            this.timeSource,
+            strictTraceWrites,
+            noRootBuffering,
+            healthMetrics);
     pendingTraceBuffer.start();
 
     this.writer.start();
