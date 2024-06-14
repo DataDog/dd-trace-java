@@ -28,6 +28,7 @@ minimumInstructionCoverage = 0.0
 minimumBranchCoverage = 0.0
 
 forbiddenApis {
+  failOnMissingClasses = false
   ignoreFailures = true
 }
 spotbugs {
