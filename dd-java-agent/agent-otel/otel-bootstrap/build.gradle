@@ -85,6 +85,7 @@ shadowJar {
   exclude 'io/opentelemetry/javaagent/bootstrap/internal/DeprecatedConfigProperties*'
   exclude 'io/opentelemetry/javaagent/bootstrap/internal/EmptyInstrumentationConfig*'
   exclude 'io/opentelemetry/javaagent/bootstrap/internal/InClassLoaderMatcher*'
+  exclude 'io/opentelemetry/javaagent/bootstrap/internal/InstrumentationConfig*'
   include 'datadog/opentelemetry/shim/**'
   include 'datadog/trace/bootstrap/otel/**'
 
