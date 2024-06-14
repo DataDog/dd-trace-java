@@ -40,6 +40,9 @@ dependencies {
   embeddedClasspath group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-api', version: otelInstrumentationApiVersion
   embeddedClasspath group: 'io.opentelemetry.javaagent', name: 'opentelemetry-javaagent-extension-api', version: "$otelInstrumentationApiVersion-alpha"
 
+  // selected bootstrap types shared across multiple OpenTelemetry instrumentations
+  embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-servlet-common-bootstrap', version: "$otelInstrumentationApiVersion-alpha"
+
   compileOnly project(':dd-java-agent:agent-bootstrap')
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
