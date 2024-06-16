@@ -72,6 +72,7 @@ shadowJar {
   include 'io/opentelemetry/api/**'
   exclude 'io/opentelemetry/api/incubator/**'
   include 'io/opentelemetry/context/**'
+  exclude 'io/opentelemetry/context/StrictContextStorage*'
   exclude 'io/opentelemetry/context/internal/shaded/**'
   include 'io/opentelemetry/semconv/**'
   include 'io/opentelemetry/instrumentation/api/**'
