@@ -152,7 +152,7 @@ public class DDSpan
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano))) {
       setLongRunningVersion(-this.longRunningVersion);
       this.metrics.onSpanFinished();
-      PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
+      TraceCollector.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
       log.debug("Already finished: {}", this);
@@ -263,7 +263,7 @@ public class DDSpan
       log.debug("Already published: {}", this);
     } else if (DURATION_NANO_UPDATER.compareAndSet(
         this, durationNano, durationNano & Long.MAX_VALUE)) {
-      PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
+      TraceCollector.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Published span ({}): {}", publishState, this);
     }
   }
@@ -566,7 +566,7 @@ public class DDSpan
 
   @Override
   public Integer forceSamplingDecision() {
-    PendingTrace trace = this.context.getTrace();
+    TraceCollector trace = this.context.getTrace();
     DDSpan rootSpan = trace.getRootSpan();
     trace.setSamplingPriorityIfNecessary();
     if (rootSpan == null) {

@@ -19,7 +19,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.DDSpanHelper;
-import datadog.trace.core.PendingTrace;
+import datadog.trace.core.TraceCollector;
 import datadog.trace.core.propagation.PropagationTags;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.ByteBuffer;
@@ -101,7 +101,7 @@ public class TraceMapperBenchmark {
             .build();
 
     DDTraceId traceId = DDTraceId.ONE;
-    PendingTrace pendingTrace = tracer.createTrace(traceId);
+    TraceCollector traceCollector = tracer.createTrace(traceId);
     DDSpanContext rootContext =
         new DDSpanContext(
             traceId,
@@ -117,7 +117,7 @@ public class TraceMapperBenchmark {
             false,
             UTF8BytesString.create("type"),
             0,
-            pendingTrace,
+            traceCollector,
             null,
             null,
             NoopPathwayContext.INSTANCE,

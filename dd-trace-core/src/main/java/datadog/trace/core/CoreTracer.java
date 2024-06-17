@@ -186,7 +186,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final HealthMetrics healthMetrics;
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
-  private final PendingTrace.Factory pendingTraceFactory;
+  private final TraceCollector.Factory traceCollectorFactory;
   private final DataStreamsMonitoring dataStreamsMonitoring;
   private final ExternalAgentLauncher externalAgentLauncher;
   private final boolean disableSamplingMechanismValidation;
@@ -665,14 +665,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
-    pendingTraceBuffer =
-        strictTraceWrites
-            ? PendingTraceBuffer.discarding()
-            : PendingTraceBuffer.delaying(
-                this.timeSource, config, sharedCommunicationObjects, healthMetrics);
-    pendingTraceFactory =
-        new PendingTrace.Factory(
-            this, pendingTraceBuffer, this.timeSource, strictTraceWrites, healthMetrics);
+    if (config.isCiVisibilityEnabled()
+        && (config.isCiVisibilityAgentlessEnabled()
+            || sharedCommunicationObjects.featuresDiscovery(config).supportsEvpProxy())) {
+      pendingTraceBuffer = PendingTraceBuffer.discarding();
+      traceCollectorFactory = new StreamingTraceCollector.Factory(this, this.timeSource);
+    } else {
+      pendingTraceBuffer =
+          strictTraceWrites
+              ? PendingTraceBuffer.discarding()
+              : PendingTraceBuffer.delaying(
+                  this.timeSource, config, sharedCommunicationObjects, healthMetrics);
+      traceCollectorFactory =
+          new PendingTrace.Factory(
+              this, pendingTraceBuffer, this.timeSource, strictTraceWrites, healthMetrics);
+    }
     pendingTraceBuffer.start();
 
     this.writer.start();
@@ -798,12 +805,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    *
    * @return a PendingTrace
    */
-  public PendingTrace createTrace(DDTraceId id) {
-    return pendingTraceFactory.create(id);
+  public TraceCollector createTrace(DDTraceId id) {
+    return traceCollectorFactory.create(id);
   }
 
-  PendingTrace createTrace(DDTraceId id, ConfigSnapshot traceConfig) {
-    return pendingTraceFactory.create(id, traceConfig);
+  TraceCollector createTrace(DDTraceId id, ConfigSnapshot traceConfig) {
+    return traceCollectorFactory.create(id, traceConfig);
   }
 
   /**
@@ -979,13 +986,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
-    PendingTrace pendingTrace = writtenTrace.get(0).context().getTrace();
-    pendingTrace.setSamplingPriorityIfNecessary();
+    TraceCollector traceCollector = writtenTrace.get(0).context().getTrace();
+    traceCollector.setSamplingPriorityIfNecessary();
 
-    DDSpan rootSpan = pendingTrace.getRootSpan();
+    DDSpan rootSpan = traceCollector.getRootSpan();
     DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
     spanToSample.forceKeep(forceKeep);
-    boolean published = forceKeep || pendingTrace.sample(spanToSample);
+    boolean published = forceKeep || traceCollector.sample(spanToSample);
     if (published) {
       writer.write(writtenTrace);
     } else {
@@ -1434,7 +1441,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final long spanId = idGenerationStrategy.generateSpanId();
       final long parentSpanId;
       final Map<String, String> baggage;
-      final PendingTrace parentTrace;
+      final TraceCollector parentTrace;
       final int samplingPriority;
       final CharSequence origin;
       final Map<String, String> coreTags;

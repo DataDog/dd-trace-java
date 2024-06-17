@@ -18,7 +18,7 @@ import org.openjdk.jmh.infra.Blackhole;
 public class PendingTraceWrite {
 
   CoreTracer tracer;
-  PendingTrace trace;
+  TraceCollector trace;
 
   @Param({"10", "100"})
   int depthPerThread;
