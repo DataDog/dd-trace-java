@@ -316,29 +316,28 @@ public class HttpCodec {
         }
       }
 
-      logg("ddTraceId  name = "+ddTraceId.getClass().getName());
-      logg("w3cTraceId name = "+w3cTraceId.getClass().getName());
-      logg("ddTraceId  hex = "+ddTraceId.toHexString());
-      logg("w3cTraceId hex = "+w3cTraceId.toHexString());
-      if (traceIdMatch(ddTraceId, w3cTraceId)) {
-        logg("trace ID matches '"+ddTraceId+"' '"+w3cTraceId+"'");
-        logg("w3cTraceParent = "+w3cTraceParent);
-        logg("ddSpanId = "+ddSpanId);
-        logg("w3cSpanId = "+w3cSpanId);
-        if (ddSpanId != w3cSpanId) {
-          if (w3cTraceParent != null && !"0000000000000000".contentEquals(w3cTraceParent)) {
-            logg("updateLastParentId = "+w3cTraceParent);
-            context.getPropagationTags().updateLastParentId(w3cTraceParent);
-          } else {
-            // if p is unset, _dd.parent_id SHOULD be set using the parent_id extracted from datadog (x-datadog-parent-id)
-            context.getPropagationTags().updateLastParentId("xxx");
-          }
-        }
-      } else {
-        logg("trace ID does not match '" + ddTraceId + "' '" + w3cTraceId + "'");
-      }
-
       if (context != null) {
+        logg("ddTraceId  name = "+ddTraceId.getClass().getName());
+        logg("w3cTraceId name = "+w3cTraceId.getClass().getName());
+        logg("ddTraceId  hex = "+ddTraceId.toHexString());
+        logg("w3cTraceId hex = "+w3cTraceId.toHexString());
+        if (traceIdMatch(ddTraceId, w3cTraceId)) {
+          logg("trace ID matches '"+ddTraceId+"' '"+w3cTraceId+"'");
+          logg("w3cTraceParent = "+w3cTraceParent);
+          logg("ddSpanId = "+ddSpanId);
+          logg("w3cSpanId = "+w3cSpanId);
+          if (ddSpanId != w3cSpanId) {
+            if (w3cTraceParent != null && !"0000000000000000".contentEquals(w3cTraceParent)) {
+              logg("updateLastParentId = "+w3cTraceParent);
+              context.getPropagationTags().updateLastParentId(w3cTraceParent);
+            } else {
+              // if p is unset, _dd.parent_id SHOULD be set using the parent_id extracted from datadog (x-datadog-parent-id)
+              context.getPropagationTags().updateLastParentId("xxx");
+            }
+          }
+        } else {
+          logg("trace ID does not match '" + ddTraceId + "' '" + w3cTraceId + "'");
+        }
         log.debug("!!!! KEEP Extract complete context {}", context);
         return context;
       } else if (partialContext != null) {
