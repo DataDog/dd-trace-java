@@ -161,7 +161,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
    * @return timestamp in nanoseconds
    */
   @Override
-  long getCurrentTimeNano() {
+  public long getCurrentTimeNano() {
     long nanoTicks = timeSource.getNanoTicks();
     lastReferenced = nanoTicks;
     return tracer.getTimeWithNanoTicks(nanoTicks);

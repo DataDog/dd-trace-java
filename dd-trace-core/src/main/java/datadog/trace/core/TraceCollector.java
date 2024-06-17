@@ -76,7 +76,7 @@ public abstract class TraceCollector implements AgentTrace {
     return timeSource;
   }
 
-  long getCurrentTimeNano() {
+  public long getCurrentTimeNano() {
     long nanoTicks = timeSource.getNanoTicks();
     return tracer.getTimeWithNanoTicks(nanoTicks);
   }
