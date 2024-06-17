@@ -36,6 +36,8 @@ import org.slf4j.LoggerFactory;
 final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   private static final Logger log = LoggerFactory.getLogger(OtelEnvironmentConfigSource.class);
 
+  private final boolean enabled;
+
   private final Map<String, String> otelEnvironment = new HashMap<>();
 
   private final Properties otelConfigFile = loadOtelConfigFile();
@@ -44,7 +46,15 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
 
   @Override
   protected String get(String key) {
-    return otelEnvironment.get(key);
+    if (!enabled) {
+      return null;
+    }
+
+    String value = otelEnvironment.get(key);
+    if (null == value && key.startsWith("otel.")) {
+      value = getOtelProperty(key);
+    }
+    return value;
   }
 
   @Override
@@ -57,9 +67,10 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   OtelEnvironmentConfigSource(Properties datadogConfigFile) {
+    this.enabled = traceOtelEnabled();
     this.datadogConfigFile = datadogConfigFile;
 
-    if (traceOtelEnabled()) {
+    if (enabled) {
       setupOteEnvironment();
     }
   }
