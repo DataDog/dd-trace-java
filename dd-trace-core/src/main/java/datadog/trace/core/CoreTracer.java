@@ -669,7 +669,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         && (config.isCiVisibilityAgentlessEnabled()
             || sharedCommunicationObjects.featuresDiscovery(config).supportsEvpProxy())) {
       pendingTraceBuffer = PendingTraceBuffer.discarding();
-      traceCollectorFactory = new StreamingTraceCollector.Factory(this, this.timeSource);
+      traceCollectorFactory =
+          new StreamingTraceCollector.Factory(this, this.timeSource, healthMetrics);
     } else {
       pendingTraceBuffer =
           strictTraceWrites
