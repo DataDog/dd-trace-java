@@ -37,5 +37,6 @@ dependencies {
   testImplementation deps.scala
   testImplementation group: 'dev.zio', name: "zio_$scalaVersion", version: zioVersion
 
-  latestDepTestImplementation group: 'dev.zio', name: "zio_$scalaVersion", version: '+'
+  // Fails from 2.1: https://datadoghq.atlassian.net/browse/AIDM-156
+  latestDepTestImplementation group: 'dev.zio', name: "zio_$scalaVersion", version: '2.0.+'
 }

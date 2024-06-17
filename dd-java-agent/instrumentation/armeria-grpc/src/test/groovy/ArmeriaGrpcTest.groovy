@@ -45,6 +45,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
 
   def collectedAppSecHeaders = [:]
   boolean appSecHeaderDone = false
+  def collectedAppSecServerMethods = []
   def collectedAppSecReqMsgs = []
 
   final Duration timeoutDuration() {
@@ -97,6 +98,10 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
       collectedAppSecReqMsgs << obj
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, Object, Flow<Void>>)
+    ig.registerCallback(EVENTS.grpcServerMethod(), { reqCtx, method ->
+      collectedAppSecServerMethods << method
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, String, Flow<Void>>)
   }
 
   def cleanup() {
@@ -230,6 +235,8 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
     traceId.toLong() as String == collectedAppSecHeaders['x-datadog-trace-id']
     collectedAppSecReqMsgs.size() == 1
     collectedAppSecReqMsgs.first().name == name
+    collectedAppSecServerMethods.size() == 1
+    collectedAppSecServerMethods.first() == 'example.Greeter/SayHello'
 
     and:
     if (isDataStreamsEnabled()) {

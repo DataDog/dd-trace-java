@@ -97,6 +97,9 @@ ext {
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV1',
     'com.datadog.appsec.config.AppSecConfig.AppSecConfigV2',
     'com.datadog.appsec.config.AppSecConfig.NumberJsonAdapter',
+    'com.datadog.appsec.config.AppSecFeatures',
+    'com.datadog.appsec.config.AppSecFeatures.Asm',
+    'com.datadog.appsec.config.AppSecFeatures.ApiSecurity',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
   ]
   excludedClassesBranchCoverage = [

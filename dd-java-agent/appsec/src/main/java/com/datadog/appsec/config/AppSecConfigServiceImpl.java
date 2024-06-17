@@ -12,8 +12,10 @@ import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_REQUEST_BLOCKING;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_TRUSTED_IPS;
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_USER_BLOCKING;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.appsec.AppSecSystem;
+import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
 import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
 import com.datadog.appsec.config.CurrentAppSecConfig.DirtyStatus;
 import com.datadog.appsec.util.AbortStartupException;
@@ -34,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +61,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final Config tracerConfig;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
   private final AppSecModuleConfigurer.Reconfiguration reconfiguration;
+  private final ApiSecurityRequestSampler apiSecurityRequestSampler;
 
   private final ConfigurationEndListener applyWAFChangesAsListener = this::applyWAFChanges;
 
@@ -67,11 +69,13 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
-      @Nullable ConfigurationPoller configurationPoller,
+      ConfigurationPoller configurationPoller,
+      ApiSecurityRequestSampler apiSecurityRequestSampler,
       AppSecModuleConfigurer.Reconfiguration reconfig) {
     this.tracerConfig = tracerConfig;
     this.configurationPoller = configurationPoller;
     this.reconfiguration = reconfig;
+    this.apiSecurityRequestSampler = apiSecurityRequestSampler;
   }
 
   private void subscribeConfigurationPoller() {
@@ -79,8 +83,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     if (tracerConfig.getAppSecActivation() == ProductActivation.ENABLED_INACTIVE) {
       subscribeActivation();
     } else {
-      log.debug("Will not subscribe to ASM_FEATURES (AppSec explicitly enabled)");
+      log.debug(
+          "Will not subscribe to ASM_FEATURES['asm_features_activation'] (AppSec explicitly enabled)");
     }
+
+    subscribeApiSecurity();
+
     if (!hasUserWafConfig) {
       subscribeRulesAndData();
     } else {
@@ -164,8 +172,18 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           if (!initialized) {
             throw new IllegalStateException();
           }
-          final boolean newState =
-              newConfig != null && newConfig.asm != null && newConfig.asm.enabled;
+          final boolean newState;
+          if (newConfig == null) {
+            // configuration file was removed, restore the default
+            newState = tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+          } else if (newConfig.asm == null || newConfig.asm.enabled == null) {
+            // invalid payload from the backend, restore the default
+            log.debug(
+                SEND_TELEMETRY, "Invalid 'asm_features_activation' payload : {}", newConfig.asm);
+            newState = tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+          } else {
+            newState = newConfig.asm.enabled;
+          }
           if (AppSecSystem.isActive() != newState) {
             log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");
             AppSecSystem.setActive(newState);
@@ -177,6 +195,43 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           }
         });
     this.configurationPoller.addCapabilities(CAPABILITY_ASM_ACTIVATION);
+  }
+
+  private void subscribeApiSecurity() {
+    this.configurationPoller.addListener(
+        Product.ASM_FEATURES,
+        "asm_api_security",
+        AppSecFeaturesDeserializer.INSTANCE,
+        (configKey, newConfig, hinter) -> {
+          if (!initialized) {
+            throw new IllegalStateException();
+          }
+          final float newSampling;
+          if (newConfig == null) {
+            // configuration file was removed on the backend, restore the default
+            newSampling = tracerConfig.getApiSecurityRequestSampleRate();
+          } else if (newConfig.apiSecurity == null
+              || newConfig.apiSecurity.requestSampleRate == null) {
+            // invalid payload from the backend, restore the default
+            log.debug(
+                SEND_TELEMETRY, "Invalid 'asm_api_security' payload : {}", newConfig.apiSecurity);
+            newSampling = tracerConfig.getApiSecurityRequestSampleRate();
+          } else {
+            newSampling = newConfig.apiSecurity.requestSampleRate;
+          }
+
+          if (apiSecurityRequestSampler.setSampling(newSampling)) {
+            int pct = apiSecurityRequestSampler.getSampling();
+            if (pct == 0) {
+              log.info("Api Security is disabled via remote-config");
+            } else {
+              log.info(
+                  "Api Security changed via remote-config. New sampling rate is {}% of all requests.",
+                  pct);
+            }
+          }
+        });
+    this.configurationPoller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE);
   }
 
   private void distributeSubConfigurations(

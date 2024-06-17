@@ -15,6 +15,7 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.AppSecEvent
+import com.datadog.appsec.stack_trace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.internal.TraceSegment
@@ -755,8 +756,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
   }
 
   void 'reports events'() {
+    setup:
     setupWithStubConfigService()
     AppSecEvent event
+    StackTraceEvent stackTrace
+    injectSysConfig('appsec.stacktrace.enabled', 'true')
+    pwafModule = new PowerWAFModule() // replace the one created too soon
 
     when:
     dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, false)
@@ -767,6 +772,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive()
     }
     ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
+    ctx.reportStackTrace(_ as StackTraceEvent) >> { stackTrace = it[0] }
 
     event.rule.id == 'ua0-600-12x'
     event.rule.name == 'Arachni'
@@ -780,6 +786,13 @@ class PowerWAFModuleSpecification extends DDSpecification {
     event.ruleMatches[0].parameters[0].value == 'Arachni/v0'
 
     event.spanId == 777
+
+    stackTrace.language == 'java'
+    stackTrace.message == 'Exploit detected'
+    stackTrace.frames.size() >= 1
+    stackTrace.frames[0].class_name == 'org.codehaus.groovy.runtime.callsite.CallSiteArray'
+    stackTrace.frames[0].function == 'defaultCall'
+
   }
 
   void 'redaction with default settings'() {

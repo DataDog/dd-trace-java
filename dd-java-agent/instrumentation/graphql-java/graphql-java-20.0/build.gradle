@@ -1,0 +1,52 @@
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
+// there are a lot of invalid version using dates (i.e. com.graphql-java-graphql-java-2018-06-04T04-23-07)
+// so we limit by chunks
+muzzle {
+  pass {
+    group = "com.graphql-java"
+    module = 'graphql-java'
+    versions = '[20.0, 21.0)'
+  }
+}
+muzzle {
+  pass {
+    group = "com.graphql-java"
+    module = 'graphql-java'
+    versions = '[21.0, 22.0)'
+    javaVersion = '11'
+  }
+}
+muzzle {
+  pass {
+    group = "com.graphql-java"
+    module = 'graphql-java'
+    versions = '[22.0, 23.0)'
+    javaVersion = '11'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.graphql-java', name: 'graphql-java', version: '20.0'
+  implementation project(':dd-java-agent:instrumentation:graphql-java:graphql-java-common')
+
+  testImplementation group: 'com.graphql-java', name: 'graphql-java', version: '20.0'
+  // to test collisions with other instrumentation
+  testRuntimeOnly project(':dd-java-agent:instrumentation:graphql-java:graphql-java-14.0')
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+
+  latestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '20+,23)'
+
+  [compileLatestDepTestJava, compileLatestDepForkedTestGroovy].each {
+    it.configure {
+      setJavaVersion(it, 11)
+    }
+  }
+}

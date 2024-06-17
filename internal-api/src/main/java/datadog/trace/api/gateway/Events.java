@@ -225,6 +225,17 @@ public final class Events<D> {
     return (EventType<BiConsumer<RequestContext, String>>) DATABASE_SQL_QUERY;
   }
 
+  static final int GRPC_SERVER_METHOD_ID = 18;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType GRPC_SERVER_METHOD =
+      new ET<>("grpc.server.method", GRPC_SERVER_METHOD_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> grpcServerMethod() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) GRPC_SERVER_METHOD;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

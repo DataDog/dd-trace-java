@@ -67,18 +67,21 @@ public class AppSecSystem {
     EventDispatcher eventDispatcher = new EventDispatcher();
     REPLACEABLE_EVENT_PRODUCER.replaceEventProducerService(eventDispatcher);
 
+    ApiSecurityRequestSampler requestSampler = new ApiSecurityRequestSampler(config);
+
     ConfigurationPoller configurationPoller = sco.configurationPoller(config);
     // may throw and abort startup
     APP_SEC_CONFIG_SERVICE =
         new AppSecConfigServiceImpl(
-            config, configurationPoller, () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
+            config,
+            configurationPoller,
+            requestSampler,
+            () -> reloadSubscriptions(REPLACEABLE_EVENT_PRODUCER));
     APP_SEC_CONFIG_SERVICE.init();
 
     sco.createRemaining(config);
 
     RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
-    ApiSecurityRequestSampler requestSampler =
-        new ApiSecurityRequestSampler(config, configurationPoller);
 
     GatewayBridge gatewayBridge =
         new GatewayBridge(

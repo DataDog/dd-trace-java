@@ -19,6 +19,8 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
+import com.datadog.appsec.stack_trace.StackTraceCollection;
+import com.datadog.appsec.util.ObjectFlattener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
@@ -79,6 +81,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo requestBodySubInfo;
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
+  private volatile DataSubscriberInfo grpcServerMethodSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo graphqlServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo requestEndSubInfo;
@@ -162,6 +165,16 @@ public class GatewayBridge {
                 writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
                 writeResponseHeaders(
                     traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+
+                // Report collected stack traces
+                StackTraceCollection stackTraceCollection = ctx.transferStackTracesCollection();
+                if (stackTraceCollection != null) {
+                  Object flatStruct = ObjectFlattener.flatten(stackTraceCollection);
+                  if (flatStruct != null) {
+                    traceSeg.setMetaStructTop("_dd.stack", flatStruct);
+                  }
+                }
+
               } else if (hasUserTrackingEvent(traceSeg)) {
                 // Report all collected request headers on user tracking event
                 writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
@@ -359,6 +372,32 @@ public class GatewayBridge {
           }
           ctx.finishResponseHeaders();
           return maybePublishResponseData(ctx);
+        });
+
+    subscriptionService.registerCallback(
+        EVENTS.grpcServerMethod(),
+        (ctx_, method) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null || method == null || method.isEmpty()) {
+            return NoopFlow.INSTANCE;
+          }
+          while (true) {
+            DataSubscriberInfo subInfo = grpcServerMethodSubInfo;
+            if (subInfo == null) {
+              subInfo = producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_METHOD);
+              grpcServerMethodSubInfo = subInfo;
+            }
+            if (subInfo == null || subInfo.isEmpty()) {
+              return NoopFlow.INSTANCE;
+            }
+            DataBundle bundle =
+                new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_METHOD, method);
+            try {
+              return producerService.publishDataEvent(subInfo, ctx, bundle, true);
+            } catch (ExpiredSubscriberInfoException e) {
+              grpcServerMethodSubInfo = null;
+            }
+          }
         });
 
     subscriptionService.registerCallback(
