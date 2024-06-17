@@ -110,13 +110,13 @@ class AsmStandaloneBillingSamplingSmokeTest extends AbstractAsmStandaloneBilling
   void 'test propagation simulating 3 process'(){
     setup:
     def jsonSlurper = new JsonSlurper()
-    final trace_id = "1212121212121212121"
-    final parent_id = "34343434"
+    final traceId = "1212121212121212121"
+    final parentId = "34343434"
     final url = "http://localhost:${httpPorts[0]}/rest-api/appsec/appscan_fingerprint?url=http://localhost:${httpPorts[0]}/rest-api/returnheaders"
     final request = new Request.Builder()
       .url(url)
-      .header("x-datadog-trace-id", trace_id)
-      .header("x-datadog-parent-id", parent_id)
+      .header("x-datadog-trace-id", traceId)
+      .header("x-datadog-parent-id", parentId)
       .header("x-datadog-origin", "rum")
       .header("x-datadog-sampling-priority", "1")
       .get().build()
