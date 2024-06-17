@@ -11,6 +11,7 @@ import static datadog.opentelemetry.shim.trace.OtelConventions.OPERATION_NAME_SP
 import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
 import static datadog.opentelemetry.shim.trace.OtelConventions.toSpanKindTagValue
 import static io.opentelemetry.api.common.AttributeKey.longKey
+import static io.opentelemetry.api.common.AttributeKey.stringKey
 import static io.opentelemetry.api.trace.SpanKind.CLIENT
 import static io.opentelemetry.api.trace.SpanKind.CONSUMER
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL
@@ -100,20 +101,21 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
   def "test span specific tags"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
+    def keyFor = (String key) -> useAttributeKey ? stringKey(key) : key
 
     when:
     if (setInBuilder) {
-      builder.setAttribute("operation.name", "my-operation")
-        .setAttribute("service.name", "my-service")
-        .setAttribute("resource.name", "/my-resource")
-        .setAttribute("span.type", "http")
+      builder.setAttribute(keyFor("operation.name"), "my-operation")
+      .setAttribute(keyFor("service.name"), "my-service")
+      .setAttribute(keyFor("resource.name"), "/my-resource")
+      .setAttribute(keyFor("span.type"), "http")
     }
     def result = builder.startSpan()
     if (!setInBuilder) {
-      result.setAttribute("operation.name", "my-operation")
-        .setAttribute("service.name", "my-service")
-        .setAttribute("resource.name", "/my-resource")
-        .setAttribute("span.type", "http")
+      result.setAttribute(keyFor("operation.name"), "my-operation")
+      .setAttribute(keyFor("service.name"), "my-service")
+      .setAttribute(keyFor("resource.name"), "/my-resource")
+      .setAttribute(keyFor("span.type"), "http")
     }
     result.end()
 
@@ -135,7 +137,11 @@ class OpenTelemetry14ConventionsTest extends AgentTestRunner {
     }
 
     where:
-    setInBuilder << [true, false]
+    setInBuilder | useAttributeKey
+    true         | true
+    true         | false
+    false        | true
+    false        | false
   }
 
   def "test span analytics.event specific tag"() {
