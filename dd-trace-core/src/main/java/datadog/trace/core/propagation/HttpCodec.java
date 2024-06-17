@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 
 import datadog.trace.api.Config;
@@ -79,6 +80,7 @@ public class HttpCodec {
       Config config,
       Set<TracePropagationStyle> styles,
       Map<String, String> invertedBaggageMapping) {
+    logg("# CreateInjector returns CompoundInjector");
     ArrayList<Injector> injectors =
         new ArrayList<>(createInjectors(config, styles, invertedBaggageMapping).values());
     return new CompoundInjector(injectors);
@@ -90,11 +92,16 @@ public class HttpCodec {
         config, EnumSet.allOf(TracePropagationStyle.class), reverseBaggageMapping);
   }
 
+  private static  void logg(String s) {
+    log.error("!!!! "+s);
+  }
+
   private static Map<TracePropagationStyle, Injector> createInjectors(
       Config config,
       Set<TracePropagationStyle> propagationStyles,
       Map<String, String> reverseBaggageMapping) {
     EnumMap<TracePropagationStyle, Injector> result = new EnumMap<>(TracePropagationStyle.class);
+    logg("createInjectors");
     for (TracePropagationStyle style : propagationStyles) {
       switch (style) {
         case DATADOG:
@@ -134,6 +141,7 @@ public class HttpCodec {
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     final List<Extractor> extractors = new ArrayList<>();
     for (final TracePropagationStyle style : config.getTracePropagationStylesToExtract()) {
+      logg("!!!! add extractor "+style);
       switch (style) {
         case DATADOG:
           extractors.add(DatadogHttpCodec.newExtractor(config, traceConfigSupplier));
@@ -176,14 +184,21 @@ public class HttpCodec {
     private final List<Injector> injectors;
 
     public CompoundInjector(final List<Injector> injectors) {
+      int x =1;
+      for (Injector i : injectors) {
+        logg("!!!! CompoundInjector #"+ x +" " +i);
+        x++;
+      }
       this.injectors = injectors;
     }
 
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+      logg("!!!! inject " + context + " " + carrier + " " + setter);
       log.debug("Inject context {}", context);
       for (final Injector injector : injectors) {
+        logg("!!!! iiinjector "+injector);
         injector.inject(context, carrier, setter);
       }
     }
@@ -205,22 +220,45 @@ public class HttpCodec {
     public CompoundExtractor(final List<Extractor> extractors, boolean extractFirst) {
       this.extractors = extractors;
       this.extractFirst = extractFirst;
+
+      StringBuilder sb = new StringBuilder();
+      for (Extractor e : extractors) {
+        sb.append(e);
+        sb.append(",");
+      }
+      logg("CompoundExtractor-"+extractFirst+"-"+extractors+"-" + sb);
     }
 
     @Override
     public <C> TagContext extract(
         final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
+      logg("extract");
       ExtractedContext context = null;
       TagContext partialContext = null;
+      CharSequence w3cTraceParent = null;
+      long ddSpanId = 0;
+      DDTraceId ddTraceId = null;
+      long w3cSpanId = 0;
+      DDTraceId w3cTraceId = null;
       // Extract and cache all headers in advance
       ExtractionCache<C> extractionCache = new ExtractionCache<>(carrier, getter);
+      logg("extractionCache = " + extractionCache);
 
+      int x=0;
       for (final Extractor extractor : this.extractors) {
+        logg("!!!! extractor #"+x+"= "+extractor);
+        x++;
         TagContext extracted = extractor.extract(extractionCache, extractionCache);
         // Check if context is valid
         if (extracted instanceof ExtractedContext) {
+          logg("!!!! extracted = "+extracted);
           ExtractedContext extractedContext = (ExtractedContext) extracted;
           // If no prior valid context, store it as first valid context
+          logg("!!!! context = "+context);
+          logg("!!!! extractedContext = "+extractedContext);
+          logg("!!!! extractFirst = "+extractFirst);
+          boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
+          boolean comingFromDatadogContext = extracted.getPropagationStyle() == DATADOG;
           if (context == null) {
             context = extractedContext;
             // Stop extraction if only extracting first valid context and drop everything else
@@ -231,18 +269,45 @@ public class HttpCodec {
           // If another valid context is extracted
           else {
             if (traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
-              boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
+              logg("trace ID matches "+context.getTraceId()+" "+extractedContext.getTraceId());
+              logg("comingFromTraceContext = "+comingFromTraceContext);
               if (comingFromTraceContext) {
                 // Propagate newly extracted W3C tracestate to first valid context
                 String extractedTracestate =
                     extractedContext.getPropagationTags().getW3CTracestate();
+                logg("extractedTracestate = "+extractedTracestate);
                 context.getPropagationTags().updateW3CTracestate(extractedTracestate);
+                logg("context.getPropagationTags() = "+context.getPropagationTags());
+                logg("context.getPropagationTags().createTagMap = "+context.getPropagationTags().createTagMap());
+                logg("context.getPropagationTags().getW3CTracestate = "+context.getPropagationTags().getW3CTracestate());
+                logg("context="+context);
+                logg("tags = " + context.getTags());
+
+                CharSequence getLastParentId = context.getPropagationTags().getLastParentId();
+                logg("getLastParentId = "+getLastParentId);
+                logg("$$$ context span ID = "+context.getSpanId());
+                logg("$$$ extracted context span ID = "+extractedContext.getSpanId());
               }
             } else {
               // Terminate extracted context and add it as span link
               context.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
               // TODO Note: Other vendor tracestate will be lost here
             }
+          }
+          // When iterating over the extractors the order is unknown so collect the dd and w3c values to be used after
+          // applying all extractors
+          if (comingFromTraceContext) {
+            w3cTraceParent = extractedContext.getPropagationTags().getLastParentId(); // p value from tracestate
+            w3cTraceId = extractedContext.getTraceId();
+            w3cSpanId = extractedContext.getSpanId();
+            logg("w3cTraceParent = "+w3cTraceParent);
+            logg("w3cTraceId = "+w3cTraceId);
+            logg("w3cSpanId = "+w3cSpanId);
+          } else if (comingFromDatadogContext) {
+            ddTraceId = extractedContext.getTraceId();
+            ddSpanId = extractedContext.getSpanId();
+            logg("datadogTraceId = "+ddTraceId);
+            logg("datadogSpanId = "+ddSpanId);
           }
         }
         // Check if context is at least partial to keep it as first valid partial context found
@@ -251,14 +316,36 @@ public class HttpCodec {
         }
       }
 
+      logg("ddTraceId  name = "+ddTraceId.getClass().getName());
+      logg("w3cTraceId name = "+w3cTraceId.getClass().getName());
+      logg("ddTraceId  hex = "+ddTraceId.toHexString());
+      logg("w3cTraceId hex = "+w3cTraceId.toHexString());
+      if (traceIdMatch(ddTraceId, w3cTraceId)) {
+        logg("trace ID matches '"+ddTraceId+"' '"+w3cTraceId+"'");
+        logg("w3cTraceParent = "+w3cTraceParent);
+        logg("ddSpanId = "+ddSpanId);
+        logg("w3cSpanId = "+w3cSpanId);
+        if (ddSpanId != w3cSpanId) {
+          if (w3cTraceParent != null && !"0000000000000000".contentEquals(w3cTraceParent)) {
+            logg("updateLastParentId = "+w3cTraceParent);
+            context.getPropagationTags().updateLastParentId(w3cTraceParent);
+          } else {
+            // if p is unset, _dd.parent_id SHOULD be set using the parent_id extracted from datadog (x-datadog-parent-id)
+            context.getPropagationTags().updateLastParentId("xxx");
+          }
+        }
+      } else {
+        logg("trace ID does not match '" + ddTraceId + "' '" + w3cTraceId + "'");
+      }
+
       if (context != null) {
-        log.debug("Extract complete context {}", context);
+        log.debug("!!!! KEEP Extract complete context {}", context);
         return context;
       } else if (partialContext != null) {
-        log.debug("Extract incomplete context {}", partialContext);
+        log.debug("!!!! KEEP Extract incomplete context {}", partialContext);
         return partialContext;
       } else {
-        log.debug("Extract no context");
+        log.debug("!!!! KEEP Extract no context");
         return null;
       }
     }
