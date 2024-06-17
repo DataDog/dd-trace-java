@@ -49,6 +49,14 @@ abstract class AbstractAsmStandaloneBillingSmokeTest extends AbstractServerSmoke
     }
   }
 
+  protected DecodedTrace getServiceTraceFromUrl(String url) {
+    return traces.find { trace ->
+      trace.spans.find { span ->
+        span.meta["http.url"] == url
+      }
+    }
+  }
+
   protected checkRootSpanPrioritySampling(DecodedTrace trace, byte priority) {
     return trace.spans[0].metrics['_sampling_priority_v1'] == priority
   }
