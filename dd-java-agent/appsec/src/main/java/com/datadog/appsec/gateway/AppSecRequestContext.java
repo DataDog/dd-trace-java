@@ -6,6 +6,7 @@ import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.stack_trace.StackTraceCollection;
 import com.datadog.appsec.stack_trace.StackTraceEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import io.sqreen.powerwaf.Additive;
@@ -417,14 +418,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     for (AppSecEvent event : appSecEvents) {
       StandardizedLogging.attackDetected(log, event);
     }
-    synchronized (this) {
-      if (this.collectedEvents == null) {
-        this.collectedEvents = new ArrayList<>();
-      }
-      try {
-        this.collectedEvents.addAll(events);
-      } catch (UnsupportedOperationException e) {
-        throw new IllegalStateException("Events cannot be added anymore");
+    if (this.appSecEvents == null) {
+      synchronized (this) {
+        if (this.appSecEvents == null) {
+          this.appSecEvents = new ConcurrentLinkedQueue<>();
+        }
       }
     }
     this.appSecEvents.addAll(appSecEvents);
