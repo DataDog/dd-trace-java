@@ -1,3 +1,11 @@
+muzzle {
+  pass {
+    group = 'org.apache.avro'
+    module = 'avro'
+    versions = '1.11.3'
+    extraDependency 'org.apache.avro:avro-mapred:1.11.3'
+  }
+}
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {

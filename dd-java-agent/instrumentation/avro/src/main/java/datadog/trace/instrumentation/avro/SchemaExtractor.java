@@ -45,7 +45,6 @@ public class SchemaExtractor implements SchemaIterator {
       case MAP:
         type = "object";
         description = "Map type";
-        // Recursively handle map value type schema
         break;
       case STRING:
         type = "string";
