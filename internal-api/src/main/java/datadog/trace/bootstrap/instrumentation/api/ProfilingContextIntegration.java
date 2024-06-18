@@ -21,6 +21,10 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
     return Stateful.DEFAULT;
   }
 
+  default void setContext(ProfilerContext profilerContext) {}
+
+  default void clearContext() {}
+
   default int encode(CharSequence constant) {
     return 0;
   }

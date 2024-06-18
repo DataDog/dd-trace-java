@@ -7,12 +7,15 @@ import datadog.trace.api.profiling.QueueTiming
 import datadog.trace.api.profiling.Timing
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.ProfilerContext
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper
+import org.eclipse.jetty.util.ConcurrentHashSet
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.BlockingDeque
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -24,6 +27,10 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
   final AtomicInteger counter = new AtomicInteger()
   final BlockingDeque<Timing> closedTimings = new LinkedBlockingDeque<>()
   final Logger logger = LoggerFactory.getLogger(TestProfilingContextIntegration)
+  final ConcurrentHashMap<CharSequence, AtomicInteger> spanIds = new ConcurrentHashMap<>()
+  final ThreadLocal<CharSequence> currentSpan = ThreadLocal.withInitial {
+    ""
+  }
   @Override
   void onAttach() {
     attachments.incrementAndGet()
@@ -34,9 +41,31 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
     detachments.incrementAndGet()
   }
 
+  int getActivationBalance(CharSequence spanName) {
+    return spanIds.get(spanName)?.get() ?: -1
+  }
+
   void clear() {
     attachments.set(0)
     detachments.set(0)
+  }
+
+  @Override
+  void setContext(ProfilerContext profilerContext) {
+    new Throwable("mount " + profilerContext.operationName).printStackTrace(System.err)
+    spanIds.computeIfAbsent(profilerContext.operationName, {
+      return new AtomicInteger()
+    }).getAndIncrement()
+    currentSpan.set(profilerContext.operationName)
+  }
+
+  @Override
+  void clearContext() {
+    def spanName = currentSpan.get()
+    if (spanName?.length() != 0) {
+      spanIds.getOrDefault(spanName, new AtomicInteger()).getAndDecrement()
+      currentSpan.remove()
+    }
   }
 
   @Override

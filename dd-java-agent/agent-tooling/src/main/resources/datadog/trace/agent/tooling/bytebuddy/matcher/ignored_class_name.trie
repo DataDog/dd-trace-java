@@ -68,6 +68,8 @@
 0 java.io.PushbackInputStream
 1 jdk.*
 0 jdk.internal.net.http.*
+# for updating profiler context on mount/unmount
+0 jdk.internal.vm.Continuation
 1 net.bytebuddy.*
 1 org.apache.felix.framework.URLHandlers*
 1 org.apache.groovy.*

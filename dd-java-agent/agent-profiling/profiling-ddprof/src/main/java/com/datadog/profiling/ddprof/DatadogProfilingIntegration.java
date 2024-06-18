@@ -40,10 +40,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
         @Override
         public void activate(Object context) {
           if (context instanceof ProfilerContext) {
-            ProfilerContext profilerContext = (ProfilerContext) context;
-            DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
-            DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
-            DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getEncodedResourceName());
+            setContext((ProfilerContext) context);
           }
         }
       };
@@ -93,6 +90,14 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     return "ddprof";
   }
 
+  @Override
+  public void setContext(ProfilerContext profilerContext) {
+    DDPROF.setSpanContext(profilerContext.getSpanId(), profilerContext.getRootSpanId());
+    DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getEncodedOperationName());
+    DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getEncodedResourceName());
+  }
+
+  @Override
   public void clearContext() {
     DDPROF.clearSpanContext();
     DDPROF.clearContextValue(SPAN_NAME_INDEX);
