@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.telemetry;
 
+import datadog.trace.api.civisibility.telemetry.tag.AutoInjected;
 import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageEnabled;
@@ -19,12 +20,20 @@ import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.Library;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
+import datadog.trace.api.civisibility.telemetry.tag.RequestCompressed;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
+import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.Arrays;
 
 public enum CiVisibilityCountMetric {
 
+  /**
+   * The number of test sessions started. This metric is separate from event_created to avoid
+   * increasing the cardinality too much
+   */
+  TEST_SESSION("test_session", Provider.class, AutoInjected.class),
   /** The number of events created */
   EVENT_CREATED(
       "event_created",
@@ -67,10 +76,10 @@ public enum CiVisibilityCountMetric {
   /** The number of events enqueued for serialization */
   EVENTS_ENQUEUED_FOR_SERIALIZATION("events_enqueued_for_serialization"),
   /** The number of requests sent to the endpoint, regardless of success */
-  ENDPOINT_PAYLOAD_REQUESTS("endpoint_payload.requests", Endpoint.class),
+  ENDPOINT_PAYLOAD_REQUESTS("endpoint_payload.requests", Endpoint.class, RequestCompressed.class),
   /** The number of requests sent to the endpoint that errored */
   ENDPOINT_PAYLOAD_REQUESTS_ERRORS(
-      "endpoint_payload.requests_errors", Endpoint.class, ErrorType.class),
+      "endpoint_payload.requests_errors", Endpoint.class, ErrorType.class, StatusCode.class),
   /** The number of payloads dropped after all retries */
   ENDPOINT_PAYLOAD_DROPPED("endpoint_payload.dropped", Endpoint.class),
   /** The number of git commands executed */
@@ -78,17 +87,19 @@ public enum CiVisibilityCountMetric {
   /** The number of git commands that errored */
   GIT_COMMAND_ERRORS("git.command_errors", Command.class, ExitCode.class),
   /** The number of requests sent to the search commit endpoint */
-  GIT_REQUESTS_SEARCH_COMMITS("git_requests.search_commits"),
+  GIT_REQUESTS_SEARCH_COMMITS("git_requests.search_commits", RequestCompressed.class),
   /** The number of search commit requests sent to the endpoint that errored */
-  GIT_REQUESTS_SEARCH_COMMITS_ERRORS("git_requests.search_commits_errors", ErrorType.class),
+  GIT_REQUESTS_SEARCH_COMMITS_ERRORS(
+      "git_requests.search_commits_errors", ErrorType.class, StatusCode.class),
   /** The number of requests sent to the git object pack endpoint */
-  GIT_REQUESTS_OBJECTS_PACK("git_requests.objects_pack"),
+  GIT_REQUESTS_OBJECTS_PACK("git_requests.objects_pack", RequestCompressed.class),
   /** The number of git object pack requests sent to the endpoint that errored */
-  GIT_REQUESTS_OBJECTS_PACK_ERRORS("git_requests.objects_pack_errors", ErrorType.class),
+  GIT_REQUESTS_OBJECTS_PACK_ERRORS(
+      "git_requests.objects_pack_errors", ErrorType.class, StatusCode.class),
   /** The number of requests sent to the settings endpoint, regardless of success */
-  GIT_REQUESTS_SETTINGS("git_requests.settings"),
+  GIT_REQUESTS_SETTINGS("git_requests.settings", RequestCompressed.class),
   /** The number of settings requests sent to the endpoint that errored */
-  GIT_REQUESTS_SETTINGS_ERRORS("git_requests.settings_errors", ErrorType.class),
+  GIT_REQUESTS_SETTINGS_ERRORS("git_requests.settings_errors", ErrorType.class, StatusCode.class),
   /** The number of settings responses from the endpoint */
   GIT_REQUESTS_SETTINGS_RESPONSE(
       "git_requests.settings_response",
@@ -98,9 +109,10 @@ public enum CiVisibilityCountMetric {
       EarlyFlakeDetectionEnabled.class,
       RequireGit.class),
   /** The number of requests sent to the itr skippable tests endpoint */
-  ITR_SKIPPABLE_TESTS_REQUEST("itr_skippable_tests.request"),
+  ITR_SKIPPABLE_TESTS_REQUEST("itr_skippable_tests.request", RequestCompressed.class),
   /** The number of itr skippable tests requests sent to the endpoint that errored */
-  ITR_SKIPPABLE_TESTS_REQUEST_ERRORS("itr_skippable_tests.request_errors", ErrorType.class),
+  ITR_SKIPPABLE_TESTS_REQUEST_ERRORS(
+      "itr_skippable_tests.request_errors", ErrorType.class, StatusCode.class),
   /** The number of tests to skip returned by the endpoint */
   ITR_SKIPPABLE_TESTS_RESPONSE_TESTS("itr_skippable_tests.response_tests"),
   /** The number of tests or test suites skipped */
@@ -113,9 +125,9 @@ public enum CiVisibilityCountMetric {
    */
   ITR_FORCED_RUN("itr_forced_run", EventType.class),
   /** The number of requests sent to the known tests endpoint */
-  EFD_REQUEST("early_flake_detection.request"),
+  EFD_REQUEST("early_flake_detection.request", RequestCompressed.class),
   /** The number of known tests requests sent to the endpoint that errored */
-  EFD_REQUEST_ERRORS("early_flake_detection.request_errors", ErrorType.class);
+  EFD_REQUEST_ERRORS("early_flake_detection.request_errors", ErrorType.class, StatusCode.class);
 
   // need a "holder" class, as accessing static fields from enum constructors is illegal
   static class IndexHolder {
