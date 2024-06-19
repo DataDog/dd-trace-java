@@ -66,7 +66,9 @@ public class GatewayBridge {
 
   /** User tracking tags that will force the collection of request headers */
   private static final String[] USER_TRACKING_TAGS = {
-    "appsec.events.users.login.success.track", "appsec.events.users.login.failure.track"
+    "appsec.events.users.login.success.track",
+    "appsec.events.users.login.failure.track",
+    "appsec.events.users.signup.track"
   };
 
   private final SubscriptionService subscriptionService;
