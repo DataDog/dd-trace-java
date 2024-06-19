@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.utils;
 
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.civisibility.domain.TestStatus;
 import datadog.trace.civisibility.ipc.TestFramework;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -97,24 +97,24 @@ public class SpanUtils {
   }
 
   private static void propagateStatus(AgentSpan parentSpan, AgentSpan childSpan) {
-    String childStatus = (String) childSpan.getTag(Tags.TEST_STATUS);
+    TestStatus childStatus = (TestStatus) childSpan.getTag(Tags.TEST_STATUS);
     if (childStatus == null) {
       return;
     }
 
-    String parentStatus = (String) parentSpan.getTag(Tags.TEST_STATUS);
+    TestStatus parentStatus = (TestStatus) parentSpan.getTag(Tags.TEST_STATUS);
     switch (childStatus) {
-      case CIConstants.TEST_PASS:
-        if (parentStatus == null || CIConstants.TEST_SKIP.equals(parentStatus)) {
-          parentSpan.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+      case pass:
+        if (parentStatus == null || TestStatus.skip.equals(parentStatus)) {
+          parentSpan.setTag(Tags.TEST_STATUS, TestStatus.pass);
         }
         break;
-      case CIConstants.TEST_FAIL:
-        parentSpan.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+      case fail:
+        parentSpan.setTag(Tags.TEST_STATUS, TestStatus.fail);
         break;
-      case CIConstants.TEST_SKIP:
+      case skip:
         if (parentStatus == null) {
-          parentSpan.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+          parentSpan.setTag(Tags.TEST_STATUS, TestStatus.skip);
         }
         break;
       default:
