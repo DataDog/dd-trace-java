@@ -1,6 +1,5 @@
 package com.datadog.appsec.event.data
 
-
 import spock.lang.Specification
 
 import java.nio.CharBuffer
@@ -8,28 +7,81 @@ import java.nio.CharBuffer
 import static com.datadog.appsec.event.data.ObjectIntrospection.convert
 
 class ObjectIntrospectionSpecification extends Specification {
-  void 'char sequences are converted to strings'() {
-    setup:
-    def charBuffer = CharBuffer.allocate(5)
-    charBuffer.put('hello')
-    charBuffer.position(0)
 
+  void 'strings are preserved'() {
     expect:
-    convert('hello') == 'hello'
-    convert(charBuffer) == 'hello'
+    convert('hello') === 'hello'
   }
 
-  void 'numbers are converted to strings'() {
+  void 'boolean are preserved'() {
     expect:
-    convert(5L) == '5'
-    convert(0.33G) == '0.33'
+    convert(true) === true
+  }
+
+  void 'bytes are preserved'() {
+    expect:
+    convert(1 as byte) === 1 as byte
+  }
+
+  void 'shorts are preserved'() {
+    expect:
+    convert(1 as short) === 1 as short
+  }
+
+  void 'ints are preserved'() {
+    expect:
+    convert(1) === 1
+  }
+
+  void 'longs are preserved'() {
+    expect:
+    convert(1L) === 1L
+  }
+
+  void 'floats are preserved'() {
+    expect:
+    convert(1.0F) instanceof Float
+    convert(1.0F) == Float.valueOf(1.0F)
+  }
+
+  void 'doubles are preserved'() {
+    expect:
+    convert(1.0) === 1.0
+  }
+
+  void 'big integers are preserved'() {
+    expect:
+    convert(1G) === 1G
+  }
+
+  void 'big decimals are preserved'() {
+    expect:
+    convert(1.0G) === 1.0G
+  }
+
+  void 'chars are converted to strings'() {
+    expect:
+    convert('a' as Character) instanceof String
+    convert('a' as Character) == 'a'
+  }
+
+  static CharBuffer createCharBuffer(String s) {
+    def charBuffer = CharBuffer.allocate(s.length())
+    charBuffer.put(s)
+    charBuffer.position(0)
+    charBuffer
+  }
+
+  void 'char sequences are converted to strings'() {
+    expect:
+    convert(createCharBuffer('hello')) == 'hello'
   }
 
   void 'iterables are converted to lists'() {
     setup:
     def iter = new Iterable() {
-        @Delegate Iterable delegate = ['a', 'b']
-      }
+      @Delegate Iterable delegate = ['a', 'b']
+    }
 
     expect:
     convert(iter) instanceof List
@@ -40,19 +92,25 @@ class ObjectIntrospectionSpecification extends Specification {
   void 'maps are converted to hash maps'() {
     setup:
     def map = new Map() {
-        @Delegate Map map = [a: 'b']
-      }
+      @Delegate Map map = [a: 'b']
+    }
 
     expect:
     convert(map) instanceof HashMap
     convert(map) == [a: 'b']
     convert([(6): 'b']) == ['6': 'b']
+    convert([(null): 'b']) == ['null': 'b']
+    convert([(true): 'b']) == ['true': 'b']
+    convert([('a' as Character): 'b']) == ['a': 'b']
+    convert([(createCharBuffer('a')): 'b']) == ['a': 'b']
   }
 
   void 'arrays are converted into lists'() {
     expect:
-    convert([6, 'b'] as Object[]) == ['6', 'b']
-    convert([1, 2] as int[]) == ['1', '2']
+    convert([6, 'b'] as Object[]) == [6, 'b']
+    convert([null, null] as Object[]) == [null, null]
+    convert([1, 2] as int[]) == [1 as int, 2 as int]
+    convert([1, 2] as byte[]) == [1 as byte, 2 as byte]
   }
 
   @SuppressWarnings('UnusedPrivateField')
@@ -62,6 +120,7 @@ class ObjectIntrospectionSpecification extends Specification {
     private String a = 'b'
     private List l = [1, 2]
   }
+
   class ClassToBeConvertedExt extends ClassToBeConverted {
     @SuppressWarnings('UnusedPrivateField')
     private String c = 'd'
@@ -70,7 +129,26 @@ class ObjectIntrospectionSpecification extends Specification {
   void 'other objects are converted into hash maps'() {
     expect:
     convert(new ClassToBeConverted()) instanceof HashMap
-    convert(new ClassToBeConvertedExt()) == [c: 'd', a: 'b', l: ['1', '2']]
+    convert(new ClassToBeConvertedExt()) == [c: 'd', a: 'b', l: [1, 2]]
+  }
+
+  class ProtobufLikeClass {
+    String c = 'd'
+    int memoizedHashCode = 1
+    int memoizedSize = 2
+  }
+
+  void 'some field names are ignored'() {
+    expect:
+    convert(new ProtobufLikeClass()) instanceof HashMap
+    convert(new ProtobufLikeClass()) == [c: 'd']
+  }
+
+  void 'invalid keys are converted to special strings'() {
+    expect:
+    convert(Collections.singletonMap(new ClassToBeConverted(), 'a')) == ['invalid_key:1': 'a']
+    convert([new ClassToBeConverted(): 'a', new ClassToBeConverted(): 'b']) == ['invalid_key:1': 'a', 'invalid_key:2': 'b']
+    convert(Collections.singletonMap([1, 2], 'a')) == ['invalid_key:1': 'a']
   }
 
   void 'max number of elements is honored'() {
@@ -81,7 +159,7 @@ class ObjectIntrospectionSpecification extends Specification {
     expect:
     convert([['a'] * 255])[0].size() == 254 // +2 for the lists
     convert([['a'] * 255 as String[]])[0].size() == 254 // +2 for the lists
-    convert(m).size() == 127
+    convert(m).size() == 127 // +1 for the map, 2 for each entry (key and value)
   }
 
   void 'max depth is honored — array version'() {
@@ -97,7 +175,6 @@ class ObjectIntrospectionSpecification extends Specification {
     }
     depth == 21 // after max depth we have nulls
   }
-
 
   void 'max depth is honored — list version'() {
     setup:
@@ -127,18 +204,18 @@ class ObjectIntrospectionSpecification extends Specification {
     depth == 21 // after max depth we have nulls
   }
 
-  def 'conversion of an element throws'() {
+  void 'conversion of an element throws'() {
     setup:
     def cs = new CharSequence() {
-        @Delegate String s = ''
+      @Delegate String s = ''
 
-        @Override
-        String toString() {
-          throw new RuntimeException('my exception')
-        }
+      @Override
+      String toString() {
+        throw new RuntimeException('my exception')
       }
+    }
 
     expect:
-    convert([cs]) == ['<error: my exception>']
+    convert([cs]) == ['error:my exception']
   }
 }
