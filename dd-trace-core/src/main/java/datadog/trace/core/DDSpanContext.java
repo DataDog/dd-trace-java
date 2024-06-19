@@ -497,6 +497,11 @@ public class DDSpanContext
     getRootSpanContextOrThis().forceKeepThisSpan(SamplingMechanism.MANUAL);
   }
 
+  public void forceKeep(byte samplingMechanism) {
+    // set trace level sampling priority
+    getRootSpanContextOrThis().forceKeepThisSpan(samplingMechanism);
+  }
+
   private void forceKeepThisSpan(byte samplingMechanism) {
     // if the user really wants to keep this trace chunk, we will let them,
     // even if the old sampling priority and mechanism have already propagated

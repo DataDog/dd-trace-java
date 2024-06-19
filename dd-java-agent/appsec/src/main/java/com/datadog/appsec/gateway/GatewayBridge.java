@@ -22,7 +22,6 @@ import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.stack_trace.StackTraceCollection;
 import com.datadog.appsec.util.ObjectFlattener;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
@@ -147,7 +146,7 @@ public class GatewayBridge {
               if (!collectedEvents.isEmpty()) {
                 // Keep event related span, because it could be ignored in case of
                 // reduced datadog sampling rate.
-                traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
+                traceSeg.setTagTop(Tags.ASM_KEEP, true);
                 traceSeg.setTagTop("appsec.event", true);
                 traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 

@@ -79,7 +79,7 @@ class ReporterTest extends DDSpecification {
         }
       ]
     }''', batch.toString(), true)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
     0 * _
   }
 
@@ -145,7 +145,7 @@ class ReporterTest extends DDSpecification {
         }
       ]
     }''', batch.toString(), true)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
     0 * _
   }
 
@@ -273,7 +273,7 @@ class ReporterTest extends DDSpecification {
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _ as VulnerabilityBatch)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
     0 * _
   }
