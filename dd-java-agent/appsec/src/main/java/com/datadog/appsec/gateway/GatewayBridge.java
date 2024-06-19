@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,6 +142,9 @@ public class GatewayBridge {
               pp.processTraceSegment(traceSeg, ctx, collectedEvents);
             }
 
+            Set<String> requestHeaders = null;
+            Set<String> responseHeaders = null;
+
             if (rateLimiter == null || !rateLimiter.isThrottled()) {
               // If detected any events - mark span at appsec.event
               if (!collectedEvents.isEmpty()) {
@@ -161,9 +165,8 @@ public class GatewayBridge {
                 traceSeg.setDataTop("appsec", wrapper);
 
                 // Report collected request and response headers based on allow list
-                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
-                writeResponseHeaders(
-                    traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+                requestHeaders = REQUEST_HEADERS_ALLOW_LIST;
+                responseHeaders = RESPONSE_HEADERS_ALLOW_LIST;
 
                 // Report collected stack traces
                 StackTraceCollection stackTraceCollection = ctx.transferStackTracesCollection();
@@ -174,15 +177,21 @@ public class GatewayBridge {
                   }
                 }
 
-              } else if (hasUserTrackingEvent(traceSeg)) {
-                // Report all collected request headers on user tracking event
-                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
               } else {
                 // Report minimum set of collected request headers
-                writeRequestHeaders(
-                    traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+                requestHeaders = DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
               }
             }
+
+            // collect all request headers in case of a user tracking event
+            if (hasUserTrackingEvent(traceSeg)) {
+              requestHeaders = REQUEST_HEADERS_ALLOW_LIST;
+            }
+
+            // finally write all headers to the trace
+            writeRequestHeaders(traceSeg, requestHeaders, ctx.getRequestHeaders());
+            writeResponseHeaders(traceSeg, responseHeaders, ctx.getResponseHeaders());
+
             // If extracted any Api Schemas - commit them
             if (!ctx.commitApiSchemas(traceSeg)) {
               log.debug("Unable to commit, api security schemas and will be skipped");
@@ -523,16 +532,20 @@ public class GatewayBridge {
 
   private static void writeRequestHeaders(
       final TraceSegment traceSeg,
-      final Set<String> allowed,
-      final Map<String, List<String>> headers) {
-    writeHeaders(traceSeg, "http.request.headers.", allowed, headers);
+      @Nullable final Set<String> allowed,
+      @Nullable final Map<String, List<String>> headers) {
+    if (allowed != null && headers != null) {
+      writeHeaders(traceSeg, "http.request.headers.", allowed, headers);
+    }
   }
 
   private static void writeResponseHeaders(
       final TraceSegment traceSeg,
-      final Set<String> allowed,
-      final Map<String, List<String>> headers) {
-    writeHeaders(traceSeg, "http.response.headers.", allowed, headers);
+      @Nullable final Set<String> allowed,
+      @Nullable final Map<String, List<String>> headers) {
+    if (allowed != null && headers != null) {
+      writeHeaders(traceSeg, "http.response.headers.", allowed, headers);
+    }
   }
 
   private static void writeHeaders(
@@ -540,17 +553,15 @@ public class GatewayBridge {
       final String prefix,
       final Set<String> allowed,
       final Map<String, List<String>> headers) {
-    if (headers != null) {
-      headers.forEach(
-          (name, value) -> {
-            if (allowed.contains(name)) {
-              String v = String.join(",", value);
-              if (!v.isEmpty()) {
-                traceSeg.setTagTop(prefix + name, v);
-              }
+    headers.forEach(
+        (name, value) -> {
+          if (allowed.contains(name)) {
+            String v = String.join(",", value);
+            if (!v.isEmpty()) {
+              traceSeg.setTagTop(prefix + name, v);
             }
-          });
-    }
+          }
+        });
   }
 
   private static class RequestContextSupplier implements Flow<AppSecRequestContext> {
