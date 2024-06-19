@@ -41,6 +41,7 @@ public class AppSecSystem {
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
   private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
+  private static RateLimiter RATE_LIMITER; // static for testing purpose
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -81,13 +82,12 @@ public class AppSecSystem {
 
     sco.createRemaining(config);
 
-    RateLimiter rateLimiter = getRateLimiter(config, sco.monitoring);
+    RATE_LIMITER = getRateLimiter(config, sco.monitoring);
 
     GatewayBridge gatewayBridge =
         new GatewayBridge(
             gw,
             REPLACEABLE_EVENT_PRODUCER,
-            rateLimiter,
             requestSampler,
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
@@ -148,7 +148,7 @@ public class AppSecSystem {
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
-    final List<AppSecModule> modules = Collections.singletonList(new PowerWAFModule());
+    final List<AppSecModule> modules = Collections.singletonList(new PowerWAFModule(RATE_LIMITER));
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {

@@ -13,6 +13,7 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.stack_trace.StackTraceEvent;
 import com.datadog.appsec.stack_trace.StackTraceEvent.Frame;
@@ -28,6 +29,7 @@ import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.Powerwaf;
@@ -146,8 +148,17 @@ public class PowerWAFModule implements AppSecModule {
   private final PowerWAFInitializationResultReporter initReporter =
       new PowerWAFInitializationResultReporter();
   private final PowerWAFStatsReporter statsReporter = new PowerWAFStatsReporter();
+  private final RateLimiter rateLimiter;
 
   private String currentRulesVersion;
+
+  public PowerWAFModule() {
+    this(null);
+  }
+
+  public PowerWAFModule(RateLimiter rateLimiter) {
+    this.rateLimiter = rateLimiter;
+  }
 
   @Override
   public void config(AppSecModuleConfigurer appSecConfigService)
@@ -444,7 +455,23 @@ public class PowerWAFModule implements AppSecModule {
           }
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData);
-        reqCtx.reportEvents(events);
+
+        if (!events.isEmpty() && !reqCtx.isThrottled(rateLimiter)) {
+          AgentSpan activeSpan = AgentTracer.get().activeSpan();
+          if (activeSpan != null) {
+            if (log.isDebugEnabled()) {
+              log.debug("Setting force-keep tag on the current span");
+            }
+            // Keep event related span, because it could be ignored in case of
+            // reduced datadog sampling rate.
+            activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
+          } else {
+            if (log.isDebugEnabled()) {
+              log.debug("There is no active span available");
+            }
+          }
+          reqCtx.reportEvents(events);
+        }
 
         if (flow.isBlocking()) {
           reqCtx.setBlocked();

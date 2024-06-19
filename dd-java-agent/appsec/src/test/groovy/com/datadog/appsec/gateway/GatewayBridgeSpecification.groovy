@@ -18,7 +18,6 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
-import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
@@ -59,9 +58,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
-  RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -139,7 +137,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
-    1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
     1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
     1 * traceSegment.setTagTop('appsec.event', true)
@@ -150,27 +147,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.closeAdditive()
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
-  }
-
-  void 'event publishing is rate limited'() {
-    AppSecEvent event = Stub()
-    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
-    mockAppSecCtx.requestHeaders >> [:]
-    RequestContext mockCtx = Stub(RequestContext) {
-      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
-      getTraceSegment() >> traceSegment
-    }
-    IGSpanInfo spanInfo = Mock(AgentSpan)
-
-    when:
-    11.times {requestEndedCB.apply(mockCtx, spanInfo) }
-
-    then:
-    11 * mockAppSecCtx.transferCollectedEvents() >> [event]
-    11 * mockAppSecCtx.close()
-    11 * mockAppSecCtx.closeAdditive()
-    10 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
-    10 * traceSegment.setDataTop("appsec", _)
   }
 
   void 'actor ip calculated from headers'() {
