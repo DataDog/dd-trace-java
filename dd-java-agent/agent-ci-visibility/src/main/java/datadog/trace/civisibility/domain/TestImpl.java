@@ -113,7 +113,7 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_MODULE_ID, moduleId);
     span.setTag(Tags.TEST_SESSION_ID, sessionId);
 
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+    span.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (testClass != null && !testClass.getName().equals(testSuiteName)) {
       span.setTag(Tags.TEST_SOURCE_CLASS, testClass.getName());
@@ -178,12 +178,12 @@ public class TestImpl implements DDTest {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   @Override
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
 
@@ -222,7 +222,7 @@ public class TestImpl implements DDTest {
     CoverageBridge.removeThreadLocalCoverageProbeStore();
     boolean coveragesGathered =
         context.getCoverageProbeStore().report(sessionId, suiteId, span.getSpanId());
-    if (!coveragesGathered && !CIConstants.TEST_SKIP.equals(span.getTag(Tags.TEST_STATUS))) {
+    if (!coveragesGathered && !TestStatus.skip.equals(span.getTag(Tags.TEST_STATUS))) {
       // test is not skipped, but no coverages were gathered
       metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
     }
