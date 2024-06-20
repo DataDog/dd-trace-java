@@ -2,6 +2,7 @@ package datadog.trace.civisibility.ci;
 
 import static datadog.trace.civisibility.utils.FileUtils.findParentPathBackwards;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
 import java.nio.file.Path;
 import org.slf4j.Logger;
@@ -69,7 +70,7 @@ class UnknownCIInfo implements CIProviderInfo {
   }
 
   @Override
-  public boolean isSupportedCiProvider() {
-    return false;
+  public Provider getProvider() {
+    return Provider.UNSUPPORTED;
   }
 }

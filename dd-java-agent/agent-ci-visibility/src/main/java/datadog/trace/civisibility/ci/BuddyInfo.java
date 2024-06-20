@@ -4,6 +4,7 @@ import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
@@ -64,5 +65,10 @@ class BuddyInfo implements CIProviderInfo {
   private PersonInfo buildGitCommiter() {
     return new PersonInfo(
         System.getenv(BUDDY_GIT_COMMIT_AUTHOR), System.getenv(BUDDY_GIT_COMMIT_EMAIL));
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.BUDDYCI;
   }
 }

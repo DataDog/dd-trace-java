@@ -5,6 +5,7 @@ import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 
@@ -54,5 +55,10 @@ class CircleCIInfo implements CIProviderInfo {
     }
 
     return String.format("https://app.circleci.com/pipelines/workflows/%s", pipelineId);
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.CIRCLECI;
   }
 }
