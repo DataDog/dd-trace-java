@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 4d979bdcab25754d38a8d190525bef87dad66a6e
+default_system_tests_commit: &default_system_tests_commit c4cbfa9cd0a250ce340cb988e5ce8e4a6a18219c
 
 parameters:
   nightly:
@@ -879,6 +879,40 @@ jobs:
       - store_artifacts:
           path: system-tests/logs_integrations
 
+  debugger-system-tests:
+    machine:
+      image: ubuntu-2004:current
+    resource_class: medium
+    steps:
+      - setup_system_tests
+
+      - run:
+          name: Copy jar file to system test binaries folder
+          command: |
+            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
+            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+
+      - run:
+          name: Build
+          # Build the default framework, which is springboot
+          command: |
+            cd system-tests
+            ./build.sh java
+
+      - run:
+          name: Run APM Integrations tests
+          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
+          no_output_timeout: 5m
+          command: |
+            cd system-tests
+            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh DEBUGGER_SCENARIOS
+
+      - store_test_results:
+          path: system-tests/logs_debugger*
+
+      - store_artifacts:
+          path: system-tests/logs_debugger*
+
   parametric-tests:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
@@ -1294,6 +1328,10 @@ build_test_jobs: &build_test_jobs
           <<: *system_test_matrix
 
   - integrations-system-tests:
+      requires:
+        - ok_to_test
+
+  - debugger-system-tests:
       requires:
         - ok_to_test
 
