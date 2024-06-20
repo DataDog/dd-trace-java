@@ -8,61 +8,47 @@ import static com.datadog.appsec.event.data.ObjectIntrospection.convert
 
 class ObjectIntrospectionSpecification extends Specification {
 
-  void 'strings are preserved'() {
+  void 'null is preserved'() {
     expect:
-    convert('hello') === 'hello'
+    convert(null) == null
   }
 
-  void 'boolean are preserved'() {
-    expect:
-    convert(true) === true
+  void 'type #type is preserved'() {
+    when:
+    def result = convert(input)
+
+    then:
+    input.getClass() == type
+    result.getClass() == type
+    result == input
+
+    where:
+    input        | type
+    'hello'      | String
+    true         | Boolean
+    (byte) 1     | Byte
+    (short) 1    | Short
+    1            | Integer
+    1L           | Long
+    1.0F         | Float
+    (double) 1.0 | Double
+    1G           | BigInteger
+    1.0G         | BigDecimal
   }
 
-  void 'bytes are preserved'() {
-    expect:
-    convert(1 as byte) === 1 as byte
-  }
+  void 'type #type is converted to string'() {
+    when:
+    def result = convert(input)
 
-  void 'shorts are preserved'() {
-    expect:
-    convert(1 as short) === 1 as short
-  }
+    then:
+    type.isAssignableFrom(input.getClass())
+    result instanceof String
+    result == output
 
-  void 'ints are preserved'() {
-    expect:
-    convert(1) === 1
-  }
-
-  void 'longs are preserved'() {
-    expect:
-    convert(1L) === 1L
-  }
-
-  void 'floats are preserved'() {
-    expect:
-    convert(1.0F) instanceof Float
-    convert(1.0F) == Float.valueOf(1.0F)
-  }
-
-  void 'doubles are preserved'() {
-    expect:
-    convert(1.0) === 1.0
-  }
-
-  void 'big integers are preserved'() {
-    expect:
-    convert(1G) === 1G
-  }
-
-  void 'big decimals are preserved'() {
-    expect:
-    convert(1.0G) === 1.0G
-  }
-
-  void 'chars are converted to strings'() {
-    expect:
-    convert('a' as Character) instanceof String
-    convert('a' as Character) == 'a'
+    where:
+    input                     | type       || output
+    (char) 'a'                | Character  || 'a'
+    createCharBuffer('hello') | CharBuffer || 'hello'
   }
 
   static CharBuffer createCharBuffer(String s) {
@@ -70,11 +56,6 @@ class ObjectIntrospectionSpecification extends Specification {
     charBuffer.put(s)
     charBuffer.position(0)
     charBuffer
-  }
-
-  void 'char sequences are converted to strings'() {
-    expect:
-    convert(createCharBuffer('hello')) == 'hello'
   }
 
   void 'iterables are converted to lists'() {
