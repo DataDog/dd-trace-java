@@ -30,7 +30,7 @@ public final class AvroDeserializerInstrumentation extends InstrumenterModule.Tr
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SchemaExtractor",
+      packageName + ".SchemaExtractor", "datadog.trace.instrumentation.avro.SchemaExtractor$1",
     };
   }
 
