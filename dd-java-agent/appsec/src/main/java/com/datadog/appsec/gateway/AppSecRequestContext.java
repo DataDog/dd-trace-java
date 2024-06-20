@@ -3,7 +3,10 @@ package com.datadog.appsec.gateway;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
+import com.datadog.appsec.stack_trace.StackTraceCollection;
+import com.datadog.appsec.stack_trace.StackTraceEvent;
 import com.datadog.appsec.util.StandardizedLogging;
+import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import io.sqreen.powerwaf.Additive;
@@ -12,6 +15,7 @@ import io.sqreen.powerwaf.PowerwafMetrics;
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +76,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private Collection<AppSecEvent> collectedEvents; // guarded by this
+  private volatile Queue<AppSecEvent> appSecEvents;
+  private volatile Queue<StackTraceEvent> stackTraceEvents;
 
   // assume these will always be written and read by the same thread
   private String scheme;
@@ -405,32 +410,62 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return storedRequestBodySupplier.get();
   }
 
-  public void reportEvents(Collection<AppSecEvent> events) {
-    for (AppSecEvent event : events) {
+  public void reportEvents(Collection<AppSecEvent> appSecEvents) {
+    for (AppSecEvent event : appSecEvents) {
       StandardizedLogging.attackDetected(log, event);
     }
-    synchronized (this) {
-      if (this.collectedEvents == null) {
-        this.collectedEvents = new ArrayList<>();
+    if (this.appSecEvents == null) {
+      synchronized (this) {
+        if (this.appSecEvents == null) {
+          this.appSecEvents = new ConcurrentLinkedQueue<>();
+        }
       }
-      try {
-        this.collectedEvents.addAll(events);
-      } catch (UnsupportedOperationException e) {
-        throw new IllegalStateException("Events cannot be added anymore");
+    }
+    this.appSecEvents.addAll(appSecEvents);
+  }
+
+  public void reportStackTrace(StackTraceEvent stackTraceEvent) {
+    if (this.stackTraceEvents == null) {
+      synchronized (this) {
+        if (this.stackTraceEvents == null) {
+          this.stackTraceEvents = new ConcurrentLinkedQueue<>();
+        }
       }
+    }
+    if (stackTraceEvents.size() <= Config.get().getAppSecMaxStackTraces()) {
+      this.stackTraceEvents.add(stackTraceEvent);
     }
   }
 
   Collection<AppSecEvent> transferCollectedEvents() {
-    Collection<AppSecEvent> events;
-    synchronized (this) {
-      events = this.collectedEvents;
-      this.collectedEvents = Collections.emptyList();
-    }
-    if (events != null) {
-      return events;
-    } else {
+    if (this.appSecEvents == null) {
       return Collections.emptyList();
+    }
+
+    Collection<AppSecEvent> events = new ArrayList<>();
+    AppSecEvent item;
+    while ((item = this.appSecEvents.poll()) != null) {
+      events.add(item);
+    }
+
+    return events;
+  }
+
+  StackTraceCollection transferStackTracesCollection() {
+    if (this.stackTraceEvents == null) {
+      return null;
+    }
+
+    Collection<StackTraceEvent> stackTraces = new ArrayList<>();
+    StackTraceEvent item;
+    while ((item = this.stackTraceEvents.poll()) != null) {
+      stackTraces.add(item);
+    }
+
+    if (stackTraces.size() != 0) {
+      return new StackTraceCollection(stackTraces);
+    } else {
+      return null;
     }
   }
 

@@ -18,6 +18,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeT
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isResourceNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isTrackingGenerations;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
@@ -240,6 +241,7 @@ public final class DatadogProfiler {
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
     cmd.append(",attributes=").append(String.join(";", orderedContextAttributes));
+    cmd.append(",generations=").append(isTrackingGenerations(configProvider));
     if (omitLineNumbers(configProvider)) {
       cmd.append(",linenumbers=f");
     }

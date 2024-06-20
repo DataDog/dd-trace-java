@@ -3,14 +3,15 @@ package datadog.trace.civisibility.domain;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
+import datadog.trace.api.civisibility.telemetry.tag.AutoInjected;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -27,7 +28,7 @@ import java.util.Collections;
 import javax.annotation.Nullable;
 
 public abstract class AbstractTestSession {
-  protected final boolean supportedCiProvider;
+  protected final Provider ciProvider;
   protected final InstrumentationType instrumentationType;
   protected final AgentSpan span;
   protected final Config config;
@@ -42,7 +43,7 @@ public abstract class AbstractTestSession {
       String projectName,
       @Nullable Long startTime,
       InstrumentationType instrumentationType,
-      boolean supportedCiProvider,
+      Provider ciProvider,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -50,7 +51,7 @@ public abstract class AbstractTestSession {
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageProbeStoreFactory coverageProbeStoreFactory) {
-    this.supportedCiProvider = supportedCiProvider;
+    this.ciProvider = ciProvider;
     this.instrumentationType = instrumentationType;
     this.config = config;
     this.metricCollector = metricCollector;
@@ -72,7 +73,7 @@ public abstract class AbstractTestSession {
 
     // setting status to skip initially,
     // as we do not know in advance whether the session will have any children
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
     span.setResourceName(projectName);
 
@@ -92,7 +93,13 @@ public abstract class AbstractTestSession {
         EventType.SESSION,
         instrumentationType == InstrumentationType.HEADLESS ? IsHeadless.TRUE : null,
         codeowners.exist() ? HasCodeowner.TRUE : null,
-        !supportedCiProvider ? IsUnsupportedCI.TRUE : null);
+        ciProvider == Provider.UNSUPPORTED ? IsUnsupportedCI.TRUE : null);
+
+    metricCollector.add(
+        CiVisibilityCountMetric.TEST_SESSION,
+        1,
+        ciProvider,
+        config.isCiVisibilityAutoInjected() ? AutoInjected.TRUE : null);
 
     if (instrumentationType == InstrumentationType.MANUAL_API) {
       metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.SESSION);
@@ -106,11 +113,11 @@ public abstract class AbstractTestSession {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
     }
@@ -140,7 +147,7 @@ public abstract class AbstractTestSession {
     if (codeowners.exist()) {
       telemetryTags.add(HasCodeowner.TRUE);
     }
-    if (!supportedCiProvider) {
+    if (ciProvider == Provider.UNSUPPORTED) {
       telemetryTags.add(IsUnsupportedCI.TRUE);
     }
     telemetryTags.addAll(additionalTelemetryTags());

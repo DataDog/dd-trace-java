@@ -5,12 +5,18 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.ErrorType;
+import datadog.trace.api.civisibility.telemetry.tag.RequestCompressed;
+import datadog.trace.api.civisibility.telemetry.tag.ResponseCompressed;
+import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
 import java.io.IOException;
 import javax.annotation.Nullable;
 import okhttp3.Call;
 import okhttp3.Response;
 
 public class TelemetryListener extends OkHttpUtils.CustomListener {
+
+  private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
+  private static final String GZIP_ENCODING = "gzip";
 
   private final CiVisibilityMetricCollector metricCollector;
   private final @Nullable CiVisibilityCountMetric requestCountMetric;
@@ -19,6 +25,7 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
   private final @Nullable CiVisibilityDistributionMetric requestDurationMetric;
   private final @Nullable CiVisibilityDistributionMetric responseBytesMetric;
   private long callStartTimestamp;
+  private boolean responseCompressed;
 
   private TelemetryListener(
       CiVisibilityMetricCollector metricCollector,
@@ -38,7 +45,12 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
   public void callStart(Call call) {
     callStartTimestamp = System.currentTimeMillis();
     if (requestCountMetric != null) {
-      metricCollector.add(requestCountMetric, 1);
+      metricCollector.add(
+          requestCountMetric,
+          1,
+          GZIP_ENCODING.equalsIgnoreCase(call.request().header(CONTENT_ENCODING_HEADER))
+              ? RequestCompressed.TRUE
+              : null);
     }
   }
 
@@ -52,15 +64,20 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
     if (requestErrorsMetric != null) {
       if (!response.isSuccessful()) {
         int responseCode = response.code();
-        metricCollector.add(requestErrorsMetric, 1, ErrorType.from(responseCode));
+        metricCollector.add(
+            requestErrorsMetric, 1, ErrorType.from(responseCode), StatusCode.from(responseCode));
       }
     }
+    responseCompressed = GZIP_ENCODING.equalsIgnoreCase(response.header(CONTENT_ENCODING_HEADER));
   }
 
   @Override
   public void responseBodyEnd(Call call, long byteCount) {
     if (responseBytesMetric != null) {
-      metricCollector.add(responseBytesMetric, (int) byteCount);
+      metricCollector.add(
+          responseBytesMetric,
+          (int) byteCount,
+          responseCompressed ? ResponseCompressed.TRUE : null);
     }
   }
 

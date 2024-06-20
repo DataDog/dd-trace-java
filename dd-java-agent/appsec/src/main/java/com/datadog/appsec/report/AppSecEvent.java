@@ -18,6 +18,9 @@ public class AppSecEvent {
   @com.squareup.moshi.Json(name = "span_id")
   private Long spanId;
 
+  @com.squareup.moshi.Json(name = "stack_id")
+  private String stackId;
+
   public Rule getRule() {
     return rule;
   }
@@ -28,6 +31,10 @@ public class AppSecEvent {
 
   public Long getSpanId() {
     return spanId;
+  }
+
+  public String getStackId() {
+    return stackId;
   }
 
   @Override
@@ -48,6 +55,9 @@ public class AppSecEvent {
     sb.append("spanId");
     sb.append('=');
     sb.append(((this.spanId == null) ? "<null>" : this.spanId));
+    sb.append("stackId");
+    sb.append('=');
+    sb.append(((this.stackId == null) ? "<null>" : this.stackId));
     if (sb.charAt((sb.length() - 1)) == ',') {
       sb.setCharAt((sb.length() - 1), ']');
     } else {
@@ -62,6 +72,7 @@ public class AppSecEvent {
     result = ((result * 31) + ((this.rule == null) ? 0 : this.rule.hashCode()));
     result = ((result * 31) + ((this.ruleMatches == null) ? 0 : this.ruleMatches.hashCode()));
     result = ((result * 31) + ((this.spanId == null) ? 0 : this.spanId.hashCode()));
+    result = ((result * 31) + ((this.stackId == null) ? 0 : this.stackId.hashCode()));
     return result;
   }
 
@@ -76,7 +87,8 @@ public class AppSecEvent {
     AppSecEvent rhs = ((AppSecEvent) other);
     return ((Objects.equals(this.rule, rhs.rule))
         && (Objects.equals(this.ruleMatches, rhs.ruleMatches))
-        && (Objects.equals(this.spanId, rhs.spanId)));
+        && (Objects.equals(this.spanId, rhs.spanId))
+        && (Objects.equals(this.stackId, rhs.stackId)));
   }
 
   public static class Builder {
@@ -106,6 +118,11 @@ public class AppSecEvent {
 
     public Builder withSpanId(Long spanId) {
       this.instance.spanId = spanId;
+      return this;
+    }
+
+    public Builder withStackId(String stackId) {
+      this.instance.stackId = stackId;
       return this;
     }
   }
