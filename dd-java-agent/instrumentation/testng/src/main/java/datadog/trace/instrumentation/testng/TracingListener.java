@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.testng;
 
-import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.testng.retry.RetryAnalyzer;
@@ -75,7 +74,6 @@ public class TracingListener extends TestNGClassListener
   public void onTestStart(final ITestResult result) {
     TestSuiteDescriptor suiteDescriptor =
         TestNGUtils.toSuiteDescriptor(result.getMethod().getTestClass());
-    TestDescriptor testDescriptor = TestNGUtils.toTestDescriptor(result);
     String testSuiteName = result.getInstanceName();
     String testName =
         (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
@@ -86,7 +84,7 @@ public class TracingListener extends TestNGClassListener
     String testMethodName = testMethod != null ? testMethod.getName() : null;
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestStart(
         suiteDescriptor,
-        testDescriptor,
+        result,
         testSuiteName,
         testName,
         FRAMEWORK_NAME,
@@ -110,16 +108,14 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onTestSuccess(final ITestResult result) {
-    TestDescriptor testDescriptor = TestNGUtils.toTestDescriptor(result);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result);
   }
 
   @Override
   public void onTestFailure(final ITestResult result) {
-    TestDescriptor testDescriptor = TestNGUtils.toTestDescriptor(result);
     Throwable throwable = result.getThrowable();
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(result, throwable);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result);
   }
 
   @Override
@@ -129,19 +125,18 @@ public class TracingListener extends TestNGClassListener
 
   @Override
   public void onTestSkipped(final ITestResult result) {
-    TestDescriptor testDescriptor = TestNGUtils.toTestDescriptor(result);
     Throwable throwable = result.getThrowable();
     if (TestNGUtils.wasRetried(result)) {
       // TestNG reports tests retried with IRetryAnalyzer as skipped,
       // this is done to avoid failing the build when retrying tests.
       // We want to report such tests as failed to Datadog,
       // to provide more accurate data (and to enable flakiness detection)
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(result, throwable);
     } else {
       // Typically the way of skipping a TestNG test is throwing a SkipException
       String reason = throwable != null ? throwable.getMessage() : null;
-      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(result, reason);
     }
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result);
   }
 }
