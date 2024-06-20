@@ -240,8 +240,15 @@ public class SmapEntryEvent extends Event {
         for (String line : lines) {
           Matcher matcher = pattern.matcher(line);
           if (matcher.matches()) {
-            long startAddress = Long.decode(matcher.group(1));
+            long startAddress;
+            if (matcher.group(1).equals("0x" + VSYSCALL_START_ADDRESS)) {
+              // See how smap entry parsing is done for vsyscall
+              startAddress = -0x1000 - 1;
+            } else {
+              startAddress = Long.decode(matcher.group(1));
+            }
             String description = matcher.group(6);
+            annotatedRegions.put(startAddress, description);
             if (description.isEmpty()) {
               annotatedRegions.put(startAddress, "UNDEFINED");
             } else if (description.startsWith("STACK")) {
@@ -255,10 +262,13 @@ public class SmapEntryEvent extends Event {
         }
         return annotatedRegions;
       } catch (Exception e) {
+        log.info("Something went wrong reading the System.map");
         return null;
       }
+    } else {
+      log.info("System.map not available for this JVM instance");
+      return null;
     }
-    return null;
   }
 
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
@@ -433,7 +443,9 @@ public class SmapEntryEvent extends Event {
         if (annotatedRegions != null && annotatedRegions.containsKey(startAddress)) {
           nmtCategory = annotatedRegions.get(startAddress);
         } else {
-          //          System.out.println(annotatedRegions);
+          if (annotatedRegions == null) {
+            log.info("Annotated regions is null");
+          }
           nmtCategory = "UNKNOWN";
         }
         new SmapEntryEvent(
