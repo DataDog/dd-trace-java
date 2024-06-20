@@ -32,7 +32,7 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     then:
     1 * traceSegment.setTagTop('_dd.appsec.events.users.signup.auto.mode', modeTag)
     1 * traceSegment.setTagTop('appsec.events.users.signup.track', true, true)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('usr.id', 'user')
     1 * traceSegment.setTagTop('appsec.events.users.signup', ['key1':'value1', 'key2':'value2'])
     0 * _
@@ -54,7 +54,7 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     then:
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', modeTag)
     1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true, true)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('usr.id', 'user')
     1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1':'value1', 'key2':'value2'])
     0 * _
@@ -76,7 +76,7 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     then:
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', modeTag)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.track', true, true)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', 'user')
     1 * traceSegment.setTagTop('appsec.events.users.login.failure', ['key1':'value1', 'key2':'value2'])
     0 * _

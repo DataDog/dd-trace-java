@@ -139,7 +139,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
     1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
     1 * traceSegment.setTagTop('appsec.event', true)
