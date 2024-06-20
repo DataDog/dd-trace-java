@@ -492,9 +492,9 @@ public class DDSpanContext
     this.spanType = spanType;
   }
 
+  /** Forces the local root span sampling decision to keep according manual mechanism. */
   public void forceKeep() {
-    // set trace level sampling priority
-    getRootSpanContextOrThis().forceKeepThisSpan(SamplingMechanism.MANUAL);
+    forceKeep(SamplingMechanism.MANUAL);
   }
 
   public void forceKeep(byte samplingMechanism) {
