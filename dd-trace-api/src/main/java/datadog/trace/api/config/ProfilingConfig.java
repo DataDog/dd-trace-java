@@ -216,7 +216,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_TIMELINE_EVENTS_ENABLED =
       "profiling.timeline.events.enabled";
-  public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = false;
+  public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_DETAILED_DEBUG_LOGGING = "profiling.detailed.debug.logging";
   public static final boolean PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT = false;
