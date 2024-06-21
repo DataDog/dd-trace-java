@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -315,6 +316,7 @@ public class DebuggerContext {
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions,
       String... encodedProbeIds) {
+    System.out.println("encodedProbeIds = " + Arrays.toString(encodedProbeIds));
     try {
       if (entryContext == CapturedContext.EMPTY_CONTEXT
           && exitContext == CapturedContext.EMPTY_CONTEXT) {

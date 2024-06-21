@@ -3,6 +3,7 @@ package com.datadog.debugger.probe;
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 import static java.util.Collections.emptyList;
 
+import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Snapshot;
@@ -12,7 +13,10 @@ import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,23 +69,24 @@ public class DebugSnapshotProbe extends LogProbe {
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
     Snapshot snapshot = createSnapshot();
-    boolean shouldCommit = fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot);
-    if (shouldCommit) {
-      /*
-       * Record stack trace having the caller of this method as 'top' frame.
-       * For this it is necessary to discard:
-       * - Thread.currentThread().getStackTrace()
-       * - Snapshot.recordStackTrace()
-       * - ExceptionProbe.commit()
-       * - DebuggerContext.commit()
-       */
+    if (fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot)) {
       snapshot.recordStackTrace(4);
-      // add snapshot for later to wait for triggering point (ExceptionDebugger::handleException)
       LOGGER.debug(
           "committing exception probe id={}, snapshot id={}, exception id={}",
           id,
           snapshot.getId(),
           snapshot.getExceptionId());
+      AgentSpan span = AgentTracer.get().activeScope().span();
+      Map<String, Object> tags = span.getTags();
+      boolean entry = true;
+      if (tags.keySet().stream().anyMatch(s -> s.startsWith("_dd.exit_"))) {
+        entry = false;
+      }
+
+      String key = (entry ? "_dd.entry_location." : "_dd.exit_location.") + "snapshot_id";
+      span.setTag(key, snapshot.getId());
+      commitSnapshot(snapshot, DebuggerAgent.getSink());
+      System.out.println("span = " + span);
     }
   }
 
@@ -98,7 +103,7 @@ public class DebugSnapshotProbe extends LogProbe {
   }
 
   public static class DebugSnapshotProbeStatus extends LogStatus {
-    private boolean capture;
+    private boolean capture = true;
 
     public DebugSnapshotProbeStatus(ProbeImplementation probeImplementation) {
       super(probeImplementation);

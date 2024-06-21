@@ -510,6 +510,7 @@ public class LogProbe extends ProbeDefinition {
       snapshot.addEvaluationErrors(exitStatus.getErrors());
       shouldCommit = true;
     }
+
     return shouldCommit;
   }
 

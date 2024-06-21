@@ -32,9 +32,7 @@ public class SpanOriginInfo {
   }
 
   public static void entry(Method method, AgentSpan span) {
-    System.out.println("SpanOriginInfo.entry");
     if (InstrumenterConfig.get().isSpanOriginEnabled()) {
-      System.out.println("enabled");
       origins
           .computeIfAbsent(method.toString(), (ignored) -> new SpanOriginInfo(method))
           .apply(span);
@@ -57,7 +55,7 @@ public class SpanOriginInfo {
           StackWalkerFactory.INSTANCE.walk(
               stream ->
                   stream
-                      .filter(element -> !filter.isDenied(element.getClassName()))
+                      .filter(element -> !filter.isDenied(toFileName(element.getClassName())))
                       .collect(Collectors.toList()));
       if (method != null && !entries.isEmpty()) {
         signature =
@@ -71,22 +69,7 @@ public class SpanOriginInfo {
     List<StackTraceElement> entries = entries();
     if (method != null) {
       StackTraceElement entry = entries.get(0);
-      span.setTag(DDTags.DD_ENTRY_LOCATION_FILE, entry.getClassName());
-      try {
-        String location =
-            Thread.currentThread()
-                .getContextClassLoader()
-                //            getClass()
-                //                .getClassLoader()
-                .loadClass(entry.getClassName())
-                .getProtectionDomain()
-                .getCodeSource()
-                .getLocation()
-                .getFile();
-        System.out.println("location = " + location);
-      } catch (ClassNotFoundException e) {
-
-      }
+      span.setTag(DDTags.DD_ENTRY_LOCATION_FILE, toFileName(entry.getClassName()));
       span.setTag(DDTags.DD_ENTRY_METHOD, entry.getMethodName());
       span.setTag(DDTags.DD_ENTRY_LINE, entry.getLineNumber());
       span.setTag(DDTags.DD_ENTRY_METHOD_SIGNATURE, signature);
@@ -94,16 +77,16 @@ public class SpanOriginInfo {
       int[] i = {0};
       entries.forEach(
           element -> {
-            span.setTag(format(DDTags.DD_EXIT_LOCATION_FILE, i[0]), element.getClassName());
+            span.setTag(
+                format(DDTags.DD_EXIT_LOCATION_FILE, i[0]), toFileName(element.getClassName()));
             span.setTag(format(DDTags.DD_EXIT_LOCATION_LINE, i[0]++), element.getLineNumber());
           });
     }
 
-    System.out.printf(
-        "trace view: https://dd.datad0g.com/dynamic-instrumentation/debug?spanID=%s&traceID=%s%n",
-        span.getSpanId(), span.getTraceId());
-    System.out.println("span.getTags() = " + span.getTags());
-
     DebuggerContext.captureSnapshot(span, entries.get(0));
+  }
+
+  private static String toFileName(String className) {
+    return className.replace('.', '/') + ".java";
   }
 }

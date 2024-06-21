@@ -5,14 +5,17 @@ import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.TagsHelper;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,21 +91,21 @@ public class DebuggerSink {
   }
 
   private static String getDefaultTagsMergedWithGlobalTags(Config config) {
-    String debuggerTags =
-        TagsHelper.concatTags(
-            "env:" + config.getEnv(),
-            "version:" + config.getVersion(),
-            "debugger_version:" + DDTraceCoreInfo.VERSION,
-            "agent_version:" + DebuggerAgent.getAgentVersion(),
-            "host_name:" + config.getHostName());
-    if (config.getGlobalTags().isEmpty()) {
-      return debuggerTags;
+    Map<String, String> tags = new LinkedHashMap<>();
+    tags.put("env", config.getEnv());
+    tags.put("version", config.getVersion());
+    tags.put("debugger_version", DDTraceCoreInfo.VERSION);
+    tags.put("agent_version", DebuggerAgent.getAgentVersion());
+    tags.put("host_name", config.getHostName());
+    tags.putAll(config.getGlobalTags());
+    GitInfoProvider instance = GitInfoProvider.INSTANCE;
+    if (instance.getGitInfo().getRepositoryURL() != null) {
+      tags.put(Tags.GIT_REPOSITORY_URL, instance.getGitInfo().getRepositoryURL());
     }
-    String globalTags =
-        config.getGlobalTags().entrySet().stream()
-            .map(e -> e.getKey() + ":" + e.getValue())
-            .collect(Collectors.joining(","));
-    return debuggerTags + "," + globalTags;
+    if (instance.getGitInfo().getCommit().getSha() != null) {
+      tags.put(Tags.GIT_COMMIT_SHA, instance.getGitInfo().getCommit().getSha());
+    }
+    return TagsHelper.concatTags(tags);
   }
 
   public void start() {

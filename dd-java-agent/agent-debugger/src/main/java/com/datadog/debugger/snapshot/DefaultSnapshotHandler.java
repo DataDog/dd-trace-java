@@ -44,10 +44,10 @@ public class DefaultSnapshotHandler implements DebuggerContext.SnapshotHandler {
     }
 
     if (!probeManager.isAlreadyInstrumented(fingerprint)) {
+      System.out.println("not already instrumented");
       if (probeManager.createProbesForException(element)) {
         AgentTaskScheduler.INSTANCE.execute(
             () -> {
-              System.out.println("scheduling");
               configurationUpdater.accept(DEBUG, probeManager.getProbes());
               probeManager.addFingerprint(fingerprint);
             });
