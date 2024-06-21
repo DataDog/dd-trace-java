@@ -3,13 +3,6 @@ package datadog.remoteconfig
 import cafe.cryptography.ed25519.Ed25519PrivateKey
 import cafe.cryptography.ed25519.Ed25519PublicKey
 import cafe.cryptography.ed25519.Ed25519Signature
-import datadog.remoteconfig.ConfigurationChangesTypedListener
-import datadog.remoteconfig.ConfigurationDeserializer
-import datadog.remoteconfig.ConfigurationPoller
-import datadog.remoteconfig.DefaultConfigurationPoller
-import datadog.remoteconfig.JsonCanonicalizer
-import datadog.remoteconfig.PollingRateHinter
-import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification

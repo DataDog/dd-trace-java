@@ -1,6 +1,7 @@
 package datadog.remoteconfig;
 
 import static datadog.remoteconfig.ConfigurationChangesTypedListener.Builder.useDeserializer;
+import static datadog.remoteconfig.PollingHinterNoop.NOOP;
 
 import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
@@ -509,7 +510,7 @@ public class DefaultConfigurationPoller
       } while (bytesRead > -1);
 
       try {
-        listener.accept(file.getAbsolutePath(), outputStream.toByteArray(), PollingRateHinter.NOOP);
+        listener.accept(file.getAbsolutePath(), outputStream.toByteArray(), NOOP);
         log.debug("Loaded configuration from file {}", file);
       } catch (Exception ex) {
         ratelimitedLogger.warn(
