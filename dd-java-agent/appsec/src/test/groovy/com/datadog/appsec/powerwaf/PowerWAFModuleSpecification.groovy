@@ -891,6 +891,35 @@ class PowerWAFModuleSpecification extends DDSpecification {
     flow.blocking == false
   }
 
+  void 'non-string types work'() {
+    setupWithStubConfigService()
+    ChangeableFlow flow = new ChangeableFlow()
+    DataBundle db = MapDataBundle.of(KnownAddresses.REQUEST_BODY_OBJECT,
+      [
+        [key: [
+            true,
+            (byte)1,
+            (short)2,
+            (int)3,
+            (long)4,
+            (float)5.0,
+            (double)6.0,
+            (char)'7',
+            (BigDecimal)8.0G,
+            (BigInteger)9.0G
+          ]]
+      ])
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, db, false)
+
+    then:
+    ctx.getOrCreateAdditive(_, true) >> {
+      pwafAdditive = it[0].openAdditive()
+    }
+    flow.blocking == false
+  }
+
   void 'powerwaf exceptions do not propagate'() {
     setupWithStubConfigService()
     ChangeableFlow flow = new ChangeableFlow()
