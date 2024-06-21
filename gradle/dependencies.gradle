@@ -105,18 +105,8 @@ final class CachedData {
     ],
 
     // Shared between appsec, agent tooling, iast, instrumentation, JMXFetch, profiling, and ci-visibility
-    shared               : [
-      // Force specific version of okio required by com.squareup.moshi:moshi
-      // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's
-      // transitive dependency.  Since okhttp is declared here and moshi is not, this lead to an incompatible version
-      "com.datadoghq.okio:okio:${versions.okio}",
-      "com.datadoghq.okhttp3:okhttp:${versions.okhttp}",
-      "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
-      "com.github.jnr:jnr-unixsocket:${versions.jnr_unixsocket}",
-      "com.squareup.moshi:moshi:${versions.moshi}",
-      "org.jctools:jctools-core:${versions.jctools}",
-      "org.lz4:lz4-java:${versions.lz4}",
-    ],
+    // Set in a non-static context to use lib catalog
+    shared               : [],
 
     // Inverse of "shared".  These exclude directives are part of shadowJar's DSL
     // which is similar but not exactly the same as the regular gradle dependency{} block
@@ -161,6 +151,19 @@ final class CachedData {
     }
   ]
 }
+
+CachedData.deps.shared = [
+  // Force specific version of okio required by com.squareup.moshi:moshi
+  // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's
+  // transitive dependency.  Since okhttp is declared here and moshi is not, this lead to an incompatible version
+  libs.okio,
+  libs.okhttp,
+  libs.dogstatsd,
+  "com.github.jnr:jnr-unixsocket:${libs.versions.jnr.unixsocket}",
+  libs.moshi,
+  libs.jctools,
+  libs.lz4
+]
 
 ext {
   versions = CachedData.versions
