@@ -315,7 +315,4 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     def downstreamTraceId = getServiceTrace(ASM_ENABLED_SERVICE_NAME).spans[0].traceId
     standAloneBillingTraceId == downstreamTraceId //There is propagation
   }
-
-
-
 }
