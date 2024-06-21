@@ -19,7 +19,7 @@ dependencies {
   implementation libs.moshi
 
   testImplementation libs.bytebuddy
-  testImplementation project(':remote-config:core')
+  testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
