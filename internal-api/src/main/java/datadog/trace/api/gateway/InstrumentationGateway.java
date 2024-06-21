@@ -27,7 +27,6 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -153,7 +152,7 @@ public class InstrumentationGateway {
   }
 
   /** Ensure that callbacks don't leak exceptions */
-  @SuppressWarnings({"unchecked", "rawtypes", "DuplicateBranchesInSwitch"})
+  @SuppressWarnings({"unchecked", "DuplicateBranchesInSwitch"})
   public static <C> C wrap(final EventType<C> eventType, final C callback) {
     switch (eventType.getId()) {
       case REQUEST_STARTED_ID:
@@ -368,13 +367,14 @@ public class InstrumentationGateway {
       case DATABASE_CONNECTION_ID:
       case DATABASE_SQL_QUERY_ID:
         return (C)
-            new BiConsumer<RequestContext, String>() {
+            new BiFunction<RequestContext, String, Flow<Void>>() {
               @Override
-              public void accept(RequestContext ctx, String arg) {
+              public Flow<Void> apply(RequestContext ctx, String arg) {
                 try {
-                  ((BiConsumer<RequestContext, String>) callback).accept(ctx, arg);
+                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback).apply(ctx, arg);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
                 }
               }
             };
