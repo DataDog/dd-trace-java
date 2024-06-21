@@ -459,7 +459,7 @@ public class GatewayBridge {
         (ctx_, dbType) -> {
           AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (ctx == null) {
-            return;
+            return NoopFlow.INSTANCE;
           }
           while (true) {
             DataSubscriberInfo subInfo = dbConnectionSubInfo;
@@ -468,12 +468,11 @@ public class GatewayBridge {
               dbConnectionSubInfo = subInfo;
             }
             if (subInfo == null || subInfo.isEmpty()) {
-              return;
+              return NoopFlow.INSTANCE;
             }
             DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DB_TYPE, dbType);
             try {
-              producerService.publishDataEvent(subInfo, ctx, bundle, false);
-              return;
+              return producerService.publishDataEvent(subInfo, ctx, bundle, false);
             } catch (ExpiredSubscriberInfoException e) {
               dbConnectionSubInfo = null;
             }
@@ -485,7 +484,7 @@ public class GatewayBridge {
         (ctx_, sql) -> {
           AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
           if (ctx == null) {
-            return;
+            return NoopFlow.INSTANCE;
           }
           while (true) {
             DataSubscriberInfo subInfo = dbSqlQuerySubInfo;
@@ -494,12 +493,11 @@ public class GatewayBridge {
               dbSqlQuerySubInfo = subInfo;
             }
             if (subInfo == null || subInfo.isEmpty()) {
-              return;
+              return NoopFlow.INSTANCE;
             }
             DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DB_SQL_QUERY, sql);
             try {
-              producerService.publishDataEvent(subInfo, ctx, bundle, false);
-              return;
+              return producerService.publishDataEvent(subInfo, ctx, bundle, false);
             } catch (ExpiredSubscriberInfoException e) {
               dbSqlQuerySubInfo = null;
             }
