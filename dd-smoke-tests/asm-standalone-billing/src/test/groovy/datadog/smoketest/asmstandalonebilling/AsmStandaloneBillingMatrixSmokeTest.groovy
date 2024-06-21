@@ -34,7 +34,6 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
     "-Ddd.iast.enabled=true",
     "-Ddd.iast.detection.mode=FULL",
     "-Ddd.iast.debug.enabled=true",
-    //"-Ddd.appsec.enabled=true",
     "-Ddd.trace.tracer.metrics.enabled=true",
     "-Ddd.service.name=${ASM_ENABLED_SERVICE_NAME}",
   ]
@@ -156,7 +155,6 @@ class AsmStandaloneBillingMatrixSmokeTest extends AbstractAsmStandaloneBillingSm
 
     and:"No ASM events, resulting in the local sampling decision"
     def standAloneBillingTrace = getServiceTrace(STANDALONE_BILLING_SERVICE_NAME)
-    //TODO Check RFC as it said isSampledBySampler(standAloneBillingTrace) but sampling priority it's set in the upstream service and locked for all downstream processes
     isSampledBySampler(standAloneBillingTrace)
     !hasAppsecPropagationTag (standAloneBillingTrace)
     hasApmDisabledTag (standAloneBillingTrace)
