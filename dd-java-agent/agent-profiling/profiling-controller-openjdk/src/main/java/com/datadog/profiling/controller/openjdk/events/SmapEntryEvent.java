@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import jdk.jfr.Category;
+import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
 import jdk.jfr.Enabled;
 import jdk.jfr.Event;
@@ -37,6 +38,9 @@ public class SmapEntryEvent extends Event {
   private static boolean annotatedMapsAvailable;
   private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
   private static final String VSYSCALL_START_ADDRESS = "ffffffffff600000";
+  private static final Pattern SYSTEM_MAP_ENTRY_PATTERN =
+      Pattern.compile(
+          "([0-9a-fA-Fx]+)\\s+-\\s+([0-9a-fA-Fx]+)\\s+(\\d+)\\s+(\\S+)\\s+(\\S+)(?:\\s+(.*))?");
 
   @Label("Region Start Address")
   private final long startAddress;
@@ -69,60 +73,77 @@ public class SmapEntryEvent extends Event {
   private final long mmuPageSize;
 
   @Label("Resident Set Size")
+  @DataAmount
   private final long rss;
 
   @Label("Proportional Set Size")
+  @DataAmount
   private final long pss;
 
   @Label("Dirty Proportional Set Size")
+  @DataAmount
   private final long pssDirty;
 
   @Label("Shared Clean Pages")
   private final long sharedClean;
 
   @Label("Shared Dirty Pages")
+  @DataAmount
   private final long sharedDirty;
 
   @Label("Private Clean Pages")
+  @DataAmount
   private final long privateClean;
 
   @Label("Private Dirty Pages")
+  @DataAmount
   private final long privateDirty;
 
   @Label("Referenced Memory")
   private final long referenced;
 
   @Label("Anonymous Memory")
+  @DataAmount
   private final long anonymous;
 
   @Label("Kernel Same-page Merging")
+  @DataAmount
   private final long ksm;
 
   @Label("Lazily Freed Memory")
+  @DataAmount
   private final long lazyFree;
 
   @Label("Anon Huge Pages")
+  @DataAmount
   private final long anonHugePages;
 
   @Label("Shared Memory Huge Pages")
+  @DataAmount
   private final long shmemPmdMapped;
 
   @Label("Page Cache Huge Pages")
+  @DataAmount
   private final long filePmdMapped;
 
   @Label("Shared Huge Pages")
+  @DataAmount
   private final long sharedHugetlb;
 
   @Label("Private Huge Pages")
+  @DataAmount
   private final long privateHugetlb;
 
   @Label("Swap Size")
+  @DataAmount
   private final long swap;
 
   @Label("Proportional Swap Size")
+  @DataAmount
   private final long swapPss;
 
   @Label("Locked Memory")
+  @DataAmount
   private final long locked;
 
   @Label("THP Eligible")
@@ -233,12 +254,9 @@ public class SmapEntryEvent extends Event {
         String[] lines =
             ((String) mbs.invoke(objectName, "systemMap", dcmdArgs, signature)).split("\n");
         HashMap<Long, String> annotatedRegions = new HashMap<>();
-        Pattern pattern =
-            Pattern.compile(
-                "([0-9a-fA-Fx]+)\\s+-\\s+([0-9a-fA-Fx]+)\\s+(\\d+)\\s+(\\S+)\\s+(\\S+)(?:\\s+(.*))?");
 
         for (String line : lines) {
-          Matcher matcher = pattern.matcher(line);
+          Matcher matcher = SYSTEM_MAP_ENTRY_PATTERN.matcher(line);
           if (matcher.matches()) {
             long startAddress;
             if (matcher.group(1).equals("0x" + VSYSCALL_START_ADDRESS)) {
@@ -338,91 +356,91 @@ public class SmapEntryEvent extends Event {
           String key = scanner.next();
           switch (key) {
             case "Size:":
-              size = scanner.nextLong();
+              size = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "KernelPageSize:":
-              kernelPageSize = scanner.nextLong();
+              kernelPageSize = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "MMUPageSize:":
-              mmuPageSize = scanner.nextLong();
+              mmuPageSize = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Rss:":
-              rss = scanner.nextLong();
+              rss = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Pss:":
-              pss = scanner.nextLong();
+              pss = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Pss_Dirty:":
-              pssDirty = scanner.nextLong();
+              pssDirty = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Shared_Clean:":
-              sharedClean = scanner.nextLong();
+              sharedClean = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Shared_Dirty:":
-              sharedDirty = scanner.nextLong();
+              sharedDirty = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Private_Clean:":
-              privateClean = scanner.nextLong();
+              privateClean = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Private_Dirty:":
-              privateDirty = scanner.nextLong();
+              privateDirty = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Referenced:":
-              referenced = scanner.nextLong();
+              referenced = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Anonymous:":
-              anonymous = scanner.nextLong();
+              anonymous = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "KSM:":
-              ksm = scanner.nextLong();
+              ksm = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "LazyFree:":
-              lazyFree = scanner.nextLong();
+              lazyFree = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "AnonHugePages:":
-              anonHugePages = scanner.nextLong();
+              anonHugePages = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "ShmemPmdMapped:":
-              shmemPmdMapped = scanner.nextLong();
+              shmemPmdMapped = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "FilePmdMapped:":
-              filePmdMapped = scanner.nextLong();
+              filePmdMapped = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Shared_Hugetlb:":
-              sharedHugetlb = scanner.nextLong();
+              sharedHugetlb = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Private_Hugetlb:":
-              privateHugetlb = scanner.nextLong();
+              privateHugetlb = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Swap:":
-              swap = scanner.nextLong();
+              swap = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "SwapPss:":
-              swapPss = scanner.nextLong();
+              swapPss = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "Locked:":
-              locked = scanner.nextLong();
+              locked = scanner.nextLong() * 1024;
               scanner.next();
               break;
             case "THPeligible:":
