@@ -34,12 +34,16 @@ public class JMXFetch {
 
   private static final int DELAY_BETWEEN_RUN_ATTEMPTS = 5000;
 
-  public static void run(final StatsDClientManager statsDClientManager) {
-    run(statsDClientManager, Config.get());
+  public static void run(
+      final StatsDClientManager statsDClientManager, final ClassLoader jmxContext) {
+    run(statsDClientManager, jmxContext, Config.get());
   }
 
   // This is used by tests
-  private static void run(final StatsDClientManager statsDClientManager, final Config config) {
+  private static void run(
+      final StatsDClientManager statsDClientManager,
+      final ClassLoader jmxContext,
+      final Config config) {
     if (!config.isJmxFetchEnabled()) {
       log.debug("JMXFetch is disabled");
       return;

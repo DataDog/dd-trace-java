@@ -389,7 +389,7 @@ public class Agent {
     Class<?> scoClass =
         AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
     installDatadogTracer(scoClass, scoClass.getConstructor().newInstance());
-    startJmx(); // send runtime metrics along with the traces
+    startJmx(AGENT_CLASSLOADER); // send runtime metrics along with the traces
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
@@ -445,6 +445,7 @@ public class Agent {
 
   protected static class StartJmxCallback extends ClassLoadCallBack {
     private final int jmxStartDelay;
+    private ClassLoader jmxContext;
 
     StartJmxCallback(final int jmxStartDelay) {
       this.jmxStartDelay = jmxStartDelay;
@@ -456,9 +457,20 @@ public class Agent {
     }
 
     @Override
+    public void run() {
+      // record the calling context which triggered loading of JMX
+      jmxContext = Thread.currentThread().getContextClassLoader();
+      super.run();
+    }
+
+    @Override
     public void execute() {
       // still honour the requested delay from the point JMX becomes available
-      scheduleJmxStart(jmxStartDelay);
+      if (null != jmxContext) {
+        scheduleJmxStart(jmxStartDelay, jmxContext);
+      } else {
+        scheduleJmxStart(jmxStartDelay);
+      }
     }
   }
 
@@ -616,22 +628,26 @@ public class Agent {
   }
 
   private static void scheduleJmxStart(final int jmxStartDelay) {
+    scheduleJmxStart(jmxStartDelay, AGENT_CLASSLOADER);
+  }
+
+  private static void scheduleJmxStart(final int jmxStartDelay, final ClassLoader jmxContext) {
     if (jmxStartDelay > 0) {
       AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-          new JmxStartTask(), jmxStartDelay, TimeUnit.SECONDS);
+          new JmxStartTask(), jmxContext, jmxStartDelay, TimeUnit.SECONDS);
     } else {
-      startJmx();
+      startJmx(jmxContext);
     }
   }
 
-  static final class JmxStartTask implements Runnable {
+  static final class JmxStartTask implements AgentTaskScheduler.Task<ClassLoader> {
     @Override
-    public void run() {
-      startJmx();
+    public void run(ClassLoader jmxContext) {
+      startJmx(jmxContext);
     }
   }
 
-  private static synchronized void startJmx() {
+  private static synchronized void startJmx(final ClassLoader jmxContext) {
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
@@ -641,7 +657,7 @@ public class Agent {
     // crash uploader initialization relies on JMX being available
     initializeCrashUploader();
     if (jmxFetchEnabled) {
-      startJmxFetch();
+      startJmxFetch(jmxContext);
     }
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
     if (profilingEnabled) {
@@ -693,15 +709,15 @@ public class Agent {
     }
   }
 
-  private static synchronized void startJmxFetch() {
+  private static synchronized void startJmxFetch(final ClassLoader jmxContext) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
       final Class<?> jmxFetchAgentClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.jmxfetch.JMXFetch");
       final Method jmxFetchInstallerMethod =
-          jmxFetchAgentClass.getMethod("run", StatsDClientManager.class);
-      jmxFetchInstallerMethod.invoke(null, statsDClientManager());
+          jmxFetchAgentClass.getMethod("run", StatsDClientManager.class, ClassLoader.class);
+      jmxFetchInstallerMethod.invoke(null, statsDClientManager(), jmxContext);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting JmxFetch", ex);
     } finally {
