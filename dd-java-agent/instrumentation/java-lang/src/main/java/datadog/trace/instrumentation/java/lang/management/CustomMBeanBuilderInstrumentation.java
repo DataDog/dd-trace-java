@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.InstanceStore;
+import datadog.trace.bootstrap.instrumentation.jmx.MBeanServerRegistry;
 import javax.management.MBeanServer;
 import net.bytebuddy.asm.Advice;
 
@@ -43,7 +43,7 @@ public class CustomMBeanBuilderInstrumentation extends InstrumenterModule.Tracin
   public static class StoreMBeanServerAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterCreation(@Advice.Return final MBeanServer mBeanServer) {
-      InstanceStore.of(MBeanServer.class).putIfAbsent("", mBeanServer);
+      MBeanServerRegistry.get().putIfAbsent(mBeanServer.getClass().getName(), mBeanServer);
     }
   }
 }
