@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -70,7 +71,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class StatementAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
         @Advice.This final Statement statement) {
@@ -79,9 +80,10 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
       if (callDepth > 0) {
         return null;
       }
+
+      final AgentSpan span = startSpan(DATABASE_QUERY);
       try {
         final Connection connection = statement.getConnection();
-        final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
@@ -112,11 +114,16 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
-        return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
         return null;
+      } catch (BlockingException e) {
+        // re-throw blocking exceptions
+        throw e;
+      } catch (Throwable e) {
+        // suppress anything else
       }
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

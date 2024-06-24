@@ -371,7 +371,8 @@ public class InstrumentationGateway {
               @Override
               public Flow<Void> apply(RequestContext ctx, String arg) {
                 try {
-                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback).apply(ctx, arg);
+                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
+                      .apply(ctx, arg);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();
