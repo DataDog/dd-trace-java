@@ -201,9 +201,9 @@ public class InstrumentationGatewayTest {
     assertThat(cbp.getCallback(events.graphqlServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     ss.registerCallback(events.databaseConnection(), callback);
-    cbp.getCallback(events.databaseConnection()).accept(null, null);
+    cbp.getCallback(events.databaseConnection()).apply(null, null);
     ss.registerCallback(events.databaseSqlQuery(), callback);
-    cbp.getCallback(events.databaseSqlQuery()).accept(null, null);
+    cbp.getCallback(events.databaseSqlQuery()).apply(null, null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -257,9 +257,9 @@ public class InstrumentationGatewayTest {
     assertThat(cbp.getCallback(events.graphqlServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     ss.registerCallback(events.databaseConnection(), throwback);
-    cbp.getCallback(events.databaseConnection()).accept(null, null);
+    cbp.getCallback(events.databaseConnection()).apply(null, null);
     ss.registerCallback(events.databaseSqlQuery(), throwback);
-    cbp.getCallback(events.databaseSqlQuery()).accept(null, null);
+    cbp.getCallback(events.databaseSqlQuery()).apply(null, null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
