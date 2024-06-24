@@ -97,7 +97,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
           } else if (tagKey.equals(TRACE_ID_TAG)) {
             traceIdTagValue = tagValue;
           } else if (tagKey.equals(APPSEC_TAG)) {
-            appsecPropagationEnabled = true;
+            appsecPropagationEnabled = tagValue.charAt(0) == '1';
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six

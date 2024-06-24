@@ -73,6 +73,8 @@ class DatadogPropagationTagsTest extends DDCoreSpecification {
     "_dd.p.tid=123456789abcdefg"                                                                                                 | null                                       | ["_dd.propagation_error": "malformed_tid 123456789abcdefg"] // invalid tid tag value: non-hexadecimal characters
     "_dd.p.tid=-123456789abcdef"                                                                                                 | null                                       | ["_dd.propagation_error": "malformed_tid -123456789abcdef"] // invalid tid tag value: non-hexadecimal characters
     "_dd.p.appsec=1"                                                                                                             | "_dd.p.appsec=1"                           | ["_dd.p.appsec": "1"]
+    "_dd.p.appsec=0"                                                                                                             | null                                       | [:]
+    "_dd.p.appsec=foo"                                                                                                           | null                                       | ["_dd.propagation_error":"decoding_error"]
   }
 
   def "datadog propagation tags should translate to w3c tags #headerValue"() {
