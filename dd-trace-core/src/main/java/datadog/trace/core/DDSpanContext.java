@@ -4,7 +4,6 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
@@ -542,9 +541,9 @@ public class DDSpanContext
     if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
     }
-    if (Config.get().isAppSecStandaloneEnabled() && newMechanism == SamplingMechanism.APPSEC) {
+    if (SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism)) {
       SAMPLING_PRIORITY_UPDATER.set(this, newPriority);
-      propagationTags.updateTraceSamplingPriority(newPriority, SamplingMechanism.APPSEC);
+      propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
       return true;
     }
     if (!SAMPLING_PRIORITY_UPDATER.compareAndSet(this, PrioritySampling.UNSET, newPriority)) {
