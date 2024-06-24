@@ -85,8 +85,10 @@ public class DebugSnapshotProbe extends LogProbe {
 
       String key = (entry ? "_dd.entry_location." : "_dd.exit_location.") + "snapshot_id";
       span.setTag(key, snapshot.getId());
+      if (entry && span.getLocalRootSpan() != null) {
+        span.getLocalRootSpan().setTag(key, snapshot.getId());
+      }
       commitSnapshot(snapshot, DebuggerAgent.getSink());
-      System.out.println("span = " + span);
     }
   }
 

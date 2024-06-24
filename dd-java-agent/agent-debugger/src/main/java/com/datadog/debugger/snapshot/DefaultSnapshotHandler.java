@@ -36,6 +36,11 @@ public class DefaultSnapshotHandler implements DebuggerContext.SnapshotHandler {
   }
 
   @Override
+  public boolean isExcluded(String className) {
+    return classNameFiltering.isExcluded(className);
+  }
+
+  @Override
   public void handleSnapshot(AgentSpan span, StackTraceElement element) {
     String fingerprint = fingerprint(element);
     if (fingerprint == null) {
@@ -44,7 +49,8 @@ public class DefaultSnapshotHandler implements DebuggerContext.SnapshotHandler {
     }
 
     if (!probeManager.isAlreadyInstrumented(fingerprint)) {
-      System.out.println("not already instrumented");
+      System.out.println("not instrumented");
+      System.out.println("span.getTags() = " + span.getTags().keySet());
       if (probeManager.createProbesForException(element)) {
         AgentTaskScheduler.INSTANCE.execute(
             () -> {

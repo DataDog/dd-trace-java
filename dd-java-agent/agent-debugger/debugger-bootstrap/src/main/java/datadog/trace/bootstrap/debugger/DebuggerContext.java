@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +69,10 @@ public class DebuggerContext {
 
   public interface SnapshotHandler {
     void handleSnapshot(AgentSpan span, StackTraceElement element);
+
+    //  I don't like this either but it gets me what I want until we can talk about cleaner
+    // approaches
+    boolean isExcluded(String className);
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -78,7 +81,7 @@ public class DebuggerContext {
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
-  private static volatile SnapshotHandler snapshotHandler;
+  public static volatile SnapshotHandler snapshotHandler;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
@@ -316,7 +319,6 @@ public class DebuggerContext {
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions,
       String... encodedProbeIds) {
-    System.out.println("encodedProbeIds = " + Arrays.toString(encodedProbeIds));
     try {
       if (entryContext == CapturedContext.EMPTY_CONTEXT
           && exitContext == CapturedContext.EMPTY_CONTEXT) {

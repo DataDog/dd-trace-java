@@ -46,6 +46,6 @@ public final class SpringDataDecorator extends ClientDecorator {
       span.setResourceName(spanNameForMethod(method));
     }
 
-    SpanOriginInfo.entry(method, span);
+    SpanOriginInfo.exit(span);
   }
 }
