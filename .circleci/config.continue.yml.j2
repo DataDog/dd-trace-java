@@ -900,7 +900,7 @@ jobs:
             ./build.sh java
 
       - run:
-          name: Run APM Integrations tests
+          name: Run Dynamic Instrumentation system tests
           # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
           no_output_timeout: 5m
           command: |
