@@ -20,7 +20,7 @@ dependencies {
   compileOnly group: 'junit', name: 'junit', version: '4.10'
 
   // prevents kotlin plugin from including kotlin classes into the agent Jar
-  compileOnly deps.kotlin
+  compileOnly libs.kotlin
 
   testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
 

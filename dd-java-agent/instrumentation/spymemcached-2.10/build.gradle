@@ -21,7 +21,7 @@ dependencies {
   compileOnly group: 'net.spy', name: 'spymemcached', version: '2.10.4'
 
   testImplementation group: 'net.spy', name: 'spymemcached', version: '2.10.4'
-  testImplementation deps.testcontainers
+  testImplementation libs.testcontainers
 
   latestDepTestImplementation group: 'net.spy', name: 'spymemcached', version: '+'
 }

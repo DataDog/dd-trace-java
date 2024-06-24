@@ -34,7 +34,7 @@ tasks.named("compileLatestDepTestGroovy").configure {
 dependencies {
   compileOnly group: 'dev.zio', name: "zio_$scalaVersion", version: zioVersion
 
-  testImplementation deps.scala
+  testImplementation libs.scala
   testImplementation group: 'dev.zio', name: "zio_$scalaVersion", version: zioVersion
 
   // Fails from 2.1: https://datadoghq.atlassian.net/browse/AIDM-156

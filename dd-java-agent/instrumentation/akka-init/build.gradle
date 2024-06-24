@@ -19,7 +19,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
 
-  testImplementation deps.scala
+  testImplementation libs.scala
   testImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
   testImplementation project(':dd-java-agent:instrumentation:akka-concurrent')
   testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')

@@ -125,7 +125,7 @@ sourceSets {
   }
 }
 dependencies {
-  routeGeneratorImplementation deps.scala211
+  routeGeneratorImplementation libs.scala211
   routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.11", version: '2.5.0'
 }
 configurations {
