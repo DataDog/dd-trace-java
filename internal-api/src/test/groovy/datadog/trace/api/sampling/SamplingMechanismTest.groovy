@@ -95,4 +95,26 @@ class SamplingMechanismTest extends Specification {
     EXTERNAL_OVERRIDE | userDropX    | false
     EXTERNAL_OVERRIDE | userKeepX    | false
   }
+
+  void 'Test canAvoidSamplingPriorityLock'(){
+    setup:
+    System.setProperty("dd.experimental.appsec.standalone.enabled", "true")
+
+    expect:
+    canAvoidSamplingPriorityLock(priority, mechanism) == valid
+
+    where:
+    mechanism         | priority     | valid
+    APPSEC            | UNSET        | true
+    APPSEC            | SAMPLER_KEEP | true
+    UNKNOWN           | SAMPLER_KEEP | false
+    DEFAULT           | SAMPLER_KEEP | false
+    AGENT_RATE        | SAMPLER_KEEP | false
+    REMOTE_AUTO_RATE  | SAMPLER_KEEP | false
+    LOCAL_USER_RULE   | SAMPLER_KEEP | false
+    MANUAL            | SAMPLER_KEEP | false
+    REMOTE_USER_RATE  | SAMPLER_KEEP | false
+    DATA_JOBS         | SAMPLER_KEEP | false
+    EXTERNAL_OVERRIDE | SAMPLER_KEEP | false
+  }
 }
