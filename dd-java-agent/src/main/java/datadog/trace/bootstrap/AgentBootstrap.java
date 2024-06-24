@@ -95,10 +95,7 @@ public final class AgentBootstrap {
         return System.getenv(LIB_INJECTION_ENABLED_FLAG) != null;
       case LIB_INJECTION_FORCE_FLAG:
         String libInjectionForceFlag = System.getenv(LIB_INJECTION_FORCE_FLAG);
-        return libInjectionForceFlag != null
-            && (libInjectionForceFlag.equals("TRUE")
-                || libInjectionForceFlag.equals("True")
-                || libInjectionForceFlag.equals("1"));
+        return "true".equalsIgnoreCase(libInjectionForceFlag) || "1".equals(libInjectionForceFlag);
       default:
         return false;
     }
@@ -224,9 +221,23 @@ public final class AgentBootstrap {
     if (getConfig(LIB_INJECTION_ENABLED_FLAG)
         && !getConfig(LIB_INJECTION_FORCE_FLAG)
         && getAgentFilesFromVMArguments().size() > 1) {
+      // Formatting agent file list, Java 7 style
+      StringBuilder agentFiles = new StringBuilder();
+      boolean first = true;
+      for (File agentFile : getAgentFilesFromVMArguments()) {
+        if (first) {
+          first = false;
+        } else {
+          agentFiles.append(", ");
+        }
+        agentFiles.append('"');
+        agentFiles.append(agentFile.getAbsolutePath());
+        agentFiles.append('"');
+      }
       System.out.println(
-          "Info: multiple JVM agents detected."
-              + "Loading multiple APM/Tracing agent is not a recommended or supported configuration."
+          "Info: multiple JVM agents detected, found "
+              + agentFiles
+              + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
               + "Please set the DD_INJECT_FORCE configuration to TRUE to load Datadog APM/Tracing agent.");
       return true;
     }

@@ -11,7 +11,7 @@ abstract class MultipleAgentGuardrailsTest extends AbstractSmokeTest {
     command+= javaPath()
     command.addAll(defaultJavaProperties)
     command+= "-javaagent:${jarPath}" as String // Happen the fake agent too
-    command+= '-Ddd.integration.opentelemetry.experimental.enabled=true'
+    command+= '-Ddd.trace.otel.enabled=true'
     command+= '-jar'
     command+= jarPath
 
@@ -75,6 +75,6 @@ class LibInjectionForcedTest extends MultipleAgentGuardrailsTest {
 
   @Override
   boolean isLibInjectionForced() {
-    return false
+    return true
   }
 }
