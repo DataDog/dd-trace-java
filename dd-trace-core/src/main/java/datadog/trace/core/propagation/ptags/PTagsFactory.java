@@ -2,9 +2,7 @@ package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.APPSEC_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.*;
 
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -339,7 +337,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
         if (appsecPropagationEnabled) {
-          size = PTagsCodec.calcXDatadogTagsSize(size, APPSEC_TAG, TagValue.from("1"));
+          size = PTagsCodec.calcXDatadogTagsSize(size, APPSEC_TAG, APPSEC_ENABLED_TAG_VALUE);
         }
         xDatadogTagsSize = size;
       }
