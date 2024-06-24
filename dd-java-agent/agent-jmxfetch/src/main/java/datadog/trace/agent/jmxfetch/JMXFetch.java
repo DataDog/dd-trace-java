@@ -9,6 +9,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.flare.TracerFlare;
+import datadog.trace.bootstrap.instrumentation.jmx.MBeanServerRegistry;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
@@ -108,7 +109,8 @@ public class JMXFetch {
             .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
             .refreshBeansPeriod(refreshBeansPeriod)
             .globalTags(globalTags)
-            .reporter(reporter);
+            .reporter(reporter)
+            .connectionFactory(new AgentConnectionFactory(MBeanServerRegistry.get()));
 
     if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
       ServiceNameCollectingTraceInterceptor serviceNameProvider =
