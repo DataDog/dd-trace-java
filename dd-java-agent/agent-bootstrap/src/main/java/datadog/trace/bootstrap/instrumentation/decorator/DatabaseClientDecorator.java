@@ -159,19 +159,19 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
         RequestContext ctx = span.getRequestContext();
         if (ctx != null) {
           Flow<Void> flow = connectDbCallback.apply(ctx, dbType);
-            Flow.Action action = flow.getAction();
-            if (action instanceof Flow.Action.RequestBlockingAction) {
-              BlockResponseFunction brf = ctx.getBlockResponseFunction();
-              if (brf != null) {
-                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-                brf.tryCommitBlockingResponse(
-                    ctx.getTraceSegment(),
-                    rba.getStatusCode(),
-                    rba.getBlockingContentType(),
-                    rba.getExtraHeaders());
-              }
-              throw new BlockingException("Blocked request (for DB connection)");
+          Flow.Action action = flow.getAction();
+          if (action instanceof Flow.Action.RequestBlockingAction) {
+            BlockResponseFunction brf = ctx.getBlockResponseFunction();
+            if (brf != null) {
+              Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+              brf.tryCommitBlockingResponse(
+                  ctx.getTraceSegment(),
+                  rba.getStatusCode(),
+                  rba.getBlockingContentType(),
+                  rba.getExtraHeaders());
             }
+            throw new BlockingException("Blocked request (for DB connection)");
+          }
         }
       }
     }
