@@ -21,6 +21,15 @@ import org.slf4j.LoggerFactory;
 public interface Sampler {
 
   /**
+   * To only allow 1 APM trace per minute as standalone ASM is only interested in the traces
+   * containing ASM events. But the service catalog and the billing need a continuous ingestion of
+   * at least at 1 trace per minute to consider a service as being live and billable. In the absence
+   * of ASM events, no APM traces must be sent, so we need to let some regular APM traces go
+   * through, even in the absence of ASM events.
+   */
+  int ASM_STANDALONE_BILLING_SAMPLER_RATE = 60000; // 1 minute
+
+  /**
    * Sample a collection of traces based on the parent span
    *
    * @param span the parent span with its context
@@ -36,7 +45,7 @@ public interface Sampler {
       if (config != null) {
         if (config.isAppSecStandaloneEnabled()) {
           log.debug("APM is disabled. Only 1 trace per minute will be sent.");
-          return new AsmStandaloneSampler(60000); // 1 trace per minute
+          return new AsmStandaloneSampler(ASM_STANDALONE_BILLING_SAMPLER_RATE);
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();

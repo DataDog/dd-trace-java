@@ -6,7 +6,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Sampler that samples traces based on a fixed time rate in milliseconds. */
+/**
+ * This class is designed to sample traces based on a fixed time rate in milliseconds. However, it's
+ * important to note that the precision of this class is not in the millisecond range due to the use
+ * of System.currentTimeMillis().
+ */
 public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
   private static final Logger log = LoggerFactory.getLogger(AsmStandaloneSampler.class);

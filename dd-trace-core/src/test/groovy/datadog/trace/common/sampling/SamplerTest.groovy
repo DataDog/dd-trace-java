@@ -15,6 +15,6 @@ class SamplerTest extends DDSpecification{
 
     then:
     sampler instanceof AsmStandaloneSampler
-    ((AsmStandaloneSampler)sampler).rateInMilliseconds == 60000 //1 minute
+    ((AsmStandaloneSampler)sampler).rateInMilliseconds == Sampler.ASM_STANDALONE_BILLING_SAMPLER_RATE
   }
 }
