@@ -459,16 +459,12 @@ public class PowerWAFModule implements AppSecModule {
         if (!events.isEmpty() && !reqCtx.isThrottled(rateLimiter)) {
           AgentSpan activeSpan = AgentTracer.get().activeSpan();
           if (activeSpan != null) {
-            if (log.isDebugEnabled()) {
-              log.debug("Setting force-keep tag on the current span");
-            }
+            log.debug("Setting force-keep tag on the current span");
             // Keep event related span, because it could be ignored in case of
             // reduced datadog sampling rate.
             activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
           } else {
-            if (log.isDebugEnabled()) {
-              log.debug("There is no active span available");
-            }
+            log.debug("There is no active span available");
           }
           reqCtx.reportEvents(events);
         }
