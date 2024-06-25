@@ -7,20 +7,17 @@ import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.event.EventDispatcher;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
-import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.powerwaf.PowerWAFModule;
 import com.datadog.appsec.util.AbortStartupException;
 import com.datadog.appsec.util.StandardizedLogging;
 import datadog.appsec.api.blocking.Blocking;
 import datadog.appsec.api.blocking.BlockingService;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.SubscriptionService;
-import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.util.Strings;
 import java.util.Collections;
@@ -41,7 +38,6 @@ public class AppSecSystem {
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
   private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
-  private static RateLimiter RATE_LIMITER; // static for testing purpose
 
   public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
     try {
@@ -82,8 +78,6 @@ public class AppSecSystem {
 
     sco.createRemaining(config);
 
-    RATE_LIMITER = getRateLimiter(config, sco.monitoring);
-
     GatewayBridge gatewayBridge =
         new GatewayBridge(
             gw,
@@ -91,7 +85,7 @@ public class AppSecSystem {
             requestSampler,
             APP_SEC_CONFIG_SERVICE.getTraceSegmentPostProcessors());
 
-    loadModules(eventDispatcher);
+    loadModules(eventDispatcher, sco.monitoring);
 
     gatewayBridge.init();
     RESET_SUBSCRIPTION_SERVICE = gatewayBridge::stop;
@@ -110,18 +104,6 @@ public class AppSecSystem {
     } else {
       log.debug("AppSec is {} with {}", appSecEnabledConfig, startedAppSecModules);
     }
-  }
-
-  private static RateLimiter getRateLimiter(Config config, Monitoring monitoring) {
-    RateLimiter rateLimiter = null;
-    int appSecTraceRateLimit = config.getAppSecTraceRateLimit();
-    if (appSecTraceRateLimit > 0) {
-      Counter counter = monitoring.newCounter("_dd.java.appsec.rate_limit.dropped_traces");
-      rateLimiter =
-          new RateLimiter(
-              appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
-    }
-    return rateLimiter;
   }
 
   public static boolean isActive() {
@@ -144,11 +126,11 @@ public class AppSecSystem {
     APP_SEC_CONFIG_SERVICE.close();
   }
 
-  private static void loadModules(EventDispatcher eventDispatcher) {
+  private static void loadModules(EventDispatcher eventDispatcher, Monitoring monitoring) {
     EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
         new EventDispatcher.DataSubscriptionSet();
 
-    final List<AppSecModule> modules = Collections.singletonList(new PowerWAFModule(RATE_LIMITER));
+    final List<AppSecModule> modules = Collections.singletonList(new PowerWAFModule(monitoring));
     for (AppSecModule module : modules) {
       log.debug("Starting appsec module {}", module.getName());
       try {

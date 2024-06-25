@@ -17,6 +17,7 @@ import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.stack_trace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
+import datadog.communication.monitor.Monitoring
 import datadog.trace.api.ConfigDefaults
 import datadog.trace.api.internal.TraceSegment
 import datadog.appsec.api.blocking.BlockingContentType
@@ -1419,6 +1420,19 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     where:
     n << (1..3)
+  }
+
+  void 'honors appsec.trace.rate.limit'() {
+    setup:
+    injectSysConfig('dd.appsec.trace.rate.limit', '5')
+    def monitoring = Mock(Monitoring)
+
+    when:
+    def waf = new PowerWAFModule(monitoring)
+
+    then:
+    waf.rateLimiter.limitPerSec == 5
+
   }
 
   private Map<String, Object> getDefaultConfig() {

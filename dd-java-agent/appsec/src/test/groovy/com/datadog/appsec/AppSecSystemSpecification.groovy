@@ -82,20 +82,6 @@ class AppSecSystemSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('actor.ip', '1.1.1.1')
   }
 
-  void 'honors appsec.trace.rate.limit'() {
-
-    setup:
-    injectSysConfig('dd.appsec.trace.rate.limit', '5')
-    def sco = sharedCommunicationObjects()
-
-    when:
-    AppSecSystem.start(subService, sco)
-
-    then:
-    AppSecSystem.RATE_LIMITER.limitPerSec == 5
-
-  }
-
   void 'throws if the config file is not parseable'() {
     setup:
     Path path = Files.createTempFile('dd-trace-', '.json')

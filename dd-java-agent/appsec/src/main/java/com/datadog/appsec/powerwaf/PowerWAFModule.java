@@ -22,11 +22,14 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.communication.monitor.Counter;
+import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -156,8 +159,8 @@ public class PowerWAFModule implements AppSecModule {
     this(null);
   }
 
-  public PowerWAFModule(RateLimiter rateLimiter) {
-    this.rateLimiter = rateLimiter;
+  public PowerWAFModule(Monitoring monitoring) {
+    this.rateLimiter = getRateLimiter(monitoring);
   }
 
   @Override
@@ -338,6 +341,21 @@ public class PowerWAFModule implements AppSecModule {
     return pwConfig;
   }
 
+  private static RateLimiter getRateLimiter(Monitoring monitoring) {
+    if (monitoring == null) {
+      return null;
+    }
+    RateLimiter rateLimiter = null;
+    int appSecTraceRateLimit = Config.get().getAppSecTraceRateLimit();
+    if (appSecTraceRateLimit > 0) {
+      Counter counter = monitoring.newCounter("_dd.java.appsec.rate_limit.dropped_traces");
+      rateLimiter =
+          new RateLimiter(
+              appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
+    }
+    return rateLimiter;
+  }
+
   @Override
   public String getName() {
     return "powerwaf";
@@ -464,7 +482,8 @@ public class PowerWAFModule implements AppSecModule {
             // reduced datadog sampling rate.
             activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
           } else {
-            //If active span is not available the ASK_KEEP tag will be set in the GatewayBridge when the request ends
+            // If active span is not available the ASK_KEEP tag will be set in the GatewayBridge
+            // when the request ends
             log.debug("There is no active span available");
           }
           reqCtx.reportEvents(events);
