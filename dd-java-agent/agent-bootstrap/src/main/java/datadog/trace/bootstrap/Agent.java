@@ -638,8 +638,8 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
-    // crash uploader initialization relies on JMX being available
-    initializeCrashUploader();
+    // error tracking initialization relies on JMX being available
+    initializeErrorTracking();
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
@@ -870,7 +870,7 @@ public class Agent {
     }
   }
 
-  private static void initializeCrashUploader() {
+  private static void initializeErrorTracking() {
     if (Platform.isJ9()) {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
       return;

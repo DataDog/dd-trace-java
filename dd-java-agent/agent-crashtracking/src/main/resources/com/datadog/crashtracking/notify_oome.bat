@@ -3,15 +3,8 @@ setlocal enabledelayedexpansion
 
 :: Check if PID is provided
 if "%1"=="" (
-    echo "Error: No PID provided. Running in legacy mode."
-    java -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
-    if %ERRORLEVEL% EQU 0 (
-        echo "Uploaded error file \"!JAVA_ERROR_FILE!\""
-    ) else (
-        echo "Error: Failed to upload error file \"!JAVA_ERROR_FILE!\""
-        exit /b %ERRORLEVEL%
-    )
-    exit /b 0
+    echo "Error: No PID provided"
+    exit /b 1
 )
 set PID=%1
 
@@ -30,23 +23,23 @@ if not exist "%configFile%" (
 :: Read the configuration file
 :: The expected contents are
 :: - agent: Path to the dd-java-agent.jar
-:: - hs_err: Path to the hs_err log file
+:: - tags: Comma-separated list of tags to be sent with the OOME event; key:value pairs are supported
 for /f "tokens=1,2 delims=: " %%a in (%configFile%.cfg) do (
     set %%a=%%b
 )
 
 :: Debug: Print the loaded values (Optional)
 echo Agent Jar: %agent%
-echo Error Log: %hs_err%
+echo Tags: %tags%
 echo PID: %PID%
 
 :: Execute the Java command with the loaded values
-java -jar "%agent%" uploadCrash "%hs_err%"
+java -Ddd.dogstatsd.start-delay=0 -jar "%agent%" sendOomeEvent "%tags%"
 set RC=%ERRORLEVEL%
 del "%configFile%" :: Clean up the configuration file
 if %RC% EQU 0 (
-    echo "Error file %hs_err% was uploaded successfully"
+    echo "OOME Event generated successfully"
 ) else (
-    echo "Error: Failed to upload error file %hs_err%"
+    echo "Error: Failed to generate OOME event"
     exit /b %RC%
 )
