@@ -12,8 +12,8 @@ configurations {
 }
 
 dependencies {
-  api deps.bytebuddy
-  api deps.bytebuddyagent
+  api libs.bytebuddy
+  api libs.bytebuddyagent
 
   compileOnly project(':dd-java-agent:agent-tooling')
 }

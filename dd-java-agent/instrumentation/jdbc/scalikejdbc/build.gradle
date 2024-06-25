@@ -23,7 +23,7 @@ tasks.named("compileLatestDepTestGroovy").configure {
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:jdbc')
   testImplementation group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '3.5.0'
-  testImplementation deps.scala
+  testImplementation libs.scala
 
   latestDepTestImplementation group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '3.+'
   latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '+'

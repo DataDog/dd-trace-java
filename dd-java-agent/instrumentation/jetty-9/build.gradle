@@ -207,5 +207,5 @@ dependencies {
   latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
 }
 configurations.getByName('latestDepForkedTestRuntimeClasspath').resolutionStrategy {
-  force "org.slf4j:slf4j-api:${versions.slf4j}"
+  force libs.slf4j
 }

@@ -10,10 +10,9 @@ minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
 
 dependencies {
-  api deps.slf4j
+  api libs.slf4j
 
-  implementation deps.asm
-  implementation deps.asmcommons
+  implementation libs.bundles.asm
   implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.9'
   implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.9'
 

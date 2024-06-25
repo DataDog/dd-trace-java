@@ -3,8 +3,8 @@
 apply plugin: 'scala'
 
 dependencies {
-  compileOnly deps.scala
-  testImplementation deps.scala
+  compileOnly libs.scala
+  testImplementation libs.scala
 }
 
 tasks.named("compileTestGroovy").configure {

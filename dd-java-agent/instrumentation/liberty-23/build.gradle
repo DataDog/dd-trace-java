@@ -23,7 +23,7 @@ evaluationDependsOn ':dd-java-agent:instrumentation:servlet:request-5'
 
 dependencies {
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '22.0.0.1', ext: 'zip'
-  testLogging deps.testLogging
+  testLogging libs.bundles.test.logging
 
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   compileOnly files({ tasks.installOpenLibertyDeps.extractedJars })
@@ -50,7 +50,7 @@ dependencies {
   // use the above instead of:
   //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
   // because using testFixtures() causes some early evaluation of dependencies
-  webappRuntimeOnly deps.groovy
+  webappRuntimeOnly libs.groovy
 }
 compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
 

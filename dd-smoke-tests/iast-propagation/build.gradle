@@ -24,9 +24,9 @@ shadowJar {
 dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
-  implementation deps.scala
-  implementation deps.groovy
-  implementation deps.kotlin
+  implementation libs.scala
+  implementation libs.groovy
+  implementation libs.kotlin
 
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))

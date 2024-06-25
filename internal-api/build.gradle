@@ -186,7 +186,7 @@ compileTestJava.dependsOn 'generateTestClassNameTries'
 dependencies {
   // references TraceScope and Continuation from public api
   api project(':dd-trace-api')
-  api deps.slf4j
+  api libs.slf4j
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:
@@ -195,11 +195,11 @@ dependencies {
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")
-  testImplementation deps.junit5
-  testImplementation("org.junit.vintage:junit-vintage-engine:${versions.junit5}")
-  testImplementation deps.commonsMath
-  testImplementation deps.mockito
-  testImplementation deps.truth
+  testImplementation libs.bundles.junit5
+  testImplementation group: 'org.junit.vintage', name: 'junit-vintage-engine', version: libs.versions.junit5.get()
+  testImplementation libs.commons.math
+  testImplementation libs.bundles.mockito
+  testImplementation libs.truth
 }
 
 jmh {
