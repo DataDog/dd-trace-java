@@ -464,6 +464,7 @@ public class PowerWAFModule implements AppSecModule {
             // reduced datadog sampling rate.
             activeSpan.getLocalRootSpan().setTag(Tags.ASM_KEEP, true);
           } else {
+            //If active span is not available the ASK_KEEP tag will be set in the GatewayBridge when the request ends
             log.debug("There is no active span available");
           }
           reqCtx.reportEvents(events);
