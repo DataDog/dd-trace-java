@@ -2600,7 +2600,8 @@ public class Config {
   }
 
   public boolean isTracerMetricsEnabled() {
-    return tracerMetricsEnabled;
+    // When ASM Standalone Billing is enabled metrics should be disabled
+    return tracerMetricsEnabled && !isAppSecStandaloneEnabled();
   }
 
   public boolean isTracerMetricsBufferingEnabled() {

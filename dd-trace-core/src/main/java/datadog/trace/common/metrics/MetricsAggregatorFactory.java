@@ -10,11 +10,7 @@ public class MetricsAggregatorFactory {
 
   public static MetricsAggregator createMetricsAggregator(
       Config config, SharedCommunicationObjects sharedCommunicationObjects) {
-    if (config.isTracerMetricsEnabled()
-        && !config.isAppSecStandaloneEnabled() // When APM is disabled, libraries must
-    // completely disable the generation of APM
-    // trace metrics
-    ) {
+    if (config.isTracerMetricsEnabled()) {
       log.debug("tracer metrics enabled");
       return new ConflatingMetricsAggregator(config, sharedCommunicationObjects);
     }

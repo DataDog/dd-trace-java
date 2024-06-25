@@ -110,6 +110,8 @@ public class DDAgentApi extends RemoteApi {
               .addHeader(
                   DATADOG_CLIENT_COMPUTED_STATS,
                   (metricsEnabled && featuresDiscovery.supportsMetrics())
+                          // Disabling the computation agent-side of the APM trace metrics by
+                          // pretending it was already done by the library
                           || Config.get().isAppSecStandaloneEnabled()
                       ? "true"
                       : "")
