@@ -1,10 +1,10 @@
 package datadog.trace.api.sampling
 
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
 
-class SamplingMechanismTest extends Specification {
+class SamplingMechanismTest extends DDSpecification {
 
   static userDropX = USER_DROP - 1
   static userKeepX = USER_KEEP + 1
@@ -98,7 +98,7 @@ class SamplingMechanismTest extends Specification {
 
   void 'Test canAvoidSamplingPriorityLock'(){
     setup:
-    System.setProperty("dd.experimental.appsec.standalone.enabled", "true")
+    injectSysConfig("dd.experimental.appsec.standalone.enabled", "true")
 
     expect:
     canAvoidSamplingPriorityLock(priority, mechanism) == valid
