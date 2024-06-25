@@ -1,32 +1,32 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.UserEventTrackingMode.DISABLED;
-import static datadog.trace.api.UserEventTrackingMode.SAFE;
+import static datadog.trace.util.Strings.toHexString;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.UserEventTrackingMode;
+import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AppSecUserEventDecorator {
 
-  private static final String NUMBER_PATTERN = "[0-9]+";
-  private static final String UUID_PATTERN =
-      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-  private static final Pattern SAFE_USER_ID_PATTERN =
-      Pattern.compile(NUMBER_PATTERN + "|" + UUID_PATTERN, Pattern.CASE_INSENSITIVE);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AppSecUserEventDecorator.class);
+  private static final int HASH_SIZE_BYTES = 16; // 128 bits
+  private static final String ANONYM_PREFIX = "anon_";
 
   public boolean isEnabled() {
     if (!ActiveSubsystems.APPSEC_ACTIVE) {
       return false;
     }
-    UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();
-    if (mode == DISABLED) {
+    if (getUserIdCollectionMode() == UserIdCollectionMode.DISABLED) {
       return false;
     }
     return true;
@@ -49,8 +49,9 @@ public class AppSecUserEventDecorator {
       return;
     }
 
-    onUserId(segment, "usr.id", userId);
-    onEvent(segment, "users.login.success", metadata);
+    if (onUserId(segment, "usr.id", userId)) {
+      onEvent(segment, "users.login.success", metadata);
+    }
   }
 
   public void onLoginFailure(String userId, Map<String, String> metadata) {
@@ -59,8 +60,9 @@ public class AppSecUserEventDecorator {
       return;
     }
 
-    onUserId(segment, "appsec.events.users.login.failure.usr.id", userId);
-    onEvent(segment, "users.login.failure", metadata);
+    if (onUserId(segment, "appsec.events.users.login.failure.usr.id", userId)) {
+      onEvent(segment, "users.login.failure", metadata);
+    }
   }
 
   public void onSignup(String userId, Map<String, String> metadata) {
@@ -69,8 +71,9 @@ public class AppSecUserEventDecorator {
       return;
     }
 
-    onUserId(segment, "usr.id", userId);
-    onEvent(segment, "users.signup", metadata);
+    if (onUserId(segment, "usr.id", userId)) {
+      onEvent(segment, "users.signup", metadata);
+    }
   }
 
   private void onEvent(@Nonnull TraceSegment segment, String eventName, Map<String, String> tags) {
@@ -78,9 +81,9 @@ public class AppSecUserEventDecorator {
     segment.setTagTop(Tags.ASM_KEEP, true);
     segment.setTagTop(Tags.PROPAGATED_APPSEC, true);
 
-    // Report user event tracking mode ("safe" or "extended")
-    UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();
-    if (mode != DISABLED) {
+    // Report user event tracking mode ("identification" or "anonymization")
+    UserIdCollectionMode mode = getUserIdCollectionMode();
+    if (mode != UserIdCollectionMode.DISABLED) {
       segment.setTagTop("_dd.appsec.events." + eventName + ".auto.mode", mode.toString());
     }
 
@@ -89,19 +92,67 @@ public class AppSecUserEventDecorator {
     }
   }
 
-  private void onUserId(final TraceSegment segment, final String tag, final String userId) {
+  /**
+   * Adds the user id tag to the trace segment taking care of its anonymization if required. If the
+   * tag was properly set it returns {@code true} meaning that the event can also be set in the
+   * segment.
+   */
+  protected boolean onUserId(final TraceSegment segment, final String tag, final String userId) {
     if (userId == null) {
-      return;
+      onMissingUserId();
+      return false;
     }
-    UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();
-    if (mode == SAFE && !SAFE_USER_ID_PATTERN.matcher(userId).matches()) {
-      // do not set the user id if not numeric or UUID
-      return;
+    String finalUserId;
+    switch (getUserIdCollectionMode()) {
+      case IDENTIFICATION:
+        finalUserId = userId;
+        break;
+      case ANONYMIZATION:
+        finalUserId = anonymize(userId);
+        if (finalUserId == null) {
+          return false;
+        }
+        break;
+      default:
+        // should never happen
+        return false;
     }
-    segment.setTagTop(tag, userId);
+    segment.setTagTop(tag, finalUserId);
+    return true;
+  }
+
+  protected static String anonymize(String userId) {
+    if (userId == null) {
+      return null;
+    }
+    MessageDigest digest;
+    try {
+      // TODO avoid lookup a new instance every time
+      digest = MessageDigest.getInstance("SHA-256");
+    } catch (NoSuchAlgorithmException e) {
+      LOGGER.error("Missing SHA-256 digest, user collection in 'anon' mode cannot continue", e);
+      return null;
+    }
+    digest.update(userId.getBytes());
+    byte[] hash = digest.digest();
+    if (hash.length > HASH_SIZE_BYTES) {
+      byte[] temp = new byte[HASH_SIZE_BYTES];
+      System.arraycopy(hash, 0, temp, 0, temp.length);
+      hash = temp;
+    }
+    return ANONYM_PREFIX + toHexString(hash);
   }
 
   protected TraceSegment getSegment() {
     return AgentTracer.get().getTraceSegment();
+  }
+
+  protected void onMissingUserId() {
+    WafMetricCollector.get().missingUserId();
+  }
+
+  /** TODO link with remote config when ready */
+  protected UserIdCollectionMode getUserIdCollectionMode() {
+    return Config.get().getAppSecUserIdCollectionMode();
   }
 }
