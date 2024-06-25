@@ -15,6 +15,7 @@ import datadog.trace.util.AgentTaskScheduler
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class TaintedMapTest extends DDSpecification {
 
@@ -94,7 +95,8 @@ class TaintedMapTest extends DDSpecification {
 
     int iters = 16
     int nObjectsPerIter = flatModeThreshold - 1
-    def gen = new ObjectGen(capacity)
+    final atomic = new AtomicInteger()
+    def gen = new ObjectGen(capacity, { "object_${atomic.incrementAndGet()}"} )
     def objectBuffer = new CircularBuffer<Object>(iters)
 
     when:
@@ -119,7 +121,7 @@ class TaintedMapTest extends DDSpecification {
     }
 
     then:
-    map.size() == iters
+    assert map.size() == iters: map.toList()
     map.count() == iters
     final entries = map.toList()
     entries.findAll { it.get() != null }.size() == iters
