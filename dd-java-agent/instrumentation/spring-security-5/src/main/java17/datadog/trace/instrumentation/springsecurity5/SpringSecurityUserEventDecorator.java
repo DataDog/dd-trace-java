@@ -40,12 +40,10 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
     }
 
     UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();
-    String userId = null;
+    String userId = user.getUsername();
     Map<String, String> metadata = null;
 
-    if (mode == EXTENDED && user != null) {
-      userId = user.getUsername();
-
+    if (mode == EXTENDED) {
       metadata = new HashMap<>();
       metadata.put("enabled", String.valueOf(user.isEnabled()));
       metadata.put(
@@ -71,44 +69,36 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
       return;
     }
 
-    String userId = null;
+    String userId = result != null ? result.getName() : authentication.getName();
 
-    if (mode == EXTENDED) {
-      userId = authentication.getName();
-    }
-
-    if (mode != DISABLED) {
-      if (throwable == null && result != null && result.isAuthenticated()) {
-        Map<String, String> metadata = null;
-        Object principal = result.getPrincipal();
-        if (principal instanceof User) {
-          User user = (User) principal;
-          metadata = new HashMap<>();
-          metadata.put("enabled", String.valueOf(user.isEnabled()));
-          metadata.put(
-              "authorities",
-              user.getAuthorities().stream()
-                  .map(Object::toString)
-                  .collect(Collectors.joining(",")));
-          metadata.put("accountNonExpired", String.valueOf(user.isAccountNonExpired()));
-          metadata.put("accountNonLocked", String.valueOf(user.isAccountNonLocked()));
-          metadata.put("credentialsNonExpired", String.valueOf(user.isCredentialsNonExpired()));
-        }
-
-        onLoginSuccess(userId, metadata);
-      } else if (throwable != null) {
-        // On bad password, throwable would be
-        // org.springframework.security.authentication.BadCredentialsException,
-        // on user not found, throwable can be BadCredentials or
-        // org.springframework.security.core.userdetails.UsernameNotFoundException depending on the
-        // internal setting
-        // hideUserNotFoundExceptions (or a custom AuthenticationProvider implementation overriding
-        // this).
-        // This would be the ideal place to check whether the user exists or not, but we cannot do
-        // so reliably yet.
-        // See UsernameNotFoundExceptionInstrumentation for more details.
-        onLoginFailure(userId, null);
+    if (throwable == null && result != null && result.isAuthenticated()) {
+      Map<String, String> metadata = null;
+      Object principal = result.getPrincipal();
+      if (principal instanceof User) {
+        User user = (User) principal;
+        metadata = new HashMap<>();
+        metadata.put("enabled", String.valueOf(user.isEnabled()));
+        metadata.put(
+            "authorities",
+            user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(",")));
+        metadata.put("accountNonExpired", String.valueOf(user.isAccountNonExpired()));
+        metadata.put("accountNonLocked", String.valueOf(user.isAccountNonLocked()));
+        metadata.put("credentialsNonExpired", String.valueOf(user.isCredentialsNonExpired()));
       }
+
+      onLoginSuccess(userId, metadata);
+    } else if (throwable != null) {
+      // On bad password, throwable would be
+      // org.springframework.security.authentication.BadCredentialsException,
+      // on user not found, throwable can be BadCredentials or
+      // org.springframework.security.core.userdetails.UsernameNotFoundException depending on the
+      // internal setting
+      // hideUserNotFoundExceptions (or a custom AuthenticationProvider implementation overriding
+      // this).
+      // This would be the ideal place to check whether the user exists or not, but we cannot do
+      // so reliably yet.
+      // See UsernameNotFoundExceptionInstrumentation for more details.
+      onLoginFailure(userId, null);
     }
   }
 
