@@ -46,7 +46,7 @@ class ExceptionProbeManagerTest {
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
-    assertEquals("1c27b291764c9d387fb85247bb7c2711f885aadfbf2f64fed34b2e0c64c5a2", fingerprint);
+    assertEquals("4974b2b4853e6152d8f218fb79a42a761a45335447e22e53d75f5325e742655", fingerprint);
     exceptionProbeManager.createProbesForException(exception.getStackTrace());
     assertEquals(1, exceptionProbeManager.getProbes().size());
     ExceptionProbe exceptionProbe = exceptionProbeManager.getProbes().iterator().next();
@@ -87,7 +87,7 @@ class ExceptionProbeManagerTest {
     assertFalse(exceptionProbeManager.shouldCaptureException(fingerprint));
     Clock clock =
         Clock.fixed(Instant.now().plus(Duration.ofMinutes(61)), Clock.systemUTC().getZone());
-    assertTrue(exceptionProbeManager.dshouldCaptureException(fingerprint, clock));
+    assertTrue(exceptionProbeManager.shouldCaptureException(fingerprint, clock));
   }
 
   @Test
