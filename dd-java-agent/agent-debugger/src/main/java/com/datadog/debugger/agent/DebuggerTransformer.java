@@ -19,6 +19,7 @@ import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.util.Strings;
@@ -581,12 +582,19 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   // Log & Span Decoration probes share the same instrumentor so only one definition should be
-  // selected to
-  // generate the instrumentation. Log probes needs capture limits provided by the configuration
-  // so if the list of definition contains at least 1 log probe this is the log probe that need to
-  // be picked.
+  // selected to generate the instrumentation. Log probes needs capture limits provided by the
+  // configuration so if the list of definition contains at least 1 log probe this is the log probe
+  // that need to be picked.
   // TODO: handle the conflicting limits for log probes + mixing CaptureSnapshot or not
   private ProbeDefinition selectReferenceDefinition(List<ProbeDefinition> capturedContextProbes) {
+    ProbeDefinition atEntryProbe =
+        capturedContextProbes.stream()
+            .filter(probeDefinition -> probeDefinition.getEvaluateAt() == MethodLocation.ENTRY)
+            .findAny()
+            .orElse(null);
+    if (atEntryProbe != null) {
+      return atEntryProbe;
+    }
     ProbeDefinition first = capturedContextProbes.get(0);
     return capturedContextProbes.stream()
         .filter(it -> it instanceof LogProbe)
