@@ -29,6 +29,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class StatementInstrumentation extends InstrumenterModule.Tracing
@@ -56,7 +57,10 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
+      packageName + ".JDBCDecorator",
+      packageName + ".SQLCommenter",
+      "org.slf4j.LoggerFactory",
+      "org.slf4j.Logger",
     };
   }
 
@@ -122,6 +126,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         throw e;
       } catch (Throwable e) {
         // suppress anything else
+        LoggerFactory.getLogger("datadog.trace.instrumentation.jdbc.StatementInstrumentation")
+            .debug("Failed to handle exception in instrumentation for " + statement.getClass(), e);
       }
       return activateSpan(span);
     }
