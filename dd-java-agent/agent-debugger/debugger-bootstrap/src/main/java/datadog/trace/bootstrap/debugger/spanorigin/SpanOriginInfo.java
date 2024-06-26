@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 public class SpanOriginInfo {
 
-  public static final String DD_EXIT_LOCATION_SNAPSHOT_ID = "_dd.exit_location.0.snapshot_id";
+  public static final String DD_EXIT_LOCATION_SNAPSHOT_ID = "_dd.exit_location.snapshot_id";
 
   private static DDCache<String, SpanOriginInfo> origins = DDCaches.newFixedSizeCache(256);
 
