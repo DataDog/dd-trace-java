@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.avro;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -16,13 +16,13 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.avro.Schema;
 
 @AutoService(InstrumenterModule.class)
-public final class AvroSerializerInstrumentation extends InstrumenterModule.Tracing
+public final class GenericDatumWriterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
 
   static final String instrumentationName = "avro";
-  static final String TARGET_TYPE = "org.apache.avro.io.DatumReader";
+  static final String TARGET_TYPE = "org.apache.avro.generic.GenericDatumWriter";
 
-  public AvroSerializerInstrumentation() {
+  public GenericDatumWriterInstrumentation() {
     super(instrumentationName);
   }
 
@@ -36,8 +36,8 @@ public final class AvroSerializerInstrumentation extends InstrumenterModule.Trac
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("setSchema").and(takesArguments(1))),
-        AvroSerializerInstrumentation.class.getName() + "$SerializeAdvice");
+        isMethod().and(named("write")).and(takesArguments(2)),
+        GenericDatumWriterInstrumentation.class.getName() + "$GenericDatumWriterAdvice");
   }
 
   @Override
@@ -47,19 +47,19 @@ public final class AvroSerializerInstrumentation extends InstrumenterModule.Trac
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
+    return hasSuperType(named(hierarchyMarkerType()));
   }
 
-  public static class SerializeAdvice {
+  public static class GenericDatumWriterAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(@Advice.Argument(0) final Schema schema) {
+    public static void stopSpan(@Advice.FieldValue("root") Schema root) {
       AgentSpan span = activeSpan();
       if (span == null) {
         return;
       }
-      if (schema != null) {
-        System.out.println("Attaching schema to span:" + schema.toString());
-        SchemaExtractor.attachSchemaOnSpan(schema, span, SchemaExtractor.serialization);
+
+      if (root != null) {
+        SchemaExtractor.attachSchemaOnSpan(root, span, SchemaExtractor.serialization);
       }
     }
   }
