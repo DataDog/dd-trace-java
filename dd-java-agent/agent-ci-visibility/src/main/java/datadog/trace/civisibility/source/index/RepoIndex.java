@@ -92,7 +92,8 @@ public class RepoIndex {
   private String getSourcePathForPackagePrivateOrNonJavaClass(Class<?> c) {
     try {
       String fileName = Utils.getFileName(c);
-      String packageName = c.getPackage().getName();
+      Package classPackage = c.getPackage();
+      String packageName = classPackage != null ? classPackage.getName() : "";
       String classNameWithExtension = packageName + File.separatorChar + fileName;
 
       int sourceRootIdx = trie.apply(classNameWithExtension);
