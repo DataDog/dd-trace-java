@@ -10,7 +10,7 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
 
   void "test setSamplingPriority"(){
     setup:
-    final rate = 1000 // 1 trace per second
+    final rate = 2000 // 1 trace each 2 seconds
     def sampler = new AsmStandaloneSampler(rate)
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
