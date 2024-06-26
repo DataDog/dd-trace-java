@@ -21,7 +21,7 @@ public abstract class TestEventsHandlerHolder {
   }
 
   public static void start() {
-    TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler("karate");
+    TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler("karate", null, null);
   }
 
   public static void stop() {

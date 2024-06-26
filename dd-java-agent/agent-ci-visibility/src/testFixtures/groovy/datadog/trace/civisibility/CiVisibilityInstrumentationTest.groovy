@@ -185,15 +185,12 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     @Override
-    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component) {
-      return create(component, new ConcurrentHashMapContextStore<>(), new ConcurrentHashMapContextStore())
-    }
-
-    @Override
     <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore) {
       TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
       TestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
-      new TestEventsHandlerImpl(metricCollector, testSession, testModule, suiteStore, testStore)
+      new TestEventsHandlerImpl(metricCollector, testSession, testModule,
+      suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
+      testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
     }
   }
 
