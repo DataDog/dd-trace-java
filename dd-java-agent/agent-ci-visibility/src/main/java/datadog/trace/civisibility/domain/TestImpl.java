@@ -220,11 +220,15 @@ public class TestImpl implements DDTest {
     InstrumentationTestBridge.fireBeforeTestEnd(context);
 
     CoverageBridge.removeThreadLocalCoverageProbeStore();
-    boolean coveragesGathered =
-        context.getCoverageProbeStore().report(sessionId, suiteId, span.getSpanId());
-    if (!coveragesGathered && !TestStatus.skip.equals(span.getTag(Tags.TEST_STATUS))) {
-      // test is not skipped, but no coverages were gathered
-      metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
+
+    // do not process coverage reports for skipped tests
+    if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {
+      CoverageProbeStore coverageStore = context.getCoverageProbeStore();
+      boolean coveragesGathered = coverageStore.report(sessionId, suiteId, span.getSpanId());
+      if (!coveragesGathered && !TestStatus.skip.equals(span.getTag(Tags.TEST_STATUS))) {
+        // test is not skipped, but no coverages were gathered
+        metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
+      }
     }
 
     scope.close();

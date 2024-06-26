@@ -30,8 +30,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 
@@ -68,17 +66,16 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     long serializationStartTimestamp = System.currentTimeMillis();
 
-    List<TestReport> testReports =
-        trace.stream()
-            // only consider test spans, since children spans
-            // share test reports with their parents
-            .filter(CiTestCovMapperV2::isTestSpan)
-            .map(CiTestCovMapperV2::getTestReport)
-            .filter(Objects::nonNull)
-            .filter(TestReport::isNotEmpty)
-            .collect(Collectors.toList());
+    for (CoreSpan<?> span : trace) {
+      if (!isTestSpan(span)) {
+        continue;
+      }
 
-    for (TestReport testReport : testReports) {
+      TestReport testReport = getTestReport(span);
+      if (testReport == null || !testReport.isNotEmpty()) {
+        continue;
+      }
+
       Long testSessionId = testReport.getTestSessionId();
       Long testSuiteId = testReport.getTestSuiteId();
 
@@ -124,9 +121,9 @@ public class CiTestCovMapperV2 implements RemoteMapper {
           writable.writeInt(segment.getNumberOfExecutions());
         }
       }
-    }
 
-    eventCount += testReports.size();
+      eventCount++;
+    }
     serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
   }
 
