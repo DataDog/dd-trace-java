@@ -6,6 +6,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
@@ -501,5 +502,9 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   public boolean sample(DDSpan spanToSample) {
     return traceConfig.sampler.sample(spanToSample);
+  }
+
+  public AgentSpan findSpan(String tag, String value) {
+    return spans.stream().filter(span -> value.equals(span.getTag(tag))).findFirst().orElse(null);
   }
 }

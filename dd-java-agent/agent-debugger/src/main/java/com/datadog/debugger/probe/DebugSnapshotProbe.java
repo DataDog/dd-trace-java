@@ -1,6 +1,7 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
+import static datadog.trace.bootstrap.debugger.spanorigin.SpanOriginInfo.DD_EXIT_LOCATION_SNAPSHOT_ID;
 import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.agent.DebuggerAgent;
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.core.PendingTrace;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -22,10 +24,15 @@ import org.slf4j.LoggerFactory;
 
 public class DebugSnapshotProbe extends LogProbe {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebugSnapshotProbe.class);
+
+  private final boolean entrySpan;
+
   private final transient SnapshotProbeManager probeManager;
 
-  public DebugSnapshotProbe(ProbeId probeId, Where where, SnapshotProbeManager probeManager) {
+  public DebugSnapshotProbe(
+      ProbeId probeId, boolean entrySpan, Where where, SnapshotProbeManager probeManager) {
     super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
+    this.entrySpan = entrySpan;
     this.probeManager = probeManager;
   }
 
@@ -78,14 +85,18 @@ public class DebugSnapshotProbe extends LogProbe {
           snapshot.getExceptionId());
       AgentSpan span = AgentTracer.get().activeScope().span();
       Map<String, Object> tags = span.getTags();
-      boolean entry = true;
-      if (tags.keySet().stream().anyMatch(s -> s.startsWith("_dd.exit_"))) {
-        entry = false;
+      boolean hasExitKeys = tags.keySet().stream().anyMatch(s -> s.startsWith("_dd.exit_"));
+      String key = entrySpan ? "_dd.entry_location.snapshot_id" : DD_EXIT_LOCATION_SNAPSHOT_ID;
+
+      if (!entrySpan && !hasExitKeys) {
+        AgentSpan child = ((PendingTrace) span.context().getTrace()).findSpan(key, probeId.getId());
+        if (child != null) {
+          span = child;
+        }
       }
 
-      String key = (entry ? "_dd.entry_location." : "_dd.exit_location.") + "snapshot_id";
       span.setTag(key, snapshot.getId());
-      if (entry && span.getLocalRootSpan() != null) {
+      if (entrySpan && span.getLocalRootSpan() != null) {
         span.getLocalRootSpan().setTag(key, snapshot.getId());
       }
       commitSnapshot(snapshot, DebuggerAgent.getSink());

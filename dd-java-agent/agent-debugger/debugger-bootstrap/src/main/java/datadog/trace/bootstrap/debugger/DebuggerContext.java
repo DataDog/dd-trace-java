@@ -68,7 +68,7 @@ public class DebuggerContext {
   }
 
   public interface SnapshotHandler {
-    void handleSnapshot(AgentSpan span, StackTraceElement element);
+    String handleSnapshot(AgentSpan span, boolean isEntrySpanOrigin, StackTraceElement element);
 
     //  I don't like this either but it gets me what I want until we can talk about cleaner
     // approaches
@@ -345,16 +345,17 @@ public class DebuggerContext {
     }
   }
 
-  public static void captureSnapshot(AgentSpan span, StackTraceElement element) {
+  public static String captureSnapshot(
+      AgentSpan span, boolean isEntrySpanOrigin, StackTraceElement element) {
     try {
       SnapshotHandler handler = snapshotHandler;
-      if (handler == null) {
-        return;
+      if (handler != null) {
+        return handler.handleSnapshot(span, isEntrySpanOrigin, element);
       }
-      handler.handleSnapshot(span, element);
     } catch (Exception ex) {
       LOGGER.debug("Error in addSnapshot: ", ex);
     }
+    return null;
   }
 
   public static void handleException(Throwable t, AgentSpan span) {
