@@ -237,6 +237,9 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     null                                                                   | null                                                 | [:]
     ''                                                                     | null                                                 | [:]
     'dd=s:0;t.dm:934086a686-4'                                             | 'dd=s:0;t.dm:934086a686-4'                           | ['_dd.p.dm': '934086a686-4']
+    'dd=s:0;t.appsec:1'                                                    | 'dd=s:0;t.appsec:1'                                  | ['_dd.p.appsec': '1']
+    'dd=s:0;t.appsec:0'                                                    | 'dd=s:0'                                             | [:]
+    'dd=s:0;t.dm:934086a686-4;t.appsec:1'                                  | 'dd=s:0;t.dm:934086a686-4;t.appsec:1'                | ['_dd.p.dm': '934086a686-4', '_dd.p.appsec': '1']
     'other=whatever,dd=s:0;t.dm:934086a686-4'                              | 'dd=s:0;t.dm:934086a686-4,other=whatever'            | ['_dd.p.dm': '934086a686-4']
     'dd=s:0;t.dm:934086a687-3,other=whatever'                              | 'dd=s:0;t.dm:934086a687-3,other=whatever'            | ['_dd.p.dm': '934086a687-3']
     'some=thing,dd=s:0;t.dm:934086a687-3,other=whatever'                   | 'dd=s:0;t.dm:934086a687-3,some=thing,other=whatever' | ['_dd.p.dm': '934086a687-3']
@@ -278,6 +281,10 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     headerValue                                          | expectedHeaderValue                    | tags
     'dd=s:0;t.dm:934086a686-4'                           | '_dd.p.dm=934086a686-4'                | ['_dd.p.dm': '934086a686-4']
     'other=whatever,dd=s:0;t.dm:934086a686-4;t.f:w00t~~' | '_dd.p.dm=934086a686-4,_dd.p.f=w00t==' | ['_dd.p.dm': '934086a686-4', '_dd.p.f': 'w00t==']
+    'dd=s:0;t.appsec:1'                                  | '_dd.p.appsec=1'                       | ['_dd.p.appsec': '1']
+    'dd=s:0;t.appsec:0'                                  | null                                   | [:]
+    'dd=s:0;t.appsec:invalid'                            | null                                   | [:]
+    'other=whatever,dd=s:0;t.dm:934086a686-4;t.f:w00t~~;t.appsec:1' | '_dd.p.dm=934086a686-4,_dd.p.appsec=1,_dd.p.f=w00t==' | ['_dd.p.dm': '934086a686-4', '_dd.p.f': 'w00t==', '_dd.p.appsec': '1']
     'some=thing,other=whatever'                          |  null                                  | [:]
   }
 
@@ -308,6 +315,32 @@ class W3CPropagationTagsTest extends DDCoreSpecification {
     'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL            | null    | 'dd=s:-1;x:unknown'                | [:]
     'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.EXTERNAL_OVERRIDE | "other" | 'dd=s:1;o:other;t.dm:-0'           | ['_dd.p.dm': '-0']
     'dd=s:1;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_DROP | SamplingMechanism.EXTERNAL_OVERRIDE | "other" | 'dd=s:0;o:other'                   | [:]
+  }
+
+  def "propagation tags should be updated by appsec propagation #appsec"() {
+    setup:
+    def config = Mock(Config)
+    config.getxDatadogTagsMaxLength() >> 512
+    def propagationTagsFactory = PropagationTags.factory(config)
+
+    when:
+    def propagationTags = propagationTagsFactory.fromHeaderValue(HeaderType.W3C, headerValue)
+
+    then:
+    propagationTags.headerValue(HeaderType.W3C) != expectedHeaderValue
+
+    when:
+    propagationTags.updateAppsecPropagation(appsec)
+
+    then:
+    propagationTags.headerValue(HeaderType.W3C) == expectedHeaderValue
+    propagationTags.createTagMap() == tags
+
+    where:
+    headerValue                 | appsec  | expectedHeaderValue        | tags
+    'dd=t.appsec:1;x:unknown'   | false   | 'dd=x:unknown'             | [:]
+    'dd=x:unknown'              | true    | 'dd=t.appsec:1;x:unknown'  | ['_dd.p.appsec': '1']
+    'dd=t.appsec:0;x:unknown'   | true    | 'dd=t.appsec:1;x:unknown'  | ['_dd.p.appsec': '1']
   }
 
   static private String toLcAlpha(String cs) {

@@ -511,6 +511,10 @@ public class DDSpanContext
     }
   }
 
+  public void updateAppsecPropagation(boolean value) {
+    propagationTags.updateAppsecPropagation(value);
+  }
+
   /** @return if sampling priority was set by this method invocation */
   public boolean setSamplingPriority(final int newPriority, final int newMechanism) {
     DDSpanContext spanContext = getRootSpanContextOrThis();
@@ -536,6 +540,11 @@ public class DDSpanContext
   private boolean setThisSpanSamplingPriority(final int newPriority, final int newMechanism) {
     if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
+    }
+    if (SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism)) {
+      SAMPLING_PRIORITY_UPDATER.set(this, newPriority);
+      propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
+      return true;
     }
     if (!SAMPLING_PRIORITY_UPDATER.compareAndSet(this, PrioritySampling.UNSET, newPriority)) {
       if (log.isDebugEnabled()) {

@@ -108,6 +108,9 @@ public class TagInterceptor {
         return false;
       case Tags.SAMPLING_PRIORITY:
         return interceptSamplingPriority(span, value);
+      case Tags.PROPAGATED_APPSEC:
+        span.updateAppsecPropagation(asBoolean(value));
+        return true;
       case InstrumentationTags.SERVLET_CONTEXT:
         return interceptServletContext(span, value);
       case SPAN_TYPE:

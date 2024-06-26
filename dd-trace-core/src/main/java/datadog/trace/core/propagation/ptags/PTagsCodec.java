@@ -15,9 +15,11 @@ abstract class PTagsCodec {
 
   protected static final TagKey DECISION_MAKER_TAG = TagKey.from("dm");
   protected static final TagKey TRACE_ID_TAG = TagKey.from("tid");
+  protected static final TagKey APPSEC_TAG = TagKey.from("appsec");
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
+  protected static final TagValue APPSEC_ENABLED_TAG_VALUE = TagValue.from("1");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {
     int estimate = codec.estimateHeaderSize(ptags);
@@ -34,6 +36,9 @@ abstract class PTagsCodec {
       }
       if (ptags.getTraceIdHighOrderBitsHexTagValue() != null) {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
+      }
+      if (ptags.isAppsecPropagationEnabled()) {
+        size = codec.appendTag(sb, APPSEC_TAG, APPSEC_ENABLED_TAG_VALUE, size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -77,6 +82,11 @@ abstract class PTagsCodec {
       tagMap.put(
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getDecisionMakerTagValue().forType(Encoding.DATADOG).toString());
+    }
+    if (propagationTags.isAppsecPropagationEnabled()) {
+      tagMap.put(
+          APPSEC_TAG.forType(Encoding.DATADOG).toString(),
+          APPSEC_ENABLED_TAG_VALUE.forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
       tagMap.put(
@@ -140,6 +150,8 @@ abstract class PTagsCodec {
       return false;
     } else if (tagKey.equals(TRACE_ID_TAG) && !validateTraceId(tagValue)) {
       return false;
+    } else if (tagKey.equals(APPSEC_TAG) && !validateAppsecTagValue(tagValue)) {
+      return false;
     }
     return true;
   }
@@ -200,6 +212,10 @@ abstract class PTagsCodec {
       }
     }
     return true;
+  }
+
+  private static boolean validateAppsecTagValue(TagValue value) {
+    return value.length() == 1 && (value.charAt(0) == '1' || value.charAt(0) == '0');
   }
 
   protected static boolean isDigit(char c) {
