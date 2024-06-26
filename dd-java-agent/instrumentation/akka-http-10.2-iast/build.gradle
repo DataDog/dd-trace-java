@@ -11,7 +11,7 @@ muzzle {
 }
 
 dependencies {
-  compileOnly deps.scala213
+  compileOnly libs.scala213
   compileOnly group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.2.0'
 }
 

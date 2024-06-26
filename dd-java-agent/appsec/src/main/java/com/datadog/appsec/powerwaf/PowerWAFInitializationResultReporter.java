@@ -6,8 +6,8 @@ import com.datadog.appsec.report.AppSecEvent;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.RuleSetInfo;
 import java.util.Collection;
@@ -50,6 +50,6 @@ public class PowerWAFInitializationResultReporter implements TraceSegmentPostPro
     segment.setTagTop(RULE_ERROR_COUNT, report.getNumRulesError());
     segment.setTagTop(WAF_VERSION, Powerwaf.LIB_VERSION);
 
-    segment.setTagTop(DDTags.MANUAL_KEEP, true);
+    segment.setTagTop(Tags.ASM_KEEP, true);
   }
 }

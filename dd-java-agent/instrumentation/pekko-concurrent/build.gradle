@@ -31,12 +31,12 @@ tasks.named("compileLatestDepTestGroovy").configure {
 dependencies {
   compileOnly group: 'org.apache.pekko', name: "pekko-actor_2.12", version: pekkoVersion
 
-  testImplementation deps.scala212
+  testImplementation libs.scala212
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation group: 'org.apache.pekko', name: "pekko-actor_2.12", version: pekkoVersion
   testImplementation group: 'org.apache.pekko', name: "pekko-testkit_2.12", version: pekkoVersion
 
-  latestDepTestImplementation deps.scala213
+  latestDepTestImplementation libs.scala213
   latestDepTestImplementation group: 'org.apache.pekko', name: "pekko-actor_2.13", version: '1.+'
   latestDepTestImplementation group: 'org.apache.pekko', name: "pekko-testkit_2.13", version: '1.+'
 }

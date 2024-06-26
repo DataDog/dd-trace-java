@@ -4,6 +4,7 @@ import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
@@ -111,5 +112,10 @@ class AppVeyorInfo implements CIProviderInfo {
     return new PersonInfo(
         System.getenv(APPVEYOR_REPO_COMMIT_AUTHOR_NAME),
         System.getenv(APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL));
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.APPVEYOR;
   }
 }

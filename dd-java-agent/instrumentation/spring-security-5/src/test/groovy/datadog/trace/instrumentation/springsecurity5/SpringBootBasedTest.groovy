@@ -124,7 +124,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == REGISTER.body
     !span.getTags().isEmpty()
     span.getTag("appsec.events.users.signup.track") == true
-    span.getTag("_dd.appsec.events.users.signup.auto.mode") == 'EXTENDED'
+    span.getTag("_dd.appsec.events.users.signup.auto.mode") == 'extended'
     span.getTag("usr.id") == 'admin'
     span.getTag("appsec.events.users.signup")['enabled'] == 'true'
     span.getTag("appsec.events.users.signup")['authorities'] == 'ROLE_USER'
@@ -150,7 +150,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == LOGIN.body
     !span.getTags().isEmpty()
     span.getTag("appsec.events.users.login.failure.track") == true
-    span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'EXTENDED'
+    span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'extended'
     span.getTag("appsec.events.users.login.failure.usr.exists") == false
     span.getTag("appsec.events.users.login.failure.usr.id") == 'not_existing_user'
   }
@@ -174,7 +174,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == LOGIN.body
     !span.getTags().isEmpty()
     span.getTag("appsec.events.users.login.failure.track") == true
-    span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'EXTENDED'
+    span.getTag("_dd.appsec.events.users.login.failure.auto.mode") == 'extended'
     // TODO: Ideally should be `false` but we have no reliable method to detect it it is just absent. See APPSEC-12765.
     span.getTag("appsec.events.users.login.failure.usr.exists") == null
     span.getTag("appsec.events.users.login.failure.usr.id") == 'admin'
@@ -200,7 +200,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
     response.body().string() == LOGIN.body
     !span.getTags().isEmpty()
     span.getTag("appsec.events.users.login.success.track") == true
-    span.getTag("_dd.appsec.events.users.login.success.auto.mode") == 'EXTENDED'
+    span.getTag("_dd.appsec.events.users.login.success.auto.mode") == 'extended'
     span.getTag("usr.id") == 'admin'
     span.getTag("appsec.events.users.login.success")['credentialsNonExpired'] == 'true'
     span.getTag("appsec.events.users.login.success")['accountNonExpired'] == 'true'

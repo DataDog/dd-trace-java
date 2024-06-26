@@ -66,6 +66,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_TELEMETRY_ENABLED = "civisibility.telemetry.enabled";
   public static final String CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS =
       "civisibility.rum.flush.wait.millis";
+  public static final String CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER =
+      "civisibility.auto.instrumentation.provider";
 
   /* COVERAGE SETTINGS */
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =

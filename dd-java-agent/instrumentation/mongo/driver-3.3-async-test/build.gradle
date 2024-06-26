@@ -12,7 +12,7 @@ dependencies {
   }
 
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
-  testImplementation "org.testcontainers:mongodb:${versions.testcontainers}"
+  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 
   testImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.3.0'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '+'

@@ -18,7 +18,6 @@ stages:
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
-  SONATYPE_USERNAME: robot-sonatype-apm-java
   DOWNSTREAM_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -190,6 +189,7 @@ deploy_to_sonatype:
     - when: manual
       allow_failure: true
   script:
+    - export SONATYPE_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.sonatype_username --with-decryption --query "Parameter.Value" --out text)
     - export SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.sonatype_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)

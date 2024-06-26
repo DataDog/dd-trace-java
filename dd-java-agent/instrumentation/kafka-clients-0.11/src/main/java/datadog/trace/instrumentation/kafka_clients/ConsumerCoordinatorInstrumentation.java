@@ -65,7 +65,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
         @Advice.This ConsumerCoordinator coordinator,
         @Advice.Return RequestFuture<Void> requestFuture,
         @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
-      if (requestFuture.failed()) {
+      if (requestFuture == null || requestFuture.failed()) {
         return;
       }
       if (offsets == null) {
@@ -74,6 +74,10 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       KafkaConsumerInfo kafkaConsumerInfo =
           InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
               .get(coordinator);
+
+      if (kafkaConsumerInfo == null) {
+        return;
+      }
 
       String consumerGroup = kafkaConsumerInfo.getConsumerGroup();
       Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();

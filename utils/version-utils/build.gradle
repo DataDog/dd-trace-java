@@ -3,5 +3,5 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
-  implementation deps.slf4j
+  implementation libs.slf4j
 }

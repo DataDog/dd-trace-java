@@ -15,11 +15,11 @@ def logback = '1.3.5'
 
 dependencies {
   api project(':dd-trace-api')
-  implementation deps.slf4j
+  implementation libs.slf4j
   compileOnly "org.apache.logging.log4j:log4j-api:${log4j2}"
   compileOnly "log4j:log4j:${log4j1}"
 
-  testImplementation deps.guava
+  testImplementation libs.guava
   testImplementation project(':dd-trace-ot')
   testImplementation project(":dd-java-agent:testing")
   testImplementation "org.apache.logging.log4j:log4j-core:${log4j2}"

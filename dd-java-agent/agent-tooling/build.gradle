@@ -43,8 +43,8 @@ dependencies {
   }
   compileOnly project(':dd-java-agent:agent-profiling')
   api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
-  api deps.bytebuddy
-  api deps.bytebuddyagent
+  api libs.bytebuddy
+  api libs.bytebuddyagent
   implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
   implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
 
@@ -52,10 +52,10 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-crashtracking')
 
-  compileOnly group: 'com.github.jnr', name: 'jnr-posix', version: "${versions.jnr_posix}"
+  compileOnly group: 'com.github.jnr', name: 'jnr-posix', version: libs.versions.jnr.posix.get()
 
   testImplementation project(':dd-java-agent:testing')
-  testImplementation deps.bytebuddy
+  testImplementation libs.bytebuddy
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
 
   jmhImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'

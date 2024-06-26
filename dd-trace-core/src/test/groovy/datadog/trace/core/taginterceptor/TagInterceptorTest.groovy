@@ -421,6 +421,12 @@ class TagInterceptorTest extends DDCoreSpecification {
     DDTags.MANUAL_DROP     | "false" | null
     DDTags.MANUAL_DROP     | "asdf"  | null
 
+    Tags.ASM_KEEP          | true    | PrioritySampling.USER_KEEP
+    Tags.ASM_KEEP          | false   | null
+    Tags.ASM_KEEP          | "true"  | PrioritySampling.USER_KEEP
+    Tags.ASM_KEEP          | "false" | null
+    Tags.ASM_KEEP          | "asdf"  | null
+
     Tags.SAMPLING_PRIORITY | -1      | PrioritySampling.USER_DROP
     Tags.SAMPLING_PRIORITY | 0       | PrioritySampling.USER_DROP
     Tags.SAMPLING_PRIORITY | 1       | PrioritySampling.USER_KEEP

@@ -28,7 +28,7 @@ ext {
 }
 
 dependencies {
-  implementation deps.slf4j
+  implementation libs.slf4j
 
   implementation project(':internal-api')
 
@@ -42,8 +42,8 @@ dependencies {
   compileOnly project(':utils:container-utils')
   testImplementation project(':utils:container-utils')
 
-  api deps.okhttp
-  api deps.moshi
+  api libs.okhttp
+  api libs.moshi
 
   testImplementation project(':utils:test-utils')
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'

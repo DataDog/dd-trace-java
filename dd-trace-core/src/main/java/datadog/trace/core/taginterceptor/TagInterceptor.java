@@ -100,6 +100,12 @@ public class TagInterceptor {
       case DDTags.MANUAL_DROP:
         return interceptSamplingPriority(
             FORCE_MANUAL_DROP, USER_DROP, SamplingMechanism.MANUAL, span, value);
+      case Tags.ASM_KEEP:
+        if (asBoolean(value)) {
+          span.forceKeep(SamplingMechanism.APPSEC);
+          return true;
+        }
+        return false;
       case Tags.SAMPLING_PRIORITY:
         return interceptSamplingPriority(span, value);
       case InstrumentationTags.SERVLET_CONTEXT:

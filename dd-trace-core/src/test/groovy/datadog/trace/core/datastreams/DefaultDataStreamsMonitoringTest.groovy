@@ -77,11 +77,18 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     then:
+    // the first received schema is sampled, with a weight of one.
+    dataStreams.canSampleSchema("schema1")
     dataStreams.trySampleSchema("schema1") == 1
+    // the sampling is done by topic, so a schema on a different topic will also be sampled at once, also with a weight of one.
+    dataStreams.canSampleSchema("schema2")
     dataStreams.trySampleSchema("schema2") == 1
-    dataStreams.trySampleSchema("schema1") == 0
-    dataStreams.trySampleSchema("schema1") == 0
+    // no time has passed from the last sampling, so the same schema is not sampled again (two times in a row).
+    !dataStreams.canSampleSchema("schema1")
+    !dataStreams.canSampleSchema("schema1")
     timeSource.advance(30*1e9 as long)
+    // now, 30 seconds have passed, so the schema is sampled again, with a weight of 3 (so it includes the two times the schema was not sampled).
+    dataStreams.canSampleSchema("schema1")
     dataStreams.trySampleSchema("schema1") == 3
   }
 

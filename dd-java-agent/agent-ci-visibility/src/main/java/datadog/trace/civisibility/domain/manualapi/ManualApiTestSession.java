@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.manualapi;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
@@ -21,7 +22,7 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
   public ManualApiTestSession(
       String projectName,
       @Nullable Long startTime,
-      boolean supportedCiProvider,
+      Provider ciProvider,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -33,7 +34,7 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         projectName,
         startTime,
         InstrumentationType.MANUAL_API,
-        supportedCiProvider,
+        ciProvider,
         config,
         metricCollector,
         testDecorator,

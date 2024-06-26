@@ -33,7 +33,7 @@ public class EventTracker {
     segment.setTagTop("_dd.appsec.events.users.login.success.sdk", true);
     segment.setTagTop("appsec.events.users.login.success.track", true);
     segment.setTagTop("usr.id", userId);
-    segment.setTagTop(DDTags.MANUAL_KEEP, true);
+    segment.setTagTop("asm.keep", true);
 
     if (metadata != null && !metadata.isEmpty()) {
       segment.setTagTop("appsec.events.users.login.success", metadata);
@@ -66,7 +66,7 @@ public class EventTracker {
     segment.setTagTop("appsec.events.users.login.failure.track", true);
     segment.setTagTop("appsec.events.users.login.failure.usr.id", userId);
     segment.setTagTop("appsec.events.users.login.failure.usr.exists", exists);
-    segment.setTagTop(DDTags.MANUAL_KEEP, true);
+    segment.setTagTop("asm.keep", true);
 
     if (metadata != null && !metadata.isEmpty()) {
       segment.setTagTop("appsec.events.users.login.failure", metadata);
@@ -96,7 +96,7 @@ public class EventTracker {
 
     segment.setTagTop("_dd.appsec.events." + eventName + ".sdk", true);
     segment.setTagTop("appsec.events." + eventName + ".track", true, true);
-    segment.setTagTop(DDTags.MANUAL_KEEP, true);
+    segment.setTagTop("asm.keep", true);
 
     if (metadata != null && !metadata.isEmpty()) {
       segment.setTagTop("appsec.events." + eventName, metadata, true);

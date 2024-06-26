@@ -4,6 +4,7 @@ import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
@@ -80,5 +81,10 @@ class TravisInfo implements CIProviderInfo {
       repoSlug = System.getenv(TRAVIS_REPOSITORY_SLUG);
     }
     return repoSlug;
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.TRAVISCI;
   }
 }

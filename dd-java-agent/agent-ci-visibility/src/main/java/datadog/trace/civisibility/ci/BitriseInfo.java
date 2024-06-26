@@ -5,6 +5,7 @@ import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
@@ -64,5 +65,10 @@ class BitriseInfo implements CIProviderInfo {
     } else {
       return System.getenv(BITRISE_GIT_COMMIT);
     }
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.BITRISE;
   }
 }

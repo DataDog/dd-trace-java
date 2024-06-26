@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  implementation deps.slf4j
+  implementation libs.slf4j
 
   testImplementation project(':utils:test-utils')
 }

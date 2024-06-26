@@ -1,0 +1,24 @@
+type Query {
+  bookById(id: ID): Book
+}
+
+#TODO test mutation
+#type Mutation {
+#  addBook(id: ID, name: String, author: ID): Book
+#}
+
+type Book {
+  id: ID
+  name: String
+  pageCount: Int
+  author: Author
+  cover: String
+  isbn: ID!
+  bookHash: Int!
+}
+
+type Author {
+  id: ID
+  firstName: String
+  lastName: String
+}

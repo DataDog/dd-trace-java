@@ -151,15 +151,6 @@ public class CiVisibilityGradleListener extends BuildAdapter
       }
     }
 
-    for (Map.Entry<String, String> e : startParameter.getSystemPropertiesArgs().entrySet()) {
-      String propertyKey = e.getKey();
-      String propertyValue = e.getValue();
-      command.append(" -D").append(propertyKey);
-      if (propertyValue != null && !propertyValue.isEmpty()) {
-        command.append('=').append(propertyValue);
-      }
-    }
-
     return command.toString();
   }
 

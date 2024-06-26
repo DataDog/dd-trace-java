@@ -65,7 +65,7 @@ dependencies {
 
   configurations.findAll {it.name in ['latestDepTestRuntimeClasspath', 'cxf3LatestDepTestRuntimeClasspath'] }.each {
     it.resolutionStrategy {
-      force "org.slf4j:slf4j-api:${versions.slf4j}"
+      force libs.slf4j
     }
   }
 }

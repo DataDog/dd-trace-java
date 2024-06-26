@@ -210,7 +210,7 @@ public class CiVisibilitySystem {
           repoServices.repoRoot,
           startCommand,
           startTime,
-          repoServices.supportedCiProvider,
+          repoServices.ciProvider,
           services.config,
           services.metricCollector,
           testModuleRegistry,
@@ -262,7 +262,7 @@ public class CiVisibilitySystem {
       return new HeadlessTestSession(
           projectName,
           startTime,
-          repoServices.supportedCiProvider,
+          repoServices.ciProvider,
           services.config,
           services.metricCollector,
           testDecorator,
@@ -282,7 +282,7 @@ public class CiVisibilitySystem {
       return new ManualApiTestSession(
           projectName,
           startTime,
-          repoServices.supportedCiProvider,
+          repoServices.ciProvider,
           services.config,
           services.metricCollector,
           testDecorator,

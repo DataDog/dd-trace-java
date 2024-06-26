@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -68,7 +69,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
       String repoRoot,
       String startCommand,
       @Nullable Long startTime,
-      boolean supportedCiProvider,
+      Provider ciProvider,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestModuleRegistry testModuleRegistry,
@@ -84,7 +85,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
         projectName,
         startTime,
         InstrumentationType.BUILD,
-        supportedCiProvider,
+        ciProvider,
         config,
         metricCollector,
         testDecorator,

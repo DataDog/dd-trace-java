@@ -6,11 +6,16 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.tag.Endpoint;
 import datadog.trace.api.civisibility.telemetry.tag.ErrorType;
+import datadog.trace.api.civisibility.telemetry.tag.RequestCompressed;
+import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
 import java.io.IOException;
 import okhttp3.Call;
 import okhttp3.Response;
 
 public class TelemetryListener extends OkHttpUtils.CustomListener {
+
+  private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
+  private static final String GZIP_ENCODING = "gzip";
 
   private final Endpoint endpoint;
   private long callStartTimestamp;
@@ -22,7 +27,13 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
   public void callStart(Call call) {
     callStartTimestamp = System.currentTimeMillis();
     InstrumentationBridge.getMetricCollector()
-        .add(CiVisibilityCountMetric.ENDPOINT_PAYLOAD_REQUESTS, 1, endpoint);
+        .add(
+            CiVisibilityCountMetric.ENDPOINT_PAYLOAD_REQUESTS,
+            1,
+            endpoint,
+            GZIP_ENCODING.equalsIgnoreCase(call.request().header(CONTENT_ENCODING_HEADER))
+                ? RequestCompressed.TRUE
+                : null);
   }
 
   public void requestBodyEnd(Call call, long byteCount) {
@@ -38,7 +49,8 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
               CiVisibilityCountMetric.ENDPOINT_PAYLOAD_REQUESTS_ERRORS,
               1,
               endpoint,
-              ErrorType.from(responseCode));
+              ErrorType.from(responseCode),
+              StatusCode.from(responseCode));
     }
   }
 

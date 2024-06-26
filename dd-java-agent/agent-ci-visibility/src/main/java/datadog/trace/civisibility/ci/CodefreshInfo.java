@@ -4,6 +4,7 @@ import static datadog.trace.api.git.GitUtils.isTagReference;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
@@ -64,5 +65,10 @@ public class CodefreshInfo implements CIProviderInfo {
         .ciJobName(System.getenv(CF_STEP_NAME))
         .ciEnvVars(CODEFRESH)
         .build();
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.CODEFRESH;
   }
 }

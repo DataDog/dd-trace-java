@@ -7,6 +7,6 @@ ext {
 
 dependencies {
   implementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.24'
-  testImplementation deps.junit5
-  testImplementation deps.truth
+  testImplementation libs.bundles.junit5
+  testImplementation libs.truth
 }

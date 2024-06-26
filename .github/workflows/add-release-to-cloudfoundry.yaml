@@ -19,10 +19,16 @@ jobs:
       - name: Append release to Cloud Foundry repository
         env:
             VERSION: ${{ steps.get-release-version.outputs.VERSION }}
+            GH_TOKEN: ${{ github.token }}
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b ci/cloudfoundry
           echo "${VERSION}: https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar" >> index.yml
           git add index.yml
           git commit -m "chore: Add version ${VERSION} to Cloud Foundry"
           git push -u origin ci/cloudfoundry
-          gh pr create --title "Add version ${VERSION} to Cloud Foundry" --body "This PR add the version ${VERSION} to Cloud Foundry.  Make sure [the JAR is online](https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar) before merging." --base cloudfoundry
+          gh pr create \
+            --title "Add version ${VERSION} to Cloud Foundry" \
+            --body "This PR add the version ${VERSION} to Cloud Foundry.  Make sure [the JAR is online](https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar) before merging." \
+            --base cloudfoundry

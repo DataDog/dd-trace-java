@@ -30,7 +30,7 @@ dependencies {
   }
 
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
-  testImplementation "org.testcontainers:mongodb:${versions.testcontainers}"
+  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 
   testImplementation project(':dd-java-agent:instrumentation:mongo:bson-document')
 

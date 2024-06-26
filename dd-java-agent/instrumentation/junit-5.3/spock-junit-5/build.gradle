@@ -24,7 +24,8 @@ dependencies {
   testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.9.2'
   testImplementation group: 'org.spockframework', name: 'spock-core', version: "2.2-groovy-${spockGroovyVersion}"
 
-  latestDepTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.+'
+  // Broken from 2.4: https://datadoghq.atlassian.net/browse/AIDM-163
+  latestDepTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.3+'
 }
 
 configurations.matching({ it.name.startsWith('test') }).each({

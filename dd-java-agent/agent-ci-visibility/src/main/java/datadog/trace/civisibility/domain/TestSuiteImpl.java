@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -103,7 +102,7 @@ public class TestSuiteImpl implements DDTestSuite {
 
     // setting status to skip initially,
     // as we do not know in advance whether the suite will have any children
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
     this.testClass = testClass;
     if (this.testClass != null) {
@@ -138,12 +137,12 @@ public class TestSuiteImpl implements DDTestSuite {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   @Override
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
     }

@@ -1,5 +1,5 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  testImplementation "org.testcontainers:mongodb:${versions.testcontainers}"
+  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 }

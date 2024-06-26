@@ -44,7 +44,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat-appsec-7')
   testImplementation project(':dd-java-agent:instrumentation:servlet:request-5')
 
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
+  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
 
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'

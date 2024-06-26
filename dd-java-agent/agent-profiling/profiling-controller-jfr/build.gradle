@@ -16,15 +16,15 @@ apply plugin: 'idea'
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  implementation deps.jctools
-  implementation deps.slf4j
+  implementation libs.jctools
+  implementation libs.slf4j
 
-  annotationProcessor deps.autoserviceProcessor
-  compileOnly deps.autoserviceAnnotation
+  annotationProcessor libs.autoservice.processor
+  compileOnly libs.autoservice.annotation
 
   testImplementation group: 'org.openjdk.jmc', name: 'flightrecorder.writer', version: '8.1.0'
-  testImplementation deps.mockito
-  testImplementation deps.junit5
+  testImplementation libs.bundles.mockito
+  testImplementation libs.bundles.junit5
 }
 
 excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']

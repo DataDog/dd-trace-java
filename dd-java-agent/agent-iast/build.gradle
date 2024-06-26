@@ -42,18 +42,18 @@ protobuf {
 }
 
 dependencies {
-  api deps.slf4j
+  api libs.slf4j
 
   compileOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
-  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
+  implementation libs.moshi
 
   testFixturesApi project(':dd-java-agent:testing')
   testFixturesApi project(':utils:test-utils')
-  testImplementation deps.bytebuddy
+  testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation('org.codehaus.groovy:groovy-yaml:3.0.17')
 

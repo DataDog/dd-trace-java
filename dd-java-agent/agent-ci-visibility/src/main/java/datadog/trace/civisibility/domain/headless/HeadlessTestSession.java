@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
@@ -36,7 +37,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
   public HeadlessTestSession(
       String projectName,
       @Nullable Long startTime,
-      boolean supportedCiProvider,
+      Provider ciProvider,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -49,7 +50,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         projectName,
         startTime,
         InstrumentationType.HEADLESS,
-        supportedCiProvider,
+        ciProvider,
         config,
         metricCollector,
         testDecorator,

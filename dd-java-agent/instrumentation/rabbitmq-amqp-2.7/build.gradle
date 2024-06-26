@@ -20,8 +20,8 @@ dependencies {
   testImplementation group: 'com.rabbitmq', name: 'amqp-client', version: '2.7.0'
   testImplementation group: 'org.springframework.amqp', name: 'spring-rabbit', version: '1.1.0.RELEASE'
 
-  testImplementation deps.testcontainers
-  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: versions.testcontainers
+  testImplementation libs.testcontainers
+  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: libs.versions.testcontainers.get()
 
   latestDepTestImplementation group: 'com.rabbitmq', name: 'amqp-client', version: '+'
   latestDepTestImplementation group: 'org.springframework.amqp', name: 'spring-rabbit', version: '2.+'

@@ -72,7 +72,7 @@ dependencies {
 }
 
 configurations.getByName('jersey3JettyTestRuntimeClasspath').resolutionStrategy {
-  force "org.slf4j:slf4j-api:${versions.slf4j}"
+  force libs.slf4j
 }
 configurations.getByName('jersey2JettyTestRuntimeClasspath').resolutionStrategy {
   // override version in testImplementation

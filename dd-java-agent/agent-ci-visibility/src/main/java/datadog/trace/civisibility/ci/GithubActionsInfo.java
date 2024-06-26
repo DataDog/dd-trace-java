@@ -6,6 +6,7 @@ import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 
@@ -109,5 +110,10 @@ class GithubActionsInfo implements CIProviderInfo {
 
   private String buildJobUrl(final String host, final String repo, final String commit) {
     return String.format("%s/%s/commit/%s/checks", host, repo, commit);
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.GITHUBACTIONS;
   }
 }

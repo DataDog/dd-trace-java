@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ci;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 
@@ -21,5 +22,10 @@ public class TeamcityInfo implements CIProviderInfo {
         .ciJobName(System.getenv(TEAMCITY_BUILDCONF_NAME))
         .ciJobUrl(System.getenv(BUILD_URL))
         .build();
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.TEAMCITY;
   }
 }

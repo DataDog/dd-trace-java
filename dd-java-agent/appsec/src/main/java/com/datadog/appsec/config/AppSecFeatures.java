@@ -7,11 +7,26 @@ public class AppSecFeatures {
   public ApiSecurity apiSecurity;
 
   public static class Asm {
-    public boolean enabled;
+    public Boolean enabled;
+
+    @Override
+    public String toString() {
+      return "Asm{" + "enabled=" + enabled + '}';
+    }
   }
 
   public static class ApiSecurity {
     @com.squareup.moshi.Json(name = "request_sample_rate")
     public Float requestSampleRate;
+
+    @Override
+    public String toString() {
+      return "ApiSecurity{" + "requestSampleRate=" + requestSampleRate + '}';
+    }
+  }
+
+  @Override
+  public String toString() {
+    return "AppSecFeatures{" + "asm=" + asm + ", apiSecurity=" + apiSecurity + '}';
   }
 }

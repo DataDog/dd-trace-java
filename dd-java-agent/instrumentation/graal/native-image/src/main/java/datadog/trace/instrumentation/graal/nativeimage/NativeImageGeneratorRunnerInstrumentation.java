@@ -82,6 +82,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.config.provider.ConfigConverter:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigProvider:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigProvider$Singleton:build_time,"
+              + "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource:build_time,"
               + "datadog.trace.bootstrap.Agent:build_time,"
               + "datadog.trace.bootstrap.BootstrapProxy:build_time,"
               + "datadog.trace.bootstrap.CallDepthThreadLocalMap:build_time,"

@@ -3,7 +3,6 @@ package datadog.trace.civisibility.domain;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
@@ -71,7 +70,7 @@ public abstract class AbstractTestModule {
 
     // setting status to skip initially,
     // as we do not know in advance whether the module will have any children
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
     testDecorator.afterStart(span);
 
@@ -89,11 +88,11 @@ public abstract class AbstractTestModule {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
     }

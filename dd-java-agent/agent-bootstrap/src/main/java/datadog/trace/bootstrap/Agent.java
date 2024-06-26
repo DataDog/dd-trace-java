@@ -101,7 +101,9 @@ public class Agent {
     USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
     TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
     DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false),
-    DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false);
+    DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
+    AGENTLESS_LOG_SUBMISSION(
+        propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -145,6 +147,7 @@ public class Agent {
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
+  private static boolean agentlessLogSubmissionEnabled = false;
 
   public static void start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
     StaticEventLogger.begin("Agent");
@@ -231,6 +234,7 @@ public class Agent {
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
+    agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -362,7 +366,9 @@ public class Agent {
     if (telemetryEnabled) {
       stopTelemetry();
     }
-    shutdownLogsIntake();
+    if (agentlessLogSubmissionEnabled) {
+      shutdownLogsIntake();
+    }
   }
 
   public static synchronized Class<?> installAgentCLI() throws Exception {
@@ -801,18 +807,20 @@ public class Agent {
   }
 
   private static void maybeStartLogsIntake(Class<?> scoClass, Object sco) {
-    StaticEventLogger.begin("Logs Intake");
+    if (agentlessLogSubmissionEnabled) {
+      StaticEventLogger.begin("Logs Intake");
 
-    try {
-      final Class<?> logsIntakeSystemClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
-      final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
-      logsIntakeInstallerMethod.invoke(null, sco);
-    } catch (final Throwable e) {
-      log.warn("Not starting Logs Intake subsystem", e);
+      try {
+        final Class<?> logsIntakeSystemClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
+        final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
+        logsIntakeInstallerMethod.invoke(null, sco);
+      } catch (final Throwable e) {
+        log.warn("Not starting Logs Intake subsystem", e);
+      }
+
+      StaticEventLogger.end("Logs Intake");
     }
-
-    StaticEventLogger.end("Logs Intake");
   }
 
   private static void shutdownLogsIntake() {
@@ -1052,6 +1060,9 @@ public class Agent {
       logLevel = "DEBUG";
     } else {
       logLevel = ddGetProperty("dd.log.level");
+      if (null == logLevel) {
+        logLevel = System.getenv("OTEL_LOG_LEVEL");
+      }
     }
 
     if (null == logLevel && !isFeatureEnabled(AgentFeature.STARTUP_LOGS)) {

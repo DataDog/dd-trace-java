@@ -20,7 +20,7 @@ excludedClassesCoverage += [
 ]
 
 dependencies {
-  implementation deps.slf4j
+  implementation libs.slf4j
   implementation project(':communication')
   implementation project(':internal-api')
   implementation project(':utils:socket-utils')
@@ -28,13 +28,13 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  implementation deps.okhttp
-  implementation deps.lz4
+  implementation libs.okhttp
+  implementation libs.lz4
 
-  testImplementation deps.junit5
+  testImplementation libs.bundles.junit5
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
-  testImplementation deps.mockito
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
+  testImplementation libs.bundles.mockito
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
 }

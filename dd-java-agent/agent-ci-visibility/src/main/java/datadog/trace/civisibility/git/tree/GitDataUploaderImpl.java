@@ -167,7 +167,15 @@ public class GitDataUploaderImpl implements GitDataUploader {
       LOGGER.error("Failed to upload git tree data for remote {}", remoteName, e);
       callback.completeExceptionally(e);
     } finally {
+      removeShutdownHook();
+    }
+  }
+
+  private void removeShutdownHook() {
+    try {
       Runtime.getRuntime().removeShutdownHook(uploadFinishedShutdownHook);
+    } catch (IllegalStateException e) {
+      // JVM is being shutdown
     }
   }
 

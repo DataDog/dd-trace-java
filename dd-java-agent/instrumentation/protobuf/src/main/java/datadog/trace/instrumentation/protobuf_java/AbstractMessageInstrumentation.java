@@ -36,7 +36,9 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return declaresMethod(named("writeTo"))
         .and(extendsClass(named(hierarchyMarkerType())))
-        .and(not(nameStartsWith("com.google.protobuf")));
+        .and(
+            not(nameStartsWith("com.google.protobuf"))
+                .or(named("com.google.protobuf.DynamicMessage")));
   }
 
   @Override

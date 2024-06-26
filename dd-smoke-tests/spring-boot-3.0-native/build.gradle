@@ -4,7 +4,7 @@ description = 'Spring Boot 3.0 Native Smoke Tests.'
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
-  testImplementation deps.jmc
+  testImplementation libs.bundles.jmc
 }
 
 def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')

@@ -18,7 +18,7 @@ dependencies {
     exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
     exclude group: 'com.fasterxml.jackson.jr', module: 'jackson-jr-objects'
   }
-  api deps.slf4j
+  api libs.slf4j
   api project(':internal-api')
 }
 

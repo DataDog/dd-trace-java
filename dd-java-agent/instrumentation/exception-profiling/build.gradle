@@ -11,10 +11,10 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
 dependencies {
-  testImplementation deps.junit5
-  testImplementation deps.jmc
-  testImplementation deps.commonsMath
-  testImplementation deps.mockito
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.jmc
+  testImplementation libs.commons.math
+  testImplementation libs.bundles.mockito
 }
 
 // Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
