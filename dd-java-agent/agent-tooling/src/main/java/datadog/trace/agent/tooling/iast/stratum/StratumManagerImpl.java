@@ -108,7 +108,7 @@ public class StratumManagerImpl {
             result[1] = debug;
           }
         },
-        0);
+        ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
 
     return result;
   }
