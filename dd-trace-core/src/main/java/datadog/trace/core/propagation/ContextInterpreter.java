@@ -33,12 +33,12 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * When adding new context fields to the ContextInterpreter class remember to clear them
- * in the reset() method.
+ * When adding new context fields to the ContextInterpreter class remember to clear them in the
+ * reset() method.
  */
 public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
   private TraceConfig traceConfig;
-  
+
   protected Map<String, String> headerTags;
   protected Map<String, String> baggageMapping;
 
