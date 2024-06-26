@@ -17,7 +17,7 @@ dd-java-agent/agent-bootstrap/src/main/java11/datadog/trace/bootstrap/instrument
 dd-smoke-tests/profiling-integration-tests/                                                @DataDog/profiling-java
 
 # @DataDog/ci-app-libraries-java
-dd-java-agent/agent-ci-visibility/         @DataDog/ci-app-libraries-java
+products/ci-visibility                     @DataDog/ci-app-libraries-java
 dd-java-agent/instrumentation/cucumber/    @DataDog/ci-app-libraries-java
 dd-java-agent/instrumentation/jacoco/      @DataDog/ci-app-libraries-java
 dd-java-agent/instrumentation/junit-4.10/  @DataDog/ci-app-libraries-java

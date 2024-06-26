@@ -20,7 +20,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'com.intuit.karate', name: 'karate-core', version: '1.0.0'
 
-  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+  testImplementation testFixtures(project(':products:ci-visibility:ci-visibility-agent'))
   testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.8.2'
   testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.8.2'
 

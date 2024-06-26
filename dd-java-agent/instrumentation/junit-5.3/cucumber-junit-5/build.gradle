@@ -16,7 +16,7 @@ dependencies {
   compileOnly group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '5.4.0'
   compileOnly group: 'io.cucumber', name: 'cucumber-java', version: '5.4.0'
 
-  testImplementation testFixtures(project(':dd-java-agent:agent-ci-visibility'))
+  testImplementation testFixtures(project(':products:ci-visibility:ci-visibility-agent'))
 
   testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.9.2'
   testImplementation group: 'org.junit.platform', name: 'junit-platform-suite', version: '1.9.2'
