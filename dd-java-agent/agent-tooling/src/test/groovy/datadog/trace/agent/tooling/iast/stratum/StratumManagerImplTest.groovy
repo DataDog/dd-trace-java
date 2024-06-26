@@ -5,7 +5,7 @@ import org.apache.commons.io.FileUtils
 
 class StratumManagerImplTest extends DDSpecification {
 
-  void 'test StratumManager shouldBeAnalyzed'(){
+  void 'test shouldBeAnalyzed'(){
 
     when:
     def result = StratumManagerImpl.shouldBeAnalyzed(internalClassName)
