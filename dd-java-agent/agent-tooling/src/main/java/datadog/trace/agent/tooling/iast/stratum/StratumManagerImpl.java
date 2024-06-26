@@ -91,7 +91,7 @@ public class StratumManagerImpl {
     ClassReader cr = new ClassReader(classBytes);
     final String[] result = new String[2];
     cr.accept(
-        new ClassVisitor(262144) {
+        new ClassVisitor(OpenedClassReader.ASM_API) {
           @Override
           public void visit(
               final int version,
