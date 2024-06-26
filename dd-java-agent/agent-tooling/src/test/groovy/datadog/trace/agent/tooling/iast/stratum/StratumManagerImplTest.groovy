@@ -23,7 +23,7 @@ class StratumManagerImplTest extends DDSpecification {
     'foo/bar/jsp/Baz_tag' | true
   }
 
-  void 'test StratumManager analyzeClass'(){
+  void 'test analyzeClass'(){
     given:
     byte[] data = FileUtils.readFileToByteArray(new File("src/test/resources/datadog.trace.agent.tooling.stratum/register_jsp.class"))
 
