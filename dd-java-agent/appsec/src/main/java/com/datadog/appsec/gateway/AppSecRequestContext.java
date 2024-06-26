@@ -16,6 +16,7 @@ import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,6 +103,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean respDataPublished;
   private boolean pathParamsPublished;
   private Map<String, String> apiSchemas;
+
+  private AtomicBoolean rateLimited = new AtomicBoolean(false);
+  private volatile boolean throttled;
 
   // should be guarded by this
   private Additive additive;
@@ -485,5 +489,12 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
     apiSchemas.forEach(traceSegment::setTagTop);
     return true;
+  }
+
+  public boolean isThrottled(RateLimiter rateLimiter) {
+    if (rateLimiter != null && rateLimited.compareAndSet(false, true)) {
+      throttled = rateLimiter.isThrottled();
+    }
+    return throttled;
   }
 }

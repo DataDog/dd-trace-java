@@ -224,4 +224,24 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.additive == null
     !additive.online
   }
+
+  void 'test isThrottled'(){
+    setup:
+    def rateLimiter = Mock(RateLimiter)
+    def appSecRequestContext = new AppSecRequestContext()
+
+    when: 'rate limiter is called and throttled is set'
+    def result = appSecRequestContext.isThrottled(rateLimiter)
+
+    then:
+    1 * rateLimiter.isThrottled() >> true
+    assert result
+
+    when: 'rate limiter is not called more than once per appsec context returns first result'
+    def result2 = appSecRequestContext.isThrottled(rateLimiter)
+
+    then:
+    0 * rateLimiter.isThrottled()
+    result == result2
+  }
 }
