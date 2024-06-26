@@ -1,6 +1,8 @@
 plugins {
   id 'com.github.johnrengelman.shadow'
   id 'java-test-fixtures'
+  id 'org.jetbrains.kotlin.jvm' version '1.9.24'
+  id 'scala'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -23,6 +25,9 @@ dependencies {
   testImplementation project(":utils:test-utils")
   testImplementation("com.google.jimfs:jimfs:1.1") // an in-memory file system for testing code that works with files
 
+  testImplementation libs.scala
+  testImplementation libs.kotlin
+
   testFixturesApi project(':dd-java-agent:testing')
   testFixturesApi project(':utils:test-utils')
 
@@ -31,6 +36,15 @@ dependencies {
   testFixturesApi group: 'com.jayway.jsonpath', name: 'json-path', version: '2.8.0'
   testFixturesApi group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.16.0'
   testFixturesApi group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
+}
+
+compileTestGroovy {
+  dependsOn compileTestJava
+  dependsOn compileTestScala
+  dependsOn compileTestKotlin
+  classpath += files(sourceSets.test.java.destinationDirectory)
+  classpath += files(sourceSets.test.kotlin.destinationDirectory)
+  classpath += files(sourceSets.test.scala.destinationDirectory)
 }
 
 shadowJar {

@@ -170,11 +170,11 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
     private Path getSourceRoot(Path file) throws IOException {
       String fileName = file.getFileName().toString();
-      SourceType sourceType = SourceType.getByFileName(fileName);
-      if (sourceType == null) {
+      Language language = Language.getByFileName(fileName);
+      if (language == null) {
         return null;
 
-      } else if (!sourceType.isResource()) {
+      } else if (!language.isNonCode()) {
         indexingStats.sourceFilesVisited++;
         Path packagePath = packageResolver.getPackage(file);
         if (packagePath != null) {

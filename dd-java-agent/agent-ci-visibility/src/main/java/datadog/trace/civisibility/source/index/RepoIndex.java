@@ -9,17 +9,12 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.Opcodes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,11 +28,13 @@ public class RepoIndex {
   private static final int ACCESS_MODIFIERS =
       Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
 
+  private final LanguageDetector languageDetector;
   private final ClassNameTrie trie;
   private final List<String> sourceRoots;
   private final List<String> rootPackages;
 
   RepoIndex(ClassNameTrie trie, List<String> sourceRoots, List<String> rootPackages) {
+    this.languageDetector = new LanguageDetector();
     this.trie = trie;
     this.sourceRoots = sourceRoots;
     this.rootPackages = rootPackages;
@@ -50,8 +47,13 @@ public class RepoIndex {
   @Nullable
   public String getSourcePath(@Nonnull Class<?> c) {
     String topLevelClassName = Utils.stripNestedClassNames(c.getName());
-    SourceType sourceType = detectSourceType(c);
-    String extension = sourceType.getExtension();
+    Language language = languageDetector.detect(c);
+    if (language == null) {
+      log.debug("Could not detect language for class {}", c.getName());
+      return null;
+    }
+
+    String extension = language.getExtension();
     String classNameWithExtension = topLevelClassName + extension;
     int sourceRootIdx = trie.apply(classNameWithExtension);
     if (sourceRootIdx >= 0) {
@@ -63,7 +65,7 @@ public class RepoIndex {
     }
 
     boolean packagePrivateClass = (c.getModifiers() & ACCESS_MODIFIERS) == 0;
-    if (packagePrivateClass || sourceType != SourceType.JAVA) {
+    if (packagePrivateClass || language != Language.JAVA) {
       return getSourcePathForPackagePrivateOrNonJavaClass(c);
 
     } else {
@@ -82,30 +84,6 @@ public class RepoIndex {
     }
   }
 
-  private SourceType detectSourceType(Class<?> c) {
-    Class<?>[] interfaces = c.getInterfaces();
-    for (Class<?> anInterface : interfaces) {
-      String interfaceName = anInterface.getName();
-      if ("groovy.lang.GroovyObject".equals(interfaceName)) {
-        return SourceType.GROOVY;
-      }
-    }
-
-    Annotation[] annotations = c.getAnnotations();
-    for (Annotation annotation : annotations) {
-      Class<? extends Annotation> annotationType = annotation.annotationType();
-      if ("kotlin.Metadata".equals(annotationType.getName())) {
-        return SourceType.KOTLIN;
-      }
-      if ("scala.reflect.ScalaSignature".equals(annotationType.getName())) {
-        return SourceType.SCALA;
-      }
-    }
-
-    // assuming Java
-    return SourceType.JAVA;
-  }
-
   /**
    * Names of package-private classes do not have to correspond to the names of their source code
    * files. For such classes filename is extracted from SourceFile attribute that is available in
@@ -113,21 +91,9 @@ public class RepoIndex {
    */
   private String getSourcePathForPackagePrivateOrNonJavaClass(Class<?> c) {
     try {
-      SourceFileAttributeVisitor sourceFileAttributeVisitor = new SourceFileAttributeVisitor();
-
-      try (InputStream classStream = Utils.getClassStream(c)) {
-        if (classStream == null) {
-          log.debug("Could not get input stream for class {}", c.getName());
-          return null;
-        }
-        ClassReader classReader = new ClassReader(classStream);
-        classReader.accept(
-            sourceFileAttributeVisitor, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
-      }
-
-      String source = sourceFileAttributeVisitor.getSource();
+      String fileName = Utils.getFileName(c);
       String packageName = c.getPackage().getName();
-      String classNameWithExtension = packageName + File.separatorChar + source;
+      String classNameWithExtension = packageName + File.separatorChar + fileName;
 
       int sourceRootIdx = trie.apply(classNameWithExtension);
       if (sourceRootIdx < 0) {
@@ -140,7 +106,7 @@ public class RepoIndex {
           + File.separatorChar
           + packageName.replace('.', File.separatorChar)
           + File.separatorChar
-          + source;
+          + fileName;
 
     } catch (IOException e) {
       log.error(
@@ -160,23 +126,6 @@ public class RepoIndex {
 
     String sourceRoot = sourceRoots.get(sourceRootIdx);
     return sourceRoot + File.separator + relativePath;
-  }
-
-  private static final class SourceFileAttributeVisitor extends ClassVisitor {
-    private String source;
-
-    SourceFileAttributeVisitor() {
-      super(Opcodes.ASM9);
-    }
-
-    @Override
-    public void visitSource(String source, String debug) {
-      this.source = source;
-    }
-
-    public String getSource() {
-      return source;
-    }
   }
 
   public ByteBuffer serialize() {

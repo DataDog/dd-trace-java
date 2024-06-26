@@ -135,7 +135,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
   def "test source path resolution for repo with multiple files"() {
     setup:
     def expectedSourcePathOne = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src")
-    def expectedSourcePathTwo = givenSourceFile(RepoIndexSourcePathResolver, repoRoot + "/src", SourceType.JAVA)
+    def expectedSourcePathTwo = givenSourceFile(RepoIndexSourcePathResolver, repoRoot + "/src", Language.JAVA)
 
     givenRepoFile(fileSystem.getPath(repoRoot, "README.md"))
 
@@ -148,8 +148,8 @@ class RepoIndexSourcePathResolverTest extends Specification {
     sourcePathResolver.getSourcePath(RepoIndexSourcePathResolver) == expectedSourcePathTwo
   }
 
-  private String givenSourceFile(Class c, String sourceRoot, SourceType sourceType = SourceType.GROOVY) {
-    def classPath = fileSystem.getPath(generateSourceFileName(c, sourceRoot, sourceType))
+  private String givenSourceFile(Class c, String sourceRoot, Language language = Language.GROOVY) {
+    def classPath = fileSystem.getPath(generateSourceFileName(c, sourceRoot, language))
     packageResolver.getPackage(classPath) >> fileSystem.getPath(sourceRoot).relativize(classPath).getParent()
 
     givenRepoFile(classPath)
@@ -162,8 +162,8 @@ class RepoIndexSourcePathResolverTest extends Specification {
     Files.write(file, "STUB FILE BODY".getBytes())
   }
 
-  private static String generateSourceFileName(Class c, String sourceRoot, SourceType sourceType = SourceType.GROOVY) {
-    return sourceRoot + File.separator + c.getName().replace(".", File.separator) + sourceType.extension
+  private static String generateSourceFileName(Class c, String sourceRoot, Language language = Language.GROOVY) {
+    return sourceRoot + File.separator + c.getName().replace(".", File.separator) + language.extension
   }
 
   private static getRepoRoot() {
