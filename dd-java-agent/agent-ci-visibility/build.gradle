@@ -1,12 +1,22 @@
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
+  }
+}
+
 plugins {
   id 'com.github.johnrengelman.shadow'
   id 'java-test-fixtures'
-  id 'org.jetbrains.kotlin.jvm' version '1.9.24'
-  id 'scala'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
+apply from: "$rootDir/gradle/test-with-kotlin.gradle"
+apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
@@ -36,15 +46,6 @@ dependencies {
   testFixturesApi group: 'com.jayway.jsonpath', name: 'json-path', version: '2.8.0'
   testFixturesApi group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.16.0'
   testFixturesApi group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
-}
-
-compileTestGroovy {
-  dependsOn compileTestJava
-  dependsOn compileTestScala
-  dependsOn compileTestKotlin
-  classpath += files(sourceSets.test.java.destinationDirectory)
-  classpath += files(sourceSets.test.kotlin.destinationDirectory)
-  classpath += files(sourceSets.test.scala.destinationDirectory)
 }
 
 shadowJar {

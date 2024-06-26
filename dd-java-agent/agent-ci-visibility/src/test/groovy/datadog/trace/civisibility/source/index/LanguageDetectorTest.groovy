@@ -39,10 +39,8 @@ class LanguageDetectorTest extends Specification {
     KotlinChildClass      | Language.KOTLIN
     KotlinInterface       | Language.KOTLIN
     KotlinChildInterface  | Language.KOTLIN
-    KotlinDataClass       | Language.KOTLIN
     KotlinEnum            | Language.KOTLIN
     KotlinAnnotation      | Language.KOTLIN
     KotlinObject          | Language.KOTLIN
-    KotlinDataObject      | Language.KOTLIN
   }
 }

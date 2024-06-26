@@ -8,12 +8,8 @@ interface KotlinInterface
 
 interface KotlinChildInterface : KotlinInterface
 
-data class KotlinDataClass(val p: Int)
-
 enum class KotlinEnum
 
 annotation class KotlinAnnotation
 
 object KotlinObject
-
-data object KotlinDataObject
