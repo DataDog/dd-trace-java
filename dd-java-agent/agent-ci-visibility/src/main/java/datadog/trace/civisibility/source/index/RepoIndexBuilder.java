@@ -11,9 +11,11 @@ import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.LinkedHashSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,10 +102,11 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final PackageResolver packageResolver;
     private final ResourceResolver resourceResolver;
     private final ClassNameTrie.Builder trieBuilder;
-    private final LinkedHashSet<RepoIndex.SourceRoot> sourceRoots;
+    private final Map<RepoIndex.SourceRoot, Integer> sourceRoots;
     private final PackageTree packageTree;
     private final RepoIndexingStats indexingStats;
     private final Path repoRoot;
+    private final AtomicInteger sourceRootCounter;
 
     private RepoIndexingFileVisitor(
         Config config,
@@ -114,9 +117,10 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       this.resourceResolver = resourceResolver;
       this.repoRoot = repoRoot;
       trieBuilder = new ClassNameTrie.Builder();
-      sourceRoots = new LinkedHashSet<>();
+      sourceRoots = new HashMap<>();
       packageTree = new PackageTree(config);
       indexingStats = new RepoIndexingStats();
+      sourceRootCounter = new AtomicInteger();
     }
 
     @Override
@@ -156,12 +160,15 @@ public class RepoIndexBuilder implements RepoIndexProvider {
             language.isNonCode() ? getNonCodeSourceRoot(file) : getCodeSourceRoot(file);
         if (sourceRoot != null) {
           String relativeSourceRoot = repoRoot.relativize(sourceRoot).toString();
-          sourceRoots.add(new RepoIndex.SourceRoot(relativeSourceRoot, language));
+          int sourceRootIdx =
+              sourceRoots.computeIfAbsent(
+                  new RepoIndex.SourceRoot(relativeSourceRoot, language),
+                  sr -> sourceRootCounter.getAndIncrement());
 
           String relativePath = sourceRoot.relativize(file).toString();
           if (!relativePath.isEmpty()) {
             String key = Utils.toTrieKey(relativePath);
-            trieBuilder.put(key, sourceRoots.size() - 1);
+            trieBuilder.put(key, sourceRootIdx);
           }
         }
       } catch (Exception e) {
@@ -209,8 +216,12 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     }
 
     public RepoIndex getIndex() {
-      return new RepoIndex(
-          trieBuilder.buildTrie(), new ArrayList<>(sourceRoots), packageTree.asList());
+      RepoIndex.SourceRoot[] roots = new RepoIndex.SourceRoot[sourceRoots.size()];
+      for (Map.Entry<RepoIndex.SourceRoot, Integer> e : sourceRoots.entrySet()) {
+        roots[e.getValue()] = e.getKey();
+      }
+
+      return new RepoIndex(trieBuilder.buildTrie(), Arrays.asList(roots), packageTree.asList());
     }
   }
 
