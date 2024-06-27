@@ -65,7 +65,7 @@ public abstract class TraceCollector implements AgentTrace {
     if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
       // Ignore the force-keep priority in the absence of propagated _dd.p.appsec span tag.
       if ((Config.get().isAppSecStandaloneEnabled()
-          && !rootSpan.context().getPropagationTags().isAppsecPropagationEnabled())
+              && !rootSpan.context().getPropagationTags().isAppsecPropagationEnabled())
           || rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
         ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
       }
