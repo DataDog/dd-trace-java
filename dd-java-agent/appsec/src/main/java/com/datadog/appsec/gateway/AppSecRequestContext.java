@@ -94,6 +94,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+  private String dbType;
 
   private int responseStatus;
 
@@ -104,7 +105,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean pathParamsPublished;
   private Map<String, String> apiSchemas;
 
-  private AtomicBoolean rateLimited = new AtomicBoolean(false);
+  private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
 
   // should be guarded by this
@@ -339,6 +340,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
+  }
+
+  public String getDbType() {
+    return dbType;
+  }
+
+  public void setDbType(String dbType) {
+    this.dbType = dbType;
   }
 
   public int getResponseStatus() {
