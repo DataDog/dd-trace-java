@@ -267,7 +267,12 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       assert it.meta.get('appsec.blocked') == null, 'appsec.blocked is set'
       assert it.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     }
-    def trigger = rootSpans[0].triggers.find { it['rule']['id'] == '__test_sqli_stacktrace_on_query' }
+    def trigger
+    rootSpans[0].triggers.each {
+      if (it['rule']['id'] == '__test_sqli_stacktrace_on_query') {
+        trigger = it
+      }
+    }
     assert trigger != null, 'test trigger not found'
   }
 
@@ -295,7 +300,12 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       // assert it.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
       assert it.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     }
-    def trigger = rootSpans[0].triggers.find { it['rule']['id'] == '__test_sqli_block_on_header' }
+    def trigger = null
+    rootSpans[0].triggers.each {
+      if (it['rule']['id'] == '__test_sqli_block_on_header') {
+        trigger = it
+      }
+    }
     assert trigger != null, 'test trigger not found'
   }
 }
