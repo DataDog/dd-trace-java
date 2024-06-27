@@ -463,10 +463,10 @@ public class GatewayBridge {
             if (subInfo == null || subInfo.isEmpty()) {
               return;
             }
-            DataBundle bundle =
-                new SingletonDataBundle<>(KnownAddresses.DB_TYPE, dbType);
+            DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.DB_TYPE, dbType);
             try {
               producerService.publishDataEvent(subInfo, ctx, bundle, false);
+              return;
             } catch (ExpiredSubscriberInfoException e) {
               dbConnectionSubInfo = null;
             }
