@@ -6,6 +6,7 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -209,8 +210,8 @@ public final class Events<D> {
       new ET<>("database.connection", DATABASE_CONNECTION_ID);
   /** A database connection */
   @SuppressWarnings("unchecked")
-  public EventType<BiFunction<RequestContext, String, Flow<Void>>> databaseConnection() {
-    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) DATABASE_CONNECTION;
+  public EventType<BiConsumer<RequestContext, String>> databaseConnection() {
+    return (EventType<BiConsumer<RequestContext, String>>) DATABASE_CONNECTION;
   }
 
   static final int DATABASE_SQL_QUERY_ID = 17;
