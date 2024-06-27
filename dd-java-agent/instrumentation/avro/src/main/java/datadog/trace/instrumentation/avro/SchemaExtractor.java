@@ -11,8 +11,8 @@ import java.util.List;
 import org.apache.avro.Schema.Field;
 
 public class SchemaExtractor implements SchemaIterator {
-  public static final String serialization = "serialization";
-  public static final String deserialization = "deserialization";
+  public static final String SERIALIZATION = "serialization";
+  public static final String DESERIALIZATION = "deserialization";
   private static final String AVRO = "avro";
 
   private final org.apache.avro.Schema schema;
