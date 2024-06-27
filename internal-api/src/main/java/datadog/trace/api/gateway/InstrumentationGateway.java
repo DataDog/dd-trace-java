@@ -27,6 +27,7 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -365,6 +366,17 @@ public class InstrumentationGateway {
               }
             };
       case DATABASE_CONNECTION_ID:
+        return (C)
+            new BiConsumer<RequestContext, String>() {
+              @Override
+              public void accept(RequestContext ctx, String arg) {
+                try {
+                  ((BiConsumer<RequestContext, String>) callback).accept(ctx, arg);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                }
+              }
+            };
       case DATABASE_SQL_QUERY_ID:
         return (C)
             new BiFunction<RequestContext, String, Flow<Void>>() {

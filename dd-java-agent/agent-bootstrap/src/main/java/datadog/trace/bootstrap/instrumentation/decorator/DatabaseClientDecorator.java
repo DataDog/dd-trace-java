@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
 public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorator {
@@ -151,27 +152,14 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     postProcessServiceAndOperationName(span, namingEntry);
 
     if (Config.get().isAppSecRaspEnabled() && dbType != null) {
-      BiFunction<RequestContext, String, Flow<Void>> connectDbCallback =
+      BiConsumer<RequestContext, String> connectDbCallback =
           AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)
               .getCallback(EVENTS.databaseConnection());
       if (connectDbCallback != null) {
         RequestContext ctx = span.getRequestContext();
         if (ctx != null) {
-          Flow<Void> flow = connectDbCallback.apply(ctx, dbType);
-          Flow.Action action = flow.getAction();
-          if (action instanceof Flow.Action.RequestBlockingAction) {
-            BlockResponseFunction brf = ctx.getBlockResponseFunction();
-            if (brf != null) {
-              Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-              brf.tryCommitBlockingResponse(
-                  ctx.getTraceSegment(),
-                  rba.getStatusCode(),
-                  rba.getBlockingContentType(),
-                  rba.getExtraHeaders());
-            }
-            throw new BlockingException("Blocked request (for DB connection)");
-          }
+          connectDbCallback.accept(ctx, dbType);
         }
       }
     }
