@@ -34,7 +34,6 @@ public class WebController {
 
   @GetMapping("/sqli/query")
   public String sqliQuery(@RequestParam("id") String id) throws Exception {
-    Class.forName("org.h2.Driver");
     Connection conn = DriverManager.getConnection("jdbc:h2:mem:testdb", "sa", "");
     conn.createStatement().execute("SELECT 1 FROM DUAL WHERE '1' = '" + id + "'");
     return "EXECUTED";
@@ -42,7 +41,6 @@ public class WebController {
 
   @GetMapping("/sqli/header")
   public String sqliHeader(@RequestHeader("x-custom-header") String id) throws Exception {
-    Class.forName("org.h2.Driver");
     Connection conn = DriverManager.getConnection("jdbc:h2:mem:testdb", "sa", "");
     conn.createStatement().execute("SELECT 1 FROM DUAL WHERE '1' = '" + id + "'");
     return "EXECUTED";
