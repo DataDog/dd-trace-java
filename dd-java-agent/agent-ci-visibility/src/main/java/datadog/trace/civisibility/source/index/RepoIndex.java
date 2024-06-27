@@ -9,10 +9,10 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -25,16 +25,12 @@ public class RepoIndex {
           ClassNameTrie.Builder.EMPTY_TRIE, Collections.emptyList(), Collections.emptyList());
 
   private static final Logger log = LoggerFactory.getLogger(RepoIndex.class);
-  private static final int ACCESS_MODIFIERS =
-      Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
 
-  private final LanguageDetector languageDetector;
   private final ClassNameTrie trie;
-  private final List<String> sourceRoots;
+  private final List<SourceRoot> sourceRoots;
   private final List<String> rootPackages;
 
-  RepoIndex(ClassNameTrie trie, List<String> sourceRoots, List<String> rootPackages) {
-    this.languageDetector = new LanguageDetector();
+  RepoIndex(ClassNameTrie trie, List<SourceRoot> sourceRoots, List<String> rootPackages) {
     this.trie = trie;
     this.sourceRoots = sourceRoots;
     this.rootPackages = rootPackages;
@@ -47,86 +43,57 @@ public class RepoIndex {
   @Nullable
   public String getSourcePath(@Nonnull Class<?> c) {
     String topLevelClassName = Utils.stripNestedClassNames(c.getName());
-    Language language = languageDetector.detect(c);
-    if (language == null) {
-      log.debug("Could not detect language for class {}", c.getName());
-      return null;
-    }
+    String sourcePath = doGetSourcePath(topLevelClassName);
+    return sourcePath != null ? sourcePath : getFallbackSourcePath(c);
+  }
 
-    String extension = language.getExtension();
-    String classNameWithExtension = topLevelClassName + extension;
-    int sourceRootIdx = trie.apply(classNameWithExtension);
-    if (sourceRootIdx >= 0) {
-      String sourceRoot = sourceRoots.get(sourceRootIdx);
-      return sourceRoot
-          + File.separatorChar
-          + topLevelClassName.replace('.', File.separatorChar)
-          + extension;
-    }
+  /**
+   * Used as a fallback for non-Java classes or Java classes that are not public: in this case class
+   * name does not necessarily correspond to the source file name, so source file name needs to be
+   * retrieved from the bytecode.
+   */
+  @Nullable
+  private String getFallbackSourcePath(@Nonnull Class<?> c) {
+    try {
+      String fileName = Utils.getFileName(c);
+      if (fileName == null) {
+        log.error("Could not retrieve file name for class {}", c.getName());
+        return null;
+      }
 
-    boolean packagePrivateClass = (c.getModifiers() & ACCESS_MODIFIERS) == 0;
-    if (packagePrivateClass || language != Language.JAVA) {
-      return getSourcePathForPackagePrivateOrNonJavaClass(c);
+      String fileNameWithoutExtension = Utils.stripExtension(fileName);
+      Package classPackage = c.getPackage();
+      String packageName = classPackage != null ? classPackage.getName() : "";
+      String key = packageName + '.' + fileNameWithoutExtension;
+      return doGetSourcePath(key);
 
-    } else {
-      log.debug("Could not find source root for class {}", c.getName());
+    } catch (IOException e) {
+      log.error("Error while trying to retrieve file name for class {}", c.getName(), e);
       return null;
     }
   }
 
   @Nullable
-  public String getSourcePath(String pathRelativeToSourceRoot) {
-    int sourceRootIdx = trie.apply(pathRelativeToSourceRoot);
-    if (sourceRootIdx >= 0) {
-      return sourceRoots.get(sourceRootIdx) + File.separator + pathRelativeToSourceRoot;
-    } else {
+  public String getSourcePath(@Nullable String pathRelativeToSourceRoot) {
+    if (pathRelativeToSourceRoot == null) {
       return null;
     }
+    String key = Utils.toTrieKey(pathRelativeToSourceRoot);
+    return doGetSourcePath(key);
   }
 
-  /**
-   * Names of package-private classes do not have to correspond to the names of their source code
-   * files. For such classes filename is extracted from SourceFile attribute that is available in
-   * the compiled class.
-   */
-  private String getSourcePathForPackagePrivateOrNonJavaClass(Class<?> c) {
-    try {
-      String fileName = Utils.getFileName(c);
-      Package classPackage = c.getPackage();
-      String packageName = classPackage != null ? classPackage.getName() : "";
-      String classNameWithExtension = packageName + File.separatorChar + fileName;
-
-      int sourceRootIdx = trie.apply(classNameWithExtension);
-      if (sourceRootIdx < 0) {
-        log.debug("Could not find source root for package-private class {}", c.getName());
-        return null;
-      }
-
-      String sourceRoot = sourceRoots.get(sourceRootIdx);
-      return sourceRoot
-          + File.separatorChar
-          + packageName.replace('.', File.separatorChar)
-          + File.separatorChar
-          + fileName;
-
-    } catch (IOException e) {
-      log.error(
-          "Error while trying to retrieve SourceFile attribute from package-private class {}",
-          c.getName(),
-          e);
-      return null;
-    }
-  }
-
-  public String getResourcePath(String relativePath) {
-    int sourceRootIdx = trie.apply(relativePath);
+  @Nullable
+  private String doGetSourcePath(String key) {
+    int sourceRootIdx = trie.apply(key);
     if (sourceRootIdx < 0) {
-      log.debug("Could not find source root for resource {}", relativePath);
+      log.debug("Could not find source root for {}", key);
       return null;
     }
-
-    String sourceRoot = sourceRoots.get(sourceRootIdx);
-    return sourceRoot + File.separator + relativePath;
+    SourceRoot sourceRoot = sourceRoots.get(sourceRootIdx);
+    return sourceRoot.relativePath
+        + File.separatorChar
+        + key.replace('.', File.separatorChar)
+        + sourceRoot.language.getExtension();
   }
 
   public ByteBuffer serialize() {
@@ -142,7 +109,7 @@ public class RepoIndex {
 
     Serializer s = new Serializer();
     s.write(serializedTrie);
-    s.write(sourceRoots);
+    s.write(sourceRoots, SourceRoot::serialize);
     s.write(rootPackages);
     return s.flush();
   }
@@ -164,8 +131,48 @@ public class RepoIndex {
       }
     }
 
-    List<String> sourceRoots = Serializer.readStringList(buffer);
+    List<SourceRoot> sourceRoots = Serializer.readList(buffer, SourceRoot::deserialize);
     List<String> rootPackages = Serializer.readStringList(buffer);
     return new RepoIndex(trie, sourceRoots, rootPackages);
+  }
+
+  static final class SourceRoot {
+    /** Path relative to repository root. */
+    final String relativePath;
+
+    final Language language;
+
+    SourceRoot(String relativePath, Language language) {
+      this.relativePath = relativePath;
+      this.language = language;
+    }
+
+    static void serialize(Serializer s, SourceRoot sourceRoot) {
+      s.write(sourceRoot.relativePath);
+      s.write(sourceRoot.language.ordinal());
+    }
+
+    static SourceRoot deserialize(ByteBuffer buffer) {
+      String relativePath = Serializer.readString(buffer);
+      Language language = Language.getByOrdinal(Serializer.readInt(buffer));
+      return new SourceRoot(relativePath, language);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SourceRoot that = (SourceRoot) o;
+      return Objects.equals(relativePath, that.relativePath) && language == that.language;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(relativePath, language);
+    }
   }
 }

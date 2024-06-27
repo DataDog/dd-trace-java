@@ -36,4 +36,8 @@ enum Language {
     }
     return null;
   }
+
+  static Language getByOrdinal(int ordinal) {
+    return UNIVERSE[ordinal];
+  }
 }

@@ -72,7 +72,7 @@ public class CiVisibilityRepoServices {
             services.gitClientFactory,
             services.backendApi,
             repoRoot);
-    repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot, repoRoot);
+    repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
     codeowners = buildCodeowners(repoRoot);
     sourcePathResolver = buildSourcePathResolver(repoRoot, repoIndexProvider);
 
@@ -175,14 +175,12 @@ public class CiVisibilityRepoServices {
 
   private static SourcePathResolver buildSourcePathResolver(
       String repoRoot, RepoIndexProvider indexProvider) {
-    if (repoRoot != null) {
-      RepoIndexSourcePathResolver indexSourcePathResolver =
-          new RepoIndexSourcePathResolver(repoRoot, indexProvider);
-      return new BestEffortSourcePathResolver(
-          new CompilerAidedSourcePathResolver(repoRoot), indexSourcePathResolver);
-    } else {
-      return NoOpSourcePathResolver.INSTANCE;
-    }
+    SourcePathResolver compilerAidedResolver =
+        repoRoot != null
+            ? new CompilerAidedSourcePathResolver(repoRoot)
+            : NoOpSourcePathResolver.INSTANCE;
+    RepoIndexSourcePathResolver indexResolver = new RepoIndexSourcePathResolver(indexProvider);
+    return new BestEffortSourcePathResolver(compilerAidedResolver, indexResolver);
   }
 
   private static Codeowners buildCodeowners(String repoRoot) {
