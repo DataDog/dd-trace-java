@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.debugger.spanorigin;
+package com.datadog.debugger.spanorigin;
 
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
@@ -10,6 +10,8 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.SnapshotHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -72,6 +74,11 @@ public class SpanOriginInfo {
   }
 
   private void apply(AgentSpan span) {
+    if (span.context() instanceof DDSpanContext) {
+      DDSpanContext context = (DDSpanContext) span.context();
+      PropagationTags tags = context.getPropagationTags();
+    }
+
     List<StackTraceElement> entries = entries();
     if (entry) {
       StackTraceElement entry = entries.get(0);

@@ -1,7 +1,7 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.spanorigin.SpanOriginInfo.DD_EXIT_LOCATION_SNAPSHOT_ID;
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
-import static datadog.trace.bootstrap.debugger.spanorigin.SpanOriginInfo.DD_EXIT_LOCATION_SNAPSHOT_ID;
 import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.agent.DebuggerAgent;

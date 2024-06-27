@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.span_origin;
 
-import datadog.trace.bootstrap.debugger.spanorigin.SpanOriginInfo;
+import com.datadog.debugger.spanorigin.SpanOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
