@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
 
+import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -77,7 +78,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> grpcServerMethodCB
   BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
-  BiFunction<RequestContext, String, Flow<Void>> databaseConnectionCB
+  BiConsumer<RequestContext, String> databaseConnectionCB
   BiFunction<RequestContext, String, Flow<Void>> databaseSqlQueryCB
 
   void setup() {
