@@ -9,6 +9,7 @@ import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.snapshot.SnapshotProbeManager;
+import com.datadog.debugger.spanorigin.DistDebug;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -59,6 +60,11 @@ public class DebugSnapshotProbe extends LogProbe {
     if (context.getCapturedThrowable() == null) {
       return;
     }
+    if (!DistDebug.isDebugEnabled(
+        AgentTracer.activeSpan(), DistDebug.CAPTURE_ORIGIN_FRAMES, DistDebug.CAPTURE_ALL_PROBES)) {
+      return;
+    }
+
     Throwable throwable = context.getCapturedThrowable().getThrowable();
     Throwable innerMostThrowable = getInnerMostThrowable(throwable);
     String fingerprint =
@@ -83,7 +89,7 @@ public class DebugSnapshotProbe extends LogProbe {
           id,
           snapshot.getId(),
           snapshot.getExceptionId());
-      AgentSpan span = AgentTracer.get().activeScope().span();
+      AgentSpan span = AgentTracer.activeSpan();
       Map<String, Object> tags = span.getTags();
       boolean hasExitKeys = tags.keySet().stream().anyMatch(s -> s.startsWith("_dd.exit_"));
       String key = entrySpan ? "_dd.entry_location.snapshot_id" : DD_EXIT_LOCATION_SNAPSHOT_ID;

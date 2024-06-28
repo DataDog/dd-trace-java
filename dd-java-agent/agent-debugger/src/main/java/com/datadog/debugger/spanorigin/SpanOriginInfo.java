@@ -10,8 +10,6 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.SnapshotHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -27,7 +25,9 @@ public class SpanOriginInfo {
   private List<StackTraceElement> entries;
 
   private final Method method;
+
   private String signature;
+
   private final boolean entry;
 
   public SpanOriginInfo() {
@@ -74,45 +74,39 @@ public class SpanOriginInfo {
   }
 
   private void apply(AgentSpan span) {
-    if (span.context() instanceof DDSpanContext) {
-      DDSpanContext context = (DDSpanContext) span.context();
-      PropagationTags tags = context.getPropagationTags();
-    }
-
-    List<StackTraceElement> entries = entries();
-    if (entry) {
-      StackTraceElement entry = entries.get(0);
-      List<AgentSpan> spans = new ArrayList<>();
-      spans.add(span);
-      AgentSpan rootSpan = span.getLocalRootSpan();
-      if (rootSpan != null && rootSpan.getTags().get(DDTags.DD_ENTRY_LOCATION_FILE) == null) {
-        spans.add(rootSpan);
+    if (DistDebug.isDebugEnabled(span, DistDebug.ORIGIN_FRAME_ONLY, DistDebug.ALL_FRAMES)) {
+      List<StackTraceElement> entries = entries();
+      if (entry) {
+        StackTraceElement entry = entries.get(0);
+        List<AgentSpan> spans = new ArrayList<>();
+        spans.add(span);
+        AgentSpan rootSpan = span.getLocalRootSpan();
+        if (rootSpan != null && rootSpan.getTags().get(DDTags.DD_ENTRY_LOCATION_FILE) == null) {
+          spans.add(rootSpan);
+        }
+        for (AgentSpan s : spans) {
+          s.setTag("_dd.di.has_code_location", true);
+          s.setTag(DDTags.DD_ENTRY_LOCATION_FILE, toFileName(entry.getClassName()));
+          s.setTag(DDTags.DD_ENTRY_METHOD, entry.getMethodName());
+          s.setTag(DDTags.DD_ENTRY_LINE, entry.getLineNumber());
+          s.setTag(DDTags.DD_ENTRY_TYPE, entry.getClassName());
+          s.setTag(DDTags.DD_ENTRY_METHOD_SIGNATURE, signature);
+        }
+      } else {
+        span.setTag("_dd.di.has_code_location", true);
+        for (int i = 0; i < entries.size(); i++) {
+          StackTraceElement element = entries.get(i);
+          span.setTag(format(DDTags.DD_EXIT_LOCATION_FILE, i), toFileName(element.getClassName()));
+          span.setTag(format(DDTags.DD_EXIT_LOCATION_METHOD, i), element.getMethodName());
+          span.setTag(format(DDTags.DD_EXIT_LOCATION_LINE, i), element.getLineNumber());
+          span.setTag(format(DDTags.DD_EXIT_LOCATION_TYPE, i), element.getClassName());
+        }
       }
-      spans.forEach(
-          s -> {
-            if (s != null) {
-              s.setTag("_dd.di.has_code_location", true);
-              s.setTag(DDTags.DD_ENTRY_LOCATION_FILE, toFileName(entry.getClassName()));
-              s.setTag(DDTags.DD_ENTRY_METHOD, entry.getMethodName());
-              s.setTag(DDTags.DD_ENTRY_LINE, entry.getLineNumber());
-              s.setTag(DDTags.DD_ENTRY_TYPE, entry.getClassName());
-              s.setTag(DDTags.DD_ENTRY_METHOD_SIGNATURE, signature);
-            }
-          });
-    } else {
-      span.setTag("_dd.di.has_code_location", true);
-      for (int i = 0; i < entries.size(); i++) {
-        StackTraceElement element = entries.get(i);
-        span.setTag(format(DDTags.DD_EXIT_LOCATION_FILE, i), toFileName(element.getClassName()));
-        span.setTag(format(DDTags.DD_EXIT_LOCATION_LINE, i), element.getLineNumber());
-        span.setTag(format(DDTags.DD_EXIT_LOCATION_METHOD, i), element.getMethodName());
-        span.setTag(format(DDTags.DD_EXIT_LOCATION_TYPE, i), element.getClassName());
-      }
-    }
 
-    String probeId = DebuggerContext.captureSnapshot(span, entry, entries.get(0));
-    if (!entry) {
-      span.setTag(DD_EXIT_LOCATION_SNAPSHOT_ID, probeId);
+      String probeId = DebuggerContext.captureSnapshot(span, entry, entries.get(0));
+      if (!entry) {
+        span.setTag(DD_EXIT_LOCATION_SNAPSHOT_ID, probeId);
+      }
     }
   }
 
