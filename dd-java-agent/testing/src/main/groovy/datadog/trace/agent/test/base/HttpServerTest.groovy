@@ -1619,14 +1619,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.body().charStream().text.contains('"title":"You\'ve been blocked"')
     !handlerRan
     TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
 
     then:
-    TEST_WRITER.flatten().find { DDSpan it ->
-      it.tags['http.status_code'] == 413
-    } != null
-    TEST_WRITER.flatten().find { DDSpan it ->
-      it.tags['appsec.blocked'] == 'true'
-    } != null
+    !trace.isEmpty()
+    def rootSpan = trace.find { it.parentId == 0 }
+    assert rootSpan != null
+    rootSpan.tags['http.status_code'] == 413
+    rootSpan.tags['appsec.blocked'] == 'true'
 
     and:
     if (isDataStreamsEnabled()) {
