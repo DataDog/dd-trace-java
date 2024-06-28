@@ -45,6 +45,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
           "endpoints": [
             "/v0.4/traces",
             "/v0.5/traces",
+            "/telemetry/proxy/",
           ],
           "client_drop_p0s": true,
           "span_meta_structs": true,
@@ -103,6 +104,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
       }
       prefix("/v0.7/config") {
         response.status(200).send(remoteConfigResponse)
+      }
+      prefix("/telemetry/proxy/api/v2/apmtelemetry") {
+        response.status(202).send()
       }
     }
   }
