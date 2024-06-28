@@ -4,6 +4,7 @@ on:
     types: [closed]
     branches:
       - master
+      - release/v*
 
 jobs:
   add_milestone_to_merged:
@@ -11,32 +12,69 @@ jobs:
     name: Add milestone to merged pull requests
     runs-on: ubuntu-latest
     steps:
-      - name: Get project milestones
-        id: milestones
-        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
+      - name: Add milestone to merged pull requests
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # 7.0.1
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const list = await github.issues.listMilestones({
+            // Get project milestones
+            const response = await github.rest.issues.listMilestones({
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open'
             })
-            // Need to manually sort because "sort by number" isn't part of the api
-            // highest number first
-            const milestones = list.data.sort((a,b) => (b.number - a.number))
-
-            return milestones.length == 0 ? null : milestones[0].number
-      - name: Update Pull Request
-        if: steps.milestones.outputs.result != null
-        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            // Confusingly, the issues api is used because pull requests are issues
-            await github.issues.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: ${{ github.event.pull_request.number }},
-              milestone: ${{ steps.milestones.outputs.result }},
-            });
+            if (!response.data || response.data.length == 0) {
+              core.setFailed(`Failed to list milestones: ${response.status}`)
+              return
+            }
+            // Get the base branch
+            const base = '${{ github.event.pull_request.base.label }}'
+            // Look for the matching milestone
+            let milestoneNumber = null
+            if (base == 'master') {
+              // Pick the milestone with the highest version as title using semver
+              milestoneNumber = response.data
+                .map(milestone => {
+                  const versionNumbers = milestone.title.match(/^\d+\.\d+\.\d+$/)
+                  if (versionNumbers == null) {
+                    return null
+                  }
+                  milestone.version = {
+                    majonr: parseInt(versionNumbers[0]),
+                    minor: parseInt(versionNumbers[1]),
+                    patch: parseInt(versionNumbers[2])
+                  }
+                  return milestone
+                })
+                .filter(milestone => milestone != null)
+                .sort((a, b) => {
+                  if (a.version.major != b.version.major) {
+                    return a.version.major - b.version.major
+                  }
+                  if (a.version.minor != b.version.minor) {
+                    return a.version.minor - b.version.minor
+                  }
+                  return a.version.patch - b.version.patch
+                })
+                .pop()?.number
+            } else if (base.startsWith('release/v')) {
+              // Pick the milestone with the same title as the base branch
+              const version = base.substring(9)
+              const versionMilestone = response.data
+                .find(milestone => milestone.title == version)
+              if (!versionMilestone) {
+                core.setFailed(`Version milestone not found: ${version}`)
+              } else {
+                milestoneNumber = versionMilestone.number
+              }
+            } else {
+              core.setFailed(`Unexpected pull request base: ${base}`)
+            }
+            // Update pull request milestone using the issues API (as pull requests are issues)
+            if (milestoneNumber != null) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ github.event.pull_request.number }},
+                milestone: milestoneNumber
+              });
+            }

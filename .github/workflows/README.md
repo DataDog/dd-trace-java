@@ -6,9 +6,9 @@ This lists and describes the repository GitHub actions.
 
 ### add-milestone-to-pull-requests [🔗](add-milestone-to-pull-requests.yaml)
 
-_Trigger:_ When a PR to `master` is closed.
+_Trigger:_ When a PR targeting `master` or a patch release (`release/vM.N.x`) branch is closed.
 
-_Action:_ Get the last (by name) opened milestone and affect it to the closed pull request.
+_Action:_ Attach the corresponding milestone to the closed pull request (if not set).
 
 _Recovery:_ Attach the milestone by hand to the PR.
 
