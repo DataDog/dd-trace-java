@@ -194,6 +194,11 @@ deploy_to_sonatype:
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository --max-workers=1 --build-cache --stacktrace --no-daemon
+  artifacts:
+    paths:
+      - 'workspace/dd-java-agent/build/libs/*.jar'
+      - 'workspace/dd-trace-api/build/libs/*.jar'
+      - 'workspace/dd-trace-ot/build/libs/*.jar'
 
 deploy_artifacts_to_github:
   stage: deploy
