@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.source.index;
 
-import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.List;
@@ -28,7 +27,7 @@ public class ConventionBasedResourceResolver implements ResourceResolver {
    * @return Resource root
    */
   @Override
-  public Path getResourceRoot(Path resourceFile) throws IOException {
+  public Path getResourceRoot(Path resourceFile) {
     String pathAsString = resourceFile.toString();
     for (String resourceFolderName : resourceFolderNames) {
       int idx = pathAsString.indexOf(resourceFolderName);

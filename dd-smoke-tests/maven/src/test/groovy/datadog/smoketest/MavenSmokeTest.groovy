@@ -237,7 +237,6 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED)}=true," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
-        "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED)}=false," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION)}=${JAVAC_PLUGIN_VERSION}," +
         "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}," +
