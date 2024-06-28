@@ -126,4 +126,9 @@ public class Tags {
   public static final String DD_ENV = "dd.env";
 
   public static final String ENV = "env";
+
+  /** ASM force tracer to keep the trace */
+  public static final String ASM_KEEP = "asm.keep";
+
+  public static final String PROPAGATED_APPSEC = "_dd.p.appsec";
 }

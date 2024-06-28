@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.SkippableAwareCoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
@@ -44,13 +45,14 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final LongAdder testsSkipped = new LongAdder();
   private final String itrCorrelationId;
   private final Collection<TestIdentifier> skippableTests;
+  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final boolean flakyTestRetriesEnabled;
   @Nullable private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestIdentifier> knownTests;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
   private final boolean codeCoverageEnabled;
-  private final boolean itrEnabled;
+  private final boolean testSkippingEnabled;
 
   public HeadlessTestModule(
       AgentSpan.Context sessionSpanContext,
@@ -78,13 +80,16 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory,
         onSpanFinish);
 
     codeCoverageEnabled = executionSettings.isCodeCoverageEnabled();
-    itrEnabled = executionSettings.isItrEnabled();
+    testSkippingEnabled = executionSettings.isTestSkippingEnabled();
     itrCorrelationId = executionSettings.getItrCorrelationId();
     skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
+    this.coverageProbeStoreFactory =
+        executionSettings.isItrEnabled()
+            ? new SkippableAwareCoverageProbeStoreFactory(skippableTests, coverageProbeStoreFactory)
+            : coverageProbeStoreFactory;
 
     flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
     Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
@@ -97,18 +102,18 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   }
 
   @Override
-  public boolean isSkippable(TestIdentifier test) {
-    return test != null && skippableTests.contains(test);
-  }
-
-  @Override
   public boolean isNew(TestIdentifier test) {
     return knownTests != null && !knownTests.contains(test.withoutParameters());
   }
 
   @Override
+  public boolean shouldBeSkipped(TestIdentifier test) {
+    return testSkippingEnabled && test != null && skippableTests.contains(test);
+  }
+
+  @Override
   public boolean skip(TestIdentifier test) {
-    if (isSkippable(test)) {
+    if (shouldBeSkipped(test)) {
       testsSkipped.increment();
       return true;
     } else {
@@ -148,7 +153,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
 
-    if (itrEnabled) {
+    if (testSkippingEnabled) {
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
 

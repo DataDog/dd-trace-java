@@ -6,8 +6,11 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_STACK_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
@@ -28,7 +31,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_RESOURCE_FOL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED;
@@ -127,6 +129,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
+import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
@@ -146,6 +149,8 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
@@ -153,6 +158,8 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_STACK_TRACE_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_STANDALONE_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
@@ -161,6 +168,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED;
@@ -201,8 +209,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_CL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TELEMETRY_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -255,6 +263,7 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
+import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
@@ -743,7 +752,11 @@ public class Config {
   private final String appSecHttpBlockedTemplateJson;
   private final UserEventTrackingMode appSecUserEventsTracking;
   private final Boolean appSecScaEnabled;
-  private final Boolean appSecRaspEnabled;
+  private final boolean appSecRaspEnabled;
+  private final boolean appSecStackTraceEnabled;
+  private final int appSecMaxStackTraces;
+  private final int appSecMaxStackTraceDepth;
+  private final boolean appSecStandaloneEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
 
@@ -768,7 +781,6 @@ public class Config {
   private final String ciVisibilityAgentlessUrl;
 
   private final boolean ciVisibilitySourceDataEnabled;
-  private final boolean ciVisibilitySourceDataRootCheckEnabled;
   private final boolean ciVisibilityBuildInstrumentationEnabled;
   private final Long ciVisibilitySessionId;
   private final Long ciVisibilityModuleId;
@@ -799,6 +811,7 @@ public class Config {
   private final int ciVisibilitySignalServerPort;
   private final int ciVisibilitySignalClientTimeoutMillis;
   private final boolean ciVisibilityItrEnabled;
+  private final boolean ciVisibilityTestSkippingEnabled;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexSharingEnabled;
   private final int ciVisibilityModuleExecutionSettingsCacheSize;
@@ -815,6 +828,7 @@ public class Config {
   private final String ciVisibilityModuleName;
   private final boolean ciVisibilityTelemetryEnabled;
   private final long ciVisibilityRumFlushWaitMillis;
+  private final boolean ciVisibilityAutoInjected;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -895,6 +909,7 @@ public class Config {
 
   private final boolean traceAgentV05Enabled;
 
+  private final String logLevel;
   private final boolean debugEnabled;
   private final boolean triageEnabled;
   private final String triageReportTrigger;
@@ -965,6 +980,12 @@ public class Config {
   private final long tracePostProcessingTimeout;
 
   private final boolean telemetryDebugRequestsEnabled;
+
+  private final boolean agentlessLogSubmissionEnabled;
+  private final int agentlessLogSubmissionQueueSize;
+  private final String agentlessLogSubmissionLevel;
+  private final String agentlessLogSubmissionUrl;
+  private final String agentlessLogSubmissionProduct;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -1648,7 +1669,15 @@ public class Config {
             configProvider.getStringNotEmpty(
                 APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
+    appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
+    appSecStackTraceEnabled =
+        configProvider.getBoolean(APPSEC_STACK_TRACE_ENABLED, DEFAULT_APPSEC_STACK_TRACE_ENABLED);
+    appSecMaxStackTraces =
+        configProvider.getInteger(APPSEC_MAX_STACK_TRACES, DEFAULT_APPSEC_MAX_STACK_TRACES);
+    appSecMaxStackTraceDepth =
+        configProvider.getInteger(
+            APPSEC_MAX_STACK_TRACE_DEPTH, DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -1707,11 +1736,6 @@ public class Config {
     ciVisibilitySourceDataEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_SOURCE_DATA_ENABLED, DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED);
-
-    ciVisibilitySourceDataRootCheckEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED,
-            DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED);
 
     ciVisibilityBuildInstrumentationEnabled =
         configProvider.getBoolean(
@@ -1810,6 +1834,8 @@ public class Config {
     ciVisibilitySignalClientTimeoutMillis =
         configProvider.getInteger(CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS, 10_000);
     ciVisibilityItrEnabled = configProvider.getBoolean(CIVISIBILITY_ITR_ENABLED, true);
+    ciVisibilityTestSkippingEnabled =
+        configProvider.getBoolean(CIVISIBILITY_TEST_SKIPPING_ENABLED, true);
     ciVisibilityCiProviderIntegrationEnabled =
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
     ciVisibilityRepoIndexSharingEnabled =
@@ -1839,6 +1865,8 @@ public class Config {
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
     ciVisibilityRumFlushWaitMillis =
         configProvider.getLong(CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS, 500);
+    ciVisibilityAutoInjected =
+        Strings.isNotBlank(configProvider.getString(CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER));
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -2012,6 +2040,7 @@ public class Config {
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
+    logLevel = configProvider.getString(LOG_LEVEL);
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
     triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, instrumenterConfig.isTriageEnabled());
     triageReportTrigger = configProvider.getString(TRIAGE_REPORT_TRIGGER);
@@ -2134,6 +2163,16 @@ public class Config {
         configProvider.getBoolean(
             GeneralConfig.TELEMETRY_DEBUG_REQUESTS_ENABLED,
             ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED);
+
+    this.agentlessLogSubmissionEnabled =
+        configProvider.getBoolean(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+    this.agentlessLogSubmissionQueueSize =
+        configProvider.getInteger(GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE, 1024);
+    this.agentlessLogSubmissionLevel =
+        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL, "INFO");
+    this.agentlessLogSubmissionUrl =
+        configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
+    this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -2553,7 +2592,8 @@ public class Config {
   }
 
   public boolean isTracerMetricsEnabled() {
-    return tracerMetricsEnabled;
+    // When ASM Standalone Billing is enabled metrics should be disabled
+    return tracerMetricsEnabled && !isAppSecStandaloneEnabled();
   }
 
   public boolean isTracerMetricsBufferingEnabled() {
@@ -2950,10 +2990,6 @@ public class Config {
     return ciVisibilitySourceDataEnabled;
   }
 
-  public boolean isCiVisibilitySourceDataRootCheckEnabled() {
-    return ciVisibilitySourceDataRootCheckEnabled;
-  }
-
   public boolean isCiVisibilityBuildInstrumentationEnabled() {
     return ciVisibilityBuildInstrumentationEnabled;
   }
@@ -3087,6 +3123,10 @@ public class Config {
     return ciVisibilityItrEnabled;
   }
 
+  public boolean isCiVisibilityTestSkippingEnabled() {
+    return ciVisibilityTestSkippingEnabled;
+  }
+
   public boolean isCiVisibilityCiProviderIntegrationEnabled() {
     return ciVisibilityCiProviderIntegrationEnabled;
   }
@@ -3153,6 +3193,10 @@ public class Config {
 
   public long getCiVisibilityRumFlushWaitMillis() {
     return ciVisibilityRumFlushWaitMillis;
+  }
+
+  public boolean isCiVisibilityAutoInjected() {
+    return ciVisibilityAutoInjected;
   }
 
   public String getAppSecRulesFile() {
@@ -3283,18 +3327,21 @@ public class Config {
     return debuggerThirdPartyExcludes;
   }
 
-  public String getFinalDebuggerProbeUrl() {
-    // by default poll from datadog agent
-    return "http://" + agentHost + ":" + agentPort;
+  private String getFinalDebuggerBaseUrl() {
+    if (agentUrl.startsWith("unix:")) {
+      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
+      return "http://" + agentHost + ":" + agentPort;
+    } else {
+      return agentUrl;
+    }
   }
 
   public String getFinalDebuggerSnapshotUrl() {
-    // by default send to datadog agent
-    return agentUrl + "/debugger/v1/input";
+    return getFinalDebuggerBaseUrl() + "/debugger/v1/input";
   }
 
   public String getFinalDebuggerSymDBUrl() {
-    return agentUrl + "/symdb/v1/input";
+    return getFinalDebuggerBaseUrl() + "/symdb/v1/input";
   }
 
   public String getDebuggerProbeFileLocation() {
@@ -3399,6 +3446,10 @@ public class Config {
 
   public boolean isTraceAgentV05Enabled() {
     return traceAgentV05Enabled;
+  }
+
+  public String getLogLevel() {
+    return logLevel;
   }
 
   public boolean isDebugEnabled() {
@@ -3539,6 +3590,9 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
+    if (isAppSecStandaloneEnabled()) {
+      result.put(APM_ENABLED, 0);
+    }
 
     if (reportHostName) {
       final String hostName = getHostName();
@@ -3996,12 +4050,48 @@ public class Config {
     return telemetryDebugRequestsEnabled;
   }
 
+  public boolean isAgentlessLogSubmissionEnabled() {
+    return agentlessLogSubmissionEnabled;
+  }
+
+  public int getAgentlessLogSubmissionQueueSize() {
+    return agentlessLogSubmissionQueueSize;
+  }
+
+  public String getAgentlessLogSubmissionLevel() {
+    return agentlessLogSubmissionLevel;
+  }
+
+  public String getAgentlessLogSubmissionUrl() {
+    return agentlessLogSubmissionUrl;
+  }
+
+  public String getAgentlessLogSubmissionProduct() {
+    return agentlessLogSubmissionProduct;
+  }
+
   public Boolean getAppSecScaEnabled() {
     return appSecScaEnabled;
   }
 
-  public Boolean getAppSecRaspEnabled() {
+  public boolean isAppSecStandaloneEnabled() {
+    return appSecStandaloneEnabled;
+  }
+
+  public boolean isAppSecRaspEnabled() {
     return appSecRaspEnabled;
+  }
+
+  public boolean isAppSecStackTraceEnabled() {
+    return appSecStackTraceEnabled;
+  }
+
+  public int getAppSecMaxStackTraces() {
+    return appSecMaxStackTraces;
+  }
+
+  public int getAppSecMaxStackTraceDepth() {
+    return appSecMaxStackTraceDepth;
   }
 
   private <T> Set<T> getSettingsSetFromEnvironment(
@@ -4554,6 +4644,8 @@ public class Config {
         + xDatadogTagsMaxLength
         + ", traceAgentV05Enabled="
         + traceAgentV05Enabled
+        + ", logLevel="
+        + logLevel
         + ", debugEnabled="
         + debugEnabled
         + ", triageEnabled="
@@ -4644,6 +4736,8 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
+        + ", appSecStandaloneEnabled="
+        + appSecStandaloneEnabled
         + '}';
   }
 }

@@ -132,7 +132,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     }
 
     TestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
-    TestImpl test = testSuite.testStart(testName, testMethod, null);
+    TestImpl test = testSuite.testStart(testName, testParameters, testMethod, null);
 
     TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters, null);
     if (testModule.isNew(thisTest)) {
@@ -160,7 +160,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
           test.setTag(Tags.TEST_ITR_UNSKIPPABLE, true);
           metricCollector.add(CiVisibilityCountMetric.ITR_UNSKIPPABLE, 1, EventType.TEST);
 
-          if (testModule.isSkippable(thisTest)) {
+          if (testModule.shouldBeSkipped(thisTest)) {
             test.setTag(Tags.TEST_ITR_FORCED_RUN, true);
             metricCollector.add(CiVisibilityCountMetric.ITR_FORCED_RUN, 1, EventType.TEST);
           }
@@ -247,8 +247,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   }
 
   @Override
-  public boolean isSkippable(TestIdentifier test) {
-    return testModule.isSkippable(test);
+  public boolean shouldBeSkipped(TestIdentifier test) {
+    return testModule.shouldBeSkipped(test);
   }
 
   @Override

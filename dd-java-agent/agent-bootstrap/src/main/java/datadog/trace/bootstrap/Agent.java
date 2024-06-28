@@ -101,7 +101,9 @@ public class Agent {
     USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
     TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
     DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false),
-    DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false);
+    DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
+    AGENTLESS_LOG_SUBMISSION(
+        propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -145,6 +147,7 @@ public class Agent {
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
+  private static boolean agentlessLogSubmissionEnabled = false;
 
   public static void start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
     StaticEventLogger.begin("Agent");
@@ -231,6 +234,7 @@ public class Agent {
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
+    agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -362,6 +366,9 @@ public class Agent {
     if (telemetryEnabled) {
       stopTelemetry();
     }
+    if (agentlessLogSubmissionEnabled) {
+      shutdownLogsIntake();
+    }
   }
 
   public static synchronized Class<?> installAgentCLI() throws Exception {
@@ -487,6 +494,7 @@ public class Agent {
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
+      maybeStartLogsIntake(scoClass, sco);
       // start debugger before remote config to subscribe to it before starting to poll
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
@@ -798,6 +806,39 @@ public class Agent {
     }
   }
 
+  private static void maybeStartLogsIntake(Class<?> scoClass, Object sco) {
+    if (agentlessLogSubmissionEnabled) {
+      StaticEventLogger.begin("Logs Intake");
+
+      try {
+        final Class<?> logsIntakeSystemClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
+        final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
+        logsIntakeInstallerMethod.invoke(null, sco);
+      } catch (final Throwable e) {
+        log.warn("Not starting Logs Intake subsystem", e);
+      }
+
+      StaticEventLogger.end("Logs Intake");
+    }
+  }
+
+  private static void shutdownLogsIntake() {
+    if (AGENT_CLASSLOADER == null) {
+      // It wasn't started, so no need to shut it down
+      return;
+    }
+    try {
+      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+      final Class<?> logsIntakeSystemClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
+      final Method shutdownMethod = logsIntakeSystemClass.getMethod("shutdown");
+      shutdownMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while shutting down logs intake", ex);
+    }
+  }
+
   private static void startTelemetry(Instrumentation inst, Class<?> scoClass, Object sco) {
     StaticEventLogger.begin("Telemetry");
 
@@ -1014,10 +1055,22 @@ public class Agent {
     setSystemPropertyDefault(
         SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT);
 
+    String logLevel;
     if (isDebugMode()) {
-      setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, "DEBUG");
-    } else if (!isFeatureEnabled(AgentFeature.STARTUP_LOGS)) {
-      setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, "WARN");
+      logLevel = "DEBUG";
+    } else {
+      logLevel = ddGetProperty("dd.log.level");
+      if (null == logLevel) {
+        logLevel = System.getenv("OTEL_LOG_LEVEL");
+      }
+    }
+
+    if (null == logLevel && !isFeatureEnabled(AgentFeature.STARTUP_LOGS)) {
+      logLevel = "WARN";
+    }
+
+    if (null != logLevel) {
+      setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, logLevel);
     }
   }
 

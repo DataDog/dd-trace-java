@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ci;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
 
 class AwsCodePipelineInfo implements CIProviderInfo {
@@ -25,5 +26,10 @@ class AwsCodePipelineInfo implements CIProviderInfo {
             AWS_CODEPIPELINE_ACTION_EXECUTION_ID,
             AWS_CODEPIPELINE_ARN)
         .build();
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.AWS;
   }
 }

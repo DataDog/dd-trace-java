@@ -33,7 +33,7 @@ public class Servlet31RequestBodyInstrumentation extends InstrumenterModule.AppS
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching request bodies before 3.1.x which have their own instrumentation
     return hasClassNamed("javax.servlet.ReadListener");
   }

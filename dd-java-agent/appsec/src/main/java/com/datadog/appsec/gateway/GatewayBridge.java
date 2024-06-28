@@ -19,8 +19,9 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
+import com.datadog.appsec.stack_trace.StackTraceCollection;
+import com.datadog.appsec.util.ObjectFlattener;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
@@ -69,7 +70,6 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final RateLimiter rateLimiter;
   private final ApiSecurityRequestSampler requestSampler;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
@@ -79,6 +79,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo requestBodySubInfo;
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
+  private volatile DataSubscriberInfo grpcServerMethodSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo graphqlServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo requestEndSubInfo;
@@ -88,12 +89,10 @@ public class GatewayBridge {
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
-      RateLimiter rateLimiter,
       ApiSecurityRequestSampler requestSampler,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
-    this.rateLimiter = rateLimiter;
     this.requestSampler = requestSampler;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
@@ -139,37 +138,42 @@ public class GatewayBridge {
               pp.processTraceSegment(traceSeg, ctx, collectedEvents);
             }
 
-            if (rateLimiter == null || !rateLimiter.isThrottled()) {
-              // If detected any events - mark span at appsec.event
-              if (!collectedEvents.isEmpty()) {
-                // Keep event related span, because it could be ignored in case of
-                // reduced datadog sampling rate.
-                traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
-                traceSeg.setTagTop("appsec.event", true);
-                traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
+            // If detected any events - mark span at appsec.event
+            if (!collectedEvents.isEmpty()) {
+              // Set asm keep in case that root span was not available when events are detected
+              traceSeg.setTagTop(Tags.ASM_KEEP, true);
+              traceSeg.setTagTop("appsec.event", true);
+              traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
-                // Reflect client_ip as actor.ip for backward compatibility
-                Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
-                if (clientIp != null) {
-                  traceSeg.setTagTop("actor.ip", clientIp);
-                }
-
-                // Report AppSec events via "_dd.appsec.json" tag
-                AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
-                traceSeg.setDataTop("appsec", wrapper);
-
-                // Report collected request and response headers based on allow list
-                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
-                writeResponseHeaders(
-                    traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
-              } else if (hasUserTrackingEvent(traceSeg)) {
-                // Report all collected request headers on user tracking event
-                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
-              } else {
-                // Report minimum set of collected request headers
-                writeRequestHeaders(
-                    traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+              // Reflect client_ip as actor.ip for backward compatibility
+              Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
+              if (clientIp != null) {
+                traceSeg.setTagTop("actor.ip", clientIp);
               }
+
+              // Report AppSec events via "_dd.appsec.json" tag
+              AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
+              traceSeg.setDataTop("appsec", wrapper);
+
+              // Report collected request and response headers based on allow list
+              writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+              writeResponseHeaders(traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+
+              // Report collected stack traces
+              StackTraceCollection stackTraceCollection = ctx.transferStackTracesCollection();
+              if (stackTraceCollection != null) {
+                Object flatStruct = ObjectFlattener.flatten(stackTraceCollection);
+                if (flatStruct != null) {
+                  traceSeg.setMetaStructTop("_dd.stack", flatStruct);
+                }
+              }
+            } else if (hasUserTrackingEvent(traceSeg)) {
+              // Report all collected request headers on user tracking event
+              writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+            } else {
+              // Report minimum set of collected request headers
+              writeRequestHeaders(
+                  traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
             }
             // If extracted any Api Schemas - commit them
             if (!ctx.commitApiSchemas(traceSeg)) {
@@ -359,6 +363,32 @@ public class GatewayBridge {
           }
           ctx.finishResponseHeaders();
           return maybePublishResponseData(ctx);
+        });
+
+    subscriptionService.registerCallback(
+        EVENTS.grpcServerMethod(),
+        (ctx_, method) -> {
+          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+          if (ctx == null || method == null || method.isEmpty()) {
+            return NoopFlow.INSTANCE;
+          }
+          while (true) {
+            DataSubscriberInfo subInfo = grpcServerMethodSubInfo;
+            if (subInfo == null) {
+              subInfo = producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_METHOD);
+              grpcServerMethodSubInfo = subInfo;
+            }
+            if (subInfo == null || subInfo.isEmpty()) {
+              return NoopFlow.INSTANCE;
+            }
+            DataBundle bundle =
+                new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_METHOD, method);
+            try {
+              return producerService.publishDataEvent(subInfo, ctx, bundle, true);
+            } catch (ExpiredSubscriberInfoException e) {
+              grpcServerMethodSubInfo = null;
+            }
+          }
         });
 
     subscriptionService.registerCallback(

@@ -89,34 +89,34 @@ public final class ExtensionFinder {
   /** Builds a URL that uses an {@link ExtensionHandler} to access the extension. */
   private static URL buildExtensionURL(JarFile jar, ExtensionHandler handler) {
     try {
-      return new URL(
-          "dd-ext",
-          null,
-          -1,
-          "/",
-          new URLStreamHandler() {
-            @Override
-            protected URLConnection openConnection(URL url) throws IOException {
-              return openExtension(url, jar, handler);
-            }
-          });
+      return new URL("dd-ext", null, -1, "/", new StreamMapper(jar, handler));
     } catch (MalformedURLException ignore) {
       return null;
     }
   }
 
-  /** Uses the given {@link ExtensionHandler} to access content from the extension. */
-  static URLConnection openExtension(URL url, JarFile jar, ExtensionHandler handler)
-      throws IOException {
-    String file = url.getFile();
-    if (!file.isEmpty() && file.charAt(0) == '/') {
-      file = file.substring(1);
+  /** Uses a {@link ExtensionHandler} to map and stream content from the extension. */
+  static final class StreamMapper extends URLStreamHandler {
+    private final JarFile jar;
+    private final ExtensionHandler handler;
+
+    StreamMapper(JarFile jar, ExtensionHandler handler) {
+      this.jar = jar;
+      this.handler = handler;
     }
-    JarEntry jarEntry = handler.mapEntry(jar, file);
-    if (null != jarEntry) {
-      return handler.mapContent(url, jar, jarEntry);
-    } else {
-      throw new FileNotFoundException("JAR entry " + file + " not found in " + jar.getName());
+
+    @Override
+    protected URLConnection openConnection(URL url) throws IOException {
+      String file = url.getFile();
+      if (!file.isEmpty() && file.charAt(0) == '/') {
+        file = file.substring(1);
+      }
+      JarEntry jarEntry = handler.mapEntry(jar, file);
+      if (null != jarEntry) {
+        return handler.mapContent(url, jar, jarEntry);
+      } else {
+        throw new FileNotFoundException("JAR entry " + file + " not found in " + jar.getName());
+      }
     }
   }
 

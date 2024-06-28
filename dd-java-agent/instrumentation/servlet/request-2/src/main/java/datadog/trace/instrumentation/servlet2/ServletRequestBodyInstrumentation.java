@@ -53,7 +53,7 @@ public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching request bodies after 3.0.x which have their own instrumentation
     return not(hasClassNamed("javax.servlet.ReadListener"));
   }

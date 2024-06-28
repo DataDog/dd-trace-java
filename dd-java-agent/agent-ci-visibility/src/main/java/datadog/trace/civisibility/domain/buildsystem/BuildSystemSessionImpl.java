@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -54,7 +55,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
   private final RepoIndexProvider repoIndexProvider;
   protected final LongAdder testsSkipped = new LongAdder();
   private volatile boolean codeCoverageEnabled;
-  private volatile boolean itrEnabled;
+  private volatile boolean testSkippingEnabled;
   private final Object coverageDataLock = new Object();
 
   @GuardedBy("coverageDataLock")
@@ -68,7 +69,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
       String repoRoot,
       String startCommand,
       @Nullable Long startTime,
-      boolean supportedCiProvider,
+      Provider ciProvider,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestModuleRegistry testModuleRegistry,
@@ -84,7 +85,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
         projectName,
         startTime,
         InstrumentationType.BUILD,
-        supportedCiProvider,
+        ciProvider,
         config,
         metricCollector,
         testDecorator,
@@ -114,8 +115,8 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
     if (result.isCoverageEnabled()) {
       codeCoverageEnabled = true;
     }
-    if (result.isItrEnabled()) {
-      itrEnabled = true;
+    if (result.isTestSkippingEnabled()) {
+      testSkippingEnabled = true;
     }
     if (result.isEarlyFlakeDetectionEnabled()) {
       setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
@@ -166,8 +167,9 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
 
       ModuleExecutionSettings moduleSettings =
           new ModuleExecutionSettings(
-              settings.isCodeCoverageEnabled(),
               settings.isItrEnabled(),
+              settings.isCodeCoverageEnabled(),
+              settings.isTestSkippingEnabled(),
               settings.isFlakyTestRetriesEnabled(),
               settings.getEarlyFlakeDetectionSettings(),
               settings.getSystemProperties(),
@@ -191,7 +193,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
       setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
 
-    if (itrEnabled) {
+    if (testSkippingEnabled) {
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
 
@@ -269,7 +271,6 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
             sourcePathResolver,
             codeowners,
             methodLinesResolver,
-            coverageProbeStoreFactory,
             repoIndexProvider,
             testModuleRegistry,
             SpanUtils.propagateCiVisibilityTagsTo(span));

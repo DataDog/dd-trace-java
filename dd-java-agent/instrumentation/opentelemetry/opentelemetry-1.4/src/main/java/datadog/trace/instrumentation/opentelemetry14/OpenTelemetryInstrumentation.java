@@ -58,6 +58,7 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
   public String[] helperClassNames() {
     return new String[] {
       "datadog.opentelemetry.shim.context.OtelContext",
+      "datadog.opentelemetry.shim.context.OtelContext$1",
       "datadog.opentelemetry.shim.context.OtelScope",
       "datadog.opentelemetry.shim.context.propagation.AgentTextMapPropagator",
       "datadog.opentelemetry.shim.context.propagation.OtelContextPropagators",

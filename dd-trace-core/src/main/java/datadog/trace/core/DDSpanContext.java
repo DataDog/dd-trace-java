@@ -142,6 +142,7 @@ public class DDSpanContext
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
   private volatile boolean requiresPostProcessing;
+  private volatile CharSequence lastParentId;
   private final boolean isRemote;
 
   /**
@@ -373,6 +374,7 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    setLastParentId(this.propagationTags.getLastParentId());
     this.isRemote = isRemote;
   }
 
@@ -490,9 +492,14 @@ public class DDSpanContext
     this.spanType = spanType;
   }
 
+  /** Forces the local root span sampling decision to keep according manual mechanism. */
   public void forceKeep() {
+    forceKeep(SamplingMechanism.MANUAL);
+  }
+
+  public void forceKeep(byte samplingMechanism) {
     // set trace level sampling priority
-    getRootSpanContextOrThis().forceKeepThisSpan(SamplingMechanism.MANUAL);
+    getRootSpanContextOrThis().forceKeepThisSpan(samplingMechanism);
   }
 
   private void forceKeepThisSpan(byte samplingMechanism) {
@@ -502,6 +509,10 @@ public class DDSpanContext
         == PrioritySampling.UNSET) {
       propagationTags.updateTraceSamplingPriority(PrioritySampling.USER_KEEP, samplingMechanism);
     }
+  }
+
+  public void updateAppsecPropagation(boolean value) {
+    propagationTags.updateAppsecPropagation(value);
   }
 
   /** @return if sampling priority was set by this method invocation */
@@ -529,6 +540,11 @@ public class DDSpanContext
   private boolean setThisSpanSamplingPriority(final int newPriority, final int newMechanism) {
     if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
+    }
+    if (SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism)) {
+      SAMPLING_PRIORITY_UPDATER.set(this, newPriority);
+      propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
+      return true;
     }
     if (!SAMPLING_PRIORITY_UPDATER.compareAndSet(this, PrioritySampling.UNSET, newPriority)) {
       if (log.isDebugEnabled()) {
@@ -1013,6 +1029,19 @@ public class DDSpanContext
 
   public boolean isRequiresPostProcessing() {
     return requiresPostProcessing;
+  }
+
+  public CharSequence getLastParentId() {
+    return lastParentId;
+  }
+
+  public void setLastParentId(CharSequence lastParentId) {
+    if (lastParentId != null) {
+      synchronized (unsafeTags) {
+        unsafeSetTag("_dd.parent_id", lastParentId);
+      }
+      this.lastParentId = lastParentId;
+    }
   }
 
   public boolean isRemote() {

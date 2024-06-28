@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.FNV64Hash;
@@ -9,7 +10,11 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 
 public class AvroSchemaExtractor {
   public static void tryExtractProducer(ProducerRecord record, AgentSpan span) {
-    Integer prio = span.getSamplingPriority();
+    AgentDataStreamsMonitoring dsm = AgentTracer.get().getDataStreamsMonitoring();
+    if (!dsm.canSampleSchema(record.topic())) {
+      return;
+    }
+    Integer prio = span.forceSamplingDecision();
     if (prio == null || prio <= 0) {
       // don't extract schema if span is not sampled
       return;

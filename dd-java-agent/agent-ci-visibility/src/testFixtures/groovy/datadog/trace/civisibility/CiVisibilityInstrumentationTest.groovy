@@ -14,6 +14,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageBridge
 import datadog.trace.api.civisibility.events.TestEventsHandler
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
+import datadog.trace.api.civisibility.telemetry.tag.Provider
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.ContextStore
@@ -76,7 +77,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def rootPath = currentPath.parent
     dummyModule = rootPath.relativize(currentPath)
 
-    def supportedCiProvider = true
+    def ciProvider = Provider.GITHUBACTIONS
 
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
 
@@ -99,7 +100,9 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED)          : String.valueOf(flakyRetryEnabled),
         (CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED): String.valueOf(earlyFlakinessDetectionEnabled)
       ]
-      return new ModuleExecutionSettings(false,
+      return new ModuleExecutionSettings(
+      itrEnabled,
+      false,
       itrEnabled,
       flakyRetryEnabled,
       earlyFlakinessDetectionEnabled
@@ -125,7 +128,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       return new HeadlessTestSession(
       projectName,
       startTime,
-      supportedCiProvider,
+      ciProvider,
       Config.get(),
       metricCollector,
       testDecorator,
@@ -150,7 +153,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       rootPath.toString(),
       startCommand,
       startTime,
-      supportedCiProvider,
+      ciProvider,
       Config.get(),
       metricCollector,
       testModuleRegistry,
@@ -182,15 +185,12 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     @Override
-    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component) {
-      return create(component, new ConcurrentHashMapContextStore<>(), new ConcurrentHashMapContextStore())
-    }
-
-    @Override
     <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore) {
       TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
       TestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
-      new TestEventsHandlerImpl(metricCollector, testSession, testModule, suiteStore, testStore)
+      new TestEventsHandlerImpl(metricCollector, testSession, testModule,
+      suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
+      testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
     }
   }
 

@@ -4,6 +4,7 @@ import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
@@ -45,8 +46,8 @@ public class CiVisibilityRepoServices {
 
   final String repoRoot;
   final String moduleName;
+  final Provider ciProvider;
   final Map<String, String> ciTags;
-  final boolean supportedCiProvider;
 
   final GitDataUploader gitDataUploader;
   final RepoIndexProvider repoIndexProvider;
@@ -56,11 +57,12 @@ public class CiVisibilityRepoServices {
 
   CiVisibilityRepoServices(CiVisibilityServices services, Path path) {
     CIProviderInfo ciProviderInfo = services.ciProviderInfoFactory.createCIProviderInfo(path);
+    ciProvider = ciProviderInfo.getProvider();
+
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
     repoRoot = ciInfo.getCiWorkspace();
     moduleName = getModuleName(services.config, path, ciInfo);
     ciTags = new CITagsProvider().getCiTags(ciInfo);
-    supportedCiProvider = ciProviderInfo.isSupportedCiProvider();
 
     gitDataUploader =
         buildGitDataUploader(
@@ -70,7 +72,7 @@ public class CiVisibilityRepoServices {
             services.gitClientFactory,
             services.backendApi,
             repoRoot);
-    repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot, repoRoot);
+    repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
     codeowners = buildCodeowners(repoRoot);
     sourcePathResolver = buildSourcePathResolver(repoRoot, repoIndexProvider);
 
@@ -173,14 +175,12 @@ public class CiVisibilityRepoServices {
 
   private static SourcePathResolver buildSourcePathResolver(
       String repoRoot, RepoIndexProvider indexProvider) {
-    if (repoRoot != null) {
-      RepoIndexSourcePathResolver indexSourcePathResolver =
-          new RepoIndexSourcePathResolver(repoRoot, indexProvider);
-      return new BestEffortSourcePathResolver(
-          new CompilerAidedSourcePathResolver(repoRoot), indexSourcePathResolver);
-    } else {
-      return NoOpSourcePathResolver.INSTANCE;
-    }
+    SourcePathResolver compilerAidedResolver =
+        repoRoot != null
+            ? new CompilerAidedSourcePathResolver(repoRoot)
+            : NoOpSourcePathResolver.INSTANCE;
+    RepoIndexSourcePathResolver indexResolver = new RepoIndexSourcePathResolver(indexProvider);
+    return new BestEffortSourcePathResolver(compilerAidedResolver, indexResolver);
   }
 
   private static Codeowners buildCodeowners(String repoRoot) {

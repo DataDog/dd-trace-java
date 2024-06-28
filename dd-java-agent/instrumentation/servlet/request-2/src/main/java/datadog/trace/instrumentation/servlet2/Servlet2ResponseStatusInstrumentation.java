@@ -26,7 +26,7 @@ public final class Servlet2ResponseStatusInstrumentation extends InstrumenterMod
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return Servlet2Instrumentation.NOT_SERVLET_3;
   }
 

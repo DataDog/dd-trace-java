@@ -12,7 +12,6 @@ import io.opentelemetry.context.Context
 import io.opentelemetry.context.ThreadLocalContextStorage
 import opentelemetry14.context.propagation.TextMap
 import org.skyscreamer.jsonassert.JSONAssert
-import spock.lang.Ignore
 import spock.lang.Subject
 
 import java.security.InvalidParameterException
@@ -100,7 +99,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  @Ignore("Core tracer is not picking incomplete span context from context")
   def "test parent span using propagation data"() {
     setup:
     def traceId = '00000000000000001111111111111111'

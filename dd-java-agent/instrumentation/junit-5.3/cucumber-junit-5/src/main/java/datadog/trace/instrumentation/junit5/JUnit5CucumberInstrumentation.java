@@ -30,7 +30,7 @@ public class JUnit5CucumberInstrumentation extends InstrumenterModule.CiVisibili
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("io.cucumber.junit.platform.engine.CucumberTestEngine");
   }
 

@@ -9,6 +9,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.Config;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.common.writer.RemoteResponseListener;
@@ -108,7 +109,12 @@ public class DDAgentApi extends RemoteApi {
               .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
               .addHeader(
                   DATADOG_CLIENT_COMPUTED_STATS,
-                  metricsEnabled && featuresDiscovery.supportsMetrics() ? "true" : "")
+                  (metricsEnabled && featuresDiscovery.supportsMetrics())
+                          // Disabling the computation agent-side of the APM trace metrics by
+                          // pretending it was already done by the library
+                          || Config.get().isAppSecStandaloneEnabled()
+                      ? "true"
+                      : "")
               .put(payload.toRequest())
               .build();
       this.totalTraces += payload.traceCount();

@@ -9,8 +9,6 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_AGENTLESS_ENABLED = "civisibility.agentless.enabled";
   public static final String CIVISIBILITY_AGENTLESS_URL = "civisibility.agentless.url";
   public static final String CIVISIBILITY_SOURCE_DATA_ENABLED = "civisibility.source.data.enabled";
-  public static final String CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED =
-      "civisibility.source.data.root.check.enabled";
   public static final String CIVISIBILITY_SESSION_ID = "civisibility.session.id";
   public static final String CIVISIBILITY_MODULE_ID = "civisibility.module.id";
   public static final String CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED =
@@ -41,6 +39,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_SIGNAL_CLIENT_TIMEOUT_MILLIS =
       "civisibility.signal.client.timeout.millis";
   public static final String CIVISIBILITY_ITR_ENABLED = "civisibility.itr.enabled";
+  public static final String CIVISIBILITY_TEST_SKIPPING_ENABLED =
+      "civisibility.test.skipping.enabled";
   public static final String CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED =
       "civisibility.ciprovider.integration.enabled";
   public static final String CIVISIBILITY_REPO_INDEX_SHARING_ENABLED =
@@ -64,6 +64,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_TELEMETRY_ENABLED = "civisibility.telemetry.enabled";
   public static final String CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS =
       "civisibility.rum.flush.wait.millis";
+  public static final String CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER =
+      "civisibility.auto.instrumentation.provider";
 
   /* COVERAGE SETTINGS */
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =

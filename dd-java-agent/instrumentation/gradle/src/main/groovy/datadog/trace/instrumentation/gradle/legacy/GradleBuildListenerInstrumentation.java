@@ -22,7 +22,7 @@ public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVis
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Only instrument Gradle older than 8.3
     return not(hasClassNamed("org.gradle.api.file.ConfigurableFilePermissions"));
   }

@@ -49,7 +49,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_SPAN_ORIGIN_ENABLED = false;
   static final boolean DEFAULT_TRACE_ENABLED = true;
-  static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
+  public static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
@@ -102,6 +102,9 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_API_SECURITY_ENABLED = false;
   static final float DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE = 0.1f; // 10 %
   static final boolean DEFAULT_APPSEC_RASP_ENABLED = false;
+  static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = false;
+  static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;
+  static final int DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH = 32;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
@@ -130,12 +133,11 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED = true;
-  static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
-  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.8";
-  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.11";
+  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.0";
+  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.12";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;

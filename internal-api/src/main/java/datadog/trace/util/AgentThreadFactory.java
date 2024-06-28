@@ -53,7 +53,9 @@ public final class AgentThreadFactory implements ThreadFactory {
     CI_PROJECT_CONFIGURATOR("dd-ci-project-configurator"),
     CI_SIGNAL_SERVER("dd-ci-signal-server"),
 
-    RETRANSFORMER("dd-retransformer");
+    RETRANSFORMER("dd-retransformer"),
+
+    LOGS_INTAKE("dd-logs-intake");
 
     public final String threadName;
 

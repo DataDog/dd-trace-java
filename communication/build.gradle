@@ -1,26 +1,27 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  implementation deps.slf4j
+  implementation libs.slf4j
 
-  api project(':remote-config')
+  api project(':remote-config:remote-config-api')
+  implementation project(':remote-config:remote-config-core')
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
   implementation project(':utils:version-utils')
 
-  api deps.okio
-  api deps.okhttp
-  api group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
-  implementation group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
+  api libs.okio
+  api libs.okhttp
+  api libs.moshi
+  implementation libs.dogstatsd
 
   testImplementation project(':utils:test-utils')
-  testImplementation deps.junit5
-  testImplementation deps.truth
-  testImplementation deps.bytebuddy
+  testImplementation libs.bundles.junit5
+  testImplementation libs.truth
+  testImplementation libs.bytebuddy
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp_legacy
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 }
 
 ext {

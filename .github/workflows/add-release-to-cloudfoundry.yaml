@@ -1,0 +1,34 @@
+name: Add release to Cloud Foundry
+on: 
+  release:
+    types:
+      - released
+jobs:
+  update-releases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout "cloudfoundry" branch
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
+        with:
+          ref: cloudfoundry
+      - name: Get release version
+        id: get-release-version
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: echo "VERSION=$(echo ${TAG_NAME/#v/})" >> $GITHUB_OUTPUT
+      - name: Append release to Cloud Foundry repository
+        env:
+            VERSION: ${{ steps.get-release-version.outputs.VERSION }}
+            GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b ci/cloudfoundry
+          echo "${VERSION}: https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar" >> index.yml
+          git add index.yml
+          git commit -m "chore: Add version ${VERSION} to Cloud Foundry"
+          git push -u origin ci/cloudfoundry
+          gh pr create \
+            --title "Add version ${VERSION} to Cloud Foundry" \
+            --body "This PR add the version ${VERSION} to Cloud Foundry.  Make sure [the JAR is online](https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar) before merging." \
+            --base cloudfoundry

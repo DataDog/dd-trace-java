@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
@@ -488,12 +489,13 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     // There's a race where multiple threads can see PrioritySampling.UNSET here
     // This check skips potential complex sampling priority logic when we know its redundant
     // Locks inside DDSpanContext ensure the correct behavior in the race case
-
-    if (traceConfig.sampler instanceof PrioritySampler
-        && rootSpan != null
-        && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
-
-      ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
+    if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
+      // Ignore the force-keep priority in the absence of propagated _dd.p.appsec span tag.
+      if ((Config.get().isAppSecStandaloneEnabled()
+              && !rootSpan.context().getPropagationTags().isAppsecPropagationEnabled())
+          || rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
+        ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
+      }
     }
   }
 

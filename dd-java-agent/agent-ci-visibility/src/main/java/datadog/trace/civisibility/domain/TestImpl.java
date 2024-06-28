@@ -8,6 +8,7 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
+import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
 import datadog.trace.api.civisibility.domain.TestContext;
@@ -56,6 +57,7 @@ public class TestImpl implements DDTest {
       String moduleName,
       String testSuiteName,
       String testName,
+      @Nullable String testParameters,
       @Nullable String itrCorrelationId,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
@@ -76,7 +78,9 @@ public class TestImpl implements DDTest {
     this.suiteId = suiteId;
     this.onSpanFinish = onSpanFinish;
 
-    CoverageProbeStore probeStore = coverageProbeStoreFactory.create(sourcePathResolver);
+    TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters, null);
+    CoverageProbeStore probeStore =
+        coverageProbeStoreFactory.create(identifier, sourcePathResolver);
     CoverageBridge.setThreadLocalCoverageProbeStore(probeStore);
 
     this.context = new TestContextImpl(probeStore);
@@ -109,7 +113,7 @@ public class TestImpl implements DDTest {
     span.setTag(Tags.TEST_MODULE_ID, moduleId);
     span.setTag(Tags.TEST_SESSION_ID, sessionId);
 
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_PASS);
+    span.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (testClass != null && !testClass.getName().equals(testSuiteName)) {
       span.setTag(Tags.TEST_SOURCE_CLASS, testClass.getName());
@@ -174,12 +178,12 @@ public class TestImpl implements DDTest {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   @Override
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
 
@@ -216,11 +220,15 @@ public class TestImpl implements DDTest {
     InstrumentationTestBridge.fireBeforeTestEnd(context);
 
     CoverageBridge.removeThreadLocalCoverageProbeStore();
-    boolean coveragesGathered =
-        context.getCoverageProbeStore().report(sessionId, suiteId, span.getSpanId());
-    if (!coveragesGathered && !CIConstants.TEST_SKIP.equals(span.getTag(Tags.TEST_STATUS))) {
-      // test is not skipped, but no coverages were gathered
-      metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
+
+    // do not process coverage reports for skipped tests
+    if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {
+      CoverageProbeStore coverageStore = context.getCoverageProbeStore();
+      boolean coveragesGathered = coverageStore.report(sessionId, suiteId, span.getSpanId());
+      if (!coveragesGathered && !TestStatus.skip.equals(span.getTag(Tags.TEST_STATUS))) {
+        // test is not skipped, but no coverages were gathered
+        metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
+      }
     }
 
     scope.close();

@@ -2,8 +2,7 @@ package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.*;
 
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -45,7 +44,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null);
+    return createValid(null, null, null, false);
   }
 
   @Override
@@ -54,8 +53,12 @@ public class PTagsFactory implements PropagationTags.Factory {
   }
 
   PropagationTags createValid(
-      List<TagElement> tagPairs, TagValue decisionMakerTagValue, TagValue traceIdTagValue) {
-    return new PTags(this, tagPairs, decisionMakerTagValue, traceIdTagValue);
+      List<TagElement> tagPairs,
+      TagValue decisionMakerTagValue,
+      TagValue traceIdTagValue,
+      boolean appsecPropagationEnabled) {
+    return new PTags(
+        this, tagPairs, decisionMakerTagValue, traceIdTagValue, appsecPropagationEnabled);
   }
 
   PropagationTags createInvalid(String error) {
@@ -74,6 +77,8 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;
+
+    private volatile boolean appsecPropagationEnabled;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
@@ -99,12 +104,23 @@ public class PTagsFactory implements PropagationTags.Factory {
      */
     protected volatile String error;
 
+    private volatile CharSequence lastParentId;
+
     public PTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
-        TagValue traceIdTagValue) {
-      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, PrioritySampling.UNSET, null);
+        TagValue traceIdTagValue,
+        boolean appsecPropagationEnabled) {
+      this(
+          factory,
+          tagPairs,
+          decisionMakerTagValue,
+          traceIdTagValue,
+          appsecPropagationEnabled,
+          PrioritySampling.UNSET,
+          null,
+          null);
     }
 
     PTags(
@@ -112,15 +128,19 @@ public class PTagsFactory implements PropagationTags.Factory {
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
+        boolean appsecPropagationEnabled,
         int samplingPriority,
-        CharSequence origin) {
+        CharSequence origin,
+        CharSequence lastParentId) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
       this.canChangeDecisionMaker = decisionMakerTagValue == null;
       this.decisionMakerTagValue = decisionMakerTagValue;
+      this.appsecPropagationEnabled = appsecPropagationEnabled;
       this.samplingPriority = samplingPriority;
       this.origin = origin;
+      this.lastParentId = lastParentId;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -132,7 +152,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     static PTags withError(PTagsFactory factory, String error) {
-      PTags pTags = new PTags(factory, null, null, null, PrioritySampling.UNSET, null);
+      PTags pTags = new PTags(factory, null, null, null, false, PrioritySampling.UNSET, null, null);
       pTags.error = error;
       return pTags;
     }
@@ -176,6 +196,21 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
+    public void updateAppsecPropagation(boolean enabled) {
+      if (appsecPropagationEnabled != enabled) {
+        // This should invalidate any cached w3c and datadog header
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+      }
+      appsecPropagationEnabled = enabled;
+    }
+
+    @Override
+    public boolean isAppsecPropagationEnabled() {
+      return appsecPropagationEnabled;
+    }
+
+    @Override
     public int getSamplingPriority() {
       return samplingPriority;
     }
@@ -210,6 +245,20 @@ public class PTagsFactory implements PropagationTags.Factory {
                 ? null
                 : TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
         clearCachedHeader(DATADOG);
+      }
+    }
+
+    @Override
+    public CharSequence getLastParentId() {
+      return lastParentId;
+    }
+
+    @Override
+    public void updateLastParentId(CharSequence lastParentId) {
+      lastParentId = "0000000000000000".equals(lastParentId) ? null : lastParentId;
+      if (!Objects.equals(this.lastParentId, lastParentId)) {
+        clearCachedHeader(W3C);
+        this.lastParentId = TagValue.from(lastParentId);
       }
     }
 
@@ -287,6 +336,9 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
+        if (appsecPropagationEnabled) {
+          size = PTagsCodec.calcXDatadogTagsSize(size, APPSEC_TAG, APPSEC_ENABLED_TAG_VALUE);
+        }
         xDatadogTagsSize = size;
       }
       return size;

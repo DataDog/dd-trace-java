@@ -79,7 +79,8 @@ class ReporterTest extends DDSpecification {
         }
       ]
     }''', batch.toString(), true)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
     0 * _
   }
 
@@ -145,11 +146,12 @@ class ReporterTest extends DDSpecification {
         }
       ]
     }''', batch.toString(), true)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
     0 * _
   }
 
-  void 'null span creates a new one before reporting'() {
+  void 'null span creates a new one before reporting #v.type.name()'() {
     given:
     final tracerAPI = Mock(TracerAPI)
     AgentTracer.forceRegister(tracerAPI)
@@ -180,29 +182,24 @@ class ReporterTest extends DDSpecification {
     0 * _
 
     when:
-    def newSpanId = null
-    def newServiceName = null
-    if(v.getType() instanceof VulnerabilityType.HeaderVulnerabilityType){
-      newServiceName = v.getLocation().getServiceName()
-    }else{
-      newSpanId =  v.getLocation().getSpanId()
-    }
+    def newSpanId = v.getLocation().getSpanId()
+    def newServiceName = v.getLocation().getServiceName()
     def newHash = v.getHash()
 
     then:
-    if(v.getType() instanceof VulnerabilityType.HeaderVulnerabilityType){
-      assert newServiceName == serviceName
+    assert newServiceName == serviceName
+    assert newSpanId == spanId
+    if (hashServiceName) {
       assert newHash != hash
-    }else{
-      assert newSpanId == spanId
+    } else {
       assert newHash == hash
     }
 
     where:
-    v | _
-    defaultVulnerability() | _
-    cookieVulnerability() | _
-    headerVulnerability() | _
+    v                      | hashServiceName
+    defaultVulnerability() | false
+    cookieVulnerability()  | false
+    headerVulnerability()  | true
   }
 
   void 'no spans are create if duplicates are reported'() {
@@ -273,7 +270,8 @@ class ReporterTest extends DDSpecification {
     1 * reqCtx.getTraceSegment() >> traceSegment
     1 * traceSegment.getDataTop('iast') >> null
     1 * traceSegment.setDataTop('iast', _ as VulnerabilityBatch)
-    1 * traceSegment.setTagTop('manual.keep', true)
+    1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
     1 * traceSegment.setTagTop('_dd.iast.enabled', 1)
     0 * _
   }

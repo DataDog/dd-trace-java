@@ -1,9 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
+import datadog.trace.api.Config
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.test.util.DDSpecification
 
+import static datadog.trace.api.UserEventTrackingMode.DISABLED
+import static datadog.trace.api.UserEventTrackingMode.EXTENDED
+import static datadog.trace.api.UserEventTrackingMode.SAFE
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING
 
 class AppSecUserEventDecoratorTest extends DDSpecification {
@@ -27,20 +31,26 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     def decorator = newDecorator()
 
     when:
-    decorator.onSignup('user', ['key1': 'value1', 'key2': 'value2'])
+    decorator.onSignup(user, ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    1 * traceSegment.setTagTop('_dd.appsec.events.users.signup.auto.mode', modeTag)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.signup.auto.mode', mode)
     1 * traceSegment.setTagTop('appsec.events.users.signup.track', true, true)
-    1 * traceSegment.setTagTop('manual.keep', true)
-    1 * traceSegment.setTagTop('usr.id', 'user')
-    1 * traceSegment.setTagTop('appsec.events.users.signup', ['key1':'value1', 'key2':'value2'])
+    1 * traceSegment.setTagTop('asm.keep', true)
+    if (setUser) {
+      1 * traceSegment.setTagTop('usr.id', user)
+    }
+    1 * traceSegment.setTagTop('appsec.events.users.signup', ['key1': 'value1', 'key2': 'value2'])
     0 * _
 
     where:
-    mode        | modeTag
-    'safe'      | 'SAFE'
-    'extended'  | 'EXTENDED'
+    mode       | user                                   | setUser
+    'safe'     | 'user'                                 | false
+    'safe'     | '1234'                                 | true
+    'safe'     | '591dc126-8431-4d0f-9509-b23318d3dce4' | true
+    'extended' | 'user'                                 | true
+    'extended' | '1234'                                 | true
+    'extended' | '591dc126-8431-4d0f-9509-b23318d3dce4' | true
   }
 
   def "test onLoginSuccess [#mode]"() {
@@ -49,44 +59,54 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     def decorator = newDecorator()
 
     when:
-    decorator.onLoginSuccess('user', ['key1': 'value1', 'key2': 'value2'])
+    decorator.onLoginSuccess(user, ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', modeTag)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', mode)
     1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true, true)
-    1 * traceSegment.setTagTop('manual.keep', true)
-    1 * traceSegment.setTagTop('usr.id', 'user')
-    1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1':'value1', 'key2':'value2'])
+    1 * traceSegment.setTagTop('asm.keep', true)
+    if (setUser) {
+      1 * traceSegment.setTagTop('usr.id', user)
+    }
+    1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1': 'value1', 'key2': 'value2'])
     0 * _
 
     where:
-    mode        | modeTag
-    'safe'      | 'SAFE'
-    'extended'  | 'EXTENDED'
+    mode       | user                                   | setUser
+    'safe'     | 'user'                                 | false
+    'safe'     | '1234'                                 | true
+    'safe'     | '591dc126-8431-4d0f-9509-b23318d3dce4' | true
+    'extended' | 'user'                                 | true
+    'extended' | '1234'                                 | true
+    'extended' | '591dc126-8431-4d0f-9509-b23318d3dce4' | true
   }
 
-  def "test onLoginFailed #description [#mode]"() {
+  def "test onLoginFailed [#mode]"() {
     setup:
     injectSysConfig(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, mode)
     def decorator = newDecorator()
 
     when:
-    decorator.onLoginFailure('user', ['key1': 'value1', 'key2': 'value2'])
+    decorator.onLoginFailure(user, ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', modeTag)
+    1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', mode)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.track', true, true)
-    1 * traceSegment.setTagTop('manual.keep', true)
-    1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', 'user')
-    1 * traceSegment.setTagTop('appsec.events.users.login.failure', ['key1':'value1', 'key2':'value2'])
+    1 * traceSegment.setTagTop('asm.keep', true)
+    if (setUser) {
+      1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', user)
+    }
+    1 * traceSegment.setTagTop('appsec.events.users.login.failure', ['key1': 'value1', 'key2': 'value2'])
     0 * _
 
     where:
-    mode       | modeTag    | description
-    'safe'     | 'SAFE'     | 'with existing user'
-    'safe'     | 'SAFE'     | 'user doesn\'t exist'
-    'extended' | 'EXTENDED' | 'with existing user'
-    'extended' | 'EXTENDED' | 'user doesn\'t exist'
+    mode       | user                                   | setUser
+    'safe'     | 'user'                                 | false
+    'safe'     | '1234'                                 | true
+    'safe'     | '591dc126-8431-4d0f-9509-b23318d3dce4' | true
+    'extended' | 'user'                                 | true
+    'extended' | '1234'                                 | true
+    'extended' | '591dc126-8431-4d0f-9509-b23318d3dce4' | true
   }
 
   def "test onUserNotFound [#mode]"() {
@@ -102,9 +122,7 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     0 * _
 
     where:
-    mode       | modeTag
-    'safe'     | 'SAFE'
-    'extended' | 'EXTENDED'
+    mode << ['safe', 'extended']
   }
 
   def "test isEnabled (appsec = #appsec, mode = #mode)"() {
@@ -119,14 +137,21 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     then:
     enabled == result
 
+    and:
+    Config.get().getAppSecUserEventsTrackingMode() == expectedMode
+
     where:
-    appsec | mode       | result
-    false  | "disabled" | false
-    false  | "safe"     | false
-    false  | "extended" | false
-    true   | "disabled" | false
-    true   | "safe"     | true
-    true   | "extended" | true
+    appsec | mode       | result | expectedMode
+    false  | "disabled" | false  | DISABLED
+    false  | "safe"     | false  | SAFE
+    false  | "1"        | false  | SAFE
+    false  | "true"     | false  | SAFE
+    false  | "extended" | false  | EXTENDED
+    true   | "disabled" | false  | DISABLED
+    true   | "safe"     | true   | SAFE
+    true   | "1"        | true   | SAFE
+    true   | "true"     | true   | SAFE
+    true   | "extended" | true   | EXTENDED
   }
 
   def newDecorator() {
