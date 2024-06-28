@@ -258,6 +258,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(1)
 
     then:
+    rootSpans.size() == 1
     rootSpans.each {
       assert it.meta.get('appsec.blocked') == null, 'appsec.blocked is set'
       assert it.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
@@ -290,6 +291,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(1)
 
     then:
+    rootSpans.size() == 1
     rootSpans.each {
       assert it.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
       assert it.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
