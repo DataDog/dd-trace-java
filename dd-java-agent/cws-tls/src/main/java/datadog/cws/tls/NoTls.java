@@ -1,5 +1,6 @@
 package datadog.cws.tls;
 
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 
@@ -12,6 +13,6 @@ public class NoTls implements Tls {
   }
 
   public DDTraceId getTraceId() {
-    return DDTraceId.ZERO;
+    return DD128bTraceId.ZERO;
   }
 }
