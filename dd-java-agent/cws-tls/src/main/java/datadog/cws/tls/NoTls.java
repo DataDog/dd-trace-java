@@ -1,17 +1,18 @@
 package datadog.cws.tls;
 
-import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
+import java.math.BigInteger;
 
 public class NoTls implements Tls {
 
-  public void registerSpan(DDTraceId traceId, long spanId) {}
+  public void registerSpan(DDTraceId traceId, BigInteger spanId) {}
 
-  public long getSpanId() {
-    return DDSpanId.ZERO;
+  public BigInteger getSpanId() {
+    return BigInteger.ZERO;
   }
 
   public DDTraceId getTraceId() {
-    return DDTraceId.ZERO;
+    return DD128bTraceId.ZERO;
   }
 }

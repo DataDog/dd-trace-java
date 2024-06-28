@@ -10,7 +10,9 @@ import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import datadog.cws.erpc.Erpc;
 import datadog.cws.erpc.Request;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
+import java.math.BigInteger;
 
 /**
  * This class is as a thread local storage.
@@ -21,7 +23,8 @@ import datadog.trace.api.DDTraceId;
 public class ErpcTls implements Tls {
   public static final byte REGISTER_SPAN_TLS_OP = 6;
   public static final long TLS_FORMAT = 0;
-  static final long ENTRY_SIZE = Native.LONG_SIZE * 2;
+  static final int ID_SIZE = 16; // 128 bits
+  static final long ENTRY_SIZE = ID_SIZE * 2; // 2 x 128 bits
 
   // Thread local storage
   private Pointer tls;
@@ -134,33 +137,36 @@ public class ErpcTls implements Tls {
   }
 
   private long getTraceIdOffset(int threadId) {
-    return getSpanIdOffset(threadId) + Native.LONG_SIZE;
+    return getSpanIdOffset(threadId) + ID_SIZE;
   }
 
-  public void registerSpan(int threadId, DDTraceId traceId, long spanId) {
+  public void registerSpan(int threadId, DDTraceId traceId, BigInteger spanId) {
     long spanIdOffset = getSpanIdOffset(threadId);
     long traceIdOffset = getTraceIdOffset(threadId);
 
-    tls.setLong(spanIdOffset, spanId);
-    tls.setLong(traceIdOffset, traceId.toLong());
+    tls.write(spanIdOffset, spanId.toByteArray(), 0, ID_SIZE);
+    tls.setLong(traceIdOffset, traceId.toLong()); // low bits
+    tls.setLong(traceIdOffset + 8, traceId.toHighOrderLong()); // high bits
   }
 
-  public void registerSpan(DDTraceId traceId, long spanId) {
+  public void registerSpan(DDTraceId traceId, BigInteger spanId) {
     registerSpan(getTID(), traceId, spanId);
   }
 
-  public long getSpanId(int threadId) {
+  public BigInteger getSpanId(int threadId) {
     long offset = getSpanIdOffset(threadId);
-    return tls.getLong(offset);
+    return new BigInteger(tls.getByteArray(offset, ID_SIZE));
   }
 
-  public long getSpanId() {
+  public BigInteger getSpanId() {
     return getSpanId(getTID());
   }
 
   public DDTraceId getTraceId(int threadId) {
     long offset = getTraceIdOffset(threadId);
-    return DDTraceId.from(tls.getLong(offset));
+    long lowBits = tls.getLong(offset);
+    long highBits = tls.getLong(offset + 8);
+    return DD128bTraceId.from(highBits, lowBits);
   }
 
   public DDTraceId getTraceId() {
