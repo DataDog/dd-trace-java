@@ -22,8 +22,6 @@ import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Period;
 import jdk.jfr.StackTrace;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Name("datadog.SmapEntry")
 @Label("Smap Entry")
@@ -35,7 +33,6 @@ import org.slf4j.LoggerFactory;
 public class SmapEntryEvent extends Event {
   private static final AtomicBoolean registered = new AtomicBoolean(false);
   private static boolean annotatedMapsAvailable;
-  private static final Logger log = LoggerFactory.getLogger(SmapEntryEvent.class);
   private static final String VSYSCALL_START_ADDRESS = "ffffffffff600000";
   private static final Pattern SYSTEM_MAP_ENTRY_PATTERN =
       Pattern.compile(
@@ -158,8 +155,10 @@ public class SmapEntryEvent extends Event {
   private final String nmtCategory;
 
   private enum ErrorReason {
-    PARSING_ERROR,
+    SMAP_PARSING_ERROR,
     SMAP_FILE_NOT_FOUND,
+    VM_MAP_UNAVAILABLE,
+    VM_MAP_PARSING_ERROR,
   }
 
   private static class SmapParseErrorEvent extends Event {
@@ -280,11 +279,11 @@ public class SmapEntryEvent extends Event {
         }
         return annotatedRegions;
       } catch (Exception e) {
-        log.info("Something went wrong reading the System.map");
+        new SmapParseErrorEvent(ErrorReason.VM_MAP_PARSING_ERROR).commit();
         return null;
       }
     } else {
-      log.info("System.map not available for this JVM instance");
+      new SmapParseErrorEvent(ErrorReason.VM_MAP_UNAVAILABLE).commit();
       return null;
     }
   }
@@ -461,9 +460,6 @@ public class SmapEntryEvent extends Event {
         if (annotatedRegions != null && annotatedRegions.containsKey(startAddress)) {
           nmtCategory = annotatedRegions.get(startAddress);
         } else {
-          if (annotatedRegions == null) {
-            log.info("Annotated regions is null");
-          }
           nmtCategory = "UNKNOWN";
         }
         new SmapEntryEvent(
@@ -503,11 +499,9 @@ public class SmapEntryEvent extends Event {
             .commit();
       }
     } catch (FileNotFoundException e) {
-      log.info("Could not read /proc/self/smaps");
       new SmapParseErrorEvent(ErrorReason.SMAP_FILE_NOT_FOUND).commit();
     } catch (Exception e) {
-      log.info("A runtime error occurred while parsing /proc/self/smaps");
-      new SmapParseErrorEvent(ErrorReason.PARSING_ERROR).commit();
+      new SmapParseErrorEvent(ErrorReason.SMAP_PARSING_ERROR).commit();
     }
   }
 
