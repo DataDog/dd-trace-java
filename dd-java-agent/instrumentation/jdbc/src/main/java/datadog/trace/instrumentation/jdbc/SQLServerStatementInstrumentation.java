@@ -31,10 +31,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public final class StatementInstrumentation extends InstrumenterModule.Tracing
+public final class SQLServerStatementInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy {
 
-  public StatementInstrumentation() {
+  public SQLServerStatementInstrumentation() {
     super("jdbc");
   }
 
@@ -45,19 +45,12 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("java.sql.Statement"));
+    return named("com.microsoft.sqlserver.jdbc.SQLServerStatement");
   }
 
   @Override
   public Map<String, String> contextStore() {
     return singletonMap("java.sql.Connection", DBInfo.class.getName());
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
-    };
   }
 
   // prepend mode will prepend the SQL comment to the raw sql query
@@ -67,10 +60,10 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         nameStartsWith("execute").and(takesArgument(0, String.class)).and(isPublic()),
-        StatementInstrumentation.class.getName() + "$StatementAdvice");
+        SQLServerStatementInstrumentation.class.getName() + "$SQLServerStatementAdvice");
   }
 
-  public static class StatementAdvice {
+  public static class SQLServerStatementAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
@@ -81,50 +74,21 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
       try {
-        System.out.println("StatementAdvice.onEnter");
+        System.out.println("SQLServerStatementAdvice.onEnter");
         final Connection connection = statement.getConnection();
         final AgentSpan span = startSpan(DATABASE_QUERY);
-        DECORATE.afterStart(span);
-        final DBInfo dbInfo =
-            JDBCDecorator.parseDBInfo(
-                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        DECORATE.onConnection(span, dbInfo);
-        final String copy = sql;
-        System.out.println("HERE before if");
         if (span != null && INJECT_COMMENT) {
           System.out.println("HERE after if");
           String traceParent = null;
 
-          boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
-          if (injectTraceContext) {
-            Integer priority = span.forceSamplingDecision();
-            if (priority != null) {
-              traceParent = DECORATE.traceParent(span, priority);
-              // set the dbm trace injected tag on the span
-              span.setTag(DBM_TRACE_INJECTED, true);
-            }
-          }
-          sql =
-              SQLCommenter.inject(
-                  sql,
-                  span.getServiceName(),
-                  dbInfo.getType(),
-                  dbInfo.getHost(),
-                  dbInfo.getDb(),
-                  traceParent,
-                  injectTraceContext,
-                  appendComment);
-        }
-        DECORATE.onStatement(span, copy);
-        /* 
-        Statement instrumentationStatement = connection.createStatement();
-        instrumentationStatement.execute(
-            "set context_info 0x"
-                + span.getTraceId().toHexString()
-                + DDSpanId.toHexStringPadded(span.getSpanId())
-                + "0");
-        instrumentationStatement.close();
-        */
+          Statement instrumentationStatement = connection.createStatement();
+          instrumentationStatement.execute(
+              "set context_info 0x"
+                  + span.getTraceId().toHexString()
+                  + DDSpanId.toHexStringPadded(span.getSpanId())
+                  + "0");
+          instrumentationStatement.close();
+        }   
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
