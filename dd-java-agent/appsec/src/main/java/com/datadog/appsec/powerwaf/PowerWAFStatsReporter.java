@@ -8,8 +8,13 @@ import io.sqreen.powerwaf.PowerwafMetrics;
 import java.util.Collection;
 
 public class PowerWAFStatsReporter implements TraceSegmentPostProcessor {
-  private static final String TOTAL_DURATION_US_TAG = "_dd.appsec.waf.duration_ext";
-  private static final String TOTAL_DDWAF_RUN_DURATION_US_TAG = "_dd.appsec.waf.duration";
+  private static final String WAF_TOTAL_DURATION_US_TAG = "_dd.appsec.waf.duration_ext";
+  private static final String WAF_TOTAL_DDWAF_RUN_DURATION_US_TAG = "_dd.appsec.waf.duration";
+
+  private static final String RASP_TOTAL_DURATION_US_TAG = "appsec.rasp.duration_ext";
+  private static final String RASP_TOTAL_DDWAF_RUN_DURATION_US_TAG = "appsec.rasp.duration";
+
+  private static final String RASP_RULE_EVAL = "appsec.rasp.rule.eval";
   private static final String RULE_FILE_VERSION = "_dd.appsec.event_rules.version";
   public static final String TIMEOUTS_TAG = "_dd.appsec.waf.timeouts";
 
@@ -22,8 +27,17 @@ public class PowerWAFStatsReporter implements TraceSegmentPostProcessor {
       TraceSegment segment, AppSecRequestContext ctx, Collection<AppSecEvent> collectedEvents) {
     PowerwafMetrics metrics = ctx.getWafMetrics();
     if (metrics != null) {
-      segment.setTagTop(TOTAL_DURATION_US_TAG, metrics.getTotalRunTimeNs() / 1000L);
-      segment.setTagTop(TOTAL_DDWAF_RUN_DURATION_US_TAG, metrics.getTotalDdwafRunTimeNs() / 1000L);
+      long totalDurationMs = metrics.getTotalRunTimeNs() / 1000L;
+      long totalDdwafRunDurationMs = metrics.getTotalDdwafRunTimeNs() / 1000L;
+
+      if (ctx.getRaspCounter() > 0) {
+        segment.setTagTop(RASP_TOTAL_DURATION_US_TAG, totalDurationMs);
+        segment.setTagTop(RASP_TOTAL_DDWAF_RUN_DURATION_US_TAG, totalDdwafRunDurationMs);
+        segment.setTagTop(RASP_RULE_EVAL, ctx.getRaspCounter());
+      } else {
+        segment.setTagTop(WAF_TOTAL_DURATION_US_TAG, totalDurationMs);
+        segment.setTagTop(WAF_TOTAL_DDWAF_RUN_DURATION_US_TAG, totalDdwafRunDurationMs);
+      }
 
       String rulesVersion = this.rulesVersion;
       if (rulesVersion != null) {

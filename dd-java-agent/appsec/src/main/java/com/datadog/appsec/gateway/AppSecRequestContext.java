@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,6 +115,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile PowerwafMetrics wafMetrics;
   private volatile boolean blocked;
   private volatile int timeouts;
+
+  private final AtomicInteger raspCounter = new AtomicInteger();
 
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "timeouts");
@@ -396,6 +399,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRespDataPublished(boolean respDataPublished) {
     this.respDataPublished = respDataPublished;
+  }
+
+  public int getRaspCounter() {
+    return raspCounter.get();
+  }
+
+  public void increaseRaspCounter() {
+    raspCounter.incrementAndGet();
   }
 
   @Override

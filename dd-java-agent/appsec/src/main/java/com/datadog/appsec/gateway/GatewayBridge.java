@@ -480,6 +480,7 @@ public class GatewayBridge {
                     .add(KnownAddresses.DB_SQL_QUERY, sql)
                     .build();
             try {
+              ctx.increaseRaspCounter();
               return producerService.publishDataEvent(subInfo, ctx, bundle, false);
             } catch (ExpiredSubscriberInfoException e) {
               dbSqlQuerySubInfo = null;
