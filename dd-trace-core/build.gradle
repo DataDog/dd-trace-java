@@ -74,7 +74,8 @@ dependencies {
   testAnnotationProcessor libs.autoservice.processor
   testCompileOnly libs.autoservice.annotation
 
-  testImplementation project(":dd-java-agent:testing")
+  testImplementation project(':dd-java-agent:testing')
+  testImplementation project(':remote-config:remote-config-core')
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
   testImplementation group: 'org.openjdk.jol', name: 'jol-core', version: '0.16'

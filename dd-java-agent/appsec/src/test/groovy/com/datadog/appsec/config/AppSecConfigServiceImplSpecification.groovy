@@ -3,7 +3,6 @@ package com.datadog.appsec.config
 import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler
 import com.datadog.appsec.util.AbortStartupException
-import datadog.remoteconfig.ConfigurationChangesListener
 import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationEndListener
@@ -15,17 +14,18 @@ import datadog.trace.test.util.DDSpecification
 import java.nio.file.Files
 import java.nio.file.Path
 
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_ACTIVATION
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_CUSTOM_RULES
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_DD_RULES
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_EXCLUSIONS
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_IP_BLOCKING
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_RASP_SQLI
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_REQUEST_BLOCKING
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_TRUSTED_IPS
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_USER_BLOCKING
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING
+import static datadog.remoteconfig.PollingHinterNoop.NOOP
 
 class AppSecConfigServiceImplSpecification extends DDSpecification {
 
@@ -314,7 +314,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when:
     listeners.savedFeaturesListener.accept('asm_features_activation',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": false}}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
@@ -324,7 +324,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when: 'switch back to enabled'
     listeners.savedFeaturesListener.accept('asm_features_activation',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then: 'it is enabled again'
@@ -333,7 +333,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when: 'asm are not set'
     listeners.savedFeaturesListener.accept('asm_features_activation',
       listeners.savedFeaturesDeserializer.deserialize('{}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then: 'it is disabled (<not set> == false)'
@@ -343,7 +343,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when: 'switch back to enabled'
     listeners.savedFeaturesListener.accept('asm_features_activation',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then: 'it is enabled again'
@@ -352,7 +352,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     when: 'asm features are not set'
     listeners.savedFeaturesListener.accept('asm_features_activation',
       null,
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then: 'it is disabled (<not set> == false)'
@@ -422,7 +422,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedWafRulesOverrideDeserializer.deserialize('{"rules_override": [{"rules_target":[{"rule_id": "foo"}], "enabled":false}]}'.bytes), null)
     listeners.savedFeaturesListener.accept('asm_features conf',
       listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
-      ConfigurationChangesListener.PollingRateHinter.NOOP)
+      NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
