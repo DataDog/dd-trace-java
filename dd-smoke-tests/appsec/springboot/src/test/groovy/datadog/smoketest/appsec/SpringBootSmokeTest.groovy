@@ -13,11 +13,6 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
   @Shared
   String customRulesPath = "${buildDir}/appsec_custom_rules.json"
 
-  @Override
-  def logLevel() {
-    'DEBUG'
-  }
-
   def prepareCustomRules() {
     // Prepare ruleset with additional test rules
     appendRules(
