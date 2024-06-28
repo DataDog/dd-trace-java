@@ -9,7 +9,7 @@ class PowerWAFStatsReporterSpecification extends DDSpecification {
   PowerWAFStatsReporter reporter = new PowerWAFStatsReporter()
   AppSecRequestContext ctx = Mock()
 
-  void 'reporter reports timings and version'() {
+  void 'reporter reports waf timings and version'() {
     setup:
     PowerwafMetrics metrics = new PowerwafMetrics()
     metrics.totalRunTimeNs = 2_000
@@ -37,5 +37,25 @@ class PowerWAFStatsReporterSpecification extends DDSpecification {
     then:
     1 * ctx.getWafMetrics() >> null
     0 * segment._(*_)
+  }
+
+  void 'reporter reports rasp metrics'() {
+    setup:
+    PowerwafMetrics metrics = new PowerwafMetrics()
+    metrics.totalRunTimeNs = 2_000
+    metrics.totalDdwafRunTimeNs = 1_000
+    TraceSegment segment = Mock()
+    reporter.rulesVersion = '1.2.3'
+    ctx.getRaspCounter() >> 4
+
+    when:
+    reporter.processTraceSegment(segment, ctx, [])
+
+    then:
+    1 * ctx.getWafMetrics() >> metrics
+    1 * segment.setTagTop('appsec.rasp.duration', 1)
+    1 * segment.setTagTop('appsec.rasp.duration_ext', 2)
+    1 * segment.setTagTop('appsec.rasp.rule.eval', 4)
+    1 * segment.setTagTop('_dd.appsec.event_rules.version', '1.2.3')
   }
 }
