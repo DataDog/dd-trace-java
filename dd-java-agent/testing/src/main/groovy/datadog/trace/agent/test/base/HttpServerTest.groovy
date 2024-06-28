@@ -1485,9 +1485,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def trace = TEST_WRITER.get(0)
 
     then:
-    trace.size() == 1
-    trace[0].tags['http.status_code'] == 418
-    trace[0].tags['appsec.blocked'] == 'true'
+    !trace.isEmpty()
+    def rootSpan = trace.find { it.parentId == 0 }
+    assert rootSpan != null
+    rootSpan.tags['http.status_code'] == 418
+    rootSpan.tags['appsec.blocked'] == 'true'
 
     and:
     if (isDataStreamsEnabled()) {
@@ -1794,14 +1796,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.header(IG_RESPONSE_HEADER) == null // the header should've been cleared
     response.body().charStream().text.contains('"title":"You\'ve been blocked"')
     TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
 
     then:
-    TEST_WRITER.flatten().find { DDSpan it ->
-      it.tags['http.status_code'] == 413
-    } != null
-    TEST_WRITER.flatten().find { DDSpan it ->
-      it.tags['appsec.blocked'] == 'true'
-    } != null
+    !trace.isEmpty()
+    def rootSpan = trace.find { it.parentId == 0 }
+    assert rootSpan != null
+    rootSpan.tags['http.status_code'] == 413
+    rootSpan.tags['appsec.blocked'] == 'true'
   }
 
 
@@ -1823,14 +1825,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == 301
     response.header("Location") == 'https://www.google.com/'
     TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
 
     then:
-    TEST_WRITER.flatten().find { DDSpan it ->
-      it.tags['http.status_code'] == 301
-    } != null
-    TEST_WRITER.flatten().find { DDSpan it ->
-      it.tags['appsec.blocked'] == 'true'
-    } != null
+    !trace.isEmpty()
+    def rootSpan = trace.find { it.parentId == 0 }
+    assert rootSpan != null
+    rootSpan.tags['http.status_code'] == 301
+    rootSpan.tags['appsec.blocked'] == 'true'
   }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
