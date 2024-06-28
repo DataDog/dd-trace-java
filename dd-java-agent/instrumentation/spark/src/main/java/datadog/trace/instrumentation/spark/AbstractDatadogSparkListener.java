@@ -1118,13 +1118,24 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private static String getSparkServiceName(SparkConf conf, boolean isRunningOnDatabricks) {
-    if (Config.get().isServiceNameSetByUser()
-        || !Config.get().useSparkAppNameAsService()
-        || isRunningOnDatabricks) {
+    // If config is not set or running on databricks, not changing the service name
+    if (!Config.get().useSparkAppNameAsService() || isRunningOnDatabricks) {
       return null;
     }
 
-    return conf.get("spark.app.name", null);
+    // Keep service set by user, except if it is only "spark" that can be set by USM
+    String serviceName = Config.get().getServiceName();
+    if ((Config.get().isServiceNameSetByUser() && !"spark".equals(serviceName))) {
+      log.debug("Service '{}' explicitly set by user, not using the application name", serviceName);
+      return null;
+    }
+
+    String sparkAppName = conf.get("spark.app.name", null);
+    if (sparkAppName != null) {
+      log.info("Using Spark application name '{}' as the Datadog service name", sparkAppName);
+    }
+
+    return sparkAppName;
   }
 
   private static String getDatabricksRunName(SparkConf conf) {
