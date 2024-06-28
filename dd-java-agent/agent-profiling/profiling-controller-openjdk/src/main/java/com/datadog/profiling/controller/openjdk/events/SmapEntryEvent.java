@@ -1,6 +1,5 @@
 package com.datadog.profiling.controller.openjdk.events;
 
-import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
@@ -36,7 +35,7 @@ import org.slf4j.LoggerFactory;
 public class SmapEntryEvent extends Event {
   private static final AtomicBoolean registered = new AtomicBoolean(false);
   private static boolean annotatedMapsAvailable;
-  private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
+  private static final Logger log = LoggerFactory.getLogger(SmapEntryEvent.class);
   private static final String VSYSCALL_START_ADDRESS = "ffffffffff600000";
   private static final Pattern SYSTEM_MAP_ENTRY_PATTERN =
       Pattern.compile(
@@ -241,6 +240,7 @@ public class SmapEntryEvent extends Event {
     this.nmtCategory = nmtCategory;
   }
 
+  @SuppressForbidden
   private static HashMap<Long, String> getAnnotatedRegions() {
     if (annotatedMapsAvailable) {
       try {
