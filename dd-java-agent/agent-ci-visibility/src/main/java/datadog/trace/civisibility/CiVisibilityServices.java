@@ -82,7 +82,7 @@ public class CiVisibilityServices {
       this.signalClientFactory = new SignalClient.Factory(signalServerAddress, config);
 
       RepoIndexProvider indexFetcher = new RepoIndexFetcher(signalClientFactory);
-      this.repoIndexProviderFactory = (repoRoot, scanRoot) -> indexFetcher;
+      this.repoIndexProviderFactory = (repoRoot) -> indexFetcher;
 
     } else {
       this.signalClientFactory = null;
