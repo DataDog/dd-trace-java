@@ -3,6 +3,7 @@ variables:
 
 .benchmarks:
   stage: benchmarks
+  needs: [ build ]
   when: on_success
   interruptible: true
   timeout: 1h
