@@ -296,8 +296,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     then:
     rootSpans.each {
-      // FIXME: appsec.blocked not set correctly for mid-request block
-      // assert it.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+      assert it.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
       assert it.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     }
     def trigger = null
