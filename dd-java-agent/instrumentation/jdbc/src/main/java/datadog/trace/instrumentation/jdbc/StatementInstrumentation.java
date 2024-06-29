@@ -119,15 +119,16 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
-        /* 
-        Statement instrumentationStatement = connection.createStatement();
-        instrumentationStatement.execute(
-            "set context_info 0x"
-                + span.getTraceId().toHexString()
-                + DDSpanId.toHexStringPadded(span.getSpanId())
-                + "0");
-        instrumentationStatement.close();
-        */
+
+        if (dbInfo.getType().equals("sqlserver")) {
+          Statement instrumentationStatement = connection.createStatement();
+          instrumentationStatement.execute(
+              "set context_info 0x"
+                  + span.getTraceId().toHexString()
+                  + DDSpanId.toHexStringPadded(span.getSpanId())
+                  + "0");
+          instrumentationStatement.close();
+        }
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
