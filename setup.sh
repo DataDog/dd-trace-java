@@ -10,7 +10,7 @@ function check-jvm() {
     if [ -z ${!JAVA_HOME_NAME} ]; then
         echo "❌ $JAVA_HOME_NAME is not set. Please set $JAVA_HOME_NAME to refer to a JDK $EXPECTED_JAVA_VERSION installation." >&2
         exit 1
-    elif ! ${!JAVA_HOME_NAME}/bin/java -version 2>&1 | grep -q "version \"$EXPECTED_JAVA_VERSION\." ; then
+    elif ! ${!JAVA_HOME_NAME}/bin/java -version 2>&1 | grep -q "version \"$EXPECTED_JAVA_VERSION" ; then
         echo "❌ $JAVA_HOME_NAME is set to ${!JAVA_HOME_NAME}, but it does not refer to a JDK $EXPECTED_JAVA_VERSION installation." >&2
         exit 1
     else
