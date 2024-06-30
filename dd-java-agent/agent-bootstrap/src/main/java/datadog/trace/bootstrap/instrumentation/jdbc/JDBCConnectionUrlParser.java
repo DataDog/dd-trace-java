@@ -10,9 +10,11 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -50,6 +52,9 @@ public enum JDBCConnectionUrlParser {
 
         if (uri.getHost() != null) {
           builder.host(uri.getHost());
+          Pair<String, Integer> firstServer = buildServerList(jdbcUrl).get(0);
+          builder.host(firstServer.getLeft());
+          builder.port(firstServer.getRight());
         }
 
         if (uri.getPort() > 0) {
@@ -872,6 +877,34 @@ public enum JDBCConnectionUrlParser {
       start = i == -1 ? i : i + 1;
     }
     return query_pairs;
+  }
+
+  /**
+   * Generates a List of Server and TCP port pairs from a JDBC URL String
+   *
+   * @param jdbcUrl The JDBC URL, including 0 or more failover servers.
+   * @return the List of Pairs of hosts and ports
+   * @see <a
+   *     href="https://docs.oracle.com/cd/E17952_01/connector-j-8.0-en/connector-j-reference-jdbc-url-format.html">...</a>
+   */
+  private static List<Pair<String, Integer>> buildServerList(String jdbcUrl) {
+    List<Pair<String, Integer>> serverList = new ArrayList<>();
+    int beginIdx = jdbcUrl.indexOf("://") + 3;
+    int endIdx = jdbcUrl.indexOf("/", beginIdx + 1);
+    String multiServerString = jdbcUrl.substring(beginIdx, endIdx);
+    for (String serversAndPortsTogether : multiServerString.split(",")) {
+      String[] serverAndPortSeparate = serversAndPortsTogether.split(":");
+      Integer portNum = null;
+      if (serverAndPortSeparate.length == 2) {
+        try {
+          portNum = Integer.parseInt(serverAndPortSeparate[1]);
+        } catch (NumberFormatException e) {
+          // Unexpected TCP port String. Log this.
+        }
+      }
+      serverList.add(Pair.of(serverAndPortSeparate[0], portNum));
+    }
+    return serverList;
   }
 
   private static void populateStandardProperties(
