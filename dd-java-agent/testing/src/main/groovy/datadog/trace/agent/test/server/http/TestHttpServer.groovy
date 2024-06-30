@@ -500,16 +500,23 @@ class TestHttpServer implements AutoCloseable {
 
   static class Headers {
     private final Map<String, String> headers
+    private final Map<String, String> lc_headers
 
     private Headers(Request request) {
       this.headers = [:]
+      this.lc_headers = [:]
       request.getHeaderNames().each {
         headers.put(it, request.getHeader(it))
+        lc_headers.put(it.toLowerCase(), request.getHeader(it))
       }
     }
 
     def get(String header) {
-      return headers[header]
+      return lc_headers[header.toLowerCase()]
+    }
+
+    def getIterator() {
+      return headers.iterator()
     }
   }
 
