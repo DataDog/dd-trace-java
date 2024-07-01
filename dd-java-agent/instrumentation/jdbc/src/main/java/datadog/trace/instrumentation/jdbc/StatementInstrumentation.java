@@ -94,13 +94,14 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
         System.out.println("HERE before if");
+        Integer priority = null;
         if (span != null && INJECT_COMMENT) {
           System.out.println("HERE after if");
           String traceParent = null;
 
           boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
           if (injectTraceContext) {
-            Integer priority = span.forceSamplingDecision();
+            priority = span.forceSamplingDecision();
             if (priority != null) {
               traceParent = DECORATE.traceParent(span, priority);
               // set the dbm trace injected tag on the span
@@ -120,14 +121,19 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         }
         DECORATE.onStatement(span, copy);
 
-        //TODO: factor out this code
+        // TODO: factor out this code
         if (dbInfo.getType().equals("sqlserver")) {
+          String forceSamplingDecision = "0";
+          if ( priority != null && priority > 0 ){
+            forceSamplingDecision = "1";
+          }
           Statement instrumentationStatement = connection.createStatement();
           instrumentationStatement.execute(
               "set context_info 0x"
-                  + span.getTraceId().toHexString()
-                  + DDSpanId.toHexStringPadded(span.getSpanId())
-                  + "0");
+                      + forceSamplingDecision
+                      + DDSpanId.toHexStringPadded(span.getSpanId())
+                      + span.getTraceId().toHexString()
+          );
           instrumentationStatement.close();
         }
         return activateSpan(span);
