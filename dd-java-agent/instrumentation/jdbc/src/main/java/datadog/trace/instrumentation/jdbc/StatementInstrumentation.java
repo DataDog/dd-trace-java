@@ -82,10 +82,9 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
       if (callDepth > 0) {
         return null;
       }
-
-      final AgentSpan span = startSpan(DATABASE_QUERY);
       try {
         final Connection connection = statement.getConnection();
+        final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
@@ -116,6 +115,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
+        return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
         return null;
@@ -126,8 +126,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         // suppress anything else
         InstrumentationLogger.debug(
             "datadog.trace.instrumentation.jdbc.StatementInstrumentation", statement.getClass(), e);
+        return null;
       }
-      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
