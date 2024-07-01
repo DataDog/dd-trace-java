@@ -124,16 +124,15 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         // TODO: factor out this code
         if (dbInfo.getType().equals("sqlserver")) {
           String forceSamplingDecision = "0";
-          if ( priority != null && priority > 0 ){
+          if (priority != null && priority > 0) {
             forceSamplingDecision = "1";
           }
           Statement instrumentationStatement = connection.createStatement();
           instrumentationStatement.execute(
               "set context_info 0x"
-                      + forceSamplingDecision
-                      + DDSpanId.toHexStringPadded(span.getSpanId())
-                      + span.getTraceId().toHexString()
-          );
+                  + forceSamplingDecision
+                  + DDSpanId.toHexStringPadded(span.getSpanId())
+                  + span.getTraceId().toHexString());
           instrumentationStatement.close();
         }
         return activateSpan(span);
