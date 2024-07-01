@@ -27,7 +27,7 @@ jobs:
               return
             }
             // Get the base branch
-            const base = '${{ github.event.pull_request.base.label }}'
+            const base = '${{ github.event.pull_request.base.ref }}'
             // Look for the matching milestone
             let milestoneNumber = null
             if (base == 'master') {
