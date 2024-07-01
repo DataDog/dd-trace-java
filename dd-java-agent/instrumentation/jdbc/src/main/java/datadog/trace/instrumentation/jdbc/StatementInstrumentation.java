@@ -120,6 +120,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
         // TODO: factor out this code
         if (dbInfo.getType().equals("sqlserver")) {
+          AgentSpan instrumentationSpan = startSpan("set context_info");
+          activateSpan(instrumentationSpan);
           String forceSamplingDecision = "0";
           if (priority != null && priority > 0) {
             forceSamplingDecision = "1";
@@ -131,6 +133,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   + DDSpanId.toHexStringPadded(span.getSpanId())
                   + span.getTraceId().toHexString());
           instrumentationStatement.close();
+          instrumentationSpan.finish();
         }
         return activateSpan(span);
       } catch (SQLException e) {
