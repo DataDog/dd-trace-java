@@ -16,6 +16,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
@@ -64,7 +65,14 @@ public final class SQLServerPreparedStatementExcecution extends InstrumenterModu
     public static AgentScope onEnter(@Advice.This final PreparedStatement statement) {
       try {
         final Connection connection = statement.getConnection();
+        final DBInfo dbInfo =
+            JDBCDecorator.parseDBInfo(
+                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         final AgentSpan span = startSpan(DATABASE_QUERY);
+        // TODO: factor out this code
+        if (dbInfo.getType().equals("sqlserver")) {
+          return null;
+        }
         Statement instrumentationStatement = connection.createStatement();
         instrumentationStatement.execute(
             "set context_info 0x"

@@ -84,7 +84,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
       try {
-        System.out.println("StatementAdvice.onEnter");
         final Connection connection = statement.getConnection();
         final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);
@@ -93,10 +92,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
-        System.out.println("HERE before if");
         Integer priority = null;
         if (span != null && INJECT_COMMENT) {
-          System.out.println("HERE after if");
           String traceParent = null;
 
           boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
@@ -125,6 +122,13 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         if (dbInfo.getType().equals("sqlserver")) {
           AgentSpan instrumentationSpan = startSpan("set context_info");
           activateSpan(instrumentationSpan);
+          try {
+            // Sleep for 2 seconds (2000 milliseconds)
+            Thread.sleep(2000);
+          } catch (InterruptedException e) {
+            // Handle the interrupted exception
+            System.out.println("Thread was interrupted.");
+          }
           String forceSamplingDecision = "0";
           if (priority != null && priority > 0) {
             forceSamplingDecision = "1";
