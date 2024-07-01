@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.java.lang.management;
+package datadog.trace.instrumentation.websphere_jmx;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -7,7 +7,9 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentThreadFactory;
+import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -15,12 +17,21 @@ public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
   public WebsphereSecurityInstrumentation() {
-    super("websphere-security");
+    super("websphere-jmx");
   }
 
   @Override
   public String instrumentedType() {
     return "com.ibm.ws.management.util.SecurityHelper";
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return super.isEnabled()
+        && "com.ibm.ws.management.PlatformMBeanServerBuilder"
+            .equals(System.getProperty("javax.management.builder.initial"))
+        && ConfigProvider.getInstance()
+            .isEnabled(Collections.singletonList("websphere"), "jmxfetch.", ".enabled", false);
   }
 
   @Override

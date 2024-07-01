@@ -30,8 +30,8 @@ public class JMXFetch {
 
   private static final Logger log = LoggerFactory.getLogger(JMXFetch.class);
 
-  public static final List<String> DEFAULT_CONFIGS =
-      Collections.singletonList("jmxfetch-config.yaml");
+  private static final String DEFAULT_CONFIG = "jmxfetch-config.yaml";
+  private static final String WEBSPHERE_CONFIG = "jmxfetch-websphere-config.yaml";
 
   private static final int DELAY_BETWEEN_RUN_ATTEMPTS = 5000;
 
@@ -93,6 +93,11 @@ public class JMXFetch {
     final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
 
     TracerFlare.addReporter(reporter);
+    final List<String> defaultConfigs = new ArrayList<>();
+    defaultConfigs.add(DEFAULT_CONFIG);
+    if (config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false)) {
+      defaultConfigs.add(WEBSPHERE_CONFIG);
+    }
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()
@@ -103,7 +108,7 @@ public class JMXFetch {
             .confdDirectory(jmxFetchConfigDir)
             .yamlFileList(jmxFetchConfigs)
             .targetDirectInstances(true)
-            .instanceConfigResources(DEFAULT_CONFIGS)
+            .instanceConfigResources(defaultConfigs)
             .metricConfigResources(internalMetricsConfigs)
             .metricConfigFiles(metricsConfigs)
             .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
