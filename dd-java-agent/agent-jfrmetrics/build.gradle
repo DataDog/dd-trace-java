@@ -1,0 +1,57 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_21
+
+  excludeJdk = ['SEMERU21']
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
+}
+
+tasks.withType(JavaCompile).each {
+  it.configure {
+    setJavaVersion(it, 21)
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+  }
+}
+
+dependencies {
+  api project(':internal-api')
+  implementation deps.slf4j
+
+  testImplementation deps.mockito
+  testImplementation deps.junit5
+}
+
+excludedClassesCoverage += ['datadog.trace.agent.jfrmetrics.JFRMetrics*']
+
+forbiddenApisMain {
+  failOnMissingClasses = false
+}
+
+shadowJar {
+  dependencies {
+    exclude(project(":internal-api"))
+    exclude(project(":dd-trace-api"))
+    exclude(project(":utils:time-utils"))
+    exclude(dependency("com.datadoghq:dd-javac-plugin-client:0.1.7"))
+    exclude(dependency(deps.slf4j))
+  }
+}
+
+idea {
+  module {
+    jdkName = '21'
+  }
+}

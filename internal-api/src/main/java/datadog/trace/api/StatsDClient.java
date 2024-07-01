@@ -3,6 +3,13 @@ package datadog.trace.api;
 import java.io.Closeable;
 
 public interface StatsDClient extends Closeable {
+  enum EventKind {
+    INFO,
+    WARNING,
+    ERROR,
+    SUCCESS
+  }
+
   StatsDClient NO_OP = new NoOpStatsDClient();
 
   void incrementCounter(String metricName, String... tags);
@@ -20,6 +27,8 @@ public interface StatsDClient extends Closeable {
   void distribution(String metricName, long value, String... tags);
 
   void distribution(String metricName, double value, String... tags);
+
+  void event(String title, String message, EventKind kind, String... tags);
 
   void serviceCheck(String serviceCheckName, String status, String message, String... tags);
 

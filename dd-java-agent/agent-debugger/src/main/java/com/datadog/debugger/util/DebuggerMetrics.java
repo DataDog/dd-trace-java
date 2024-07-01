@@ -77,6 +77,11 @@ public class DebuggerMetrics implements StatsDClient {
   }
 
   @Override
+  public void event(String title, String message, EventKind kind, String... tags) {
+    statsd.event(title, message, kind, tags);
+  }
+
+  @Override
   public void serviceCheck(String serviceCheckName, String status, String message, String... tags) {
     statsd.serviceCheck(serviceCheckName, status, message, tags);
   }
