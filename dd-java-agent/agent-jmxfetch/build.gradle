@@ -13,7 +13,7 @@ repositories {
   mavenLocal()
 }
 dependencies {
-  api('com.datadoghq:jmxfetch:0.48.0-SNAPSHOT') {
+  api('com.datadoghq:jmxfetch:0.49.4-SNAPSHOT') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
     exclude group: 'com.beust', module: 'jcommander'
