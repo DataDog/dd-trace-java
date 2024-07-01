@@ -120,6 +120,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         }
         DECORATE.onStatement(span, copy);
 
+        //TODO: factor out this code
         if (dbInfo.getType().equals("sqlserver")) {
           Statement instrumentationStatement = connection.createStatement();
           instrumentationStatement.execute(
