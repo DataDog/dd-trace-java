@@ -78,7 +78,7 @@ public class DDSpan
    * combination of millisecond-precision clock and nanosecond-precision offset from start of the
    * trace. See {@link PendingTrace} for details.
    */
-  private final long startTimeNano;
+  private long startTimeNano;
 
   private static final AtomicLongFieldUpdater<DDSpan> DURATION_NANO_UPDATER =
       AtomicLongFieldUpdater.newUpdater(DDSpan.class, "durationNano");
@@ -620,6 +620,10 @@ public class DDSpan
   @Override
   public long getStartTime() {
     return startTimeNano;
+  }
+
+  public void setStartTime(long value) {
+    startTimeNano = value;
   }
 
   @Override

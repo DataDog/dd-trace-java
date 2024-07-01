@@ -122,6 +122,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         if (dbInfo.getType().equals("sqlserver")) {
           AgentSpan instrumentationSpan = startSpan("set context_info");
           activateSpan(instrumentationSpan);
+
+          // TODO: remove sleep
           try {
             // Sleep for 2 seconds (2000 milliseconds)
             Thread.sleep(2000);
@@ -129,6 +131,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             // Handle the interrupted exception
             System.out.println("Thread was interrupted.");
           }
+
           String forceSamplingDecision = "0";
           if (priority != null && priority > 0) {
             forceSamplingDecision = "1";
@@ -141,6 +144,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   + span.getTraceId().toHexString());
           instrumentationStatement.close();
           instrumentationSpan.finish();
+          span.setStartTime(span.getStartTime() + instrumentationSpan.getDurationNano() + 1);
         }
         return activateSpan(span);
       } catch (SQLException e) {
