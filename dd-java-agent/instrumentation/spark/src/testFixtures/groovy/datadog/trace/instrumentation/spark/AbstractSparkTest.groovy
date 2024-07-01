@@ -743,4 +743,30 @@ abstract class AbstractSparkTest extends AgentTestRunner {
       }
     }
   }
+
+  def "redact application parameters"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local")
+      .config("spark.database.password", "value")
+      .config("database.secret", "value")
+      .config("spark.DD-API-KEY", "value")
+      .config("spark.shuffle.compress", "false")
+      .getOrCreate()
+
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert span.tags["config.spark_database_password"] == "[redacted]"
+          assert span.tags["config.database_secret"] == "[redacted]"
+          assert span.tags["config.spark_DD-API-KEY"] == "[redacted]"
+          assert span.tags["config.spark_shuffle_compress"] == "false"
+        }
+      }
+    }
+  }
 }
