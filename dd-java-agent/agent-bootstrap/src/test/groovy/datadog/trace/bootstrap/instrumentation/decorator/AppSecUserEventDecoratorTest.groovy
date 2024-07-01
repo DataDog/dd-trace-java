@@ -37,6 +37,7 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     1 * traceSegment.setTagTop('_dd.appsec.events.users.signup.auto.mode', mode)
     1 * traceSegment.setTagTop('appsec.events.users.signup.track', true, true)
     1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
     if (setUser) {
       1 * traceSegment.setTagTop('usr.id', user)
     }
@@ -65,6 +66,7 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', mode)
     1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true, true)
     1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
     if (setUser) {
       1 * traceSegment.setTagTop('usr.id', user)
     }
@@ -93,6 +95,7 @@ class AppSecUserEventDecoratorTest extends DDSpecification {
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', mode)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.track', true, true)
     1 * traceSegment.setTagTop('asm.keep', true)
+    1 * traceSegment.setTagTop('_dd.p.appsec', true)
     if (setUser) {
       1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', user)
     }
