@@ -995,7 +995,7 @@ public class DDSpanContext
 
   @Override
   public void effectivelyBlocked() {
-    setTag("appsec.blocked", "true");
+    setTagTop("appsec.blocked", "true");
   }
 
   @Override
