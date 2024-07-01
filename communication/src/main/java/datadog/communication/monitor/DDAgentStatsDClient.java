@@ -1,10 +1,14 @@
 package datadog.communication.monitor;
 
+import com.timgroup.statsd.Event;
 import com.timgroup.statsd.ServiceCheck;
 import datadog.trace.api.StatsDClient;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-final class DDAgentStatsDClient implements StatsDClient {
+public final class DDAgentStatsDClient implements StatsDClient {
+  private static final Logger log = LoggerFactory.getLogger(DDAgentStatsDClient.class);
   private final DDAgentStatsDConnection connection;
   private final Function<String, String> nameMapping;
   private final Function<String[], String[]> tagMapping;
@@ -82,6 +86,30 @@ final class DDAgentStatsDClient implements StatsDClient {
             .build();
 
     connection.statsd.recordServiceCheckRun(serviceCheck);
+  }
+
+  /**
+   * Record a statsd event
+   *
+   * @param type the type of event (error, warning, info, success - @see Event.AlertType)
+   * @param source the source of the event (e.g. java, myapp, CrashTracking, Telemetry, etc)
+   * @param eventName the name of the event (or title)
+   * @param message the message of the event
+   * @param tags the tags to attach to the event
+   */
+  public void recordEvent(
+      String type, String source, String eventName, String message, String... tags) {
+    Event.AlertType alertType = Event.AlertType.valueOf(type.toUpperCase());
+    log.debug(
+        "Recording event: {} - {} - {} - {} [{}]", alertType, source, eventName, message, tags);
+    Event.Builder eventBuilder =
+        Event.builder()
+            .withTitle(eventName)
+            .withText(message)
+            .withSourceTypeName(source)
+            .withDate(System.currentTimeMillis())
+            .withAlertType(alertType);
+    connection.statsd.recordEvent(eventBuilder.build(), tagMapping.apply(tags));
   }
 
   static ServiceCheck.Status serviceCheckStatus(final String status) {
