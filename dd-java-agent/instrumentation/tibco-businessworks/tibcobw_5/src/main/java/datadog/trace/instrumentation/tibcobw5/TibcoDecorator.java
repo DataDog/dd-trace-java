@@ -36,7 +36,7 @@ public class TibcoDecorator extends BaseDecorator {
     if (matcher.matches()) {
       return matcher.group(1);
     }
-    LOGGER.warn(
+    LOGGER.debug(
         "Unable to extract the tibco businessworks version. The tag `tibco.version` will be missing from process spans");
     return null;
   }
