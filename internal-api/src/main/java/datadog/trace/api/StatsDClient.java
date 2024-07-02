@@ -27,6 +27,18 @@ public interface StatsDClient extends Closeable {
 
   int getErrorCount();
 
+  /**
+   * Record a statsd event
+   *
+   * @param type the type of event (error, warning, info, success - @see Event.AlertType)
+   * @param source the source of the event (e.g. java, myapp, CrashTracking, Telemetry, etc)
+   * @param eventName the name of the event (or title)
+   * @param message the message of the event
+   * @param tags the tags to attach to the event
+   */
+  default void recordEvent(
+      String type, String source, String eventName, String message, String... tags) {};
+
   @Override
   void close();
 }

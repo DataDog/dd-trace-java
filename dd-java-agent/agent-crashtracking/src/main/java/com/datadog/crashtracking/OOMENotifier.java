@@ -2,7 +2,7 @@ package com.datadog.crashtracking;
 
 import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 
-import datadog.communication.monitor.DDAgentStatsDClient;
+import datadog.trace.api.StatsDClient;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.locks.LockSupport;
 import org.slf4j.Logger;
@@ -14,9 +14,8 @@ public final class OOMENotifier {
   // This method is called via CLI so we don't need to be paranoid about the forbiddend APIs
   @SuppressForbidden
   public static void sendOomeEvent(String taglist) {
-    try (DDAgentStatsDClient client =
-        (DDAgentStatsDClient)
-            statsDClientManager().statsDClient(null, null, null, null, null, false)) {
+    try (StatsDClient client =
+        statsDClientManager().statsDClient(null, null, null, null, null, false)) {
       String[] tags = taglist.split(",");
       client.recordEvent(
           "error",
