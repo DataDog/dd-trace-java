@@ -146,6 +146,7 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIMENTAL;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_REQUEST_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -751,6 +752,7 @@ public class Config {
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
   private final UserEventTrackingMode appSecUserEventsTracking;
+  private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
   private final boolean appSecRaspEnabled;
   private final boolean appSecStackTraceEnabled;
@@ -1668,6 +1670,10 @@ public class Config {
         UserEventTrackingMode.fromString(
             configProvider.getStringNotEmpty(
                 APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
+    appSecUserIdCollectionMode =
+        UserIdCollectionMode.fromString(
+            configProvider.getString(APPSEC_AUTO_USER_INSTRUMENTATION_MODE),
+            configProvider.getString(APPSEC_AUTOMATED_USER_EVENTS_TRACKING));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
     appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
@@ -2892,6 +2898,10 @@ public class Config {
 
   public UserEventTrackingMode getAppSecUserEventsTrackingMode() {
     return appSecUserEventsTracking;
+  }
+
+  public UserIdCollectionMode getAppSecUserIdCollectionMode() {
+    return appSecUserIdCollectionMode;
   }
 
   public boolean isApiSecurityEnabled() {

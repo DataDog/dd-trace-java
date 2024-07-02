@@ -28,6 +28,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafTriggeredRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
+  private static final AtomicRequestCounter missingUserIdCounter = new AtomicRequestCounter();
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
@@ -68,6 +69,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void wafRequestBlocked() {
     wafBlockedRequestCounter.increment();
+  }
+
+  public void missingUserId() {
+    missingUserIdCounter.increment();
   }
 
   @Override
@@ -120,6 +125,11 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
               true,
               true));
     }
+
+    // Missing user id
+    if (missingUserIdCounter.get() > 0) {
+      rawMetricsQueue.offer(new MissingUserIdMetric(missingUserIdCounter.getAndReset()));
+    }
   }
 
   public abstract static class WafMetric extends MetricCollector.Metric {
@@ -145,6 +155,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           counter,
           "waf_version:" + wafVersion,
           "event_rules_version:" + rulesVersion);
+    }
+  }
+
+  public static class MissingUserIdMetric extends WafMetric {
+
+    public MissingUserIdMetric(long counter) {
+      super("instrum.user_auth.missing_user_id", counter);
     }
   }
 
