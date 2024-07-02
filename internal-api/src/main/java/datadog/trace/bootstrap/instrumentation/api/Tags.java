@@ -12,6 +12,7 @@ public class Tags {
   public static final String SPAN_KIND_TEST_SUITE = "test_suite_end";
   public static final String SPAN_KIND_TEST_MODULE = "test_module_end";
   public static final String SPAN_KIND_TEST_SESSION = "test_session_end";
+  public static final String SPAN_KIND_INTERNAL = "internal";
 
   public static final String HTTP_URL = "http.url";
   public static final String HTTP_HOSTNAME = "http.hostname";
