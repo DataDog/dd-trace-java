@@ -16,6 +16,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -81,19 +82,75 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
       }
       try {
         final Connection connection = statement.getConnection();
-        final AgentSpan span = startSpan(DATABASE_QUERY);
-        DECORATE.afterStart(span);
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+        ;
+        boolean isSqlServer = dbInfo.getType().equals("sqlserver");
+
+        // TODO: factor out this code
+        if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
+          AgentSpan instrumentationSpan = startSpan("set context_info");
+          if (instrumentationSpan != null) {
+            DECORATE.afterStart(instrumentationSpan);
+            DECORATE.onConnection(instrumentationSpan, dbInfo);
+            AgentScope scope = activateSpan(instrumentationSpan);
+
+            // TODO: remove sleep
+            try {
+              // Sleep for 2 seconds (2000 milliseconds)
+              Thread.sleep(2000);
+            } catch (InterruptedException e) {
+              // Handle the interrupted exception
+              System.out.println("Thread was interrupted.");
+            }
+
+            Integer priorityInstrumented;
+            priorityInstrumented = instrumentationSpan.forceSamplingDecision();
+            String forceSamplingDecision = "0";
+            if (priorityInstrumented > 0) {
+              forceSamplingDecision = "1";
+            }
+
+            Statement instrumentationStatement = connection.createStatement();
+            String instrumentationSql;
+            instrumentationSql =
+                "set context_info 0x"
+                    + forceSamplingDecision
+                    + DDSpanId.toHexStringPadded(instrumentationSpan.getSpanId())
+                    + instrumentationSpan.getTraceId().toHexString();
+            final String originalInstrumentationSql = instrumentationSql;
+            instrumentationSql =
+                SQLCommenter.inject(
+                    instrumentationSql,
+                    instrumentationSpan.getServiceName(),
+                    dbInfo.getType(),
+                    dbInfo.getHost(),
+                    dbInfo.getDb(),
+                    null,
+                    false,
+                    appendComment);
+            DECORATE.onStatement(instrumentationSpan, originalInstrumentationSql);
+
+            instrumentationStatement.execute(instrumentationSql);
+            instrumentationStatement.close();
+            scope.close();
+            instrumentationSpan.finish();
+          }
+        }
+
+        final AgentSpan span = startSpan(DATABASE_QUERY);
+        DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
+        Integer priority = null;
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
 
-          boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
-          if (injectTraceContext) {
-            Integer priority = span.forceSamplingDecision();
+          // injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+          if (injectTraceContext && !isSqlServer) {
+            priority = span.forceSamplingDecision();
             if (priority != null) {
               traceParent = DECORATE.traceParent(span, priority);
               // set the dbm trace injected tag on the span
@@ -112,6 +169,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
+
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
