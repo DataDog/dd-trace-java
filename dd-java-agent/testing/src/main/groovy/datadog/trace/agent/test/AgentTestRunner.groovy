@@ -13,7 +13,12 @@ import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
-import datadog.trace.api.*
+import datadog.trace.api.Config
+import datadog.trace.api.DDSpanId
+import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.StatsDClient
+import datadog.trace.api.TraceConfig
+import datadog.trace.api.WellKnownTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.gateway.RequestContext
@@ -23,9 +28,9 @@ import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
 import datadog.trace.bootstrap.InstrumentationErrors
+import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
-import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.common.writer.DDAgentWriter
@@ -63,7 +68,9 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.communication.http.OkHttpUtils.buildHttpClient
-import static datadog.trace.api.ConfigDefaults.*
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 
 /**
@@ -647,8 +654,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
-      final PendingTrace pendingTrace = ((DDSpan) span).context().getTrace()
+      def trace = ((DDSpan) span).context().getTrace()
+      if (!(trace instanceof PendingTrace)) {
+        throw new IllegalStateException("Expected $PendingTrace.name trace collector, got $trace.class.name")
+      }
 
+      final PendingTrace pendingTrace = (PendingTrace) trace
       final long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS
 
       while (pendingTrace.size() < numberOfSpans) {

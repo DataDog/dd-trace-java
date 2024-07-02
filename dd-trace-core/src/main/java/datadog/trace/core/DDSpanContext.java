@@ -67,7 +67,7 @@ public class DDSpanContext
   private static final Map<String, Object> EMPTY_META_STRUCT = Collections.emptyMap();
 
   /** The collection of all span related to this one */
-  private final PendingTrace trace;
+  private final TraceCollector trace;
 
   /** Baggage is associated with the whole trace and shared with other spans */
   private volatile Map<String, String> baggageItems;
@@ -166,7 +166,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector trace,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
@@ -212,7 +212,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector trace,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
@@ -259,7 +259,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector trace,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
@@ -306,7 +306,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector trace,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final Object CiVisibilityContextData,
@@ -661,7 +661,7 @@ public class DDSpanContext
   }
 
   @Override
-  public PendingTrace getTrace() {
+  public TraceCollector getTrace() {
     return trace;
   }
 

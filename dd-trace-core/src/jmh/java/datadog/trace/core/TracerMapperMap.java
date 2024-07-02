@@ -96,7 +96,7 @@ public class TracerMapperMap {
 
   private DDSpan createSpanWithOrigin(int iter, final String origin) {
     final DDTraceId traceId = DDTraceId.from(iter);
-    final PendingTrace trace = tracer.createTrace(traceId);
+    final TraceCollector trace = tracer.createTrace(traceId);
     return DDSpan.create(
         "benchmark",
         System.currentTimeMillis() * 1000,

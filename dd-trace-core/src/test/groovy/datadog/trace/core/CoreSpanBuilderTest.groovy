@@ -180,7 +180,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     1 * mockedContext.getSpanId() >> spanId
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
-    1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDTraceId.ONE)
+    1 * mockedContext.getTrace() >> tracer.traceCollectorFactory.create(DDTraceId.ONE)
     _ * mockedContext.getPathwayContext() >> NoopPathwayContext.INSTANCE
 
     final String expectedName = "fakeName"
