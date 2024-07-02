@@ -1,12 +1,13 @@
 package datadog.trace.api
 
-import spock.lang.Specification
+import datadog.trace.api.config.AppSecConfig
+import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION
 import static datadog.trace.api.UserIdCollectionMode.DISABLED
 import static datadog.trace.api.UserIdCollectionMode.IDENTIFICATION
 
-class UserIdCollectionModeTest extends Specification {
+class UserIdCollectionModeTest extends DDSpecification {
 
   void 'test user id collection mode "#mode"'() {
     when:
@@ -55,5 +56,35 @@ class UserIdCollectionModeTest extends Specification {
     // by default
     null    | null       | IDENTIFICATION
 
+  }
+
+  void 'test user id collection mode "#mode" with remote config "#rc"'() {
+    setup:
+    if (mode == null) {
+      removeSysConfig(AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE)
+    } else {
+      injectSysConfig(AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE, mode)
+    }
+
+    when:
+    UserIdCollectionMode.fromRemoteConfig(rc)
+
+    then:
+    UserIdCollectionMode.get() == expected
+
+    where:
+    mode       | rc         | expected
+    // by default
+    null       | null       | IDENTIFICATION
+    // rc wins
+    'ident'    | 'yolo'     | DISABLED
+    'ident'    | 'disabled' | DISABLED
+    'anon'     | 'ident'    | IDENTIFICATION
+    'ident'    | 'anon'     | ANONYMIZATION
+    // rc not present
+    'yolo'     | null       | DISABLED
+    'disabled' | null       | DISABLED
+    'ident'    | null       | IDENTIFICATION
+    'anon'     | null       | ANONYMIZATION
   }
 }

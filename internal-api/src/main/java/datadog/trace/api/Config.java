@@ -141,7 +141,6 @@ import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.UserEventTrackingMode.SAFE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIMENTAL;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_REQUEST_SAMPLE_RATE;
@@ -751,7 +750,6 @@ public class Config {
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
-  private final UserEventTrackingMode appSecUserEventsTracking;
   private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
   private final boolean appSecRaspEnabled;
@@ -1666,10 +1664,6 @@ public class Config {
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
-    appSecUserEventsTracking =
-        UserEventTrackingMode.fromString(
-            configProvider.getStringNotEmpty(
-                APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
     appSecUserIdCollectionMode =
         UserIdCollectionMode.fromString(
             configProvider.getString(APPSEC_AUTO_USER_INSTRUMENTATION_MODE),
@@ -2894,10 +2888,6 @@ public class Config {
 
   public String getAppSecHttpBlockedTemplateJson() {
     return appSecHttpBlockedTemplateJson;
-  }
-
-  public UserEventTrackingMode getAppSecUserEventsTrackingMode() {
-    return appSecUserEventsTracking;
   }
 
   public UserIdCollectionMode getAppSecUserIdCollectionMode() {
