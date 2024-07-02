@@ -44,36 +44,48 @@ public class AppSecUserEventDecorator {
   }
 
   public void onLoginSuccess(String userId, Map<String, String> metadata) {
+    if (userId == null) {
+      onMissingUserId();
+      return;
+    }
+
     TraceSegment segment = getSegment();
     if (segment == null) {
       return;
     }
 
-    if (onUserId(segment, "usr.id", userId)) {
-      onEvent(segment, "users.login.success", metadata);
-    }
+    onUserId(segment, "usr.id", userId);
+    onEvent(segment, "users.login.success", metadata);
   }
 
   public void onLoginFailure(String userId, Map<String, String> metadata) {
+    if (userId == null) {
+      onMissingUserId();
+      return;
+    }
+
     TraceSegment segment = getSegment();
     if (segment == null) {
       return;
     }
 
-    if (onUserId(segment, "appsec.events.users.login.failure.usr.id", userId)) {
-      onEvent(segment, "users.login.failure", metadata);
-    }
+    onUserId(segment, "appsec.events.users.login.failure.usr.id", userId);
+    onEvent(segment, "users.login.failure", metadata);
   }
 
   public void onSignup(String userId, Map<String, String> metadata) {
+    if (userId == null) {
+      onMissingUserId();
+      return;
+    }
+
     TraceSegment segment = getSegment();
     if (segment == null) {
       return;
     }
 
-    if (onUserId(segment, "usr.id", userId)) {
-      onEvent(segment, "users.signup", metadata);
-    }
+    onUserId(segment, "usr.id", userId);
+    onEvent(segment, "users.signup", metadata);
   }
 
   private void onEvent(@Nonnull TraceSegment segment, String eventName, Map<String, String> tags) {
@@ -92,33 +104,17 @@ public class AppSecUserEventDecorator {
     }
   }
 
-  /**
-   * Adds the user id tag to the trace segment taking care of its anonymization if required. If the
-   * tag was properly set it returns {@code true} meaning that the event can also be set in the
-   * segment.
-   */
-  protected boolean onUserId(final TraceSegment segment, final String tag, final String userId) {
-    if (userId == null) {
-      onMissingUserId();
-      return false;
+  /** Takes care of user anonymization if required. */
+  protected void onUserId(final TraceSegment segment, final String tagName, final String userId) {
+    if (segment.getTagTop(tagName) != null) {
+      // do not override user ids set by the SDK
+      return;
     }
-    String finalUserId;
-    switch (getUserIdCollectionMode()) {
-      case IDENTIFICATION:
-        finalUserId = userId;
-        break;
-      case ANONYMIZATION:
-        finalUserId = anonymize(userId);
-        if (finalUserId == null) {
-          return false;
-        }
-        break;
-      default:
-        // should never happen
-        return false;
-    }
-    segment.setTagTop(tag, finalUserId);
-    return true;
+    String finalUserId =
+        getUserIdCollectionMode() == UserIdCollectionMode.ANONYMIZATION
+            ? anonymize(userId)
+            : userId;
+    segment.setTagTop(tagName, finalUserId);
   }
 
   protected static String anonymize(String userId) {
