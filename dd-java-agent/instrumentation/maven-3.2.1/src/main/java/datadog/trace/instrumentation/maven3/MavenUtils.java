@@ -15,6 +15,8 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.PlexusContainer;
+import org.codehaus.plexus.configuration.PlexusConfiguration;
+import org.codehaus.plexus.configuration.xml.XmlPlexusConfiguration;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
@@ -297,5 +299,14 @@ public abstract class MavenUtils {
       lookup = METHOD_HANDLES.invoke(ALTERNATIVE_LOOKUP_FIELD, session);
     }
     return METHOD_HANDLES.invoke(LOOKUP_METHOD, lookup, PlexusContainer.class);
+  }
+
+  public static PlexusConfiguration getPomConfiguration(MojoExecution mojoExecution) {
+    Xpp3Dom configuration = mojoExecution.getConfiguration();
+    if (configuration == null) {
+      return new XmlPlexusConfiguration("configuration");
+    } else {
+      return new XmlPlexusConfiguration(configuration);
+    }
   }
 }
