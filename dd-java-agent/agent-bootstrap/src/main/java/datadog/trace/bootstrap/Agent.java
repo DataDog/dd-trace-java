@@ -69,8 +69,7 @@ public class Agent {
       "datadog.slf4j.simpleLogger.showDateTime";
   private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY =
       "datadog.slf4j.simpleLogger.dateTimeFormat";
-  private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT =
-      "yyyy-MM-dd HH:mm:ss.SSSS";
+  private static final String SIMPLE_LOGGER_DATE_TIME_FORMAT_DEFAULT = "yyyy-MM-dd HH:mm:ss.SSSS";
   private static final String SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY =
       "datadog.slf4j.simpleLogger.defaultLogLevel";
 
