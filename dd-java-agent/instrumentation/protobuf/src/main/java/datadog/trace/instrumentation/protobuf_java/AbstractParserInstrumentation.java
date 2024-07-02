@@ -68,7 +68,9 @@ public final class AbstractParserInstrumentation extends InstrumenterModule.Trac
       }
       if (message instanceof AbstractMessage) {
         SchemaExtractor.attachSchemaOnSpan(
-            (AbstractMessage) message, span, SchemaExtractor.deserialization);
+            ((AbstractMessage) message).getDescriptorForType(),
+            span,
+            SchemaExtractor.deserialization);
       }
     }
   }

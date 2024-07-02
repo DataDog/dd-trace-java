@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.protobuf_java;
 
-import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -168,13 +167,6 @@ public class SchemaExtractor implements SchemaIterator {
   @Override
   public void iterateOverSchema(SchemaBuilder builder) {
     extractSchema(descriptor, builder, 0);
-  }
-
-  public static void attachSchemaOnSpan(AbstractMessage message, AgentSpan span, String operation) {
-    if (message == null) {
-      return;
-    }
-    attachSchemaOnSpan(message.getDescriptorForType(), span, operation);
   }
 
   public static void attachSchemaOnSpan(
