@@ -1,6 +1,5 @@
 package datadog.trace.api
 
-import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.IastConfig
@@ -33,7 +32,7 @@ class ConfigCollectorTest extends DDSpecification {
     // ConfigProvider.getString
     TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | "v1"
     // ConfigProvider.getStringNotEmpty
-    AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING         | UserEventTrackingMode.EXTENDED.toString()
+    // TODO no config properties making use of getStringNotEmpty
     // ConfigProvider.getStringExcludingSource
     GeneralConfig.APPLICATION_KEY                              | "app-key"
     // ConfigProvider.getBoolean

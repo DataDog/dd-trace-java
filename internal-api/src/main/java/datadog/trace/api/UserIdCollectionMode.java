@@ -5,6 +5,8 @@ public enum UserIdCollectionMode {
   ANONYMIZATION("anonymization", "anon"),
   DISABLED("disabled");
 
+  private static UserIdCollectionMode CURRENT_MODE = IDENTIFICATION;
+
   private final String[] values;
 
   UserIdCollectionMode(final String... values) {
@@ -13,10 +15,22 @@ public enum UserIdCollectionMode {
 
   public static UserIdCollectionMode fromString(String collectionMode, String trackingMode) {
     if (collectionMode == null && trackingMode != null) {
-      return fromTracking(trackingMode);
+      CURRENT_MODE = fromTracking(trackingMode);
     } else {
-      return fromMode(collectionMode);
+      CURRENT_MODE = fromMode(collectionMode);
     }
+    return CURRENT_MODE;
+  }
+
+  @SuppressWarnings("UnusedReturnValue")
+  public static UserIdCollectionMode fromRemoteConfig(final String mode) {
+    if (mode == null) {
+      // restore default
+      CURRENT_MODE = Config.get().getAppSecUserIdCollectionMode();
+    } else {
+      CURRENT_MODE = fromMode(mode);
+    }
+    return CURRENT_MODE;
   }
 
   private static UserIdCollectionMode fromMode(String mode) {
@@ -51,5 +65,9 @@ public enum UserIdCollectionMode {
   @Override
   public String toString() {
     return values[0];
+  }
+
+  public static UserIdCollectionMode get() {
+    return CURRENT_MODE;
   }
 }

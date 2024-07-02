@@ -1,8 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.Strings.toHexString;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.WafMetricCollector;
@@ -21,6 +21,7 @@ public class AppSecUserEventDecorator {
   private static final Logger LOGGER = LoggerFactory.getLogger(AppSecUserEventDecorator.class);
   private static final int HASH_SIZE_BYTES = 16; // 128 bits
   private static final String ANONYM_PREFIX = "anon_";
+  private static volatile boolean SHA_MISSING_REPORTED = false;
 
   public boolean isEnabled() {
     if (!ActiveSubsystems.APPSEC_ACTIVE) {
@@ -126,7 +127,13 @@ public class AppSecUserEventDecorator {
       // TODO avoid lookup a new instance every time
       digest = MessageDigest.getInstance("SHA-256");
     } catch (NoSuchAlgorithmException e) {
-      LOGGER.error("Missing SHA-256 digest, user collection in 'anon' mode cannot continue", e);
+      if (!SHA_MISSING_REPORTED) {
+        LOGGER.error(
+            SEND_TELEMETRY,
+            "Missing SHA-256 digest, user collection in 'anon' mode cannot continue",
+            e);
+        SHA_MISSING_REPORTED = true;
+      }
       return null;
     }
     digest.update(userId.getBytes());
@@ -147,8 +154,7 @@ public class AppSecUserEventDecorator {
     WafMetricCollector.get().missingUserId();
   }
 
-  /** TODO link with remote config when ready */
   protected UserIdCollectionMode getUserIdCollectionMode() {
-    return Config.get().getAppSecUserIdCollectionMode();
+    return UserIdCollectionMode.get();
   }
 }

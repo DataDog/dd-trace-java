@@ -6,6 +6,9 @@ public class AppSecFeatures {
   @com.squareup.moshi.Json(name = "api_security")
   public ApiSecurity apiSecurity;
 
+  @com.squareup.moshi.Json(name = "auto_user_instrum")
+  public AutoUserInstrum autoUserInstrum;
+
   public static class Asm {
     public Boolean enabled;
 
@@ -25,8 +28,24 @@ public class AppSecFeatures {
     }
   }
 
+  public static class AutoUserInstrum {
+    public String mode;
+
+    @Override
+    public String toString() {
+      return "AutoUserInstrum{" + "mode=" + mode + '}';
+    }
+  }
+
   @Override
   public String toString() {
-    return "AppSecFeatures{" + "asm=" + asm + ", apiSecurity=" + apiSecurity + '}';
+    return "AppSecFeatures{"
+        + "asm="
+        + asm
+        + ", apiSecurity="
+        + apiSecurity
+        + ", autoUserInstrum="
+        + autoUserInstrum
+        + '}';
   }
 }
