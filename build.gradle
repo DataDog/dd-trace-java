@@ -13,6 +13,8 @@ buildscript {
 }
 
 plugins {
+  id "datadog.dependency-locking"
+
   id "com.diffplug.spotless" version "6.13.0"
   id 'com.github.spotbugs' version '5.0.14'
   id "de.thetaphi.forbiddenapis" version "3.5.1"
@@ -190,32 +192,6 @@ def testAggregate(String baseTaskName, includePrefixes, excludePrefixes, boolean
   createRootTask "${baseTaskName}Test", 'allTests'
   createRootTask "${baseTaskName}LatestDepTest", 'allLatestDepTests'
   createRootTask "${baseTaskName}Check", 'check'
-}
-
-// To lock dependency versions, run `./gradlew resolveAndLockAll --write-locks`
-tasks.register('resolveAndLockAll') {
-  notCompatibleWithConfigurationCache("Filters configurations at execution time")
-  doFirst {
-    assert gradle.startParameter.writeDependencyLocks
-  }
-  doLast {
-    allprojects { project ->
-      project.configurations.findAll {
-        it.canBeResolved && !it.name.startsWith('incrementalScalaAnalysis')
-      }.each { it.resolve() }
-    }
-  }
-}
-
-allprojects { project ->
-  project.dependencyLocking {
-    lockAllConfigurations()
-    //lockmode set to LENIENT because there are resolution
-    //errors in the build with an apiguardian dependency.
-    //See: https://docs.gradle.org/current/userguide/dependency_locking.html for more info
-    lockMode = LockMode.LENIENT
-
-  }
 }
 
 testAggregate("smoke", [":dd-smoke-tests"], [])
