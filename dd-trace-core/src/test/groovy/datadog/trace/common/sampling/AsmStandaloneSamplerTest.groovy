@@ -4,14 +4,28 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.api.sampling.PrioritySampling
 
+import java.time.Clock
+
 class AsmStandaloneSamplerTest extends DDCoreSpecification{
 
   def writer = new ListWriter()
 
   void "test setSamplingPriority"(){
     setup:
-    final rate = 2000 // 1 trace each 2 seconds
-    def sampler = new AsmStandaloneSampler(rate)
+    def current = System.currentTimeMillis()
+    def callCount = 0
+    final Clock clock = Mock(Clock) {
+      millis() >> {
+        callCount++
+        if (callCount < 4) {
+          current += 1000 // increment in one second
+        } else {
+          current += 60000 // increment in one minute
+        }
+        return current
+      }
+    }
+    def sampler = new AsmStandaloneSampler(clock)
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:
@@ -31,8 +45,7 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
     when:
     def span3 = tracer.buildSpan("test3").start()
 
-    then: "we wait for one second"
-    Thread.sleep(rate)
+    then: "Mock one minute later"
     sampler.setSamplingPriority(span3)
 
     and:
