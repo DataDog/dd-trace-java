@@ -6,6 +6,7 @@ import com.couchbase.client.java.env.CouchbaseEnvironment
 import com.couchbase.client.java.query.N1qlQuery
 import datadog.trace.api.Config
 import datadog.trace.test.util.Flaky
+import spock.lang.Unroll
 import spock.util.concurrent.BlockingVariable
 import util.AbstractCouchbaseTest
 
@@ -13,6 +14,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Flaky
+@Unroll
 abstract class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
   static final int TIMEOUT = 30
 

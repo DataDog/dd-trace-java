@@ -8,6 +8,7 @@ import org.jboss.resteasy.mock.MockHttpRequest
 import org.jboss.resteasy.mock.MockHttpResponse
 import org.junit.ClassRule
 import spock.lang.Shared
+import spock.lang.Unroll
 
 import javax.ws.rs.client.Entity
 import javax.ws.rs.container.ContainerRequestContext
@@ -19,6 +20,7 @@ import javax.ws.rs.ext.Provider
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+@Unroll
 abstract class JaxRsFilterTest extends AgentTestRunner {
 
   @Shared

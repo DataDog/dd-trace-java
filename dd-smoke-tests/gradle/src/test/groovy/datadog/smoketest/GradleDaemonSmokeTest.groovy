@@ -27,6 +27,7 @@ import spock.lang.AutoCleanup
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
+import spock.lang.Unroll
 import spock.util.environment.Jvm
 
 import java.nio.file.FileVisitResult
@@ -36,6 +37,7 @@ import java.nio.file.Paths
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 
+@Unroll
 class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
 
   private static final String LATEST_GRADLE_VERSION = getLatestGradleVersion()

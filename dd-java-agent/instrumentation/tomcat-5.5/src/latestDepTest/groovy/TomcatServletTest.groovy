@@ -11,6 +11,7 @@ import org.apache.catalina.startup.Tomcat
 import org.apache.catalina.valves.ErrorReportValve
 import org.apache.tomcat.util.descriptor.web.FilterDef
 import org.apache.tomcat.util.descriptor.web.FilterMap
+import spock.lang.Unroll
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -18,6 +19,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static org.junit.Assume.assumeTrue
 
+@Unroll
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
 
 
