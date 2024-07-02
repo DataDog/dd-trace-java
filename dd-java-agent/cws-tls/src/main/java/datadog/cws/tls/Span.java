@@ -1,13 +1,14 @@
 package datadog.cws.tls;
 
 import datadog.trace.api.DDTraceId;
+import java.math.BigInteger;
 
 final class Span {
 
   private final DDTraceId traceId;
-  private final long spanId;
+  private final BigInteger spanId;
 
-  Span(DDTraceId traceId, long spanId) {
+  Span(DDTraceId traceId, BigInteger spanId) {
     this.traceId = traceId;
     this.spanId = spanId;
   }
@@ -16,7 +17,7 @@ final class Span {
     return traceId;
   }
 
-  long getSpanId() {
+  BigInteger getSpanId() {
     return spanId;
   }
 }

@@ -1,20 +1,21 @@
 package datadog.cws.tls;
 
 import datadog.trace.api.DDTraceId;
+import java.math.BigInteger;
 
 class DummyTls implements Tls {
 
   private DDTraceId traceId;
-  private long spanId;
+  private BigInteger spanId;
 
   @Override
-  public void registerSpan(DDTraceId traceId, long spanId) {
+  public void registerSpan(DDTraceId traceId, BigInteger spanId) {
     this.traceId = traceId;
     this.spanId = spanId;
   }
 
   @Override
-  public long getSpanId() {
+  public BigInteger getSpanId() {
     return spanId;
   }
 
