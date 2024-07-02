@@ -91,7 +91,6 @@ public final class CrashUploader {
 
     ConfigProvider configProvider = config.configProvider();
 
-    System.out.println("===> telemetryUrl: " + telemetryUrl);
     telemetryClient =
         OkHttpUtils.buildHttpClient(
             config,
