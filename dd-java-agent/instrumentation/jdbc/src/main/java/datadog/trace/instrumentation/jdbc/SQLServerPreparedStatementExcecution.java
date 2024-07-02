@@ -68,20 +68,24 @@ public final class SQLServerPreparedStatementExcecution extends InstrumenterModu
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        final AgentSpan span = startSpan(DATABASE_QUERY);
+
         // TODO: factor out this code
         if (dbInfo.getType().equals("sqlserver")) {
-          return null;
-        }
-        Statement instrumentationStatement = connection.createStatement();
-        instrumentationStatement.execute(
-            "set context_info 0x"
-                + span.getTraceId().toHexString()
-                + DDSpanId.toHexStringPadded(span.getSpanId())
-                + "0");
-        instrumentationStatement.close();
 
-        return activateSpan(span);
+          // TODO: remove
+          System.out.println("HERE prepared" + dbInfo.getType());
+
+          final AgentSpan span = startSpan(DATABASE_QUERY);
+          Statement instrumentationStatement = connection.createStatement();
+          instrumentationStatement.execute(
+              "set context_info 0x"
+                  + span.getTraceId().toHexString()
+                  + DDSpanId.toHexStringPadded(span.getSpanId())
+                  + "0");
+          instrumentationStatement.close();
+          return activateSpan(span);
+        }
+        return null;
       } catch (SQLException e) {
         // if we can't get the connection for any reason
         return null;
@@ -98,7 +102,7 @@ public final class SQLServerPreparedStatementExcecution extends InstrumenterModu
       DECORATE.beforeFinish(scope.span());
       scope.close();
       scope.span().finish();
-      CallDepthThreadLocalMap.reset(Statement.class);
+      CallDepthThreadLocalMap.reset(PreparedStatement.class);
     }
   }
 }
