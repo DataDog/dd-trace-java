@@ -85,11 +85,42 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
       }
       try {
         final Connection connection = statement.getConnection();
+        final DBInfo dbInfo =
+                JDBCDecorator.parseDBInfo(
+                        connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+
+        // TODO: factor out this code
+        if (dbInfo.getType().equals("sqlserver") && INJECT_COMMENT) {
+          AgentSpan instrumentationSpan = startSpan("set context_info");
+          activateSpan(instrumentationSpan);
+
+          try {
+            // Sleep for 2 seconds (2000 milliseconds)
+            Thread.sleep(2000);
+          } catch (InterruptedException e) {
+            // Handle the interrupted exception
+            System.out.println("Thread was interrupted.");
+          }
+
+          Integer priority;
+          priority = instrumentationSpan.forceSamplingDecision();
+          String forceSamplingDecision = "0";
+          if (priority > 0) {
+            forceSamplingDecision = "1";
+          }
+
+          Statement instrumentationStatement = connection.createStatement();
+          instrumentationStatement.execute(
+                  "set context_info 0x"
+                          + forceSamplingDecision
+                          + DDSpanId.toHexStringPadded(instrumentationSpan.getSpanId())
+                          + instrumentationSpan.getTraceId().toHexString());
+          instrumentationStatement.close();
+          instrumentationSpan.finish();
+        }
+
         final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);
-        final DBInfo dbInfo =
-            JDBCDecorator.parseDBInfo(
-                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
         Integer priority = null;
@@ -118,51 +149,9 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         }
         DECORATE.onStatement(span, copy);
 
-        // TODO: factor out this code
-        if (dbInfo.getType().equals("sqlserver")) {
-          // TODO: remove sleep
-          try {
-            // Sleep for 2 seconds (2000 milliseconds)
-            Thread.sleep(500);
-          } catch (InterruptedException e) {
-            // Handle the interrupted exception
-            System.out.println("Thread was interrupted.");
-          }
-
-          AgentSpan instrumentationSpan = startSpan("set context_info");
-          activateSpan(instrumentationSpan);
-
-          // TODO: remove sleep
-          try {
-            // Sleep for 2 seconds (2000 milliseconds)
-            Thread.sleep(2000);
-          } catch (InterruptedException e) {
-            // Handle the interrupted exception
-            System.out.println("Thread was interrupted.");
-          }
-
-          String forceSamplingDecision = "0";
-          if (priority != null && priority > 0) {
-            forceSamplingDecision = "1";
-          }
-
-          //TODO: remove
-          System.out.println("HERE execute " + sql);
-
-          Statement instrumentationStatement = connection.createStatement();
-          instrumentationStatement.execute(
-              "set context_info 0x"
-                  + forceSamplingDecision
-                  + DDSpanId.toHexStringPadded(span.getSpanId())
-                  + span.getTraceId().toHexString());
-          instrumentationStatement.close();
-          instrumentationSpan.finish();
-          span.setStartTime(instrumentationSpan.getStartTime() + instrumentationSpan.getDurationNano() + 1000000000);
-        }
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
-        System.out.println("HERE EXCEPTION " + e.getMessage());
         return null;
       } catch (BlockingException e) {
         CallDepthThreadLocalMap.reset(Statement.class);
