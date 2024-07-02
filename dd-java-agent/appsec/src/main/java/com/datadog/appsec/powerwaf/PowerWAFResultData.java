@@ -21,7 +21,7 @@ public class PowerWAFResultData {
   }
 
   public static class Parameter extends MatchInfo {
-    MatchInfo resources;
+    MatchInfo resource;
     MatchInfo params;
     MatchInfo db_type;
     List<String> highlight;

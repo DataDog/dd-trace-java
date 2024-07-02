@@ -43,6 +43,8 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
   @Shared
   protected String[] defaultAppSecProperties = [
     "-Ddd.appsec.enabled=${System.getProperty('smoke_test.appsec.enabled') ?: 'true'}",
+    // TODO: rely on default once its true
+    "-Ddd.appsec.rasp.enabled=true",
     "-Ddd.profiling.enabled=false",
     // disable AppSec rate limit
     "-Ddd.appsec.trace.rate.limit=-1"
