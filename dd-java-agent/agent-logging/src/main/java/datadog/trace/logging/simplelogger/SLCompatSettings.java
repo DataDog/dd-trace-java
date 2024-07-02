@@ -170,14 +170,9 @@ public class SLCompatSettings {
     LogReporter.register();
     switch (logFile.toLowerCase(Locale.ROOT)) {
       case "system.err":
-        {
-          return new PrintStreamWrapper(System.err);
-        }
+        return new PrintStreamWrapper(System.err);
       case "system.out":
-        {
-          return new PrintStreamWrapper(System.out);
-        }
-
+        return new PrintStreamWrapper(System.out);
       default:
         FileOutputStream outputStream = null;
         try {

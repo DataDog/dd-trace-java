@@ -4,13 +4,14 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.file.Path;
 
 public class PrintStreamWrapper extends PrintStream {
   private static final String lineSeparator = System.getProperty("line.separator");
   private static final byte[] lineSeparatorBytes = lineSeparator.getBytes();
   private static final int lineSeparatorLength = lineSeparatorBytes.length;
 
-  private static boolean activate = false;
+  private static boolean captureOutput = false;
   private static int currentSize = 0;
   private static PrintStream printStream = null;
   private static FileOutputStream fileOutputStream = null;
@@ -27,14 +28,14 @@ public class PrintStreamWrapper extends PrintStream {
   @Override
   public void println(String x) {
     super.println(x); // log as usual
-    if (activate) {
+    if (captureOutput) {
       currentSize += x.getBytes().length + lineSeparatorLength;
       if (currentSize < LogReporter.MAX_LOGFILE_SIZE_BYTES) {
         synchronized (this) {
           printStream.println(x);
         }
       } else {
-        activate = false;
+        captureOutput = false;
       }
     }
   }
@@ -45,15 +46,14 @@ public class PrintStreamWrapper extends PrintStream {
     println(s);
   }
 
-  public static void start(String filepath) {
+  public static void start(Path filepath) {
     clean();
-    logFile = filepath;
     try {
-      if (logFile != null) {
-
+      if (filepath != null) {
+        logFile = filepath.toString();
         fileOutputStream = new FileOutputStream(logFile);
         printStream = new PrintStream(fileOutputStream, true);
-        activate = true;
+        captureOutput = true;
       }
     } catch (FileNotFoundException e) {
       // TODO maybe have support for delayed logging of early failures?
@@ -68,7 +68,7 @@ public class PrintStreamWrapper extends PrintStream {
     }
     fileOutputStream = null;
     logFile = null;
-    activate = false;
+    captureOutput = false;
     currentSize = 0;
   }
 }
