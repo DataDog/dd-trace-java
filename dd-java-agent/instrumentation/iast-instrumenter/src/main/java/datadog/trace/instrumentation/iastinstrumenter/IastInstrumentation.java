@@ -46,9 +46,10 @@ public class IastInstrumentation extends CallSiteInstrumentation {
   @Override
   protected Advices buildAdvices(final Iterable<CallSites> callSites) {
     if (Config.get().isIastHardcodedSecretEnabled()) {
-      return Advices.fromCallSites(callSites, IastHardcodedSecretListener.INSTANCE);
+      return Advices.fromCallSites(
+          callSites, StratumListener.INSTANCE, IastHardcodedSecretListener.INSTANCE);
     } else {
-      return Advices.fromCallSites(callSites);
+      return Advices.fromCallSites(callSites, StratumListener.INSTANCE);
     }
   }
 
