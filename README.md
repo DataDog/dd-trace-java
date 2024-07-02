@@ -41,3 +41,8 @@ Then check our guides:
 
 Or our reference documents:
 * [How instrumentations work](docs/how_instrumentations_work.md).
+
+## Releases
+Datadog will generally create a new minor release the first full week of every month.
+
+See [release.md](docs/releases.md) for more information.
