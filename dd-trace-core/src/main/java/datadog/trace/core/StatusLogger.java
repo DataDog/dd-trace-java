@@ -118,6 +118,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.getAppSecActivation().toString());
     writer.name("appsec_rules_file_path");
     writer.value(config.getAppSecRulesFile());
+    writer.name("rasp_enabled");
+    writer.value(config.isAppSecRaspEnabled());
     writer.name("telemetry_enabled");
     writer.value(config.isTelemetryEnabled());
     writer.name("telemetry_dependency_collection_enabled");
