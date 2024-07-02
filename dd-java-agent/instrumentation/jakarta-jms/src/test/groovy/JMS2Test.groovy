@@ -83,7 +83,7 @@ class JMS2Test extends AgentTestRunner {
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
-    producer.send(message)
+    producer.send(destination, message)
 
     Message receivedMessage = consumer.receive()
     // required to finish auto-acknowledged spans
