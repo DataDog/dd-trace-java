@@ -496,7 +496,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     for (AccumulableInfo info :
-        JavaConverters.asJavaCollection(stageInfo.accumulables().values())) {
+        JavaConverters.asJavaIterableConverter(stageInfo.accumulables().values()).asJava()) {
       accumulators.put(info.id(), new SparkSQLUtils.AccumulatorWithStage(stageId, info));
     }
 

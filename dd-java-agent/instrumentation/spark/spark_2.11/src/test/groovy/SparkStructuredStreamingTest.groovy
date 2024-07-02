@@ -1,0 +1,3 @@
+import datadog.trace.instrumentation.spark.AbstractSparkStructuredStreamingTest
+
+class SparkStructuredStreamingTest extends AbstractSparkStructuredStreamingTest {}

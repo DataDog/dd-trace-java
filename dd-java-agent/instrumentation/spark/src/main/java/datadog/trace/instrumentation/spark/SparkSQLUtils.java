@@ -170,7 +170,7 @@ public class SparkSQLUtils {
         generator.writeFieldName("meta");
         generator.writeStartObject();
 
-        for (Tuple2<String, String> metadata : JavaConverters.asJavaCollection(plan.metadata())) {
+        for (Tuple2<String, String> metadata : JavaConverters.asJavaCollectionConverter(plan.metadata()).asJavaCollection()) {
           generator.writeStringField(metadata._1, metadata._2);
         }
 
