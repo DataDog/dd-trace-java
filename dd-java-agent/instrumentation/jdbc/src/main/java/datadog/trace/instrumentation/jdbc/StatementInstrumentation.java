@@ -86,55 +86,61 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
       try {
         final Connection connection = statement.getConnection();
         final DBInfo dbInfo =
-                JDBCDecorator.parseDBInfo(
-                        connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+            JDBCDecorator.parseDBInfo(
+                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+        ;
+        boolean isSqlServer = dbInfo.getType().equals("sqlserver");
 
         // TODO: factor out this code
-        if (dbInfo.getType().equals("sqlserver") && INJECT_COMMENT) {
+        if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
           AgentSpan instrumentationSpan = startSpan("set context_info");
-          DECORATE.afterStart(instrumentationSpan);
-          DECORATE.onConnection(instrumentationSpan, dbInfo);
-          AgentScope scope = activateSpan(instrumentationSpan);
+          if (instrumentationSpan != null) {
+            DECORATE.afterStart(instrumentationSpan);
+            DECORATE.onConnection(instrumentationSpan, dbInfo);
+            AgentScope scope = activateSpan(instrumentationSpan);
 
-          //TODO: remove sleep
-          try {
-            // Sleep for 2 seconds (2000 milliseconds)
-            Thread.sleep(2000);
-          } catch (InterruptedException e) {
-            // Handle the interrupted exception
-            System.out.println("Thread was interrupted.");
+            // TODO: remove sleep
+            try {
+              // Sleep for 2 seconds (2000 milliseconds)
+              Thread.sleep(2000);
+            } catch (InterruptedException e) {
+              // Handle the interrupted exception
+              System.out.println("Thread was interrupted.");
+            }
+
+            Integer priorityInstrumented;
+            priorityInstrumented = instrumentationSpan.forceSamplingDecision();
+            String forceSamplingDecision = "0";
+            if (priorityInstrumented > 0) {
+              forceSamplingDecision = "1";
+            }
+
+            Statement instrumentationStatement = connection.createStatement();
+            String instrumentationSql;
+            instrumentationSql =
+                "set context_info 0x"
+                    + forceSamplingDecision
+                    + DDSpanId.toHexStringPadded(instrumentationSpan.getSpanId())
+                    + instrumentationSpan.getTraceId().toHexString();
+            final String originalInstrumentationSql = instrumentationSql;
+            instrumentationSql =
+                SQLCommenter.inject(
+                    instrumentationSql,
+                    instrumentationSpan.getServiceName(),
+                    dbInfo.getType(),
+                    dbInfo.getHost(),
+                    dbInfo.getDb(),
+                    null,
+                    false,
+                    appendComment);
+            DECORATE.onStatement(instrumentationSpan, originalInstrumentationSql);
+
+            instrumentationStatement.execute(instrumentationSql);
+            instrumentationStatement.close();
+            scope.close();
+            instrumentationSpan.finish();
           }
-
-          Integer priorityInstrumented;
-          priorityInstrumented = instrumentationSpan.forceSamplingDecision();
-          String forceSamplingDecision = "0";
-          if (priorityInstrumented > 0) {
-            forceSamplingDecision = "1";
-          }
-
-          Statement instrumentationStatement = connection.createStatement();
-          String instrumentationSql;
-          instrumentationSql = "set context_info 0x"
-                  + forceSamplingDecision
-                  + DDSpanId.toHexStringPadded(instrumentationSpan.getSpanId())
-                  + instrumentationSpan.getTraceId().toHexString();
-          final String originalInstrumentationSql = instrumentationSql;
-          instrumentationSql =
-                  SQLCommenter.inject(
-                          instrumentationSql,
-                          instrumentationSpan.getServiceName(),
-                          dbInfo.getType(),
-                          dbInfo.getHost(),
-                          dbInfo.getDb(),
-                          null,
-                          false,
-                          appendComment);
-          DECORATE.onStatement(instrumentationSpan, originalInstrumentationSql);
-
-          instrumentationStatement.execute(instrumentationSql);
-          instrumentationStatement.close();
-          scope.close();
-          instrumentationSpan.finish();
         }
 
         final AgentSpan span = startSpan(DATABASE_QUERY);
@@ -145,8 +151,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
 
-          boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
-          if (injectTraceContext) {
+          // injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+          if (injectTraceContext && !isSqlServer) {
             priority = span.forceSamplingDecision();
             if (priority != null) {
               traceParent = DECORATE.traceParent(span, priority);
