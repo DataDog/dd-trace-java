@@ -41,7 +41,7 @@ class BlockingServiceImplSpecification extends DDSpecification {
       final OrderedCallback.Priority priority = OrderedCallback.Priority.DEFAULT
 
       @Override
-      void onDataAvailable(ChangeableFlow flow, AppSecRequestContext context, DataBundle dataBundle, boolean isTransient) {
+      void onDataAvailable(ChangeableFlow flow, AppSecRequestContext context, DataBundle dataBundle, boolean isTransient, boolean isRasp) {
         if (dataBundle.get(KnownAddresses.USER_ID) == 'blocked.user') {
           flow.action = new Flow.Action.RequestBlockingAction(405, BlockingContentType.HTML)
         }

@@ -414,7 +414,11 @@ public class PowerWAFModule implements AppSecModule {
 
     @Override
     public void onDataAvailable(
-        ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle newData, boolean isTransient) {
+        ChangeableFlow flow,
+        AppSecRequestContext reqCtx,
+        DataBundle newData,
+        boolean isTransient,
+        boolean isRasp) {
       Powerwaf.ResultWithData resultWithData;
       CtxAndAddresses ctxAndAddr = ctxAndAddresses.get();
       if (ctxAndAddr == null) {
@@ -429,7 +433,7 @@ public class PowerWAFModule implements AppSecModule {
       }
 
       try {
-        resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient);
+        resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient, isRasp);
       } catch (TimeoutPowerwafException tpe) {
         reqCtx.increaseTimeouts();
         log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
@@ -583,11 +587,18 @@ public class PowerWAFModule implements AppSecModule {
         AppSecRequestContext reqCtx,
         DataBundle newData,
         CtxAndAddresses ctxAndAddr,
-        boolean isTransient)
+        boolean isTransient,
+        boolean isRasp)
         throws AbstractPowerwafException {
 
       Additive additive = reqCtx.getOrCreateAdditive(ctxAndAddr.ctx, wafMetricsEnabled);
-      PowerwafMetrics metrics = reqCtx.getWafMetrics();
+      PowerwafMetrics metrics;
+      if (isRasp) {
+        metrics = reqCtx.getRaspMetrics();
+        reqCtx.getRaspMetricsCounter().incrementAndGet();
+      } else {
+        metrics = reqCtx.getWafMetrics();
+      }
 
       if (isTransient) {
         return runPowerwafTransient(additive, metrics, newData, ctxAndAddr);

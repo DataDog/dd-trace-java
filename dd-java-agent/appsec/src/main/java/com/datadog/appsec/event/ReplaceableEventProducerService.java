@@ -23,9 +23,10 @@ public class ReplaceableEventProducerService implements EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,
-      boolean isTransient)
+      boolean isTransient,
+      boolean isRasp)
       throws ExpiredSubscriberInfoException {
-    return cur.publishDataEvent(subscribers, ctx, newData, isTransient);
+    return cur.publishDataEvent(subscribers, ctx, newData, isTransient, isRasp);
   }
 
   @Override

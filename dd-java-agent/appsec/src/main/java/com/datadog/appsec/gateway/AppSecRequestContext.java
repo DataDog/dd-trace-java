@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,6 +113,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private Additive additive;
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
+  private volatile PowerwafMetrics raspMetrics;
+  private AtomicInteger raspMetricsCounter;
   private volatile boolean blocked;
   private volatile int timeouts;
 
@@ -141,6 +144,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public PowerwafMetrics getWafMetrics() {
     return wafMetrics;
+  }
+
+  public PowerwafMetrics getRaspMetrics() {
+    return raspMetrics;
+  }
+
+  public AtomicInteger getRaspMetricsCounter() {
+    return raspMetricsCounter;
   }
 
   public void setBlocked() {
@@ -173,6 +184,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     // new additive was created
     if (createMetrics) {
       this.wafMetrics = ctx.createMetrics();
+      this.raspMetrics = ctx.createMetrics();
+      this.raspMetricsCounter = new AtomicInteger(0);
     }
     return curAdditive;
   }

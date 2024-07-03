@@ -33,7 +33,7 @@ class AppSecModuleSpecification extends DDSpecification {
     }
 
     @Override
-    void onDataAvailable(ChangeableFlow flow, AppSecRequestContext context, DataBundle dataBundle, boolean isTransient) {
+    void onDataAvailable(ChangeableFlow flow, AppSecRequestContext context, DataBundle dataBundle, boolean isTransient, boolean isRasp) {
     }
 
     @Override
