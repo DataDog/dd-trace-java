@@ -70,10 +70,12 @@ public final class SQLServerPreparedStatementExcecution extends InstrumenterModu
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
 
         // TODO: factor out this code
-        if (dbInfo.getType().equals("sqlserver")) {
+        if (!dbInfo.getType().equals("sqlserver")) {
+          return null;
+        }
 
           // TODO: remove
-          System.out.println("HERE prepared" + dbInfo.getType());
+          System.out.println("HERE prepared " + dbInfo.getType());
 
           final AgentSpan span = startSpan(DATABASE_QUERY);
           Statement instrumentationStatement = connection.createStatement();
@@ -84,8 +86,8 @@ public final class SQLServerPreparedStatementExcecution extends InstrumenterModu
                   + "0");
           instrumentationStatement.close();
           return activateSpan(span);
-        }
-        return null;
+
+        //return null;
       } catch (SQLException e) {
         // if we can't get the connection for any reason
         return null;

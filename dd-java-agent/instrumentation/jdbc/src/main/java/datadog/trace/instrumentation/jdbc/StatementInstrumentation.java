@@ -91,8 +91,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
         boolean isSqlServer = dbInfo.getType().equals("sqlserver");
 
-        System.out.println("HERE start");
-
         final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
@@ -101,7 +99,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
 
-          // injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
           if (injectTraceContext && !isSqlServer) {
             priority = span.forceSamplingDecision();
             if (priority != null) {
@@ -125,7 +122,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
         // TODO: factor out this code
         if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
-          System.out.println("HERE context info");
           AgentSpan instrumentationSpan = startSpan("set context_info");
           if (instrumentationSpan != null) {
             DECORATE.afterStart(instrumentationSpan);
