@@ -204,7 +204,7 @@ public final class ScriptInitializer {
   // @VisibleForTests
   static void initializeOOMENotifier(String onOutOfMemoryVal) throws IOException {
     if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
-      log.info("'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
+      log.debug("'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
       return;
     }
     Matcher m = oomeNotifierScriptPattern.matcher(onOutOfMemoryVal);
