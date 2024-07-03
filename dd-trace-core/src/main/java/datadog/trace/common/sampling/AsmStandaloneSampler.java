@@ -8,8 +8,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class is designed to sample one trace per minute. However, it's important to note that the
- * precision of this class is not in the millisecond range due to the use of clock.millis().
+ * This class is designed to only allow 1 APM trace per minute as standalone ASM is only interested in the traces
+ * containing ASM events. But the service catalog and the billing need a continuous ingestion of
+ * at least at 1 trace per minute to consider a service as being live and billable. In the absence
+ * of ASM events, no APM traces must be sent, so we need to let some regular APM traces go
+ * through, even in the absence of ASM events.
  */
 public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
