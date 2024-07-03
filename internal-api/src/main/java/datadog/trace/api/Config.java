@@ -1016,6 +1016,9 @@ public class Config {
   private final String agentlessLogSubmissionUrl;
   private final String agentlessLogSubmissionProduct;
 
+  private final List<String> cloudRequestPayloadTagging;
+  private final List<String> cloudResponsePayloadTagging;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(ConfigProvider.createDefault());
@@ -2237,6 +2240,11 @@ public class Config {
     this.agentlessLogSubmissionUrl =
         configProvider.getString(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL);
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
+
+    this.cloudRequestPayloadTagging =
+        configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING);
+    this.cloudResponsePayloadTagging =
+        configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING);
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -4224,6 +4232,14 @@ public class Config {
     return appSecMaxStackTraceDepth;
   }
 
+  public List<String> getCloudRequestPayloadTagging() {
+    return cloudRequestPayloadTagging;
+  }
+
+  public List<String> getCloudResponsePayloadTagging() {
+    return cloudResponsePayloadTagging;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -4870,6 +4886,10 @@ public class Config {
         + dataJobsCommandPattern
         + ", appSecStandaloneEnabled="
         + appSecStandaloneEnabled
+        + ", cloudRequestPayloadTagging="
+        + cloudRequestPayloadTagging
+        + ", cloudResponsePayloadTagging="
+        + cloudResponsePayloadTagging
         + '}';
   }
 }

@@ -26,6 +26,7 @@ commons = "3.2"
 mockito = '4.4.0'
 jctools = '3.3.0'
 moshi = '1.11.0'
+jsonPath = '2.8.0'
 testcontainers = '1.19.3'
 jmc = "8.1.0"
 autoservice = "1.0-rc7"
@@ -38,6 +39,7 @@ lz4 = "1.7.1"
 slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
+jsonPath = { module = "com.jayway.jsonpath:json-path", version.ref = "jsonPath" }
 jctools = { module = "org.jctools:jctools-core", version.ref = "jctools" }
 okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "okhttp" }
 okio = { module = "com.datadoghq.okio:okio", version.ref = "okio" }
