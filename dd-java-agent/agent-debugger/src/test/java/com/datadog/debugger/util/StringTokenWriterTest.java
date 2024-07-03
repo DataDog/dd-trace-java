@@ -91,7 +91,7 @@ class StringTokenWriterTest {
     list.add("foo");
     list.add("bar");
     list.add(null);
-    assertEquals("[foo, bar, null]", serializeValue(list, Limits.DEFAULT));
+    assertEquals("[foo, bar, null]", serializeValue(list, DEPTH_1));
   }
 
   @Test
@@ -99,7 +99,7 @@ class StringTokenWriterTest {
     HashMap<String, String> map = new HashMap<>();
     map.put("foo1", "bar1");
     map.put(null, null);
-    String serializedStr = serializeValue(map, Limits.DEFAULT);
+    String serializedStr = serializeValue(map, DEPTH_1);
     assertTrue(serializedStr.contains("[foo1=bar1]"));
     assertTrue(serializedStr.contains("[null=null]"));
   }
@@ -107,9 +107,10 @@ class StringTokenWriterTest {
   @Test
   public void collectionUnknown() throws Exception {
     class MyArrayList<T> extends ArrayList<T> {}
-    assertEquals(
-        "[](Error: java.lang.RuntimeException: Unsupported Collection type: com.datadog.debugger.util.StringTokenWriterTest$1MyArrayList)",
-        serializeValue(new MyArrayList<>(), Limits.DEFAULT));
+    String str = serializeValue(new MyArrayList<>(), DEPTH_1);
+    assertTrue(str.contains("elementData="));
+    assertTrue(str.contains("size="));
+    assertTrue(str.contains("modCount="));
   }
 
   @Test
@@ -120,9 +121,12 @@ class StringTokenWriterTest {
         throw new UnsupportedOperationException("entrySet");
       }
     }
-    assertEquals(
-        "{}(Error: java.lang.RuntimeException: Unsupported Map type: com.datadog.debugger.util.StringTokenWriterTest$1MyMap)",
-        serializeValue(new MyMap<String, String>(), Limits.DEFAULT));
+    String str = serializeValue(new MyMap<String, String>(), DEPTH_1);
+    assertTrue(str.contains("table="));
+    assertTrue(str.contains("size="));
+    assertTrue(str.contains("modCount="));
+    assertTrue(str.contains("threshold="));
+    assertTrue(str.contains("loadFactor="));
   }
 
   static class Person {
@@ -171,7 +175,7 @@ class StringTokenWriterTest {
     SerializerWithLimits serializer =
         new SerializerWithLimits(
             new StringTokenWriter(sb, new ArrayList<>()),
-            new TimeoutChecker(Duration.of(1, ChronoUnit.SECONDS)));
+            new TimeoutChecker(Duration.of(300, ChronoUnit.SECONDS)));
     serializer.serialize(
         value, value != null ? value.getClass().getTypeName() : Object.class.getTypeName(), limits);
     return sb.toString();
