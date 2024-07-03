@@ -86,8 +86,6 @@ public final class SQLServerPreparedStatementExcecution extends InstrumenterModu
                   + "0");
           instrumentationStatement.close();
           return activateSpan(span);
-
-        //return null;
       } catch (SQLException e) {
         // if we can't get the connection for any reason
         return null;

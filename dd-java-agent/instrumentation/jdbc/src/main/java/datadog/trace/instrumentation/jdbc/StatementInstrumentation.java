@@ -96,7 +96,9 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
         Integer priority = null;
+        AgentScope scope = null;
         if (span != null && INJECT_COMMENT) {
+           scope = activateSpan(span);
           String traceParent = null;
 
           if (injectTraceContext && !isSqlServer) {
@@ -126,7 +128,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           if (instrumentationSpan != null) {
             DECORATE.afterStart(instrumentationSpan);
             DECORATE.onConnection(instrumentationSpan, dbInfo);
-            AgentScope scope = activateSpan(instrumentationSpan);
+            AgentScope instrumentationScope = activateSpan(instrumentationSpan);
 
             // TODO: remove sleep
             try {
@@ -166,12 +168,12 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
             instrumentationStatement.execute(instrumentationSql);
             instrumentationStatement.close();
-            scope.close();
+            instrumentationScope.close();
             instrumentationSpan.finish();
           }
         }
 
-        return activateSpan(span);
+        return scope;
       } catch (SQLException e) {
         // if we can't get the connection for any reason
         return null;

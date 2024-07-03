@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -12,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -79,6 +81,61 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
+
+        // TODO: factor out this code
+        boolean isSqlServer = dbInfo.getType().equals("sqlserver");
+        boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+        if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
+          AgentSpan instrumentationSpan = startSpan("set context_info");
+          if (instrumentationSpan != null) {
+            DECORATE.afterStart(instrumentationSpan);
+            DECORATE.onConnection(instrumentationSpan, dbInfo);
+            AgentScope scope = activateSpan(instrumentationSpan);
+
+            // TODO: remove sleep
+            try {
+              // Sleep for 2 seconds (2000 milliseconds)
+              Thread.sleep(2000);
+            } catch (InterruptedException e) {
+              // Handle the interrupted exception
+              System.out.println("Thread was interrupted.");
+            }
+
+            Integer priorityInstrumented;
+            priorityInstrumented = span.forceSamplingDecision();
+            String forceSamplingDecision = "0";
+            if (priorityInstrumented > 0) {
+              forceSamplingDecision = "1";
+            }
+
+            Statement instrumentationStatement = connection.createStatement();
+            String instrumentationSql;
+            instrumentationSql =
+                    "set context_info 0x"
+                            + forceSamplingDecision
+                            + DDSpanId.toHexStringPadded(span.getSpanId())
+                            + span.getTraceId().toHexString();
+            final String originalInstrumentationSql = instrumentationSql;
+            instrumentationSql =
+                    SQLCommenter.inject(
+                            instrumentationSql,
+                            instrumentationSpan.getServiceName(),
+                            dbInfo.getType(),
+                            dbInfo.getHost(),
+                            dbInfo.getDb(),
+                            null,
+                            false,
+                            false);
+            DECORATE.onStatement(instrumentationSpan, originalInstrumentationSql);
+
+            instrumentationStatement.execute(instrumentationSql);
+            instrumentationStatement.close();
+            scope.close();
+            instrumentationSpan.finish();
+          }
+        }
+
+
         return activateSpan(span);
       } catch (SQLException e) {
         logSQLException(e);
