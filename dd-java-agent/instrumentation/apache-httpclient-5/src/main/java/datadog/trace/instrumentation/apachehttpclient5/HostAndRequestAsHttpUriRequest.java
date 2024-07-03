@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
@@ -13,6 +15,11 @@ public class HostAndRequestAsHttpUriRequest extends BasicClassicHttpRequest {
   public HostAndRequestAsHttpUriRequest(final HttpHost httpHost, final HttpRequest httpRequest) {
     super(httpRequest.getMethod(), httpHost, httpRequest.getPath());
     actualRequest = httpRequest;
+  }
+
+  @Override
+  public URI getUri() throws URISyntaxException {
+    return actualRequest.getUri();
   }
 
   @Override
