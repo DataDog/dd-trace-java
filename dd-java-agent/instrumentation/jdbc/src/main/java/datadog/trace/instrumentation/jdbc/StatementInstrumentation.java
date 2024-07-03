@@ -89,11 +89,43 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
-        ;
         boolean isSqlServer = dbInfo.getType().equals("sqlserver");
+
+        System.out.println("HERE start");
+
+        final AgentSpan span = startSpan(DATABASE_QUERY);
+        DECORATE.afterStart(span);
+        DECORATE.onConnection(span, dbInfo);
+        final String copy = sql;
+        Integer priority = null;
+        if (span != null && INJECT_COMMENT) {
+          String traceParent = null;
+
+          // injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+          if (injectTraceContext && !isSqlServer) {
+            priority = span.forceSamplingDecision();
+            if (priority != null) {
+              traceParent = DECORATE.traceParent(span, priority);
+              // set the dbm trace injected tag on the span
+              span.setTag(DBM_TRACE_INJECTED, true);
+            }
+          }
+          sql =
+              SQLCommenter.inject(
+                  sql,
+                  span.getServiceName(),
+                  dbInfo.getType(),
+                  dbInfo.getHost(),
+                  dbInfo.getDb(),
+                  traceParent,
+                  injectTraceContext,
+                  appendComment);
+        }
+        DECORATE.onStatement(span, copy);
 
         // TODO: factor out this code
         if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
+          System.out.println("HERE context info");
           AgentSpan instrumentationSpan = startSpan("set context_info");
           if (instrumentationSpan != null) {
             DECORATE.afterStart(instrumentationSpan);
@@ -142,36 +174,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             instrumentationSpan.finish();
           }
         }
-
-        final AgentSpan span = startSpan(DATABASE_QUERY);
-        DECORATE.afterStart(span);
-        DECORATE.onConnection(span, dbInfo);
-        final String copy = sql;
-        Integer priority = null;
-        if (span != null && INJECT_COMMENT) {
-          String traceParent = null;
-
-          // injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
-          if (injectTraceContext && !isSqlServer) {
-            priority = span.forceSamplingDecision();
-            if (priority != null) {
-              traceParent = DECORATE.traceParent(span, priority);
-              // set the dbm trace injected tag on the span
-              span.setTag(DBM_TRACE_INJECTED, true);
-            }
-          }
-          sql =
-              SQLCommenter.inject(
-                  sql,
-                  span.getServiceName(),
-                  dbInfo.getType(),
-                  dbInfo.getHost(),
-                  dbInfo.getDb(),
-                  traceParent,
-                  injectTraceContext,
-                  appendComment);
-        }
-        DECORATE.onStatement(span, copy);
 
         return activateSpan(span);
       } catch (SQLException e) {
