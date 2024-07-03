@@ -138,7 +138,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             }
 
             Integer priorityInstrumented;
-            priorityInstrumented = instrumentationSpan.forceSamplingDecision();
+            priorityInstrumented = span.forceSamplingDecision();
             String forceSamplingDecision = "0";
             if (priorityInstrumented > 0) {
               forceSamplingDecision = "1";
@@ -149,8 +149,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             instrumentationSql =
                 "set context_info 0x"
                     + forceSamplingDecision
-                    + DDSpanId.toHexStringPadded(instrumentationSpan.getSpanId())
-                    + instrumentationSpan.getTraceId().toHexString();
+                    + DDSpanId.toHexStringPadded(span.getSpanId())
+                    + span.getTraceId().toHexString();
             final String originalInstrumentationSql = instrumentationSql;
             instrumentationSql =
                 SQLCommenter.inject(
