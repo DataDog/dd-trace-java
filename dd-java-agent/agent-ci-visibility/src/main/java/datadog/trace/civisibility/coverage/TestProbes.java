@@ -13,9 +13,8 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -107,7 +106,7 @@ public class TestProbes implements CoverageProbeStore {
         return false;
       }
 
-      Map<String, List<TestReportFileEntry.Segment>> segmentsBySourcePath = new HashMap<>();
+      Map<String, BitSet> coveredLinesBySourcePath = new HashMap<>();
       for (Map.Entry<Class<?>, ExecutionDataAdapter> e : probeActivations.entrySet()) {
         ExecutionDataAdapter executionDataAdapter = e.getValue();
         String className = executionDataAdapter.getClassName();
@@ -132,15 +131,15 @@ public class TestProbes implements CoverageProbeStore {
         }
 
         try (InputStream is = Utils.getClassStream(clazz)) {
-          List<TestReportFileEntry.Segment> segments =
-              segmentsBySourcePath.computeIfAbsent(sourcePath, key -> new ArrayList<>());
+          BitSet coveredLines =
+              coveredLinesBySourcePath.computeIfAbsent(sourcePath, key -> new BitSet());
 
           ExecutionDataStore store = new ExecutionDataStore();
           store.put(executionDataAdapter.toExecutionData(totalProbeCount));
 
           // TODO optimize this part to avoid parsing
           //  the same class multiple times for different test cases
-          Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(segments));
+          Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(coveredLines));
           analyzer.analyzeClass(is, null);
 
         } catch (Exception exception) {
@@ -153,16 +152,11 @@ public class TestProbes implements CoverageProbeStore {
         }
       }
 
-      List<TestReportFileEntry> fileEntries = new ArrayList<>(segmentsBySourcePath.size());
-      for (Map.Entry<String, List<TestReportFileEntry.Segment>> e :
-          segmentsBySourcePath.entrySet()) {
+      List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredLinesBySourcePath.size());
+      for (Map.Entry<String, BitSet> e : coveredLinesBySourcePath.entrySet()) {
         String sourcePath = e.getKey();
-
-        List<TestReportFileEntry.Segment> segments = e.getValue();
-        segments.sort(Comparator.naturalOrder());
-
-        List<TestReportFileEntry.Segment> compressedSegments = getCompressedSegments(segments);
-        fileEntries.add(new TestReportFileEntry(sourcePath, compressedSegments));
+        BitSet coveredLines = e.getValue();
+        fileEntries.add(new TestReportFileEntry(sourcePath, coveredLines));
       }
 
       for (String nonCodeResource : nonCodeResources) {
@@ -175,8 +169,7 @@ public class TestProbes implements CoverageProbeStore {
               CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
           continue;
         }
-        TestReportFileEntry fileEntry =
-            new TestReportFileEntry(resourcePath, Collections.emptyList());
+        TestReportFileEntry fileEntry = new TestReportFileEntry(resourcePath, null);
         fileEntries.add(fileEntry);
       }
 
@@ -191,29 +184,6 @@ public class TestProbes implements CoverageProbeStore {
       metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1);
       throw e;
     }
-  }
-
-  private static List<TestReportFileEntry.Segment> getCompressedSegments(
-      List<TestReportFileEntry.Segment> segments) {
-    List<TestReportFileEntry.Segment> compressedSegments = new ArrayList<>();
-
-    int startLine = -1, endLine = -1;
-    for (TestReportFileEntry.Segment segment : segments) {
-      if (segment.getStartLine() <= endLine + 1) {
-        endLine = Math.max(endLine, segment.getEndLine());
-      } else {
-        if (startLine > 0) {
-          compressedSegments.add(new TestReportFileEntry.Segment(startLine, -1, endLine, -1, -1));
-        }
-        startLine = segment.getStartLine();
-        endLine = segment.getEndLine();
-      }
-    }
-
-    if (startLine > 0) {
-      compressedSegments.add(new TestReportFileEntry.Segment(startLine, -1, endLine, -1, -1));
-    }
-    return compressedSegments;
   }
 
   @Nullable

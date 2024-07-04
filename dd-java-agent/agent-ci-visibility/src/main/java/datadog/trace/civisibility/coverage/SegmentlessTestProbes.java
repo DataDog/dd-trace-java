@@ -12,7 +12,6 @@ import datadog.trace.api.civisibility.telemetry.tag.Library;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -134,7 +133,7 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
 
       List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredPaths.size());
       for (String path : coveredPaths) {
-        TestReportFileEntry fileEntry = new TestReportFileEntry(path, Collections.emptyList());
+        TestReportFileEntry fileEntry = new TestReportFileEntry(path, null);
         fileEntries.add(fileEntry);
       }
 
