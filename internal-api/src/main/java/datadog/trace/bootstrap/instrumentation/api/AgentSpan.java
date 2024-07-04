@@ -164,12 +164,12 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
     long getSpanId();
 
     /**
-     * Get the span's trace.
+     * Get the span's trace collector.
      *
-     * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTrace#INSTANCE} if the trace
-     *     is not valid.
+     * @return The span's trace, or a noop {@link AgentTracer.NoopAgentTraceCollector#INSTANCE} if
+     *     the trace is not valid.
      */
-    AgentTrace getTrace();
+    AgentTraceCollector getTraceCollector();
 
     /**
      * Gets the trace sampling priority of the span's trace.

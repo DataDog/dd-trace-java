@@ -166,7 +166,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     // Span 1 - should be post-processed
     def span1 = DDSpan.create("test", 0, Mock(DDSpanContext) {
       isRequiresPostProcessing() >> true
-      getTrace() >> Mock(PendingTrace) {
+      getTraceCollector() >> Mock(PendingTrace) {
         getCurrentTimeNano() >> 0
       }
     }, [])
@@ -175,7 +175,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     // Span 2 - should NOT be post-processed
     def span2 = DDSpan.create("test", 0, Mock(DDSpanContext) {
       isRequiresPostProcessing() >> false
-      getTrace() >> Mock(PendingTrace) {
+      getTraceCollector() >> Mock(PendingTrace) {
         getCurrentTimeNano() >> 0
       }
     }, [])

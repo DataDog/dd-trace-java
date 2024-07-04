@@ -4,7 +4,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
+import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import io.opentelemetry.api.trace.Span;
@@ -60,8 +60,8 @@ public class OtelExtractedContext implements AgentSpan.Context {
   }
 
   @Override
-  public AgentTrace getTrace() {
-    return AgentTracer.NoopAgentTrace.INSTANCE;
+  public AgentTraceCollector getTraceCollector() {
+    return AgentTracer.NoopAgentTraceCollector.INSTANCE;
   }
 
   @Override

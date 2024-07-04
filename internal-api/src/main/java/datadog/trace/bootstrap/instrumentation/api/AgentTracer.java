@@ -967,8 +967,8 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentTrace getTrace() {
-      return NoopAgentTrace.INSTANCE;
+    public AgentTraceCollector getTraceCollector() {
+      return NoopAgentTraceCollector.INSTANCE;
     }
 
     @Override
@@ -1072,8 +1072,8 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentTrace implements AgentTrace {
-    public static final NoopAgentTrace INSTANCE = new NoopAgentTrace();
+  public static class NoopAgentTraceCollector implements AgentTraceCollector {
+    public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
 
     @Override
     public void registerContinuation(final AgentScope.Continuation continuation) {}

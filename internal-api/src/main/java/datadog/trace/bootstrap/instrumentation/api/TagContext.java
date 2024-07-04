@@ -193,8 +193,8 @@ public class TagContext implements AgentSpan.Context.Extracted {
   }
 
   @Override
-  public final AgentTrace getTrace() {
-    return AgentTracer.NoopAgentTrace.INSTANCE;
+  public final AgentTraceCollector getTraceCollector() {
+    return AgentTracer.NoopAgentTraceCollector.INSTANCE;
   }
 
   public final Object getRequestContextDataAppSec() {

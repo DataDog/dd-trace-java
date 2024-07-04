@@ -219,7 +219,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     scopeManager.active() == childScope
     childScope.span().context().parentId == parentScope.span().context().spanId
-    childScope.span().context().trace == parentScope.span().context().trace
+    childScope.span().context().traceCollector == parentScope.span().context().traceCollector
 
     when:
     childScope.close()
