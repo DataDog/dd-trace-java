@@ -2,25 +2,29 @@ package datadog.trace.common.sampling;
 
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.CoreSpan;
+import java.time.Clock;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class is designed to sample traces based on a fixed time rate in milliseconds. However, it's
- * important to note that the precision of this class is not in the millisecond range due to the use
- * of System.currentTimeMillis().
+ * This class is designed to only allow 1 APM trace per minute as standalone ASM is only interested
+ * in the traces containing ASM events. But the service catalog and the billing need a continuous
+ * ingestion of at least at 1 trace per minute to consider a service as being live and billable. In
+ * the absence of ASM events, no APM traces must be sent, so we need to let some regular APM traces
+ * go through, even in the absence of ASM events.
  */
 public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
   private static final Logger log = LoggerFactory.getLogger(AsmStandaloneSampler.class);
+  private static final int RATE_IN_MILLISECONDS = 60000; // 1 minute
 
   private final AtomicLong lastSampleTime;
-  private final int rateInMilliseconds;
+  private final Clock clock;
 
-  public AsmStandaloneSampler(int rateInMilliseconds) {
-    this.rateInMilliseconds = rateInMilliseconds;
-    this.lastSampleTime = new AtomicLong(System.currentTimeMillis() - rateInMilliseconds);
+  public AsmStandaloneSampler(final Clock clock) {
+    this.clock = clock;
+    this.lastSampleTime = new AtomicLong(clock.millis() - RATE_IN_MILLISECONDS);
   }
 
   @Override
@@ -43,9 +47,9 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
   }
 
   private boolean shouldSample() {
-    long now = System.currentTimeMillis();
+    long now = clock.millis();
     return lastSampleTime.updateAndGet(
-            lastTime -> now - lastTime >= rateInMilliseconds ? now : lastTime)
+            lastTime -> now - lastTime >= RATE_IN_MILLISECONDS ? now : lastTime)
         == now;
   }
 }
