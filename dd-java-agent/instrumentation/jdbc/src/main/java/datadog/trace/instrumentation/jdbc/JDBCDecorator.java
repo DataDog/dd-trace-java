@@ -264,19 +264,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
               + samplingDecision
               + DDSpanId.toHexStringPadded(spanID)
               + instrumentationSpan.getTraceId().toHexString();
-      /*
-      final String originalInstrumentationSql = instrumentationSql;
-      instrumentationSql =
-          SQLCommenter.inject(
-              instrumentationSql,
-              instrumentationSpan.getServiceName(),
-              dbInfo.getType(),
-              dbInfo.getHost(),
-              dbInfo.getDb(),
-              null,
-              false,
-              appendComment);
-      */
       DECORATE.onStatement(instrumentationSpan, instrumentationSql);
       instrumentationStatement.execute(instrumentationSql);
       instrumentationStatement.close();

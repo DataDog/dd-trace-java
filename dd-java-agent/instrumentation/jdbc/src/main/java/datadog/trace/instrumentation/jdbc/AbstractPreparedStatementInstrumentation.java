@@ -81,7 +81,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
 
-        // TODO: factor out this code
         boolean isSqlServer = dbInfo.getType().equals("sqlserver");
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
         if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
