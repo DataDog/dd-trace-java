@@ -111,21 +111,21 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
             Statement instrumentationStatement = connection.createStatement();
             String instrumentationSql;
             instrumentationSql =
-                    "set context_info 0x"
-                            + forceSamplingDecision
-                            + DDSpanId.toHexStringPadded(span.getSpanId())
-                            + span.getTraceId().toHexString();
+                "set context_info 0x"
+                    + forceSamplingDecision
+                    + DDSpanId.toHexStringPadded(span.getSpanId())
+                    + span.getTraceId().toHexString();
             final String originalInstrumentationSql = instrumentationSql;
             instrumentationSql =
-                    SQLCommenter.inject(
-                            instrumentationSql,
-                            instrumentationSpan.getServiceName(),
-                            dbInfo.getType(),
-                            dbInfo.getHost(),
-                            dbInfo.getDb(),
-                            null,
-                            false,
-                            false);
+                SQLCommenter.inject(
+                    instrumentationSql,
+                    instrumentationSpan.getServiceName(),
+                    dbInfo.getType(),
+                    dbInfo.getHost(),
+                    dbInfo.getDb(),
+                    null,
+                    false,
+                    false);
             DECORATE.onStatement(instrumentationSpan, originalInstrumentationSql);
 
             instrumentationStatement.execute(instrumentationSql);
@@ -134,7 +134,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
             instrumentationSpan.finish();
           }
         }
-
 
         return activateSpan(span);
       } catch (SQLException e) {

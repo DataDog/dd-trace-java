@@ -46,8 +46,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
   @Override
   AgentSpan setSpanType(final CharSequence type);
 
-  default void setStartTime(long value) {}
-
   Object getTag(String key);
 
   @Override

@@ -98,7 +98,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         Integer priority = null;
         AgentScope scope = null;
         if (span != null && INJECT_COMMENT) {
-           scope = activateSpan(span);
+          scope = activateSpan(span);
           String traceParent = null;
 
           if (injectTraceContext && !isSqlServer) {
