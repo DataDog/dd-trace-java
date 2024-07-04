@@ -36,7 +36,7 @@ dependencies {
   }
 
   api project(':dd-trace-api')
-  implementation (project(':dd-trace-core')) {
+  implementation(project(':dd-trace-core')) {
     // why all communication pulls in remote config is beyond me...
     exclude(group: 'com.datadoghq', module: 'remote-config')
   }

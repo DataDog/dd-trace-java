@@ -69,6 +69,11 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
 
       if (parent.getLocalRootSpan().getResourceNamePriority()
           < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
+        if (parent.getLocalRootSpan().getTag(Tags.COMPONENT).toString().equals("alibaba-dubbo")
+        || parent.getLocalRootSpan().getTag(Tags.COMPONENT).toString().equals("dubbo")
+            || parent.getLocalRootSpan().getTag(Tags.COMPONENT).toString().equals("apache-dubbo")){
+          return;
+        }
         parent.setTag(Tags.COMPONENT, "jax-rs");
 
         // current handler is a filter

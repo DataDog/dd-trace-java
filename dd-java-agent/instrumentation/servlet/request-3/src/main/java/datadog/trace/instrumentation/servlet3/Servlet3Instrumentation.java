@@ -52,6 +52,8 @@ public final class Servlet3Instrumentation extends InstrumenterModule.Tracing
       packageName + ".Servlet3Decorator",
       packageName + ".ServletRequestURIAdapter",
       packageName + ".FinishAsyncDispatchListener",
+        packageName+".BodyReaderHttpServletRequestWrapper",
+        packageName+".BodyReaderHttpServletRequestWrapper$1",
       "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
     };
   }

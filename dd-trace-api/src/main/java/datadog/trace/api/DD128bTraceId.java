@@ -166,12 +166,12 @@ public class DD128bTraceId extends DDTraceId {
 
   @Override
   public String toString() {
-    String s = this.str;
+    // String s = this.str;
     // This race condition is intentional and benign.
     // The worst that can happen is that an identical value is produced and written into the field.
-    if (s == null) {
-      this.str = s = Long.toUnsignedString(this.lowOrderBits);
-    }
-    return s;
+    // if (s == null) {
+    //   this.str = s = Long.toUnsignedString(this.lowOrderBits);
+    // }
+    return toHexString();
   }
 }
