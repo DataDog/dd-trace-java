@@ -15,7 +15,9 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
     setup:
     def current = new AtomicLong(System.currentTimeMillis())
     final Clock clock = Mock(Clock) {
-      millis() >> { current.get() }
+      millis() >> {
+        current.get()
+      }
     }
     def sampler = new AsmStandaloneSampler(clock)
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
@@ -25,7 +27,9 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
     sampler.setSamplingPriority(span1)
 
     then:
-    1 * clock.millis() >> { current.updateAndGet(value -> value + 1000) } // increment in one second
+    1 * clock.millis() >> {
+      current.updateAndGet(value -> value + 1000)
+    } // increment in one second
     span1.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
 
     when:
