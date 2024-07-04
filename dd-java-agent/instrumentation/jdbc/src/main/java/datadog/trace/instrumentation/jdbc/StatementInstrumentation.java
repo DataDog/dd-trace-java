@@ -95,9 +95,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
         Integer priority = null;
-        AgentScope scope = null;
+        final AgentScope scope = activateSpan(span);
         if (span != null && INJECT_COMMENT) {
-          scope = activateSpan(span);
           String traceParent = null;
 
           if (injectTraceContext && !isSqlServer) {
