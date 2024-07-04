@@ -73,7 +73,6 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
           assertNull(snapshot.getCaptures().getEntry().getLocals());
           assertNull(snapshot.getCaptures().getEntry().getCapturedThrowable());
-          assertNull(snapshot.getCaptures().getEntry().getFields());
           assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
           assertCaptureReturnValue(
               snapshot.getCaptures().getReturn(),
@@ -82,7 +81,6 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           assertNotNull(snapshot.getCaptures().getReturn().getLocals());
           assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size()); // @return
           assertNull(snapshot.getCaptures().getReturn().getCapturedThrowable());
-          assertNull(snapshot.getCaptures().getReturn().getFields());
           snapshotReceived.set(true);
         });
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();

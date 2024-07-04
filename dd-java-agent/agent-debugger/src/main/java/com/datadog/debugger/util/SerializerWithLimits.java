@@ -91,8 +91,8 @@ public class SerializerWithLimits {
       if ("$jacocoData".equals(field.getName()) && Modifier.isTransient(field.getModifiers())) {
         return false;
       }
-      // skip constant fields
-      if (Modifier.isStatic(field.getModifiers()) && Modifier.isFinal(field.getModifiers())) {
+      // skip static fields
+      if (Modifier.isStatic(field.getModifiers())) {
         return false;
       }
       return true;

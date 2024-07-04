@@ -3,12 +3,12 @@ package com.datadog.debugger.el;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
-import java.lang.reflect.Field;
 import java.util.*;
 
 public class RefResolverHelper {
 
   public static ValueReferenceResolver createResolver(Object instance) {
+    /*
     List<Field> fields = new ArrayList<>();
     Class<?> clazz = instance.getClass();
     while (clazz != null) {
@@ -33,11 +33,15 @@ public class RefResolverHelper {
         ex.printStackTrace();
       }
     }
-    return new CapturedContext(null, null, null, null, fieldValues);
+
+     */
+    CapturedContext.CapturedValue thisValue =
+        CapturedContext.CapturedValue.of("this", instance.getClass().getTypeName(), instance);
+    return new CapturedContext(new CapturedContext.CapturedValue[] {thisValue}, null, null, null);
   }
 
   public static ValueReferenceResolver createResolver(
-      Map<String, Object> args, Map<String, Object> locals, Map<String, Object> fields) {
+      Map<String, Object> args, Map<String, Object> locals) {
     CapturedContext.CapturedValue[] argValues = null;
     if (args != null) {
       argValues = new CapturedContext.CapturedValue[args.size()];
@@ -48,12 +52,7 @@ public class RefResolverHelper {
       localValues = new CapturedContext.CapturedValue[locals.size()];
       fillValues(locals, localValues);
     }
-    CapturedContext.CapturedValue[] fieldValues = null;
-    if (fields != null) {
-      fieldValues = new CapturedContext.CapturedValue[fields.size()];
-      fillValues(fields, fieldValues);
-    }
-    return new CapturedContext(argValues, localValues, null, null, fieldValues);
+    return new CapturedContext(argValues, localValues, null, null);
   }
 
   private static void fillValues(

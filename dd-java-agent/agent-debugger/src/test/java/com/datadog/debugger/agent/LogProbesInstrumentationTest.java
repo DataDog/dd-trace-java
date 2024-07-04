@@ -378,7 +378,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
-        "this is log line for this={STATIC_STR=strStatic, intValue=48, doubleValue=3.14, strValue=done, strList=...}, ...",
+        "this is log line for this={intValue=48, doubleValue=3.14, strValue=done, strList=..., strMap=...}",
         snapshot.getMessage());
   }
 
@@ -404,7 +404,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(2, snapshot.getCaptures().getEntry().getArguments().size());
     Assertions.assertEquals(1, snapshot.getEvaluationErrors().size());
     Assertions.assertEquals(
-        "Cannot find symbol: typoArg", snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot dereference to field: typoArg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test

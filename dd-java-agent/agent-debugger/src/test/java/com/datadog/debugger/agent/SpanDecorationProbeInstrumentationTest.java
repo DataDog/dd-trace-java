@@ -164,7 +164,8 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(84, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertNull(span.getTags().get("tag1"));
-    assertEquals("Cannot find symbol: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
+    assertEquals(
+        "Cannot dereference to field: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
   }
 
   @Test
@@ -181,7 +182,8 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(1, mockSink.getSnapshots().size());
     Snapshot snapshot = mockSink.getSnapshots().get(0);
     assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(
+        "Cannot dereference to field: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
@@ -295,7 +297,8 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(1, mockSink.getSnapshots().size());
     Snapshot snapshot = mockSink.getSnapshots().get(0);
     assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(
+        "Cannot dereference to field: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test

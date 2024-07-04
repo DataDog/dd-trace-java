@@ -3,6 +3,7 @@ package com.datadog.debugger.el.expressions;
 import static com.datadog.debugger.el.DSL.*;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static com.datadog.debugger.el.TestHelper.setFieldInConfig;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
@@ -48,31 +49,23 @@ class ValueRefExpressionTest {
 
     RuntimeException runtimeException =
         assertThrows(RuntimeException.class, () -> isEmptyInvalid.evaluate(ctx));
-    assertEquals("Cannot find symbol: x", runtimeException.getMessage());
+    assertEquals("Cannot dereference to field: x", runtimeException.getMessage());
     runtimeException =
         assertThrows(RuntimeException.class, () -> and(isEmptyInvalid, isEmpty).evaluate(ctx));
-    assertEquals("Cannot find symbol: x", runtimeException.getMessage());
+    assertEquals("Cannot dereference to field: x", runtimeException.getMessage());
     runtimeException =
         assertThrows(RuntimeException.class, () -> or(isEmptyInvalid, isEmpty).evaluate(ctx));
-    assertEquals("Cannot find symbol: x", runtimeException.getMessage());
+    assertEquals("Cannot dereference to field: x", runtimeException.getMessage());
     assertEquals("isEmpty(x)", print(isEmptyInvalid));
   }
 
   @Test
   void contextRef() {
-    ExObjectWithRefAndValue instance = new ExObjectWithRefAndValue(null, "hello");
-    long limit = 511L;
-    String msg = "Hello there";
-    int i = 6;
-
-    String limitArg = "limit";
-    String msgArg = "msg";
-    String iVar = "i";
-
-    Map<String, Object> values = new HashMap<>();
-    values.put(limitArg, limit);
-    values.put(msgArg, msg);
-    values.put(iVar, i);
+    class Obj {
+      long limit = 511L;
+      String msg = "Hello there";
+      int i = 6;
+    }
 
     long duration = TimeUnit.NANOSECONDS.convert(680, TimeUnit.MILLISECONDS);
     boolean returnVal = true;
@@ -82,7 +75,8 @@ class ValueRefExpressionTest {
     exts.put(ValueReferences.DURATION_EXTENSION_NAME, duration);
     exts.put(ValueReferences.EXCEPTION_EXTENSION_NAME, exception);
     ValueReferenceResolver resolver =
-        RefResolverHelper.createResolver(null, null, values).withExtensions(exts);
+        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null)
+            .withExtensions(exts);
 
     ValueRefExpression expression = DSL.ref(ValueReferences.DURATION_REF);
     assertEquals(duration, expression.evaluate(resolver).getValue());
@@ -93,15 +87,15 @@ class ValueRefExpressionTest {
     expression = DSL.ref(ValueReferences.EXCEPTION_REF);
     assertEquals(exception, expression.evaluate(resolver).getValue());
     assertEquals("@exception", print(expression));
-    expression = DSL.ref(limitArg);
-    assertEquals(limit, expression.evaluate(resolver).getValue());
+    expression = DSL.ref("limit");
+    assertEquals(511L, expression.evaluate(resolver).getValue());
     assertEquals("limit", print(expression));
-    expression = DSL.ref(msgArg);
-    assertEquals(msg, expression.evaluate(resolver).getValue());
+    expression = DSL.ref("msg");
+    assertEquals("Hello there", expression.evaluate(resolver).getValue());
     assertEquals("msg", print(expression));
-    expression = DSL.ref(iVar);
+    expression = DSL.ref("i");
     assertEquals(
-        (long) i, expression.evaluate(resolver).getValue()); // int value is widened to long
+        (long) 6, expression.evaluate(resolver).getValue()); // int value is widened to long
     assertEquals("i", print(expression));
     ValueRefExpression invalidExpression = ref(ValueReferences.synthetic("invalid"));
     RuntimeException runtimeException =
