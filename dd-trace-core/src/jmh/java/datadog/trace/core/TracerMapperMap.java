@@ -96,7 +96,7 @@ public class TracerMapperMap {
 
   private DDSpan createSpanWithOrigin(int iter, final String origin) {
     final DDTraceId traceId = DDTraceId.from(iter);
-    final TraceCollector trace = tracer.createTrace(traceId);
+    final TraceCollector traceCollector = tracer.createTraceCollector(traceId);
     return DDSpan.create(
         "benchmark",
         System.currentTimeMillis() * 1000,
@@ -114,7 +114,7 @@ public class TracerMapperMap {
             false,
             "type",
             0,
-            trace,
+            traceCollector,
             null,
             null,
             NoopPathwayContext.INSTANCE,

@@ -806,11 +806,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    *
    * @return a PendingTrace
    */
-  public TraceCollector createTrace(DDTraceId id) {
+  public TraceCollector createTraceCollector(DDTraceId id) {
     return traceCollectorFactory.create(id);
   }
 
-  TraceCollector createTrace(DDTraceId id, ConfigSnapshot traceConfig) {
+  TraceCollector createTraceCollector(DDTraceId id, ConfigSnapshot traceConfig) {
     return traceCollectorFactory.create(id, traceConfig);
   }
 
@@ -987,7 +987,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
-    TraceCollector traceCollector = writtenTrace.get(0).context().getTrace();
+    TraceCollector traceCollector = writtenTrace.get(0).context().getTraceCollector();
     traceCollector.setSamplingPriorityIfNecessary();
 
     DDSpan rootSpan = traceCollector.getRootSpan();
@@ -1442,7 +1442,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final long spanId = idGenerationStrategy.generateSpanId();
       final long parentSpanId;
       final Map<String, String> baggage;
-      final TraceCollector parentTrace;
+      final TraceCollector parentTraceCollector;
       final int samplingPriority;
       final CharSequence origin;
       final Map<String, String> coreTags;
@@ -1477,7 +1477,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         traceId = ddsc.getTraceId();
         parentSpanId = ddsc.getSpanId();
         baggage = ddsc.getBaggageItems();
-        parentTrace = ddsc.getTrace();
+        parentTraceCollector = ddsc.getTraceCollector();
         samplingPriority = PrioritySampling.UNSET;
         origin = null;
         coreTags = null;
@@ -1551,14 +1551,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         rootSpanTags = localRootSpanTags;
 
-        parentTrace = createTrace(traceId, traceConfig);
+        parentTraceCollector = createTraceCollector(traceId, traceConfig);
 
         if (endToEndStartTime > 0) {
-          parentTrace.beginEndToEnd(endToEndStartTime);
+          parentTraceCollector.beginEndToEnd(endToEndStartTime);
         }
       }
 
-      ConfigSnapshot traceConfig = parentTrace.getTraceConfig();
+      ConfigSnapshot traceConfig = parentTraceCollector.getTraceConfig();
 
       // Use parent pathwayContext if present and started
       pathwayContext =
@@ -1571,7 +1571,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // when removing fake services the best upward service name to pick is the local root one
       // since a split by tag (i.e. servlet context) might have happened on it.
       if (!allowInferredServices) {
-        final DDSpan rootSpan = parentTrace.getRootSpan();
+        final DDSpan rootSpan = parentTraceCollector.getRootSpan();
         serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
       }
       if (serviceName == null) {
@@ -1620,7 +1620,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               errorFlag,
               spanType,
               tagsSize,
-              parentTrace,
+              parentTraceCollector,
               requestContextDataAppSec,
               requestContextDataIast,
               ciVisibilityContextData,

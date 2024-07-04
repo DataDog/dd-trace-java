@@ -654,12 +654,12 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
-      def trace = ((DDSpan) span).context().getTrace()
-      if (!(trace instanceof PendingTrace)) {
-        throw new IllegalStateException("Expected $PendingTrace.name trace collector, got $trace.class.name")
+      def traceCollector = ((DDSpan) span).context().getTraceCollector()
+      if (!(traceCollector instanceof PendingTrace)) {
+        throw new IllegalStateException("Expected $PendingTrace.name trace collector, got $traceCollector.class.name")
       }
 
-      final PendingTrace pendingTrace = (PendingTrace) trace
+      final PendingTrace pendingTrace = (PendingTrace) traceCollector
       final long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS
 
       while (pendingTrace.size() < numberOfSpans) {

@@ -4,12 +4,12 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
+import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.common.sampling.PrioritySampler;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import javax.annotation.Nonnull;
 
-public abstract class TraceCollector implements AgentTrace {
+public abstract class TraceCollector implements AgentTraceCollector {
 
   interface Factory {
     /** Used by tests and benchmarks. */

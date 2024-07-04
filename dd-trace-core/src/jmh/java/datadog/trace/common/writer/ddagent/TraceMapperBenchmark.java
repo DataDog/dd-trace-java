@@ -101,7 +101,7 @@ public class TraceMapperBenchmark {
             .build();
 
     DDTraceId traceId = DDTraceId.ONE;
-    TraceCollector traceCollector = tracer.createTrace(traceId);
+    TraceCollector traceCollector = tracer.createTraceCollector(traceId);
     DDSpanContext rootContext =
         new DDSpanContext(
             traceId,
