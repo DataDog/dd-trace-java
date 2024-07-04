@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.iast.stratum;
 import datadog.trace.agent.tooling.iast.stratum.parser.Parser;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 import net.bytebuddy.utility.OpenedClassReader;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
