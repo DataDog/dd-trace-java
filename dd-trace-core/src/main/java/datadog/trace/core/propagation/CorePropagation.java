@@ -57,7 +57,7 @@ public class CorePropagation implements AgentPropagation {
     }
 
     final DDSpanContext ddSpanContext = (DDSpanContext) context;
-    ddSpanContext.getTrace().setSamplingPriorityIfNecessary();
+    ddSpanContext.getTraceCollector().setSamplingPriorityIfNecessary();
 
     /**
      * If the experimental appsec standalone feature is enabled and appsec propagation is disabled
