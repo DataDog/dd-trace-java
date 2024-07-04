@@ -13,7 +13,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -86,53 +85,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         boolean isSqlServer = dbInfo.getType().equals("sqlserver");
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
         if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
-          AgentSpan instrumentationSpan = startSpan("set context_info");
-          if (instrumentationSpan != null) {
-            DECORATE.afterStart(instrumentationSpan);
-            DECORATE.onConnection(instrumentationSpan, dbInfo);
-            AgentScope scope = activateSpan(instrumentationSpan);
-
-            // TODO: remove sleep
-            try {
-              // Sleep for 2 seconds (2000 milliseconds)
-              Thread.sleep(2000);
-            } catch (InterruptedException e) {
-              // Handle the interrupted exception
-              System.out.println("Thread was interrupted.");
-            }
-
-            Integer priorityInstrumented;
-            priorityInstrumented = span.forceSamplingDecision();
-            String forceSamplingDecision = "0";
-            if (priorityInstrumented > 0) {
-              forceSamplingDecision = "1";
-            }
-
-            Statement instrumentationStatement = connection.createStatement();
-            String instrumentationSql;
-            instrumentationSql =
-                "set context_info 0x"
-                    + forceSamplingDecision
-                    + DDSpanId.toHexStringPadded(span.getSpanId())
-                    + span.getTraceId().toHexString();
-            final String originalInstrumentationSql = instrumentationSql;
-            instrumentationSql =
-                SQLCommenter.inject(
-                    instrumentationSql,
-                    instrumentationSpan.getServiceName(),
-                    dbInfo.getType(),
-                    dbInfo.getHost(),
-                    dbInfo.getDb(),
-                    null,
-                    false,
-                    false);
-            DECORATE.onStatement(instrumentationSpan, originalInstrumentationSql);
-
-            instrumentationStatement.execute(instrumentationSql);
-            instrumentationStatement.close();
-            scope.close();
-            instrumentationSpan.finish();
-          }
+          DECORATE.setContextInfo(connection, span.getSpanId(), dbInfo);
         }
 
         return activateSpan(span);

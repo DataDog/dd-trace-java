@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
@@ -8,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -233,6 +236,61 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     sb.append(DDSpanId.toHexStringPadded(span.getSpanId()));
     sb.append(samplingPriority > 0 ? "-01" : "-00");
     return sb.toString();
+  }
+
+  /**
+   * Executes a `SET CONTEXT_INFO` statement on the DB with the active trace ID and the given span
+   * ID. This context will be "attached" to future queries on the same connection. See <a
+   * href="https://learn.microsoft.com/fr-fr/sql/t-sql/functions/context-info-transact-sql">MSSQL
+   * doc</a>. This is to be used where injecting trace and span in the comments with {@link
+   * SQLCommenter#inject} is not possible or convenient.
+   *
+   * <p>Upsides: still "visible" in sub-queries, does not bust caches based on full query text
+   * Downsides: takes time.
+   *
+   * @param connection The same connection as the one that will be used for the actual statement
+   * @param spanID The ID of the span covering the actual statement
+   */
+  public void setContextInfo(Connection connection, long spanID, DBInfo dbInfo) {
+    AgentSpan instrumentationSpan = startSpan("set context_info");
+    DECORATE.afterStart(instrumentationSpan);
+    DECORATE.onConnection(instrumentationSpan, dbInfo);
+
+    try (AgentScope scope = activateSpan(instrumentationSpan)) {
+      String samplingDecision = instrumentationSpan.forceSamplingDecision() > 0 ? "1" : "0";
+      Statement instrumentationStatement = connection.createStatement();
+      String instrumentationSql =
+          "set context_info 0x"
+              + samplingDecision
+              + DDSpanId.toHexStringPadded(spanID)
+              + instrumentationSpan.getTraceId().toHexString();
+      /*
+      final String originalInstrumentationSql = instrumentationSql;
+      instrumentationSql =
+          SQLCommenter.inject(
+              instrumentationSql,
+              instrumentationSpan.getServiceName(),
+              dbInfo.getType(),
+              dbInfo.getHost(),
+              dbInfo.getDb(),
+              null,
+              false,
+              appendComment);
+      */
+      DECORATE.onStatement(instrumentationSpan, instrumentationSql);
+      instrumentationStatement.execute(instrumentationSql);
+      instrumentationStatement.close();
+    } catch (SQLException e) {
+      log.warn(
+          "Failed to set extra DBM data in context info for trace {}. "
+              + "To disable this behavior, set DBM_PROPAGATION_MODE to 'service' mode. "
+              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.\n{}",
+          instrumentationSpan.getTraceId().toHexString(),
+          e);
+      DECORATE.onError(instrumentationSpan, e);
+    } finally {
+      instrumentationSpan.finish();
+    }
   }
 
   @Override
