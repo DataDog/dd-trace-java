@@ -303,6 +303,9 @@ jobs:
       - run:
           name: Build Project
           command: >-
+{% if is_nightly %}
+            ./gradlew resolveAndLockAll --write-locks
+{% endif %}
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
