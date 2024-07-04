@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.instrumentation.java.concurrent.executor.AbstractExecutorInstrumentation.EXEC_NAME;
+import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
   public TaskUnwrappingInstrumentation() {
-    super(EXEC_NAME, "task-unwrapping");
+    super(EXECUTOR_INSTRUMENTATION_NAME, "task-unwrapping");
   }
 
   @Override

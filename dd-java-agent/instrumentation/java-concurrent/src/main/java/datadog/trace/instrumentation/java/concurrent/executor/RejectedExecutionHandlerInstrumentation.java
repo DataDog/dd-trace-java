@@ -5,7 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
-import static datadog.trace.instrumentation.java.concurrent.executor.AbstractExecutorInstrumentation.EXEC_NAME;
+import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -30,7 +30,7 @@ public class RejectedExecutionHandlerInstrumentation extends InstrumenterModule.
     implements Instrumenter.ForBootstrap, Instrumenter.CanShortcutTypeMatching {
 
   public RejectedExecutionHandlerInstrumentation() {
-    super(EXEC_NAME, "rejected-execution-handler");
+    super(EXECUTOR_INSTRUMENTATION_NAME, "rejected-execution-handler");
   }
 
   @Override

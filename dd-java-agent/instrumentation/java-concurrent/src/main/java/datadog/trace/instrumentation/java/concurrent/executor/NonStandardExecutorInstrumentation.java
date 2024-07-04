@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.concurrent.executor;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -14,7 +15,7 @@ import java.util.Map;
 public final class NonStandardExecutorInstrumentation extends AbstractExecutorInstrumentation {
 
   public NonStandardExecutorInstrumentation() {
-    super(EXEC_NAME + ".other");
+    super(EXECUTOR_INSTRUMENTATION_NAME + ".other");
   }
 
   @Override

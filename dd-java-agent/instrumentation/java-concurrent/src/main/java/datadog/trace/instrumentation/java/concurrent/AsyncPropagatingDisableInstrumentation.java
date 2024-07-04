@@ -6,7 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.instrumentation.java.concurrent.executor.AbstractExecutorInstrumentation.EXEC_NAME;
+import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
@@ -28,7 +28,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     implements Instrumenter.CanShortcutTypeMatching {
 
   public AsyncPropagatingDisableInstrumentation() {
-    super(EXEC_NAME);
+    super(EXECUTOR_INSTRUMENTATION_NAME);
   }
 
   private static final ElementMatcher.Junction<TypeDescription> RX_WORKERS =
