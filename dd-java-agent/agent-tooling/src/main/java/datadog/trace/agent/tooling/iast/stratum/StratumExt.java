@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.iast.stratum;
 
+import datadog.trace.api.Pair;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -9,11 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StratumExt extends AbstractStratum implements Stratum {
-  private final List<FileInfo> fileInfo = new ArrayList<FileInfo>();
+  private final List<FileInfo> fileInfo = new ArrayList<>();
 
   private int[] lineStart = null;
 
-  private final List<LineInfo> lineInfo = new ArrayList<LineInfo>();
+  private final List<LineInfo> lineInfo = new ArrayList<>();
 
   private static final Logger LOG = LoggerFactory.getLogger(StratumExt.class);
 
@@ -26,7 +27,7 @@ public class StratumExt extends AbstractStratum implements Stratum {
   }
 
   @Override
-  public int getInputLineNumber(final int outputLineNumber) {
+  public Pair<Integer, Integer> getInputLine(final int outputLineNumber) {
     try {
       List<LineInfo> info = getLineInfo();
       int startPoint = Arrays.binarySearch(getLineStart(), outputLineNumber);
@@ -46,33 +47,30 @@ public class StratumExt extends AbstractStratum implements Stratum {
           int stop = li.outputStartLine + offset;
           if (outputLineNumber <= stop) {
             int rc = (outputLineNumber - li.outputStartLine) / li.outputLineIncrement;
-            return li.inputStartLine + rc;
+            return Pair.of(li.getFileId(), li.inputStartLine + rc);
           }
         }
       }
     } catch (Exception e) {
       LOG.error("Could not get input line number from stratum", e);
     }
-    return 0;
+    return null;
   }
 
   @Override
-  public String getSourceFile() {
+  public String getSourceFile(final int fileId) {
     if (fileInfo.isEmpty()) {
       return null;
     }
-    return fileInfo.get(0).getInputFilePath();
+    return fileInfo.stream()
+        .filter(f -> f.getFileId() == fileId)
+        .findFirst()
+        .map(FileInfo::getInputFilePath)
+        .orElse(null);
   }
 
   public List<FileInfo> getFileInfo() {
     return fileInfo;
-  }
-
-  public void setFileInfo(final List<FileInfo> fileInfoList) {
-    fileInfo.clear();
-    if (fileInfoList != null) {
-      fileInfo.addAll(fileInfoList);
-    }
   }
 
   public List<LineInfo> getLineInfo() {
@@ -81,15 +79,7 @@ public class StratumExt extends AbstractStratum implements Stratum {
 
   public void addLineInfo(final LineInfo info) {
     lineInfo.add(info);
-    Collections.sort(
-        lineInfo,
-        new Comparator<LineInfo>() {
-
-          @Override
-          public int compare(final LineInfo o1, final LineInfo o2) {
-            return o1.getOutputStartLine() - o2.getOutputStartLine();
-          }
-        });
+    Collections.sort(lineInfo, Comparator.comparingInt(LineInfo::getOutputStartLine));
   }
 
   public int[] getLineStart() {

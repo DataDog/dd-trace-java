@@ -13,8 +13,6 @@ public class SourceMap {
 
   private final List<EmbeddedStratum> embeddedStratumList = new ArrayList<EmbeddedStratum>();
 
-  public SourceMap() {}
-
   public SourceMap(final String outputFileName, final String defaultStratumName) {
     this.outputFileName = outputFileName;
     this.defaultStratumName = defaultStratumName;
@@ -28,38 +26,16 @@ public class SourceMap {
     return outputFileName;
   }
 
-  public void setOutputFileName(final String outputFileName) {
-    this.outputFileName = outputFileName;
-  }
-
   public String getDefaultStratumName() {
     return defaultStratumName;
-  }
-
-  public void setDefaultStratumName(final String defaultStratumName) {
-    this.defaultStratumName = defaultStratumName;
   }
 
   public List<StratumExt> getStratumList() {
     return stratumList;
   }
 
-  public void setStratumList(final List<StratumExt> stratumList) {
-    this.stratumList.clear();
-    if (stratumList != null) {
-      this.stratumList.addAll(stratumList);
-    }
-  }
-
   public List<EmbeddedStratum> getEmbeddedStratumList() {
     return embeddedStratumList;
-  }
-
-  public void setEmbeddedStratumList(final List<EmbeddedStratum> embeddedStratumList) {
-    this.embeddedStratumList.clear();
-    if (embeddedStratumList != null) {
-      this.embeddedStratumList.addAll(embeddedStratumList);
-    }
   }
 
   public StratumExt getStratum(final String stratumName) {

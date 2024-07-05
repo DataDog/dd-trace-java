@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EmbeddedStratum extends AbstractStratum {
-  private final List<SourceMap> sourceMapList = new ArrayList<SourceMap>();
+  private final List<SourceMap> sourceMapList = new ArrayList<>();
 
   public EmbeddedStratum() {
     this("");
@@ -16,12 +16,5 @@ public class EmbeddedStratum extends AbstractStratum {
 
   public List<SourceMap> getSourceMapList() {
     return sourceMapList;
-  }
-
-  public void setSourceMapList(final List<SourceMap> sourceMapList) {
-    this.sourceMapList.clear();
-    if (sourceMapList != null) {
-      this.sourceMapList.addAll(sourceMapList);
-    }
   }
 }

@@ -11,14 +11,6 @@ public class FileInfo {
 
   private String inputFilePath;
 
-  public FileInfo() {}
-
-  public FileInfo(final int fileId, final String inputFileName, final String inputFilePath) {
-    this.fileId = fileId;
-    this.inputFileName = inputFileName;
-    this.inputFilePath = inputFilePath;
-  }
-
   public int getFileId() {
     return fileId;
   }

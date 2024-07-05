@@ -59,47 +59,20 @@ public class LineInfo {
     return fileId;
   }
 
-  public void setFileId(final int fileId) {
-    this.fileId = fileId;
-  }
-
-  public int resolveFileId() {
-    if (fileInfo != null) {
-      fileId = fileInfo.getFileId();
-    }
-    return fileId;
-  }
-
   public int getInputStartLine() {
     return inputStartLine;
-  }
-
-  public void setInputStartLine(final int inputStartLine) {
-    this.inputStartLine = inputStartLine;
   }
 
   public int getRepeatCount() {
     return repeatCount;
   }
 
-  public void setRepeatCount(final int repeatCount) {
-    this.repeatCount = repeatCount;
-  }
-
   public int getOutputStartLine() {
     return outputStartLine;
   }
 
-  public void setOutputStartLine(final int outputStartLine) {
-    this.outputStartLine = outputStartLine;
-  }
-
   public int getOutputLineIncrement() {
     return outputLineIncrement;
-  }
-
-  public void setOutputLineIncrement(final int outputLineIncrement) {
-    this.outputLineIncrement = outputLineIncrement;
   }
 
   public FileInfo getFileInfo() {

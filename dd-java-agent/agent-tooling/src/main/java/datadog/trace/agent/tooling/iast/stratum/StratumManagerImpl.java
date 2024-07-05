@@ -58,7 +58,12 @@ public class StratumManagerImpl {
     try {
       SourceMap[] sourceMaps = new Parser().parse(smap);
 
-      return new Resolver().resolve(sourceMaps[0]);
+      SourceMap result = new Resolver().resolve(sourceMaps[0]);
+      // clean result object to minimize memory usage
+      result
+          .getStratumList()
+          .forEach(stratum -> stratum.getLineInfo().forEach(li -> li.setFileInfo(null)));
+      return result;
     } catch (Exception e) {
       LOG.error("Could not get resolved source map from smap", e);
     }
