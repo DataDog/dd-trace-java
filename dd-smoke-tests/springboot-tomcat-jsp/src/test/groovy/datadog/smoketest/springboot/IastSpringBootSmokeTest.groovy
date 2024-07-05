@@ -16,7 +16,6 @@ class IastSpringBootSmokeTest extends AbstractIastServerSmokeTest {
 
     List<String> command = []
     command.add(javaPath())
-    //command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
     command.addAll(defaultJavaProperties)
     command.addAll([
       withSystemProperty(IAST_ENABLED, true),
