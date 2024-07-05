@@ -12,7 +12,8 @@ package datadog.trace.agent.tooling.iast.stratum;
  *
  * <p>InputStartLine : OutputStartLine are optional.
  *
- * <p><a href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection">...</a>
+ * <p><a
+ * href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection">...</a>
  */
 public class LineInfo {
   private int fileId;

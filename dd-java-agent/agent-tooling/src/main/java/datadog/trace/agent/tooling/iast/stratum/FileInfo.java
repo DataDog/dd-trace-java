@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling.iast.stratum;
 
 /**
- * The fileInfo describes the translated-source file names
- * <a href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#filesection">...</a>
+ * The fileInfo describes the translated-source file names <a
+ * href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#filesection">...</a>
  */
 public class FileInfo {
   private int fileId = -1;

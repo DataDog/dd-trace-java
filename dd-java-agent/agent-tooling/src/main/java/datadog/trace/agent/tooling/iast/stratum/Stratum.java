@@ -11,8 +11,6 @@ public interface Stratum {
    */
   Pair<Integer, Integer> getInputLine(final int outputLineNumber);
 
-  /**
-   * Returns the source file for the given file id.
-   */
+  /** Returns the source file for the given file id. */
   String getSourceFile(final int fileId);
 }
