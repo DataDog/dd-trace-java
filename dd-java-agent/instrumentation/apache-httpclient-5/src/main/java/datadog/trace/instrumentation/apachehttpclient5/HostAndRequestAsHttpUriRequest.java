@@ -19,6 +19,10 @@ public class HostAndRequestAsHttpUriRequest extends BasicClassicHttpRequest {
 
   @Override
   public URI getUri() throws URISyntaxException {
+    URI uri = super.getUri();
+    if (uri != null && uri.getHost() != null) {
+      return uri;
+    }
     return actualRequest.getUri();
   }
 
