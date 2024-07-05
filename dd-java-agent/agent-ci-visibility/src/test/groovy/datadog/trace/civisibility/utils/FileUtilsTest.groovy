@@ -19,7 +19,7 @@ class FileUtilsTest extends Specification {
     Files.createDirectory(temporaryFolder.resolve("childFolder").resolve("childFile"))
 
     when:
-    FileUtils.delete(temporaryFolder)
+    FileUtils.deleteSafely(temporaryFolder)
 
     then:
     !Files.exists(temporaryFolder)

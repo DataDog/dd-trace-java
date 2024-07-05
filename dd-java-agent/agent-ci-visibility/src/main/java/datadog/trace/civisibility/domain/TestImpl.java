@@ -80,7 +80,7 @@ public class TestImpl implements DDTest {
 
     TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters, null);
     CoverageStore probeStore = coverageProbeStoreFactory.create(identifier, sourcePathResolver);
-    CoverageBridge.setThreadLocalCoverageProbeStore(probeStore);
+    CoverageBridge.pinCoverageStore(probeStore);
 
     this.context = new TestContextImpl(probeStore);
 
@@ -218,7 +218,7 @@ public class TestImpl implements DDTest {
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);
 
-    CoverageBridge.removeThreadLocalCoverageProbeStore();
+    CoverageBridge.unpinCoverageStore();
 
     // do not process coverage reports for skipped tests
     if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {

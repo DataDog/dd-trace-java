@@ -49,8 +49,10 @@ class GradleProjectConfigurator {
 
   private static final String JACOCO_PLUGIN_ID = 'jacoco'
 
-  void configureTracer(Task task, Map<String, String> propagatedSystemProperties) {
+  void configureTracer(Task task, Map<String, String> propagatedSystemProperties, List<String> jvmOptions) {
     List<String> jvmArgs = new ArrayList<>(task.jvmArgs != null ? task.jvmArgs : Collections.<String> emptyList())
+
+    jvmArgs.addAll(jvmOptions)
 
     // propagate to child process all "dd." system properties available in current process
     for (def e : propagatedSystemProperties.entrySet()) {

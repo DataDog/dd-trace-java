@@ -9,13 +9,16 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.civisibility.coverage.instrumentation.store.JvmPatcher;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
+import datadog.trace.civisibility.utils.FileUtils;
 import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -65,14 +68,6 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     boolean testSkippingEnabled = isTestSkippingEnabled(ciVisibilitySettings);
     boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
     boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
-    Map<String, String> systemProperties =
-        getPropertiesPropagatedToChildProcess(
-            itrEnabled,
-            codeCoverageEnabled,
-            testSkippingEnabled,
-            flakyTestRetriesEnabled,
-            earlyFlakeDetectionEnabled);
-
     LOGGER.info(
         "CI Visibility settings ({}, {}):\n"
             + "Intelligent Test Runner - {},\n"
@@ -109,6 +104,19 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
         earlyFlakeDetectionEnabled ? getKnownTests(tracerEnvironment) : null;
 
+    Map<String, String> systemProperties =
+        getPropertiesPropagatedToChildProcess(
+            itrEnabled,
+            codeCoverageEnabled,
+            testSkippingEnabled,
+            flakyTestRetriesEnabled,
+            earlyFlakeDetectionEnabled);
+
+    List<String> jvmOptions = new ArrayList<>();
+    if (codeCoverageEnabled && config.isCiVisibilityJvmPatchingEnabled()) {
+      jvmOptions.addAll(patchJvm(jvmInfo));
+    }
+
     List<String> coverageEnabledPackages = getCoverageEnabledPackages(codeCoverageEnabled);
     return new ModuleExecutionSettings(
         itrEnabled,
@@ -123,11 +131,36 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
             ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
             : EarlyFlakeDetectionSettings.DEFAULT,
         systemProperties,
+        jvmOptions,
         itrCorrelationId,
         skippableTestsByModuleName,
         flakyTests,
         knownTestsByModuleName,
         coverageEnabledPackages);
+  }
+
+  /**
+   * @return The list of JVM options that are needed to prepend the patch to the bootstrap classpath
+   */
+  private List<String> patchJvm(JvmInfo jvmInfo) {
+    try {
+      JvmPatcher patcher = new JvmPatcher(jvmInfo);
+      Path patchPath = patcher.createPatch();
+
+      Thread cleanupPatch =
+          new Thread(() -> FileUtils.deleteSafely(patchPath), "dd-ci-vis-patched-classes-remove");
+      Runtime.getRuntime().addShutdownHook(cleanupPatch);
+
+      if (jvmInfo.isModular()) {
+        return Arrays.asList("--patch-module", String.format("java.base=%s", patchPath));
+      } else {
+        return Collections.singletonList(String.format("-Xbootclasspath/p:%s", patchPath));
+      }
+
+    } catch (Exception e) {
+      LOGGER.debug("Failed to patch {}", jvmInfo, e);
+      return Collections.emptyList();
+    }
   }
 
   private TracerEnvironment buildTracerEnvironment(
