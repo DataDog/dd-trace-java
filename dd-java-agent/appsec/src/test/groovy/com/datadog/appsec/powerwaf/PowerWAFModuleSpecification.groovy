@@ -202,7 +202,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       rba.statusCode == 501 &&
         rba.blockingContentType == BlockingContentType.JSON
     })
-    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     2 * tracer.activeSpan()
@@ -235,7 +235,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
         rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     2 * tracer.activeSpan()
@@ -276,7 +276,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
         rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     2 * tracer.activeSpan()
@@ -300,7 +300,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
         rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     2 * tracer.activeSpan()
@@ -356,7 +356,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
         rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     2 * tracer.activeSpan()
@@ -376,7 +376,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true) >> {
+    1 * ctx.getOrCreateAdditive(_ as PowerwafContext, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     1 * ctx.getWafMetrics()
@@ -432,7 +432,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     2 * tracer.activeSpan()
@@ -454,7 +454,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     1 * ctx.getWafMetrics()
@@ -512,7 +512,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     3 * tracer.activeSpan()
@@ -591,7 +591,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       rba.statusCode == 401 &&
         rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateAdditive(_, true) >> { it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true, false) >> { it[0].openAdditive() }
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
@@ -611,7 +611,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       PowerwafContext pwCtx = it[0] as PowerwafContext
       pwafAdditive = pwCtx.openAdditive()
       metrics = pwCtx.createMetrics()
@@ -676,7 +676,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       PowerwafContext pwCtx = it[0] as PowerwafContext
       pwafAdditive = pwCtx.openAdditive()
       metrics = pwCtx.createMetrics()
@@ -705,7 +705,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    1 * ctx.getOrCreateAdditive(_, false) >> {
+    1 * ctx.getOrCreateAdditive(_, false, false) >> {
       pwafAdditive = it[0].openAdditive()
     }
     1 * ctx.getWafMetrics() >> null
@@ -731,7 +731,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     pp.processTraceSegment(segment, ctx, [])
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       PowerwafContext pwCtx = it[0] as PowerwafContext
       pwafAdditive = pwCtx.openAdditive()
       metrics = pwCtx.createMetrics()
@@ -755,7 +755,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       PowerwafContext pwCtx = it[0] as PowerwafContext
       pwafAdditive = pwCtx.openAdditive()
       metrics = pwCtx.createMetrics()
@@ -987,7 +987,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * reconf.reloadSubscriptions()
@@ -1023,7 +1023,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateAdditive(_, true) >> { pwafAdditive = it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
@@ -1079,7 +1079,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then: 'no match; rule is disabled'
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> { pwafAdditive.close() }
@@ -1101,7 +1101,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then: 'no match; data was cleared (though rule is no longer disabled)'
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
@@ -1122,7 +1122,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then: 'now we have match'
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
@@ -1149,7 +1149,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then: 'nothing again; we disabled the rule'
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateAdditive(_, true) >> { pwafAdditive = it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
     _ * ctx.increaseTimeouts()
@@ -1178,7 +1178,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     // no attack
-    1 * ctx.getOrCreateAdditive(_, true) >> { pwafAdditive = it[0].openAdditive() }
+    1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     _ * ctx.increaseTimeouts()
@@ -1200,7 +1200,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     // no attack
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
@@ -1223,7 +1223,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     // attack found
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * flow.isBlocking()
@@ -1249,7 +1249,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     1 * reconf.reloadSubscriptions()
     // no attack
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
     1 * ctx.closeAdditive()
@@ -1358,7 +1358,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     dataListener.onDataAvailable(flow, ctx, transientBundle, false, false)
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>) >> {
@@ -1374,7 +1374,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    1 * ctx.getOrCreateAdditive(_, true) >> {
+    1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive }
     1 * flow.setAction({ it.blocking })
     2 * tracer.activeSpan()
