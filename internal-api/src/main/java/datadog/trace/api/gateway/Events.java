@@ -221,8 +221,8 @@ public final class Events<D> {
       new ET<>("database.query", DATABASE_SQL_QUERY_ID);
   /** A database sql query */
   @SuppressWarnings("unchecked")
-  public EventType<BiConsumer<RequestContext, String>> databaseSqlQuery() {
-    return (EventType<BiConsumer<RequestContext, String>>) DATABASE_SQL_QUERY;
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> databaseSqlQuery() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) DATABASE_SQL_QUERY;
   }
 
   static final int GRPC_SERVER_METHOD_ID = 18;
