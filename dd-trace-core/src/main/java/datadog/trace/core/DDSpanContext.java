@@ -67,7 +67,7 @@ public class DDSpanContext
   private static final Map<String, Object> EMPTY_META_STRUCT = Collections.emptyMap();
 
   /** The collection of all span related to this one */
-  private final PendingTrace trace;
+  private final TraceCollector traceCollector;
 
   /** Baggage is associated with the whole trace and shared with other spans */
   private volatile Map<String, String> baggageItems;
@@ -166,7 +166,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
@@ -186,7 +186,7 @@ public class DDSpanContext
         errorFlag,
         spanType,
         tagsSize,
-        trace,
+        traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
         null,
@@ -212,7 +212,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
@@ -233,7 +233,7 @@ public class DDSpanContext
         errorFlag,
         spanType,
         tagsSize,
-        trace,
+        traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
         null,
@@ -259,7 +259,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
@@ -280,7 +280,7 @@ public class DDSpanContext
         errorFlag,
         spanType,
         tagsSize,
-        trace,
+        traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
         null,
@@ -306,7 +306,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final Object CiVisibilityContextData,
@@ -317,8 +317,8 @@ public class DDSpanContext
       final boolean injectBaggageAsTags,
       final boolean isRemote) {
 
-    assert trace != null;
-    this.trace = trace;
+    assert traceCollector != null;
+    this.traceCollector = traceCollector;
 
     assert traceId != null;
     this.traceId = traceId;
@@ -365,7 +365,7 @@ public class DDSpanContext
     this.propagationTags =
         propagationTags != null
             ? propagationTags
-            : trace.getTracer().getPropagationTagsFactory().empty();
+            : traceCollector.getTracer().getPropagationTagsFactory().empty();
     this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
     this.injectBaggageAsTags = injectBaggageAsTags;
     if (origin != null) {
@@ -412,7 +412,7 @@ public class DDSpanContext
   }
 
   public void setServiceName(final String serviceName) {
-    this.serviceName = trace.mapServiceName(serviceName);
+    this.serviceName = traceCollector.mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
 
@@ -528,8 +528,8 @@ public class DDSpanContext
   }
 
   private DDSpanContext getRootSpanContextIfDifferent() {
-    if (trace != null) {
-      final DDSpan rootSpan = trace.getRootSpan();
+    if (traceCollector != null) {
+      final DDSpan rootSpan = traceCollector.getRootSpan();
       if (null != rootSpan && rootSpan.context() != this) {
         return rootSpan.context();
       }
@@ -616,7 +616,7 @@ public class DDSpanContext
     // this is now effectively a no-op - there is no locking.
     // the priority is just CAS'd against UNSET/UNKNOWN, unless it's forced to USER_KEEP/MANUAL
     // but is maintained for backwards compatibility, and returns false when it used to
-    final DDSpan rootSpan = trace.getRootSpan();
+    final DDSpan rootSpan = traceCollector.getRootSpan();
     if (null != rootSpan && rootSpan.context() != this) {
       return rootSpan.context().lockSamplingPriority();
     }
@@ -629,11 +629,11 @@ public class DDSpanContext
   }
 
   public void beginEndToEnd() {
-    trace.beginEndToEnd();
+    traceCollector.beginEndToEnd();
   }
 
   public long getEndToEndStartTime() {
-    return trace.getEndToEndStartTime();
+    return traceCollector.getEndToEndStartTime();
   }
 
   public void setBaggageItem(final String key, final String value) {
@@ -661,8 +661,8 @@ public class DDSpanContext
   }
 
   @Override
-  public PendingTrace getTrace() {
-    return trace;
+  public TraceCollector getTraceCollector() {
+    return traceCollector;
   }
 
   public RequestContext getRequestContext() {
@@ -694,7 +694,7 @@ public class DDSpanContext
   }
 
   public CoreTracer getTracer() {
-    return trace.getTracer();
+    return traceCollector.getTracer();
   }
 
   public void setHttpStatusCode(short statusCode) {
@@ -734,7 +734,7 @@ public class DDSpanContext
       synchronized (unsafeTags) {
         unsafeTags.remove(tag);
       }
-    } else if (!trace.getTracer().getTagInterceptor().interceptTag(this, tag, value)) {
+    } else if (!traceCollector.getTracer().getTagInterceptor().interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeSetTag(tag, value);
       }
@@ -746,7 +746,7 @@ public class DDSpanContext
       return;
     }
 
-    TagInterceptor tagInterceptor = trace.getTracer().getTagInterceptor();
+    TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ?> tag : map.entrySet()) {
         if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
@@ -995,7 +995,7 @@ public class DDSpanContext
 
   @Override
   public void effectivelyBlocked() {
-    setTag("appsec.blocked", "true");
+    setTagTop("appsec.blocked", "true");
   }
 
   @Override

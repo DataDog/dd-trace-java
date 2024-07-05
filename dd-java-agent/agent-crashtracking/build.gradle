@@ -1,11 +1,10 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-// FIXME: Improve test coverage.
-minimumBranchCoverage = 0.6
-// runtime dependent parts (eg. looking up values from the JVM args) are not easy to exercise in unit tests
-// the minimum coverage is reduced to reflect that
-// minimumInstructionCoverage = 0.9
-minimumInstructionCoverage = 0.7
+// The functionality is tested in dd-smoke-tests/crashtracking
+
+minimumBranchCoverage = 0.0
+minimumInstructionCoverage = 0.0
+excludedClassesCoverage += ['com.datadog.crashtracking.*']
 
 tasks.withType(Test).configureEach { subTask ->
   dependsOn ':dd-java-agent:shadowJar'

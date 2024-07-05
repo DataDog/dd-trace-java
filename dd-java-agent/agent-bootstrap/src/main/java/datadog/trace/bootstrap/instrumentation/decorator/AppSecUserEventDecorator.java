@@ -76,6 +76,7 @@ public class AppSecUserEventDecorator {
   private void onEvent(@Nonnull TraceSegment segment, String eventName, Map<String, String> tags) {
     segment.setTagTop("appsec.events." + eventName + ".track", true, true);
     segment.setTagTop(Tags.ASM_KEEP, true);
+    segment.setTagTop(Tags.PROPAGATED_APPSEC, true);
 
     // Report user event tracking mode ("safe" or "extended")
     UserEventTrackingMode mode = Config.get().getAppSecUserEventsTrackingMode();

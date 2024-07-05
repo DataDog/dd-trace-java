@@ -14,8 +14,6 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
       "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
-      // decoding received traces is only available for v05 right now
-      "-Ddd.trace.agent.v0.5.enabled=true",
       "-jar",
       springBootShadowJar,
       "--server.port=${httpPort}"

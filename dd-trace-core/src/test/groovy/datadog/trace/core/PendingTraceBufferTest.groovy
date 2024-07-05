@@ -479,9 +479,9 @@ class PendingTraceBufferTest extends DDSpecification {
   }
 
   static DDSpan newSpanOf(DDSpan parent) {
-    def trace = parent.context().trace
+    def traceCollector = parent.context().traceCollector
     def context = new DDSpanContext(
-      trace.traceId,
+      traceCollector.traceId,
       2,
       parent.context().spanId,
       null,
@@ -494,7 +494,7 @@ class PendingTraceBufferTest extends DDSpecification {
       false,
       "fakeType",
       0,
-      trace,
+      traceCollector,
       null,
       null,
       NoopPathwayContext.INSTANCE,

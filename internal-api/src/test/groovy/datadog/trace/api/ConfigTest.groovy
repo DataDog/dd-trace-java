@@ -75,7 +75,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TAGS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION
@@ -2439,5 +2441,28 @@ class ConfigTest extends DDSpecification {
     null                     | 47                        | 47
     true                     | 11                        | 11
     false                    | 17                        | 0
+  }
+
+  def "check profiling SSI auto-enablement"() {
+    when:
+    def prop = new Properties()
+    prop.setProperty(PROFILING_ENABLED, enablementMode)
+    prop.setProperty(PROFILING_START_DELAY, "1")
+    prop.setProperty(PROFILING_START_FORCE_FIRST, "true")
+
+    Config config = Config.get(prop)
+
+    then:
+    config.profilingEnabled == expectedEnabled
+    config.profilingStartDelay == expectedStartDelay
+    config.profilingStartForceFirst == expectedStartForceFirst
+
+    where:
+    // spotless:off
+    enablementMode | expectedEnabled | expectedStartDelay             | expectedStartForceFirst
+    "true"         | true            | 1                              | true
+    "false"        | false           | 1                              | true
+    "auto"         | true            | PROFILING_START_DELAY_DEFAULT  | PROFILING_START_FORCE_FIRST_DEFAULT
+    // spotless:on
   }
 }

@@ -27,7 +27,7 @@ jobs:
           echo "${VERSION}: https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar" >> index.yml
           git add index.yml
           git commit -m "chore: Add version ${VERSION} to Cloud Foundry"
-          git push -u origin ci/cloudfoundry
+          git push -u origin ci/cloudfoundry --force
           gh pr create \
             --title "Add version ${VERSION} to Cloud Foundry" \
             --body "This PR add the version ${VERSION} to Cloud Foundry.  Make sure [the JAR is online](https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar) before merging." \

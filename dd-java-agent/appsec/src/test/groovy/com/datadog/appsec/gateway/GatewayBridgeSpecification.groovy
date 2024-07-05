@@ -79,7 +79,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
   BiConsumer<RequestContext, String> databaseConnectionCB
-  BiConsumer<RequestContext, String> databaseSqlQueryCB
+  BiFunction<RequestContext, String, Flow<Void>> databaseSqlQueryCB
 
   void setup() {
     callInitAndCaptureCBs()

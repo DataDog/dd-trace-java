@@ -37,6 +37,48 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           ],
           transformers: [],
           on_match    : ['block']
+        ],
+        [
+          id          : '__test_sqli_stacktrace_on_query',
+          name        : 'test rule to generate stacktrace on sqli',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
+          ],
+          conditions: [
+            [
+              parameters: [
+                resource: [[address: "server.db.statement"]],
+                params: [[ address: "server.request.query" ]],
+                db_type: [[ address: "server.db.system" ]],
+              ],
+              operator: "sqli_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['stack_trace']
+        ],
+        [
+          id          : '__test_sqli_block_on_header',
+          name        : 'test rule to block on sqli',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
+          ],
+          conditions: [
+            [
+              parameters: [
+                resource: [[address: "server.db.statement"]],
+                params: [[ address: "server.request.headers.no_cookies" ]],
+                db_type: [[ address: "server.db.system" ]],
+              ],
+              operator: "sqli_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
         ]
       ])
   }
@@ -196,5 +238,72 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpans.each {
       assert it.meta.get('appsec.blocked') != null, 'appsec.blocked is not set'
     }
+  }
+
+  void 'rasp reports stacktrace on sql injection'() {
+    when:
+    String url = "http://localhost:${httpPort}/sqli/query?id=' OR 1=1 --"
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 200
+    responseBodyStr == 'EXECUTED'
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == null, 'appsec.blocked is set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_sqli_stacktrace_on_query') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+  }
+
+  void 'rasp blocks on sql injection'() {
+    when:
+    String url = "http://localhost:${httpPort}/sqli/header"
+    def request = new Request.Builder()
+      .url(url)
+      .header("x-custom-header", "' OR 1=1 --")
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr == '{"errors":[{"title":"You\'ve been blocked","detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}\n'
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_sqli_block_on_header') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
   }
 }

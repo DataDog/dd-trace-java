@@ -32,6 +32,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -638,8 +639,8 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
-    // crash uploader initialization relies on JMX being available
-    initializeCrashUploader();
+    // error tracking initialization relies on JMX being available
+    initializeErrorTracking();
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
@@ -870,7 +871,7 @@ public class Agent {
     }
   }
 
-  private static void initializeCrashUploader() {
+  private static void initializeErrorTracking() {
     if (Platform.isJ9()) {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
       return;
@@ -1124,6 +1125,11 @@ public class Agent {
       // true unless it's explicitly set to "false"
       return !("false".equalsIgnoreCase(featureEnabled) || "0".equals(featureEnabled));
     } else {
+      if (feature == AgentFeature.PROFILING) {
+        // We need this hack because profiling in SSI can receive 'auto' value in
+        // the enablement config
+        return ProfilingEnablement.of(featureEnabled).isActive();
+      }
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
