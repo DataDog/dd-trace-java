@@ -5,13 +5,13 @@ import java.util.Iterator;
 import java.util.List;
 
 public class SourceMap {
-  private String outputFileName;
+  private final String outputFileName;
 
-  private String defaultStratumName;
+  private final String defaultStratumName;
 
-  private final List<StratumExt> stratumList = new ArrayList<StratumExt>();
+  private final List<StratumExt> stratumList = new ArrayList<>();
 
-  private final List<EmbeddedStratum> embeddedStratumList = new ArrayList<EmbeddedStratum>();
+  private final List<EmbeddedStratum> embeddedStratumList = new ArrayList<>();
 
   public SourceMap(final String outputFileName, final String defaultStratumName) {
     this.outputFileName = outputFileName;
@@ -39,8 +39,7 @@ public class SourceMap {
   }
 
   public StratumExt getStratum(final String stratumName) {
-    for (Iterator<StratumExt> iter = stratumList.iterator(); iter.hasNext(); ) {
-      StratumExt stratum = iter.next();
+    for (StratumExt stratum : stratumList) {
       if (stratum.getName().compareTo(stratumName) == 0) {
         return stratum;
       }

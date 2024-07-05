@@ -20,7 +20,7 @@ public class SourceMapperImpl implements SourceMapper {
       return null;
     }
     Pair<Integer, Integer> inputLine = stratum.getInputLine(lineNumber);
-    if (inputLine == null) {
+    if (inputLine == null || inputLine.getLeft() == null) {
       return null;
     }
     return Pair.of(stratum.getSourceFile(inputLine.getLeft()), inputLine.getRight());

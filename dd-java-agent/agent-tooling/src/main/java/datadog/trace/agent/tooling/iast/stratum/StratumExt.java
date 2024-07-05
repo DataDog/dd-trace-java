@@ -79,7 +79,7 @@ public class StratumExt extends AbstractStratum implements Stratum {
 
   public void addLineInfo(final LineInfo info) {
     lineInfo.add(info);
-    Collections.sort(lineInfo, Comparator.comparingInt(LineInfo::getOutputStartLine));
+    lineInfo.sort(Comparator.comparingInt(LineInfo::getOutputStartLine));
   }
 
   public int[] getLineStart() {

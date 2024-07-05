@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Manages SMAP information for classes
- * https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection
+ * <a href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection">...</a>
  */
 public class StratumManagerImpl {
 

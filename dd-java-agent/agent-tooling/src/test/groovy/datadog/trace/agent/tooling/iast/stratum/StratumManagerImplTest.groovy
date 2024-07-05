@@ -33,8 +33,9 @@ class StratumManagerImplTest extends DDSpecification {
     then:
     final result  = StratumManagerImpl.INSTANCE.get("org.apache.jsp.register_jsp")
     result != null
-    result.getInputLine(216) == 70
-    result.getSourceFile() == "register.jsp"
+    final inputLine = result.getInputLine(216)
+    inputLine.right == 70
+    result.getSourceFile(inputLine.left) == "register.jsp"
     result
   }
 }
