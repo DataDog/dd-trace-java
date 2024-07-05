@@ -13,8 +13,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
-import datadog.trace.civisibility.coverage.SkippableAwareCoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
+import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
@@ -45,7 +45,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final LongAdder testsSkipped = new LongAdder();
   private final String itrCorrelationId;
   private final Collection<TestIdentifier> skippableTests;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStoreFactory coverageProbeStoreFactory;
   private final boolean flakyTestRetriesEnabled;
   @Nullable private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestIdentifier> knownTests;
@@ -65,7 +65,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStoreFactory coverageProbeStoreFactory,
       ModuleExecutionSettings executionSettings,
       Consumer<AgentSpan> onSpanFinish) {
     super(
@@ -88,7 +88,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
     this.coverageProbeStoreFactory =
         executionSettings.isItrEnabled()
-            ? new SkippableAwareCoverageProbeStoreFactory(skippableTests, coverageProbeStoreFactory)
+            ? new SkippableAwareCoverageStoreFactory(skippableTests, coverageProbeStoreFactory)
             : coverageProbeStoreFactory;
 
     flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();

@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.coverage.instrumentation;
+package datadog.trace.civisibility.coverage.instrumentation.probe;
 
 import java.util.function.Predicate;
 import org.objectweb.asm.MethodVisitor;

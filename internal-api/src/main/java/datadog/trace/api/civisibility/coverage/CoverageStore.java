@@ -1,6 +1,6 @@
 package datadog.trace.api.civisibility.coverage;
 
-public interface CoverageProbeStore extends TestReportHolder {
+public interface CoverageStore extends TestReportHolder {
   void record(Class<?> clazz);
 
   void record(Class<?> clazz, long classId, int probeId);

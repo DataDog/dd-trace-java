@@ -245,7 +245,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       // to cover flaky test retrieval logic
 
       if (injectJacoco) {
-        agentArgument += "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED)}=true," +
+        agentArgument += "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED)}=true," +
           "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION},"
       }
 

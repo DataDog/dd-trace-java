@@ -1,9 +1,9 @@
 package datadog.trace.api.civisibility.domain;
 
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 
 public interface TestContext {
-  CoverageProbeStore getCoverageProbeStore();
+  CoverageStore getCoverageProbeStore();
 
   <T> void set(Class<T> key, T value);
 

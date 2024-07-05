@@ -74,8 +74,8 @@ public final class CiVisibilityConfig {
       "civisibility.code.coverage.includes";
   public static final String CIVISIBILITY_CODE_COVERAGE_EXCLUDES =
       "civisibility.code.coverage.excludes";
-  public static final String CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED =
-      "civisibility.code.coverage.segments.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED =
+      "civisibility.code.coverage.lines.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT =
       "civisibility.code.coverage.root.packages.limit";
   public static final String CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED =

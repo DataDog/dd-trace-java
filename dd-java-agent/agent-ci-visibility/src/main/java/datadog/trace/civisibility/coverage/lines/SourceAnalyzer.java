@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.coverage;
+package datadog.trace.civisibility.coverage.lines;
 
 import java.util.BitSet;
 import org.jacoco.core.analysis.IClassCoverage;

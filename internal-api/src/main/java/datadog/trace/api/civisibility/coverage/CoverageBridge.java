@@ -8,16 +8,16 @@ public abstract class CoverageBridge {
    * While it is possible to use activeSpan() to get current coverage store, it adds a lot of overhead.
    * This thread local is here as a shortcut for hot code paths.
    */
-  private static final ThreadLocal<CoverageProbeStore> COVERAGE_PROBE_STORE = new ThreadLocal<>();
-  private static volatile CoverageProbeStore.Registry COVERAGE_PROBE_STORE_REGISTRY;
+  private static final ThreadLocal<CoverageStore> COVERAGE_PROBE_STORE = new ThreadLocal<>();
+  private static volatile CoverageStore.Registry COVERAGE_PROBE_STORE_REGISTRY;
   private static volatile CoverageDataSupplier COVERAGE_DATA_SUPPLIER;
 
   public static void registerCoverageProbeStoreRegistry(
-      CoverageProbeStore.Registry coverageProbeStoreRegistry) {
+      CoverageStore.Registry coverageProbeStoreRegistry) {
     COVERAGE_PROBE_STORE_REGISTRY = coverageProbeStoreRegistry;
   }
 
-  public static CoverageProbeStore.Registry getCoverageProbeStoreRegistry() {
+  public static CoverageStore.Registry getCoverageProbeStoreRegistry() {
     return COVERAGE_PROBE_STORE_REGISTRY;
   }
 
@@ -29,7 +29,7 @@ public abstract class CoverageBridge {
     return COVERAGE_DATA_SUPPLIER != null ? COVERAGE_DATA_SUPPLIER.get() : null;
   }
 
-  public static void setThreadLocalCoverageProbeStore(CoverageProbeStore probes) {
+  public static void setThreadLocalCoverageProbeStore(CoverageStore probes) {
     COVERAGE_PROBE_STORE.set(probes);
   }
 
@@ -39,7 +39,7 @@ public abstract class CoverageBridge {
 
   /* This method is referenced by name in bytecode added in jacoco instrumentation module */
   public static void currentCoverageProbeStoreRecord(Class<?> clazz, long classId, int probeId) {
-    CoverageProbeStore probes = COVERAGE_PROBE_STORE.get();
+    CoverageStore probes = COVERAGE_PROBE_STORE.get();
     if (probes != null) {
       probes.record(clazz, classId, probeId);
     } else {
@@ -52,7 +52,7 @@ public abstract class CoverageBridge {
 
   /* This method is referenced by name in bytecode added by coverage probes (see CoverageUtils) */
   public static void currentCoverageProbeStoreRecord(Class<?> clazz) {
-    CoverageProbeStore probes = COVERAGE_PROBE_STORE.get();
+    CoverageStore probes = COVERAGE_PROBE_STORE.get();
     if (probes != null) {
       probes.record(clazz);
     } else {
@@ -64,7 +64,7 @@ public abstract class CoverageBridge {
   }
 
   public static void currentCoverageProbeStoreRecordNonCode(String absolutePath) {
-    CoverageProbeStore probes = COVERAGE_PROBE_STORE.get();
+    CoverageStore probes = COVERAGE_PROBE_STORE.get();
     if (probes != null) {
       probes.recordNonCodeResource(absolutePath);
     } else {
@@ -80,7 +80,7 @@ public abstract class CoverageBridge {
    * when the probe store could not be retrieved from the thread local. This can happen if the span
    * is propagated from the original test thread to another thread.
    */
-  private static CoverageProbeStore getCurrentCoverageProbeStore() {
+  private static CoverageStore getCurrentCoverageProbeStore() {
     TestContext currentTest = InstrumentationTestBridge.getCurrentTestContext();
     if (currentTest != null) {
       return currentTest.getCoverageProbeStore();

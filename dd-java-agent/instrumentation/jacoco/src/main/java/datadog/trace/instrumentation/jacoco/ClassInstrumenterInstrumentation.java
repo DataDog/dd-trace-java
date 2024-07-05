@@ -26,7 +26,7 @@ public class ClassInstrumenterInstrumentation extends InstrumenterModule.CiVisib
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
     return super.isApplicable(enabledSystems)
         && Config.get().isCiVisibilityCodeCoverageEnabled()
-        && Config.get().isCiVisibilityCoverageSegmentsEnabled();
+        && Config.get().isCiVisibilityCoverageLinesEnabled();
   }
 
   @Override

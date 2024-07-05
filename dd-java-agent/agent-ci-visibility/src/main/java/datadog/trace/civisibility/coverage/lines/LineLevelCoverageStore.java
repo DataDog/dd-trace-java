@@ -1,7 +1,7 @@
-package datadog.trace.civisibility.coverage;
+package datadog.trace.civisibility.coverage.lines;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageErrorType;
 import datadog.trace.api.civisibility.telemetry.tag.Library;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
@@ -27,9 +28,10 @@ import org.jacoco.core.data.ExecutionDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TestProbes implements CoverageProbeStore {
+/** Records the set of covered files along with the lines covered for each file. */
+public class LineLevelCoverageStore implements CoverageStore {
 
-  private static final Logger log = LoggerFactory.getLogger(TestProbes.class);
+  private static final Logger log = LoggerFactory.getLogger(LineLevelCoverageStore.class);
 
   private static final Map<String, Integer> totalProbeCounts = new HashMap<>();
 
@@ -45,7 +47,8 @@ public class TestProbes implements CoverageProbeStore {
   private final CiVisibilityMetricCollector metricCollector;
   private volatile TestReport testReport;
 
-  TestProbes(SourcePathResolver sourcePathResolver, CiVisibilityMetricCollector metricCollector) {
+  LineLevelCoverageStore(
+      SourcePathResolver sourcePathResolver, CiVisibilityMetricCollector metricCollector) {
     this.sourcePathResolver = sourcePathResolver;
     this.metricCollector = metricCollector;
     probeActivations = new IdentityHashMap<>();
@@ -192,11 +195,11 @@ public class TestProbes implements CoverageProbeStore {
     return testReport;
   }
 
-  public static class TestProbesFactory implements CoverageProbeStoreFactory {
+  public static class LineLevelCoverageStoreFactory implements CoverageStoreFactory {
 
     private final CiVisibilityMetricCollector metricCollector;
 
-    public TestProbesFactory(CiVisibilityMetricCollector metricCollector) {
+    public LineLevelCoverageStoreFactory(CiVisibilityMetricCollector metricCollector) {
       this.metricCollector = metricCollector;
     }
 
@@ -206,9 +209,9 @@ public class TestProbes implements CoverageProbeStore {
     }
 
     @Override
-    public CoverageProbeStore create(
+    public CoverageStore create(
         TestIdentifier testIdentifier, SourcePathResolver sourcePathResolver) {
-      return new TestProbes(sourcePathResolver, metricCollector);
+      return new LineLevelCoverageStore(sourcePathResolver, metricCollector);
     }
   }
 }

@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
@@ -30,7 +30,7 @@ public class ProxyTestSession implements TestFrameworkSession {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStoreFactory coverageProbeStoreFactory;
   private final CoverageDataSupplier coverageDataSupplier;
   private final SignalClient.Factory signalClientFactory;
   private final ModuleExecutionSettings moduleExecutionSettings;
@@ -44,7 +44,7 @@ public class ProxyTestSession implements TestFrameworkSession {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStoreFactory coverageProbeStoreFactory,
       CoverageDataSupplier coverageDataSupplier,
       SignalClient.Factory signalClientFactory,
       ModuleExecutionSettings moduleExecutionSettings) {

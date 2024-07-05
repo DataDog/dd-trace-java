@@ -1,13 +1,13 @@
 package datadog.trace.civisibility.coverage;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import javax.annotation.Nullable;
 
-public class NoopCoverageProbeStore implements CoverageProbeStore {
-  public static final CoverageProbeStore INSTANCE = new NoopCoverageProbeStore();
+public class NoopCoverageStore implements CoverageStore {
+  public static final CoverageStore INSTANCE = new NoopCoverageStore();
 
   @Override
   public void record(Class<?> clazz) {}
@@ -29,12 +29,12 @@ public class NoopCoverageProbeStore implements CoverageProbeStore {
     return null;
   }
 
-  public static final class NoopCoverageProbeStoreFactory implements CoverageProbeStoreFactory {
+  public static final class NoopCoverageProbeStoreFactory implements CoverageStoreFactory {
     @Override
     public void setTotalProbeCount(String className, int totalProbeCount) {}
 
     @Override
-    public CoverageProbeStore create(
+    public CoverageStore create(
         TestIdentifier testIdentifier, SourcePathResolver sourcePathResolver) {
       return INSTANCE;
     }

@@ -12,7 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
@@ -44,7 +44,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStoreFactory coverageProbeStoreFactory,
       ModuleExecutionSettings moduleExecutionSettings) {
     super(
         projectName,

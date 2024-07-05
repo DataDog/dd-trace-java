@@ -175,10 +175,10 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
@@ -817,7 +817,7 @@ public class Config {
   private final boolean ciVisibilityRepoIndexSharingEnabled;
   private final int ciVisibilityModuleExecutionSettingsCacheSize;
   private final int ciVisibilityJvmInfoCacheSize;
-  private final boolean ciVisibilityCoverageSegmentsEnabled;
+  private final boolean ciVisibilityCoverageLinesEnabled;
   private final int ciVisibilityCoverageRootPackagesLimit;
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
@@ -1864,8 +1864,8 @@ public class Config {
     ciVisibilityModuleExecutionSettingsCacheSize =
         configProvider.getInteger(CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE, 16);
     ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
-    ciVisibilityCoverageSegmentsEnabled =
-        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED, false);
+    ciVisibilityCoverageLinesEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED, false);
     ciVisibilityCoverageRootPackagesLimit =
         configProvider.getInteger(CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT, 50);
     ciVisibilityInjectedTracerVersion =
@@ -3164,8 +3164,8 @@ public class Config {
     return ciVisibilityJvmInfoCacheSize;
   }
 
-  public boolean isCiVisibilityCoverageSegmentsEnabled() {
-    return ciVisibilityCoverageSegmentsEnabled;
+  public boolean isCiVisibilityCoverageLinesEnabled() {
+    return ciVisibilityCoverageLinesEnabled;
   }
 
   public int getCiVisibilityCoverageRootPackagesLimit() {

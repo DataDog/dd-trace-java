@@ -12,8 +12,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
-import datadog.trace.civisibility.coverage.SkippableAwareCoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
+import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
@@ -57,7 +57,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStoreFactory coverageProbeStoreFactory;
   private final LongAdder testsSkipped = new LongAdder();
   private final Collection<TestIdentifier> skippableTests;
   private final boolean testSkippingEnabled;
@@ -79,7 +79,7 @@ public class ProxyTestModule implements TestFrameworkModule {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStoreFactory coverageProbeStoreFactory,
       CoverageDataSupplier coverageDataSupplier,
       SignalClient.Factory signalClientFactory) {
     this.parentProcessSessionId = parentProcessSessionId;
@@ -99,7 +99,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
     this.coverageProbeStoreFactory =
         executionSettings.isItrEnabled()
-            ? new SkippableAwareCoverageProbeStoreFactory(skippableTests, coverageProbeStoreFactory)
+            ? new SkippableAwareCoverageStoreFactory(skippableTests, coverageProbeStoreFactory)
             : coverageProbeStoreFactory;
 
     this.flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();

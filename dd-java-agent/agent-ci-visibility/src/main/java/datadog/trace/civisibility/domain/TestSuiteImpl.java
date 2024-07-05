@@ -16,7 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -42,7 +42,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStoreFactory coverageProbeStoreFactory;
   private final boolean parallelized;
   private final Consumer<AgentSpan> onSpanFinish;
 
@@ -64,7 +64,7 @@ public class TestSuiteImpl implements DDTestSuite {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStoreFactory coverageProbeStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.sessionId = sessionId;
     this.moduleId = moduleId;

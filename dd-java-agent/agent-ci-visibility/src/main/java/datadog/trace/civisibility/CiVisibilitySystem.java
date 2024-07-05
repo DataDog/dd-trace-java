@@ -17,8 +17,8 @@ import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.civisibility.config.JvmInfo;
-import datadog.trace.civisibility.coverage.instrumentation.CoverageClassTransformer;
-import datadog.trace.civisibility.coverage.instrumentation.CoverageInstrumentationFilter;
+import datadog.trace.civisibility.coverage.instrumentation.probe.CoverageClassTransformer;
+import datadog.trace.civisibility.coverage.instrumentation.probe.CoverageInstrumentationFilter;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
 import datadog.trace.civisibility.domain.BuildSystemSession;
@@ -89,10 +89,10 @@ public class CiVisibilitySystem {
               JvmInfo.CURRENT_JVM, repoServices.moduleName);
       if (executionSettings.isCodeCoverageEnabled()
           &&
-          // coverage with code segments is built on top of Jacoco,
-          // so if segments are explicitly enabled,
+          // coverage with code lines is built on top of Jacoco,
+          // so if lines are explicitly enabled,
           // we rely on Jacoco instrumentation rather than on our own coverage mechanism
-          !config.isCiVisibilityCoverageSegmentsEnabled()) {
+          !config.isCiVisibilityCoverageLinesEnabled()) {
         Predicate<String> instrumentationFilter =
             createCoverageInstrumentationFilter(config, executionSettings);
         inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));

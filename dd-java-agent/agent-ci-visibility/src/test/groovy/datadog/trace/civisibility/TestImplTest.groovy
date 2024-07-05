@@ -5,12 +5,12 @@ import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.IdGenerationStrategy
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore
+import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.civisibility.codeowners.NoCodeowners
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory
-import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
+import datadog.trace.civisibility.coverage.CoverageStoreFactory
+import datadog.trace.civisibility.coverage.NoopCoverageStore
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.domain.TestImpl
 import datadog.trace.civisibility.source.MethodLinesResolver
@@ -108,8 +108,8 @@ class TestImplTest extends DDSpecification {
 
   def "test coverage is not reported if test was skipped"() {
     setup:
-    def coverageStore = Mock(CoverageProbeStore)
-    def coveageStoreFactory = Stub(CoverageProbeStoreFactory)
+    def coverageStore = Mock(CoverageStore)
+    def coveageStoreFactory = Stub(CoverageStoreFactory)
     coveageStoreFactory.create(_, _) >> coverageStore
 
     def test = givenATest(coveageStoreFactory)
@@ -123,7 +123,7 @@ class TestImplTest extends DDSpecification {
   }
 
   private TestImpl givenATest(
-    CoverageProbeStoreFactory coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()) {
+    CoverageStoreFactory coverageProbeStoreFactory = new NoopCoverageStore.NoopCoverageProbeStoreFactory()) {
     def sessionId = 123
     def moduleId = 456
     def suiteId = 789

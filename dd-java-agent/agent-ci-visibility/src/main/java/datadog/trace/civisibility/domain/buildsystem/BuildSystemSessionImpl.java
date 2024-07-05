@@ -14,7 +14,7 @@ import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
@@ -78,7 +78,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStoreFactory coverageProbeStoreFactory,
       SignalServer signalServer,
       RepoIndexProvider repoIndexProvider) {
     super(

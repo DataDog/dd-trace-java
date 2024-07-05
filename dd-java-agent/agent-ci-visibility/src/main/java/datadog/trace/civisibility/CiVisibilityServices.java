@@ -10,10 +10,10 @@ import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.config.CachingJvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
-import datadog.trace.civisibility.coverage.NoopCoverageProbeStore;
-import datadog.trace.civisibility.coverage.SegmentlessTestProbes;
-import datadog.trace.civisibility.coverage.TestProbes;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
+import datadog.trace.civisibility.coverage.NoopCoverageStore;
+import datadog.trace.civisibility.coverage.files.FileLevelCoverageStore;
+import datadog.trace.civisibility.coverage.lines.LineLevelCoverageStore;
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder;
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder;
 import datadog.trace.civisibility.git.GitClientGitInfoBuilder;
@@ -50,7 +50,7 @@ public class CiVisibilityServices {
   final GitClient.Factory gitClientFactory;
   final GitInfoProvider gitInfoProvider;
   final MethodLinesResolver methodLinesResolver;
-  final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  final CoverageStoreFactory coverageProbeStoreFactory;
   final RepoIndexProvider.Factory repoIndexProviderFactory;
   @Nullable final SignalClient.Factory signalClientFactory;
 
@@ -97,15 +97,15 @@ public class CiVisibilityServices {
     }
   }
 
-  private static CoverageProbeStoreFactory buildTestProbesFactory(
+  private static CoverageStoreFactory buildTestProbesFactory(
       Config config, CiVisibilityMetricCollector metricCollector) {
     if (!config.isCiVisibilityCodeCoverageEnabled()) {
-      return new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory();
+      return new NoopCoverageStore.NoopCoverageProbeStoreFactory();
     }
-    if (!config.isCiVisibilityCoverageSegmentsEnabled()) {
-      return new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector);
+    if (!config.isCiVisibilityCoverageLinesEnabled()) {
+      return new FileLevelCoverageStore.FileLevelCoverageStoreFactory(metricCollector);
     }
-    return new TestProbes.TestProbesFactory(metricCollector);
+    return new LineLevelCoverageStore.LineLevelCoverageStoreFactory(metricCollector);
   }
 
   CiVisibilityRepoServices repoServices(Path path) {

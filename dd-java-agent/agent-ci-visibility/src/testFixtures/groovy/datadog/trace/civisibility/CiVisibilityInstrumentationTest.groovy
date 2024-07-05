@@ -22,7 +22,7 @@ import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.JvmInfo
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
-import datadog.trace.civisibility.coverage.SegmentlessTestProbes
+import datadog.trace.civisibility.coverage.files.FileLevelCoverageStore
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.domain.BuildSystemSession
@@ -121,7 +121,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       Collections.emptyList())
     }
 
-    def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector)
+    def coverageProbeStoreFactory = new FileLevelCoverageStore.FileLevelCoverageStoreFactory(metricCollector)
     TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)

@@ -1,7 +1,7 @@
-package datadog.trace.civisibility.coverage;
+package datadog.trace.civisibility.coverage.files;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageErrorType;
 import datadog.trace.api.civisibility.telemetry.tag.Library;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,9 +24,10 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SegmentlessTestProbes implements CoverageProbeStore {
+/** Only records the set of covered files, without more granular information such as lines */
+public class FileLevelCoverageStore implements CoverageStore {
 
-  private static final Logger log = LoggerFactory.getLogger(SegmentlessTestProbes.class);
+  private static final Logger log = LoggerFactory.getLogger(FileLevelCoverageStore.class);
 
   // test starts and finishes in the same thread,
   // and in this thread we do not need to synchronize access
@@ -40,7 +42,7 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
   private final CiVisibilityMetricCollector metricCollector;
   private volatile TestReport testReport;
 
-  SegmentlessTestProbes(
+  FileLevelCoverageStore(
       SourcePathResolver sourcePathResolver, CiVisibilityMetricCollector metricCollector) {
     this.sourcePathResolver = sourcePathResolver;
     this.metricCollector = metricCollector;
@@ -164,11 +166,11 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
     return testReport;
   }
 
-  public static class SegmentlessTestProbesFactory implements CoverageProbeStoreFactory {
+  public static class FileLevelCoverageStoreFactory implements CoverageStoreFactory {
 
     private final CiVisibilityMetricCollector metricCollector;
 
-    public SegmentlessTestProbesFactory(CiVisibilityMetricCollector metricCollector) {
+    public FileLevelCoverageStoreFactory(CiVisibilityMetricCollector metricCollector) {
       this.metricCollector = metricCollector;
     }
 
@@ -178,9 +180,9 @@ public class SegmentlessTestProbes implements CoverageProbeStore {
     }
 
     @Override
-    public CoverageProbeStore create(
+    public CoverageStore create(
         TestIdentifier testIdentifier, SourcePathResolver sourcePathResolver) {
-      return new SegmentlessTestProbes(sourcePathResolver, metricCollector);
+      return new FileLevelCoverageStore(sourcePathResolver, metricCollector);
     }
   }
 }

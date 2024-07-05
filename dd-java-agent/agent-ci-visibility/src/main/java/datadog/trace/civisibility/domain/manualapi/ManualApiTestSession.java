@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.CoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.source.MethodLinesResolver;
@@ -29,7 +29,7 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory) {
+      CoverageStoreFactory coverageProbeStoreFactory) {
     super(
         projectName,
         startTime,

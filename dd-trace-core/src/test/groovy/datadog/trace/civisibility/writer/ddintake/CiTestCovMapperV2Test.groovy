@@ -3,7 +3,7 @@ package datadog.trace.civisibility.writer.ddintake
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore
+import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.coverage.TestReport
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry
 import datadog.trace.api.civisibility.domain.TestContext
@@ -244,7 +244,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     return objectMapper.readValue(writtenBytes, Map)
   }
 
-  private static final class DummyReportHolder implements CoverageProbeStore {
+  private static final class DummyReportHolder implements CoverageStore {
     private final testReport
 
     DummyReportHolder(testReport) {
@@ -275,14 +275,14 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
   }
 
   private static final class DummyTestContext implements TestContext {
-    private final CoverageProbeStore probeStore
+    private final CoverageStore probeStore
 
-    DummyTestContext(CoverageProbeStore probeStore) {
+    DummyTestContext(CoverageStore probeStore) {
       this.probeStore = probeStore
     }
 
     @Override
-    CoverageProbeStore getCoverageProbeStore() {
+    CoverageStore getCoverageProbeStore() {
       return probeStore
     }
 
