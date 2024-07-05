@@ -28,24 +28,21 @@ public class PowerWAFStatsReporter implements TraceSegmentPostProcessor {
       segment.setTagTop(WAF_TOTAL_DURATION_US_TAG, wafMetrics.getTotalRunTimeNs() / 1000L);
       segment.setTagTop(
           WAF_TOTAL_DDWAF_RUN_DURATION_US_TAG, wafMetrics.getTotalDdwafRunTimeNs() / 1000L);
-
-      String rulesVersion = this.rulesVersion;
-      if (rulesVersion != null) {
-        segment.setTagTop(RULE_FILE_VERSION, rulesVersion);
-      }
     }
 
     PowerwafMetrics raspMetrics = ctx.getRaspMetrics();
     if (raspMetrics != null) {
-      int raspCounter = ctx.getRaspMetricsCounter().get();
-
-      if (raspCounter > 0) {
-        segment.setTagTop(RASP_TOTAL_DURATION_US_TAG, raspMetrics.getTotalRunTimeNs() / 1000L);
-        segment.setTagTop(
-            RASP_TOTAL_DDWAF_RUN_DURATION_US_TAG, raspMetrics.getTotalDdwafRunTimeNs() / 1000L);
-        segment.setTagTop(RASP_RULE_EVAL, raspCounter);
-      }
+      segment.setTagTop(RASP_TOTAL_DURATION_US_TAG, raspMetrics.getTotalRunTimeNs() / 1000L);
+      segment.setTagTop(
+          RASP_TOTAL_DDWAF_RUN_DURATION_US_TAG, raspMetrics.getTotalDdwafRunTimeNs() / 1000L);
+      segment.setTagTop(RASP_RULE_EVAL, ctx.getRaspMetricsCounter().get());
     }
+
+    String rulesVersion = this.rulesVersion;
+    if (rulesVersion != null) {
+      segment.setTagTop(RULE_FILE_VERSION, rulesVersion);
+    }
+
     if (ctx.getTimeouts() > 0) {
       segment.setTagTop(TIMEOUTS_TAG, ctx.getTimeouts());
     }

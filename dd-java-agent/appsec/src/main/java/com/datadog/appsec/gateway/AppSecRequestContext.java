@@ -170,7 +170,18 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return timeouts;
   }
 
-  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics) {
+  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
+
+    if (createMetrics) {
+      if (wafMetrics == null) {
+        this.wafMetrics = ctx.createMetrics();
+      }
+      if (isRasp && raspMetrics == null) {
+        this.raspMetrics = ctx.createMetrics();
+        this.raspMetricsCounter = new AtomicInteger(0);
+      }
+    }
+
     Additive curAdditive;
     synchronized (this) {
       curAdditive = this.additive;
@@ -179,13 +190,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
       curAdditive = ctx.openAdditive();
       this.additive = curAdditive;
-    }
-
-    // new additive was created
-    if (createMetrics) {
-      this.wafMetrics = ctx.createMetrics();
-      this.raspMetrics = ctx.createMetrics();
-      this.raspMetricsCounter = new AtomicInteger(0);
     }
     return curAdditive;
   }

@@ -591,7 +591,7 @@ public class PowerWAFModule implements AppSecModule {
         boolean isRasp)
         throws AbstractPowerwafException {
 
-      Additive additive = reqCtx.getOrCreateAdditive(ctxAndAddr.ctx, wafMetricsEnabled);
+      Additive additive = reqCtx.getOrCreateAdditive(ctxAndAddr.ctx, wafMetricsEnabled, isRasp);
       PowerwafMetrics metrics;
       if (isRasp) {
         metrics = reqCtx.getRaspMetrics();
