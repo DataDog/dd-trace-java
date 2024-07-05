@@ -7,6 +7,7 @@ import com.amazonaws.client.builder.AwsClientBuilder
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import com.amazonaws.services.sqs.model.Message
 import com.amazonaws.services.sqs.model.MessageAttributeValue
+import com.amazonaws.services.sqs.model.SendMessageRequest
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Config
@@ -24,6 +25,8 @@ import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import javax.jms.Session
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static java.nio.charset.StandardCharsets.UTF_8
@@ -281,7 +284,8 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     when:
     connection.start()
     TraceUtils.runUnderTrace('parent', {
-      client.sendMessage(queue.queueUrl, 'sometext')
+      def ddMsgAttribute = new MessageAttributeValue().withDataType("Binary").withBinaryValue(ByteBuffer.wrap("hello world".getBytes(Charset.defaultCharset())))
+      client.sendMessage(new SendMessageRequest(queue.queueUrl, 'sometext').withMessageAttributes([_datadog: ddMsgAttribute]))
     })
     def message = consumer.receive()
     consumer.receiveNoWait()
@@ -411,6 +415,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     def expectedTraceProperty = 'X-Amzn-Trace-Id'.toLowerCase(Locale.ENGLISH).replace('-', '__dash__')
     assert message.getStringProperty(expectedTraceProperty) =~
     /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
+    assert !message.propertyExists("_datadog")
 
     cleanup:
     session.close()
