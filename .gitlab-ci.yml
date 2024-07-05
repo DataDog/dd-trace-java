@@ -175,15 +175,13 @@ deploy_artifacts_to_github:
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/*.jar
 
 onboarding_tests_installer:
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "master"
-      when: on_success
-      allow_failure: true
-  allow_failure: true
   parallel:
     matrix:
       - ONBOARDING_FILTER_WEBLOG: [test-app-java,test-app-java-container,test-app-java-buildpack,test-app-java-alpine]
-        SCENARIO: [INSTALLER_AUTO_INJECTION]
+
+onboarding_tests_k8s_injection:
+  variables:
+    WEBLOG_VARIANT: dd-lib-java-init-test-app
 
 create_key:
   stage: generate-signing-key
