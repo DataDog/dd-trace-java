@@ -81,13 +81,14 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
 
+        final AgentScope scope = activateSpan(span);
         boolean isSqlServer = dbInfo.getType().equals("sqlserver");
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
         if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
           DECORATE.setContextInfo(connection, span.getSpanId(), dbInfo);
         }
 
-        return activateSpan(span);
+        return scope;
       } catch (SQLException e) {
         logSQLException(e);
         // if we can't get the connection for any reason
