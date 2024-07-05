@@ -9,6 +9,7 @@ import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -56,26 +57,21 @@ public final class AgentBootstrap {
   }
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
+    InitializationTelemetry initTelemetry;
     try {
-      if ( alreadyInitialized() ) {
-    	return;
+      initTelemetry = createInitializationTelemetry();
+    } catch (Throwable t) {
+      initTelemetry = InitializationTelemetry.noneInstance();
+    }
+    try {
+      boolean initialized = agentmainImpl(initTelemetry, agentArgs, inst);
+
+      if (initialized) {
+        initTelemetry.onComplete();
       }
-      if  ( lessThanJava8() ) {
-        return;
-      }
-      if ( isJdkTool() ) {
-        return;
-      }
-        
-    	final URL agentJarURL = installAgentJar(inst);
-      final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
-      if (agentClass.getClassLoader() != null) {
-        throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
-      }
-      final Method startMethod =
-          agentClass.getMethod("start", Instrumentation.class, URL.class, String.class);
-      startMethod.invoke(null, inst, agentJarURL, agentArgs);
     } catch (final Throwable ex) {
+      initTelemetry.onAbort(ex);
+
       if (exceptionCauseChainContains(
           ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
         throw new Error(ex);
@@ -83,7 +79,86 @@ public final class AgentBootstrap {
       // Don't rethrow.  We don't have a log manager here, so just print.
       System.err.println("ERROR " + thisClass.getName());
       ex.printStackTrace();
+    } finally {
+      try {
+        initTelemetry.flush();
+      } catch (Throwable t) {
+        // safeguard - ignore
+      }
     }
+  }
+
+  private static InitializationTelemetry createInitializationTelemetry() {
+    String forwarderPath;
+    try {
+      forwarderPath = System.getenv("DD_TELEMETRY_FORWARDER_PATH");
+    } catch (SecurityException e) {
+      return InitializationTelemetry.noneInstance();
+    }
+
+    if (forwarderPath == null) {
+      return InitializationTelemetry.noneInstance();
+    }
+
+    InitializationTelemetry initTelemetry =
+        InitializationTelemetry.createFromForwarderPath(forwarderPath);
+    initTelemetry.initMetaInfo("runtime_name", "java");
+    initTelemetry.initMetaInfo("language_name", "java");
+
+    try {
+      String javaVersion = System.getProperty("java.version");
+      if (javaVersion != null) {
+        initTelemetry.initMetaInfo("runtime_version", javaVersion);
+        initTelemetry.initMetaInfo("language_version", javaVersion);
+      }
+    } catch (SecurityException e) {
+      // ignore - report later
+    }
+
+    // If version was compiled into a class, then we wouldn't have the potential to be missing
+    // version info
+    try {
+      String agentVersion = AgentJar.getAgentVersion();
+      initTelemetry.initMetaInfo("tracer_version", agentVersion);
+    } catch (IOException e) {
+      // ignore - report later
+    }
+
+    return initTelemetry;
+  }
+
+  private static boolean agentmainImpl(
+      final InitializationTelemetry initTelemetry,
+      final String agentArgs,
+      final Instrumentation inst)
+      throws IOException, URISyntaxException, ClassNotFoundException, NoSuchMethodException,
+          IllegalAccessException, InvocationTargetException {
+    if (alreadyInitialized()) {
+      initTelemetry.onAbort("already_initialized");
+
+      return false;
+    }
+    if (lessThanJava8()) {
+      initTelemetry.onAbortRuntime("incompatible_runtime");
+
+      return false;
+    }
+    if (isJdkTool()) {
+      initTelemetry.onAbortRuntime("jdk_tool");
+
+      return false;
+    }
+
+    final URL agentJarURL = installAgentJar(inst);
+    final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
+    if (agentClass.getClassLoader() != null) {
+      throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
+    }
+    final Method startMethod =
+        agentClass.getMethod("start", Instrumentation.class, URL.class, String.class);
+    startMethod.invoke(null, inst, agentJarURL, agentArgs);
+
+    return true;
   }
 
   static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
