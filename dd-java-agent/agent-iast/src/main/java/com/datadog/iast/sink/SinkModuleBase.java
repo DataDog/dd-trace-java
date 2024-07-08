@@ -305,12 +305,16 @@ public abstract class SinkModuleBase {
   protected final StackTraceElement getCurrentStackTrace() {
     StackTraceElement stackTraceElement =
         stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
-    Pair<String, Integer> pair =
-        SourceMapperImpl.INSTANCE.getFileAndLine(
-            stackTraceElement.getClassName(), stackTraceElement.getLineNumber());
-    if (pair != null) {
-      return new StackTraceElement(
-          pair.getLeft(), stackTraceElement.getMethodName(), pair.getLeft(), pair.getRight());
+    // If the source mapper is enabled, we should try to map the stack trace element to the original
+    // source file
+    if (SourceMapperImpl.INSTANCE != null) {
+      Pair<String, Integer> pair =
+          SourceMapperImpl.INSTANCE.getFileAndLine(
+              stackTraceElement.getClassName(), stackTraceElement.getLineNumber());
+      if (pair != null && pair.getLeft() != null && pair.getRight() != null) {
+        return new StackTraceElement(
+            pair.getLeft(), stackTraceElement.getMethodName(), pair.getLeft(), pair.getRight());
+      }
     }
     return stackTraceElement;
   }

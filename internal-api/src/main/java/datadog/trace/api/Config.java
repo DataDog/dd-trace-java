@@ -292,19 +292,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_DIR;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
-import static datadog.trace.api.config.IastConfig.IAST_ANONYMOUS_CLASSES_ENABLED;
-import static datadog.trace.api.config.IastConfig.IAST_CONTEXT_MODE;
-import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED;
-import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE;
-import static datadog.trace.api.config.IastConfig.IAST_HARDCODED_SECRET_ENABLED;
-import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
-import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
-import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
-import static datadog.trace.api.config.IastConfig.IAST_STACKTRACE_LEAK_SUPPRESS;
-import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
-import static datadog.trace.api.config.IastConfig.IAST_TRUNCATION_MAX_VALUE_LENGTH;
-import static datadog.trace.api.config.IastConfig.IAST_WEAK_CIPHER_ALGORITHMS;
-import static datadog.trace.api.config.IastConfig.IAST_WEAK_HASH_ALGORITHMS;
+import static datadog.trace.api.config.IastConfig.*;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
@@ -776,6 +764,8 @@ public class Config {
   private final IastContext.Mode iastContextMode;
   private final boolean iastHardcodedSecretEnabled;
   private final boolean iastAnonymousClassesEnabled;
+  private final boolean iastSourceMappingEnabled;
+  private final int iastSourceMappingMaxSize;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1746,6 +1736,8 @@ public class Config {
     iastAnonymousClassesEnabled =
         configProvider.getBoolean(
             IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
+    iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
+    iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 100);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2977,6 +2969,14 @@ public class Config {
 
   public boolean isIastHardcodedSecretEnabled() {
     return iastHardcodedSecretEnabled;
+  }
+
+  public boolean isIastSourceMappingEnabled() {
+    return iastSourceMappingEnabled;
+  }
+
+  public int getIastSourceMappingMaxSize() {
+    return iastSourceMappingMaxSize;
   }
 
   public IastDetectionMode getIastDetectionMode() {

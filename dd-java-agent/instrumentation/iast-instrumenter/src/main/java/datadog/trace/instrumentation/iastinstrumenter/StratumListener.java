@@ -10,6 +10,10 @@ public class StratumListener implements Advices.Listener {
 
   public static final StratumListener INSTANCE = new StratumListener();
 
+  private StratumListener() {
+    // Prevent instantiation
+  }
+
   @Override
   public void onConstantPool(
       @Nonnull TypeDescription type, @Nonnull ConstantPool pool, byte[] classFile) {

@@ -7,6 +7,7 @@ import okhttp3.Response
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED
+import static datadog.trace.api.config.IastConfig.IAST_SOURCE_MAPPING_ENABLED
 
 class IastSpringBootSmokeTest extends AbstractIastServerSmokeTest {
 
@@ -20,7 +21,8 @@ class IastSpringBootSmokeTest extends AbstractIastServerSmokeTest {
     command.addAll([
       withSystemProperty(IAST_ENABLED, true),
       withSystemProperty(IAST_DETECTION_MODE, 'FULL'),
-      withSystemProperty(IAST_DEBUG_ENABLED, true)
+      withSystemProperty(IAST_DEBUG_ENABLED, true),
+      withSystemProperty(IAST_SOURCE_MAPPING_ENABLED, true)
     ])
     command.addAll((String[]) ['-jar', springBootWar, "--server.port=${httpPort}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
