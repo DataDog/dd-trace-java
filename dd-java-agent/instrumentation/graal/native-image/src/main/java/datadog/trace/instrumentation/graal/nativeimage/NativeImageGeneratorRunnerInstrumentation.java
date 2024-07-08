@@ -67,7 +67,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "com.datadog.profiling.controller.openjdk.events.QueueTimeEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.TimelineEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.SmapEntryEvent:build_time,"
-              + "com.datadog.profiling.controller.openjdk.events.SmapEntryEvent$SmapParseErrorEvent:build_time,"
+              + "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory$SmapParseErrorEvent:build_time,"
               + "datadog.trace.api.Config:rerun,"
               + "datadog.trace.api.Platform:rerun,"
               + "datadog.trace.api.Platform$Captured:build_time,"
