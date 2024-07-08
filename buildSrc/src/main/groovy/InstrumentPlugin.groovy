@@ -111,11 +111,6 @@ class InstrumentPlugin implements Plugin<Project> {
   }
 }
 
-abstract class InstrumentExtension {
-  abstract ListProperty<String> getPlugins()
-  Map<String /* taskName */, List<DirectoryProperty>> additionalClasspath = [:]
-}
-
 abstract class InstrumentTask extends DefaultTask {
   @Input @Optional
   String javaVersion

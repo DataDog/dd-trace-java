@@ -19,8 +19,8 @@ tasks.register("latestDepTest")
 
 Project parent_project = project
 subprojects { Project subProj ->
-  apply plugin: 'instrument'
-  apply plugin: 'muzzle'
+  apply plugin: 'datadog.instrument'
+  apply plugin: 'datadog.muzzle'
 
   configurations {
     instrumentPluginClasspath {

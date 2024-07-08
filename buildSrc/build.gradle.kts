@@ -8,11 +8,11 @@ plugins {
 gradlePlugin {
   plugins {
     create("instrument-plugin") {
-      id = "instrument"
+      id = "datadog.instrument"
       implementationClass = "InstrumentPlugin"
     }
     create("muzzle-plugin") {
-      id = "muzzle"
+      id = "datadog.muzzle"
       implementationClass = "MuzzlePlugin"
     }
     create("call-site-instrumentation-plugin") {
@@ -46,6 +46,10 @@ dependencies {
   implementation("org.ow2.asm", "asm", "9.7")
   implementation("org.ow2.asm", "asm-tree", "9.7")
 
+  implementation("org.jetbrains.kotlin", "kotlin-gradle-plugin", "1.6.21")
+
+  implementation("com.diffplug.spotless", "spotless-plugin-gradle", "6.13.0")
+
   testImplementation("org.spockframework", "spock-core", "2.2-groovy-3.0")
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
   testImplementation("io.opentelemetry.javaagent", "opentelemetry-muzzle", "1.32.0-alpha")
@@ -56,6 +60,10 @@ dependencies {
 
 tasks.compileKotlin {
   dependsOn(":call-site-instrumentation-plugin:build")
+}
+
+tasks.compileGroovy {
+  classpath += files(tasks.compileKotlin.get().destinationDirectory)
 }
 
 tasks.test {
