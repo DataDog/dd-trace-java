@@ -212,6 +212,7 @@ public abstract class SinkModuleBase {
   }
 
   @Nullable
+  @SuppressWarnings("unused")
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,
@@ -220,6 +221,7 @@ public abstract class SinkModuleBase {
   }
 
   @Nullable
+  @SuppressWarnings("unused")
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,

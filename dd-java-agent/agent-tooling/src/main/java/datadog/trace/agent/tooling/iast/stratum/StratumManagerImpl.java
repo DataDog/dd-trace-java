@@ -1,6 +1,5 @@
 package datadog.trace.agent.tooling.iast.stratum;
 
-import com.sun.istack.internal.NotNull;
 import datadog.trace.agent.tooling.iast.stratum.parser.Parser;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.IastMetric;
@@ -135,7 +134,7 @@ public class StratumManagerImpl {
     }
 
     @Override
-    public V put(@NotNull K key, @NotNull V value) {
+    public V put(K key, V value) {
       synchronized (this) {
         if (limitReached) {
           return null;
