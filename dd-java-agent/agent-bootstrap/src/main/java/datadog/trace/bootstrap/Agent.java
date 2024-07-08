@@ -687,8 +687,8 @@ public class Agent {
       final Method registerMethod = smapFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
     } catch (final NoClassDefFoundError
-                   | ClassNotFoundException
-                   | UnsupportedClassVersionError ignored) {
+        | ClassNotFoundException
+        | UnsupportedClassVersionError ignored) {
       log.debug("Smap entry scraping not supported");
     } catch (final Throwable ex) {
       log.error("Unable to initialize smap entry scraping", ex);

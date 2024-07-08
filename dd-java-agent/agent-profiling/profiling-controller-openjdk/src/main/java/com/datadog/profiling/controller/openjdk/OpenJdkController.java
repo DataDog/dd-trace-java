@@ -32,7 +32,6 @@ import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.jfr.JFRAccess;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
-import com.datadog.profiling.controller.openjdk.events.SmapEntryEvent;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;

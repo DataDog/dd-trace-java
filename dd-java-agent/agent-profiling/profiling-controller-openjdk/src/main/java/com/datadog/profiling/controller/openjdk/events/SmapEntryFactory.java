@@ -8,7 +8,6 @@ import java.io.FileNotFoundException;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +45,6 @@ public class SmapEntryFactory {
       this.reason = reason;
     }
   }
-
 
   public static void registerEvents() {
     // Make sure the periodic event is registered only once
@@ -114,8 +112,8 @@ public class SmapEntryFactory {
     }
   }
 
-  static List<? extends Event> collectEvents(){
-    if (!SMAP_ENTRY_EVENT.isEnabled()){
+  static List<? extends Event> collectEvents() {
+    if (!SMAP_ENTRY_EVENT.isEnabled()) {
       return Collections.emptyList();
     }
 
@@ -293,40 +291,41 @@ public class SmapEntryFactory {
         } else {
           nmtCategory = "UNKNOWN";
         }
-        events.add(new SmapEntryEvent(
-            startAddress,
-            endAddress,
-            perms,
-            offset,
-            dev,
-            inode,
-            pathname,
-            size,
-            kernelPageSize,
-            mmuPageSize,
-            rss,
-            pss,
-            pssDirty,
-            sharedClean,
-            sharedDirty,
-            privateClean,
-            privateDirty,
-            referenced,
-            anonymous,
-            ksm,
-            lazyFree,
-            anonHugePages,
-            shmemPmdMapped,
-            filePmdMapped,
-            sharedHugetlb,
-            privateHugetlb,
-            swap,
-            swapPss,
-            locked,
-            thpEligible,
-            vmFlags,
-            encounteredForeignKeys,
-            nmtCategory));
+        events.add(
+            new SmapEntryEvent(
+                startAddress,
+                endAddress,
+                perms,
+                offset,
+                dev,
+                inode,
+                pathname,
+                size,
+                kernelPageSize,
+                mmuPageSize,
+                rss,
+                pss,
+                pssDirty,
+                sharedClean,
+                sharedDirty,
+                privateClean,
+                privateDirty,
+                referenced,
+                anonymous,
+                ksm,
+                lazyFree,
+                anonHugePages,
+                shmemPmdMapped,
+                filePmdMapped,
+                sharedHugetlb,
+                privateHugetlb,
+                swap,
+                swapPss,
+                locked,
+                thpEligible,
+                vmFlags,
+                encounteredForeignKeys,
+                nmtCategory));
       }
       return events;
     } catch (FileNotFoundException e) {

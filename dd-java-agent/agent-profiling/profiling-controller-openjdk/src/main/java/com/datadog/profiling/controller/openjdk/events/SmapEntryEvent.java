@@ -136,7 +136,7 @@ public class SmapEntryEvent extends Event {
   @Label("NMT Category")
   private final String nmtCategory;
 
-  public SmapEntryEvent(){
+  public SmapEntryEvent() {
     startAddress = 0;
     endAddress = 0;
     perms = "";
@@ -240,7 +240,6 @@ public class SmapEntryEvent extends Event {
     this.encounteredForeignKeys = encounteredForeignKeys;
     this.nmtCategory = nmtCategory;
   }
-
 
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
   public static void emit() {
