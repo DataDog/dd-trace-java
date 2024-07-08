@@ -8,5 +8,6 @@ public interface DataListener extends OrderedCallback {
       ChangeableFlow flow,
       AppSecRequestContext context,
       DataBundle dataBundle,
-      boolean isTransient);
+      boolean isTransient,
+      boolean isRasp);
 }

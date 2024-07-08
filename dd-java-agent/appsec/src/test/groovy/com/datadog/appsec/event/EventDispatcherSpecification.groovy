@@ -35,24 +35,24 @@ class EventDispatcherSpecification extends DDSpecification {
     DataBundle db = MapDataBundle.of(
       KnownAddresses.REQUEST_CLIENT_IP, '::1',
       KnownAddresses.REQUEST_METHOD, 'GET')
-    dispatcher.publishDataEvent(subscribers, ctx, db, true)
+    dispatcher.publishDataEvent(subscribers, ctx, db, true, false)
 
     then:
     1 * dataListener3.onDataAvailable(
       _ as Flow, ctx,
       { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) },
-      true) >> { savedFlow3 = it[0] }
+      true, false) >> { savedFlow3 = it[0] }
 
     then:
     1 * dataListener2.onDataAvailable(
       _ as Flow, ctx,
       { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) },
-      true) >> { savedFlow2 = it[0] }
+      true, false) >> { savedFlow2 = it[0] }
     savedFlow2.is(savedFlow3)
 
     then:
     1 * dataListener1.onDataAvailable(_ as Flow, ctx,
-      _ as DataBundle, true) >> { savedFlow1 = it[0] }
+      _ as DataBundle, true, false) >> { savedFlow1 = it[0] }
     savedFlow1.is(savedFlow2)
   }
 
@@ -73,11 +73,11 @@ class EventDispatcherSpecification extends DDSpecification {
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.HEADERS_NO_COOKIES)
-    dispatcher.publishDataEvent(subscribers, ctx, db, true)
+    dispatcher.publishDataEvent(subscribers, ctx, db, true, false)
 
     then:
     assert !subscribers.empty
-    1 * listener.onDataAvailable(_ as Flow, ctx, db, true)
+    1 * listener.onDataAvailable(_ as Flow, ctx, db, true, false)
   }
 
   void 'blocking interrupts data listener calls'() {
@@ -96,14 +96,14 @@ class EventDispatcherSpecification extends DDSpecification {
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
     DataBundle db = MapDataBundle.of(KnownAddresses.REQUEST_CLIENT_IP, '::1')
-    ChangeableFlow resultFlow = dispatcher.publishDataEvent(subscribers, ctx, db, true)
+    ChangeableFlow resultFlow = dispatcher.publishDataEvent(subscribers, ctx, db, true, false)
 
     then:
-    1 * dataListener1.onDataAvailable(_ as Flow, ctx, _ as DataBundle, true) >> {
+    1 * dataListener1.onDataAvailable(_ as Flow, ctx, _ as DataBundle, true, false) >> {
       ChangeableFlow flow = it.first()
       flow.action = new Flow.Action.RequestBlockingAction(404, BlockingContentType.AUTO)
     }
-    0 * dataListener2.onDataAvailable(_ as Flow, ctx, _ as DataBundle, _ as boolean)
+    0 * dataListener2.onDataAvailable(_ as Flow, ctx, _ as DataBundle, _ as boolean, _ as boolean)
     assert resultFlow.blocking
     assert resultFlow.action.statusCode == 404
     assert resultFlow.action.blockingContentType == BlockingContentType.AUTO
@@ -122,10 +122,10 @@ class EventDispatcherSpecification extends DDSpecification {
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
-    dispatcher.publishDataEvent(subscribers, ctx, db, false)
+    dispatcher.publishDataEvent(subscribers, ctx, db, false, false)
 
     then:
-    1 * listener.onDataAvailable(_ as Flow, ctx, db, false)
+    1 * listener.onDataAvailable(_ as Flow, ctx, db, false, false)
     1 * ctx.addAll(db)
   }
 
@@ -155,7 +155,7 @@ class EventDispatcherSpecification extends DDSpecification {
     EventDispatcher anotherDispatcher = new EventDispatcher()
     EventProducerService.DataSubscriberInfo subInfo =
       anotherDispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
-    dispatcher.publishDataEvent(subInfo, Stub(AppSecRequestContext), Stub(DataBundle), false)
+    dispatcher.publishDataEvent(subInfo, Stub(AppSecRequestContext), Stub(DataBundle), false, false)
 
     then:
     thrown ExpiredSubscriberInfoException

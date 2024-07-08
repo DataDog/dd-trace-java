@@ -45,7 +45,7 @@ public class BlockingServiceImpl implements BlockingService {
       }
       SingletonDataBundle<String> db = new SingletonDataBundle<>(KnownAddresses.USER_ID, userId);
       try {
-        flow = eventProducer.publishDataEvent(subInfo, reqCtx, db, true);
+        flow = eventProducer.publishDataEvent(subInfo, reqCtx, db, true, false);
         break;
       } catch (ExpiredSubscriberInfoException e) {
         subInfo = null;

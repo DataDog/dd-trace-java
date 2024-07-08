@@ -214,7 +214,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ctx.data.rawURI = '/'
     ctx.data.peerAddress = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -232,7 +232,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -250,7 +250,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -268,7 +268,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -286,7 +286,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -317,7 +317,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -347,7 +347,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_PATH_PARAMS in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -525,7 +525,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     setup:
     supplier.get() >> 'foobar'
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     when:
@@ -557,7 +557,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     setup:
     eventDispatcher.getDataSubscribers({KnownAddresses.REQUEST_BODY_OBJECT in it}) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >> { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >> { bundle = it[2]; NoopFlow.INSTANCE }
 
     when:
     requestBodyProcessedCB.apply(ctx, obj)
@@ -591,8 +591,8 @@ class GatewayBridgeSpecification extends DDSpecification {
       })
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { a, b, db, c -> bundle = db; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
+    { a, b, db, c, e -> bundle = db; NoopFlow.INSTANCE }
     bundle.get(KnownAddresses.REQUEST_BODY_OBJECT) == [foo: 'bar']
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -604,7 +604,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     setup:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_METHOD in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     when:
@@ -622,7 +622,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_SCHEME in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -661,7 +661,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<AppSecRequestContext> flow2 = respHeadersDoneCB.apply(ctx)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false, false) >>
     { NoopFlow.INSTANCE }
     flow1.result == null
     flow1.action == Flow.Action.Noop.INSTANCE
@@ -681,8 +681,8 @@ class GatewayBridgeSpecification extends DDSpecification {
       })
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, true) >>
-    { a, b, db, c -> bundle = db; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, true, false) >>
+    { a, b, db, c, e -> bundle = db; NoopFlow.INSTANCE }
     bundle.get(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE) == [foo: 'bar']
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
@@ -697,7 +697,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<?> flow = grpcServerMethodCB.apply(ctx, '/my.package.Greeter/SayHello')
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, true) >>
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, true, false) >>
     { args -> bundle = args[2]; NoopFlow.INSTANCE }
     bundle.get(KnownAddresses.GRPC_SERVER_METHOD) == '/my.package.Greeter/SayHello'
     flow.result == null
