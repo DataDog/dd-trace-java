@@ -1,0 +1,73 @@
+plugins {
+  id 'datadog.java'
+  id 'datadog.instrumentation'
+  id 'datadog.kotlin-test'
+}
+
+//apply from: "$rootDir/gradle/java.gradle"
+//apply from: "$rootDir/gradle/test-with-kotlin.gradle"
+
+muzzle {
+  pass {
+    group = 'junit'
+    module = 'junit'
+    versions = '[4.10,5)'
+    assertInverse = true
+  }
+}
+
+// TODO Port test suite
+// addTestSuiteForDir('latestDepTest', 'test')
+ext.addTestSuiteForDir.invoke('latestDepTest', 'test')
+
+// TODO WIP START
+println ">>> Utility call"
+println ">>> Reference: " + ext.myCustomMethod + " | class: " + ext.myCustomMethod.class
+def clazz = ext["myCustomMethod"].class
+for (final def m in clazz.methods) {
+  println ">>> method: "+m.toString()
+  println ">>> - name "+m.name
+  println ">>> - params:"
+  for (final def p in m.parameters) {
+    println ">>> -- name: "+p.name+" | type: "+p.type
+  }
+  println ">>> - return type: "+m.returnType
+}
+//println ">>> " + ext["myCustomMethod"]
+//ext."myCustomMethod".invoke("test")
+ext.myCustomMethod.invoke("test")
+
+
+//println ">>> " + project."addTestSuiteForDir"
+//addTestSuiteForDir("latestDepTest" as String, "test" as String)
+//println ">>> " + project."addTestSuiteForDir"
+//project."addTestSuiteForDir"
+
+//project."addTestSuiteForDir"("latestDepTest" as String, "test" as String)
+
+// TODO WIP END
+
+tasks.named("compileLatestDepTestGroovy").configure {
+  classpath += files(compileLatestDepTestKotlin.destinationDirectory)
+}
+
+dependencies {
+  compileOnly group: 'junit', name: 'junit', version: '4.10'
+
+  // prevents kotlin plugin from including kotlin classes into the agent Jar
+  compileOnly libs.kotlin
+
+  testImplementation testFixtures(project(':products:ci-visibility:ci-visibility-agent'))
+
+  // version used below is not the minimum one that we support,
+  // but the tests need to use it in order to be compliant with Spock 2.x
+  testImplementation group: 'junit', name: 'junit', version: '4.13.2'
+  testImplementation 'pl.pragmatists:JUnitParams:1.1.0'
+
+  latestDepTestImplementation group: 'junit', name: 'junit', version: '+'
+}
+
+// TODO Port test suite
+//test {
+//  useJUnit()
+//}
