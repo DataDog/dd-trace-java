@@ -248,10 +248,6 @@ public final class OpenJdkController implements Controller {
 
     // Register periodic events
     AvailableProcessorCoresEvent.register();
-
-    if (Platform.isLinux() && isEventEnabled(this.recordingSettings, "datadog.SmapEntry")) {
-      SmapEntryEvent.register();
-    }
   }
 
   private static String getJfrRepositoryBase(ConfigProvider configProvider) {

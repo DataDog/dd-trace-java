@@ -646,6 +646,7 @@ public class Agent {
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
     if (profilingEnabled) {
       registerDeadlockDetectionEvent();
+      registerSmapEntryEvent();
       if (PROFILER_INIT_AFTER_JMX != null) {
         if (getJmxStartDelay() == 0) {
           log.debug("Waiting for profiler initialization");
@@ -674,6 +675,23 @@ public class Agent {
       log.debug("JMX deadlock detection not supported");
     } catch (final Throwable ex) {
       log.error("Unable to initialize JMX thread deadlock detector", ex);
+    }
+  }
+
+  private static synchronized void registerSmapEntryEvent() {
+    log.debug("Initializing smap entry scraping");
+    try {
+      final Class<?> smapFactoryClass =
+          AGENT_CLASSLOADER.loadClass(
+              "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory");
+      final Method registerMethod = smapFactoryClass.getMethod("registerEvents");
+      registerMethod.invoke(null);
+    } catch (final NoClassDefFoundError
+                   | ClassNotFoundException
+                   | UnsupportedClassVersionError ignored) {
+      log.debug("Smap entry scraping not supported");
+    } catch (final Throwable ex) {
+      log.error("Unable to initialize smap entry scraping", ex);
     }
   }
 
