@@ -1,6 +1,5 @@
 package com.datadog.profiling.controller.openjdk.events;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import jdk.jfr.Category;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
@@ -241,7 +240,6 @@ public class SmapEntryEvent extends Event {
     this.nmtCategory = nmtCategory;
   }
 
-  @SuppressForbidden // split with one-char String use a fast-path without regex usage
   public static void emit() {
     SmapEntryFactory.collectEvents().forEach(Event::commit);
   }

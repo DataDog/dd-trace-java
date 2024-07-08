@@ -112,6 +112,7 @@ public class SmapEntryFactory {
     }
   }
 
+  @SuppressForbidden // split with one-char String use a fast-path without regex usage
   static List<? extends Event> collectEvents() {
     if (!SMAP_ENTRY_EVENT.isEnabled()) {
       return Collections.emptyList();
