@@ -253,7 +253,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    * Downsides: takes time.
    *
    * @param connection The same connection as the one that will be used for the actual statement
-   * @param spanID The ID of the span covering the actual statement
+   * @param dbInfo dbInfo of the instrumented database
+   *
+   * @return spanID pre-created spanID
    */
   public long setContextInfo(Connection connection, DBInfo dbInfo) {
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
