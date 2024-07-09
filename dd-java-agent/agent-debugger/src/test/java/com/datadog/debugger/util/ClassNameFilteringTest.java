@@ -79,10 +79,8 @@ class ClassNameFilteringTest {
       strings = {
         "java.FooBar",
         "org.junit.Test",
-        "org.junit.jupiter.api.Test",
         "akka.Actor",
         "cats.Functor",
-        "org.junit.jupiter.api.Test",
         "org.junit.jupiter.api.Test",
         "org.datadog.jmxfetch.FooBar"
       })
