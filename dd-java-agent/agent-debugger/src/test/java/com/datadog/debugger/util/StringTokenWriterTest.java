@@ -44,7 +44,7 @@ class StringTokenWriterTest {
   @Test
   public void deepFields() throws Exception {
     assertEquals(
-        "{list=..., strVal=strval, intVal=24, nullField=null, mapVal=..., objArray=...}",
+        "{strVal=strval, intVal=24, nullField=null, mapVal=..., objArray=...}",
         serializeValue(new Person(), DEPTH_1));
   }
 

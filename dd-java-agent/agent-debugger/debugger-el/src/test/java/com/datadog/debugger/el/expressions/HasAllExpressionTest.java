@@ -115,7 +115,7 @@ class HasAllExpressionTest {
         assertThrows(
             RuntimeException.class,
             () -> all(targetExpression, eq(fldRef, value(10))).evaluate(ctx));
-    assertEquals("Cannot dereference to field: testField", runtimeException.getMessage());
+    assertEquals("Cannot dereference field: testField", runtimeException.getMessage());
 
     expression = all(targetExpression, eq(itRef, value("hello")));
     assertFalse(expression.evaluate(ctx));
@@ -153,7 +153,7 @@ class HasAllExpressionTest {
 
   @Test
   void testMapHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     Map<String, String> valueMap = new HashMap<>();
     valueMap.put("a", "a");
     valueMap.put("b", "a");
