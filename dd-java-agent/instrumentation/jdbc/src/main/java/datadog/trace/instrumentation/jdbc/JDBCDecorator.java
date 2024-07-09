@@ -238,8 +238,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return sb.toString();
   }
 
-  public boolean isSqlServer(final DBInfo dbInfo){
-    return  "sqlserver".equals(dbInfo.getType());
+  public boolean isSqlServer(final DBInfo dbInfo) {
+    return "sqlserver".equals(dbInfo.getType());
   }
 
   /**
@@ -254,7 +254,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    *
    * @param connection The same connection as the one that will be used for the actual statement
    * @param dbInfo dbInfo of the instrumented database
-   *
    * @return spanID pre-created spanID
    */
   public long setContextInfo(Connection connection, DBInfo dbInfo) {
