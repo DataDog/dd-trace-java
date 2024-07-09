@@ -1438,7 +1438,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
-
     /**
      * Build the SpanContext, if the actual span has a parent, the following attributes must be
      * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
