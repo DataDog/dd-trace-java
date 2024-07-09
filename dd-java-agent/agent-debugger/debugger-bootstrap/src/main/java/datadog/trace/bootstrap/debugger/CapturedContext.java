@@ -139,7 +139,7 @@ public class CapturedContext implements ValueReferenceResolver {
       }
       target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
     }
-    checkUndefined(target, memberName, "Cannot dereference to field: ");
+    checkUndefined(target, memberName, "Cannot dereference field: ");
     return target;
   }
 

@@ -165,7 +165,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertNull(span.getTags().get("tag1"));
     assertEquals(
-        "Cannot dereference to field: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
+        "Cannot dereference field: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
   }
 
   @Test
@@ -183,7 +183,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     Snapshot snapshot = mockSink.getSnapshots().get(0);
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals(
-        "Cannot dereference to field: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot dereference field: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
@@ -298,7 +298,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     Snapshot snapshot = mockSink.getSnapshots().get(0);
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals(
-        "Cannot dereference to field: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot dereference field: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test

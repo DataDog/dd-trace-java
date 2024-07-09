@@ -340,13 +340,11 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
     assertEquals(
-        "this is log line with field={Cannot dereference to field: intValue}",
-        snapshot.getMessage());
+        "this is log line with field={Cannot dereference field: intValue}", snapshot.getMessage());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("nullObject.intValue", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
-        "Cannot dereference to field: intValue",
-        snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot dereference field: intValue", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
@@ -404,7 +402,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(2, snapshot.getCaptures().getEntry().getArguments().size());
     Assertions.assertEquals(1, snapshot.getEvaluationErrors().size());
     Assertions.assertEquals(
-        "Cannot dereference to field: typoArg", snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot dereference field: typoArg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test

@@ -3,7 +3,6 @@ package com.datadog.debugger.el.expressions;
 import static com.datadog.debugger.el.DSL.*;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static com.datadog.debugger.el.TestHelper.setFieldInConfig;
-import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
@@ -49,13 +48,13 @@ class ValueRefExpressionTest {
 
     RuntimeException runtimeException =
         assertThrows(RuntimeException.class, () -> isEmptyInvalid.evaluate(ctx));
-    assertEquals("Cannot dereference to field: x", runtimeException.getMessage());
+    assertEquals("Cannot dereference field: x", runtimeException.getMessage());
     runtimeException =
         assertThrows(RuntimeException.class, () -> and(isEmptyInvalid, isEmpty).evaluate(ctx));
-    assertEquals("Cannot dereference to field: x", runtimeException.getMessage());
+    assertEquals("Cannot dereference field: x", runtimeException.getMessage());
     runtimeException =
         assertThrows(RuntimeException.class, () -> or(isEmptyInvalid, isEmpty).evaluate(ctx));
-    assertEquals("Cannot dereference to field: x", runtimeException.getMessage());
+    assertEquals("Cannot dereference field: x", runtimeException.getMessage());
     assertEquals("isEmpty(x)", print(isEmptyInvalid));
   }
 
@@ -75,8 +74,7 @@ class ValueRefExpressionTest {
     exts.put(ValueReferences.DURATION_EXTENSION_NAME, duration);
     exts.put(ValueReferences.EXCEPTION_EXTENSION_NAME, exception);
     ValueReferenceResolver resolver =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null)
-            .withExtensions(exts);
+        RefResolverHelper.createResolver(new Obj()).withExtensions(exts);
 
     ValueRefExpression expression = DSL.ref(ValueReferences.DURATION_REF);
     assertEquals(duration, expression.evaluate(resolver).getValue());

@@ -38,8 +38,7 @@ public class ProbeConditionTest {
       private int field = 10;
       List<String> field2 = new ArrayList<>();
     }
-    ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj1()), null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj1());
 
     assertTrue(probeCondition.execute(ctx));
 
@@ -48,8 +47,7 @@ public class ProbeConditionTest {
       private int field = 10;
       List<String> field2 = new ArrayList<>();
     }
-    ValueReferenceResolver ctx2 =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj2()), null);
+    ValueReferenceResolver ctx2 = RefResolverHelper.createResolver(new Obj2());
     assertFalse(probeCondition.execute(ctx2));
   }
 
@@ -72,7 +70,7 @@ public class ProbeConditionTest {
             singletonMap("this", new Obj2()), singletonMap("container", new Container("world")));
     RuntimeException runtimeException =
         assertThrows(RuntimeException.class, () -> probeCondition.execute(ctx2));
-    assertEquals("Cannot dereference to field: container", runtimeException.getMessage());
+    assertEquals("Cannot dereference field: container", runtimeException.getMessage());
   }
 
   @Test
@@ -82,8 +80,7 @@ public class ProbeConditionTest {
       int intField1 = 42;
       String strField = "foo";
     }
-    Obj obj = new Obj();
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(singletonMap("this", obj), null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -115,8 +112,7 @@ public class ProbeConditionTest {
 
       int idx = 1;
     }
-    ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -126,8 +122,7 @@ public class ProbeConditionTest {
     class Obj {
       String strField = "foobar";
     }
-    ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -149,8 +144,7 @@ public class ProbeConditionTest {
     class Obj {
       Collection<String> vets = Arrays.asList("vet1", "vet2", "vet3");
     }
-    ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
 
     // the condition checks if length of vets > 2
     assertTrue(probeCondition.execute(ctx));
@@ -222,8 +216,7 @@ public class ProbeConditionTest {
       Set<String> emptySet = new HashSet<>();
       Object[] emptyArray = new Object[0];
     }
-    ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -239,8 +232,7 @@ public class ProbeConditionTest {
       Object objVal = null;
       char charVal = 'a';
     }
-    ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
     assertTrue(probeCondition.execute(ctx));
   }
 
@@ -269,8 +261,7 @@ public class ProbeConditionTest {
         strList.add("foo");
       }
     }
-    ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(singletonMap("this", new Obj()), null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
     assertTrue(probeCondition.execute(ctx));
   }
 

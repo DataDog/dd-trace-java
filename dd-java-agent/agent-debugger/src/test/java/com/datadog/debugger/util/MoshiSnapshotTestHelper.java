@@ -193,13 +193,7 @@ public class MoshiSnapshotTestHelper {
             jsonReader.beginObject();
             List<CapturedContext.CapturedValue> argValues = new ArrayList<>();
             while (jsonReader.hasNext()) {
-              String argName = jsonReader.peekJson().nextName();
-              //              if ("this".equals(argName)) {
-              //                jsonReader.nextName(); // consume "this"
-              //                fromJsonFields(jsonReader, capturedContext);
-              //                continue;
-              //              }
-              argName = jsonReader.nextName();
+              String argName = jsonReader.nextName();
               CapturedContext.CapturedValue capturedValue = valueAdapter.fromJson(jsonReader);
               if (capturedValue != null) {
                 capturedValue.setName(argName);
@@ -235,11 +229,6 @@ public class MoshiSnapshotTestHelper {
           case TYPE:
             {
               jsonReader.nextString();
-              break;
-            }
-          case FIELDS:
-            {
-              // capturedContext.addFields(fromJsonCapturedValues(jsonReader));
               break;
             }
           case NOT_CAPTURED_REASON:

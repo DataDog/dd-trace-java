@@ -8,33 +8,6 @@ import java.util.*;
 public class RefResolverHelper {
 
   public static ValueReferenceResolver createResolver(Object instance) {
-    /*
-    List<Field> fields = new ArrayList<>();
-    Class<?> clazz = instance.getClass();
-    while (clazz != null) {
-      fields.addAll(Arrays.asList(clazz.getDeclaredFields()));
-      clazz = clazz.getSuperclass();
-    }
-    CapturedContext.CapturedValue[] fieldValues = new CapturedContext.CapturedValue[fields.size()];
-    int index = 0;
-    for (Field field : fields) {
-      try {
-        field.setAccessible(true);
-        if (Redaction.isRedactedKeyword(field.getName())) {
-          fieldValues[index++] =
-              CapturedContext.CapturedValue.redacted(
-                  field.getName(), field.getType().getTypeName());
-        } else {
-          fieldValues[index++] =
-              CapturedContext.CapturedValue.of(
-                  field.getName(), field.getType().getTypeName(), field.get(instance));
-        }
-      } catch (Exception ex) {
-        ex.printStackTrace();
-      }
-    }
-
-     */
     CapturedContext.CapturedValue thisValue =
         CapturedContext.CapturedValue.of("this", instance.getClass().getTypeName(), instance);
     return new CapturedContext(new CapturedContext.CapturedValue[] {thisValue}, null, null, null);

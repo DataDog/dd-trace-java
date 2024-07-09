@@ -552,7 +552,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
     collectStaticFields(insnList);
     // stack: [capturedcontext]
-    collectSpecialFields(insnList);
+    collectCorrelationInfo(insnList);
     // stack: [capturedcontext]
     if (kind != Snapshot.Kind.UNHANDLED_EXCEPTION) {
       /*
@@ -857,7 +857,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
   }
 
-  private void collectSpecialFields(InsnList insnList) {
+  private void collectCorrelationInfo(InsnList insnList) {
     // expected stack top: [capturedcontext]
     /*
      * We are cheating a bit with CorrelationAccess - utilizing the knowledge that it is a singleton loaded by the
