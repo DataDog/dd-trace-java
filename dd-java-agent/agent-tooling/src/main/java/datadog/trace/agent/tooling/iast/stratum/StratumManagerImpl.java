@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.iast.stratum.parser.Parser;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.utility.OpenedClassReader;
 import org.objectweb.asm.ClassReader;
@@ -19,18 +20,19 @@ public class StratumManagerImpl {
 
   private static final Logger LOG = LoggerFactory.getLogger(StratumManagerImpl.class);
 
-  private StratumManagerImpl() {
-    // Prevent instantiation
-  }
-
-  private final LimitedConcurrentHashMap<String, StratumExt> map =
-      new LimitedConcurrentHashMap<>(Config.get().getIastSourceMappingMaxSize());
+  private final LimitedConcurrentHashMap map;
 
   public final StratumExt NO_DEBUG_INFO = new StratumExt();
 
   private boolean EMPTY_DEBUG_INFO;
 
-  public static final StratumManagerImpl INSTANCE = new StratumManagerImpl();
+  public static final StratumManagerImpl INSTANCE =
+      new StratumManagerImpl(Config.get().getIastSourceMappingMaxSize());
+
+  private StratumManagerImpl(int sourceMappingLimit) {
+    // Prevent instantiation
+    this.map = new LimitedConcurrentHashMap(sourceMappingLimit);
+  }
 
   public static boolean shouldBeAnalyzed(final String internalClassName) {
     return internalClassName.contains("jsp")
@@ -125,31 +127,38 @@ public class StratumManagerImpl {
     return result;
   }
 
-  static class LimitedConcurrentHashMap<K, V> extends ConcurrentHashMap<K, V> {
+  static class LimitedConcurrentHashMap {
     private final int maxSize;
-    private boolean limitReached = false;
+    private volatile boolean limitReached = false;
+    private final Map<String, StratumExt> map = new ConcurrentHashMap<>();
 
     public LimitedConcurrentHashMap(int maxSize) {
       this.maxSize = maxSize;
     }
 
-    @Override
-    public V put(K key, V value) {
+    public void put(String className, StratumExt value) {
       synchronized (this) {
         if (limitReached) {
-          return null;
+          return;
         }
-        V result = super.put(key, value);
+        map.put(className, value);
         if (this.size() >= maxSize) {
           IastMetricCollector.add(IastMetric.SOURCE_MAPPING_LIMIT_REACHED, (byte) 0, 1);
           limitReached = true;
         }
-        return result;
       }
+    }
+
+    public int size() {
+      return map.size();
     }
 
     public boolean isLimitReached() {
       return limitReached;
+    }
+
+    public StratumExt get(String classname) {
+      return map.get(classname);
     }
   }
 }

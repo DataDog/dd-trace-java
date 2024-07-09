@@ -1,6 +1,5 @@
 package datadog.trace.agent.tooling.iast.stratum
 
-import datadog.trace.api.config.IastConfig
 import datadog.trace.test.util.DDSpecification
 import org.apache.commons.io.FileUtils
 
@@ -42,22 +41,23 @@ class StratumManagerImplTest extends DDSpecification {
 
   void 'test limit reached'(){
     setup:
-    injectSysConfig(IastConfig.IAST_SOURCE_MAPPING_MAX_SIZE, "1")
+    def newStratumManager = new StratumManagerImpl(1)
     byte[] data = FileUtils.readFileToByteArray(new File("src/test/resources/datadog.trace.agent.tooling.stratum/register_jsp.class"))
 
     when:
-    StratumManagerImpl.INSTANCE.analyzeClass(data)
+    newStratumManager.analyzeClass(data)
 
     then:
-    final result  = StratumManagerImpl.INSTANCE.get("org.apache.jsp.register_jsp")
+    final result  =newStratumManager.get("org.apache.jsp.register_jsp")
     result != null
-    StratumManagerImpl.INSTANCE.map.size() == 1
+    newStratumManager.map.size() == 1
+    newStratumManager.map.isLimitReached()
 
     when:
-    StratumManagerImpl.INSTANCE.analyzeClass(new byte[0])
+    newStratumManager.analyzeClass(new byte[0])
 
     then:
-    StratumManagerImpl.INSTANCE.map.size() == 1
-    StratumManagerImpl.INSTANCE.map.isLimitReached()
+    newStratumManager.map.size() == 1
+    newStratumManager.map.isLimitReached()
   }
 }
