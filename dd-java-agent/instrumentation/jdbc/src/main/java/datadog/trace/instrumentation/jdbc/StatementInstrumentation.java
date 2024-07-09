@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -89,8 +90,17 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
         boolean isSqlServer = dbInfo.getType().equals("sqlserver");
+        final long spanID;
+        final AgentSpan span;
 
-        final AgentSpan span = startSpan(DATABASE_QUERY);
+        if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
+          spanID = DECORATE.setContextInfo(connection, dbInfo);
+          span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
+
+        } else {
+          span = startSpan(DATABASE_QUERY);
+        }
+
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
@@ -119,10 +129,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
-
-        if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
-          DECORATE.setContextInfo(connection, span.getSpanId(), dbInfo);
-        }
 
         return scope;
       } catch (SQLException e) {

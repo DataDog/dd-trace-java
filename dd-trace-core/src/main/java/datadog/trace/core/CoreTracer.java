@@ -1276,6 +1276,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private Object builderRequestContextDataIast;
     private Object builderCiVisibilityContextData;
     private List<AgentSpanLink> links;
+    private long spanId;
 
     CoreSpanBuilder(
         final String instrumentationName, final CharSequence operationName, CoreTracer tracer) {
@@ -1431,6 +1432,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    @Override
+    public CoreSpanBuilder withSpanId(final long spanId) {
+      this.spanId = spanId;
+      return this;
+    }
+
+
     /**
      * Build the SpanContext, if the actual span has a parent, the following attributes must be
      * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
@@ -1439,7 +1447,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      */
     private DDSpanContext buildSpanContext() {
       final DDTraceId traceId;
-      final long spanId = idGenerationStrategy.generateSpanId();
+      final long spanId;
       final long parentSpanId;
       final Map<String, String> baggage;
       final TraceCollector parentTraceCollector;
@@ -1455,6 +1463,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
 
+      if (this.spanId == 0) {
+        spanId = idGenerationStrategy.generateSpanId();
+      } else {
+        spanId = this.spanId;
+      }
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
       AgentSpan.Context parentContext = parent;

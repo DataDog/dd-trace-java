@@ -251,7 +251,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    * @param connection The same connection as the one that will be used for the actual statement
    * @param spanID The ID of the span covering the actual statement
    */
-  public void setContextInfo(Connection connection, long spanID, DBInfo dbInfo) {
+  public long setContextInfo(Connection connection, DBInfo dbInfo) {
+    final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     AgentSpan instrumentationSpan = startSpan("set context_info");
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
@@ -278,6 +279,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     } finally {
       instrumentationSpan.finish();
     }
+    return spanID;
   }
 
   @Override
