@@ -27,6 +27,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
+import spock.lang.Unroll
 
 import java.time.Instant
 import java.util.concurrent.Future
@@ -119,6 +120,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     })
   }
 
+  @Unroll
   def "send #operation request with builder #builder.class.getSimpleName() mocked response"() {
     setup:
     def conditions = new PollingConditions(timeout: 1)
