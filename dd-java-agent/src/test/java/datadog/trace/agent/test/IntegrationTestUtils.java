@@ -78,11 +78,13 @@ public class IntegrationTestUtils {
       mainAttributes.put(Attributes.Name.MAIN_CLASS, mainClassname);
       mainAttributes.put(new Attributes.Name("Premain-Class"), mainClassname);
     }
-    final JarOutputStream target = new JarOutputStream(new FileOutputStream(tmpJar), manifest);
-    for (final Class<?> clazz : classes) {
-      addToJar(clazz, target);
+
+    try (final JarOutputStream target =
+        new JarOutputStream(new FileOutputStream(tmpJar), manifest)) {
+      for (final Class<?> clazz : classes) {
+        addToJar(clazz, target);
+      }
     }
-    target.close();
 
     return tmpJar.toURI().toURL();
   }
