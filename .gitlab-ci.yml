@@ -198,6 +198,9 @@ deploy_artifacts_to_github:
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/*.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/*.jar
 
+package-oci:
+  needs: [ build ]
+
 onboarding_tests_installer:
   parallel:
     matrix:
