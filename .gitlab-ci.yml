@@ -10,6 +10,7 @@ stages:
   - shared-pipeline
   - publish
   - benchmarks
+  - tests
   - exploration-tests
   - ci-visibility-tests
   - generate-signing-key
@@ -105,7 +106,8 @@ deploy_to_profiling_backend:
     UPSTREAM_TAG: $CI_COMMIT_TAG
 
 trigger_tibco_tests:
-  stage: deploy
+  stage: tests
+  needs: [ build ]
   rules:
     - if: '$POPULATE_CACHE'
       when: never
