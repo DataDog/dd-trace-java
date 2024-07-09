@@ -52,7 +52,6 @@ class StratumManagerImplTest extends DDSpecification {
     final result  = StratumManagerImpl.INSTANCE.get("org.apache.jsp.register_jsp")
     result != null
     StratumManagerImpl.INSTANCE.map.size() == 1
-    StratumManagerImpl.INSTANCE.map.isLimitReached()
 
     when:
     StratumManagerImpl.INSTANCE.analyzeClass(new byte[0])

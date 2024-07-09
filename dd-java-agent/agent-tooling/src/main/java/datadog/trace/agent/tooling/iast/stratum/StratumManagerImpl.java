@@ -140,7 +140,7 @@ public class StratumManagerImpl {
           return null;
         }
         V result = super.put(key, value);
-        if (this.size() == maxSize) {
+        if (this.size() >= maxSize) {
           IastMetricCollector.add(IastMetric.SOURCE_MAPPING_LIMIT_REACHED, (byte) 0, 1);
           limitReached = true;
         }
