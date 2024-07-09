@@ -77,10 +77,9 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        final boolean isSqlServer = dbInfo.getType().equals("sqlserver");
         final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
 
-        if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
+        if (DECORATE.isSqlServer(dbInfo) && INJECT_COMMENT && injectTraceContext) {
           final long spanID = DECORATE.setContextInfo(connection, dbInfo);
           span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
         } else {

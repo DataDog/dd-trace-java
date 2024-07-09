@@ -89,9 +89,9 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
-        boolean isSqlServer = dbInfo.getType().equals("sqlserver");
         final long spanID;
         final AgentSpan span;
+        final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
 
         if (isSqlServer && INJECT_COMMENT && injectTraceContext) {
           spanID = DECORATE.setContextInfo(connection, dbInfo);

@@ -238,6 +238,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return sb.toString();
   }
 
+  public boolean isSqlServer(final DBInfo dbInfo){
+    return  "sqlserver".equals(dbInfo.getType());
+  }
+
   /**
    * Executes a `SET CONTEXT_INFO` statement on the DB with the active trace ID and the given span
    * ID. This context will be "attached" to future queries on the same connection. See <a
