@@ -6,6 +6,7 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.oio.OioEventLoopGroup
 import io.netty.util.concurrent.DefaultEventExecutor
 import org.apache.tomcat.util.threads.TaskQueue
+import runnable.Descendant
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutorService
