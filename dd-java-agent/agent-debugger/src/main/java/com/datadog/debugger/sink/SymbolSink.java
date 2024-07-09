@@ -45,8 +45,8 @@ public class SymbolSink {
 
   SymbolSink(Config config, BatchUploader symbolUploader) {
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
-    this.env = config.getEnv();
-    this.version = config.getVersion();
+    this.env = TagsHelper.sanitize(config.getEnv());
+    this.version = TagsHelper.sanitize(config.getVersion());
     this.symbolUploader = symbolUploader;
     byte[] eventContent =
         String.format(
