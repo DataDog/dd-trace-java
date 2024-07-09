@@ -18,6 +18,7 @@ variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   SONATYPE_USERNAME: robot-sonatype-apm-java
   BUILD_JOB_NAME: "build"
+  SKIP_SHARED_PIPELINE: "$POPULATE_CACHE"
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
