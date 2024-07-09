@@ -7,8 +7,7 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -54,6 +53,9 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
+        AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
+    transformer.applyAdvice(
+        named("executeBatchInternal").and(takesArguments(0)).and(isProtected()),
         AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
     transformer.applyAdvice(
         nameStartsWith("set").and(takesArguments(2)).and(isPublic()),
@@ -106,7 +108,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final Statement statement) {
-
       try {
         Connection connection = statement.getConnection();
         DBQueryInfo queryInfo =
@@ -115,7 +116,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
           logMissingQueryInfo(statement);
           return null;
         }
-
         final AgentSpan span = startSpan(DATABASE_QUERY);
         DECORATE.afterStart(span);
         DBInfo dbInfo =
