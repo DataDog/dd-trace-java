@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.graphqljava20;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
@@ -21,7 +20,7 @@ public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String instrumentedType() {
-    return "graphql.GraphQL";
+    return "graphql.GraphQL$Builder";
   }
 
   @Override
@@ -41,22 +40,16 @@ public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod()
-            .and(
-                namedOneOf(
-                    "checkInstrumentationDefaultState" // 9.7+
-                    // https://github.com/graphql-java/graphql-java/commit/821241de8ee055d6d254a9d95ef5143f9e540826
-                    //                    "checkInstrumentation" // <9.7
-                    // https://github.com/graphql-java/graphql-java/commit/78a6e4eda1c13f47573adb879ae781cce794e96a
-                    ))
-            .and(returns(named("graphql.execution.instrumentation.Instrumentation"))),
+        isMethod().and(named("build")).and(returns(named("graphql.GraphQL"))),
         this.getClass().getName() + "$AddInstrumentationAdvice");
   }
 
   @SuppressWarnings("unused")
   public static class AddInstrumentationAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(@Advice.Return(readOnly = false) Instrumentation instrumentation) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.FieldValue(value = "instrumentation", readOnly = false)
+            Instrumentation instrumentation) {
       instrumentation = GraphQLInstrumentation.install(instrumentation);
     }
   }
