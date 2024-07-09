@@ -12,6 +12,7 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -258,7 +259,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    */
   public long setContextInfo(Connection connection, DBInfo dbInfo) {
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
-    AgentSpan instrumentationSpan = startSpan("set context_info");
+    AgentSpan instrumentationSpan = AgentTracer.get()
+            .buildSpan("set context_info")
+            .withTag("_dd.instrumentation", "true")
+            .start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
 
