@@ -262,6 +262,7 @@ commands:
       - run:
           name: Install python 3.12
           command: |
+            sudo apt-get update
             sudo apt-get install -y python3.12-full python3.12-dev python3.12-venv
             echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
 
@@ -917,8 +918,7 @@ jobs:
 
   parametric-tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:2024.05.1
     resource_class: large
     steps:
       - setup_system_tests
@@ -936,10 +936,10 @@ jobs:
           command: |
             cd system-tests
             pyenv local system
-            python3.9 --version
-            python3.9 -m pip install wheel
-            python3.9 -m pip install -r requirements.txt
-            sudo ln -sf /usr/bin/python3.9 /usr/bin/python
+            python3.12 --version
+            python3.12 -m pip install wheel
+            python3.12 -m pip install -r requirements.txt
+            sudo ln -sf /usr/bin/python3.12 /usr/bin/python
 
       - run:
           name: Run
