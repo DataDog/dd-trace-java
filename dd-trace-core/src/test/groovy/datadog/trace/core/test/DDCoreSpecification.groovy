@@ -72,7 +72,7 @@ abstract class DDCoreSpecification extends DDSpecification {
       false,
       spanType,
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.traceCollectorFactory.create(DDTraceId.ONE),
       null,
       null,
       ciVisibilityContextData,

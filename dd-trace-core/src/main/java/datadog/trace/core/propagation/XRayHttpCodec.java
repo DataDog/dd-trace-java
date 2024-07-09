@@ -80,7 +80,7 @@ class XRayHttpCodec {
                       e2eStart > 0
                           ? NANOSECONDS.toSeconds(e2eStart)
                           : MILLISECONDS.toSeconds(
-                              context.getTrace().getTimeSource().getCurrentTimeMillis())))
+                              context.getTraceCollector().getTimeSource().getCurrentTimeMillis())))
               .append(TRACE_ID_PADDING)
               .append(context.getTraceId().toHexStringPadded(16))
               .append(';' + PARENT_PREFIX)

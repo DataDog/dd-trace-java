@@ -46,10 +46,13 @@ abstract class CiVisibilityTestUtils {
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 
-  private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.comparing((Map m) -> {
+  private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.<Map<?,?>, String> comparing((Map m) -> {
     def content = (Map) m.get("content")
     return content.get("resource")
-  })
+  }).thenComparing(Comparator.<Map<?,?>, String> comparing((Map m) -> {
+    // module and session have the same resource name in headless mode
+    return m.get("type")
+  }).reversed())
 
   /**
    * Use this method to generate expected data templates

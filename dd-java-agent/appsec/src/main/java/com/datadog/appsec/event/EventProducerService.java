@@ -14,7 +14,7 @@ public interface EventProducerService {
    * set of addresses is identical.
    *
    * <p>The return value is to be passed to {@link #publishDataEvent(DataSubscriberInfo,
-   * AppSecRequestContext, DataBundle, boolean)}.
+   * AppSecRequestContext, DataBundle, boolean, boolean)}.
    *
    * @param newAddresses the addresses contained in the {@link DataBundle} that is to be passed to
    *     <code>publishDataEvent()</code>.
@@ -35,7 +35,8 @@ public interface EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,
-      boolean isTransient)
+      boolean isTransient,
+      boolean isRasp)
       throws ExpiredSubscriberInfoException;
 
   interface DataSubscriberInfo {

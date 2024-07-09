@@ -1,13 +1,9 @@
 package datadog.trace.core;
 
 import datadog.communication.monitor.Recording;
-import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
-import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
@@ -43,11 +39,11 @@ import org.slf4j.LoggerFactory;
  * PendingTraceBuffer in addition to the other write conditions. Running spans are also written in
  * that case. <br>
  */
-public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
+public class PendingTrace extends TraceCollector implements PendingTraceBuffer.Element {
 
   private static final Logger log = LoggerFactory.getLogger(PendingTrace.class);
 
-  static class Factory {
+  static class Factory implements TraceCollector.Factory {
     private final CoreTracer tracer;
     private final PendingTraceBuffer pendingTraceBuffer;
     private final TimeSource timeSource;
@@ -67,12 +63,13 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       this.healthMetrics = healthMetrics;
     }
 
-    /** Used by tests and benchmarks. */
-    PendingTrace create(@Nonnull DDTraceId traceId) {
+    @Override
+    public PendingTrace create(@Nonnull DDTraceId traceId) {
       return create(traceId, null);
     }
 
-    PendingTrace create(@Nonnull DDTraceId traceId, ConfigSnapshot traceConfig) {
+    @Override
+    public PendingTrace create(@Nonnull DDTraceId traceId, ConfigSnapshot traceConfig) {
       return new PendingTrace(
           tracer,
           traceId,
@@ -86,13 +83,10 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   private static final List<DDSpan> EMPTY = new ArrayList<>(0);
 
-  private final CoreTracer tracer;
   private final DDTraceId traceId;
   private final PendingTraceBuffer pendingTraceBuffer;
-  private final TimeSource timeSource;
   private final boolean strictTraceWrites;
   private final HealthMetrics healthMetrics;
-  private final ConfigSnapshot traceConfig;
 
   /**
    * Contains finished spans. If the long-running trace feature is enabled it also contains running
@@ -140,10 +134,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
    */
   private volatile long lastReferenced = 0;
 
-  private volatile long endToEndStartTime;
-  private static final AtomicLongFieldUpdater<PendingTrace> END_TO_END_START_TIME =
-      AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "endToEndStartTime");
-
   private PendingTrace(
       @Nonnull CoreTracer tracer,
       @Nonnull DDTraceId traceId,
@@ -152,26 +142,12 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       ConfigSnapshot traceConfig,
       boolean strictTraceWrites,
       HealthMetrics healthMetrics) {
-    this.tracer = tracer;
+    super(tracer, traceConfig != null ? traceConfig : tracer.captureTraceConfig(), timeSource);
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
-    this.timeSource = timeSource;
-    this.traceConfig = traceConfig != null ? traceConfig : tracer.captureTraceConfig();
     this.strictTraceWrites = strictTraceWrites;
     this.healthMetrics = healthMetrics;
     this.spans = new ConcurrentLinkedDeque<>();
-  }
-
-  CoreTracer getTracer() {
-    return tracer;
-  }
-
-  ConfigSnapshot getTraceConfig() {
-    return traceConfig;
-  }
-
-  String mapServiceName(String serviceName) {
-    return traceConfig.getServiceMapping().getOrDefault(serviceName, serviceName);
   }
 
   /**
@@ -183,17 +159,15 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
    *
    * @return timestamp in nanoseconds
    */
+  @Override
   public long getCurrentTimeNano() {
     long nanoTicks = timeSource.getNanoTicks();
     lastReferenced = nanoTicks;
     return tracer.getTimeWithNanoTicks(nanoTicks);
   }
 
-  public TimeSource getTimeSource() {
-    return timeSource;
-  }
-
-  public void touch() {
+  @Override
+  void touch() {
     lastReferenced = timeSource.getNanoTicks();
   }
 
@@ -204,6 +178,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return nanos < age;
   }
 
+  @Override
   void registerSpan(final DDSpan span) {
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
@@ -214,7 +189,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     }
   }
 
-  void trackRunningTrace(final DDSpan span) {
+  private void trackRunningTrace(final DDSpan span) {
     if (!compareAndSetLongRunningState(
         LongRunningTracesTracker.UNDEFINED, LongRunningTracesTracker.TO_TRACK)) {
       return;
@@ -225,7 +200,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     pendingTraceBuffer.enqueue(this);
   }
 
-  public Integer evaluateSamplingPriority() {
+  Integer evaluateSamplingPriority() {
     DDSpan span = spans.peek();
     if (span == null) {
       return null;
@@ -237,7 +212,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return prio;
   }
 
-  public boolean compareAndSetLongRunningState(int expected, int newState) {
+  boolean compareAndSetLongRunningState(int expected, int newState) {
     return LONG_RUNNING_STATE.compareAndSet(this, expected, newState);
   }
 
@@ -291,14 +266,6 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   public void cancelContinuation(final AgentScope.Continuation continuation) {
     decrementRefAndMaybeWrite(false);
     healthMetrics.onCancelContinuation();
-  }
-
-  enum PublishState {
-    WRITTEN,
-    PARTIAL_FLUSH,
-    ROOT_BUFFERED,
-    BUFFERED,
-    PENDING
   }
 
   private PublishState decrementRefAndMaybeWrite(boolean isRootSpan) {
@@ -383,7 +350,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return 0;
   }
 
-  public int enqueueSpansToWrite(List<DDSpan> trace, boolean writeRunningSpans) {
+  int enqueueSpansToWrite(List<DDSpan> trace, boolean writeRunningSpans) {
     int completedSpans = 0;
     boolean runningSpanSeen = false;
     long firstRunningSpanID = 0;
@@ -425,27 +392,15 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return completedSpanCount;
   }
 
-  public void beginEndToEnd() {
-    beginEndToEnd(getCurrentTimeNano());
-  }
-
-  void beginEndToEnd(long endToEndStartTime) {
-    END_TO_END_START_TIME.compareAndSet(this, 0, endToEndStartTime);
-  }
-
-  public long getEndToEndStartTime() {
-    return endToEndStartTime;
-  }
-
-  public long getLastWriteTime() {
+  long getLastWriteTime() {
     return LAST_WRITE_TIME_NANO.get(this);
   }
 
-  public long getRunningTraceStartTime() {
+  long getRunningTraceStartTime() {
     return RUNNING_TRACE_START_TIME_NANO.get(this);
   }
 
-  public void setLastWriteTime(long now) {
+  private void setLastWriteTime(long now) {
     LAST_WRITE_TIME_NANO.set(this, now);
   }
 
@@ -461,6 +416,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
    * <p>If the pendingTrace is not sent to the LongRunningTracesTracker, it will be immediately
    * written. Otherwise, the pendingTrace won't be tracked and no write is triggered.
    */
+  @Override
   public boolean writeOnBufferFull() {
     return !compareAndSetLongRunningState(
         LongRunningTracesTracker.TO_TRACK, LongRunningTracesTracker.NOT_TRACKED);
@@ -481,25 +437,15 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
       return duration;
     }
     DDSpan ddSpan = (DDSpan) span;
-    PendingTrace trace = ddSpan.context().getTrace();
-    return trace.getLastWriteTime() - span.getStartTime();
-  }
-
-  public void setSamplingPriorityIfNecessary() {
-    // There's a race where multiple threads can see PrioritySampling.UNSET here
-    // This check skips potential complex sampling priority logic when we know its redundant
-    // Locks inside DDSpanContext ensure the correct behavior in the race case
-    if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
-      // Ignore the force-keep priority in the absence of propagated _dd.p.appsec span tag.
-      if ((Config.get().isAppSecStandaloneEnabled()
-              && !rootSpan.context().getPropagationTags().isAppsecPropagationEnabled())
-          || rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
-        ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
-      }
+    TraceCollector traceCollector = ddSpan.context().getTraceCollector();
+    if (!(traceCollector instanceof PendingTrace)) {
+      throw new IllegalArgumentException(
+          "Expected "
+              + PendingTrace.class.getName()
+              + ", got "
+              + traceCollector.getClass().getName());
     }
-  }
-
-  public boolean sample(DDSpan spanToSample) {
-    return traceConfig.sampler.sample(spanToSample);
+    PendingTrace trace = (PendingTrace) traceCollector;
+    return trace.getLastWriteTime() - span.getStartTime();
   }
 }

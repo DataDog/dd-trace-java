@@ -22,6 +22,10 @@ excludedClassesCoverage += [
   'datadog.trace.core.monitor.LoggingStatsDClient',
   'datadog.trace.core.PendingTraceBuffer.DelayingPendingTraceBuffer.FlushElement',
   'datadog.trace.core.StatusLogger',
+  // covered with CI Visibility smoke tests
+  'datadog.trace.core.StreamingTraceCollector',
+  // covered with CI Visibility smoke tests
+  'datadog.trace.core.StreamingTraceCollector.Factory',
   'datadog.trace.core.scopemanager.ContinuableScopeManager.ScopeStackThreadLocal',
   'datadog.trace.core.scopemanager.SingleContinuation',
   // FIXME: more test coverage needed

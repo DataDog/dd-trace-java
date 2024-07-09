@@ -132,7 +132,8 @@ public class EventDispatcher implements EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,
-      boolean isTransient)
+      boolean isTransient,
+      boolean isRasp)
       throws ExpiredSubscriberInfoException {
     if (!((DataSubscriberInfoImpl) subscribers).isEventDispatcher(this)) {
       throw new ExpiredSubscriberInfoException();
@@ -144,7 +145,7 @@ public class EventDispatcher implements EventProducerService {
     ChangeableFlow flow = new ChangeableFlow();
     for (int idx : ((DataSubscriberInfoImpl) subscribers).listenerIndices) {
       try {
-        dataListenersIdx.get(idx).onDataAvailable(flow, ctx, newData, isTransient);
+        dataListenersIdx.get(idx).onDataAvailable(flow, ctx, newData, isTransient, isRasp);
       } catch (RuntimeException rte) {
         log.warn("AppSec callback exception", rte);
       }

@@ -110,7 +110,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DATADOG_PROFILER_WALL_COLLAPSING =
       "profiling.ddprof.wall.collapsing";
-  public static final boolean PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT = false;
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT = true;
 
   public static final String PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER =
       "profiling.ddprof.wall.context.filter";

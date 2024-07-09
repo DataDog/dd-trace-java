@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,6 +95,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String inferredClientIp;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+  private String dbType;
 
   private int responseStatus;
 
@@ -104,13 +106,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean pathParamsPublished;
   private Map<String, String> apiSchemas;
 
-  private AtomicBoolean rateLimited = new AtomicBoolean(false);
+  private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
 
   // should be guarded by this
   private Additive additive;
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
+  private volatile PowerwafMetrics raspMetrics;
+  private AtomicInteger raspMetricsCounter;
   private volatile boolean blocked;
   private volatile int timeouts;
 
@@ -142,6 +146,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return wafMetrics;
   }
 
+  public PowerwafMetrics getRaspMetrics() {
+    return raspMetrics;
+  }
+
+  public AtomicInteger getRaspMetricsCounter() {
+    return raspMetricsCounter;
+  }
+
   public void setBlocked() {
     this.blocked = true;
   }
@@ -158,7 +170,18 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return timeouts;
   }
 
-  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics) {
+  public Additive getOrCreateAdditive(PowerwafContext ctx, boolean createMetrics, boolean isRasp) {
+
+    if (createMetrics) {
+      if (wafMetrics == null) {
+        this.wafMetrics = ctx.createMetrics();
+      }
+      if (isRasp && raspMetrics == null) {
+        this.raspMetrics = ctx.createMetrics();
+        this.raspMetricsCounter = new AtomicInteger(0);
+      }
+    }
+
     Additive curAdditive;
     synchronized (this) {
       curAdditive = this.additive;
@@ -167,11 +190,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
       curAdditive = ctx.openAdditive();
       this.additive = curAdditive;
-    }
-
-    // new additive was created
-    if (createMetrics) {
-      this.wafMetrics = ctx.createMetrics();
     }
     return curAdditive;
   }
@@ -339,6 +357,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
+  }
+
+  public String getDbType() {
+    return dbType;
+  }
+
+  public void setDbType(String dbType) {
+    this.dbType = dbType;
   }
 
   public int getResponseStatus() {
