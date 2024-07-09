@@ -19,6 +19,7 @@ import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.util.Strings;
@@ -515,7 +516,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
     InstrumentationResult.Status status = preCheckInstrumentation(diagnostics, methodInfo);
     if (status != InstrumentationResult.Status.ERROR) {
       try {
-        List<ToInstrumentInfo> toInstruments = filterAndSortDefinitions(definitions);
+        List<ToInstrumentInfo> toInstruments =
+            filterAndSortDefinitions(definitions, methodInfo.getClassFileLines());
         for (ToInstrumentInfo toInstrumentInfo : toInstruments) {
           ProbeDefinition definition = toInstrumentInfo.definition;
           List<DiagnosticMessage> probeDiagnostics = diagnostics.get(definition.getProbeId());
@@ -541,7 +543,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
   }
 
-  private List<ToInstrumentInfo> filterAndSortDefinitions(List<ProbeDefinition> definitions) {
+  private List<ToInstrumentInfo> filterAndSortDefinitions(
+      List<ProbeDefinition> definitions, ClassFileLines classFileLines) {
     List<ToInstrumentInfo> toInstrument = new ArrayList<>();
     List<ProbeDefinition> capturedContextProbes = new ArrayList<>();
     boolean addedExceptionProbe = false;
@@ -566,7 +569,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (!capturedContextProbes.isEmpty()) {
       List<ProbeId> probesIds =
           capturedContextProbes.stream().map(ProbeDefinition::getProbeId).collect(toList());
-      ProbeDefinition referenceDefinition = selectReferenceDefinition(capturedContextProbes);
+      ProbeDefinition referenceDefinition =
+          selectReferenceDefinition(capturedContextProbes, classFileLines);
       toInstrument.add(new ToInstrumentInfo(referenceDefinition, probesIds));
     }
     //     LOGGER.debug("exception probe is already instrumented for {}", preciseWhere);
@@ -581,17 +585,61 @@ public class DebuggerTransformer implements ClassFileTransformer {
   }
 
   // Log & Span Decoration probes share the same instrumentor so only one definition should be
-  // selected to
-  // generate the instrumentation. Log probes needs capture limits provided by the configuration
-  // so if the list of definition contains at least 1 log probe this is the log probe that need to
-  // be picked.
-  // TODO: handle the conflicting limits for log probes + mixing CaptureSnapshot or not
-  private ProbeDefinition selectReferenceDefinition(List<ProbeDefinition> capturedContextProbes) {
-    ProbeDefinition first = capturedContextProbes.get(0);
-    return capturedContextProbes.stream()
-        .filter(it -> it instanceof LogProbe)
-        .findFirst()
-        .orElse(first);
+  // used to generate the instrumentation. This method generate a synthetic definition that
+  // match the type of the probe to instrument: if at least one probe is LogProbe then we are
+  // creating a LogProbe definition. The synthetic definition contains the union of all the capture,
+  // snapshot and evaluateAt parameters.
+  private ProbeDefinition selectReferenceDefinition(
+      List<ProbeDefinition> capturedContextProbes, ClassFileLines classFileLines) {
+    boolean hasLogProbe = false;
+    MethodLocation evaluateAt = MethodLocation.EXIT;
+    LogProbe.Capture capture = null;
+    boolean captureSnapshot = false;
+    Where where = capturedContextProbes.get(0).getWhere();
+    ProbeId probeId = capturedContextProbes.get(0).getProbeId();
+    for (ProbeDefinition definition : capturedContextProbes) {
+      if (definition instanceof LogProbe) {
+        if (definition instanceof ExceptionProbe) {
+          where = Where.convertLineToMethod(where, classFileLines);
+        }
+        hasLogProbe = true;
+        LogProbe logProbe = (LogProbe) definition;
+        captureSnapshot = captureSnapshot | logProbe.isCaptureSnapshot();
+        capture = mergeCapture(capture, logProbe.getCapture());
+      }
+      if (definition.getEvaluateAt() == MethodLocation.ENTRY
+          || definition.getEvaluateAt() == MethodLocation.DEFAULT) {
+        evaluateAt = definition.getEvaluateAt();
+      }
+    }
+    if (hasLogProbe) {
+      return LogProbe.builder()
+          .probeId(probeId)
+          .where(where)
+          .evaluateAt(evaluateAt)
+          .capture(capture)
+          .captureSnapshot(captureSnapshot)
+          .build();
+    }
+    return SpanDecorationProbe.builder()
+        .probeId(probeId)
+        .where(where)
+        .evaluateAt(evaluateAt)
+        .build();
+  }
+
+  private LogProbe.Capture mergeCapture(LogProbe.Capture current, LogProbe.Capture newCapture) {
+    if (current == null) {
+      return newCapture;
+    }
+    if (newCapture == null) {
+      return current;
+    }
+    return new LogProbe.Capture(
+        Math.max(current.getMaxReferenceDepth(), newCapture.getMaxReferenceDepth()),
+        Math.max(current.getMaxCollectionSize(), newCapture.getMaxCollectionSize()),
+        Math.max(current.getMaxLength(), newCapture.getMaxLength()),
+        Math.max(current.getMaxFieldCount(), newCapture.getMaxFieldCount()));
   }
 
   private InstrumentationResult.Status preCheckInstrumentation(
