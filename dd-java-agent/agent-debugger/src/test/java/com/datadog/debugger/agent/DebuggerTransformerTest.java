@@ -385,7 +385,6 @@ public class DebuggerTransformerTest {
     ProbeDefinition mock = mock(clazz);
     doAnswer(
             invocation -> {
-              // invocationOrder.add(mock);
               return InstrumentationResult.Status.INSTALLED;
             })
         .when(mock)

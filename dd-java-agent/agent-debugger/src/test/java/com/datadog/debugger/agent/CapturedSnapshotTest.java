@@ -722,6 +722,25 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void fieldExtractorDuplicateUnionDepth() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot04";
+    LogProbe.Builder builder = createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
+    LogProbe probe1 = builder.capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
+    LogProbe probe2 = builder.capture(3, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1, probe2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "").get();
+    assertEquals(143, result);
+    List<Snapshot> snapshots = assertSnapshots(listener, 2);
+    CapturedContext.CapturedValue simpleData =
+        snapshots.get(0).getCaptures().getReturn().getLocals().get("simpleData");
+    Map<String, CapturedContext.CapturedValue> simpleDataFields = getFields(simpleData);
+    assertEquals(4, simpleDataFields.size());
+    assertEquals("foo", simpleDataFields.get("strValue").getValue());
+    assertEquals(42, simpleDataFields.get("intValue").getValue());
+  }
+
+  @Test
   public void fieldExtractorCount2() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
     LogProbe.Builder builder =

@@ -628,18 +628,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
         .build();
   }
 
-  private LogProbe.Sampling mergeSampling(
-      LogProbe.Sampling current, LogProbe.Sampling newSampling) {
-    if (current == null) {
-      return newSampling;
-    }
-    if (newSampling == null) {
-      return current;
-    }
-    return new LogProbe.Sampling(
-        Math.max(current.getSnapshotsPerSecond(), newSampling.getSnapshotsPerSecond()));
-  }
-
   private LogProbe.Capture mergeCapture(LogProbe.Capture current, LogProbe.Capture newCapture) {
     if (current == null) {
       return newCapture;

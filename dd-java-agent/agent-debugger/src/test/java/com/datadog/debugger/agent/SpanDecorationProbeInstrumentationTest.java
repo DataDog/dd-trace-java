@@ -331,7 +331,6 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
             .probeId(PROBE_ID3)
             .where(CLASS_NAME, "process")
             .captureSnapshot(true)
-            .sampling(3.0)
             .capture(1, 50, 50, 10)
             .build();
     LogProbe logProbe2 =
@@ -339,7 +338,6 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
             .probeId(PROBE_ID4)
             .where(CLASS_NAME, "process")
             .captureSnapshot(true)
-            .sampling(10.0)
             .capture(5, 200, 200, 30)
             .build();
     Configuration configuration =
