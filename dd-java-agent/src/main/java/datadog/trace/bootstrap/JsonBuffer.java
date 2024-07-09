@@ -7,8 +7,8 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 
 /**
- * Light weight JSON writer with no dependencies other than JDK.
- * Loosely modeled after GSON JsonWriter
+ * Light weight JSON writer with no dependencies other than JDK. Loosely modeled after GSON
+ * JsonWriter
  */
 public final class JsonBuffer implements Flushable {
   private ByteArrayOutputStream bytesOut;
