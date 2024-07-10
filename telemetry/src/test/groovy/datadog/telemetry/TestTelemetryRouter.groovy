@@ -1,12 +1,12 @@
 package datadog.telemetry
 
 import datadog.communication.ddagent.TracerVersion
-import datadog.telemetry.dependency.Dependency
-import datadog.telemetry.api.Integration
 import datadog.telemetry.api.DistributionSeries
+import datadog.telemetry.api.Integration
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
+import datadog.telemetry.dependency.Dependency
 import datadog.trace.api.ConfigSetting
 import groovy.json.JsonSlurper
 import okhttp3.Request
@@ -258,11 +258,12 @@ class TestTelemetryRouter extends TelemetryRouter {
       return this
     }
 
-    PayloadAssertions products(boolean appsecEnabled = true, boolean profilerEnabled = false, boolean dynamicInstrumentationEnabled = false) {
+    PayloadAssertions products(boolean appsecEnabled = true, boolean profilerEnabled = false, boolean dynamicInstrumentationEnabled = false, boolean ciVisibilityEnabled = false) {
       def expected = [
         appsec: [enabled: appsecEnabled],
         profiler: [enabled: profilerEnabled],
-        dynamic_instrumentation: [enabled: dynamicInstrumentationEnabled]
+        dynamic_instrumentation: [enabled: dynamicInstrumentationEnabled],
+        civisibility: [enabled: ciVisibilityEnabled]
       ]
       assert this.payload['products'] == expected
       return this

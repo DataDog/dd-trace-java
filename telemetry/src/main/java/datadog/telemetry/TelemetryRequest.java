@@ -97,7 +97,9 @@ public class TelemetryRequest {
           instrumenterConfig.getAppSecActivation() != ProductActivation.FULLY_DISABLED;
       boolean profilerEnabled = instrumenterConfig.isProfilingEnabled();
       boolean dynamicInstrumentationEnabled = config.isDebuggerEnabled();
-      requestBody.writeProducts(appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
+      boolean ciVisibilityEnabled = config.isCiVisibilityEnabled();
+      requestBody.writeProducts(
+          appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled, ciVisibilityEnabled);
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
     }
