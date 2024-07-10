@@ -178,7 +178,7 @@ public class IastSystem {
             break;
         }
       }
-      throw new RuntimeException("Cannot find constructor fot he module " + type);
+      throw new RuntimeException("Cannot find constructor for the module " + type);
     } catch (final Throwable e) {
       // should never happen and be caught on IAST tests
       throw new UndeclaredThrowableException(
