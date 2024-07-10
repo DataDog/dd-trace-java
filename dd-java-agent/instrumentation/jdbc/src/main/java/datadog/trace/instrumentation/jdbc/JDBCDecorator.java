@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
@@ -259,7 +258,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    */
   public long setContextInfo(Connection connection, DBInfo dbInfo) {
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
-    AgentSpan instrumentationSpan = AgentTracer.get()
+    AgentSpan instrumentationSpan =
+        AgentTracer.get()
             .buildSpan("set context_info")
             .withTag("dd.instrumentation", "true")
             .start();
