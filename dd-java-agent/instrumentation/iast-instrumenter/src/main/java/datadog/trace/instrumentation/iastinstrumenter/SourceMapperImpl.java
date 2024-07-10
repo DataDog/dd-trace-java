@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.iastinstrumenter;
 
 import datadog.trace.agent.tooling.iast.stratum.Stratum;
-import datadog.trace.agent.tooling.iast.stratum.StratumManagerImpl;
+import datadog.trace.agent.tooling.iast.stratum.StratumManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.iast.stratum.SourceMapper;
@@ -11,12 +11,12 @@ public class SourceMapperImpl implements SourceMapper {
   // This is only available if IAST source mapping is enabled
   public static final SourceMapperImpl INSTANCE =
       Config.get().isIastSourceMappingEnabled()
-          ? new SourceMapperImpl(StratumManagerImpl.INSTANCE)
+          ? new SourceMapperImpl(StratumManager.INSTANCE)
           : null;
 
-  private final StratumManagerImpl stratumManager;
+  private final StratumManager stratumManager;
 
-  private SourceMapperImpl(StratumManagerImpl stratumManager) {
+  private SourceMapperImpl(StratumManager stratumManager) {
     // Prevent instantiation
     this.stratumManager = stratumManager;
   }

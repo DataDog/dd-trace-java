@@ -16,9 +16,9 @@ import org.slf4j.LoggerFactory;
  * Manages SMAP information for classes <a
  * href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection">...</a>
  */
-public class StratumManagerImpl {
+public class StratumManager {
 
-  private static final Logger LOG = LoggerFactory.getLogger(StratumManagerImpl.class);
+  private static final Logger LOG = LoggerFactory.getLogger(StratumManager.class);
 
   private final LimitedConcurrentHashMap map;
 
@@ -26,10 +26,10 @@ public class StratumManagerImpl {
 
   private boolean EMPTY_DEBUG_INFO;
 
-  public static final StratumManagerImpl INSTANCE =
-      new StratumManagerImpl(Config.get().getIastSourceMappingMaxSize());
+  public static final StratumManager INSTANCE =
+      new StratumManager(Config.get().getIastSourceMappingMaxSize());
 
-  private StratumManagerImpl(int sourceMappingLimit) {
+  private StratumManager(int sourceMappingLimit) {
     // Prevent instantiation
     this.map = new LimitedConcurrentHashMap(sourceMappingLimit);
   }
@@ -101,6 +101,7 @@ public class StratumManagerImpl {
     return null;
   }
 
+  /** Get name and debug info */
   private String[] extractSourceDebugExtensionASM(final byte[] classBytes) {
     ClassReader cr = new ClassReader(classBytes);
     final String[] result = new String[2];

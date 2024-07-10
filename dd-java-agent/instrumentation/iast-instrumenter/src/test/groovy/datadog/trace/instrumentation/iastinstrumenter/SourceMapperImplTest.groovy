@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.iastinstrumenter
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.iast.stratum.Stratum
-import datadog.trace.agent.tooling.iast.stratum.StratumManagerImpl
+import datadog.trace.agent.tooling.iast.stratum.StratumManager
 import datadog.trace.api.Pair
 
 class SourceMapperImplTest extends AgentTestRunner {
@@ -17,7 +17,7 @@ class SourceMapperImplTest extends AgentTestRunner {
 
   void 'test getFileAndLine'(){
     setup:
-    final stratumManager = Mock(StratumManagerImpl)
+    final stratumManager = Mock(StratumManager)
     final stratum = Mock(Stratum)
     final sourceMapper = new SourceMapperImpl(stratumManager)
 
