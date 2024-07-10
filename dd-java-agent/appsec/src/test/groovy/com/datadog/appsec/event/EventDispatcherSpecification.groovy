@@ -5,6 +5,7 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
+import com.datadog.appsec.gateway.GatewayContext
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.Flow
 import datadog.trace.test.util.DDSpecification
@@ -29,30 +30,31 @@ class EventDispatcherSpecification extends DDSpecification {
     set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
     set.addSubscription([KnownAddresses.REQUEST_METHOD], dataListener3)
     dispatcher.subscribeDataAvailable(set)
+    def gwCtx = new GatewayContext(true, false)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.REQUEST_METHOD)
     DataBundle db = MapDataBundle.of(
       KnownAddresses.REQUEST_CLIENT_IP, '::1',
       KnownAddresses.REQUEST_METHOD, 'GET')
-    dispatcher.publishDataEvent(subscribers, ctx, db, true, false)
+    dispatcher.publishDataEvent(subscribers, ctx, db, gwCtx)
 
     then:
     1 * dataListener3.onDataAvailable(
       _ as Flow, ctx,
       { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) },
-      true, false) >> { savedFlow3 = it[0] }
+      gwCtx) >> { savedFlow3 = it[0] }
 
     then:
     1 * dataListener2.onDataAvailable(
       _ as Flow, ctx,
       { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) },
-      true, false) >> { savedFlow2 = it[0] }
+      gwCtx) >> { savedFlow2 = it[0] }
     savedFlow2.is(savedFlow3)
 
     then:
     1 * dataListener1.onDataAvailable(_ as Flow, ctx,
-      _ as DataBundle, true, false) >> { savedFlow1 = it[0] }
+      _ as DataBundle, gwCtx) >> { savedFlow1 = it[0] }
     savedFlow1.is(savedFlow2)
   }
 
@@ -70,14 +72,15 @@ class EventDispatcherSpecification extends DDSpecification {
       [KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.HEADERS_NO_COOKIES],
       listener)
     dispatcher.subscribeDataAvailable(set)
+    def gwCtx = new GatewayContext(true, false)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.HEADERS_NO_COOKIES)
-    dispatcher.publishDataEvent(subscribers, ctx, db, true, false)
+    dispatcher.publishDataEvent(subscribers, ctx, db, gwCtx)
 
     then:
     assert !subscribers.empty
-    1 * listener.onDataAvailable(_ as Flow, ctx, db, true, false)
+    1 * listener.onDataAvailable(_ as Flow, ctx, db, gwCtx)
   }
 
   void 'blocking interrupts data listener calls'() {
@@ -92,18 +95,19 @@ class EventDispatcherSpecification extends DDSpecification {
     set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
     set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
     dispatcher.subscribeDataAvailable(set)
+    def gwCtx = new GatewayContext(true, false)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
     DataBundle db = MapDataBundle.of(KnownAddresses.REQUEST_CLIENT_IP, '::1')
-    ChangeableFlow resultFlow = dispatcher.publishDataEvent(subscribers, ctx, db, true, false)
+    ChangeableFlow resultFlow = dispatcher.publishDataEvent(subscribers, ctx, db, gwCtx)
 
     then:
-    1 * dataListener1.onDataAvailable(_ as Flow, ctx, _ as DataBundle, true, false) >> {
+    1 * dataListener1.onDataAvailable(_ as Flow, ctx, _ as DataBundle, gwCtx) >> {
       ChangeableFlow flow = it.first()
       flow.action = new Flow.Action.RequestBlockingAction(404, BlockingContentType.AUTO)
     }
-    0 * dataListener2.onDataAvailable(_ as Flow, ctx, _ as DataBundle, _ as boolean, _ as boolean)
+    0 * dataListener2.onDataAvailable(_ as Flow, ctx, _ as DataBundle, _ as GatewayContext)
     assert resultFlow.blocking
     assert resultFlow.action.statusCode == 404
     assert resultFlow.action.blockingContentType == BlockingContentType.AUTO
@@ -119,13 +123,14 @@ class EventDispatcherSpecification extends DDSpecification {
     def set = new EventDispatcher.DataSubscriptionSet()
     set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], listener)
     dispatcher.subscribeDataAvailable(set)
+    def gwCtx = new GatewayContext(false, false)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
-    dispatcher.publishDataEvent(subscribers, ctx, db, false, false)
+    dispatcher.publishDataEvent(subscribers, ctx, db, gwCtx)
 
     then:
-    1 * listener.onDataAvailable(_ as Flow, ctx, db, false, false)
+    1 * listener.onDataAvailable(_ as Flow, ctx, db, gwCtx)
     1 * ctx.addAll(db)
   }
 
@@ -155,7 +160,8 @@ class EventDispatcherSpecification extends DDSpecification {
     EventDispatcher anotherDispatcher = new EventDispatcher()
     EventProducerService.DataSubscriberInfo subInfo =
       anotherDispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
-    dispatcher.publishDataEvent(subInfo, Stub(AppSecRequestContext), Stub(DataBundle), false, false)
+    def gwCtx = new GatewayContext(false, false)
+    dispatcher.publishDataEvent(subInfo, Stub(AppSecRequestContext), Stub(DataBundle), gwCtx)
 
     then:
     thrown ExpiredSubscriberInfoException

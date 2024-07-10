@@ -14,6 +14,7 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
+import com.datadog.appsec.gateway.GatewayContext
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.stack_trace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
@@ -54,6 +55,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
   }
 
   AppSecRequestContext ctx = Spy()
+  GatewayContext gwCtx = new GatewayContext(false, false)
 
   StubAppSecConfigService service
   PowerWAFModule pwafModule = new PowerWAFModule()
@@ -193,7 +195,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
       '1.2.3.4'
       )
-    dataListener.onDataAvailable(flow, ctx, newBundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, newBundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -227,7 +229,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       KnownAddresses.USER_ID,
       'user-to-block-1'
       )
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -267,7 +269,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       it.dirtyStatus.clearDirty()
     }
 
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -292,7 +294,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       KnownAddresses.USER_ID,
       'user-to-block-2'
       )
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -347,7 +349,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       KnownAddresses.USER_ID,
       'user-to-block-2'
       )
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -372,7 +374,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       KnownAddresses.USER_ID,
       'user-to-block-1'
       )
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -428,7 +430,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * reconf.reloadSubscriptions()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -450,7 +452,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
       '192.168.0.1'
       )
-    dataListener.onDataAvailable(flow, ctx, newBundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, newBundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -508,7 +510,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * reconf.reloadSubscriptions()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -582,7 +584,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     2 * reconf.reloadSubscriptions()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -607,7 +609,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     DataBundle bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
       new CaseInsensitiveMap<List<String>>(['user-agent': 'redirect' + variant]))
     def flow = new ChangeableFlow()
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -672,7 +674,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -701,7 +703,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -726,7 +728,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     setupWithStubConfigService()
     pp = service.traceSegmentPostProcessors[1]
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
     pp.processTraceSegment(segment, ctx, [])
 
@@ -752,7 +754,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ChangeableFlow flow = new ChangeableFlow()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
 
     then:
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
@@ -778,7 +780,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     pwafModule = new PowerWAFModule() // replace the one created too soon
 
     when:
-    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -816,7 +818,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
       new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
-    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, bundle, false, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -839,7 +841,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
       new CaseInsensitiveMap<List<String>>(['user-agent': [password: 'Arachni/v0']]))
-    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, bundle, false, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -861,7 +863,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     AppSecEvent event
 
     when:
-    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -883,7 +885,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       new CaseInsensitiveMap<List<String>>(['user-agent': 'Harmless']))
 
     when:
-    dataListener.onDataAvailable(flow, ctx, db, false, false)
+    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
     then:
     ctx.getOrCreateAdditive(_, true) >> {
@@ -912,7 +914,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       ])
 
     when:
-    dataListener.onDataAvailable(flow, ctx, db, false, false)
+    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
     then:
     ctx.getOrCreateAdditive(_, true) >> {
@@ -927,7 +929,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     DataBundle db = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES, [get: { null }] as List)
 
     when:
-    dataListener.onDataAvailable(flow, ctx, db, false, false)
+    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
     then:
     ctx.getOrCreateAdditive(_, true) >> {
@@ -949,7 +951,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     TraceSegmentPostProcessor pp = service.traceSegmentPostProcessors.last()
 
     when:
-    dataListener.onDataAvailable(flow, ctx, db, false, false)
+    dataListener.onDataAvailable(flow, ctx, db, gwCtx)
 
     then:
     ctx.getOrCreateAdditive(_, true) >> {
@@ -983,7 +985,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'], reconf)
     dataListener = pwafModule.dataSubscriptions.first()
-    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -1018,7 +1020,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     dataListener = pwafModule.dataSubscriptions.first()
     def bundle = MapDataBundle.of(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, '1.2.3.4')
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -1074,7 +1076,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     dataListener = pwafModule.dataSubscriptions.first()
     def bundle = MapDataBundle.of(KnownAddresses.REQUEST_INFERRED_CLIENT_IP, '1.2.3.4')
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then: 'no match; rule is disabled'
@@ -1097,7 +1099,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       it.dirtyStatus.clearDirty()
     }
 
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then: 'no match; data was cleared (though rule is no longer disabled)'
@@ -1117,7 +1119,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       it.dirtyStatus.clearDirty()
     }
 
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then: 'now we have match'
@@ -1144,7 +1146,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       it.dirtyStatus.clearDirty()
     }
 
-    dataListener.onDataAvailable(flow, ctx, bundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
     ctx.closeAdditive()
 
     then: 'nothing again; we disabled the rule'
@@ -1172,7 +1174,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       it.dirtyStatus.clearDirty()
     }
     dataListener = pwafModule.dataSubscriptions.first()
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -1194,7 +1196,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       service.listeners['waf'].onNewSubconfig(it, reconf)
       it.dirtyStatus.clearDirty()
     }
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -1217,7 +1219,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       service.listeners['waf'].onNewSubconfig(it, reconf)
       it.dirtyStatus.clearDirty()
     }
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -1243,7 +1245,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       service.listeners['waf'].onNewSubconfig(it, reconf)
       it.dirtyStatus.clearDirty()
     }
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -1355,7 +1357,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       KnownAddresses.REQUEST_BODY_OBJECT,
       '/cybercop'
       )
-    dataListener.onDataAvailable(flow, ctx, transientBundle, false, false)
+    dataListener.onDataAvailable(flow, ctx, transientBundle, gwCtx)
 
     then:
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
@@ -1370,7 +1372,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * _
 
     when:
-    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+    dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -1401,7 +1403,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     when:
     for (int t = 0; t < 20; t++) {
       CountDownLatch latch = new CountDownLatch(1)
-      dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, false, false)
+      dataListener.onDataAvailable(flow, ctx, ATTACK_BUNDLE, gwCtx)
       Thread thread = new Thread({ p ->
         latch.countDown()
         ctx.closeAdditive()
