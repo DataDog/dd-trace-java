@@ -89,7 +89,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
 
-
         return activateSpan(span);
       } catch (SQLException e) {
         logSQLException(e);
