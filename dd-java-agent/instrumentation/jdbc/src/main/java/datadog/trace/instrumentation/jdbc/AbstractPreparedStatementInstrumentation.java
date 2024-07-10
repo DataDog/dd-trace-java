@@ -85,9 +85,10 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         } else {
           span = startSpan(DATABASE_QUERY);
         }
+        DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
-        DECORATE.afterStart(span);
+
 
         return activateSpan(span);
       } catch (SQLException e) {
