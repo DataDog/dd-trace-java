@@ -1,20 +1,26 @@
 package com.datadog.iast.propagation
 
 import com.datadog.iast.IastModuleImplTestBase
-import com.datadog.iast.taint.TaintedObject
+import com.datadog.iast.model.Range
+import com.datadog.iast.model.Source
+import com.datadog.iast.taint.Ranges
+import com.datadog.iast.taint.TaintedObjects
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import groovy.transform.CompileDynamic
+
+import java.nio.charset.StandardCharsets
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
 
-@CompileDynamic
-abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
+class CodecModuleTest extends IastModuleImplTestBase {
 
   protected CodecModule module
 
   def setup() {
-    module = buildModule()
+    module = new CodecModuleImpl()
+    InstrumentationBridge.registerIastModule(module)
   }
 
   @Override
@@ -72,8 +78,14 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     if (isTainted) {
       assert to != null
       assert to.get() == result
+      assert to.ranges.size() == 1
+
       final sourceTainted = taintedObjects.get(parsed)
-      assertOnUrlDecode(value, encoding, sourceTainted, to)
+      final sourceRange = Ranges.highestPriorityRange(sourceTainted.ranges)
+      final range = to.ranges.first()
+      assert range.start == 0
+      assert range.length == result.length()
+      assert range.source == sourceRange.source
     } else {
       assert to == null
     }
@@ -103,8 +115,14 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     if (isTainted) {
       assert to != null
       assert to.get() == result
+      assert to.ranges.size() == 1
+
       final sourceTainted = taintedObjects.get(parsed)
-      assertOnStringGetBytes(value, charset, sourceTainted, to)
+      final sourceRange = Ranges.highestPriorityRange(sourceTainted.ranges)
+      final range = to.ranges.first()
+      assert range.start == 0
+      assert range.length == Integer.MAX_VALUE // unbound for non char sequences
+      assert range.source == sourceRange.source
     } else {
       assert to == null
     }
@@ -140,8 +158,14 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     if (isTainted) {
       assert to != null
       assert to.get() == result
+      assert to.ranges.size() == 1
+
       final sourceTainted = taintedObjects.get(parsed)
-      assertOnStringFromBytes(bytes, 0, bytes.length, charset, sourceTainted, to)
+      final sourceRange = Ranges.highestPriorityRange(sourceTainted.ranges)
+      final range = to.ranges.first()
+      assert range.start == 0
+      assert range.length == result.length()
+      assert range.source == sourceRange.source
     } else {
       assert to == null
     }
@@ -177,8 +201,14 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     if (isTainted) {
       assert to != null
       assert to.get() == result
+      assert to.ranges.length == 1
+
       final sourceTainted = taintedObjects.get(parsed)
-      assertBase64Decode(parsedBytes, sourceTainted, to)
+      final sourceRange = Ranges.highestPriorityRange(sourceTainted.ranges)
+      final range = to.ranges.first()
+      assert range.start == 0
+      assert range.length == Integer.MAX_VALUE // unbound for non char sequences
+      assert range.source == sourceRange.source
     } else {
       assert to == null
     }
@@ -214,8 +244,14 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     if (isTainted) {
       assert to != null
       assert to.get() == result
+      assert to.ranges.length == 1
+
       final sourceTainted = taintedObjects.get(parsed)
-      assertBase64Encode(parsedBytes, sourceTainted, to)
+      final sourceRange = Ranges.highestPriorityRange(sourceTainted.ranges)
+      final range = to.ranges.first()
+      assert range.start == 0
+      assert range.length == Integer.MAX_VALUE // unbound for non char sequences
+      assert range.source == sourceRange.source
     } else {
       assert to == null
     }
@@ -232,15 +268,42 @@ abstract class BaseCodecModuleTest extends IastModuleImplTestBase {
     '==>Hello<== World!' | _
   }
 
-  protected abstract void assertOnUrlDecode(final String value, final String encoding, final TaintedObject source, final TaintedObject target)
+  void 'test on string from bytes with multiple ranges'() {
+    given:
+    final charset = StandardCharsets.UTF_8
+    final string = "Hello World!"
+    final bytes = string.getBytes(charset) // 1 byte pe char
+    final TaintedObjects to = ctx.taintedObjects
+    final ranges = [
+      new Range(0, 5, new Source((byte) 0, 'name1', 'Hello'), VulnerabilityMarks.NOT_MARKED),
+      new Range(6, 6, new Source((byte) 1, 'name2', 'World!'), VulnerabilityMarks.NOT_MARKED)
+    ]
+    to.taint(bytes, ranges as Range[])
 
-  protected abstract void assertOnStringFromBytes(final byte[] value, final int offset, final int length, final String encoding, final TaintedObject source, final TaintedObject target)
+    when:
+    final hello = string.substring(0, 5)
+    module.onStringFromBytes(bytes, 0, 5, charset.name(), hello)
 
-  protected abstract void assertOnStringGetBytes(final String value, final String encoding, final TaintedObject source, final TaintedObject target)
+    then:
+    final helloTainted = to.get(hello)
+    helloTainted.ranges.length == 1
+    helloTainted.ranges.first().with {
+      assert it.source.origin == (byte) 0
+      assert it.source.name == 'name1'
+      assert it.source.value == 'Hello'
+    }
 
-  protected abstract void assertBase64Decode(final byte[] value, final TaintedObject source, final TaintedObject target)
+    when:
+    final world = string.substring(6, 12)
+    module.onStringFromBytes(bytes, 6, 6, charset.name(), world)
 
-  protected abstract void assertBase64Encode(final byte[] value, final TaintedObject source, final TaintedObject target)
-
-  protected abstract CodecModule buildModule()
+    then:
+    final worldTainted = to.get(world)
+    worldTainted.ranges.length == 1
+    worldTainted.ranges.first().with {
+      assert it.source.origin == (byte) 1
+      assert it.source.name == 'name2'
+      assert it.source.value == 'World!'
+    }
+  }
 }

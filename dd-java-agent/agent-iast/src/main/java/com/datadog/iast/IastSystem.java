@@ -5,7 +5,7 @@ import static datadog.trace.api.iast.IastContext.Mode.GLOBAL;
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
 
 import com.datadog.iast.overhead.OverheadController;
-import com.datadog.iast.propagation.FastCodecModule;
+import com.datadog.iast.propagation.CodecModuleImpl;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.sink.ApplicationModuleImpl;
@@ -122,7 +122,7 @@ public class IastSystem {
     Stream<Class<? extends IastModule>> modules =
         Stream.of(
             StringModuleImpl.class,
-            FastCodecModule.class,
+            CodecModuleImpl.class,
             SqlInjectionModuleImpl.class,
             PathTraversalModuleImpl.class,
             CommandInjectionModuleImpl.class,
@@ -167,12 +167,18 @@ public class IastSystem {
   private static <M extends IastModule> M newIastModule(
       final Dependencies dependencies, final Class<M> type) {
     try {
-      final Constructor<M> ctor = (Constructor<M>) type.getDeclaredConstructors()[0];
-      if (ctor.getParameterCount() == 0) {
-        return ctor.newInstance();
-      } else {
-        return ctor.newInstance(dependencies);
+      for (final Constructor<?> ctor : type.getDeclaredConstructors()) {
+        switch (ctor.getParameterCount()) {
+          case 0:
+            return (M) ctor.newInstance();
+          case 1:
+            if (ctor.getParameterTypes()[0] == Dependencies.class) {
+              return (M) ctor.newInstance(dependencies);
+            }
+            break;
+        }
       }
+      throw new RuntimeException("Cannot find constructor fot he module " + type);
     } catch (final Throwable e) {
       // should never happen and be caught on IAST tests
       throw new UndeclaredThrowableException(
