@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
   private final Lock lock = new ReentrantLock();
-  private final WellKnownTags wellKnownTags;
+  private final long hashOfKnownTags;
   private final TimeSource timeSource;
   private final GrowingByteArrayOutput outputBuffer =
       GrowingByteArrayOutput.withInitialCapacity(20);
@@ -67,7 +67,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
-    this.wellKnownTags = wellKnownTags;
+    this.hashOfKnownTags = PathwayHashBuilder.getBaseHash(wellKnownTags);
   }
 
   private DefaultPathwayContext(
@@ -77,8 +77,7 @@ public class DefaultPathwayContext implements PathwayContext {
       long pathwayStartNanoTicks,
       long edgeStartNanoTicks,
       long hash) {
-    this.timeSource = timeSource;
-    this.wellKnownTags = wellKnownTags;
+    this(timeSource, wellKnownTags);
     this.pathwayStartNanos = pathwayStartNanos;
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
     this.edgeStartNanoTicks = edgeStartNanoTicks;
@@ -124,7 +123,7 @@ public class DefaultPathwayContext implements PathwayContext {
       // So far, each tag key has only one tag value, so we're initializing the capacity to match
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
       List<String> allTags = new ArrayList<>(sortedTags.size());
-      PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
+      PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(hashOfKnownTags);
       DataSetHashBuilder dataSetHashBuilder = new DataSetHashBuilder();
 
       if (!started) {
@@ -408,10 +407,22 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   private static class PathwayHashBuilder {
-    private final StringBuilder builder;
+    private long hash;
 
-    public PathwayHashBuilder(WellKnownTags wellKnownTags) {
-      builder = new StringBuilder();
+    public PathwayHashBuilder(long baseHash) {
+      hash = baseHash;
+    }
+
+    public void addTag(String tag) {
+      hash = FNV64Hash.continueHash(hash, tag, FNV64Hash.Version.v1);
+    }
+
+    public long getHash() {
+      return hash;
+    }
+
+    public static long getBaseHash(WellKnownTags wellKnownTags) {
+      StringBuilder builder = new StringBuilder();
       builder.append(wellKnownTags.getService());
       builder.append(wellKnownTags.getEnv());
 
@@ -419,24 +430,12 @@ public class DefaultPathwayContext implements PathwayContext {
       if (primaryTag != null) {
         builder.append(primaryTag);
       }
-    }
-
-    public void addTag(String tag) {
-      builder.append(tag);
-    }
-
-    public long generateHash() {
       return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
-    }
-
-    @Override
-    public String toString() {
-      return builder.toString();
     }
   }
 
   private long generateNodeHash(PathwayHashBuilder pathwayHashBuilder) {
-    return pathwayHashBuilder.generateHash();
+    return pathwayHashBuilder.getHash();
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {
