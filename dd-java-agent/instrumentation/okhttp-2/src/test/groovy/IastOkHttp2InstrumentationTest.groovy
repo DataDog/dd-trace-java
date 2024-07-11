@@ -69,13 +69,13 @@ class IastOkHttp2InstrumentationTest extends AgentTestRunner {
     }
 
     final propagation = Mock(PropagationModule) {
-      taintStringIfTainted(_, _) >> { taint(it[0], [it[1]]) }
-      taintObjectIfTainted(_, _) >> { taint(it[0], [it[1]]) }
+      taintStringIfTainted(*_) >> { taint(it[0], [it[1]]) }
+      taintObjectIfTainted(*_) >> { taint(it[0], [it[1]]) }
     }
     InstrumentationBridge.registerIastModule(propagation)
 
     final codec = Mock(CodecModule) {
-      onUrlCreate(_, _) >> { taint(it[0], it[1] as List) }
+      onUrlCreate(*_) >> { taint(it[0], it[1] as List) }
     }
     InstrumentationBridge.registerIastModule(codec)
   }
