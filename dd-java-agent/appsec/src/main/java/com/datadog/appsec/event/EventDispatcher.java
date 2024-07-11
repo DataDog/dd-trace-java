@@ -4,6 +4,7 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import com.datadog.appsec.gateway.GatewayContext;
 import datadog.trace.api.gateway.Flow;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -132,20 +133,19 @@ public class EventDispatcher implements EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,
-      boolean isTransient,
-      boolean isRasp)
+      GatewayContext gwCtx)
       throws ExpiredSubscriberInfoException {
     if (!((DataSubscriberInfoImpl) subscribers).isEventDispatcher(this)) {
       throw new ExpiredSubscriberInfoException();
     }
 
-    if (!isTransient) {
+    if (!gwCtx.isTransient) {
       ctx.addAll(newData);
     }
     ChangeableFlow flow = new ChangeableFlow();
     for (int idx : ((DataSubscriberInfoImpl) subscribers).listenerIndices) {
       try {
-        dataListenersIdx.get(idx).onDataAvailable(flow, ctx, newData, isTransient, isRasp);
+        dataListenersIdx.get(idx).onDataAvailable(flow, ctx, newData, gwCtx);
       } catch (RuntimeException rte) {
         log.warn("AppSec callback exception", rte);
       }
