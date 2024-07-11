@@ -798,7 +798,7 @@ jobs:
 
   system-tests:
     machine:
-      image: ubuntu-2404:2024.05.1
+      image: ubuntu-2404:current
     resource_class: medium
     parameters:
       weblog-variant:
@@ -849,8 +849,7 @@ jobs:
 
   integrations-system-tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:current
     resource_class: medium
     steps:
       - setup_system_tests
@@ -863,10 +862,9 @@ jobs:
 
       - run:
           name: Build
-          # Build the default framework, which is springboot
           command: |
             cd system-tests
-            ./build.sh java
+            ./build.sh --library java --weblog-variant spring-boot
 
       - run:
           name: Run APM Integrations tests
@@ -884,7 +882,7 @@ jobs:
 
   debugger-system-tests:
     machine:
-      image: ubuntu-2004:current
+      image: ubuntu-2404:current
     resource_class: medium
     steps:
       - setup_system_tests
@@ -897,10 +895,9 @@ jobs:
 
       - run:
           name: Build
-          # Build the default framework, which is springboot
           command: |
             cd system-tests
-            ./build.sh java
+            ./build.sh --library java --weblog-variant spring-boot
 
       - run:
           name: Run Dynamic Instrumentation system tests
@@ -918,7 +915,7 @@ jobs:
 
   parametric-tests:
     machine:
-      image: ubuntu-2404:2024.05.1
+      image: ubuntu-2404:current
     resource_class: large
     steps:
       - setup_system_tests
