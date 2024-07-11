@@ -68,20 +68,39 @@ public class CodecModuleImpl implements CodecModule {
 
   @Override
   public void onUriCreate(@Nonnull final URI result, final Object... args) {
-    taintUrlIfAnyTainted(result, args);
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintUrlIfAnyTainted(ctx.getTaintedObjects(), result, args);
   }
 
   @Override
   public void onUrlCreate(@Nonnull final URL result, final Object... args) {
-    taintUrlIfAnyTainted(result, args);
-  }
-
-  private void taintUrlIfAnyTainted(@Nonnull final Object url, @Nonnull final Object... args) {
     final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return;
     }
     final TaintedObjects to = ctx.getTaintedObjects();
+    if (args.length > 0 && args[0] instanceof URL) {
+      final TaintedObject tainted = to.get(args[0]);
+      if (tainted != null) {
+        final URL context = (URL) args[0];
+        // TODO improve matching when using a URL context
+        // Checking if the toString representation of the context is present in the final URL is a
+        // bit fragile, the spec might override some of it's parts (e.g. the final file). We can get
+        // away with this as having a context with tainted values is probably pretty rare.
+        if (!context.getProtocol().equals(result.getProtocol())
+            || !context.getHost().equals(result.getHost())) {
+          args[0] = null;
+        }
+      }
+    }
+    taintUrlIfAnyTainted(to, result, args);
+  }
+
+  private void taintUrlIfAnyTainted(
+      @Nonnull final TaintedObjects to, @Nonnull final Object url, @Nonnull final Object... args) {
     final String toString = url.toString();
     final RangeBuilder builder = new RangeBuilder();
     boolean hasTainted = false;
