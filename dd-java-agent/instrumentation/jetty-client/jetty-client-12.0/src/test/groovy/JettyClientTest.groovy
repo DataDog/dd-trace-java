@@ -66,7 +66,6 @@ abstract class JettyClientTest extends HttpClientTest {
     try {
       def resp = req.send()
       blockUntilChildSpansFinished(1)
-      //assert propagatesContext
       return resp.status
     } catch (ExecutionException ex) {
       if (ex.cause instanceof HttpResponseException) {

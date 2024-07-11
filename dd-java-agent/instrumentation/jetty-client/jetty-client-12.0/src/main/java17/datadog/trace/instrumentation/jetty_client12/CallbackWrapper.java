@@ -33,8 +33,6 @@ public class CallbackWrapper implements Response.Listener, Request.Listener {
   @Override
   public void onComplete(Result result) {
     if (delegate instanceof Response.CompleteListener) {
-      // this probably does the wrong thing, but preserves old behaviour and is consistent
-      // with other http clients with completion callback registration
       try (AgentScope scope = activate(parent)) {
         ((Response.CompleteListener) delegate).onComplete(result);
       }
