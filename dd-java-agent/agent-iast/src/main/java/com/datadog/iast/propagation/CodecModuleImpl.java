@@ -84,18 +84,25 @@ public class CodecModuleImpl implements CodecModule {
     final TaintedObjects to = ctx.getTaintedObjects();
     final String toString = url.toString();
     final RangeBuilder builder = new RangeBuilder();
+    boolean hasTainted = false;
     for (final Object arg : args) {
       final TaintedObject tainted = to.get(arg);
       if (tainted != null) {
+        hasTainted = true;
         final int offset = toString.indexOf(arg.toString());
         if (offset >= 0) {
           builder.add(tainted.getRanges(), offset);
         }
       }
     }
-    if (builder.isEmpty()) {
+    if (!hasTainted) {
       return;
     }
-    to.taint(url, builder.toArray());
+    if (builder.isEmpty()) {
+      // no mappings of tainted values in the URL, resort to fully tainting it
+      propagationModule.taintObjectIfAnyTainted(url, args);
+    } else {
+      to.taint(url, builder.toArray());
+    }
   }
 }
