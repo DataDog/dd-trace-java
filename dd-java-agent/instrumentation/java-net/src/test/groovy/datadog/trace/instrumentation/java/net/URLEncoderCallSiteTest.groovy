@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.java.net
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.VulnerabilityMarks
+import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestURLEncoderCallSiteSuite
 
@@ -15,7 +15,7 @@ class URLEncoderCallSiteTest extends AgentTestRunner {
 
   def 'test encode with args: #args'() {
     setup:
-    final iastModule = Mock(PropagationModule)
+    final iastModule = Mock(CodecModule)
     InstrumentationBridge.registerIastModule(iastModule)
 
     when:
@@ -23,7 +23,7 @@ class URLEncoderCallSiteTest extends AgentTestRunner {
 
     then:
     result == expected
-    1 * iastModule.taintStringIfTainted(_ as String, args[0], false, VulnerabilityMarks.XSS_MARK)
+    1 * iastModule.onUrlEncode(args[0], args.size() == 1 ? null : args[1], _ as String)
     0 * _
 
     where:
