@@ -19,22 +19,22 @@ public class FNV64Hash {
   }
 
   public static long continueHash(long currentHash, String data, Version version) {
-    return generateHash(currentHash, data.getBytes(), version);
+    return continueHash(currentHash, data.getBytes(), version);
   }
 
   public static long generateHash(byte[] data, Version version) {
     return generateHash(data, 0, data.length, version);
   }
 
-  public static long generateHash(long currentHash, byte[] data, Version version) {
-    return generateHash(currentHash, data, 0, data.length, version);
+  public static long continueHash(long currentHash, byte[] data, Version version) {
+    return continueHash(currentHash, data, 0, data.length, version);
   }
 
   public static long generateHash(byte[] data, int start, int length, Version version) {
-    return generateHash(FNV_INIT, data, start, length, version);
+    return continueHash(FNV_INIT, data, start, length, version);
   }
 
-  public static long generateHash(
+  public static long continueHash(
       long currentHash, byte[] data, int start, int length, Version version) {
     if (version == Version.v1) {
       return generateFNV1Hash(currentHash, data, start, length);
