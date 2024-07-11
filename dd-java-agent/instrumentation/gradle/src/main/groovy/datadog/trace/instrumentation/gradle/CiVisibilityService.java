@@ -64,10 +64,11 @@ public abstract class CiVisibilityService
 
   @SuppressForbidden
   public Collection<String> getTracerJvmArgs(String taskPath, Path jvmExecutable) {
-    List<String> jvmArgs = new ArrayList<>();
-
     ModuleExecutionSettings moduleExecutionSettings =
         buildEventsHandler.getModuleExecutionSettings(SESSION_KEY, jvmExecutable);
+
+    List<String> jvmArgs = new ArrayList<>(moduleExecutionSettings.getJvmOptions());
+
     Map<String, String> propagatedSystemProperties = moduleExecutionSettings.getSystemProperties();
     // propagate to child process all "dd." system properties available in current process
     for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {

@@ -157,7 +157,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
         }
 
       } finally {
-        FileUtils.delete(packFilesDirectory);
+        FileUtils.deleteSafely(packFilesDirectory);
       }
 
       LOGGER.debug("Git data upload finished");

@@ -298,7 +298,9 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
     for (MavenTestExecution testExecution : testExecutions) {
       MavenProjectConfigurator.INSTANCE.configureTracer(
-          testExecution, moduleExecutionSettings.getSystemProperties());
+          testExecution,
+          moduleExecutionSettings.getSystemProperties(),
+          moduleExecutionSettings.getJvmOptions());
       MavenProjectConfigurator.INSTANCE.configureJacoco(testExecution, moduleExecutionSettings);
     }
     return null;

@@ -1,25 +1,60 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.civisibility.ipc.Serializer;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JvmInfo {
+
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(ModuleExecutionSettingsFactoryImpl.class);
 
   public static final JvmInfo CURRENT_JVM =
       new JvmInfo(
           System.getProperty("java.runtime.name"),
           System.getProperty("java.version"),
-          System.getProperty("java.vendor"));
+          System.getProperty("java.class.version"),
+          System.getProperty("java.vendor"),
+          System.getProperty("java.home"));
+
+  private static final int JAVA_8_CLASS_VERSION = 52;
 
   private final String name;
   private final String version;
+  private final int majorClassVersion;
   private final String vendor;
+  private final Path home;
 
-  public JvmInfo(String name, String version, String vendor) {
+  @SuppressForbidden // split on "\." uses fast path
+  public JvmInfo(String name, String version, String classVersion, String vendor, String home) {
     this.name = name;
     this.version = version;
     this.vendor = vendor;
+    this.home = home != null ? Paths.get(home) : null;
+
+    int majorClassVersion = -1;
+    try {
+      if (classVersion != null) {
+        String[] classVersionTokens = classVersion.split("\\.");
+        majorClassVersion = Integer.parseInt(classVersionTokens[0]);
+      }
+    } catch (Exception e) {
+      LOGGER.debug("Could not parse class version {} for JVM {}", classVersion, this);
+    }
+    this.majorClassVersion = majorClassVersion;
+  }
+
+  private JvmInfo(String name, String version, int majorClassVersion, String vendor, Path home) {
+    this.name = name;
+    this.version = version;
+    this.vendor = vendor;
+    this.home = home;
+    this.majorClassVersion = majorClassVersion;
   }
 
   public String getName() {
@@ -30,8 +65,20 @@ public class JvmInfo {
     return version;
   }
 
+  public int getMajorClassVersion() {
+    return majorClassVersion;
+  }
+
   public String getVendor() {
     return vendor;
+  }
+
+  public Path getHome() {
+    return home;
+  }
+
+  public boolean isModular() {
+    return majorClassVersion > JAVA_8_CLASS_VERSION;
   }
 
   @Override
@@ -45,12 +92,14 @@ public class JvmInfo {
     JvmInfo jvmInfo = (JvmInfo) o;
     return Objects.equals(name, jvmInfo.name)
         && Objects.equals(version, jvmInfo.version)
-        && Objects.equals(vendor, jvmInfo.vendor);
+        && Objects.equals(majorClassVersion, jvmInfo.majorClassVersion)
+        && Objects.equals(vendor, jvmInfo.vendor)
+        && Objects.equals(home, jvmInfo.home);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, version, vendor);
+    return Objects.hash(name, version, majorClassVersion, vendor, home);
   }
 
   @Override
@@ -61,9 +110,14 @@ public class JvmInfo {
         + '\''
         + ", version='"
         + version
+        + ", majorClassVersion='"
+        + majorClassVersion
         + '\''
         + ", vendor='"
         + vendor
+        + '\''
+        + ", home='"
+        + home
         + '\''
         + '}';
   }
@@ -71,11 +125,18 @@ public class JvmInfo {
   public static void serialize(Serializer serializer, JvmInfo jvmInfo) {
     serializer.write(jvmInfo.name);
     serializer.write(jvmInfo.version);
+    serializer.write(jvmInfo.majorClassVersion);
     serializer.write(jvmInfo.vendor);
+    serializer.write(jvmInfo.home != null ? String.valueOf(jvmInfo.home) : null);
   }
 
   public static JvmInfo deserialize(ByteBuffer buf) {
+    String name = Serializer.readString(buf);
+    String version = Serializer.readString(buf);
+    int majorClassVersion = Serializer.readInt(buf);
+    String vendor = Serializer.readString(buf);
+    String home = Serializer.readString(buf);
     return new JvmInfo(
-        Serializer.readString(buf), Serializer.readString(buf), Serializer.readString(buf));
+        name, version, majorClassVersion, vendor, home != null ? Paths.get(home) : null);
   }
 }
