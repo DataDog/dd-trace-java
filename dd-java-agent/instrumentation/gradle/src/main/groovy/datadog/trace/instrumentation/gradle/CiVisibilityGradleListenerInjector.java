@@ -1,18 +1,16 @@
 package datadog.trace.instrumentation.gradle;
 
 import org.gradle.initialization.ClassLoaderRegistry;
-import org.gradle.internal.service.ServiceRegistration;
+import org.gradle.internal.service.ServiceRegistry;
+import org.gradle.internal.service.scopes.BuildScopeServices;
 
-public class CiVisibilityGradleListenerProvider {
-  private final ClassLoaderRegistry classLoaderRegistry;
+public class CiVisibilityGradleListenerInjector {
 
-  public CiVisibilityGradleListenerProvider(ClassLoaderRegistry classLoaderRegistry) {
-    this.classLoaderRegistry = classLoaderRegistry;
-  }
-
-  public void configure(ServiceRegistration serviceRegistration) {
-    Class<?> ciVisibilityGradleListener = loadCiVisibilityGradleListener();
-    serviceRegistration.add(ciVisibilityGradleListener);
+  public static void inject(ServiceRegistry parentServices, BuildScopeServices buildScopeServices) {
+    ClassLoaderRegistry classLoaderRegistry = parentServices.get(ClassLoaderRegistry.class);
+    Class<?> ciVisibilityGradleListener = loadCiVisibilityGradleListener(classLoaderRegistry);
+    buildScopeServices.register(
+        serviceRegistration -> serviceRegistration.add(ciVisibilityGradleListener));
   }
 
   /**
@@ -24,7 +22,7 @@ public class CiVisibilityGradleListenerProvider {
    * org.gradle.api.tasks.testing.Test} task), which is a plugin. Therefore, we cannot reference its
    * {@code Class} instance directly, and instead have to load it explicitly.
    */
-  private Class<?> loadCiVisibilityGradleListener() {
+  private static Class<?> loadCiVisibilityGradleListener(ClassLoaderRegistry classLoaderRegistry) {
     try {
       return classLoaderRegistry
           .getPluginsClassLoader()
