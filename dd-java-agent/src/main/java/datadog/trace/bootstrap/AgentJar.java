@@ -128,6 +128,18 @@ public final class AgentJar {
     }
   }
 
+  public static String tryGetAgentVersion() {
+    return getAgentVersionOrDefault(null);
+  }
+
+  public static String getAgentVersionOrDefault(String defaultValue) {
+    try {
+      return AgentJar.getAgentVersion();
+    } catch (IOException e) {
+      return defaultValue;
+    }
+  }
+
   public static String getAgentVersion() throws IOException {
     final StringBuilder sb = new StringBuilder();
     try (final BufferedReader reader =
