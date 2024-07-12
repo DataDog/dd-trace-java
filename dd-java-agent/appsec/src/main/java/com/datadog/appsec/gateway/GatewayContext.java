@@ -1,6 +1,6 @@
 package com.datadog.appsec.gateway;
 
-import com.datadog.appsec.powerwaf.RuleType;
+import datadog.trace.api.telemetry.RuleType;
 
 public class GatewayContext {
   public final boolean isTransient;
