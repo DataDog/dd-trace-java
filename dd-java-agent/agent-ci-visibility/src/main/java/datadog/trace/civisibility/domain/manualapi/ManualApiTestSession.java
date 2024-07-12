@@ -2,11 +2,11 @@ package datadog.trace.civisibility.domain.manualapi;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSession;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.source.MethodLinesResolver;
@@ -29,7 +29,7 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory) {
+      CoverageStore.Factory coverageStoreFactory) {
     super(
         projectName,
         startTime,
@@ -41,7 +41,7 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory);
+        coverageStoreFactory);
   }
 
   @Override
@@ -57,7 +57,7 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory,
+        coverageStoreFactory,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }
