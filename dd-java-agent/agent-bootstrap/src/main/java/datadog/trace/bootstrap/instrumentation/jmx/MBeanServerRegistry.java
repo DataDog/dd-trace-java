@@ -1,13 +1,17 @@
 package datadog.trace.bootstrap.instrumentation.jmx;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import javax.management.MBeanServer;
 
 public class MBeanServerRegistry {
-  private static final Map<String, MBeanServer> MAP = new HashMap<>();
+  private static final ConcurrentMap<String, MBeanServer> MAP = new ConcurrentHashMap<>();
 
-  public static Map<String, MBeanServer> get() {
-    return MAP;
+  public static MBeanServer getServer(final String mbeanName) {
+    return MAP.get(mbeanName);
+  }
+
+  public static void putServer(final String mbeanName, final MBeanServer mBeanServer) {
+    MAP.putIfAbsent(mbeanName, mBeanServer);
   }
 }

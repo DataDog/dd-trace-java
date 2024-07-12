@@ -43,7 +43,7 @@ public class CustomMBeanBuilderInstrumentation extends InstrumenterModule.Tracin
   public static class StoreMBeanServerAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterCreation(@Advice.Return final MBeanServer mBeanServer) {
-      MBeanServerRegistry.get().putIfAbsent(mBeanServer.getClass().getName(), mBeanServer);
+      MBeanServerRegistry.putServer(mBeanServer.getClass().getName(), mBeanServer);
     }
   }
 }

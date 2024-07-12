@@ -12,6 +12,10 @@ import datadog.trace.util.AgentThreadFactory;
 import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 
+/**
+ * This instrumentation is needed in order to allow JMXFetch accessing to Admin mbean without
+ * needing to change the server security configuration.
+ */
 @AutoService(InstrumenterModule.class)
 public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
@@ -30,6 +34,8 @@ public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
     return super.isEnabled()
         && "com.ibm.ws.management.PlatformMBeanServerBuilder"
             .equals(System.getProperty("javax.management.builder.initial"))
+        // a shortcut to Config.get().isJmxFetchIntegrationEnabled("websphere", false) to avoid
+        // loading a Config instance from here
         && ConfigProvider.getInstance()
             .isEnabled(Collections.singletonList("websphere"), "jmxfetch.", ".enabled", false);
   }

@@ -1,5 +1,6 @@
 package datadog.trace.agent.jmxfetch;
 
+import datadog.trace.bootstrap.instrumentation.jmx.MBeanServerRegistry;
 import java.io.IOException;
 import java.util.Map;
 import javax.management.MBeanServer;
@@ -14,17 +15,14 @@ public class AgentConnectionFactory implements ConnectionFactory {
   private static final Logger LOGGER = LoggerFactory.getLogger(AgentConnectionFactory.class);
 
   private final ConnectionFactory defaultConnectionFactory = new DefaultConnectionFactory();
-  private final Map<String, MBeanServer> instanceStore;
 
-  public AgentConnectionFactory(Map<String, MBeanServer> instanceStore) {
-    this.instanceStore = instanceStore;
-  }
+  public AgentConnectionFactory() {}
 
   @Override
   public Connection createConnection(Map<String, Object> map) throws IOException {
     Object mbeanServerClass = map.get("mbean_server_class");
     if (mbeanServerClass != null) {
-      MBeanServer mBeanServer = instanceStore.get(mbeanServerClass.toString());
+      MBeanServer mBeanServer = MBeanServerRegistry.getServer(mbeanServerClass.toString());
       if (mBeanServer != null) {
         return new InitialMBeanServerConnection(mBeanServer);
       }
