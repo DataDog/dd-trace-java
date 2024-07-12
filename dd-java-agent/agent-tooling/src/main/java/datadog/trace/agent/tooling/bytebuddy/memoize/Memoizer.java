@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.bytebuddy.outline.WithLocation;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.classloading.MemoizerResetter;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -89,6 +90,10 @@ public final class Memoizer {
       noMatchFilter.clear();
       Memoizer.clear();
     }
+  }
+
+  public static void registerAsSupplier() {
+    MemoizerResetter.Supplier.registerIfAbsent(Memoizer::resetState);
   }
 
   public static void clear() {
