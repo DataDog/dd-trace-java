@@ -686,6 +686,7 @@ abstract class AbstractSparkTest extends AgentTestRunner {
     ddService | sparkAppNameAsService | appName    | isRunningOnDatabricks | expectedService
     "foobar"  | true                  | "some_app" | false                 | "(?!.*some_app).*"
     "spark"   | true                  | "some_app" | false                 | "some_app"
+    "hadoop"  | true                  | "some_app" | false                 | "some_app"
     null      | true                  | "some_app" | true                  | "(?!.*some_app).*"
     null      | true                  | "some_app" | false                 | "some_app"
     null      | false                 | "some_app" | false                 | "(?!.*some_app).*"
