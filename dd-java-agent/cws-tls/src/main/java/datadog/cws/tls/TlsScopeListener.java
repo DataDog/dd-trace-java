@@ -25,10 +25,7 @@ public class TlsScopeListener implements ExtendedScopeListener {
     Deque<Span> stack = spanStack.get();
 
     Span top = stack.peek();
-    if (top == null
-        || top.getTraceId().toLong() != traceId.toLong()
-        || top.getTraceId().toHighOrderLong() != traceId.toHighOrderLong()
-        || top.getSpanId() != spanId) {
+    if (top == null || !top.getTraceId().equals(traceId) || top.getSpanId() != spanId) {
       Span span = new Span(traceId, spanId);
       stack.push(span);
     }
