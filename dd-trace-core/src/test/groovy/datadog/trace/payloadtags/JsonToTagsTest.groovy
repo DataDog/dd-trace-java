@@ -74,7 +74,7 @@ class JsonToTagsTest extends Specification {
     JsonToTags jsonToTags = new JsonToTags.Builder().build()
 
     def json = """{
-      "a": [[ 1 ], [ 2, 3 ]],
+      "a": [[ 1 ], [ 2, 3 ]]
     }"""
 
     expect:
@@ -89,7 +89,7 @@ class JsonToTagsTest extends Specification {
     JsonToTags jsonToTags = new JsonToTags.Builder().build()
 
     def json = """{
-      "a": { "b": { "c": { "d": "e" } } },
+      "a": { "b": { "c": { "d": "e" } } }
     }"""
 
     expect:
@@ -102,7 +102,7 @@ class JsonToTagsTest extends Specification {
     JsonToTags jsonToTags = new JsonToTags.Builder().build()
 
     def json = """{
-      "a": [ "b", { "c": [ { "d": "e"} ] } ],
+      "a": [ "b", { "c": [ { "d": "e"} ] } ]
     }"""
 
     expect:
@@ -126,7 +126,7 @@ class JsonToTagsTest extends Specification {
       "f": 6,
       "g": 7,
       "h": 8,
-      "i": 9,
+      "i": 9
     }"""
 
     expect:
@@ -145,7 +145,7 @@ class JsonToTagsTest extends Specification {
 
     def json = """{
       "a.b": 1,
-      "c.d": 2,
+      "c.d": 2
     }"""
 
     expect:
@@ -184,7 +184,7 @@ class JsonToTagsTest extends Specification {
 
     def json = """{
       "a": 1,
-      "b": 2,
+      "b": 2
     }"""
 
     expect:
@@ -216,7 +216,7 @@ class JsonToTagsTest extends Specification {
       .build()
 
     def json = """{
-          "Message": "${invalidInnerJson}",
+          "Message": "${invalidInnerJson}"
         }"""
 
     expect:
@@ -243,7 +243,7 @@ class JsonToTagsTest extends Specification {
     String inner = "{ 'a: 1.15, 'password': 'my-secret-password' }"
 
     def json = """{
-          "Message": "${inner}",
+          "Message": "${inner}"
         }"""
 
     expect: "Message attribute neither expanded nor redacted because of invalid rules"

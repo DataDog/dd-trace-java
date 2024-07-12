@@ -1,8 +1,10 @@
 package datadog.trace.payloadtags;
 
+import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.ParseContext;
 import com.jayway.jsonpath.PathNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -82,6 +84,8 @@ public final class JsonToTags {
   private final int limitDeepness;
   private final String tagPrefix;
 
+  private final ParseContext parseContext;
+
   private JsonToTags(
       List<JsonPath> expansionRules,
       List<JsonPath> redactionRules,
@@ -93,6 +97,14 @@ public final class JsonToTags {
     this.limitTags = limitTags;
     this.limitDeepness = limitDeepness;
     this.tagPrefix = tagPrefix;
+
+    Configuration configuration =
+        Configuration.builder()
+            .jsonProvider(new MoshiJsonProvider())
+            .mappingProvider(new MoshiMappingProvider())
+            .build();
+
+    parseContext = JsonPath.using(configuration);
   }
 
   public Map<String, Object> process(String str) {
@@ -104,7 +116,7 @@ public final class JsonToTags {
     DocumentContext dc;
 
     try {
-      dc = JsonPath.parse(is);
+      dc = parseContext.parse(is);
     } catch (Exception ex) {
       log.debug("Failed to parse JSON body for tag extraction", ex);
       return Collections.emptyMap();
@@ -149,7 +161,7 @@ public final class JsonToTags {
     return tags;
   }
 
-  private static Object expandInnerJson(JsonPath jp, Object obj) {
+  private Object expandInnerJson(JsonPath jp, Object obj) {
     if (obj instanceof String) {
       String str = (String) obj;
       if (!str.startsWith("{") && !str.startsWith("[")) {
@@ -160,7 +172,7 @@ public final class JsonToTags {
         return str;
       }
       try {
-        return JsonPath.parse((String) obj).json();
+        return parseContext.parse((String) obj).json();
       } catch (InvalidJsonException ex) {
         log.debug("Failed to parse inner JSON for path: {}", jp.getPath(), ex);
       }

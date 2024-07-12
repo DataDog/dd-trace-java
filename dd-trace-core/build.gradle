@@ -69,7 +69,11 @@ dependencies {
   implementation libs.slf4j
   implementation libs.moshi
   implementation libs.jctools
-  implementation libs.jsonPath
+  implementation (libs.jsonPath) {
+    // exclude to reduce the size of the resulting jar
+    // it's possible by using MoshiJsonProvider
+    exclude group: 'net.minidev', module: 'json-smart'
+  }
 
   implementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
 
