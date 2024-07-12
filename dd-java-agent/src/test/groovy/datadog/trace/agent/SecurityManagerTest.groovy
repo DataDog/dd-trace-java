@@ -23,4 +23,9 @@ class SecurityManagerTest extends Specification {
     expect:
     SecurityManagerCheck.runTestJvm(TestSecurityManager.NoProcessExecution) == 0
   }
+  
+  def "no network access"() {
+    expect:
+    SecurityManagerCheck.runTestJvm(TestSecurityManager.NoNetworkAccess) == 0
+  }
 }
