@@ -57,7 +57,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     i.empty >> false
     i
   }()
-  GatewayContext gwCtx = new GatewayContext(false, false)
 
   TraceSegmentPostProcessor pp = Mock()
   GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null, [pp])
