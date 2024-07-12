@@ -93,8 +93,6 @@ public class IastOptOutJakartaHttpServletRequestInstrumentation extends Instrume
         }
         module.checkSessionTrackingModes(sessionTrackingModes);
       }
-
-      // module.checkSessionTrackingModes(null);
     }
   }
 }
