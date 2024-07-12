@@ -89,13 +89,7 @@ public final class AgentBootstrap {
   }
 
   private static InitializationTelemetry createInitializationTelemetry() {
-    String forwarderPath;
-    try {
-      forwarderPath = System.getenv("DD_TELEMETRY_FORWARDER_PATH");
-    } catch (SecurityException e) {
-      return InitializationTelemetry.noneInstance();
-    }
-
+    String forwarderPath = SystemUtils.tryGetProperty("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath == null) {
       return InitializationTelemetry.noneInstance();
     }
@@ -105,23 +99,17 @@ public final class AgentBootstrap {
     initTelemetry.initMetaInfo("runtime_name", "java");
     initTelemetry.initMetaInfo("language_name", "java");
 
-    try {
-      String javaVersion = System.getProperty("java.version");
-      if (javaVersion != null) {
-        initTelemetry.initMetaInfo("runtime_version", javaVersion);
-        initTelemetry.initMetaInfo("language_version", javaVersion);
-      }
-    } catch (SecurityException e) {
-      // ignore - report later
+    String javaVersion = SystemUtils.tryGetProperty("java.version");
+    if (javaVersion != null) {
+      initTelemetry.initMetaInfo("runtime_version", javaVersion);
+      initTelemetry.initMetaInfo("language_version", javaVersion);
     }
 
     // If version was compiled into a class, then we wouldn't have the potential to be missing
     // version info
-    try {
-      String agentVersion = AgentJar.getAgentVersion();
+    String agentVersion = AgentJar.tryGetAgentVersion();
+    if (agentVersion != null) {
       initTelemetry.initMetaInfo("tracer_version", agentVersion);
-    } catch (IOException e) {
-      // ignore - report later
     }
 
     return initTelemetry;
@@ -150,7 +138,12 @@ public final class AgentBootstrap {
     }
 
     final URL agentJarURL = installAgentJar(inst);
-    final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
+    final Class<?> agentClass;
+    try {
+      agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
+    } catch (ClassNotFoundException | LinkageError e) {
+      throw new IllegalStateException("Unable to load DD Java Agent.", e);
+    }
     if (agentClass.getClassLoader() != null) {
       throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
     }
@@ -175,18 +168,21 @@ public final class AgentBootstrap {
   }
 
   private static boolean lessThanJava8() {
-    return lessThanJava8(System.getProperty("java.version"), System.out);
+    try {
+      return lessThanJava8(System.getProperty("java.version"), System.out);
+    } catch (SecurityException e) {
+      // Hypothetically, we could version sniff the supported version level
+      // For now, just skip the check and let the JVM handle things instead
+      return false;
+    }
   }
 
   // Reachable for testing
   static boolean lessThanJava8(String version, PrintStream output) {
     if (parseJavaMajorVersion(version) < 8) {
-      String agentVersion = "This version"; // If we can't find the agent version
-      try {
-        agentVersion = AgentJar.getAgentVersion();
-        agentVersion = "Version " + agentVersion;
-      } catch (IOException ignored) {
-      }
+      String agentRawVersion = AgentJar.tryGetAgentVersion();
+      String agentVersion = agentRawVersion == null ? "This version" : "Version " + agentRawVersion;
+
       output.println(
           "Warning: "
               + agentVersion
@@ -211,7 +207,7 @@ public final class AgentBootstrap {
   }
 
   private static boolean isJdkTool() {
-    String moduleMain = System.getProperty("jdk.module.main");
+    String moduleMain = SystemUtils.tryGetProperty("jdk.module.main");
     if (null != moduleMain && !moduleMain.isEmpty() && moduleMain.charAt(0) == 'j') {
       switch (moduleMain) {
         case "java.base": // keytool
