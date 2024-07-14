@@ -166,22 +166,21 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
   def setupSpec() {
     postgres = new PostgreSQLContainer("postgres:11.1")
-      .withDatabaseName(dbName.get("postgresql")).withUsername("sa").withPassword("sa")
+      .withDatabaseName(dbName.get(POSTGRESQL)).withUsername(jdbcUserNames.get(POSTGRESQL)).withPassword(jdbcPasswords.get(POSTGRESQL))
     postgres.start()
     PortUtils.waitForPortToOpen(postgres.getHost(), postgres.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT), 5, TimeUnit.SECONDS)
-    jdbcUrls.put("postgresql", "${postgres.getJdbcUrl()}")
+    jdbcUrls.put(POSTGRESQL, "${postgres.getJdbcUrl()}")
     mysql = new MySQLContainer("mysql:8.0")
-      .withDatabaseName(dbName.get("mysql")).withUsername("sa").withPassword("sa")
+      .withDatabaseName(dbName.get(MYSQL)).withUsername(jdbcUserNames.get(MYSQL)).withPassword(jdbcPasswords.get(MYSQL))
     // https://github.com/testcontainers/testcontainers-java/issues/914
     mysql.addParameter("TC_MY_CNF", null)
     mysql.start()
     PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
-    jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
-
-    sqlserver = new MSSQLServerContainer().acceptLicense().withPassword("Datad0g_")
+    jdbcUrls.put(MYSQL, "${mysql.getJdbcUrl()}")
+    sqlserver = new MSSQLServerContainer().acceptLicense().withPassword(jdbcPasswords.get(SQLSERVER))
     sqlserver.start()
     PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
-    jdbcUrls.put("sqlserver", "${sqlserver.getJdbcUrl()}")
+    jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()}")
 
     prepareConnectionPoolDatasources()
   }
@@ -253,6 +252,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     where:
     driver       | connection                                              | renameService | query                   | operation | obfuscatedQuery
     "mysql"      | connectTo(driver, peerConnectionProps(driver))                  | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "mysql"      | connectTo(driver, peerConnectionProps(driver))                  | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "sqlserver"      | connectTo(driver, peerConnectionProps(driver))                  | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
     "postgresql" | connectTo(driver, peerConnectionProps(driver))                  | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
     "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
     "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
