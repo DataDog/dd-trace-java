@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import test.TestConnection
+import test.TestDatabaseMetaData
 import test.TestPreparedStatement
 import test.TestStatement
 
@@ -46,5 +47,20 @@ class DBMInjectionForkedTest extends AgentTestRunner {
 
     then:
     assert statement.sql == "/*${fullInjection}*/ ${query}"
+  }
+
+  def "SQL Server no trace injection with full"() {
+    setup:
+    def connection = new TestConnection(false)
+    def metadata = new TestDatabaseMetaData()
+    metadata.setURL("jdbc:microsoft:sqlserver://;")
+    connection.setMetaData(metadata)
+
+    when:
+    def statement = connection.createStatement() as TestStatement
+    statement.executeQuery(query)
+
+    then:
+    assert statement.sql == "/*${serviceInjection}*/ ${query}"
   }
 }

@@ -278,10 +278,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       instrumentationStatement.execute(instrumentationSql);
       instrumentationStatement.close();
     } catch (SQLException e) {
-      log.warn(
+      log.debug(
           "Failed to set extra DBM data in context info for trace {}. "
               + "To disable this behavior, set DBM_PROPAGATION_MODE to 'service' mode. "
-              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.\n{}",
+              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
           instrumentationSpan.getTraceId().toHexString(),
           e);
       DECORATE.onError(instrumentationSpan, e);

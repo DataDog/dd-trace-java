@@ -79,7 +79,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
         final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
 
-        if (DECORATE.isSqlServer(dbInfo) && INJECT_COMMENT && injectTraceContext) {
+        if (INJECT_COMMENT && injectTraceContext && DECORATE.isSqlServer(dbInfo)) {
           final long spanID = DECORATE.setContextInfo(connection, dbInfo);
           span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
         } else {

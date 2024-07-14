@@ -34,9 +34,11 @@ dependencies {
 
   testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
   testImplementation group: 'org.postgresql', name: 'postgresql', version: '[9.4,42.2.18]'
+  testImplementation group: 'com.microsoft.sqlserver', name: 'mssql-jdbc', version: '10.2.0.jre8'
 
   testImplementation group: 'org.testcontainers', name:'mysql', version: libs.versions.testcontainers.get()
   testImplementation group: 'org.testcontainers', name:'postgresql', version: libs.versions.testcontainers.get()
+  testImplementation group: 'org.testcontainers', name:'mssqlserver', version: '1.19.8'
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
