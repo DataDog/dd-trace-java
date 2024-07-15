@@ -23,9 +23,12 @@ public class SnapshotSink {
   private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotSink.class);
   public static final int MAX_SNAPSHOT_SIZE = 1024 * 1024;
   public static final int LOW_RATE_CAPACITY = 1024;
-  static final int HIGH_RATE_MIN_FLUSH_INTERVAL = 1;
-  static final int HIGH_RATE_MAX_FLUSH_INTERVAL = 100;
+  static final int HIGH_RATE_MIN_FLUSH_INTERVAL_MS = 1;
+  static final int HIGH_RATE_MAX_FLUSH_INTERVAL_MS = 100;
   private static final int HIGH_RATE_CAPACITY = 1024;
+  private static final int HIGH_RATE_10_PERCENT_CAPACITY = HIGH_RATE_CAPACITY / 10;
+  private static final int HIGH_RATE_25_PERCENT_CAPACITY = HIGH_RATE_CAPACITY / 4;
+  private static final int HIGH_RATE_75_PERCENT_CAPACITY = HIGH_RATE_CAPACITY * 3 / 4;
   static final long HIGH_RATE_STEP_SIZE = 10;
 
   private final BlockingQueue<Snapshot> lowRateSnapshots =
@@ -40,7 +43,7 @@ public class SnapshotSink {
       new AgentTaskScheduler(AgentThreadFactory.AgentThread.DEBUGGER_SNAPSHOT_SERIALIZER);
   private final AtomicBoolean started = new AtomicBoolean();
   private volatile AgentTaskScheduler.Scheduled<SnapshotSink> highRateScheduled;
-  private volatile long currentHighRateFlushInterval = HIGH_RATE_MAX_FLUSH_INTERVAL;
+  private volatile long currentHighRateFlushInterval = HIGH_RATE_MAX_FLUSH_INTERVAL_MS;
 
   public SnapshotSink(Config config, String tags, BatchUploader snapshotUploader) {
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
@@ -110,7 +113,7 @@ public class SnapshotSink {
   private void backOffHighRateFlush() {
     long interval = currentHighRateFlushInterval;
     currentHighRateFlushInterval =
-        Math.min(interval + HIGH_RATE_STEP_SIZE, HIGH_RATE_MAX_FLUSH_INTERVAL);
+        Math.min(interval + HIGH_RATE_STEP_SIZE, HIGH_RATE_MAX_FLUSH_INTERVAL_MS);
     if (interval != currentHighRateFlushInterval) {
       highRateReschedule();
     }
@@ -119,14 +122,14 @@ public class SnapshotSink {
   private void reconsiderHighRateFlushInterval(int snapshotCount) {
     long interval = currentHighRateFlushInterval;
     if (snapshotCount == HIGH_RATE_CAPACITY) {
-      currentHighRateFlushInterval = HIGH_RATE_MIN_FLUSH_INTERVAL;
-    } else if (snapshotCount > HIGH_RATE_CAPACITY * 3 / 4) {
-      currentHighRateFlushInterval = Math.max(interval / 4, HIGH_RATE_MIN_FLUSH_INTERVAL);
-    } else if (snapshotCount > HIGH_RATE_CAPACITY / 4) {
-      currentHighRateFlushInterval = Math.max(interval / 2, HIGH_RATE_MIN_FLUSH_INTERVAL);
-    } else if (snapshotCount > HIGH_RATE_CAPACITY / 10) {
+      currentHighRateFlushInterval = HIGH_RATE_MIN_FLUSH_INTERVAL_MS;
+    } else if (snapshotCount > HIGH_RATE_75_PERCENT_CAPACITY) {
+      currentHighRateFlushInterval = Math.max(interval / 4, HIGH_RATE_MIN_FLUSH_INTERVAL_MS);
+    } else if (snapshotCount > HIGH_RATE_25_PERCENT_CAPACITY) {
+      currentHighRateFlushInterval = Math.max(interval / 2, HIGH_RATE_MIN_FLUSH_INTERVAL_MS);
+    } else if (snapshotCount > HIGH_RATE_10_PERCENT_CAPACITY) {
       currentHighRateFlushInterval =
-          Math.max(interval - HIGH_RATE_STEP_SIZE, HIGH_RATE_MIN_FLUSH_INTERVAL);
+          Math.max(interval - HIGH_RATE_STEP_SIZE, HIGH_RATE_MIN_FLUSH_INTERVAL_MS);
     }
     if (interval != currentHighRateFlushInterval) {
       highRateReschedule();

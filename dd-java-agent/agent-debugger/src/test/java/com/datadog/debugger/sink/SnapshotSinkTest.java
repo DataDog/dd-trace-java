@@ -92,7 +92,7 @@ public class SnapshotSinkTest {
   public void reconsiderDecreaseFlushInterval() {
     SnapshotSink snapshotSink = createSnapshotSink();
     long previousInterval = snapshotSink.getCurrentHighRateFlushInterval();
-    assertEquals(SnapshotSink.HIGH_RATE_MAX_FLUSH_INTERVAL, previousInterval);
+    assertEquals(SnapshotSink.HIGH_RATE_MAX_FLUSH_INTERVAL_MS, previousInterval);
     for (int i = 0; i < 1000; i++) {
       snapshotSink.addHighRate(createSnapshot());
     }
@@ -119,14 +119,14 @@ public class SnapshotSinkTest {
     }
     snapshotSink.highRateFlush(null); // interval / 4 => min
     currentInterval = snapshotSink.getCurrentHighRateFlushInterval();
-    assertEquals(SnapshotSink.HIGH_RATE_MIN_FLUSH_INTERVAL, currentInterval);
+    assertEquals(SnapshotSink.HIGH_RATE_MIN_FLUSH_INTERVAL_MS, currentInterval);
   }
 
   @Test
   public void backoffFlushInterval() {
     SnapshotSink snapshotSink = createSnapshotSink();
     long previousInterval = snapshotSink.getCurrentHighRateFlushInterval();
-    assertEquals(SnapshotSink.HIGH_RATE_MAX_FLUSH_INTERVAL, previousInterval);
+    assertEquals(SnapshotSink.HIGH_RATE_MAX_FLUSH_INTERVAL_MS, previousInterval);
     for (int flushCount = 0; flushCount < 4; flushCount++) {
       for (int i = 0; i < 1000; i++) {
         snapshotSink.addHighRate(createSnapshot());
@@ -134,7 +134,7 @@ public class SnapshotSinkTest {
       snapshotSink.highRateFlush(null); // interval / 4
       previousInterval = snapshotSink.getCurrentHighRateFlushInterval();
     }
-    assertEquals(SnapshotSink.HIGH_RATE_MIN_FLUSH_INTERVAL, previousInterval);
+    assertEquals(SnapshotSink.HIGH_RATE_MIN_FLUSH_INTERVAL_MS, previousInterval);
     previousInterval = snapshotSink.getCurrentHighRateFlushInterval();
     snapshotSink.highRateFlush(null); // backoff: interval + HIGH_RATE_STEP_SIZE
     long currentInterval = snapshotSink.getCurrentHighRateFlushInterval();

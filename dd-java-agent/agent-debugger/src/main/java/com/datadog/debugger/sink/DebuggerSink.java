@@ -153,6 +153,11 @@ public class DebuggerSink {
     doReconsiderLowRateFlushInterval();
   }
 
+  // Depending on the remaining capacity in the upload queue, we adjust the flush interval
+  // to avoid filling the queue if we are waiting too long between flushes.
+  // We are using 2 thresholds to adjust the flush interval:
+  // - if the remaining capacity is below the lower threshold, we decrease the flush interval
+  // - if the remaining capacity is above the upper threshold, we increase the flush interval
   void doReconsiderLowRateFlushInterval() {
     double remainingCapacityPercent =
         snapshotSink.remainingCapacity() * 1D / SnapshotSink.LOW_RATE_CAPACITY;
