@@ -36,7 +36,7 @@ instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 0f27f203c90bba8bce7b58e2b75ff9d7035169eb
+default_system_tests_commit: &default_system_tests_commit 06cbfad5f9facbc6e258d9c8208c466cd46efeea
 
 parameters:
   nightly:
@@ -260,12 +260,6 @@ commands:
           cacheType: lib
 
       - run:
-          name: Install python 3.9
-          command: |
-            sudo apt-get install python3.9-full python3.9-dev python3.9-venv
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
-
-      - run:
           name: Clone system-tests
           command: |
             git init system-tests
@@ -273,6 +267,13 @@ commands:
             git remote add origin https://github.com/DataDog/system-tests.git
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
+
+      - run:
+          name: Install python 3.12
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y python3.12-full python3.12-dev python3.12-venv
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
 
 jobs:
   build:
@@ -549,7 +550,7 @@ jobs:
             then
               PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/<< parameters.stage >>-<< parameters.testJvm >>.jfr,dumponexit=true"
             fi
-            
+
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew
@@ -614,10 +615,10 @@ jobs:
               echo "APM Test Agent is not running and was not used for testing. No checks failed."
               exit 0
             fi
-            
+
             RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://localhost:8126/test/trace_check/failures)
             RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
-               
+
             if [[ $RESPONSE_CODE -eq 200 ]]; then
               echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
               echo "APM Test Agent Check Traces Summary Results:"
@@ -797,8 +798,7 @@ jobs:
 
   system-tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:current
     resource_class: medium
     parameters:
       weblog-variant:
@@ -816,7 +816,7 @@ jobs:
           name: Build
           command: |
             cd system-tests
-            ./build.sh java --weblog-variant << parameters.weblog-variant >> 
+            ./build.sh java --weblog-variant << parameters.weblog-variant >>
 
       - run:
           name: Run
@@ -849,8 +849,7 @@ jobs:
 
   integrations-system-tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:current
     resource_class: medium
     steps:
       - setup_system_tests
@@ -863,10 +862,9 @@ jobs:
 
       - run:
           name: Build
-          # Build the default framework, which is springboot
           command: |
             cd system-tests
-            ./build.sh java
+            ./build.sh --library java --weblog-variant spring-boot
 
       - run:
           name: Run APM Integrations tests
@@ -884,7 +882,7 @@ jobs:
 
   debugger-system-tests:
     machine:
-      image: ubuntu-2004:current
+      image: ubuntu-2404:current
     resource_class: medium
     steps:
       - setup_system_tests
@@ -897,10 +895,9 @@ jobs:
 
       - run:
           name: Build
-          # Build the default framework, which is springboot
           command: |
             cd system-tests
-            ./build.sh java
+            ./build.sh --library java --weblog-variant spring-boot
 
       - run:
           name: Run Dynamic Instrumentation system tests
@@ -918,8 +915,7 @@ jobs:
 
   parametric-tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:current
     resource_class: large
     steps:
       - setup_system_tests
@@ -932,15 +928,12 @@ jobs:
             cp ~/dd-trace-java/workspace/dd-trace-api/build/libs/*.jar system-tests/binaries/
             cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
+
       - run:
-          name: Install requirements
+          name: Build runner
           command: |
             cd system-tests
-            pyenv local system
-            python3.9 --version
-            python3.9 -m pip install wheel
-            python3.9 -m pip install -r requirements.txt
-            sudo ln -sf /usr/bin/python3.9 /usr/bin/python
+            ./build.sh -i runner
 
       - run:
           name: Run
@@ -949,7 +942,6 @@ jobs:
             cd system-tests
             export TEST_LIBRARY=java
             export PYTEST_WORKER_COUNT=8
-            ./build.sh -i runner
             set +e
             RUN_ATTEMPTS=1
             while [ $RUN_ATTEMPTS -le 3 ]; do
@@ -1257,7 +1249,7 @@ build_test_jobs: &build_test_jobs
       stage: smoke
       cacheType: smoke
       testJvm: "graalvm17"
-  
+
   - tests:
       requires:
         - ok_to_test

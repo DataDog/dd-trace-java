@@ -127,7 +127,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
         null,
         JUnitPlatformUtils.isRetry(testDescriptor));
 
-    CoverageBridge.currentCoverageProbeStoreRecordNonCode(classpathResourceName);
+    CoverageBridge.recordCoverage(classpathResourceName);
   }
 
   private void testCaseExecutionFinished(

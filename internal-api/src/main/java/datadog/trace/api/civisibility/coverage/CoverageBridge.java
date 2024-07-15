@@ -4,22 +4,11 @@ import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
 
 public abstract class CoverageBridge {
-  /*
-   * While it is possible to use activeSpan() to get current coverage store, it adds a lot of overhead.
-   * This thread local is here as a shortcut for hot code paths.
-   */
-  private static final ThreadLocal<CoverageProbeStore> COVERAGE_PROBE_STORE = new ThreadLocal<>();
-  private static volatile CoverageProbeStore.Registry COVERAGE_PROBE_STORE_REGISTRY;
+
+  private static final ThreadLocal<CoverageProbes> COVERAGE_PROBES = new ThreadLocal<>();
+
+  private static volatile CoverageStore.Registry COVERAGE_STORE_REGISTRY;
   private static volatile CoverageDataSupplier COVERAGE_DATA_SUPPLIER;
-
-  public static void registerCoverageProbeStoreRegistry(
-      CoverageProbeStore.Registry coverageProbeStoreRegistry) {
-    COVERAGE_PROBE_STORE_REGISTRY = coverageProbeStoreRegistry;
-  }
-
-  public static CoverageProbeStore.Registry getCoverageProbeStoreRegistry() {
-    return COVERAGE_PROBE_STORE_REGISTRY;
-  }
 
   public static void registerCoverageDataSupplier(CoverageDataSupplier coverageDataSupplier) {
     COVERAGE_DATA_SUPPLIER = coverageDataSupplier;
@@ -29,63 +18,56 @@ public abstract class CoverageBridge {
     return COVERAGE_DATA_SUPPLIER != null ? COVERAGE_DATA_SUPPLIER.get() : null;
   }
 
-  public static void setThreadLocalCoverageProbeStore(CoverageProbeStore probes) {
-    COVERAGE_PROBE_STORE.set(probes);
+  public static void registerCoverageStoreRegistry(CoverageStore.Registry coverageStoreRegistry) {
+    COVERAGE_STORE_REGISTRY = coverageStoreRegistry;
   }
 
-  public static void removeThreadLocalCoverageProbeStore() {
-    COVERAGE_PROBE_STORE.remove();
+  public static CoverageStore.Registry getCoverageStoreRegistry() {
+    return COVERAGE_STORE_REGISTRY;
   }
 
-  /* This method is referenced by name in bytecode added in jacoco instrumentation module */
-  public static void currentCoverageProbeStoreRecord(Class<?> clazz, long classId, int probeId) {
-    CoverageProbeStore probes = COVERAGE_PROBE_STORE.get();
+  /* This method is referenced by name in bytecode added in jacoco instrumentation module (see datadog.trace.instrumentation.jacoco.ProbeInserterInstrumentation.InsertProbeAdvice) */
+  public static void recordCoverage(Class<?> clazz, long classId, int probeId) {
+    getCurrentCoverageProbes().record(clazz, classId, probeId);
+  }
+
+  /* This method is referenced by name in bytecode added by coverage probes (see datadog.trace.civisibility.coverage.instrumentation.CoverageUtils#insertCoverageProbe) */
+  public static void recordCoverage(Class<?> clazz) {
+    getCurrentCoverageProbes().record(clazz);
+  }
+
+  public static void recordCoverage(String absolutePath) {
+    getCurrentCoverageProbes().recordNonCodeResource(absolutePath);
+  }
+
+  private static CoverageProbes getCurrentCoverageProbes() {
+    /*
+     * While it is possible to use activeSpan() to get current coverage store, it adds a lot of overhead.
+     * The thread local is used as a shortcut for hot code paths.
+     */
+    CoverageProbes probes = COVERAGE_PROBES.get();
     if (probes != null) {
-      probes.record(clazz, classId, probeId);
-    } else {
-      probes = getCurrentCoverageProbeStore();
-      if (probes != null) {
-        probes.record(clazz, classId, probeId);
-      }
+      return probes;
     }
-  }
 
-  /* This method is referenced by name in bytecode added by coverage probes (see CoverageUtils) */
-  public static void currentCoverageProbeStoreRecord(Class<?> clazz) {
-    CoverageProbeStore probes = COVERAGE_PROBE_STORE.get();
-    if (probes != null) {
-      probes.record(clazz);
-    } else {
-      probes = getCurrentCoverageProbeStore();
-      if (probes != null) {
-        probes.record(clazz);
-      }
-    }
-  }
-
-  public static void currentCoverageProbeStoreRecordNonCode(String absolutePath) {
-    CoverageProbeStore probes = COVERAGE_PROBE_STORE.get();
-    if (probes != null) {
-      probes.recordNonCodeResource(absolutePath);
-    } else {
-      probes = getCurrentCoverageProbeStore();
-      if (probes != null) {
-        probes.recordNonCodeResource(absolutePath);
-      }
-    }
-  }
-
-  /**
-   * Gets coverage probe store associated with the active span. This is a fallback method for cases
-   * when the probe store could not be retrieved from the thread local. This can happen if the span
-   * is propagated from the original test thread to another thread.
-   */
-  private static CoverageProbeStore getCurrentCoverageProbeStore() {
+    /*
+     * Get coverage probe store associated with the active span: a fallback method for cases
+     * when the probe store could not be retrieved from the thread local. This can happen if the span
+     * is propagated from the original test thread to another thread.
+     */
     TestContext currentTest = InstrumentationTestBridge.getCurrentTestContext();
     if (currentTest != null) {
-      return currentTest.getCoverageProbeStore();
-    } else {
-      return null;
+      return currentTest.getCoverageStore().getProbes();
     }
+
+    return NoOpProbes.INSTANCE;
+  }
+
+  public static void setThreadLocalCoverageProbes(CoverageProbes probes) {
+    COVERAGE_PROBES.set(probes);
+  }
+
+  public static void removeThreadLocalCoverageProbes() {
+    COVERAGE_PROBES.remove();
   }
 }

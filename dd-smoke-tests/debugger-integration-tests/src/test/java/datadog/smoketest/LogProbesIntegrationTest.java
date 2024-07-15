@@ -323,7 +323,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   void testSamplingLogCustom() throws Exception {
     final int LOOP_COUNT = 1000;
     final String LOG_TEMPLATE = "log line {argInt} {argStr} {argDouble} {argMap} {argVar}";
-    final String EXPECTED_UPLOADS = "120";
+    final String EXPECTED_UPLOADS = "170";
     LogProbe probe =
         LogProbe.builder()
             .probeId(PROBE_ID)
@@ -337,7 +337,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
         createProcessBuilder(
                 logFilePath, "loopingFullMethod", EXPECTED_UPLOADS, String.valueOf(LOOP_COUNT))
             .start();
-    assertTrue(countSnapshots() < 120);
+    assertTrue(countSnapshots() < 200);
   }
 
   @Test

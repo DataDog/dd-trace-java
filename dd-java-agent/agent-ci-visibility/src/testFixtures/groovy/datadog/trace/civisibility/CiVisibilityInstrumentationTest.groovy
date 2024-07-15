@@ -22,7 +22,7 @@ import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.JvmInfo
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
-import datadog.trace.civisibility.coverage.SegmentlessTestProbes
+import datadog.trace.civisibility.coverage.file.FileCoverageStore
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.domain.BuildSystemSession
@@ -121,7 +121,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       Collections.emptyList())
     }
 
-    def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector)
+    def coverageStoreFactory = new FileCoverageStore.Factory(metricCollector, sourcePathResolver)
     TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
@@ -135,7 +135,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       sourcePathResolver,
       codeowners,
       methodLinesResolver,
-      coverageProbeStoreFactory,
+      coverageStoreFactory,
       moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, "")
       )
     }
@@ -162,7 +162,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       codeowners,
       methodLinesResolver,
       moduleExecutionSettingsFactory,
-      coverageProbeStoreFactory,
+      coverageStoreFactory,
       signalServer,
       repoIndexBuilder
       )
@@ -172,7 +172,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactoryImpl())
     }
 
-    CoverageBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
+    CoverageBridge.registerCoverageStoreRegistry(coverageStoreFactory)
   }
 
   private static final class TestEventHandlerFactory implements TestEventsHandler.Factory {
