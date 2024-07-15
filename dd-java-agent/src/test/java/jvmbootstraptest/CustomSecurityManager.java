@@ -49,7 +49,7 @@ public class CustomSecurityManager extends SecurityManager {
     }
 
     if (!allow) {
-      if (DEBUG) System.err.println(perm);
+      if (DEBUG) System.err.println("Blocked: " + perm);
 
       block(perm);
     }

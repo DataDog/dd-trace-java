@@ -28,7 +28,6 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 public class IntegrationTestUtils {
-
   /** Returns the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
     Field classloaderField = null;

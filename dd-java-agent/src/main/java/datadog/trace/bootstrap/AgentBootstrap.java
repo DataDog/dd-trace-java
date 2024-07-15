@@ -89,7 +89,7 @@ public final class AgentBootstrap {
   }
 
   private static InitializationTelemetry createInitializationTelemetry() {
-    String forwarderPath = SystemUtils.tryGetProperty("DD_TELEMETRY_FORWARDER_PATH");
+    String forwarderPath = SystemUtils.tryGetEnv("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath == null) {
       return InitializationTelemetry.noneInstance();
     }

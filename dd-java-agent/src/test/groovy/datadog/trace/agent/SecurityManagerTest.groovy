@@ -1,6 +1,5 @@
 package datadog.trace.agent
 
-import datadog.trace.agent.test.IntegrationTestUtils
 import spock.lang.Specification
 import spock.lang.Timeout
 
@@ -16,7 +15,7 @@ class SecurityManagerTest extends Specification {
 
   def "minimal property access"() {
     expect:
-    SecurityManagerCheck.runTestJvm(TestSecurityManager.MinimalPropertyAccess, true) == 0
+    SecurityManagerCheck.runTestJvm(TestSecurityManager.MinimalPropertyAccess) == 0
   }
 
   def "no process execution"() {

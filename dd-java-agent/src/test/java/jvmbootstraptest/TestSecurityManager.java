@@ -96,7 +96,7 @@ public class TestSecurityManager extends CustomSecurityManager {
       RuntimePermission perm, Object ctx, String envVar) {
     if (isDatadogEnvVar(envVar)) return true;
 
-    switch (envVar) {
+    switch (envVar) {      
         // jboss sniffing?
       case "JBOSS_HOME":
         return true;
