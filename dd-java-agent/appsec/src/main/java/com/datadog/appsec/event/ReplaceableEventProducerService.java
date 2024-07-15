@@ -3,6 +3,7 @@ package com.datadog.appsec.event;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import com.datadog.appsec.gateway.GatewayContext;
 import datadog.trace.api.gateway.Flow;
 import java.util.Collection;
 
@@ -21,12 +22,11 @@ public class ReplaceableEventProducerService implements EventProducerService {
   @Override
   public Flow<Void> publishDataEvent(
       DataSubscriberInfo subscribers,
-      AppSecRequestContext ctx,
+      AppSecRequestContext reqCtx,
       DataBundle newData,
-      boolean isTransient,
-      boolean isRasp)
+      GatewayContext gwCtx)
       throws ExpiredSubscriberInfoException {
-    return cur.publishDataEvent(subscribers, ctx, newData, isTransient, isRasp);
+    return cur.publishDataEvent(subscribers, reqCtx, newData, gwCtx);
   }
 
   @Override

@@ -105,7 +105,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       final MethodList<?> methods,
       final int writerFlags,
       final int readerFlags) {
-    return new ClassVisitor(Opcodes.ASM7, classVisitor) {
+    return new ClassVisitor(Opcodes.ASM8, classVisitor) {
 
       private final boolean frames =
           implementationContext.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6);
@@ -509,7 +509,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   private static final class SerialVersionUIDInjector
       extends datadog.trace.agent.tooling.context.asm.SerialVersionUIDAdder {
     public SerialVersionUIDInjector() {
-      super(Opcodes.ASM7, null);
+      super(Opcodes.ASM8, null);
     }
 
     public void injectSerialVersionUID(

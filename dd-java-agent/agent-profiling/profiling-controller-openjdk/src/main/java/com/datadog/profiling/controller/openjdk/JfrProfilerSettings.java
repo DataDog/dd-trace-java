@@ -62,6 +62,12 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
       if (ddprofUnavailableReason != null) {
         new ProfilerSettingEvent(DDPROF_UNAVAILABLE_REASON_KEY, ddprofUnavailableReason).commit();
       }
+      if (serviceInstrumentationType != null) {
+        new ProfilerSettingEvent(SERVICE_INSTRUMENTATION_TYPE, serviceInstrumentationType).commit();
+      }
+      if (serviceInjection != null) {
+        new ProfilerSettingEvent(SERVICE_INJECTION, serviceInjection).commit();
+      }
     }
   }
 }
