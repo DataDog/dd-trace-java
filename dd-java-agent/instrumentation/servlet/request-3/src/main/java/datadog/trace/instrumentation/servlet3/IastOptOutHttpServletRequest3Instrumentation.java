@@ -28,10 +28,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class IastHttpServletRequest3Instrumentation extends InstrumenterModule.Iast
+public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
-  public IastHttpServletRequest3Instrumentation() {
+  public IastOptOutHttpServletRequest3Instrumentation() {
     super("servlet", "servlet-3");
   }
 
