@@ -174,7 +174,7 @@ public class BatchUploader {
         debuggerMetrics.count("batch.uploaded", 1);
       } else {
         debuggerMetrics.count("request.queue.full", 1);
-        ratelimitedLogger.warn("Cannot upload batch data: too many enqueued requests!");
+        log.warn("Cannot upload batch data: too many enqueued requests!");
       }
     } catch (Exception ex) {
       debuggerMetrics.count("batch.upload.error", 1);
@@ -208,7 +208,7 @@ public class BatchUploader {
       log.debug("Uploading batch data size={} bytes", contentLength);
     }
     HttpUrl.Builder builder = urlBase.newBuilder();
-    if (!tags.isEmpty()) {
+    if (tags != null && !tags.isEmpty()) {
       builder.addQueryParameter("ddtags", tags);
     }
     Request.Builder requestBuilder = new Request.Builder().url(builder.build()).post(body);
