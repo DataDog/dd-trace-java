@@ -24,6 +24,7 @@ import datadog.trace.common.writer.ddintake.DDIntakeApi;
 import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
+import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,6 +106,10 @@ public class WriterFactory {
               .singleSpanSampler(singleSpanSampler)
               .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
+      if (config.isCiVisibilityEnabled()) {
+        builder.flushTimeout(5, TimeUnit.SECONDS);
+      }
+
       if (config.isCiVisibilityCodeCoverageEnabled()) {
         final RemoteApi coverageApi =
             createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, TrackType.CITESTCOV);
@@ -140,7 +145,7 @@ public class WriterFactory {
         ddAgentApi.addResponseListener((RemoteResponseListener) sampler);
       }
 
-      remoteWriter =
+      DDAgentWriter.DDAgentWriterBuilder builder =
           DDAgentWriter.builder()
               .agentApi(ddAgentApi)
               .featureDiscovery(featuresDiscovery)
@@ -149,8 +154,13 @@ public class WriterFactory {
               .monitoring(commObjects.monitoring)
               .alwaysFlush(alwaysFlush)
               .spanSamplingRules(singleSpanSampler)
-              .flushIntervalMilliseconds(flushIntervalMilliseconds)
-              .build();
+              .flushIntervalMilliseconds(flushIntervalMilliseconds);
+
+      if (config.isCiVisibilityEnabled()) {
+        builder.flushTimeout(5, TimeUnit.SECONDS);
+      }
+
+      remoteWriter = builder.build();
     }
 
     return remoteWriter;
