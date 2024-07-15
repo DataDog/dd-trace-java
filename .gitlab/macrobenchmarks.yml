@@ -1,6 +1,5 @@
-
 .macrobenchmarks:
-  stage: benchmarks
+  stage: macrobenchmarks
   rules:
     - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
       when: always
