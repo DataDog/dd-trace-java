@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
@@ -16,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -42,7 +42,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStore.Factory coverageStoreFactory;
   private final boolean parallelized;
   private final Consumer<AgentSpan> onSpanFinish;
 
@@ -64,7 +64,7 @@ public class TestSuiteImpl implements DDTestSuite {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.sessionId = sessionId;
     this.moduleId = moduleId;
@@ -80,7 +80,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+    this.coverageStoreFactory = coverageStoreFactory;
     this.onSpanFinish = onSpanFinish;
 
     if (startTime != null) {
@@ -216,7 +216,7 @@ public class TestSuiteImpl implements DDTestSuite {
         sourcePathResolver,
         methodLinesResolver,
         codeowners,
-        coverageProbeStoreFactory,
+        coverageStoreFactory,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

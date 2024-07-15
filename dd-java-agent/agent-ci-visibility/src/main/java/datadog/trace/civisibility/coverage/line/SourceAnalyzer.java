@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.coverage;
+package datadog.trace.civisibility.coverage.line;
 
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import java.util.List;

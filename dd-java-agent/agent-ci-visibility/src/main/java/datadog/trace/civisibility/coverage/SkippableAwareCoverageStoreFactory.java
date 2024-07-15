@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.coverage;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
-import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
+import datadog.trace.api.civisibility.coverage.NoOpCoverageStore;
 import java.util.Collection;
 
 /**
@@ -11,23 +11,22 @@ import java.util.Collection;
  * changed. If none of the files were changed then gathering coverage for the test make no sense,
  * because it will be the same as previously gathered coverage that the backend already has.
  */
-public class SkippableAwareCoverageProbeStoreFactory implements CoverageProbeStoreFactory {
+public class SkippableAwareCoverageStoreFactory implements CoverageStore.Factory {
   private final Collection<TestIdentifier> skippableTests;
-  private final CoverageProbeStoreFactory delegate;
+  private final CoverageStore.Factory delegate;
 
-  public SkippableAwareCoverageProbeStoreFactory(
-      Collection<TestIdentifier> skippableTests, CoverageProbeStoreFactory delegate) {
+  public SkippableAwareCoverageStoreFactory(
+      Collection<TestIdentifier> skippableTests, CoverageStore.Factory delegate) {
     this.skippableTests = skippableTests;
     this.delegate = delegate;
   }
 
   @Override
-  public CoverageProbeStore create(
-      TestIdentifier testIdentifier, SourcePathResolver sourcePathResolver) {
+  public CoverageStore create(TestIdentifier testIdentifier) {
     if (skippableTests.contains(testIdentifier)) {
-      return NoopCoverageProbeStore.INSTANCE;
+      return NoOpCoverageStore.INSTANCE;
     } else {
-      return delegate.create(testIdentifier, sourcePathResolver);
+      return delegate.create(testIdentifier);
     }
   }
 

@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
@@ -13,8 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
-import datadog.trace.civisibility.coverage.SkippableAwareCoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
@@ -45,7 +45,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final LongAdder testsSkipped = new LongAdder();
   private final String itrCorrelationId;
   private final Collection<TestIdentifier> skippableTests;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStore.Factory coverageStoreFactory;
   private final boolean flakyTestRetriesEnabled;
   @Nullable private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestIdentifier> knownTests;
@@ -65,7 +65,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       ModuleExecutionSettings executionSettings,
       Consumer<AgentSpan> onSpanFinish) {
     super(
@@ -86,10 +86,10 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     testSkippingEnabled = executionSettings.isTestSkippingEnabled();
     itrCorrelationId = executionSettings.getItrCorrelationId();
     skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
-    this.coverageProbeStoreFactory =
+    this.coverageStoreFactory =
         executionSettings.isItrEnabled()
-            ? new SkippableAwareCoverageProbeStoreFactory(skippableTests, coverageProbeStoreFactory)
-            : coverageProbeStoreFactory;
+            ? new SkippableAwareCoverageStoreFactory(skippableTests, coverageStoreFactory)
+            : coverageStoreFactory;
 
     flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
     Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
@@ -199,7 +199,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory,
+        coverageStoreFactory,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

@@ -10,10 +10,6 @@ import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.config.CachingJvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
-import datadog.trace.civisibility.coverage.NoopCoverageProbeStore;
-import datadog.trace.civisibility.coverage.SegmentlessTestProbes;
-import datadog.trace.civisibility.coverage.TestProbes;
 import datadog.trace.civisibility.git.CILocalGitInfoBuilder;
 import datadog.trace.civisibility.git.CIProviderGitInfoBuilder;
 import datadog.trace.civisibility.git.GitClientGitInfoBuilder;
@@ -50,7 +46,6 @@ public class CiVisibilityServices {
   final GitClient.Factory gitClientFactory;
   final GitInfoProvider gitInfoProvider;
   final MethodLinesResolver methodLinesResolver;
-  final CoverageProbeStoreFactory coverageProbeStoreFactory;
   final RepoIndexProvider.Factory repoIndexProviderFactory;
   @Nullable final SignalClient.Factory signalClientFactory;
 
@@ -69,7 +64,6 @@ public class CiVisibilityServices {
     this.methodLinesResolver =
         new BestEffortMethodLinesResolver(
             new CompilerAidedMethodLinesResolver(), new ByteCodeMethodLinesResolver());
-    this.coverageProbeStoreFactory = buildTestProbesFactory(config, metricCollector);
 
     this.gitInfoProvider = gitInfoProvider;
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder());
@@ -95,17 +89,6 @@ public class CiVisibilityServices {
       this.repoIndexProviderFactory =
           new CachingRepoIndexBuilderFactory(config, packageResolver, resourceResolver, fileSystem);
     }
-  }
-
-  private static CoverageProbeStoreFactory buildTestProbesFactory(
-      Config config, CiVisibilityMetricCollector metricCollector) {
-    if (!config.isCiVisibilityCodeCoverageEnabled()) {
-      return new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory();
-    }
-    if (!config.isCiVisibilityCoverageSegmentsEnabled()) {
-      return new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector);
-    }
-    return new TestProbes.TestProbesFactory(metricCollector);
   }
 
   CiVisibilityRepoServices repoServices(Path path) {
