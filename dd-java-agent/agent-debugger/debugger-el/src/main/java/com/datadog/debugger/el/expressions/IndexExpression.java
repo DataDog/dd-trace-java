@@ -22,8 +22,13 @@ public class IndexExpression implements ValueExpression<Value<?>> {
   @Override
   public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
     Value<?> targetValue = target.evaluate(valueRefResolver);
-    if (targetValue == Value.undefined()) {
-      return targetValue;
+    if (targetValue.isUndefined()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+    }
+    if (targetValue.isNull()) {
+      throw new EvaluationException(
+          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
     }
     Value<?> result = Value.undefinedValue();
     Value<?> keyValue = key.evaluate(valueRefResolver);
