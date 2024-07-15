@@ -745,6 +745,36 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow.action == Flow.Action.Noop.INSTANCE
   }
 
+  void 'process database type'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.DB_TYPE in it }) >> nonEmptyDsInfo
+
+    when:
+    databaseConnectionCB.accept(ctx, 'postgresql')
+
+    then:
+    arCtx.dbType == 'postgresql'
+  }
+
+  void 'process jdbc statement query object'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.DB_SQL_QUERY in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = databaseSqlQueryCB.apply(ctx, 'SELECT * FROM foo')
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.DB_SQL_QUERY) == 'SELECT * FROM foo'
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == true
+  }
+
   void 'calls trace segment post processor'() {
     setup:
     AgentSpan span = Stub()
