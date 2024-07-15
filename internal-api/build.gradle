@@ -99,7 +99,6 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.coverage.NoOpProbes",
   "datadog.trace.api.civisibility.coverage.TestReport",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry",
-  "datadog.trace.api.civisibility.coverage.TestReportFileEntry.Segment",
   "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleInfo",
   "datadog.trace.api.civisibility.events.TestDescriptor",
   "datadog.trace.api.civisibility.events.TestSuiteDescriptor",

@@ -4,9 +4,9 @@
   "span_id" : ${content_span_id},
   "files" : [ {
     "filename" : "src/test/java/datadog/smoke/TestSucceed.java",
-    "segments" : [ [ 11, -1, 12, -1, -1 ] ]
+    "bitmap" : "ABg="
   }, {
     "filename" : "src/main/java/datadog/smoke/Calculator.java",
-    "segments" : [ [ 5, -1, 5, -1, -1 ] ]
+    "bitmap" : "IA=="
   } ]
 } ]
