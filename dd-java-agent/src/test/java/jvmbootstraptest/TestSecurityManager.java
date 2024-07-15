@@ -38,13 +38,13 @@ public class TestSecurityManager extends CustomSecurityManager {
       return false;
     }
   }
-  
+
   public static final class NoNetworkAccess extends TestSecurityManager {
     @Override
     protected boolean checkSocketConnect(SocketPermission perm, Object ctx, String host, int port) {
       return false;
     }
-    
+
     @Override
     protected boolean checkSocketResolve(SocketPermission perm, Object ctx, String host) {
       return false;
@@ -96,7 +96,7 @@ public class TestSecurityManager extends CustomSecurityManager {
       RuntimePermission perm, Object ctx, String envVar) {
     if (isDatadogEnvVar(envVar)) return true;
 
-    switch (envVar) {      
+    switch (envVar) {
         // jboss sniffing?
       case "JBOSS_HOME":
         return true;
