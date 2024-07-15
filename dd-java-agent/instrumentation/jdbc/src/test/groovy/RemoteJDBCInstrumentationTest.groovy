@@ -180,7 +180,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     sqlserver = new MSSQLServerContainer().acceptLicense().withPassword(jdbcPasswords.get(SQLSERVER))
     sqlserver.start()
     PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
-    jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()}" + ";DatabaseName=" + dbName.get(SQLSERVER))
+    jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
 
     prepareConnectionPoolDatasources()
   }
@@ -507,16 +507,16 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     driver       | connection                                              | query                                                                            | operation
     "mysql"      | connectTo(driver, peerConnectionProps(driver))          | "CREATE TEMPORARY TABLE s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"       | "CREATE"
     "postgresql" | connectTo(driver, peerConnectionProps(driver))          | "CREATE TEMPORARY TABLE s_test (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
-    "sqlserver"  | connectTo(driver, peerConnectionProps(driver))          | "CREATE TEMPORARY TABLE s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"       | "CREATE"
+    "sqlserver"  | connectTo(driver, peerConnectionProps(driver))          | "CREATE TABLE #s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"                | "CREATE"
     "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
     "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "sqlserver"  | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "sqlserver"  | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TABLE #s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
     "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
     "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "sqlserver " | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "sqlserver " | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TABLE #s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
     "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
     "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
-    "sqlserver"  | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    "sqlserver"  | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY #s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
   }
 
 
@@ -574,10 +574,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     """
     } else if (driver == "sqlserver") {
       createSql =
-      """
-    CREATE PROCEDURE dummy(res integer)
+        """
+    CREATE PROCEDURE dummy @res integer
     AS
+    BEGIN
         SELECT 1;
+    END
+    GO
     """
     } else {
       assert false
