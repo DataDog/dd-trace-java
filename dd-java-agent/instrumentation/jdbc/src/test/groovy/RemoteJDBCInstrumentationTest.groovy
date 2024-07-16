@@ -158,6 +158,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     return ds
   }
 
+  def getSQLServerInstrumentationSpan(){
+
+  }
+
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -309,13 +313,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
     MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
     POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    //SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
     MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
     POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    //SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
     MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
     POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    //SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
   }
 
   def "prepared statement execute on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -332,31 +336,82 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          operationName this.operation(driver)
-          serviceName service(driver)
-          resourceName obfuscatedQuery
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
-            // only set when there is an out of proc instance (postgresql, mysql)
-            "$Tags.PEER_HOSTNAME" String
-            // currently there is a bug in the instrumentation with
-            // postgresql and mysql if the connection event is missed
-            // since Connection.getClientInfo will not provide the username
-            "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-            "$Tags.DB_OPERATION" operation
-            peerServiceFrom(Tags.DB_INSTANCE)
-            defaultTags()
+    final databaseNaming = new DatabaseNamingV1()
+    def normalizedDbType= databaseNaming.normalizedName(driver)
+    if (driver == POSTGRESQL || driver == MYSQL) {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(driver)
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" driver
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(normalizedDbType)
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(normalizedDbType)
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
           }
         }
       }
@@ -394,31 +449,86 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          operationName this.operation(driver)
-          serviceName service(driver)
-          resourceName obfuscatedQuery
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
-            // only set when there is an out of proc instance (postgresql, mysql)
-            "$Tags.PEER_HOSTNAME" String
-            // currently there is a bug in the instrumentation with
-            // postgresql and mysql if the connection event is missed
-            // since Connection.getClientInfo will not provide the username
-            "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-            "$Tags.DB_OPERATION" operation
-            peerServiceFrom(Tags.DB_INSTANCE)
-            defaultTags()
+    final databaseNaming = new DatabaseNamingV1()
+    def normalizedDbType= databaseNaming.normalizedName(driver)
+    if (driver == POSTGRESQL || driver == MYSQL) {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(driver)
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" driver
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(normalizedDbType)
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(normalizedDbType)
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
           }
         }
       }
@@ -456,30 +566,80 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          operationName this.operation(driver)
-          serviceName service(driver)
-          resourceName obfuscatedQuery
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
-            // only set when there is an out of proc instance (postgresql, mysql)
-            "$Tags.PEER_HOSTNAME" String
-            // currently there is a bug in the instrumentation with
-            // postgresql and mysql if the connection event is missed
-            // since Connection.getClientInfo will not provide the username
-            "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-            "${Tags.DB_OPERATION}" operation
-            defaultTags()
+    final databaseNaming = new DatabaseNamingV1()
+    def normalizedDbType= databaseNaming.normalizedName(driver)
+    if (driver == POSTGRESQL || driver == MYSQL) {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(driver)
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" driver
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "${Tags.DB_OPERATION}" operation
+              defaultTags()
+            }
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(normalizedDbType)
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "${Tags.DB_OPERATION}" operation
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(normalizedDbType)
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
           }
         }
       }
@@ -519,33 +679,87 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     def addDbmTag = dbmTraceInjected()
     statement.updateCount == 0
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          operationName this.operation(driver)
-          serviceName service(driver)
-          resourceName query
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
-            // only set when there is an out of proc instance (postgresql, mysql)
-            "$Tags.PEER_HOSTNAME" String
-            // currently there is a bug in the instrumentation with
-            // postgresql and mysql if the connection event is missed
-            // since Connection.getClientInfo will not provide the username
-            "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-            "${Tags.DB_OPERATION}" operation
-            if (addDbmTag) {
-              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+    final databaseNaming = new DatabaseNamingV1()
+    def normalizedDbType= databaseNaming.normalizedName(driver)
+    if (driver == POSTGRESQL || driver == MYSQL) {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(driver)
+            serviceName service(driver)
+            resourceName query
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" driver
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "${Tags.DB_OPERATION}" operation
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
             }
-            peerServiceFrom(Tags.DB_INSTANCE)
-            defaultTags()
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(normalizedDbType)
+            serviceName service(driver)
+            resourceName query
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "${Tags.DB_OPERATION}" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(normalizedDbType)
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
           }
         }
       }
