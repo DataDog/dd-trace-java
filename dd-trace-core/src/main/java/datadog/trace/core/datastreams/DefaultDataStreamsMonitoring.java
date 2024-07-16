@@ -3,11 +3,7 @@ package datadog.trace.core.datastreams;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
 import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
-import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
-import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.*;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
@@ -255,6 +251,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+    sortedTags.put(MANUAL_TAG, "true");
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
@@ -276,6 +273,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(MANUAL_TAG, "true");
     sortedTags.put(TOPIC_TAG, target);
     sortedTags.put(TYPE_TAG, type);
 
