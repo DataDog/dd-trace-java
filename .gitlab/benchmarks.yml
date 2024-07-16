@@ -115,7 +115,7 @@ debugger-benchmarks:
       when: on_success
     - when: manual
       allow_failure: true
-  tags: ["runner:apm-k8s-tweaked-metal"]
+  tags: ["runner:apm-k8s-same-cpu"]
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-debugger
