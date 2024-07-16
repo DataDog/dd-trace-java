@@ -88,3 +88,48 @@ command line should be Java 8.
       to `Add New` -> `Gradle` -> `Environmental Variables`
 
 </details>
+
+## Pull Request Guidelines
+
+### Title Format
+
+Pull request titles should briefly describe the proposed changes in a way that makes sense for the users.
+They should be a sentence starting with an infinitive verb, and avoid using prefixes like `[PROD]` or `PROD - ` in favor of [labels](#labels).
+
+>[!CAUTION]
+> Don't title:
+> * _Another bug fix_: it doesn't describe the change 
+> * _Span sampling bug fix_: it doesn't start with an infinite verb
+> * _Fix off-by-one error from rule parsing_: it doesn't make sense for the user
+> * _[CORE] Fix span sampling rule parsing_: it doesn't use label for component tagging
+> * _Fix span sampling rule parsing when using both remote config and property config_: it doesn't fit and will be cut during changelog generation
+
+>[!TIP]
+> Do instead: _Fix span sampling rule parsing_
+
+>[!NOTE]
+> If the changes don't make sense for the users, add the [`tag: no release note` label](#labels).
+
+### Labels
+
+GitHub labels applies to issues and pull requests.
+They are used to identify the related components using [the `comp: ` category](https://github.com/DataDog/dd-trace-java/labels?q=comp%3A) or instrumentations using [the `inst: ` category](https://github.com/DataDog/dd-trace-java/labels?q=inst%3A).
+
+Both pull requests and issues should be labelled with at least a component or an instrumentation, in addition to the type of changes using [the `type: ` category](https://github.com/DataDog/dd-trace-java/labels?q=type).
+
+>[!TIP]
+> Always add a `comp:` or `inst:` label, and a `type:` label. 
+
+Labels are not only used to categorize but also alter the continuous integration behavior:
+
+* `tag: no release note` to exclude a pull request from the next release changelog. Use it when changes are not relevant to the users like:
+  * Internal features changes
+  * Refactoring pull requests
+  * CI and build tools improvements
+  * Minor changes like typo
+* [The `run-tests:` category](https://github.com/DataDog/dd-trace-java/labels?q=run-tests%3A) to run continuous integration tests on a specific JVM in case of JVM specific changes
+* `run-tests: flaky` to run the flaky tests on continuous integration as they are disabled by default
+
+>[!NOTE]
+> For reference, the [full list of all labels available](https://github.com/DataDog/dd-trace-java/labels).
+> If you feel one is missing, let [the maintainer team](https://github.com/orgs/DataDog/teams/apm-java) know!
