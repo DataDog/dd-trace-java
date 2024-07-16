@@ -161,7 +161,7 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
       methodVisitor.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           "datadog/trace/api/civisibility/coverage/CoverageBridge",
-          "currentCoverageProbeStoreRecord",
+          "recordCoverage",
           "(Ljava/lang/Class;JI)V",
           false);
     }

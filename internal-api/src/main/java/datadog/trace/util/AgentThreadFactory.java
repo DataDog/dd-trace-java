@@ -44,6 +44,7 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     DATA_STREAMS_MONITORING("dd-data-streams-monitor"),
 
+    DEBUGGER_SNAPSHOT_SERIALIZER("dd-debugger-snapshot-serializer"),
     DEBUGGER_HTTP_DISPATCHER("dd-debugger-upload-http-dispatcher"),
 
     CI_SHELL_COMMAND("dd-ci-shell-command"),

@@ -1122,9 +1122,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return null;
     }
 
-    // Keep service set by user, except if it is only "spark" that can be set by USM
+    // Keep service set by user, except if it is only "spark" or "hadoop" that can be set by USM
     String serviceName = Config.get().getServiceName();
-    if (Config.get().isServiceNameSetByUser() && !"spark".equals(serviceName)) {
+    if (Config.get().isServiceNameSetByUser()
+        && !"spark".equals(serviceName)
+        && !"hadoop".equals(serviceName)) {
       log.debug("Service '{}' explicitly set by user, not using the application name", serviceName);
       return null;
     }

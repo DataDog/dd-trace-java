@@ -52,6 +52,10 @@ public class ProbeStatusSink {
     this.isInstrumentTheWorld = config.isDebuggerInstrumentTheWorld();
   }
 
+  public void stop() {
+    diagnosticUploader.shutdown();
+  }
+
   public void addReceived(ProbeId probeId) {
     addDiagnostics(messageBuilder.receivedMessage(probeId));
   }

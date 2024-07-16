@@ -1,21 +1,21 @@
 package datadog.trace.civisibility.domain;
 
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.domain.TestContext;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class TestContextImpl implements TestContext {
 
-  private final CoverageProbeStore probeStore;
+  private final CoverageStore coverageStore;
   private final CopyOnWriteArrayList<Entry> entries = new CopyOnWriteArrayList<>();
 
-  public TestContextImpl(CoverageProbeStore probeStore) {
-    this.probeStore = probeStore;
+  public TestContextImpl(CoverageStore coverageStore) {
+    this.coverageStore = coverageStore;
   }
 
   @Override
-  public CoverageProbeStore getCoverageProbeStore() {
-    return this.probeStore;
+  public CoverageStore getCoverageStore() {
+    return this.coverageStore;
   }
 
   @Override

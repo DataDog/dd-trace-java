@@ -137,7 +137,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       TestContext test =
           ((AgentSpan) span).getRequestContext().getData(RequestContextSlot.CI_VISIBILITY);
       if (test != null) {
-        TestReportHolder probes = test.getCoverageProbeStore();
+        TestReportHolder probes = test.getCoverageStore();
         if (probes != null) {
           return probes.getReport();
         }

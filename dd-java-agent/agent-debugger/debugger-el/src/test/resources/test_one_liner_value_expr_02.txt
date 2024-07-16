@@ -1,0 +1,14 @@
+{"dsl": "", "json": {"ref": "str"}}
+{"dsl": "", "json": {"getmember": [{"ref": "this"}, "str"]}}
+{"dsl": "", "json": {"ref": "i"}}
+{"dsl": "", "json": {"ref": "l"}}
+{"dsl": "", "json": {"ref": "f"}}
+{"dsl": "", "json": {"ref": "d"}}
+{"dsl": "", "json": {"ref": "c"}}
+{"dsl": "", "json": {"index": [{"ref": "list"}, 1]}}
+{"dsl": "", "json": {"len": {"ref": "str"}}}
+{"dsl": "", "json": {"count": {"ref": "list"}}}
+{"dsl": "", "json": {"substring": [{"ref": "str"}, 1, 3]}}
+{"dsl": "", "json": null}
+{"dsl": "", "json": true}
+{"dsl": "", "json": false}

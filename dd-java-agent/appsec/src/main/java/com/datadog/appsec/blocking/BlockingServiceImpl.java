@@ -5,6 +5,7 @@ import com.datadog.appsec.event.ExpiredSubscriberInfoException;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import com.datadog.appsec.gateway.GatewayContext;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingDetails;
 import datadog.appsec.api.blocking.BlockingService;
@@ -45,7 +46,8 @@ public class BlockingServiceImpl implements BlockingService {
       }
       SingletonDataBundle<String> db = new SingletonDataBundle<>(KnownAddresses.USER_ID, userId);
       try {
-        flow = eventProducer.publishDataEvent(subInfo, reqCtx, db, true);
+        GatewayContext gwCtx = new GatewayContext(true, false);
+        flow = eventProducer.publishDataEvent(subInfo, reqCtx, db, gwCtx);
         break;
       } catch (ExpiredSubscriberInfoException e) {
         subInfo = null;
@@ -65,7 +67,9 @@ public class BlockingServiceImpl implements BlockingService {
 
   @Override
   public boolean tryCommitBlockingResponse(
-      int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
+      int statusCode,
+      @Nonnull BlockingContentType templateType,
+      @Nonnull Map<String, String> extraHeaders) {
     log.info(
         "Will try to commit blocking response statusCode={} templateType={} extraHeaders={}",
         statusCode,

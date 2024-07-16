@@ -744,10 +744,11 @@ public class SnapshotSerializationTest {
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
-    Map<String, Object> mapFieldObj = (Map<String, Object>) locals.get("listLocal");
-    Assertions.assertEquals(
-        "java.lang.RuntimeException: Unsupported Collection type: com.datadog.debugger.agent.SnapshotSerializationTest$1",
-        mapFieldObj.get(NOT_CAPTURED_REASON));
+    Map<String, Object> listLocalField = (Map<String, Object>) locals.get("listLocal");
+    Map<String, Object> listLocalFieldFields = (Map<String, Object>) listLocalField.get(FIELDS);
+    assertTrue(listLocalFieldFields.containsKey("elementData"));
+    assertTrue(listLocalFieldFields.containsKey("size"));
+    assertTrue(listLocalFieldFields.containsKey("modCount"));
   }
 
   @Test
@@ -763,10 +764,12 @@ public class SnapshotSerializationTest {
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
-    Map<String, Object> mapFieldObj = (Map<String, Object>) locals.get("mapLocal");
-    Assertions.assertEquals(
-        "java.lang.RuntimeException: Unsupported Map type: com.datadog.debugger.agent.SnapshotSerializationTest$2",
-        mapFieldObj.get(NOT_CAPTURED_REASON));
+    Map<String, Object> mapLocalField = (Map<String, Object>) locals.get("mapLocal");
+    Map<String, Object> mapLocalFieldFields = (Map<String, Object>) mapLocalField.get(FIELDS);
+    assertTrue(mapLocalFieldFields.containsKey("table"));
+    assertTrue(mapLocalFieldFields.containsKey("size"));
+    assertTrue(mapLocalFieldFields.containsKey("threshold"));
+    assertTrue(mapLocalFieldFields.containsKey("loadFactor"));
   }
 
   @Test

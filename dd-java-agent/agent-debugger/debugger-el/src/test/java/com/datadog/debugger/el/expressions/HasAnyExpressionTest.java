@@ -5,6 +5,7 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.ObjectValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -22,13 +23,18 @@ class HasAnyExpressionTest {
   @Test
   void testNullPredicate() {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
-    HasAnyExpression expression = new HasAnyExpression(null, null);
-    assertFalse(expression.evaluate(resolver));
-    assertEquals("hasAny(null, true)", print(expression));
-    expression = new HasAnyExpression(value(Values.UNDEFINED_OBJECT), null);
-    assertFalse(expression.evaluate(resolver));
-    assertEquals("hasAny(UNDEFINED, true)", print(expression));
-    expression = new HasAnyExpression(value(this), null);
+    HasAnyExpression nullExpression = new HasAnyExpression(null, null);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> nullExpression.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("hasAny(null, true)", print(nullExpression));
+    HasAnyExpression undefinedExpression =
+        new HasAnyExpression(value(Values.UNDEFINED_OBJECT), null);
+    exception =
+        assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
+    assertEquals("hasAny(UNDEFINED, true)", print(undefinedExpression));
+    HasAnyExpression expression = new HasAnyExpression(value(this), null);
     assertTrue(expression.evaluate(resolver));
     assertEquals(
         "hasAny(com.datadog.debugger.el.expressions.HasAnyExpressionTest, true)",
@@ -44,38 +50,47 @@ class HasAnyExpressionTest {
   @Test
   void testNullHasAny() {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
-    HasAnyExpression expression = any(null, BooleanExpression.TRUE);
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAny(null, true)", print(expression));
+    HasAnyExpression nullExpression1 = any(null, BooleanExpression.TRUE);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> nullExpression1.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("hasAny(null, true)", print(nullExpression1));
 
-    expression = any(null, BooleanExpression.FALSE);
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAny(null, false)", print(expression));
+    HasAnyExpression nullExpression2 = any(null, BooleanExpression.FALSE);
+    exception = assertThrows(EvaluationException.class, () -> nullExpression2.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("hasAny(null, false)", print(nullExpression2));
 
-    expression = any(null, eq(ref("testField"), value(10)));
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAny(null, testField == 10)", print(expression));
+    HasAnyExpression nullExpression3 = any(null, eq(ref("testField"), value(10)));
+    exception = assertThrows(EvaluationException.class, () -> nullExpression3.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("hasAny(null, testField == 10)", print(nullExpression3));
   }
 
   @Test
   void testUndefinedHasAny() {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
-    HasAnyExpression expression = any(value(Values.UNDEFINED_OBJECT), TRUE);
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAny(UNDEFINED, true)", print(expression));
+    HasAnyExpression undefinedExpression = any(value(Values.UNDEFINED_OBJECT), TRUE);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
+    assertEquals("hasAny(UNDEFINED, true)", print(undefinedExpression));
 
-    expression = any(null, FALSE);
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAny(null, false)", print(expression));
+    HasAnyExpression nullExpression = any(null, FALSE);
+    exception = assertThrows(EvaluationException.class, () -> nullExpression.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("hasAny(null, false)", print(nullExpression));
 
-    expression = any(value(Values.UNDEFINED_OBJECT), eq(ref("testField"), value(10)));
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAny(UNDEFINED, testField == 10)", print(expression));
+    HasAnyExpression undefinedExpression2 =
+        any(value(Values.UNDEFINED_OBJECT), eq(ref("testField"), value(10)));
+    exception = assertThrows(EvaluationException.class, () -> undefinedExpression2.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
+    assertEquals("hasAny(UNDEFINED, testField == 10)", print(undefinedExpression2));
   }
 
   @Test
   void testSingleElementHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     ValueExpression<?> targetExpression = new ObjectValue(this);
     HasAnyExpression expression = any(targetExpression, TRUE);
     assertTrue(expression.evaluate(ctx));
@@ -101,7 +116,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testArrayHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     ValueExpression<?> targetExpression = DSL.value(new Object[] {this, "hello"});
 
     HasAnyExpression expression = any(targetExpression, TRUE);
@@ -126,7 +141,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testListHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     ValueExpression<?> targetExpression = DSL.value(Arrays.asList(this, "hello"));
 
     HasAnyExpression expression = any(targetExpression, TRUE);
@@ -151,7 +166,7 @@ class HasAnyExpressionTest {
 
   @Test
   void testMapHasAny() {
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null, null);
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     Map<String, String> valueMap = new HashMap<>();
     valueMap.put("a", "a");
     valueMap.put("b", null);
