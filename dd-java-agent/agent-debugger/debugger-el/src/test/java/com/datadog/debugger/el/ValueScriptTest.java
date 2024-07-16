@@ -29,7 +29,8 @@ public class ValueScriptTest {
   @Test
   public void predicates() {
     ValueScript valueScript = loadFromResource("/test_value_expr_01.json");
-    valueScript.execute(RefResolverHelper.createResolver(new Obj()));
+    assertEquals(
+        Boolean.TRUE, valueScript.execute(RefResolverHelper.createResolver(new Obj())).getValue());
   }
 
   @Test
