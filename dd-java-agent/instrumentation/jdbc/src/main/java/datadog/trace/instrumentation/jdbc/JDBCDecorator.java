@@ -259,10 +259,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public long setContextInfo(Connection connection, DBInfo dbInfo) {
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     AgentSpan instrumentationSpan =
-        AgentTracer.get()
-            .buildSpan("set context_info")
-            .withTag("dd.instrumentation", "true")
-            .start();
+        AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
 
