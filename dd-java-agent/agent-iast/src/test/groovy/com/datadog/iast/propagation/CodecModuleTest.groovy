@@ -13,6 +13,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import java.nio.charset.StandardCharsets
 
 import static com.datadog.iast.taint.TaintUtils.addFromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.taintFormat
 
 class CodecModuleTest extends IastModuleImplTestBase {
 
@@ -306,4 +309,101 @@ class CodecModuleTest extends IastModuleImplTestBase {
       assert it.source.value == 'World!'
     }
   }
+
+  void 'test uri creation'() {
+    given:
+    final to = ctx.getTaintedObjects()
+    final params = args.collect {
+      return it instanceof String ? addFromTaintFormat(to, it as String) : it
+    }.toArray()
+    final uri = URI.metaClass.&invokeConstructor(params) as URI
+
+    when:
+    module.onUriCreate(uri, params)
+
+    then:
+    final rangeCount = fromTaintFormat(expected)?.length
+    assert uri.toString() == getStringFromTaintFormat(expected)
+    if (rangeCount > 0) {
+      final tainted = to.get(uri)
+      assert taintFormat(uri.toString(), tainted.ranges) == expected
+    } else {
+      assert to.get(uri) == null
+    }
+
+    where:
+    args                                                                                | expected
+    ['http://test.com/index?name=value#fragment']                                       | 'http://test.com/index?name=value#fragment'
+    ['==>http<==://test.com/index?name=value#fragment']                                 | '==>http<==://test.com/index?name=value#fragment'
+    ['http://test.com/index?==>name=value<==#fragment']                                 | 'http://test.com/index?==>name=value<==#fragment'
+    ['http', 'user:password', 'test.com', 80, '/index', 'name=value', 'fragment']       | 'http://user:password@test.com:80/index?name=value#fragment'
+    ['==>http<==', 'user:password', 'test.com', 80, '/index', 'name=value', 'fragment'] | '==>http<==://user:password@test.com:80/index?name=value#fragment'
+    ['http', 'user:password', 'test.com', 80, '/index', '==>name=value<==', 'fragment'] | 'http://user:password@test.com:80/index?==>name=value<==#fragment'
+  }
+
+  void 'test url creation'() {
+    given:
+    final to = ctx.getTaintedObjects()
+    final params = args.collect {
+      def result = it
+      if (it instanceof String) {
+        result = addFromTaintFormat(to, it as String)
+      } else if (it instanceof TaintedURL) {
+        final format = (it as TaintedURL).url
+        result = new URL(getStringFromTaintFormat(format))
+        final ranges = fromTaintFormat(format)
+        if (ranges?.length > 0) {
+          to.taint(result, ranges)
+        }
+      }
+      return result
+    }.toArray()
+    final url = URL.metaClass.&invokeConstructor(params) as URL
+
+    when:
+    module.onUrlCreate(url, params)
+
+    then:
+    final rangeCount = fromTaintFormat(expected)?.length
+    assert url.toString() == getStringFromTaintFormat(expected)
+    if (rangeCount > 0) {
+      final tainted = to.get(url)
+      assert taintFormat(url.toString(), tainted.ranges) == expected
+    } else {
+      assert to.get(url) == null
+    }
+
+    where:
+    args                                                                                            | expected
+    ['http://test.com/index?name=value#fragment']                                                   | 'http://test.com/index?name=value#fragment'
+    ['==>http<==://test.com/index?name=value#fragment']                                             | '==>http<==://test.com/index?name=value#fragment'
+    ['http://test.com/index?==>name=value<==#fragment']                                             | 'http://test.com/index?==>name=value<==#fragment'
+    ['http', 'test.com', 80, '/index?name=value#fragment']                                          | 'http://test.com:80/index?name=value#fragment'
+    ['==>http<==', 'test.com', 80, '/index?name=value#fragment']                                    | '==>http<==://test.com:80/index?name=value#fragment'
+    ['http', 'test.com', 80, '/index?==>name=value<==#fragment']                                    | 'http://test.com:80/index?==>name=value<==#fragment'
+    [new TaintedURL('http://test.com'), '/index?name=value#fragment']                               | 'http://test.com/index?name=value#fragment'
+    [new TaintedURL('==>http<==://test.com'), '/index?name=value#fragment']                         | '==>http<==://test.com/index?name=value#fragment'
+    [new TaintedURL('http://test.com'), '/index?==>name=value<==#fragment']                         | 'http://test.com/index?==>name=value<==#fragment'
+    [new TaintedURL('==>http<==://test.com'), '/index?==>name=value<==#fragment']                   | '==>http<==://test.com/index?==>name=value<==#fragment'
+    [null, 'http://test.com/index?==>name=value<==#fragment']                                       | 'http://test.com/index?==>name=value<==#fragment'
+    [new TaintedURL('==>http<==://ignored.com'), 'http://test.com/index?name=value#fragment']       | 'http://test.com/index?name=value#fragment'
+    [new TaintedURL('==>http<==://ignored.com'), '==>http<==://test.com/index?name=value#fragment'] | '==>http<==://test.com/index?name=value#fragment'
+    [new TaintedURL('==>http<==://ignored.com'), 'http://test.com/index?==>name=value<==#fragment'] | 'http://test.com/index?==>name=value<==#fragment'
+  }
+
+  protected static class TaintedURL {
+    private final String url
+
+    protected TaintedURL(String url) {
+      this.url = url
+    }
+
+    @Override
+    String toString() {
+      return "TaintedURL{" +
+        "url='" + url + '\'' +
+        '}'
+    }
+  }
+
 }
