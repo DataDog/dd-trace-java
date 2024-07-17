@@ -30,8 +30,10 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafTriggeredRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
-  private static final Map<RuleType, AtomicLong> raspRuleEvalCounter = new EnumMap<>(RuleType.class);
-  private static final Map<RuleType, AtomicLong> raspRuleMatchCounter = new EnumMap<>(RuleType.class);
+  private static final Map<RuleType, AtomicLong> raspRuleEvalCounter =
+      new EnumMap<>(RuleType.class);
+  private static final Map<RuleType, AtomicLong> raspRuleMatchCounter =
+      new EnumMap<>(RuleType.class);
   private static final Map<RuleType, AtomicLong> respTimeoutCounter = new EnumMap<>(RuleType.class);
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
