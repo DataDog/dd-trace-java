@@ -267,8 +267,6 @@ commands:
             git remote add origin https://github.com/DataDog/system-tests.git
             git fetch origin conti/enable-more-system-tests
             git checkout conti/enable-more-system-tests
-            git reset --hard FETCH_HEAD
-            git checkout origin/conti/enable-more-system-tests
 
       - run:
           name: Install python 3.12
