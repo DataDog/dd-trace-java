@@ -15,7 +15,9 @@ import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class HasAllExpressionTest {
@@ -167,7 +169,7 @@ class HasAllExpressionTest {
   }
 
   @Test
-  void testMapHasAny() {
+  void testMapHasAll() {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     Map<String, String> valueMap = new HashMap<>();
     valueMap.put("a", "a");
@@ -189,6 +191,33 @@ class HasAllExpressionTest {
         all(
             targetExpression,
             eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
+    assertTrue(expression.evaluate(ctx));
+  }
+
+  @Test
+  void testSetHasAll() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    Set<String> valueSet = new HashSet<>();
+    valueSet.add("foo");
+    valueSet.add("bar");
+
+    ValueExpression<?> targetExpression = value(valueSet);
+
+    HasAllExpression expression = all(targetExpression, TRUE);
+    assertTrue(expression.evaluate(ctx));
+
+    expression = all(targetExpression, FALSE);
+    assertFalse(expression.evaluate(ctx));
+
+    expression = all(targetExpression, eq(ref(ValueReferences.ITERATOR_REF), value("key")));
+    assertFalse(expression.evaluate(ctx));
+
+    expression =
+        all(
+            targetExpression,
+            or(
+                eq(ref(ValueReferences.ITERATOR_REF), value("foo")),
+                eq(ref(ValueReferences.ITERATOR_REF), value("bar"))));
     assertTrue(expression.evaluate(ctx));
   }
 }
