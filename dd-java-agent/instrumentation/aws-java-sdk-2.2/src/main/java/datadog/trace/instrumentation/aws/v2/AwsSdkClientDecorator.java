@@ -5,6 +5,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
+import static java.lang.System.currentTimeMillis;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -196,6 +197,23 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
           AgentTracer.get()
               .getDataStreamsMonitoring()
               .setProduceCheckpoint("sns", snsTopicName.get(), NoOp.INSTANCE);
+        }
+        System.out.println("creating sns checkpoint\n\n");
+        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+        sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+        sortedTags.put(TYPE_TAG, "sns");
+        AgentDataStreamsMonitoring dataStreamsMonitoring =
+            AgentTracer.get().getDataStreamsMonitoring();
+        System.out.println("dataStreamsMonitoring: " + dataStreamsMonitoring.getClass().getName());
+        PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
+        System.out.println("pathwayContext: " + pathwayContext.getClass().getName());
+        pathwayContext.setCheckpoint(sortedTags, dataStreamsMonitoring::add, currentTimeMillis());
+        try {
+          System.out.println("injecting pathway context at sdk:\n" + pathwayContext.strEncode());
+        } catch (Exception e) {
+        }
+        if (!span.context().getPathwayContext().isStarted()) {
+          span.context().mergePathwayContext(pathwayContext);
         }
       }
     }

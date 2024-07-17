@@ -56,8 +56,10 @@ public class DataStreamContextInjector {
       long payloadSizeBytes,
       boolean sendCheckpoint) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
+    System.out.println("at injectPathwayContext\n\n");
     if (pathwayContext == null
         || (span.traceConfig() != null && !span.traceConfig().isDataStreamsEnabled())) {
+      System.out.println("no available pathway context");
       return;
     }
     pathwayContext.setCheckpoint(
@@ -65,7 +67,15 @@ public class DataStreamContextInjector {
         sendCheckpoint ? dataStreamsMonitoring::add : pathwayContext::saveStats,
         defaultTimestamp,
         payloadSizeBytes);
-
+    System.out.println("Set checkpoint\n\n");
+    try {
+      System.out.println(
+          "context\n"
+              + pathwayContext.getClass().getName()
+              + pathwayContext.strEncode()
+              + pathwayContext.getHash());
+    } catch (Exception e) {
+    }
     boolean injected =
         setter instanceof AgentPropagation.BinarySetter
             ? injectBinaryPathwayContext(
@@ -73,6 +83,7 @@ public class DataStreamContextInjector {
             : injectPathwayContext(pathwayContext, carrier, setter);
 
     if (injected && pathwayContext.getHash() != 0) {
+      System.out.println("context injected\n\n\n");
       span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
     }
   }
@@ -96,6 +107,7 @@ public class DataStreamContextInjector {
       PathwayContext pathwayContext, C carrier, AgentPropagation.Setter<C> setter) {
     try {
       String encodedContext = pathwayContext.strEncode();
+      System.out.println("encoded context\n\n\n" + encodedContext);
       if (encodedContext != null) {
         LOGGER.debug("Injecting pathway context {}", pathwayContext);
         setter.set(carrier, PROPAGATION_KEY_BASE64, encodedContext);
@@ -103,6 +115,7 @@ public class DataStreamContextInjector {
       }
     } catch (IOException e) {
       LOGGER.debug("Unable to set encode pathway context", e);
+      System.out.println("Unable to set encode pathway context\n\n\n");
     }
     return false;
   }

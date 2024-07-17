@@ -1,14 +1,20 @@
 package datadog.trace.instrumentation.aws.v2.sns;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
-import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkRequest;
@@ -27,13 +33,18 @@ public class SnsInterceptor implements ExecutionInterceptor {
       InstanceStore.of(ExecutionAttribute.class)
           .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
-  private SdkBytes getMessageAttributeValueToInject(ExecutionAttributes executionAttributes) {
+  private SdkBytes getMessageAttributeValueToInject(
+      ExecutionAttributes executionAttributes, LinkedHashMap<String, String> tags) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+    AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, tags, 0, 0);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append("{");
-    propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
-    jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
+    // propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    if (Config.get().isDataStreamsEnabled()) {}
+    propagate().injectPathwayContext(span, jsonBuilder, SETTER, tags);
+    // jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
     jsonBuilder.append("}");
+    System.out.println("jsonBuilder: " + jsonBuilder.toString());
     return SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
   }
 
@@ -55,7 +66,9 @@ public class SnsInterceptor implements ExecutionInterceptor {
             // strings https://github.com/DataDog/datadog-lambda-js/pull/269
             MessageAttributeValue.builder()
                 .dataType("Binary")
-                .binaryValue(this.getMessageAttributeValueToInject(executionAttributes))
+                .binaryValue(
+                    this.getMessageAttributeValueToInject(
+                        executionAttributes, getTags(request.topicArn())))
                 .build());
         return request.toBuilder().messageAttributes(modifiedMessageAttributes).build();
       }
@@ -63,7 +76,8 @@ public class SnsInterceptor implements ExecutionInterceptor {
     } else if (context.request() instanceof PublishBatchRequest) {
       PublishBatchRequest request = (PublishBatchRequest) context.request();
       ArrayList<PublishBatchRequestEntry> entries = new ArrayList<>();
-      final SdkBytes sdkBytes = this.getMessageAttributeValueToInject(executionAttributes);
+      final SdkBytes sdkBytes =
+          this.getMessageAttributeValueToInject(executionAttributes, getTags(request.topicArn()));
       for (PublishBatchRequestEntry entry : request.publishBatchRequestEntries()) {
         if (entry.messageAttributes().size() < 10) {
           Map<String, MessageAttributeValue> modifiedMessageAttributes =
@@ -77,5 +91,13 @@ public class SnsInterceptor implements ExecutionInterceptor {
       return request.toBuilder().publishBatchRequestEntries(entries).build();
     }
     return context.request();
+  }
+
+  private static LinkedHashMap<String, String> getTags(String topicARN) {
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TOPIC_TAG, topicARN);
+    sortedTags.put(TYPE_TAG, "sns");
+    return sortedTags;
   }
 }

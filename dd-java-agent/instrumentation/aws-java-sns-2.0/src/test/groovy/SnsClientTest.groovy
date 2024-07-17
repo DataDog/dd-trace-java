@@ -1,8 +1,10 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.datastreams.StatsGroup
 import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
@@ -62,6 +64,8 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     super.configurePreAgent()
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true")
+
   }
 
   @Override
@@ -139,6 +143,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
             "aws.topic.name" "testtopic"
             "topicname" "testtopic"
             "aws.requestId" response.responseMetadata().requestId()
+            "$DDTags.PATHWAY_HASH" { String }
             defaultTags()
           }
         }
@@ -147,10 +152,12 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     }
 
     and:
+    println("Message body: $messageBody")
     messageBody["Message"] == "sometext"
     String base64EncodedString = messageBody["MessageAttributes"]["_datadog"]["Value"]
     byte[] decodedBytes = base64EncodedString.decodeBase64()
     String decodedString = new String(decodedBytes, "UTF-8")
+    println("Decoded string: $decodedString")
     JsonSlurper slurper = new JsonSlurper()
     Map traceContextInJson = slurper.parseText(decodedString)
     traceContextInJson['x-datadog-trace-id'] == sendSpan.traceId.toString()

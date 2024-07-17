@@ -8,6 +8,7 @@ public class TextMapInjectAdapter implements AgentPropagation.Setter<StringBuild
 
   @Override
   public void set(final StringBuilder builder, final String key, final String value) {
+    System.out.println("Setting\n");
     builder.append("\"").append(key).append("\":\"").append(value).append("\",");
   }
 }
