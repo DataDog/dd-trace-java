@@ -29,8 +29,7 @@ onboarding_tests:
   stage: single-step-instrumentation-tests
   needs: [ oci-internal-test-ecr-publish ]
   rules:
-    #TODO ENABLE THIS BEFORE MERGE- if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "master"
-    - if: $CI_PIPELINE_SOURCE == "push"
+      if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "master"
       when: on_success
   allow_failure: false
   variables:
