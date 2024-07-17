@@ -68,8 +68,8 @@ jobs:
     env:
       TEST_LIBRARY: java
       WEBLOG_VARIANT: dd-lib-java-init-test-app
-      DOCKER_REGISTRY_IMAGES_PATH: ghcr.io/datadog
-      DOCKER_IMAGE_TAG: ${{ github.sha }}
+      LIB_INIT_IMAGE: ghcr.io/datadog/dd-trace-java/dd-lib-java-init:${{ github.sha }}
+      LIBRARY_INJECTION_TEST_APP_IMAGE: ghcr.io/datadog/system-tests/dd-lib-java-init-test-app:latest
       BUILDX_PLATFORMS: linux/amd64
     steps:
     - name: Checkout system tests
@@ -81,7 +81,7 @@ jobs:
       uses: ./.github/actions/install_runner 
 
     - name: Run K8s Lib Injection Tests
-      run: ./run.sh K8S_LIB_INJECTION_BASIC
+      run: ./run.sh K8S_LIBRARY_INJECTION_BASIC
 
     - name: Compress logs
       id: compress_logs
