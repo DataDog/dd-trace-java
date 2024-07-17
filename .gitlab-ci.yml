@@ -207,7 +207,7 @@ package-oci:
 onboarding_tests_installer:
   parallel:
     matrix:
-      - ONBOARDING_FILTER_WEBLOG: [test-app-java,test-app-java-container,test-app-java-buildpack,test-app-java-alpine]
+      - ONBOARDING_FILTER_WEBLOG: [test-app-java, test-app-java-container, test-app-java-container-jdk15, test-app-java-alpine-libgcc, test-app-java-buildpack]
 
 onboarding_tests_k8s_injection:
   variables:
