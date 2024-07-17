@@ -9,10 +9,36 @@ import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ContainsExpressionTest {
   private final ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
+
+  private List<String> list = Arrays.asList("foo", "bar", "baz");
+  private String[] arrayStr = new String[] {"foo", "bar", "baz"};
+  private int[] arrayInt = new int[] {1, 2, 3};
+  private char[] arrayChar = new char[] {'a', 'b', 'c'};
+  private long[] arrayLong = new long[] {1, 2, 3};
+  private double[] arrayDouble = new double[] {1, 2, 3};
+  private Map<String, String> mapStr = new HashMap<>();
+
+  {
+    mapStr.put("foo", "bar");
+    mapStr.put("bar", "baz");
+  }
+
+  private Set<String> setStr = new HashSet<>();
+
+  {
+    setStr.add("foo");
+    setStr.add("bar");
+  }
 
   @Test
   void nullExpression() {
@@ -43,5 +69,49 @@ class ContainsExpressionTest {
     expression = new ContainsExpression(DSL.value("abc"), new StringValue("dc"));
     assertFalse(expression.evaluate(resolver));
     assertEquals("contains(\"abc\", \"dc\")", print(expression));
+  }
+
+  @Test
+  void listExpression() {
+    ContainsExpression expression = new ContainsExpression(DSL.ref("list"), DSL.value("bar"));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(list, \"bar\")", print(expression));
+  }
+
+  @Test
+  void arrayExpression() {
+    ContainsExpression expression = new ContainsExpression(DSL.ref("arrayStr"), DSL.value("bar"));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(arrayStr, \"bar\")", print(expression));
+
+    expression = new ContainsExpression(DSL.ref("arrayInt"), DSL.value(2));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(arrayInt, 2)", print(expression));
+
+    expression = new ContainsExpression(DSL.ref("arrayChar"), DSL.value("b"));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(arrayChar, \"b\")", print(expression));
+
+    expression = new ContainsExpression(DSL.ref("arrayLong"), DSL.value(2));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(arrayLong, 2)", print(expression));
+
+    expression = new ContainsExpression(DSL.ref("arrayDouble"), DSL.value(2.0));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(arrayDouble, 2.0)", print(expression));
+  }
+
+  @Test
+  void mapExpression() {
+    ContainsExpression expression = new ContainsExpression(DSL.ref("mapStr"), DSL.value("bar"));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(mapStr, \"bar\")", print(expression));
+  }
+
+  @Test
+  void setExpression() {
+    ContainsExpression expression = new ContainsExpression(DSL.ref("setStr"), DSL.value("bar"));
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(setStr, \"bar\")", print(expression));
   }
 }

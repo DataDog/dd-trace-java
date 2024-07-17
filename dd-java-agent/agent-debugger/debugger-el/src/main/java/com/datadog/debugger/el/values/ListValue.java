@@ -131,6 +131,87 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   }
 
   @Override
+  public boolean contains(Value<?> val) {
+    if (listHolder instanceof Collection) {
+      if (WellKnownClasses.isSafe((Collection<?>) listHolder)) {
+        return ((Collection<?>) listHolder).contains(val.getValue());
+      }
+      throw new RuntimeException(
+          "Unsupported Collection class: " + listHolder.getClass().getTypeName());
+    }
+    if (arrayHolder != null) {
+      int count = Array.getLength(arrayHolder);
+      if (arrayType.isPrimitive()) {
+        if (val.getValue() == null) {
+          return false;
+        }
+        if (arrayType == byte.class) {
+          for (int i = 0; i < count; i++) {
+            if (Array.getByte(arrayHolder, i) == (Byte) val.getValue()) {
+              return true;
+            }
+          }
+        } else if (arrayType == char.class) {
+          String strValue = (String) val.getValue();
+          if (strValue.isEmpty()) {
+            return false;
+          }
+          for (int i = 0; i < count; i++) {
+            if (Array.getChar(arrayHolder, i) == strValue.charAt(0)) {
+              return true;
+            }
+          }
+        } else if (arrayType == short.class) {
+          for (int i = 0; i < count; i++) {
+            if (Array.getShort(arrayHolder, i) == ((Number) val.getValue()).intValue()) {
+              return true;
+            }
+          }
+        } else if (arrayType == int.class) {
+          for (int i = 0; i < count; i++) {
+            if (Array.getInt(arrayHolder, i) == ((Number) val.getValue()).intValue()) {
+              return true;
+            }
+          }
+        } else if (arrayType == long.class) {
+          for (int i = 0; i < count; i++) {
+            if (Array.getLong(arrayHolder, i) == (Long) val.getValue()) {
+              return true;
+            }
+          }
+        } else if (arrayType == float.class) {
+          for (int i = 0; i < count; i++) {
+            if (Array.getFloat(arrayHolder, i) == (Float) val.getValue()) {
+              return true;
+            }
+          }
+        } else if (arrayType == double.class) {
+          for (int i = 0; i < count; i++) {
+            if (Array.getDouble(arrayHolder, i) == (Double) val.getValue()) {
+              return true;
+            }
+          }
+        } else if (arrayType == boolean.class) {
+          for (int i = 0; i < count; i++) {
+            if (Array.getBoolean(arrayHolder, i) == (Boolean) val.getValue()) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+      for (int i = 0; i < count; i++) {
+        Object cellValue = Array.get(arrayHolder, i);
+        if (cellValue != null && cellValue.equals(val.getValue())) {
+          return true;
+        }
+      }
+      return false;
+    }
+    return false;
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;

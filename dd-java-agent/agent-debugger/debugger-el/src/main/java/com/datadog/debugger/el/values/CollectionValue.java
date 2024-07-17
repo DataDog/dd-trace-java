@@ -40,6 +40,11 @@ public interface CollectionValue<T> extends Value<T> {
         public boolean isNull() {
           return false;
         }
+
+        @Override
+        public boolean contains(Value<?> val) {
+          return false;
+        }
       };
 
   CollectionValue<?> NULL =
@@ -73,6 +78,11 @@ public interface CollectionValue<T> extends Value<T> {
         public boolean isNull() {
           return true;
         }
+
+        @Override
+        public boolean contains(Value<?> val) {
+          return false;
+        }
       };
 
   boolean isEmpty();
@@ -80,4 +90,6 @@ public interface CollectionValue<T> extends Value<T> {
   int count();
 
   Value<?> get(Object key);
+
+  boolean contains(Value<?> val);
 }

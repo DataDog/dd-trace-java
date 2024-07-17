@@ -83,6 +83,17 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
   }
 
   @Override
+  public boolean contains(Value<?> val) {
+    if (setHolder instanceof Set) {
+      if (WellKnownClasses.isSafe((Collection<?>) setHolder)) {
+        return ((Set<?>) setHolder).contains(val.getValue());
+      }
+      throw new RuntimeException("Unsupported Set class: " + setHolder.getClass().getTypeName());
+    }
+    return false;
+  }
+
+  @Override
   public <R> R accept(Visitor<R> visitor) {
     return visitor.visit(this);
   }
