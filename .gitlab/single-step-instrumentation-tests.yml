@@ -34,7 +34,6 @@ onboarding_tests:
   allow_failure: false
   variables:
     TEST_LIBRARY: java
-    ONBOARDING_FILTER_ENV: prod
     DD_INSTALLER_LIBRARY_VERSION: pipeline-${CI_PIPELINE_ID}
     SCENARIO: SIMPLE_INSTALLER_AUTO_INJECTION
   parallel:
