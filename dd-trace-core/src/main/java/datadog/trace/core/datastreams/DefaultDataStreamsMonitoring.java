@@ -177,6 +177,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void setProduceCheckpoint(String type, String target) {
+    setProduceCheckpoint(type, target, DataStreamsContextCarrier.NoOp.INSTANCE, false);
+  }
+
+  @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
       return new DefaultPathwayContext(timeSource, wellKnownTags);
@@ -258,8 +263,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     setCheckpoint(span, sortedTags, 0, 0);
   }
 
-  @Override
-  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+  public void setProduceCheckpoint(
+      String type, String target, DataStreamsContextCarrier carrier, boolean manualCheckpoint) {
     if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
       log.warn("SetProduceCheckpoint should be called with non-empty type and target");
       return;
@@ -273,12 +278,19 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    sortedTags.put(MANUAL_TAG, "true");
+    if (manualCheckpoint) {
+      sortedTags.put(MANUAL_TAG, "true");
+    }
     sortedTags.put(TOPIC_TAG, target);
     sortedTags.put(TYPE_TAG, type);
 
     this.injector.injectPathwayContext(
         span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
+  }
+
+  @Override
+  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+    setProduceCheckpoint(type, target, carrier, true);
   }
 
   @Override
