@@ -1,6 +1,12 @@
 package datadog.trace.instrumentation.aws.v1.sns;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v1.sns.TextMapInjectAdapter.SETTER;
 
 import com.amazonaws.AmazonWebServiceRequest;
@@ -16,6 +22,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class SnsInterceptor extends RequestHandler2 {
@@ -34,6 +41,21 @@ public class SnsInterceptor extends RequestHandler2 {
     jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
     jsonBuilder.append("}");
     return ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8));
+  }
+
+  private void injectPathwayContext(
+      AmazonWebServiceRequest request,
+      Map<String, MessageAttributeValue> messageAttributes,
+      String snsTopicName) {
+    final AgentSpan span = activeSpan() == null ? newSpan(request) : activeSpan();
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TYPE_TAG, "sns");
+    sortedTags.put(TOPIC_TAG, snsTopicName);
+
+    propagate()
+        .injectPathwayContext(
+            span, messageAttributes, MessageAttributeInjectAdapter.SETTER, sortedTags);
   }
 
   @Override
@@ -57,6 +79,14 @@ public class SnsInterceptor extends RequestHandler2 {
                 // with JSON strings
                 // https://github.com/DataDog/datadog-lambda-js/pull/269
                 .withBinaryValue(this.getMessageAttributeValueToInject(request)));
+        if (traceConfig().isDataStreamsEnabled() && messageAttributes.size() < 10) {
+          String topicName =
+              pRequest.getTopicArn() == null ? pRequest.getTargetArn() : pRequest.getTopicArn();
+          topicName = topicName.substring(topicName.lastIndexOf(':') + 1);
+
+          injectPathwayContext(request, modifiedMessageAttributes, topicName);
+        }
+
         pRequest.setMessageAttributes(modifiedMessageAttributes);
       }
     } else if (request instanceof PublishBatchRequest) {
@@ -70,6 +100,11 @@ public class SnsInterceptor extends RequestHandler2 {
           modifiedMessageAttributes.put(
               "_datadog",
               new MessageAttributeValue().withDataType("Binary").withBinaryValue(bytebuffer));
+          if (traceConfig().isDataStreamsEnabled() && messageAttributes.size() < 10) {
+            String topicName = pmbRequest.getTopicArn();
+            topicName = topicName.substring(topicName.lastIndexOf(':') + 1);
+            injectPathwayContext(request, modifiedMessageAttributes, topicName);
+          }
           entry.setMessageAttributes(modifiedMessageAttributes);
         }
       }

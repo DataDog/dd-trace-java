@@ -97,6 +97,11 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     // injected value is here
     String injectedValue = messageBody["MessageAttributes"]["_datadog"]["Value"]
     injectedValue.length() > 0
+    if(isDataStreamsEnabled()) {
+      String injectedDSMValue = messageBody["MessageAttributes"]["dd-pathway-ctx-base64"]["Value"]
+      injectedDSMValue.length() > 0
+    }
+
     // original header value is still present
     messageBody["MessageAttributes"]["mykey"] != null
   }
