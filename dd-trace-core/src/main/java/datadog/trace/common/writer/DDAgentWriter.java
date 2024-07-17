@@ -39,6 +39,8 @@ public class DDAgentWriter extends RemoteWriter {
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
+    private int flushTimeout = 1;
+    private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
     boolean alwaysFlush = false;
 
     private DDAgentApi agentApi;
@@ -116,6 +118,12 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
+    public DDAgentWriterBuilder flushTimeout(int flushTimeout, TimeUnit flushTimeoutUnit) {
+      this.flushTimeout = flushTimeout;
+      this.flushTimeoutUnit = flushTimeoutUnit;
+      return this;
+    }
+
     public DDAgentWriterBuilder alwaysFlush(boolean alwaysFlush) {
       this.alwaysFlush = alwaysFlush;
       return this;
@@ -157,7 +165,13 @@ public class DDAgentWriter extends RemoteWriter {
               singleSpanSampler,
               null);
 
-      return new DDAgentWriter(traceProcessingWorker, dispatcher, healthMetrics, alwaysFlush);
+      return new DDAgentWriter(
+          traceProcessingWorker,
+          dispatcher,
+          healthMetrics,
+          flushTimeout,
+          flushTimeoutUnit,
+          alwaysFlush);
     }
   }
 
@@ -165,7 +179,9 @@ public class DDAgentWriter extends RemoteWriter {
       TraceProcessingWorker worker,
       PayloadDispatcher dispatcher,
       HealthMetrics healthMetrics,
+      int flushTimeout,
+      TimeUnit flushTimeoutUnit,
       boolean alwaysFlush) {
-    super(worker, dispatcher, healthMetrics, alwaysFlush);
+    super(worker, dispatcher, healthMetrics, flushTimeout, flushTimeoutUnit, alwaysFlush);
   }
 }
