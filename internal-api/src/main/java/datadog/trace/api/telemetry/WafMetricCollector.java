@@ -2,7 +2,7 @@ package datadog.trace.api.telemetry;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -30,9 +30,9 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafTriggeredRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
-  private static final Map<RuleType, AtomicLong> raspRuleEvalCounter = new HashMap<>();
-  private static final Map<RuleType, AtomicLong> raspRuleMatchCounter = new HashMap<>();
-  private static final Map<RuleType, AtomicLong> respTimeoutCounter = new HashMap<>();
+  private static final Map<RuleType, AtomicLong> raspRuleEvalCounter = new EnumMap<>(RuleType.class);
+  private static final Map<RuleType, AtomicLong> raspRuleMatchCounter = new EnumMap<>(RuleType.class);
+  private static final Map<RuleType, AtomicLong> respTimeoutCounter = new EnumMap<>(RuleType.class);
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
