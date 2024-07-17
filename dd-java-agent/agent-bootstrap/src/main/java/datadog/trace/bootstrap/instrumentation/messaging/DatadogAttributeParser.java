@@ -39,7 +39,7 @@ public final class DatadogAttributeParser {
       return;
     }
     try {
-      forEachProperty(classifier, UTF_8.decode(BASE_64.decode(json)).toString());
+      forEachProperty(classifier, UTF_8.decode(json).toString());
     } catch (Exception e) {
       log.debug("Problem decoding _datadog context", e);
     }
