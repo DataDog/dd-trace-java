@@ -1,6 +1,11 @@
 package datadog.trace.instrumentation.aws.v2.sns;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
 import datadog.trace.api.TracePropagationStyle;
@@ -9,7 +14,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.Context;
@@ -37,6 +44,21 @@ public class SnsInterceptor implements ExecutionInterceptor {
     return SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
   }
 
+  private void injectPathwayContext(
+      ExecutionAttributes executionAttributes,
+      Map<String, MessageAttributeValue> messageAttributes,
+      Optional<String> snsTopicName) {
+    final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TYPE_TAG, "sns");
+    snsTopicName.ifPresent(topic -> sortedTags.put(TOPIC_TAG, topic));
+
+    propagate()
+        .injectPathwayContext(
+            span, messageAttributes, MessageAttributeInjectAdapter.SETTER, sortedTags);
+  }
+
   public SnsInterceptor() {}
 
   @Override
@@ -57,6 +79,17 @@ public class SnsInterceptor implements ExecutionInterceptor {
                 .dataType("Binary")
                 .binaryValue(this.getMessageAttributeValueToInject(executionAttributes))
                 .build());
+        // DSM
+        // Check if there is space in message attributes to inject the data streams context
+        if (traceConfig().isDataStreamsEnabled() && modifiedMessageAttributes.size() < 10) {
+          Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
+          if (!snsTopicArn.isPresent()) {
+            snsTopicArn = request.getValueForField("TargetArn", String.class);
+          }
+          Optional<String> snsTopicName =
+              snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+          injectPathwayContext(executionAttributes, modifiedMessageAttributes, snsTopicName);
+        }
         return request.toBuilder().messageAttributes(modifiedMessageAttributes).build();
       }
       return request;
@@ -72,6 +105,17 @@ public class SnsInterceptor implements ExecutionInterceptor {
               "_datadog",
               MessageAttributeValue.builder().dataType("Binary").binaryValue(sdkBytes).build());
           entries.add(entry.toBuilder().messageAttributes(modifiedMessageAttributes).build());
+          // DSM
+          // Check if there is space in message attributes to inject the data streams context
+          if (traceConfig().isDataStreamsEnabled() && modifiedMessageAttributes.size() < 10) {
+            Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
+            if (!snsTopicArn.isPresent()) {
+              snsTopicArn = request.getValueForField("TargetArn", String.class);
+            }
+            Optional<String> snsTopicName =
+                snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+            injectPathwayContext(executionAttributes, modifiedMessageAttributes, snsTopicName);
+          }
         }
       }
       return request.toBuilder().publishBatchRequestEntries(entries).build();
