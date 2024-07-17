@@ -34,29 +34,18 @@ public class SnsInterceptor implements ExecutionInterceptor {
       InstanceStore.of(ExecutionAttribute.class)
           .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
-  private SdkBytes getMessageAttributeValueToInject(ExecutionAttributes executionAttributes) {
+  private SdkBytes getMessageAttributeValueToInject(
+      ExecutionAttributes executionAttributes, Optional<String> snsTopicName) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append("{");
     propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    if (traceConfig().isDataStreamsEnabled()) {
+      propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(snsTopicName));
+    }
     jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
     jsonBuilder.append("}");
     return SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
-  }
-
-  private void injectPathwayContext(
-      ExecutionAttributes executionAttributes,
-      Map<String, MessageAttributeValue> messageAttributes,
-      Optional<String> snsTopicName) {
-    final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    sortedTags.put(TYPE_TAG, "sns");
-    snsTopicName.ifPresent(topic -> sortedTags.put(TOPIC_TAG, topic));
-
-    propagate()
-        .injectPathwayContext(
-            span, messageAttributes, MessageAttributeInjectAdapter.SETTER, sortedTags);
   }
 
   public SnsInterceptor() {}
@@ -70,6 +59,13 @@ public class SnsInterceptor implements ExecutionInterceptor {
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
       if (request.messageAttributes().size() < 10) {
+        // Get topic name for DSM
+        Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
+        if (!snsTopicArn.isPresent()) {
+          snsTopicArn = request.getValueForField("TargetArn", String.class);
+        }
+        Optional<String> snsTopicName =
+            snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
         Map<String, MessageAttributeValue> modifiedMessageAttributes =
             new HashMap<>(request.messageAttributes());
         modifiedMessageAttributes.put(
@@ -77,26 +73,24 @@ public class SnsInterceptor implements ExecutionInterceptor {
             // strings https://github.com/DataDog/datadog-lambda-js/pull/269
             MessageAttributeValue.builder()
                 .dataType("Binary")
-                .binaryValue(this.getMessageAttributeValueToInject(executionAttributes))
+                .binaryValue(
+                    this.getMessageAttributeValueToInject(executionAttributes, snsTopicName))
                 .build());
-        // DSM
-        // Check if there is space in message attributes to inject the data streams context
-        if (traceConfig().isDataStreamsEnabled() && modifiedMessageAttributes.size() < 10) {
-          Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
-          if (!snsTopicArn.isPresent()) {
-            snsTopicArn = request.getValueForField("TargetArn", String.class);
-          }
-          Optional<String> snsTopicName =
-              snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
-          injectPathwayContext(executionAttributes, modifiedMessageAttributes, snsTopicName);
-        }
         return request.toBuilder().messageAttributes(modifiedMessageAttributes).build();
       }
       return request;
     } else if (context.request() instanceof PublishBatchRequest) {
       PublishBatchRequest request = (PublishBatchRequest) context.request();
+      // Get topic name for DSM
+      Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
+      if (!snsTopicArn.isPresent()) {
+        snsTopicArn = request.getValueForField("TargetArn", String.class);
+      }
+      Optional<String> snsTopicName =
+          snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
       ArrayList<PublishBatchRequestEntry> entries = new ArrayList<>();
-      final SdkBytes sdkBytes = this.getMessageAttributeValueToInject(executionAttributes);
+      final SdkBytes sdkBytes =
+          this.getMessageAttributeValueToInject(executionAttributes, snsTopicName);
       for (PublishBatchRequestEntry entry : request.publishBatchRequestEntries()) {
         if (entry.messageAttributes().size() < 10) {
           Map<String, MessageAttributeValue> modifiedMessageAttributes =
@@ -105,21 +99,19 @@ public class SnsInterceptor implements ExecutionInterceptor {
               "_datadog",
               MessageAttributeValue.builder().dataType("Binary").binaryValue(sdkBytes).build());
           entries.add(entry.toBuilder().messageAttributes(modifiedMessageAttributes).build());
-          // DSM
-          // Check if there is space in message attributes to inject the data streams context
-          if (traceConfig().isDataStreamsEnabled() && modifiedMessageAttributes.size() < 10) {
-            Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
-            if (!snsTopicArn.isPresent()) {
-              snsTopicArn = request.getValueForField("TargetArn", String.class);
-            }
-            Optional<String> snsTopicName =
-                snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
-            injectPathwayContext(executionAttributes, modifiedMessageAttributes, snsTopicName);
-          }
         }
       }
       return request.toBuilder().publishBatchRequestEntries(entries).build();
     }
     return context.request();
+  }
+
+  private LinkedHashMap<String, String> getTags(Optional<String> snsTopicName) {
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TYPE_TAG, "sns");
+    snsTopicName.ifPresent(topic -> sortedTags.put(TOPIC_TAG, topic));
+
+    return sortedTags;
   }
 }

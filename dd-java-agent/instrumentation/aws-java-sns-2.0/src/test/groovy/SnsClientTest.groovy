@@ -97,10 +97,6 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     // injected value is here
     String injectedValue = messageBody["MessageAttributes"]["_datadog"]["Value"]
     injectedValue.length() > 0
-    if(isDataStreamsEnabled()) {
-      String injectedDSMValue = messageBody["MessageAttributes"]["dd-pathway-ctx-base64"]["Value"]
-      injectedDSMValue.length() > 0
-    }
 
     // original header value is still present
     messageBody["MessageAttributes"]["mykey"] != null
@@ -169,12 +165,6 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
         edgeTags == ["direction:out", "topic:testtopic", "type:sns"]
         edgeTags.size() == 3
       }
-
-      String DSMbase64EncodedString = messageBody["MessageAttributes"]["dd-pathway-ctx-base64"]["Value"]
-      byte[] decodedBytes = DSMbase64EncodedString.decodeBase64()
-      String DSMdecodedString = new String(decodedBytes, "UTF-8")
-      assert DSMdecodedString != null && !DSMdecodedString.isBlank()
-
     }
 
     messageBody["Message"] == "sometext"
@@ -186,6 +176,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     traceContextInJson['x-datadog-trace-id'] == sendSpan.traceId.toString()
     traceContextInJson['x-datadog-parent-id'] == sendSpan.spanId.toString()
     traceContextInJson['x-datadog-sampling-priority'] == "1"
+    !traceContextInJson['dd-pathway-ctx-base64'].toString().isBlank()
   }
 }
 
