@@ -89,6 +89,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     return props
   }
 
+  protected getDbType(String dbType){
+    return dbType
+  }
+
   def prepareConnectionPoolDatasources() {
     String[] connectionPoolNames = ["tomcat", "hikari", "c3p0",]
     connectionPoolNames.each { cpName ->
@@ -158,10 +162,6 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     return ds
   }
 
-  def getSQLServerInstrumentationSpan(){
-
-  }
-
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -219,15 +219,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
-    final databaseNaming = new DatabaseNamingV1()
-    def normalizedDbType= databaseNaming.normalizedName(driver)
     if (driver == POSTGRESQL || driver == MYSQL || !addDbmTag) {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
           span {
             serviceName renameService ? dbName.get(driver).toLowerCase() : service(driver)
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
             childOf span(0)
@@ -236,7 +234,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               "$Tags.PEER_HOSTNAME" String
               // currently there is a bug in the instrumentation with
@@ -259,7 +257,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
           basicSpan(it, "parent")
           span {
             serviceName renameService ? dbName.get(driver).toLowerCase() : service(driver)
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
             childOf span(0)
@@ -268,7 +266,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
@@ -279,7 +277,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
           }
           span {
             serviceName renameService ? dbName.get(driver).toLowerCase() : service(driver)
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             resourceName "set context_info ?"
             spanType DDSpanTypes.SQL
             childOf span(0)
@@ -288,7 +286,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
@@ -336,14 +334,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    final databaseNaming = new DatabaseNamingV1()
-    def normalizedDbType= databaseNaming.normalizedName(driver)
     if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
           span {
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             serviceName service(driver)
             resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
@@ -353,7 +349,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-prepared_statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               // only set when there is an out of proc instance (postgresql, mysql)
               "$Tags.PEER_HOSTNAME" String
@@ -373,7 +369,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
         trace(3) {
           basicSpan(it, "parent")
           span {
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             serviceName service(driver)
             resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
@@ -383,7 +379,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-prepared_statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
@@ -394,7 +390,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
           }
           span {
             serviceName service(driver)
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             resourceName "set context_info ?"
             spanType DDSpanTypes.SQL
             childOf span(0)
@@ -403,7 +399,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
@@ -449,14 +445,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    final databaseNaming = new DatabaseNamingV1()
-    def normalizedDbType= databaseNaming.normalizedName(driver)
     if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
           span {
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             serviceName service(driver)
             resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
@@ -466,7 +460,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-prepared_statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               // only set when there is an out of proc instance (postgresql, mysql)
               "$Tags.PEER_HOSTNAME" String
@@ -486,7 +480,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
         trace(3) {
           basicSpan(it, "parent")
           span {
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             serviceName service(driver)
             resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
@@ -496,7 +490,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-prepared_statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               // only set when there is an out of proc instance (postgresql, mysql)
               "$Tags.PEER_HOSTNAME" String
@@ -511,7 +505,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
           }
           span {
             serviceName service(driver)
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             resourceName "set context_info ?"
             spanType DDSpanTypes.SQL
             childOf span(0)
@@ -520,7 +514,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
@@ -566,14 +560,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    final databaseNaming = new DatabaseNamingV1()
-    def normalizedDbType= databaseNaming.normalizedName(driver)
     if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
           span {
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             serviceName service(driver)
             resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
@@ -583,7 +575,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-prepared_statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               // only set when there is an out of proc instance (postgresql, mysql)
               "$Tags.PEER_HOSTNAME" String
@@ -602,7 +594,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
         trace(3) {
           basicSpan(it, "parent")
           span {
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             serviceName service(driver)
             resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
@@ -612,7 +604,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-prepared_statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
@@ -622,7 +614,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
           }
           span {
             serviceName service(driver)
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             resourceName "set context_info ?"
             spanType DDSpanTypes.SQL
             childOf span(0)
@@ -631,7 +623,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
@@ -679,14 +671,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     def addDbmTag = dbmTraceInjected()
     statement.updateCount == 0
-    final databaseNaming = new DatabaseNamingV1()
-    def normalizedDbType= databaseNaming.normalizedName(driver)
     if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
       assertTraces(1) {
         trace(2) {
           basicSpan(it, "parent")
           span {
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             serviceName service(driver)
             resourceName query
             spanType DDSpanTypes.SQL
@@ -695,7 +685,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               // only set when there is an out of proc instance (postgresql, mysql)
               "$Tags.PEER_HOSTNAME" String
@@ -718,7 +708,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
         trace(3) {
           basicSpan(it, "parent")
           span {
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             serviceName service(driver)
             resourceName query
             spanType DDSpanTypes.SQL
@@ -727,7 +717,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               // only set when there is an out of proc instance (postgresql, mysql)
               "$Tags.PEER_HOSTNAME" String
@@ -742,7 +732,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
           }
           span {
             serviceName service(driver)
-            operationName this.operation(normalizedDbType)
+            operationName this.operation(this.getDbType(driver))
             resourceName "set context_info ?"
             spanType DDSpanTypes.SQL
             childOf span(0)
@@ -751,7 +741,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
             tags {
               "$Tags.COMPONENT" "java-jdbc-statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-              "$Tags.DB_TYPE" normalizedDbType
+              "$Tags.DB_TYPE" this.getDbType(driver)
               "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
@@ -977,6 +967,12 @@ class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTes
   protected boolean dbmTraceInjected() {
     return false
   }
+
+  @Override
+  protected String getDbType(String dbType) {
+    final databaseNaming = new DatabaseNamingV1()
+    return databaseNaming.normalizedName(dbType)
+  }
 }
 
 class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
@@ -1005,5 +1001,11 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
   @Override
   protected String operation(String dbType) {
     return "${dbType}.query"
+  }
+
+  @Override
+  protected String getDbType(String dbType) {
+    final databaseNaming = new DatabaseNamingV1()
+    return databaseNaming.normalizedName(dbType)
   }
 }
