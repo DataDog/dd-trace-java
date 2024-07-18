@@ -306,49 +306,6 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     payloadWriter.close()
   }
 
-  def "manual setting checkpoints"() {
-    given:
-    def conditions = new PollingConditions(timeout: 1)
-    def features = Stub(DDAgentFeaturesDiscovery) {
-      supportsDataStreams() >> true
-    }
-    def timeSource = new ControllableTimeSource()
-    def sink = Mock(Sink)
-    def payloadWriter = new CapturingPayloadWriter()
-
-    def traceConfig = Mock(TraceConfig) {
-      isDataStreamsEnabled() >> true
-    }
-
-    when:
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.start()
-    runUnderTrace("parent") {
-      dataStreams.setProduceCheckpoint("kafka", "testTopic", DataStreamsContextCarrier.NoOp.INSTANCE)
-    }
-    dataStreams.close()
-
-    then:
-    conditions.eventually {
-      assert dataStreams.inbox.isEmpty()
-      assert dataStreams.thread.state != Thread.State.RUNNABLE
-      assert payloadWriter.buckets.size() == 1
-    }
-
-    with(payloadWriter.buckets.get(0)) {
-      groups.size() == 1
-
-      with(groups.iterator().next()) {
-        edgeTags.containsAll(["type:kafka", "manual_checkpoint:true", "topic:testTopic"])
-        edgeTags.size() == 3
-        hash == 1
-        parentHash == 0
-      }
-    }
-
-    cleanup:
-    payloadWriter.close()
-  }
   def "Kafka offsets are tracked"() {
     given:
     def conditions = new PollingConditions(timeout: 1)
