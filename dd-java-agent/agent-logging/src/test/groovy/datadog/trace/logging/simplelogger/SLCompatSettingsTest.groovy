@@ -103,6 +103,8 @@ class SLCompatSettingsTest extends Specification {
 
     expect:
     file.exists()
+    settings.printStream != System.err
+    settings.printStream != System.out
 
     cleanup:
     settings.printStream.close()
@@ -144,8 +146,6 @@ class SLCompatSettingsTest extends Specification {
     expect:
     !file.exists()
     ((PrintStreamWrapper) settings.printStream).getMainPrintStream() == System.err
-
-
 
     cleanup:
     dir.setWritable(true, true)

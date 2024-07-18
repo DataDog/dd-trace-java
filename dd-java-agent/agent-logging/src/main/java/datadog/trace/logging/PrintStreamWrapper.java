@@ -1,5 +1,6 @@
 package datadog.trace.logging;
 
+import datadog.trace.api.Platform;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
@@ -7,15 +8,10 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 
 public class PrintStreamWrapper extends PrintStream {
-  private static final String lineSeparator = System.getProperty("line.separator");
-  private static final byte[] lineSeparatorBytes = lineSeparator.getBytes();
-  private static final int lineSeparatorLength = lineSeparatorBytes.length;
-
-  private static boolean captureOutput = false;
-  private static int currentSize = 0;
-  private static PrintStream printStream = null;
-  private static FileOutputStream fileOutputStream = null;
-  private static String logFile = null;
+  private static final int lineSeparatorLength = Platform.isWindows() ? 2 : 1;
+  private boolean captureOutput = false;
+  private int currentSize = 0;
+  private PrintStream printStream = null;
 
   public PrintStreamWrapper(PrintStream ps) {
     super(ps);
@@ -29,7 +25,7 @@ public class PrintStreamWrapper extends PrintStream {
   public void println(String x) {
     super.println(x); // log as usual
     if (captureOutput) {
-      currentSize += x.getBytes().length + lineSeparatorLength;
+      currentSize += x.length() + lineSeparatorLength;
       if (currentSize < LogReporter.MAX_LOGFILE_SIZE_BYTES) {
         synchronized (this) {
           printStream.println(x);
@@ -46,12 +42,12 @@ public class PrintStreamWrapper extends PrintStream {
     println(s);
   }
 
-  public static void start(Path filepath) {
+  public void start(Path filepath) {
     clean();
     try {
       if (filepath != null) {
-        logFile = filepath.toString();
-        fileOutputStream = new FileOutputStream(logFile);
+        String logFile = filepath.toString();
+        FileOutputStream fileOutputStream = new FileOutputStream(logFile);
         printStream = new PrintStream(fileOutputStream, true);
         captureOutput = true;
       }
@@ -60,14 +56,11 @@ public class PrintStreamWrapper extends PrintStream {
     }
   }
 
-  public static void clean() {
-
+  public void clean() {
     if (printStream != null) {
       printStream.close();
       printStream = null;
     }
-    fileOutputStream = null;
-    logFile = null;
     captureOutput = false;
     currentSize = 0;
   }

@@ -167,12 +167,14 @@ public class SLCompatSettings {
   }
 
   static PrintStream getPrintStream(String logFile) {
-    LogReporter.register();
+    PrintStreamWrapper printStreamWrapper;
     switch (logFile.toLowerCase(Locale.ROOT)) {
       case "system.err":
-        return new PrintStreamWrapper(System.err);
+        printStreamWrapper = new PrintStreamWrapper(System.err);
+        break;
       case "system.out":
-        return new PrintStreamWrapper(System.out);
+        printStreamWrapper = new PrintStreamWrapper(System.out);
+        break;
       default:
         FileOutputStream outputStream = null;
         try {
@@ -183,6 +185,7 @@ public class SLCompatSettings {
           }
           outputStream = new FileOutputStream(outputFile);
           PrintStream printStream = new PrintStream(outputStream, true);
+          LogReporter.register(outputFile);
           return printStream;
         } catch (IOException | SecurityException e) {
           if (outputStream != null) {
@@ -193,9 +196,11 @@ public class SLCompatSettings {
             }
           }
           // TODO maybe have support for delayed logging of early failures?
-          return new PrintStreamWrapper(System.err);
+          printStreamWrapper = new PrintStreamWrapper(System.err);
         }
     }
+    LogReporter.register(printStreamWrapper);
+    return printStreamWrapper;
   }
 
   private static final class ResourceStreamPrivilegedAction

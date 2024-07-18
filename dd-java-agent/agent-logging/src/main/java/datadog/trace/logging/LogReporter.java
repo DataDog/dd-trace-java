@@ -16,24 +16,31 @@ public class LogReporter implements TracerFlare.Reporter {
   private static final LogReporter INSTANCE = new LogReporter();
   private static final int MAX_LOGFILE_SIZE_MB = 15;
   public static final int MAX_LOGFILE_SIZE_BYTES = MAX_LOGFILE_SIZE_MB << 20;
-  private static Path capturedLogPath;
-  private final String configuredLogFile;
+  private Path capturedLogPath;
   private boolean isFlarePrepared;
+  private static File outputConfiguredFile;
+  private static PrintStreamWrapper outputPrintStreamWrapper;
 
-  public LogReporter() {
-    // org.slf4j.simpleLogger.logFile transformed as datadog.slf4j.simpleLogger.logFile in the final
-    // dd-java-agent jar
-    this.configuredLogFile = System.getProperty("org.slf4j.simpleLogger.logFile");
+  public LogReporter() {}
+
+  public static void register(PrintStreamWrapper printStreamWrapper) {
+    outputPrintStreamWrapper = printStreamWrapper;
+    register();
   }
 
-  public static void register() {
+  public static void register(File configuredFile) {
+    outputConfiguredFile = configuredFile;
+    register();
+  }
+
+  private static void register() {
     TracerFlare.addReporter(INSTANCE);
   }
 
   @Override
   public void prepareForFlare() {
     isFlarePrepared = true;
-    if (logFileIsNotConfigured()) {
+    if (outputPrintStreamWrapper != null) {
       long endMillis = System.currentTimeMillis();
       String captureFilename =
           "tracer" + "-" + Config.get().getRuntimeId() + "-" + endMillis + ".log";
@@ -44,7 +51,7 @@ public class LogReporter implements TracerFlare.Reporter {
           Files.createDirectories(parentPath);
         }
         capturedLogPath = Files.createFile(tempPath);
-        PrintStreamWrapper.start(capturedLogPath);
+        outputPrintStreamWrapper.start(capturedLogPath);
       } catch (IOException e) {
         // Nothing to do, file creation failed, we don't have access to log yet
       }
@@ -53,7 +60,7 @@ public class LogReporter implements TracerFlare.Reporter {
 
   @Override
   public void addReportToFlare(ZipOutputStream zip) throws IOException {
-    if (logFileIsNotConfigured()) {
+    if (outputConfiguredFile == null) {
       if (isFlarePrepared) {
         try {
           if (capturedLogPath != null) {
@@ -69,7 +76,7 @@ public class LogReporter implements TracerFlare.Reporter {
       }
 
     } else {
-      Path path = Paths.get(configuredLogFile);
+      Path path = Paths.get(outputConfiguredFile.getPath());
       if (Files.exists(path)) {
         try {
           long size = Files.size(path);
@@ -97,24 +104,19 @@ public class LogReporter implements TracerFlare.Reporter {
   @Override
   public void cleanupAfterFlare() {
     isFlarePrepared = false;
-    try {
-      PrintStreamWrapper.clean();
-      File outputFile = capturedLogPath.toFile();
-      if (outputFile.exists()) {
-        if (!outputFile.delete()) {
-          throw new RuntimeException("Failed to delete file: " + capturedLogPath);
+    if (outputPrintStreamWrapper != null) {
+      try {
+        outputPrintStreamWrapper.clean();
+        File outputFile = capturedLogPath.toFile();
+        if (outputFile.exists()) {
+          if (!outputFile.delete()) {
+            throw new RuntimeException("Failed to delete file: " + capturedLogPath);
+          }
         }
+      } catch (Exception e) {
+        // not sure what to do here
       }
-
-    } catch (Exception e) {
-      // not sure what to do here
-
+      capturedLogPath = null;
     }
-  }
-
-  private boolean logFileIsNotConfigured() {
-    return configuredLogFile == null
-        || configuredLogFile.isEmpty()
-        || !(new File(configuredLogFile).exists());
   }
 }
