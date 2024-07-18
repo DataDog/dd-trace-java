@@ -6,9 +6,14 @@ public enum RuleType {
   SSRF("ssrf");
 
   public final String name;
+  private static final int numValues = RuleType.values().length;
 
   RuleType(String name) {
     this.name = name;
+  }
+
+  public static int getNumValues() {
+    return numValues;
   }
 
   @Override
