@@ -549,6 +549,7 @@ public class CustomSecurityManager extends SecurityManager {
       case "http.proxyHost":
       case "proxyHost":
       case "socksProxyHost":
+      case "http.nonProxyHosts":
         return true;
 
       default:
