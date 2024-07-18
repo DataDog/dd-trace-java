@@ -60,8 +60,7 @@ public class SnsInterceptor implements ExecutionInterceptor {
       if (request.messageAttributes().size() < 10) {
         // Get topic name for DSM
         String snsTopicArn = request.topicArn() == null ? request.targetArn() : request.topicArn();
-        String snsTopicName =
-         snsTopicArn.substring(snsTopicArn.lastIndexOf(':') + 1);
+        String snsTopicName = snsTopicArn.substring(snsTopicArn.lastIndexOf(':') + 1);
         Map<String, MessageAttributeValue> modifiedMessageAttributes =
             new HashMap<>(request.messageAttributes());
         modifiedMessageAttributes.put(
