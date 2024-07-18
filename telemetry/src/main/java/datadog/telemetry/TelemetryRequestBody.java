@@ -8,10 +8,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
-import datadog.trace.api.Config;
-import datadog.trace.api.ConfigSetting;
-import datadog.trace.api.DDTags;
-import datadog.trace.api.Platform;
+import datadog.trace.api.*;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
@@ -264,7 +261,52 @@ public class TelemetryRequestBody extends RequestBody {
     endMessageIfBatch(RequestType.APP_DEPENDENCIES_LOADED);
   }
 
-  public void writeProducts(
+  /**
+   * Use a Pair of booleans to optionally write the products section of the telemetry request. left
+   * element is a boolean indicating if the products section should be written, right element is the
+   * enabling value.
+   */
+  public void writeChangedProducts(
+      Pair<Boolean, Boolean> appsecEnabling,
+      Pair<Boolean, Boolean> profilerEnabling,
+      Pair<Boolean, Boolean> dynamicInstrumentationEnabling)
+      throws IOException {
+
+    if (!appsecEnabling.hasLeft()
+        && !profilerEnabling.hasLeft()
+        && !dynamicInstrumentationEnabling.hasLeft()) {
+      return;
+    }
+    bodyWriter.beginObject();
+    bodyWriter.name("products");
+    bodyWriter.beginObject();
+
+    if (appsecEnabling.getLeft()) {
+      bodyWriter.name("appsec");
+      bodyWriter.beginObject();
+      bodyWriter.name("enabled").value(appsecEnabling.getRight());
+      bodyWriter.endObject();
+    }
+
+    if (appsecEnabling.getLeft()) {
+      bodyWriter.name("profiler");
+      bodyWriter.beginObject();
+      bodyWriter.name("enabled").value(profilerEnabling.getRight());
+      bodyWriter.endObject();
+    }
+
+    if (appsecEnabling.getLeft()) {
+      bodyWriter.name("dynamic_instrumentation");
+      bodyWriter.beginObject();
+      bodyWriter.name("enabled").value(dynamicInstrumentationEnabling.getRight());
+      bodyWriter.endObject();
+    }
+
+    bodyWriter.endObject();
+    bodyWriter.endObject();
+  }
+
+  public void writeChangedProducts(
       boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
       throws IOException {
     bodyWriter.name("products");

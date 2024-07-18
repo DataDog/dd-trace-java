@@ -120,6 +120,7 @@ public class TelemetryRunnable implements Runnable {
     }
 
     if (scheduler.shouldRunHeartbeat()) {
+      telemetryService.sendAppProductChange();
       for (final TelemetryPeriodicAction action : this.actions) {
         action.doIteration(this.telemetryService);
       }

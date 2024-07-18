@@ -8,11 +8,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
-import datadog.trace.api.Config;
-import datadog.trace.api.ConfigSetting;
-import datadog.trace.api.DDTags;
-import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.ProductActivation;
+import datadog.trace.api.*;
 import java.io.IOException;
 import okhttp3.MediaType;
 import okhttp3.Request;
@@ -89,17 +85,25 @@ public class TelemetryRequest {
     }
   }
 
-  public void writeProducts() {
-    InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
-    Config config = Config.get();
+  public void writeProducts(
+      boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled) {
     try {
-      boolean appsecEnabled =
-          instrumenterConfig.getAppSecActivation() != ProductActivation.FULLY_DISABLED;
-      boolean profilerEnabled = instrumenterConfig.isProfilingEnabled();
-      boolean dynamicInstrumentationEnabled = config.isDebuggerEnabled();
-      requestBody.writeProducts(appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
+      requestBody.writeChangedProducts(
+          appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
+    }
+  }
+
+  public void writeChangedProducts(
+      Pair<Boolean, Boolean> appsecEnabling,
+      Pair<Boolean, Boolean> profilerEnabling,
+      Pair<Boolean, Boolean> dynamicInstrumentationEnabling) {
+    try {
+      requestBody.writeChangedProducts(
+          appsecEnabling, profilerEnabling, dynamicInstrumentationEnabling);
+    } catch (IOException e) {
+      throw new TelemetryRequestBody.SerializationException("changed-products", e);
     }
   }
 

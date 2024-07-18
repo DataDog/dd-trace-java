@@ -7,7 +7,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
-import datadog.trace.api.ConfigSetting;
+import datadog.trace.api.*;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -45,6 +45,13 @@ public class TelemetryService {
    */
   private boolean openTracingIntegrationEnabled;
   private boolean openTelemetryIntegrationEnabled;
+
+  /*
+   * Keep track of Product enabling.
+   */
+  private boolean appsecEnabled;
+  private boolean profilerEnabled;
+  private boolean dynamicInstrumentationEnabled;
 
   public static TelemetryService build(
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
@@ -146,7 +153,13 @@ public class TelemetryService {
     TelemetryRequest request =
         new TelemetryRequest(
             eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
-    request.writeProducts();
+
+    this.appsecEnabled =
+        InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED;
+    this.profilerEnabled = InstrumenterConfig.get().isProfilingEnabled();
+    this.dynamicInstrumentationEnabled = Config.get().isDebuggerEnabled();
+
+    request.writeProducts(appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
     request.writeConfigurations();
     request.writeInstallSignature();
     if (telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS) {
@@ -233,6 +246,46 @@ public class TelemetryService {
       log.warn("Telemetry Extended Heartbeat data does NOT fit in one request.");
     }
     return result == TelemetryClient.Result.SUCCESS;
+  }
+
+  /** Send app-product-change request with changed product enabled status if any. */
+  public boolean sendAppProductChange() {
+    boolean isAppsecEnabled =
+        Config.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED;
+    boolean isProfilingEnabled = InstrumenterConfig.get().isProfilingEnabled();
+    boolean isDynamicInstrumentationEnabled = Config.get().isDebuggerEnabled();
+
+    boolean hasAppsecEnabledChanged = isAppsecEnabled != this.appsecEnabled;
+    boolean hasProfilingEnabledChanged = isProfilingEnabled != this.profilerEnabled;
+    boolean hasDynamicInstrumentationEnabledChanged =
+        isDynamicInstrumentationEnabled != this.dynamicInstrumentationEnabled;
+
+    if (!hasAppsecEnabledChanged
+        && !hasProfilingEnabledChanged
+        && !hasDynamicInstrumentationEnabledChanged) {
+      log.debug("No product change detected");
+      return false;
+    }
+    log.debug("Preparing app-product-change request");
+    TelemetryRequest request =
+        new TelemetryRequest(
+            this.eventSource,
+            EventSink.NOOP,
+            messageBytesSoftLimit,
+            RequestType.APP_PRODUCT_CHANGE,
+            debug);
+    request.writeChangedProducts(
+        Pair.of(hasAppsecEnabledChanged, isAppsecEnabled),
+        Pair.of(hasProfilingEnabledChanged, isProfilingEnabled),
+        Pair.of(hasProfilingEnabledChanged, isDynamicInstrumentationEnabled));
+    boolean result = telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS;
+    if (result) {
+      log.debug("App product change request has been sent successfully. Updating product status");
+      this.appsecEnabled = isAppsecEnabled;
+      this.profilerEnabled = isProfilingEnabled;
+      this.dynamicInstrumentationEnabled = isDynamicInstrumentationEnabled;
+    }
+    return result;
   }
 
   void warnAboutExclusiveIntegrations() {

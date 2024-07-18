@@ -3,6 +3,7 @@ package datadog.telemetry
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.Pair
 import okio.Buffer
 import okhttp3.RequestBody
 import spock.lang.Specification
@@ -105,6 +106,35 @@ class TelemetryRequestBodySpecification extends Specification {
 
     then:
     drainToString(req).contains("\"debug\":true")
+  }
+
+  void 'test writeChangedProducts'(){
+    setup:
+    TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_PRODUCT_CHANGE)
+
+    when:
+    req.writeChangedProducts(Pair.of(appsecChange, appsecEnabled), Pair.of(profilerChange,profilerEnabled), Pair.of(dynamicInstrumentationChange, dynamicInstrumentationEnabled))
+
+    then:
+    final result = drainToString(req)
+    if(appsecChange) {
+      result.contains("\"appsec.enabled\":${appsecEnabled}")
+    }
+    if(profilerChange) {
+      result.contains("\"profiler.enabled\":${profilerEnabled}")
+    }
+    if (dynamicInstrumentationChange) {
+      result.contains("\"dynamic_instrumentation.enabled\":${dynamicInstrumentationEnabled}")
+    }
+
+    where:
+    appsecChange | profilerChange | dynamicInstrumentationChange | appsecEnabled | profilerEnabled | dynamicInstrumentationEnabled
+    true         | true           | true                         | true          | true            | true
+    true         | true           | true                         | false         | false           | false
+    false        | false          | false                        | true          | true            | true
+    false        | true           | true                         | true          | true            | true
+    true         | false          | true                         | true          | true            | true
+    true         | true           | false                        | true          | true            | true
   }
 
   String drainToString(RequestBody body) {
