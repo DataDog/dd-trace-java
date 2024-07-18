@@ -1,5 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
@@ -24,15 +26,17 @@ public final class HasAnyExpression extends MatchingExpression {
   @Override
   public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
     if (valueExpression == null) {
-      return Boolean.FALSE;
+      throw new EvaluationException(
+          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
     }
     Value<?> value = valueExpression.evaluate(valueRefResolver);
     if (value.isUndefined()) {
-      return Boolean.FALSE;
+      throw new EvaluationException(
+          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
     }
     if (value.isNull()) {
-      // always return FALSE for null values
-      return Boolean.FALSE;
+      throw new EvaluationException(
+          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
     }
     if (value instanceof ListValue) {
       ListValue collection = (ListValue) value;

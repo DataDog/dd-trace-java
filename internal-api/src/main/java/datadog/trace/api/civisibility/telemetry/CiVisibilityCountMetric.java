@@ -19,7 +19,6 @@ import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
-import datadog.trace.api.civisibility.telemetry.tag.Library;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.civisibility.telemetry.tag.RequestCompressed;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
@@ -56,17 +55,6 @@ public enum CiVisibilityCountMetric {
       IsNew.class,
       IsRum.class,
       BrowserDriver.class),
-  /**
-   * The number of per-test code coverage sessions started (each test case counts as a separate
-   * session)
-   */
-  CODE_COVERAGE_STARTED("code_coverage_started", TestFrameworkInstrumentation.class, Library.class),
-  /**
-   * The number of per-test code coverage sessions finished (each test case counts as a separate
-   * session)
-   */
-  CODE_COVERAGE_FINISHED(
-      "code_coverage_finished", TestFrameworkInstrumentation.class, Library.class),
   /** The number of successfully collected code coverages that are empty */
   CODE_COVERAGE_IS_EMPTY("code_coverage.is_empty"),
   /** The number of errors while processing code coverage */

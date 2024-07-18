@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
@@ -18,7 +19,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -37,7 +37,7 @@ public abstract class AbstractTestSession {
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
   protected final MethodLinesResolver methodLinesResolver;
-  protected final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  protected final CoverageStore.Factory coverageStoreFactory;
 
   public AbstractTestSession(
       String projectName,
@@ -50,7 +50,7 @@ public abstract class AbstractTestSession {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory) {
+      CoverageStore.Factory coverageStoreFactory) {
     this.ciProvider = ciProvider;
     this.instrumentationType = instrumentationType;
     this.config = config;
@@ -59,7 +59,7 @@ public abstract class AbstractTestSession {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+    this.coverageStoreFactory = coverageStoreFactory;
 
     if (startTime != null) {
       span = startSpan(testDecorator.component() + ".test_session", startTime);

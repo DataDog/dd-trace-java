@@ -3,7 +3,9 @@ package datadog.trace.civisibility.writer.ddintake
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.GrowableBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore
+import datadog.trace.api.civisibility.coverage.CoverageProbes
+import datadog.trace.api.civisibility.coverage.CoverageStore
+import datadog.trace.api.civisibility.coverage.NoOpProbes
 import datadog.trace.api.civisibility.coverage.TestReport
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry
 import datadog.trace.api.civisibility.domain.TestContext
@@ -244,7 +246,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     return objectMapper.readValue(writtenBytes, Map)
   }
 
-  private static final class DummyReportHolder implements CoverageProbeStore {
+  private static final class DummyReportHolder implements CoverageStore {
     private final testReport
 
     DummyReportHolder(testReport) {
@@ -257,33 +259,26 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     }
 
     @Override
-    void record(Class<?> clazz) {
-    }
-
-    @Override
-    void record(Class<?> clazz, long classId, int probeId) {
-    }
-
-    @Override
-    void recordNonCodeResource(String absolutePath) {
-    }
-
-    @Override
     boolean report(Long testSessionId, Long testSuiteId, long spanId) {
       return false
+    }
+
+    @Override
+    CoverageProbes getProbes() {
+      return NoOpProbes.INSTANCE
     }
   }
 
   private static final class DummyTestContext implements TestContext {
-    private final CoverageProbeStore probeStore
+    private final CoverageStore coverageStore
 
-    DummyTestContext(CoverageProbeStore probeStore) {
-      this.probeStore = probeStore
+    DummyTestContext(CoverageStore coverageStore) {
+      this.coverageStore = coverageStore
     }
 
     @Override
-    CoverageProbeStore getCoverageProbeStore() {
-      return probeStore
+    CoverageStore getCoverageStore() {
+      return coverageStore
     }
 
     @Override
@@ -295,6 +290,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
       return null
     }
   }
+
 
   private static final class ByteArrayWritableByteChannel implements WritableByteChannel {
 

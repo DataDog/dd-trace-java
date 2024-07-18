@@ -82,4 +82,13 @@ public final class Range implements Ranged {
   public boolean isMarked(final int mark) {
     return (marks & mark) != NOT_MARKED;
   }
+
+  /** Creates a version of the range without weak references to be used in vulnerabilities */
+  public Range consolidate() {
+    if (!source.isReference()) {
+      return this;
+    }
+    return new Range(
+        start, length, new Source(source.getOrigin(), source.getName(), source.getValue()), marks);
+  }
 }

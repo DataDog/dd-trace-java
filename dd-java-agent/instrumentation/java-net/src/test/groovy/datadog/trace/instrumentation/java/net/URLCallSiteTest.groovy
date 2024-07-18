@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.java.net
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.api.iast.sink.SsrfModule
 import foo.bar.TestURLCallSiteSuite
@@ -15,7 +16,7 @@ class URLCallSiteTest extends AgentTestRunner {
 
   void 'test url ctor propagation'() {
     given:
-    final module = Mock(PropagationModule)
+    final module = Mock(CodecModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
@@ -23,7 +24,7 @@ class URLCallSiteTest extends AgentTestRunner {
 
     then:
     uri.toString() == expected
-    1 * module.taintObjectIfAnyTainted(_ as URL, args as Object[])
+    1 * module.onUrlCreate(_ as URL, args as Object[])
 
     where:
     method | args                                                                             | expected
@@ -44,13 +45,13 @@ class URLCallSiteTest extends AgentTestRunner {
     TestURLCallSiteSuite.&"$method".call(args as Object[])
 
     then:
-    1 * module."taint${target}IfTainted"(_, _ as URL)
+    1 * module."taint${target}IfTainted"(_, _ as URL, keepRanges, _)
 
     where:
-    method           | target   | args
-    'toURI'          | 'Object' | [new URL('http://test.com/index?name=value#fragment')]
-    'toString'       | 'String' | [new URL('http://test.com/index?name=value#fragment')]
-    'toExternalForm' | 'String' | [new URL('http://test.com/index?name=value#fragment')]
+    method           | target   | args                                                   | keepRanges
+    'toURI'          | 'Object' | [new URL('http://test.com/index?name=value#fragment')] | true
+    'toExternalForm' | 'String' | [new URL('http://test.com/index?name=value#fragment')] | true
+    'toString'       | 'String' | [new URL('http://test.com/index?name=value#fragment')] | true
   }
 
   void 'test ssrf endpoints'() {

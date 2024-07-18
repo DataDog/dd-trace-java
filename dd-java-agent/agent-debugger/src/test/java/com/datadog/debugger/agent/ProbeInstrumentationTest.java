@@ -41,6 +41,11 @@ public class ProbeInstrumentationTest {
     }
 
     @Override
+    public void addHighRateSnapshot(Snapshot snapshot) {
+      snapshots.add(snapshot);
+    }
+
+    @Override
     public void skipSnapshot(String probeId, DebuggerContext.SkipCause cause) {}
 
     public List<Snapshot> getSnapshots() {

@@ -4,9 +4,18 @@ rulesets:
       array-is-stored-directly:
         ignore:
           - "**"
+      avoid-printstacktrace:
+        ignore:
+          - "buildSrc/**"
+          - "dd-java-agent/src/main/java/datadog/trace/bootstrap/**"
       avoid-reassigning-parameters:
         ignore:
           - "**"
+      avoid-string-instantiation:
+        ignore:
+          - "**"
+      forloop-variable-count:
+        max-variables: 2
   - java-code-style:
     rules:
       boolean-get-method-name:

@@ -54,7 +54,7 @@ public class ClassInstrumenterInstrumentation extends InstrumenterModule.CiVisib
     static void enter(
         @Advice.FieldValue(value = "className") final String className,
         @Advice.Argument(0) int count) {
-      CoverageBridge.getCoverageProbeStoreRegistry().setTotalProbeCount(className, count);
+      CoverageBridge.getCoverageStoreRegistry().setTotalProbeCount(className, count);
     }
   }
 }
