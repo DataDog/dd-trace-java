@@ -146,7 +146,13 @@ public class Agent {
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
 
-  public static void start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
+  /**
+   * Starts the agent; returns a boolean indicating if Agent started successfully
+   * 
+   * The Agent is considered to start successfully if Instrumentation can be activated.
+   * All other pieces are considered optional.
+   */
+  public static boolean start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
     StaticEventLogger.begin("Agent");
     StaticEventLogger.begin("Agent.start");
 
@@ -158,9 +164,10 @@ public class Agent {
       remoteConfigEnabled = false;
       telemetryEnabled = false;
       // apply trace instrumentation, but skip starting other services
-      startDatadogAgent(inst);
+      boolean agentStarted = startDatadogAgent(inst);
       StaticEventLogger.end("Agent.start");
-      return;
+      
+      return agentStarted;
     }
 
     if (agentArgs != null && !agentArgs.isEmpty()) {
@@ -263,7 +270,7 @@ public class Agent {
      * when it will happen after the class transformers were added.
      */
     AgentTaskScheduler.initialize();
-    startDatadogAgent(inst);
+    boolean agentStarted = startDatadogAgent(inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);
 
@@ -338,6 +345,8 @@ public class Agent {
     }
 
     StaticEventLogger.end("Agent.start");
+    
+    return agentStarted;
   }
 
   private static void injectAgentArgsConfig(String agentArgs) {
@@ -564,7 +573,7 @@ public class Agent {
     StaticEventLogger.end("Remote Config");
   }
 
-  private static synchronized void startDatadogAgent(final Instrumentation inst) {
+  private static synchronized boolean startDatadogAgent(final Instrumentation inst) {
     if (null != inst) {
 
       StaticEventLogger.begin("BytebuddyAgent");
@@ -575,11 +584,18 @@ public class Agent {
         final Method agentInstallerMethod =
             agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
         agentInstallerMethod.invoke(null, inst);
+        
+        return true;
       } catch (final Throwable ex) {
         log.error("Throwable thrown while installing the Datadog Agent", ex);
+        
+        return false;
+      } finally {
+        StaticEventLogger.end("BytebuddyAgent");
       }
-
-      StaticEventLogger.end("BytebuddyAgent");
+    } else {
+      // no Instrumentation - presumably okay????
+      return true;
     }
   }
 

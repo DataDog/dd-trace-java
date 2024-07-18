@@ -149,9 +149,11 @@ public final class AgentBootstrap {
     }
     final Method startMethod =
         agentClass.getMethod("start", Instrumentation.class, URL.class, String.class);
-    startMethod.invoke(null, inst, agentJarURL, agentArgs);
-
-    return true;
+    
+    Object result = startMethod.invoke(null, inst, agentJarURL, agentArgs);
+    return ( result instanceof Boolean ) ?
+      (Boolean)result :
+      true;
   }
 
   static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
