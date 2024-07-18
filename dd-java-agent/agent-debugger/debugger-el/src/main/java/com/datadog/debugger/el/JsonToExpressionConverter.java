@@ -41,7 +41,9 @@ public class JsonToExpressionConverter {
               "or",
               "and",
               "hasAny",
+              "any",
               "hasAll",
+              "all",
               "isEmpty",
               "startsWith",
               "endsWith",
@@ -195,6 +197,7 @@ public class JsonToExpressionConverter {
           return expr;
         }
       case "hasAny":
+      case "any":
         {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
@@ -207,6 +210,7 @@ public class JsonToExpressionConverter {
           return expr;
         }
       case "hasAll":
+      case "all":
         {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {

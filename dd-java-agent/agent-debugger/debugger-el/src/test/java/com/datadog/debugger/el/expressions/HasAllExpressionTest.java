@@ -30,24 +30,23 @@ class HasAllExpressionTest {
     EvaluationException exception =
         assertThrows(EvaluationException.class, () -> nullExpression.evaluate(resolver));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
-    assertEquals("hasAll(null, true)", print(nullExpression));
+    assertEquals("all(null, true)", print(nullExpression));
     HasAllExpression undefinedExpression =
         new HasAllExpression(value(Values.UNDEFINED_OBJECT), null);
     exception =
         assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(resolver));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
-    assertEquals("hasAll(UNDEFINED, true)", print(undefinedExpression));
+    assertEquals("all(UNDEFINED, true)", print(undefinedExpression));
     HasAllExpression expression = new HasAllExpression(value(this), null);
     assertTrue(expression.evaluate(resolver));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)",
-        print(expression));
+        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)", print(expression));
     expression = new HasAllExpression(value(Collections.singletonList(this)), null);
     assertTrue(expression.evaluate(resolver));
-    assertEquals("hasAll(List, true)", print(expression));
+    assertEquals("all(List, true)", print(expression));
     expression = new HasAllExpression(value(Collections.singletonMap(this, this)), null);
     assertTrue(expression.evaluate(resolver));
-    assertEquals("hasAll(Map, true)", print(expression));
+    assertEquals("all(Map, true)", print(expression));
   }
 
   @Test
@@ -57,17 +56,17 @@ class HasAllExpressionTest {
     EvaluationException exception =
         assertThrows(EvaluationException.class, () -> nullExpression1.evaluate(ctx));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
-    assertEquals("hasAll(null, true)", print(nullExpression1));
+    assertEquals("all(null, true)", print(nullExpression1));
 
     HasAllExpression nullExpression2 = all(null, FALSE);
     exception = assertThrows(EvaluationException.class, () -> nullExpression2.evaluate(ctx));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
-    assertEquals("hasAll(null, false)", print(nullExpression2));
+    assertEquals("all(null, false)", print(nullExpression2));
 
     HasAllExpression nullExpression3 = all(null, eq(ref("testField"), value(10)));
     exception = assertThrows(EvaluationException.class, () -> nullExpression3.evaluate(ctx));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
-    assertEquals("hasAll(null, testField == 10)", print(nullExpression3));
+    assertEquals("all(null, testField == 10)", print(nullExpression3));
   }
 
   @Test
@@ -77,18 +76,18 @@ class HasAllExpressionTest {
     EvaluationException exception =
         assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(ctx));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
-    assertEquals("hasAll(UNDEFINED, true)", print(undefinedExpression));
+    assertEquals("all(UNDEFINED, true)", print(undefinedExpression));
 
     HasAllExpression nullExpression = all(null, FALSE);
     exception = assertThrows(EvaluationException.class, () -> nullExpression.evaluate(ctx));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
-    assertEquals("hasAll(null, false)", print(nullExpression));
+    assertEquals("all(null, false)", print(nullExpression));
 
     HasAllExpression expression =
         all(value(Values.UNDEFINED_OBJECT), eq(ref("testField"), value(10)));
     exception = assertThrows(EvaluationException.class, () -> expression.evaluate(ctx));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
-    assertEquals("hasAll(UNDEFINED, testField == 10)", print(expression));
+    assertEquals("all(UNDEFINED, testField == 10)", print(expression));
   }
 
   @Test
@@ -98,19 +97,17 @@ class HasAllExpressionTest {
     HasAllExpression expression = all(targetExpression, TRUE);
     assertTrue(expression.evaluate(ctx));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)",
-        print(expression));
+        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)", print(expression));
 
     expression = all(targetExpression, FALSE);
     assertFalse(expression.evaluate(ctx));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, false)",
-        print(expression));
+        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, false)", print(expression));
 
     expression = all(targetExpression, eq(ref("testField"), value(10)));
     assertTrue(expression.evaluate(ctx));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, testField == 10)",
+        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, testField == 10)",
         print(expression));
   }
 

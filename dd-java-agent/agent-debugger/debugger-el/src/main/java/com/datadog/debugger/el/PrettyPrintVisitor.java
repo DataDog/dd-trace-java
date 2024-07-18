@@ -94,7 +94,7 @@ public class PrettyPrintVisitor implements Visitor<String> {
 
   @Override
   public String visit(HasAllExpression hasAllExpression) {
-    return "hasAll("
+    return "all("
         + nullSafeAccept(hasAllExpression.getValueExpression())
         + ", "
         + nullSafeAccept(hasAllExpression.getFilterPredicateExpression())
@@ -103,7 +103,7 @@ public class PrettyPrintVisitor implements Visitor<String> {
 
   @Override
   public String visit(HasAnyExpression hasAnyExpression) {
-    return "hasAny("
+    return "any("
         + nullSafeAccept(hasAnyExpression.getValueExpression())
         + ", "
         + nullSafeAccept(hasAnyExpression.getFilterPredicateExpression())

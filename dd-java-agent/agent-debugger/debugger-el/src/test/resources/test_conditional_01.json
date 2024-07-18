@@ -1,8 +1,8 @@
 {
-  "dsl": "hasAny(filter(tags, { len(@it) > 4 }), { @it == \"hello\" }) && (field == 10 || field < 11 || field <= 10 || field > 0 || field >= 10 || field != 0 || !(field == 0) || hasAll(field, { @it == 10 }) || isEmpty(this.field2))",
+  "dsl": "any(filter(tags, { len(@it) > 4 }), { @it == \"hello\" }) && (field == 10 || field < 11 || field <= 10 || field > 0 || field >= 10 || field != 0 || !(field == 0) || all(field, { @it == 10 }) || isEmpty(this.field2))",
   "json": {
     "and": [
-      {"hasAny": [
+      {"any": [
         {
           "filter": [{"ref": "tags"}, {"gt": [{"len": {"ref": "@it"}}, 4]}]
         },
@@ -21,7 +21,7 @@
         {">=":  [{"ref": "field"}, 10]},
         {"!=":  [{"ref": "field"}, 0]},
         {"not":  {"==":  [{"ref": "field"}, 0]}},
-        {"hasAll":  [{"ref": "field"}, {"eq":  [{"ref": "@it"}, 10]}]},
+        {"all":  [{"ref": "field"}, {"eq":  [{"ref": "@it"}, 10]}]},
         {"isEmpty": {"getmember": [{"ref": "this"}, "field2"]}}
       ]}
     ]
