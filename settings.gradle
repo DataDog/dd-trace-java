@@ -66,6 +66,8 @@ include ':dd-java-agent:agent-otel:otel-shim'
 include ':dd-java-agent:agent-otel:otel-tooling'
 
 include ':communication'
+include ':components:context:context-api'
+include ':components:context:context-core'
 include ':telemetry'
 include ':remote-config:remote-config-api'
 include ':remote-config:remote-config-core'
