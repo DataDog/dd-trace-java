@@ -17,6 +17,7 @@ import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
+import datadog.trace.bootstrap.InstrumentationContextBinder;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -56,6 +57,7 @@ public class AgentInstaller {
     addByteBuddyRawSetting();
     // register weak map supplier as early as possible
     WeakMaps.registerAsSupplier();
+    InstrumentationContextBinder.register();
     circularityErrorWorkaround();
   }
 
