@@ -51,7 +51,7 @@ public class StratumExt extends AbstractStratum implements Stratum {
         }
       }
     } catch (Exception e) {
-      LOG.error("Could not get input line number from stratum", e);
+      LOG.debug("Could not get input line number from stratum", e);
     }
     return null;
   }

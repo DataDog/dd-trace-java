@@ -73,7 +73,7 @@ public class StratumManager {
           .forEach(stratum -> stratum.getLineInfo().forEach(li -> li.setFileInfo(null)));
       return result;
     } catch (Exception e) {
-      LOG.error("Could not get resolved source map from smap", e);
+      LOG.debug("Could not get resolved source map from smap", e);
     }
     return null;
   }
@@ -96,7 +96,7 @@ public class StratumManager {
       stratum.setName(classData[0]);
       return stratum;
     } catch (Exception e) {
-      LOG.error("Could not get default stratum from byte array", e);
+      LOG.debug("Could not get default stratum from byte array", e);
     }
     return null;
   }
