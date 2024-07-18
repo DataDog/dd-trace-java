@@ -865,6 +865,20 @@ jobs:
           command: |
             cd system-tests
             ./build.sh --library java --weblog-variant spring-boot
+      
+      - run:
+          name: Run APM Integrations Cross Tracer Propagation tests
+          # Stop the job after 10m to avoid excessive overhead. Will need adjustment as more tests are added.
+          no_output_timeout: 10m
+          command: |
+            cd system-tests
+            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh CROSS_TRACING_LIBRARIES
+      
+      - store_test_results:
+          path: system-tests/logs_cross_tracing_libraries
+
+      - store_artifacts:
+          path: system-tests/logs_cross_tracing_libraries
 
       - run:
           name: Run APM Integrations tests
