@@ -106,7 +106,14 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
     if (mapHolder instanceof Map) {
       if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
         Map<?, ?> map = (Map<?, ?>) mapHolder;
-        return map.containsKey(val.getValue());
+        if (val == null || val.isNull()) {
+          return map.containsKey(null);
+        }
+        if (WellKnownClasses.isEqualsSafe(val.getValue().getClass())) {
+          return map.containsKey(val.getValue());
+        }
+        throw new RuntimeException(
+            "Unsupported key class: " + val.getValue().getClass().getTypeName());
       }
       throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
     }

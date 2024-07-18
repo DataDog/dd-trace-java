@@ -21,7 +21,9 @@ class ContainsExpressionTest {
   private final ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
 
   private List<String> list = Arrays.asList("foo", "bar", "baz");
+  private List<String> listWithNull = Arrays.asList("foo", null, "baz");
   private String[] arrayStr = new String[] {"foo", "bar", "baz"};
+  private String[] arrayStrWithNull = new String[] {"foo", null, "bar"};
   private int[] arrayInt = new int[] {1, 2, 3};
   private char[] arrayChar = new char[] {'a', 'b', 'c'};
   private long[] arrayLong = new long[] {1, 2, 3};
@@ -33,11 +35,25 @@ class ContainsExpressionTest {
     mapStr.put("bar", "baz");
   }
 
+  private Map<String, String> mapStrWithNull = new HashMap<>();
+
+  {
+    mapStrWithNull.put("foo", "bar");
+    mapStrWithNull.put(null, "baz");
+  }
+
   private Set<String> setStr = new HashSet<>();
 
   {
     setStr.add("foo");
     setStr.add("bar");
+  }
+
+  private Set<String> setStrWithNull = new HashSet<>();
+
+  {
+    setStrWithNull.add("foo");
+    setStrWithNull.add(null);
   }
 
   @Test
@@ -69,6 +85,12 @@ class ContainsExpressionTest {
     expression = new ContainsExpression(DSL.value("abc"), new StringValue("dc"));
     assertFalse(expression.evaluate(resolver));
     assertEquals("contains(\"abc\", \"dc\")", print(expression));
+
+    ContainsExpression nullValExpression = new ContainsExpression(DSL.value("abcd"), null);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> nullValExpression.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for non-string value", exception.getMessage());
+    assertEquals("contains(\"abcd\", null)", print(nullValExpression));
   }
 
   @Test
@@ -76,6 +98,10 @@ class ContainsExpressionTest {
     ContainsExpression expression = new ContainsExpression(DSL.ref("list"), DSL.value("bar"));
     assertTrue(expression.evaluate(resolver));
     assertEquals("contains(list, \"bar\")", print(expression));
+
+    expression = new ContainsExpression(DSL.ref("listWithNull"), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(listWithNull, null)", print(expression));
   }
 
   @Test
@@ -99,6 +125,16 @@ class ContainsExpressionTest {
     expression = new ContainsExpression(DSL.ref("arrayDouble"), DSL.value(2.0));
     assertTrue(expression.evaluate(resolver));
     assertEquals("contains(arrayDouble, 2.0)", print(expression));
+
+    expression = new ContainsExpression(DSL.ref("arrayStrWithNull"), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(arrayStrWithNull, null)", print(expression));
+
+    ContainsExpression primitiveNullExpression = new ContainsExpression(DSL.ref("arrayInt"), null);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> primitiveNullExpression.evaluate(resolver));
+    assertEquals("Cannot compare null with primitive array", exception.getMessage());
+    assertEquals("contains(arrayInt, null)", print(primitiveNullExpression));
   }
 
   @Test
@@ -106,6 +142,10 @@ class ContainsExpressionTest {
     ContainsExpression expression = new ContainsExpression(DSL.ref("mapStr"), DSL.value("bar"));
     assertTrue(expression.evaluate(resolver));
     assertEquals("contains(mapStr, \"bar\")", print(expression));
+
+    expression = new ContainsExpression(DSL.ref("mapStrWithNull"), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(mapStrWithNull, null)", print(expression));
   }
 
   @Test
@@ -113,5 +153,9 @@ class ContainsExpressionTest {
     ContainsExpression expression = new ContainsExpression(DSL.ref("setStr"), DSL.value("bar"));
     assertTrue(expression.evaluate(resolver));
     assertEquals("contains(setStr, \"bar\")", print(expression));
+
+    expression = new ContainsExpression(DSL.ref("setStrWithNull"), null);
+    assertTrue(expression.evaluate(resolver));
+    assertEquals("contains(setStrWithNull, null)", print(expression));
   }
 }

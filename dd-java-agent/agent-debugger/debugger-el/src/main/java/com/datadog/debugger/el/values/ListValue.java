@@ -134,7 +134,7 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   public boolean contains(Value<?> val) {
     if (listHolder instanceof Collection) {
       if (WellKnownClasses.isSafe((Collection<?>) listHolder)) {
-        return ((Collection<?>) listHolder).contains(val.getValue());
+        return ((Collection<?>) listHolder).contains(val.isNull() ? null : val.getValue());
       }
       throw new RuntimeException(
           "Unsupported Collection class: " + listHolder.getClass().getTypeName());
@@ -142,12 +142,13 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
     if (arrayHolder != null) {
       int count = Array.getLength(arrayHolder);
       if (arrayType.isPrimitive()) {
-        if (val.getValue() == null) {
-          return false;
+        if (val.getValue() == null || val.isNull()) {
+          throw new RuntimeException("Cannot compare null with primitive array");
         }
         if (arrayType == byte.class) {
+          byte byteValue = (Byte) val.getValue();
           for (int i = 0; i < count; i++) {
-            if (Array.getByte(arrayHolder, i) == (Byte) val.getValue()) {
+            if (Array.getByte(arrayHolder, i) == byteValue) {
               return true;
             }
           }
@@ -156,57 +157,74 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
           if (strValue.isEmpty()) {
             return false;
           }
+          char charValue = strValue.charAt(0);
           for (int i = 0; i < count; i++) {
-            if (Array.getChar(arrayHolder, i) == strValue.charAt(0)) {
+            if (Array.getChar(arrayHolder, i) == charValue) {
               return true;
             }
           }
         } else if (arrayType == short.class) {
+          int shortValue = ((Number) val.getValue()).intValue();
           for (int i = 0; i < count; i++) {
-            if (Array.getShort(arrayHolder, i) == ((Number) val.getValue()).intValue()) {
+            if (Array.getShort(arrayHolder, i) == shortValue) {
               return true;
             }
           }
         } else if (arrayType == int.class) {
+          int intValue = ((Number) val.getValue()).intValue();
           for (int i = 0; i < count; i++) {
-            if (Array.getInt(arrayHolder, i) == ((Number) val.getValue()).intValue()) {
+            if (Array.getInt(arrayHolder, i) == intValue) {
               return true;
             }
           }
         } else if (arrayType == long.class) {
+          long longValue = (Long) val.getValue();
           for (int i = 0; i < count; i++) {
-            if (Array.getLong(arrayHolder, i) == (Long) val.getValue()) {
+            if (Array.getLong(arrayHolder, i) == longValue) {
               return true;
             }
           }
         } else if (arrayType == float.class) {
+          float floatValue = (Float) val.getValue();
           for (int i = 0; i < count; i++) {
-            if (Array.getFloat(arrayHolder, i) == (Float) val.getValue()) {
+            if (Array.getFloat(arrayHolder, i) == floatValue) {
               return true;
             }
           }
         } else if (arrayType == double.class) {
+          double doubleValue = (Double) val.getValue();
           for (int i = 0; i < count; i++) {
-            if (Array.getDouble(arrayHolder, i) == (Double) val.getValue()) {
+            if (Array.getDouble(arrayHolder, i) == doubleValue) {
               return true;
             }
           }
         } else if (arrayType == boolean.class) {
+          boolean booleanValue = (Boolean) val.getValue();
           for (int i = 0; i < count; i++) {
-            if (Array.getBoolean(arrayHolder, i) == (Boolean) val.getValue()) {
+            if (Array.getBoolean(arrayHolder, i) == booleanValue) {
               return true;
             }
           }
         }
         return false;
       }
-      for (int i = 0; i < count; i++) {
-        Object cellValue = Array.get(arrayHolder, i);
-        if (cellValue != null && cellValue.equals(val.getValue())) {
-          return true;
+      Object objValue = val.getValue();
+      if (objValue == null || val.isNull()) {
+        for (int i = 0; i < count; i++) {
+          if (Array.get(arrayHolder, i) == null) {
+            return true;
+          }
+        }
+        return false;
+      }
+      if (WellKnownClasses.isEqualsSafe(objValue.getClass())) {
+        for (int i = 0; i < count; i++) {
+          if (objValue.equals(Array.get(arrayHolder, i))) {
+            return true;
+          }
         }
       }
-      return false;
+      throw new RuntimeException("Unsupported value class: " + objValue.getClass().getTypeName());
     }
     return false;
   }

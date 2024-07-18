@@ -86,7 +86,14 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
   public boolean contains(Value<?> val) {
     if (setHolder instanceof Set) {
       if (WellKnownClasses.isSafe((Collection<?>) setHolder)) {
-        return ((Set<?>) setHolder).contains(val.getValue());
+        if (val == null || val.isNull()) {
+          return ((Set<?>) setHolder).contains(null);
+        }
+        if (WellKnownClasses.isEqualsSafe(val.getValue().getClass())) {
+          return ((Set<?>) setHolder).contains(val.getValue());
+        }
+        throw new RuntimeException(
+            "Unsupported value class: " + val.getValue().getClass().getTypeName());
       }
       throw new RuntimeException("Unsupported Set class: " + setHolder.getClass().getTypeName());
     }

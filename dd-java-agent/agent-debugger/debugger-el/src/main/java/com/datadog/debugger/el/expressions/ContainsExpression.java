@@ -13,7 +13,7 @@ public class ContainsExpression implements BooleanExpression {
 
   public ContainsExpression(ValueExpression<?> target, ValueExpression<?> value) {
     this.target = target != null ? target : ValueExpression.NULL;
-    this.value = value;
+    this.value = value != null ? value : ValueExpression.NULL;
   }
 
   @Override
@@ -28,7 +28,7 @@ public class ContainsExpression implements BooleanExpression {
           "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
     }
     Value<?> val = value.evaluate(valueRefResolver);
-    if (val.isUndefined() || val.isNull()) {
+    if (val.isUndefined()) {
       return false;
     }
     if (targetValue.getValue() instanceof String) {
@@ -41,7 +41,11 @@ public class ContainsExpression implements BooleanExpression {
           "Cannot evaluate the expression for non-string value", PrettyPrintVisitor.print(this));
     }
     if (targetValue instanceof CollectionValue) {
-      return ((CollectionValue<?>) targetValue).contains(val);
+      try {
+        return ((CollectionValue<?>) targetValue).contains(val);
+      } catch (RuntimeException ex) {
+        throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
+      }
     }
     return Boolean.FALSE;
   }
