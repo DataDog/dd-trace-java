@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.Context;
@@ -35,7 +34,7 @@ public class SnsInterceptor implements ExecutionInterceptor {
           .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
   private SdkBytes getMessageAttributeValueToInject(
-      ExecutionAttributes executionAttributes, Optional<String> snsTopicName) {
+      ExecutionAttributes executionAttributes, String snsTopicName) {
     final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append("{");
@@ -60,12 +59,11 @@ public class SnsInterceptor implements ExecutionInterceptor {
       // the limit still applies here
       if (request.messageAttributes().size() < 10) {
         // Get topic name for DSM
-        Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
-        if (!snsTopicArn.isPresent()) {
-          snsTopicArn = request.getValueForField("TargetArn", String.class);
+        String snsTopicArn = request.topicArn();
+        if (snsTopicArn.isEmpty()) {
+          snsTopicArn = request.targetArn();
         }
-        Optional<String> snsTopicName =
-            snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+        String snsTopicName = snsTopicArn.substring(snsTopicArn.lastIndexOf(':') + 1);
         Map<String, MessageAttributeValue> modifiedMessageAttributes =
             new HashMap<>(request.messageAttributes());
         modifiedMessageAttributes.put(
@@ -82,12 +80,8 @@ public class SnsInterceptor implements ExecutionInterceptor {
     } else if (context.request() instanceof PublishBatchRequest) {
       PublishBatchRequest request = (PublishBatchRequest) context.request();
       // Get topic name for DSM
-      Optional<String> snsTopicArn = request.getValueForField("TopicArn", String.class);
-      if (!snsTopicArn.isPresent()) {
-        snsTopicArn = request.getValueForField("TargetArn", String.class);
-      }
-      Optional<String> snsTopicName =
-          snsTopicArn.map(arn -> arn.substring(arn.lastIndexOf(':') + 1));
+      String snsTopicArn = request.topicArn();
+      String snsTopicName = snsTopicArn.substring(snsTopicArn.lastIndexOf(':') + 1);
       ArrayList<PublishBatchRequestEntry> entries = new ArrayList<>();
       final SdkBytes sdkBytes =
           this.getMessageAttributeValueToInject(executionAttributes, snsTopicName);
@@ -106,11 +100,11 @@ public class SnsInterceptor implements ExecutionInterceptor {
     return context.request();
   }
 
-  private LinkedHashMap<String, String> getTags(Optional<String> snsTopicName) {
+  private LinkedHashMap<String, String> getTags(String snsTopicName) {
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
     sortedTags.put(TYPE_TAG, "sns");
-    snsTopicName.ifPresent(topic -> sortedTags.put(TOPIC_TAG, topic));
+    sortedTags.put(TOPIC_TAG, snsTopicName);
 
     return sortedTags;
   }
