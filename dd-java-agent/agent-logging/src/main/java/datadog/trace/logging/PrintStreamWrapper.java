@@ -8,16 +8,16 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 
 public class PrintStreamWrapper extends PrintStream {
-  private static final int lineSeparatorLength = Platform.isWindows() ? 2 : 1;
-  private boolean captureOutput = false;
-  private int currentSize = 0;
-  private PrintStream printStream = null;
+  private static final int LINE_SEPARATOR_LENGTH = Platform.isWindows() ? 2 : 1;
+  private volatile boolean captureOutput = false;
+  private volatile int currentSize = 0;
+  private PrintStream capturingStream = null;
 
   public PrintStreamWrapper(PrintStream ps) {
     super(ps);
   }
   // use for tests only
-  public OutputStream getMainPrintStream() {
+  public OutputStream getOriginalPrintStream() {
     return super.out;
   }
 
@@ -25,10 +25,11 @@ public class PrintStreamWrapper extends PrintStream {
   public void println(String x) {
     super.println(x); // log as usual
     if (captureOutput) {
-      currentSize += x.length() + lineSeparatorLength;
-      if (currentSize < LogReporter.MAX_LOGFILE_SIZE_BYTES) {
+      int outputLength = x.length() + LINE_SEPARATOR_LENGTH;
+      if (currentSize + outputLength < LogReporter.MAX_LOGFILE_SIZE_BYTES) {
         synchronized (this) {
-          printStream.println(x);
+          capturingStream.println(x);
+          currentSize += outputLength;
         }
       } else {
         captureOutput = false;
@@ -42,13 +43,13 @@ public class PrintStreamWrapper extends PrintStream {
     println(s);
   }
 
-  public void start(Path filepath) {
-    clean();
+  public void startCapturing(Path filepath) {
+    stopCapturing();
     try {
       if (filepath != null) {
         String logFile = filepath.toString();
         FileOutputStream fileOutputStream = new FileOutputStream(logFile);
-        printStream = new PrintStream(fileOutputStream, true);
+        capturingStream = new PrintStream(fileOutputStream, true);
         captureOutput = true;
       }
     } catch (FileNotFoundException e) {
@@ -56,12 +57,12 @@ public class PrintStreamWrapper extends PrintStream {
     }
   }
 
-  public void clean() {
-    if (printStream != null) {
-      printStream.close();
-      printStream = null;
+  public void stopCapturing() {
+    if (capturingStream != null) {
+      capturingStream.close();
+      capturingStream = null;
     }
-    captureOutput = false;
     currentSize = 0;
+    captureOutput = false;
   }
 }

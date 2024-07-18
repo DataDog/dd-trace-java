@@ -64,7 +64,7 @@ class SLCompatSettingsTest extends Specification {
     then:
     settings.warnLevelString == null
     settings.levelInBrackets == false
-    ((PrintStreamWrapper) settings.printStream).getMainPrintStream()  == System.err
+    ((PrintStreamWrapper) settings.printStream).getOriginalPrintStream()  == System.err
     settings.showShortLogName == false
     settings.showLogName == true
     settings.showThreadName == true
@@ -84,7 +84,7 @@ class SLCompatSettingsTest extends Specification {
     then:
     settings.warnLevelString == "WRN"
     settings.levelInBrackets == true
-    ((PrintStreamWrapper) settings.printStream).getMainPrintStream()  == System.out
+    ((PrintStreamWrapper) settings.printStream).getOriginalPrintStream()  == System.out
     settings.showShortLogName == true
     settings.showLogName == false
     settings.showThreadName == false
@@ -145,7 +145,7 @@ class SLCompatSettingsTest extends Specification {
 
     expect:
     !file.exists()
-    ((PrintStreamWrapper) settings.printStream).getMainPrintStream() == System.err
+    ((PrintStreamWrapper) settings.printStream).getOriginalPrintStream() == System.err
 
     cleanup:
     dir.setWritable(true, true)
