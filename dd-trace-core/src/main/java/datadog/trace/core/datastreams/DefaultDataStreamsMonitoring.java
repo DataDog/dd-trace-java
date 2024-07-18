@@ -266,12 +266,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   public void setProduceCheckpoint(
       String type, String target, DataStreamsContextCarrier carrier, boolean manualCheckpoint) {
     if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
+      System.out.println("empty");
       log.warn("SetProduceCheckpoint should be called with non-empty type and target");
       return;
     }
 
     AgentSpan span = activeSpan();
     if (span == null) {
+      System.out.println("nempty");
       log.warn("SetProduceCheckpoint is called with no active span");
       return;
     }
@@ -285,7 +287,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     sortedTags.put(TYPE_TAG, type);
 
     this.injector.injectPathwayContext(
-        span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
+        span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags, traceConfigSupplier.get());
   }
 
   @Override
