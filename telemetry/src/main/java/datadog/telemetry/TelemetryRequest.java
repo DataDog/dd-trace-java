@@ -88,8 +88,7 @@ public class TelemetryRequest {
   public void writeProducts(
       boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled) {
     try {
-      requestBody.writeChangedProducts(
-          appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
+      requestBody.writeProducts(appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
     }
@@ -100,8 +99,7 @@ public class TelemetryRequest {
       Pair<Boolean, Boolean> profilerEnabling,
       Pair<Boolean, Boolean> dynamicInstrumentationEnabling) {
     try {
-      requestBody.writeChangedProducts(
-          appsecEnabling, profilerEnabling, dynamicInstrumentationEnabling);
+      requestBody.writeProducts(appsecEnabling, profilerEnabling, dynamicInstrumentationEnabling);
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("changed-products", e);
     }

@@ -486,4 +486,30 @@ class TelemetryServiceSpecification extends DDSpecification {
     "0"          | false         | "0"             | false            | "0"            | false
     "inactive"   | true          | "0"             | false            | "0"            | false
   }
+
+  void 'test app_product_change'() {
+    setup:
+    injectEnvConfig(Strings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
+    injectEnvConfig(Strings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
+    injectEnvConfig(Strings.toEnvVar(DebuggerConfig.DEBUGGER_ENABLED), dynInstrConfig)
+
+    TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
+    TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
+
+    when: 'first iteration'
+    testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
+    telemetryService.sendAppProductChange()
+
+    then: 'app-product-change'
+    testHttpClient.assertRequestBody(RequestType.APP_PRODUCT_CHANGE).assertProducts(appsecEnabled, profilingEnabled, dynInstrEnabled)
+    testHttpClient.assertNoMoreRequests()
+
+    where:
+    appsecConfig | appsecEnabled | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled
+    "1"          | true          | "1"             | true             | "1"            | true
+    "1"          | true          | "1"             | true             | "0"            | false
+    "1"          | true          | "0"             | false            | "1"            | true
+    "1"          | true          | "0"             | false            | "0"            | false
+    "inactive"   | true          | "0"             | false            | "0"            | false
+  }
 }

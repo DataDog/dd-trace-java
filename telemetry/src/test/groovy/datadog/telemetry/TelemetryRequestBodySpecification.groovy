@@ -108,12 +108,14 @@ class TelemetryRequestBodySpecification extends Specification {
     drainToString(req).contains("\"debug\":true")
   }
 
-  void 'test writeChangedProducts'(){
+  void 'test writeProducts'(){
     setup:
     TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_PRODUCT_CHANGE)
 
     when:
-    req.writeChangedProducts(Pair.of(appsecChange, appsecEnabled), Pair.of(profilerChange,profilerEnabled), Pair.of(dynamicInstrumentationChange, dynamicInstrumentationEnabled))
+    req.beginRequest(false)
+    req.writeProducts(Pair.of(appsecChange, appsecEnabled), Pair.of(profilerChange,profilerEnabled), Pair.of(dynamicInstrumentationChange, dynamicInstrumentationEnabled))
+    req.endRequest()
 
     then:
     final result = drainToString(req)

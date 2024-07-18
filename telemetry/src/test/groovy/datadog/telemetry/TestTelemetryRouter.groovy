@@ -145,6 +145,18 @@ class TestTelemetryRouter extends TelemetryRouter {
       return this
     }
 
+    BodyAssertions assertProducts(boolean appsecEnabled = true, boolean profilerEnabled = false, boolean dynamicInstrumentationEnabled = false) {
+      def products = body['products'] as Map<String, Object>
+      assert products != null
+      def expected = [
+        appsec: [enabled: appsecEnabled],
+        profiler: [enabled: profilerEnabled],
+        dynamic_instrumentation: [enabled: dynamicInstrumentationEnabled]
+      ]
+      assert products == expected
+      return this
+    }
+
     PayloadAssertions assertPayload() {
       def payload = body['payload'] as Map<String, Object>
       assert payload != null

@@ -266,7 +266,7 @@ public class TelemetryRequestBody extends RequestBody {
    * element is a boolean indicating if the products section should be written, right element is the
    * enabling value.
    */
-  public void writeChangedProducts(
+  public void writeProducts(
       Pair<Boolean, Boolean> appsecEnabling,
       Pair<Boolean, Boolean> profilerEnabling,
       Pair<Boolean, Boolean> dynamicInstrumentationEnabling)
@@ -277,7 +277,6 @@ public class TelemetryRequestBody extends RequestBody {
         && !dynamicInstrumentationEnabling.getLeft()) {
       return;
     }
-    bodyWriter.beginObject();
     bodyWriter.name("products");
     bodyWriter.beginObject();
 
@@ -303,31 +302,15 @@ public class TelemetryRequestBody extends RequestBody {
     }
 
     bodyWriter.endObject();
-    bodyWriter.endObject();
   }
 
-  public void writeChangedProducts(
+  public void writeProducts(
       boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
       throws IOException {
-    bodyWriter.name("products");
-    bodyWriter.beginObject();
-
-    bodyWriter.name("appsec");
-    bodyWriter.beginObject();
-    bodyWriter.name("enabled").value(appsecEnabled);
-    bodyWriter.endObject();
-
-    bodyWriter.name("profiler");
-    bodyWriter.beginObject();
-    bodyWriter.name("enabled").value(profilerEnabled);
-    bodyWriter.endObject();
-
-    bodyWriter.name("dynamic_instrumentation");
-    bodyWriter.beginObject();
-    bodyWriter.name("enabled").value(dynamicInstrumentationEnabled);
-    bodyWriter.endObject();
-
-    bodyWriter.endObject();
+    writeProducts(
+        Pair.of(true, appsecEnabled),
+        Pair.of(true, profilerEnabled),
+        Pair.of(true, dynamicInstrumentationEnabled));
   }
 
   public void writeInstallSignature(String installId, String installType, String installTime)
