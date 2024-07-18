@@ -873,7 +873,7 @@ jobs:
           no_output_timeout: 10m
           command: |
             cd system-tests
-            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh CROSS_TRACING_LIBRARIES
+            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh CROSSED_TRACING_LIBRARIES
       
       - store_test_results:
           path: system-tests/logs_cross_tracing_libraries
