@@ -14,7 +14,9 @@ import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class HasAnyExpressionTest {
@@ -204,5 +206,47 @@ class HasAnyExpressionTest {
             eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("c")));
     assertFalse(expression.evaluate(ctx));
     assertEquals("hasAny(Map, @it.value == \"c\")", print(expression));
+  }
+
+  @Test
+  void testSetHasAny() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    Set<String> valueSet = new HashSet<>();
+    valueSet.add("foo");
+    valueSet.add("bar");
+
+    ValueExpression<?> targetExpression = DSL.value(valueSet);
+    HasAnyExpression expression = any(targetExpression, TRUE);
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(Set, true)", print(expression));
+
+    targetExpression = DSL.value(valueSet);
+    expression = any(targetExpression, FALSE);
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(Set, false)", print(expression));
+
+    expression = any(targetExpression, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
+    assertTrue(expression.evaluate(ctx));
+    assertEquals("hasAny(Set, @it == \"foo\")", print(expression));
+
+    expression = any(targetExpression, eq(ref(ValueReferences.ITERATOR_REF), value("key")));
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(Set, @it == \"key\")", print(expression));
+  }
+
+  @Test
+  void emptiness() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    HasAnyExpression expression = any(value(Collections.emptyList()), TRUE);
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(List, true)", print(expression));
+
+    expression = any(value(Collections.emptyMap()), TRUE);
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(Map, true)", print(expression));
+
+    expression = any(value(Collections.emptySet()), TRUE);
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(Set, true)", print(expression));
   }
 }
