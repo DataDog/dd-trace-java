@@ -236,7 +236,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
 
     when:
     def message = Message.builder().messageAttributes(['_datadog': MessageAttributeValue.builder().dataType('Binary').binaryValue(SdkBytes.fromByteBuffer(
-      UTF_8.encode('{"x-datadog-trace-id":"4948377316357291421","x-datadog-parent-id":"6746998015037429512","x-datadog-sampling-priority":"1"}')
+      UTF_8.encode('eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI0OTQ4Mzc3MzE2MzU3MjkxNDIxIiwieC1kYXRhZG9nLXBhcmVudC1pZCI6IjY3NDY5OTgwMTUwMzc0Mjk1MTIiLCJ4LWRhdGFkb2ctc2FtcGxpbmctcHJpb3JpdHkiOiIxIn0=')
       )).build()]).build()
     def messages = new TracingList([message],
     "http://localhost:${address.port}/000000000000/somequeue",
