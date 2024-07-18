@@ -74,26 +74,16 @@ public class TraceProcessingWorker implements AutoCloseable {
             spanSamplingWorker.getSpanSamplingQueue(),
             droppingPolicy);
 
-    boolean runAsDaemon = !Config.get().isCiVisibilityEnabled();
     this.serializingHandler =
-        runAsDaemon
-            ? new DaemonTraceSerializingHandler(
-                primaryQueue,
-                secondaryQueue,
-                healthMetrics,
-                dispatcher,
-                flushInterval,
-                timeUnit,
-                spanPostProcessor)
-            : new NonDaemonTraceSerializingHandler(
-                primaryQueue,
-                secondaryQueue,
-                healthMetrics,
-                dispatcher,
-                flushInterval,
-                timeUnit,
-                spanPostProcessor);
-    this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler, runAsDaemon);
+        new TraceSerializingHandler(
+            primaryQueue,
+            secondaryQueue,
+            healthMetrics,
+            dispatcher,
+            flushInterval,
+            timeUnit,
+            spanPostProcessor);
+    this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
   public void start() {
@@ -144,91 +134,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     return new MpscBlockingConsumerArrayQueue<>(capacity);
   }
 
-  private static class DaemonTraceSerializingHandler extends TraceSerializingHandler {
-    public DaemonTraceSerializingHandler(
-        MpscBlockingConsumerArrayQueue<Object> primaryQueue,
-        MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
-        HealthMetrics healthMetrics,
-        PayloadDispatcher payloadDispatcher,
-        long flushInterval,
-        TimeUnit timeUnit,
-        SpanPostProcessor spanPostProcessor) {
-      super(
-          primaryQueue,
-          secondaryQueue,
-          healthMetrics,
-          payloadDispatcher,
-          flushInterval,
-          timeUnit,
-          spanPostProcessor);
-    }
-
-    @Override
-    public void run() {
-      try {
-        runDutyCycle();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-      log.debug("Datadog trace processor exited. Publishing traces stopped");
-    }
-
-    private void runDutyCycle() throws InterruptedException {
-      Thread thread = Thread.currentThread();
-      while (!thread.isInterrupted()) {
-        consumeFromPrimaryQueue();
-        consumeFromSecondaryQueue();
-        flushIfNecessary();
-      }
-    }
-  }
-
-  private static class NonDaemonTraceSerializingHandler extends TraceSerializingHandler {
-    private static final double SHUTDOWN_TIMEOUT_MILLIS = 5_000;
-    private Long shutdownSignalTimestamp;
-
-    public NonDaemonTraceSerializingHandler(
-        MpscBlockingConsumerArrayQueue<Object> primaryQueue,
-        MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
-        HealthMetrics healthMetrics,
-        PayloadDispatcher payloadDispatcher,
-        long flushInterval,
-        TimeUnit timeUnit,
-        SpanPostProcessor spanPostProcessor) {
-      super(
-          primaryQueue,
-          secondaryQueue,
-          healthMetrics,
-          payloadDispatcher,
-          flushInterval,
-          timeUnit,
-          spanPostProcessor);
-    }
-
-    @Override
-    public void run() {
-      while (!shouldShutdown()) {
-        try {
-          consumeFromPrimaryQueue();
-          consumeFromSecondaryQueue();
-          flushIfNecessary();
-        } catch (InterruptedException e) {
-          if (shutdownSignalTimestamp == null) {
-            shutdownSignalTimestamp = System.currentTimeMillis();
-          }
-        }
-      }
-      log.debug("Datadog trace processor exited. Unpublished traces left: " + !queuesAreEmpty());
-    }
-
-    private boolean shouldShutdown() {
-      return shutdownSignalTimestamp != null
-          && (shutdownSignalTimestamp + SHUTDOWN_TIMEOUT_MILLIS <= System.currentTimeMillis()
-              || queuesAreEmpty());
-    }
-  }
-
-  public abstract static class TraceSerializingHandler implements Runnable {
+  public static class TraceSerializingHandler implements Runnable {
 
     private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
     private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
@@ -259,6 +165,27 @@ public class TraceProcessingWorker implements AutoCloseable {
         this.ticksRequiredToFlush = Long.MAX_VALUE;
       }
       this.spanPostProcessor = spanPostProcessor;
+    }
+
+    @Override
+    public void run() {
+      try {
+        runDutyCycle();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      log.debug(
+          "Datadog trace processor exited. Publishing traces stopped. Unpublished traces left: "
+              + !queuesAreEmpty());
+    }
+
+    private void runDutyCycle() throws InterruptedException {
+      Thread thread = Thread.currentThread();
+      while (!thread.isInterrupted()) {
+        consumeFromPrimaryQueue();
+        consumeFromSecondaryQueue();
+        flushIfNecessary();
+      }
     }
 
     @SuppressWarnings("unchecked")
