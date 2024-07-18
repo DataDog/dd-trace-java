@@ -21,7 +21,7 @@ public class LogReporter implements TracerFlare.Reporter {
   private static File configuredLogFile;
   private static PrintStreamWrapper wrappedPrintStream;
 
-  public LogReporter() {}
+  private LogReporter() {}
 
   public static void register(PrintStreamWrapper printStreamWrapper) {
     wrappedPrintStream = printStreamWrapper;
