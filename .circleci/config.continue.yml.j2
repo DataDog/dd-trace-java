@@ -155,21 +155,22 @@ commands:
       - run:
           name: "Check if files relevant to job have changed"
           command: |
-            CCI_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
+            echo "skipppppp"
+            #  CCI_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
 
-            if [[ "$CIRCLE_BRANCH" != "master" && -n "$CCI_PR_NUMBER" ]]; then
-              BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-              if [[ "$BRANCH" != "master" ]] && [[ "$BRANCH" != "release/*" ]]; then
+            #  if [[ "$CIRCLE_BRANCH" != "master" && -n "$CCI_PR_NUMBER" ]]; then
+              #  BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+              #  if [[ "$BRANCH" != "master" ]] && [[ "$BRANCH" != "release/*" ]]; then
                 # We know that we have checked out the PR merge branch, so the HEAD commit is a merge
                 # As a backup, if anything goes wrong with the diff, the build will fail
-                CHANGED_FILES=$(git show HEAD | grep -e "^Merge:" | cut -d ' ' -f 2- | sed 's/ /.../' | xargs git diff --name-only)
+                #  CHANGED_FILES=$(git show HEAD | grep -e "^Merge:" | cut -d ' ' -f 2- | sed 's/ /.../' | xargs git diff --name-only)
                 # Count the number of matches, and ignore if the grep doesn't match anything
-                MATCH_COUNT=$(echo "$CHANGED_FILES" | grep -c -E "<< pipeline.parameters.global_pattern >>|<< parameters.pattern >>") || true
-                if [[ "$MATCH_COUNT" -eq "0" ]]; then
-                  circleci step halt
-                fi
-              fi
-            fi
+                #  MATCH_COUNT=$(echo "$CHANGED_FILES" | grep -c -E "<< pipeline.parameters.global_pattern >>|<< parameters.pattern >>") || true
+                #  if [[ "$MATCH_COUNT" -eq "0" ]]; then
+                  #  circleci step halt
+                #  fi
+              #  fi
+            #  fi
 
   display_memory_usage:
     steps:
