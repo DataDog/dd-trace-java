@@ -272,9 +272,9 @@ public class TelemetryRequestBody extends RequestBody {
       Pair<Boolean, Boolean> dynamicInstrumentationEnabling)
       throws IOException {
 
-    if (!appsecEnabling.hasLeft()
-        && !profilerEnabling.hasLeft()
-        && !dynamicInstrumentationEnabling.hasLeft()) {
+    if (!appsecEnabling.getLeft()
+        && !profilerEnabling.getLeft()
+        && !dynamicInstrumentationEnabling.getLeft()) {
       return;
     }
     bodyWriter.beginObject();
