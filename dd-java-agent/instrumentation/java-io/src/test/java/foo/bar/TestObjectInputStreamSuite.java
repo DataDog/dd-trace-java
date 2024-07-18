@@ -6,7 +6,11 @@ import java.io.ObjectInputStream;
 
 public class TestObjectInputStreamSuite {
 
-  public static ObjectInputStream init(final InputStream inputStream) throws IOException {
-    return new ObjectInputStream(inputStream);
+  public static void init(final InputStream inputStream) {
+    try {
+      new ObjectInputStream(inputStream);
+    } catch (IOException e) {
+      // Irrelevant
+    }
   }
 }

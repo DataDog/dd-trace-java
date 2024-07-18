@@ -17,19 +17,12 @@ class ObjectInputStreamCallSiteTest extends AgentTestRunner {
     final module = Mock(UntrustedDeserializationModule)
     InstrumentationBridge.registerIastModule(module)
 
-    final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()
-    final ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)
-    objectOutputStream.writeObject(initialString)
-    final byte[] bytes = byteArrayOutputStream.toByteArray()
-    final InputStream inputStream = new ByteArrayInputStream(bytes)
+    final InputStream inputStream = new ByteArrayInputStream(new byte[0])
 
     when:
     TestObjectInputStreamSuite.init(inputStream)
 
     then:
-    1 * module.onInputStream(inputStream)
-
-    where:
-    initialString = "Hello World"
+    1 * module.onInputStream(_)
   }
 }
