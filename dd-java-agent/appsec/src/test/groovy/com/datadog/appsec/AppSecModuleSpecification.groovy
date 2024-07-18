@@ -5,6 +5,7 @@ import com.datadog.appsec.event.OrderedCallback
 import com.datadog.appsec.event.data.Address
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.gateway.AppSecRequestContext
+import com.datadog.appsec.gateway.GatewayContext
 import datadog.trace.test.util.DDSpecification
 
 import static com.datadog.appsec.event.OrderedCallback.Priority.DEFAULT
@@ -33,7 +34,7 @@ class AppSecModuleSpecification extends DDSpecification {
     }
 
     @Override
-    void onDataAvailable(ChangeableFlow flow, AppSecRequestContext context, DataBundle dataBundle, boolean isTransient) {
+    void onDataAvailable(ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle dataBundle, GatewayContext gwCtx) {
     }
 
     @Override

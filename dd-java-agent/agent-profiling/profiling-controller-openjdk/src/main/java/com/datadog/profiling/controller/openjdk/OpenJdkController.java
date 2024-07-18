@@ -210,6 +210,14 @@ public final class OpenJdkController implements Controller {
       }
     }
 
+    if (configProvider.getBoolean(
+        ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED,
+        ProfilingConfig.PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT)) {
+      enableEvent(recordingSettings, "datadog.SmapEntry", "User enabled smaps collection");
+    } else {
+      disableEvent(recordingSettings, "datadog.SmapEntry", "User disabled smaps collection");
+    }
+
     // Warn users for expensive events
 
     if (!isOldObjectSampleAvailable()

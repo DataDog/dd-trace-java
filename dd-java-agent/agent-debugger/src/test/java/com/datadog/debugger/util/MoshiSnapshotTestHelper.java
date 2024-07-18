@@ -52,11 +52,16 @@ public class MoshiSnapshotTestHelper {
   public static String getValue(CapturedContext.CapturedValue capturedValue) {
     CapturedContext.CapturedValue valued = null;
     try {
-      valued = VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
-      if (valued.getNotCapturedReason() != null) {
-        Assertions.fail("NotCapturedReason: " + valued.getNotCapturedReason());
+      Object obj;
+      if (capturedValue.getStrValue() != null) {
+        valued = VALUE_ADAPTER.fromJson(capturedValue.getStrValue());
+        if (valued.getNotCapturedReason() != null) {
+          Assertions.fail("NotCapturedReason: " + valued.getNotCapturedReason());
+        }
+        obj = valued.getValue();
+      } else {
+        obj = capturedValue.getValue();
       }
-      Object obj = valued.getValue();
       if (obj != null && obj.getClass().isArray()) {
         if (obj.getClass().getComponentType().isPrimitive()) {
           return primitiveArrayToString(obj);
@@ -188,13 +193,7 @@ public class MoshiSnapshotTestHelper {
             jsonReader.beginObject();
             List<CapturedContext.CapturedValue> argValues = new ArrayList<>();
             while (jsonReader.hasNext()) {
-              String argName = jsonReader.peekJson().nextName();
-              if ("this".equals(argName)) {
-                jsonReader.nextName(); // consume "this"
-                fromJsonFields(jsonReader, capturedContext);
-                continue;
-              }
-              argName = jsonReader.nextName();
+              String argName = jsonReader.nextName();
               CapturedContext.CapturedValue capturedValue = valueAdapter.fromJson(jsonReader);
               if (capturedValue != null) {
                 capturedValue.setName(argName);
@@ -230,11 +229,6 @@ public class MoshiSnapshotTestHelper {
           case TYPE:
             {
               jsonReader.nextString();
-              break;
-            }
-          case FIELDS:
-            {
-              capturedContext.addFields(fromJsonCapturedValues(jsonReader));
               break;
             }
           case NOT_CAPTURED_REASON:

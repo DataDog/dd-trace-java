@@ -44,4 +44,9 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
     }
     return new SpringSchedulingRunnableWrapper(task);
   }
+
+  @Override
+  public String toString() {
+    return runnable.toString();
+  }
 }

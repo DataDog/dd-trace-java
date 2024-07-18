@@ -4,6 +4,7 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.BooleanValue;
@@ -22,22 +23,28 @@ class IsEmptyExpressionTest {
   @Test
   void testNullValue() {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
-    IsEmptyExpression expression = new IsEmptyExpression(null);
-    assertTrue(expression.evaluate(resolver));
-    assertEquals("isEmpty(null)", print(expression));
-    expression = new IsEmptyExpression(DSL.value(Values.NULL_OBJECT));
-    assertTrue(expression.evaluate(resolver));
-    assertEquals("isEmpty(null)", print(expression));
-    expression = new IsEmptyExpression(DSL.value(Value.nullValue()));
-    assertTrue(expression.evaluate(resolver));
-    assertEquals("isEmpty(com.datadog.debugger.el.values.NullValue)", print(expression));
+    IsEmptyExpression expression1 = new IsEmptyExpression(null);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression1.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("isEmpty(null)", print(expression1));
+    IsEmptyExpression expression2 = new IsEmptyExpression(DSL.value(Values.NULL_OBJECT));
+    exception = assertThrows(EvaluationException.class, () -> expression2.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("isEmpty(null)", print(expression2));
+    IsEmptyExpression expression3 = new IsEmptyExpression(DSL.value(Value.nullValue()));
+    exception = assertThrows(EvaluationException.class, () -> expression3.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("isEmpty(com.datadog.debugger.el.values.NullValue)", print(expression3));
   }
 
   @Test
   void testUndefinedValue() {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression expression = new IsEmptyExpression(DSL.value(Values.UNDEFINED_OBJECT));
-    assertTrue(expression.evaluate(resolver));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("isEmpty(UNDEFINED)", print(expression));
   }
 
@@ -54,9 +61,9 @@ class IsEmptyExpressionTest {
     expression = new IsEmptyExpression(one);
     assertFalse(expression.evaluate(resolver));
     assertEquals("isEmpty(1)", print(expression));
-    expression = new IsEmptyExpression(none);
-    assertTrue(expression.evaluate(resolver));
-    assertEquals("isEmpty(null)", print(expression));
+    IsEmptyExpression nullExpression = new IsEmptyExpression(none);
+    assertThrows(EvaluationException.class, () -> nullExpression.evaluate(resolver));
+    assertEquals("isEmpty(null)", print(nullExpression));
   }
 
   @Test
@@ -72,9 +79,11 @@ class IsEmptyExpressionTest {
     expression = new IsEmptyExpression(no);
     assertFalse(expression.evaluate(resolver));
     assertEquals("isEmpty(false)", print(expression));
-    expression = new IsEmptyExpression(none);
-    assertTrue(expression.evaluate(resolver));
-    assertEquals("isEmpty(null)", print(expression));
+    IsEmptyExpression nullExpression = new IsEmptyExpression(none);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> nullExpression.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("isEmpty(null)", print(nullExpression));
   }
 
   @Test
@@ -92,7 +101,9 @@ class IsEmptyExpressionTest {
     assertEquals("isEmpty(\"Hello World\")", print(isEmpty1));
     assertTrue(isEmpty2.evaluate(resolver));
     assertEquals("isEmpty(\"\")", print(isEmpty2));
-    assertTrue(isEmpty3.evaluate(resolver));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> isEmpty3.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(\"null\")", print(isEmpty3));
   }
 
@@ -117,9 +128,12 @@ class IsEmptyExpressionTest {
     assertEquals("isEmpty(List)", print(isEmpty1));
     assertTrue(isEmpty2.evaluate(resolver));
     assertEquals("isEmpty(List)", print(isEmpty2));
-    assertTrue(isEmpty3.evaluate(resolver));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> isEmpty3.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(null)", print(isEmpty3));
-    assertTrue(isEmpty4.evaluate(resolver));
+    exception = assertThrows(EvaluationException.class, () -> isEmpty4.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("isEmpty(null)", print(isEmpty4));
     assertFalse(isEmpty5.evaluate(resolver));
     assertEquals("isEmpty(Set)", print(isEmpty5));
@@ -144,9 +158,12 @@ class IsEmptyExpressionTest {
     assertEquals("isEmpty(Map)", print(isEmpty1));
     assertTrue(isEmpty2.evaluate(resolver));
     assertEquals("isEmpty(Map)", print(isEmpty2));
-    assertTrue(isEmpty3.evaluate(resolver));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> isEmpty3.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(null)", print(isEmpty3));
-    assertTrue(isEmpty4.evaluate(resolver));
+    exception = assertThrows(EvaluationException.class, () -> isEmpty4.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("isEmpty(null)", print(isEmpty4));
   }
 }

@@ -3,6 +3,8 @@ package datadog.trace.civisibility;
 import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
+import datadog.trace.api.civisibility.coverage.NoOpCoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfoProvider;
@@ -18,6 +20,8 @@ import datadog.trace.civisibility.config.ConfigurationApiImpl;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl;
+import datadog.trace.civisibility.coverage.file.FileCoverageStore;
+import datadog.trace.civisibility.coverage.line.LineCoverageStore;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataApi;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
@@ -53,6 +57,7 @@ public class CiVisibilityRepoServices {
   final RepoIndexProvider repoIndexProvider;
   final Codeowners codeowners;
   final SourcePathResolver sourcePathResolver;
+  final CoverageStore.Factory coverageStoreFactory;
   final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
 
   CiVisibilityRepoServices(CiVisibilityServices services, Path path) {
@@ -75,6 +80,8 @@ public class CiVisibilityRepoServices {
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
     codeowners = buildCodeowners(repoRoot);
     sourcePathResolver = buildSourcePathResolver(repoRoot, repoIndexProvider);
+    coverageStoreFactory =
+        buildCoverageStoreFactory(services.config, services.metricCollector, sourcePathResolver);
 
     if (ProcessHierarchyUtils.isChild()) {
       moduleExecutionSettingsFactory =
@@ -105,6 +112,17 @@ public class CiVisibilityRepoServices {
       return Paths.get(repoRoot).relativize(path).toString();
     }
     return config.getServiceName();
+  }
+
+  private static CoverageStore.Factory buildCoverageStoreFactory(
+      Config config, CiVisibilityMetricCollector metrics, SourcePathResolver sourcePathResolver) {
+    if (!config.isCiVisibilityCodeCoverageEnabled()) {
+      return new NoOpCoverageStore.Factory();
+    }
+    if (!config.isCiVisibilityCoverageSegmentsEnabled()) {
+      return new FileCoverageStore.Factory(metrics, sourcePathResolver);
+    }
+    return new LineCoverageStore.Factory(metrics, sourcePathResolver);
   }
 
   private static ModuleExecutionSettingsFactory buildModuleExecutionSettingsFetcher(

@@ -248,14 +248,16 @@ public class IastWebController {
   }
 
   @PostMapping("/ssrf")
-  public String ssrf(@RequestParam("url") final String url) {
+  public String ssrf(
+      @RequestParam(value = "url", required = false) final String url,
+      @RequestParam(value = "host", required = false) final String host) {
     try {
-      final URL target = new URL(url);
+      final URL target = url != null ? new URL(url) : new URL("https", host, 443, "/test");
       final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
       conn.disconnect();
     } catch (final Exception e) {
     }
-    return "Url is: " + url;
+    return "ok";
   }
 
   @GetMapping("/weak_randomness")

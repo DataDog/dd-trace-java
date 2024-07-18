@@ -11,6 +11,7 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import com.datadog.appsec.gateway.GatewayContext;
 import java.util.Collections;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -87,7 +88,7 @@ public class EventDispatcherBenchmark {
                 ChangeableFlow flow,
                 AppSecRequestContext context,
                 DataBundle dataBundle,
-                boolean isTransient) {}
+                GatewayContext gatewayContext) {}
 
             @Override
             public Priority getPriority() {

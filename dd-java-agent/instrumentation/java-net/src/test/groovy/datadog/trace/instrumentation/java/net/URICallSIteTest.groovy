@@ -2,11 +2,10 @@ package datadog.trace.instrumentation.java.net
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestURICallSiteSuite
-import groovy.transform.CompileDynamic
 
-@CompileDynamic
 class URICallSIteTest extends AgentTestRunner {
 
   @Override
@@ -16,7 +15,7 @@ class URICallSIteTest extends AgentTestRunner {
 
   void 'test uri ctor propagation'() {
     given:
-    final module = Mock(PropagationModule)
+    final module = Mock(CodecModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
@@ -24,7 +23,7 @@ class URICallSIteTest extends AgentTestRunner {
 
     then:
     uri.toString() == expected
-    1 * module.taintObjectIfAnyTainted(_ as URI, args as Object[])
+    1 * module.onUriCreate(_ as URI, args as Object[])
 
     where:
     method | args                                                                          | expected
@@ -37,7 +36,7 @@ class URICallSIteTest extends AgentTestRunner {
 
   void 'test uri create propagation'() {
     given:
-    final module = Mock(PropagationModule)
+    final module = Mock(CodecModule)
     InstrumentationBridge.registerIastModule(module)
 
     when:
@@ -45,7 +44,7 @@ class URICallSIteTest extends AgentTestRunner {
 
     then:
     uri.toString() == expected
-    1 * module.taintObjectIfTainted(_ as URI, args[0])
+    1 * module.onUriCreate(_ as URI, args[0])
 
     where:
     method   | args                                          | expected
@@ -61,12 +60,14 @@ class URICallSIteTest extends AgentTestRunner {
     TestURICallSiteSuite.&"$method".call(args as Object[])
 
     then:
-    1 * module."taint${target}IfTainted"(_, _ as URI)
+    1 * module."taint${target}IfTainted"(_, _ as URI, keepRanges, _)
 
     where:
-    method          | target   | args
-    'normalize'     | 'Object' | [new URI('http://test.com/index?name=value#fragment')]
-    'toString'      | 'String' | [new URI('http://test.com/index?name=value#fragment')]
-    'toASCIIString' | 'String' | [new URI('http://test.com/index?name=value#fragment')]
+    method          | target   | args                                                           | keepRanges
+    'normalize'     | 'Object' | [new URI('http://test.com/index?name=value#fragment')]         | true
+    'normalize'     | 'Object' | [new URI('http://test.com/test/../index?name=value#fragment')] | false
+    'toASCIIString' | 'String' | [new URI('http://test.com/index?name=value#fragment')]         | true
+    'toASCIIString' | 'String' | [new URI('http://test.com/漢/index?name=value#fragment')]      | false
+    'toString'      | 'String' | [new URI('http://test.com/index?name=value#fragment')]         | true
   }
 }
