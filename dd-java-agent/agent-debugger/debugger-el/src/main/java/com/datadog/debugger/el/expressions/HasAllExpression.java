@@ -43,8 +43,8 @@ public final class HasAllExpression extends MatchingExpression {
     if (value instanceof ListValue) {
       ListValue collection = (ListValue) value;
       if (collection.isEmpty()) {
-        // always return FALSE for empty values
-        return Boolean.FALSE;
+        // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
+        return Boolean.TRUE;
       }
       int len = collection.count();
       for (int i = 0; i < len; i++) {
@@ -60,8 +60,8 @@ public final class HasAllExpression extends MatchingExpression {
     if (value instanceof MapValue) {
       MapValue map = (MapValue) value;
       if (map.isEmpty()) {
-        // always return FALSE for empty values
-        return Boolean.FALSE;
+        // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
+        return Boolean.TRUE;
       }
       for (Value<?> key : map.getKeys()) {
         Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
@@ -77,7 +77,8 @@ public final class HasAllExpression extends MatchingExpression {
     if (value instanceof SetValue) {
       SetValue set = (SetValue) value;
       if (set.isEmpty()) {
-        return Boolean.FALSE;
+        // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
+        return Boolean.TRUE;
       }
       Set<?> setHolder = (Set<?>) set.getSetHolder();
       if (WellKnownClasses.isSafe(setHolder)) {

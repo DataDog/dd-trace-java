@@ -220,4 +220,17 @@ class HasAllExpressionTest {
                 eq(ref(ValueReferences.ITERATOR_REF), value("bar"))));
     assertTrue(expression.evaluate(ctx));
   }
+
+  @Test
+  void emptiness() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    HasAllExpression expression = all(value(new String[] {}), TRUE);
+    assertTrue(expression.evaluate(ctx));
+    expression = all(value(Collections.emptyList()), TRUE);
+    assertTrue(expression.evaluate(ctx));
+    expression = all(value(Collections.emptyMap()), TRUE);
+    assertTrue(expression.evaluate(ctx));
+    expression = all(value(Collections.emptySet()), TRUE);
+    assertTrue(expression.evaluate(ctx));
+  }
 }

@@ -233,4 +233,20 @@ class HasAnyExpressionTest {
     assertFalse(expression.evaluate(ctx));
     assertEquals("hasAny(Set, @it == \"key\")", print(expression));
   }
+
+  @Test
+  void emptiness() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    HasAnyExpression expression = any(value(Collections.emptyList()), TRUE);
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(List, true)", print(expression));
+
+    expression = any(value(Collections.emptyMap()), TRUE);
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(Map, true)", print(expression));
+
+    expression = any(value(Collections.emptySet()), TRUE);
+    assertFalse(expression.evaluate(ctx));
+    assertEquals("hasAny(Set, true)", print(expression));
+  }
 }
