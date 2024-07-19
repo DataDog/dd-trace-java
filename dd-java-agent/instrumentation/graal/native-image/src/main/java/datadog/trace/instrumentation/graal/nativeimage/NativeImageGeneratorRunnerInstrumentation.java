@@ -103,6 +103,8 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.instrumentation.jfr.directallocation.DirectAllocationTotalEvent:build_time,"
               + "datadog.trace.logging.LoggingSettingsDescription:build_time,"
               + "datadog.trace.logging.simplelogger.SLCompatFactory:build_time,"
+              + "datadog.trace.logging.LogReporter:build_time,"
+              + "datadog.trace.logging.PrintStreamWrapper:build_time,"
               + "datadog.trace.util.CollectionUtils:build_time,"
               + "datadog.slf4j.impl.StaticLoggerBinder:build_time,"
               + "datadog.slf4j.LoggerFactory:build_time,"

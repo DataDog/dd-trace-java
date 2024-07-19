@@ -199,9 +199,8 @@ public class DSL {
     return new EndsWithExpression(valueExpression, str);
   }
 
-  public static StringPredicateExpression contains(
-      ValueExpression<?> valueExpression, StringValue str) {
-    return new ContainsExpression(valueExpression, str);
+  public static ContainsExpression contains(ValueExpression<?> target, ValueExpression<?> value) {
+    return new ContainsExpression(target, value);
   }
 
   public static StringPredicateExpression matches(
