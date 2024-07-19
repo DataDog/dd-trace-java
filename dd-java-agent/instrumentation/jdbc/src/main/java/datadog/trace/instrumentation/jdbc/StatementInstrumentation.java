@@ -104,13 +104,11 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         final String copy = sql;
-        Integer priority = null;
-        final AgentScope scope = activateSpan(span);
         if (span != null && INJECT_COMMENT) {
           String traceParent = null;
 
           if (injectTraceContext && !isSqlServer) {
-            priority = span.forceSamplingDecision();
+            Integer priority = span.forceSamplingDecision();
             if (priority != null) {
               traceParent = DECORATE.traceParent(span, priority);
               // set the dbm trace injected tag on the span
@@ -129,8 +127,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
-
-        return scope;
+        return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
         return null;
