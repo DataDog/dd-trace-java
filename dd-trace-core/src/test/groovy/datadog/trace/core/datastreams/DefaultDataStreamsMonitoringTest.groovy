@@ -11,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.StatsPoint
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
 import datadog.trace.core.test.DDCoreSpecification
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
