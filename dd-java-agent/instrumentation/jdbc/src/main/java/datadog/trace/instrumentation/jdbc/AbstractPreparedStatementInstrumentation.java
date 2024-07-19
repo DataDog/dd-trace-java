@@ -80,7 +80,9 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
 
         if (INJECT_COMMENT && injectTraceContext && DECORATE.isSqlServer(dbInfo)) {
+          // The span ID is pre-determined so that we can reference it when setting the context
           final long spanID = DECORATE.setContextInfo(connection, dbInfo);
+          // we then force that pre-determined span ID for the span covering the actual query
           span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
         } else {
           span = startSpan(DATABASE_QUERY);
