@@ -55,7 +55,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
   }
 
   AppSecRequestContext ctx = Spy()
-  GatewayContext gwCtx = new GatewayContext(false, false)
+  GatewayContext gwCtx = new GatewayContext(false)
 
   StubAppSecConfigService service
   PowerWAFModule pwafModule = new PowerWAFModule()

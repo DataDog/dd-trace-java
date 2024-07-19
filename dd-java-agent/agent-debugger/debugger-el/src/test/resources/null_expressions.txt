@@ -2,10 +2,10 @@
 {"dsl": "", "json": {"eq": [{"count": null}, 0]}}
 {"dsl": "", "json": {"eq": [{"len": {"ref": "field"}}, 0]}}
 {"dsl": "", "json": {"eq": [{"count": {"ref": "field"}}, 0]}}
-{"dsl": "", "json": {"hasAny": [null, {"eq": [{"ref": "@it"}, 0]}]}}
-{"dsl": "", "json": {"hasAll": [null, {"eq": [{"ref": "@it"}, 0]}]}}
-{"dsl": "", "json": {"hasAny": [{"ref": "field"}, {"eq": [{"ref": "@it"}, 0]}]}}
-{"dsl": "", "json": {"hasAll": [{"ref": "field"}, {"eq": [{"ref": "@it"}, 0]}]}}
+{"dsl": "", "json": {"any": [null, {"eq": [{"ref": "@it"}, 0]}]}}
+{"dsl": "", "json": {"all": [null, {"eq": [{"ref": "@it"}, 0]}]}}
+{"dsl": "", "json": {"any": [{"ref": "field"}, {"eq": [{"ref": "@it"}, 0]}]}}
+{"dsl": "", "json": {"all": [{"ref": "field"}, {"eq": [{"ref": "@it"}, 0]}]}}
 {"dsl": "", "json": {"isEmpty": null}}
 {"dsl": "", "json": {"isEmpty": {"ref": "field"}}}
 {"dsl": "", "json": {"eq": [{"index": [null, 0]}, 0]}}

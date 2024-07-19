@@ -270,11 +270,7 @@ public final class ContinuableScopeManager implements AgentScopeManager {
     AgentSpan activeSpan = activeSpan();
     if (activeSpan != null && activeSpan != NoopAgentSpan.INSTANCE) {
       // Notify the listener about the currently active scope
-      listener.afterScopeActivated(
-          activeSpan.getTraceId(),
-          activeSpan.getLocalRootSpan().getSpanId(),
-          activeSpan.context().getSpanId(),
-          activeSpan.traceConfig());
+      listener.afterScopeActivated(activeSpan.getTraceId(), activeSpan.getSpanId());
     }
   }
 
