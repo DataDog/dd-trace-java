@@ -75,7 +75,11 @@ public class PrettyPrintVisitor implements Visitor<String> {
 
   @Override
   public String visit(ContainsExpression containsExpression) {
-    return stringPredicateExpression(containsExpression);
+    return "contains("
+        + nullSafeAccept(containsExpression.getTarget())
+        + ", "
+        + nullSafeAccept(containsExpression.getValue())
+        + ")";
   }
 
   @Override

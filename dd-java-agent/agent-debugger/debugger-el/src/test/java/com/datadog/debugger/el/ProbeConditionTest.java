@@ -283,6 +283,25 @@ public class ProbeConditionTest {
     }
   }
 
+  @Test
+  public void containsExpressions() {
+    class Obj {
+      String str = "hello";
+      String[] arrayStr = new String[] {"foo", "hello", "bar"};
+      Map<String, String> mapStr = new HashMap<>();
+
+      {
+        mapStr.put("foo", "bar");
+        mapStr.put("hello", "bar");
+      }
+    }
+    List<String> lines = loadLinesFromResource("/contains_expressions.txt");
+    for (String line : lines) {
+      ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
+      assertTrue(load(line).execute(ctx));
+    }
+  }
+
   private static ProbeCondition loadFromResource(String resourcePath) throws IOException {
     InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath);
     Moshi moshi =
