@@ -69,6 +69,12 @@ public final class AgentBootstrap {
       return;
     }
 
+    // prevent the agent from being initialized if the configured instrumentation is not matching
+    // it's intended runtime.
+    if (shouldAbortIfNotIntendedRuntime()) {
+      return;
+    }
+
     try {
       final URL agentJarURL = installAgentJar(inst);
       final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
@@ -148,6 +154,46 @@ public final class AgentBootstrap {
       return true;
     }
     return false;
+  }
+
+  private static boolean shouldAbortIfNotIntendedRuntime() {
+    if (isDataJobEnabled() && !isDataJobRuntime()) {
+      System.out.println(
+          "Warning: should abort as this is likely not a Spark runtime even though Data Job instrumentation is enabled on the host");
+      return true;
+    }
+
+    return false;
+  }
+
+  private static boolean isDataJobRuntime() {
+    // Given data job is enabled, we presume the JVM is intended to run data jobs if the following
+    // system properties are set
+    // TODO: find a better signal.
+    return System.getProperty("dd.service") != null && System.getProperty("dd.env") != null
+        || System.getProperty("dd.version") != null;
+  }
+
+  private static boolean isDataJobEnabled() {
+    // TODO: we can repurpose dd.data.jobs.enabled or DD_DATA_JOBS_ENABLED if djm's init script
+    // start to use that.
+    String integrationValue = System.getProperty("dd.integration.enabled");
+    if (integrationValue == null) {
+      integrationValue = System.getenv("DD_INTEGRATION_ENABLED");
+    }
+
+    String sparkIntegrationValue = System.getProperty("dd.integration.spark.enabled");
+    if (sparkIntegrationValue == null) {
+      sparkIntegrationValue = System.getenv("DD_INTEGRATION_SPARK_ENABLED");
+    }
+
+    boolean integration =
+        "true".equalsIgnoreCase(integrationValue) || "1".equalsIgnoreCase(integrationValue);
+    boolean sparkIntegration =
+        "true".equalsIgnoreCase(sparkIntegrationValue)
+            || "1".equalsIgnoreCase(sparkIntegrationValue);
+
+    return !integration && sparkIntegration;
   }
 
   private static boolean isJdkTool() {
