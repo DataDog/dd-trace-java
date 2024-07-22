@@ -175,8 +175,8 @@ class DefaultPathwayContextTest extends DDCoreSpecification {
 
     // all points should have datasetHash, which is not equal to hash or 0
     for (var i = 0; i < pointConsumer.points.size(); i++){
-      pointConsumer.points[i].dataSetHash != pointConsumer.points[i].hash
-      pointConsumer.points[i].dataSetHash != 0
+      pointConsumer.points[i].aggregationHash != pointConsumer.points[i].hash
+      pointConsumer.points[i].aggregationHash != 0
     }
   }
 
