@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.agent.DebuggerAgentHelper;
+import com.datadog.debugger.probe.LogProbe.LogStatus;
 import com.datadog.debugger.probe.SpanDebuggerProbe;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.snapshot.DefaultSpanDebugger;
@@ -20,6 +21,7 @@ import com.datadog.debugger.util.TestSnapshotListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.spanorigin.SpanOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -99,8 +101,7 @@ public class SpanDebuggerTest {
     }
     assertTrue(entryProbe.isEntrySpanProbe());
     assertFalse(exitProbe.isEntrySpanProbe());
-    tracerAPI.activateSpan(span1, ScopeSource.MANUAL);
-    entryProbe.commit(EMPTY_CAPTURING_CONTEXT, EMPTY_CAPTURING_CONTEXT, emptyList());
+    invoke(span1, entryProbe);
 
     assertTrue(
         span1.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_FILE),
@@ -109,8 +110,7 @@ public class SpanDebuggerTest {
         span1.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_SNAPSHOT_ID),
         span1.getTags().keySet().toString());
 
-    tracerAPI.activateSpan(span2, ScopeSource.MANUAL);
-    exitProbe.commit(EMPTY_CAPTURING_CONTEXT, EMPTY_CAPTURING_CONTEXT, emptyList());
+    invoke(span2, exitProbe);
     assertTrue(
         span2.getTags().containsKey(String.format(DDTags.DD_EXIT_LOCATION_FILE, 0)),
         span2.getTags().keySet().toString());
@@ -118,8 +118,7 @@ public class SpanDebuggerTest {
         span2.getTags().containsKey(DDTags.DD_EXIT_LOCATION_SNAPSHOT_ID),
         span2.getTags().keySet().toString());
 
-    tracerAPI.activateSpan(span3, ScopeSource.MANUAL);
-    entryProbe.commit(EMPTY_CAPTURING_CONTEXT, EMPTY_CAPTURING_CONTEXT, emptyList());
+    invoke(span3, entryProbe);
 
     assertTrue(
         span3.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_FILE),
@@ -130,6 +129,12 @@ public class SpanDebuggerTest {
 
     System.out.println("****** SpanDebuggerTest.fingerprinting span1 = " + span1);
     System.out.println("****** SpanDebuggerTest.fingerprinting span2 = " + span2);
+  }
+
+  private void invoke(AgentSpan span1, SpanDebuggerProbe probe) {
+    tracerAPI.activateSpan(span1, ScopeSource.MANUAL);
+    probe.evaluate(EMPTY_CAPTURING_CONTEXT, LogStatus.EMPTY_LOG_STATUS, MethodLocation.EXIT);
+    probe.commit(EMPTY_CAPTURING_CONTEXT, EMPTY_CAPTURING_CONTEXT, emptyList());
   }
 
   private AgentSpan createProbePath1() {
