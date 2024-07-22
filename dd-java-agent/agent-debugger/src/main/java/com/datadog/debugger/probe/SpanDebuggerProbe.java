@@ -23,9 +23,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
-import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +36,7 @@ public class SpanDebuggerProbe extends LogProbe implements FrameAware {
 
   private final String signature;
 
-  private final boolean entrySpan;
+  private final boolean entrySpanProbe;
 
   private final transient SpanDebuggerProbeManager probeManager;
 
@@ -43,7 +44,7 @@ public class SpanDebuggerProbe extends LogProbe implements FrameAware {
       ProbeId probeId, String signature, Where where, SpanDebuggerProbeManager probeManager) {
     super(LANGUAGE, probeId, null, where, MethodLocation.EXIT, null, null, true, null, null, null);
     this.signature = signature;
-    this.entrySpan = signature != null;
+    this.entrySpanProbe = signature != null;
     this.probeManager = probeManager;
   }
 
@@ -51,6 +52,10 @@ public class SpanDebuggerProbe extends LogProbe implements FrameAware {
   public boolean isLineProbe() {
     // these are always method probes even if there is a line number
     return false;
+  }
+
+  public boolean isEntrySpanProbe() {
+    return entrySpanProbe;
   }
 
   @Override
@@ -85,7 +90,8 @@ public class SpanDebuggerProbe extends LogProbe implements FrameAware {
       CapturedContext exitContext,
       List<CapturedThrowable> caughtExceptions) {
     if (isSpanDebugEnabled(span, CAPTURE_ORIGIN_FRAMES, CAPTURE_ALL_PROBES)) {
-      String key = entrySpan ? DDTags.DD_ENTRY_LOCATION_SNAPSHOT_ID : DD_EXIT_LOCATION_SNAPSHOT_ID;
+      String key =
+          entrySpanProbe ? DDTags.DD_ENTRY_LOCATION_SNAPSHOT_ID : DD_EXIT_LOCATION_SNAPSHOT_ID;
       Snapshot snapshot = createSnapshot();
       if (fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot)) {
         LOGGER.debug(
@@ -95,7 +101,7 @@ public class SpanDebuggerProbe extends LogProbe implements FrameAware {
             snapshot.getExceptionId());
 
         span.setTag(key, snapshot.getId());
-        if (entrySpan && span.getLocalRootSpan() != null) {
+        if (entrySpanProbe && span.getLocalRootSpan() != null) {
           span.getLocalRootSpan().setTag(key, snapshot.getId());
         }
         commitSnapshot(snapshot, DebuggerAgent.getSink());
@@ -104,7 +110,7 @@ public class SpanDebuggerProbe extends LogProbe implements FrameAware {
   }
 
   private AgentSpan findCorrectSpan(AgentSpan span) {
-    if (entrySpan) {
+    if (entrySpanProbe) {
       return span;
     }
     if (span.getLocalRootSpan().context() instanceof DDSpanContext) {
@@ -123,9 +129,9 @@ public class SpanDebuggerProbe extends LogProbe implements FrameAware {
     if (isSpanDebugEnabled(span, ORIGIN_FRAME_ONLY, ALL_FRAMES)) {
       List<StackTraceElement> entries = entries();
       if (!entries.isEmpty()) {
-        if (entrySpan) {
+        if (entrySpanProbe) {
           StackTraceElement entry = entries.get(0);
-          List<AgentSpan> spans = new ArrayList<>();
+          Set<AgentSpan> spans = new LinkedHashSet<>();
           spans.add(span);
           AgentSpan rootSpan = span.getLocalRootSpan();
           if (rootSpan != null && rootSpan.getTags().get(DDTags.DD_ENTRY_LOCATION_FILE) == null) {
