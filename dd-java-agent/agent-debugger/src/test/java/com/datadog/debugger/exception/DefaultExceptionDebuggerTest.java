@@ -47,7 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 
-class DefaultExceptionDebuggerTest {
+public class DefaultExceptionDebuggerTest {
 
   private ClassNameFiltering classNameFiltering;
   private ConfigurationUpdater configurationUpdater;
@@ -336,7 +336,7 @@ class DefaultExceptionDebuggerTest {
     return new RuntimeException("test2", cause);
   }
 
-  private static Config createConfig() {
+  public static Config createConfig() {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);

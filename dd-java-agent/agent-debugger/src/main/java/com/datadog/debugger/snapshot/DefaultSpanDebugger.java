@@ -18,13 +18,26 @@ public class DefaultSpanDebugger implements SpanDebugger {
   private final ConfigurationUpdater configurationUpdater;
   private final ClassNameFiltering classNameFiltering;
 
+  private AgentTaskScheduler taskScheduler = AgentTaskScheduler.INSTANCE;
+
   public DefaultSpanDebugger(
-      SpanDebuggerProbeManager probeManager,
-      ConfigurationUpdater configurationUpdater,
-      ClassNameFiltering classNameFiltering) {
-    this.probeManager = probeManager;
+      ConfigurationUpdater configurationUpdater, ClassNameFiltering classNameFiltering) {
+    this.probeManager = new SpanDebuggerProbeManager(classNameFiltering);
     this.configurationUpdater = configurationUpdater;
     this.classNameFiltering = classNameFiltering;
+  }
+
+  public SpanDebuggerProbeManager probeManager() {
+    return probeManager;
+  }
+
+  public AgentTaskScheduler taskScheduler() {
+    return taskScheduler;
+  }
+
+  public DefaultSpanDebugger taskScheduler(AgentTaskScheduler taskScheduler) {
+    this.taskScheduler = taskScheduler;
+    return this;
   }
 
   @Override
@@ -39,7 +52,7 @@ public class DefaultSpanDebugger implements SpanDebugger {
     if (!probeManager.isAlreadyInstrumented(fingerprint)) {
       String probeId = probeManager.createProbesForSpan(element, signature);
       if (probeId != null) {
-        AgentTaskScheduler.INSTANCE.execute(
+        taskScheduler.execute(
             () -> {
               configurationUpdater.accept(SPAN_DEBUG, probeManager.getProbes());
               probeManager.addFingerprint(fingerprint, probeId);
@@ -53,10 +66,11 @@ public class DefaultSpanDebugger implements SpanDebugger {
 
   private StackTraceElement findPlaceInStack() {
     return StackWalkerFactory.INSTANCE.walk(
-        stream ->
-            stream
-                .filter(element -> !classNameFiltering.isExcluded(element.getClassName()))
-                .findFirst()
-                .orElse(null));
+        stream -> {
+          return stream
+              .filter(element -> !classNameFiltering.isExcluded(element.getClassName()))
+              .findFirst()
+              .orElse(null);
+        });
   }
 }
