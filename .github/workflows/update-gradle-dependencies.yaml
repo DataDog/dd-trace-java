@@ -8,6 +8,11 @@ jobs:
   update-gradle-dependencies:
     runs-on: ubuntu-latest
     name: Update Gradle dependencies
+    permissions:
+      # Commit and push changes to a new branch
+      contents: write
+      # Create a pull request
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
@@ -27,14 +32,19 @@ jobs:
           JAVA_17_HOME=$JAVA_HOME_17_X64 \
           JAVA_21_HOME=$JAVA_HOME_21_X64 \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
+      - name: Commit changes
+        uses: planetscale/ghcommit-action@b68767a2e130a71926b365322e62b583404a5e09 # v0.1.43
+        with:
+          commit_message: "chore: Update Gradle dependencies"
+          repo: ${{ github.repository }}
+          branch: ${{ env.BRANCH_NAME }}
+          file_pattern: 'gradle.lockfile'
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "**/gradle.lockfile"
-          git commit -m "chore: Update Gradle dependencies"
           git push -u origin $BRANCH_NAME
           gh pr create --title "Update Gradle dependencies" \
             --body "This PR updates the Gradle dependencies" \
