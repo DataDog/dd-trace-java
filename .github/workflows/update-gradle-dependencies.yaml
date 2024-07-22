@@ -42,7 +42,7 @@ jobs:
           commit_message: "chore: Update Gradle dependencies"
           repo: ${{ github.repository }}
           branch: ${{ env.BRANCH_NAME }}
-          file_pattern: 'gradle.lockfile'
+          file_pattern: '**/gradle.lockfile'
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Create pull request
