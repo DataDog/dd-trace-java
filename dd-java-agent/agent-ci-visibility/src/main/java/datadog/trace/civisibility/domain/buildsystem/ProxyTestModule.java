@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
@@ -12,8 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
-import datadog.trace.civisibility.coverage.SkippableAwareCoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
@@ -57,7 +57,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStore.Factory coverageStoreFactory;
   private final LongAdder testsSkipped = new LongAdder();
   private final Collection<TestIdentifier> skippableTests;
   private final boolean testSkippingEnabled;
@@ -79,7 +79,7 @@ public class ProxyTestModule implements TestFrameworkModule {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       CoverageDataSupplier coverageDataSupplier,
       SignalClient.Factory signalClientFactory) {
     this.parentProcessSessionId = parentProcessSessionId;
@@ -97,10 +97,10 @@ public class ProxyTestModule implements TestFrameworkModule {
 
     this.testSkippingEnabled = executionSettings.isTestSkippingEnabled();
     this.skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
-    this.coverageProbeStoreFactory =
+    this.coverageStoreFactory =
         executionSettings.isItrEnabled()
-            ? new SkippableAwareCoverageProbeStoreFactory(skippableTests, coverageProbeStoreFactory)
-            : coverageProbeStoreFactory;
+            ? new SkippableAwareCoverageStoreFactory(skippableTests, coverageStoreFactory)
+            : coverageStoreFactory;
 
     this.flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
     Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
@@ -219,7 +219,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory,
+        coverageStoreFactory,
         this::propagateTestFrameworkData);
   }
 

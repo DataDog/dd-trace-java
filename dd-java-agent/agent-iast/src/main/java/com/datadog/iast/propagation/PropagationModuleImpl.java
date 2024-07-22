@@ -780,7 +780,7 @@ public class PropagationModuleImpl implements PropagationModule {
       ((Taintable) value).$$DD$setSource(source);
     } else {
       if (value instanceof CharSequence) {
-        source = source.attachValue((CharSequence) value);
+        source = attachSourceValue(source, (CharSequence) value);
         to.taint(value, Ranges.forCharSequence((CharSequence) value, source, mark));
       } else {
         to.taint(value, Ranges.forObject(source, mark));
@@ -796,7 +796,7 @@ public class PropagationModuleImpl implements PropagationModule {
     if (source == null) {
       return;
     }
-    source = source.attachValue(value);
+    source = attachSourceValue(source, value);
     to.taint(value, Ranges.forCharSequence(value, source, mark));
   }
 
@@ -865,6 +865,11 @@ public class PropagationModuleImpl implements PropagationModule {
     return result;
   }
 
+  private static Source attachSourceValue(final Source source, final CharSequence value) {
+    final Object newValue = sourceReference(value, value, true);
+    return newValue == null ? source : source.attachValue(newValue);
+  }
+
   private static Range[] attachSourceValue(
       @Nonnull final Range[] ranges, @Nonnull final CharSequence value) {
     // unbound sources can only occur when there's a single range in the array
@@ -873,7 +878,7 @@ public class PropagationModuleImpl implements PropagationModule {
     }
     final Range range = ranges[0];
     final Source source = range.getSource();
-    final Source newSource = range.getSource().attachValue(value);
+    final Source newSource = attachSourceValue(source, value);
     return newSource == source
         ? ranges
         : Ranges.forCharSequence(value, newSource, range.getMarks());

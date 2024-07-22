@@ -15,7 +15,11 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
+import com.datadog.debugger.sink.SnapshotSink;
+import com.datadog.debugger.sink.SymbolSink;
+import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
+import com.datadog.debugger.util.DebuggerMetrics;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -117,7 +121,13 @@ public class DebuggerTransformer implements ClassFileTransformer {
         configuration,
         null,
         new DebuggerSink(
-            config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
+            config,
+            "",
+            DebuggerMetrics.getInstance(config),
+            new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false),
+            new SnapshotSink(
+                config, "", new BatchUploader(config, config.getFinalDebuggerSnapshotUrl())),
+            new SymbolSink(config)));
   }
 
   private void readExcludeFiles(String commaSeparatedFileNames) {

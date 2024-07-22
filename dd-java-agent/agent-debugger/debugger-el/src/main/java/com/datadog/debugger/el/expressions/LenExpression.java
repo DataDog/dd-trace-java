@@ -31,9 +31,9 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
     Value<?> materialized = source == null ? Value.nullValue() : source.evaluate(valueRefResolver);
     try {
       if (materialized.isNull()) {
-        return (NumericValue) Value.of(-1);
+        throw new RuntimeException("Cannot evaluate the expression for null value");
       } else if (materialized.isUndefined()) {
-        return (NumericValue) Value.of(0);
+        throw new RuntimeException("Cannot evaluate the expression for undefined value");
       } else if (materialized instanceof StringValue) {
         return (NumericValue) Value.of(((StringValue) materialized).length());
       } else if (materialized instanceof CollectionValue) {

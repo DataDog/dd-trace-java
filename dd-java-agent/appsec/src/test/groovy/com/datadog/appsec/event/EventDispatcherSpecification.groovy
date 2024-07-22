@@ -30,7 +30,7 @@ class EventDispatcherSpecification extends DDSpecification {
     set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
     set.addSubscription([KnownAddresses.REQUEST_METHOD], dataListener3)
     dispatcher.subscribeDataAvailable(set)
-    def gwCtx = new GatewayContext(true, false)
+    def gwCtx = new GatewayContext(true)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.REQUEST_METHOD)
@@ -72,7 +72,7 @@ class EventDispatcherSpecification extends DDSpecification {
       [KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.HEADERS_NO_COOKIES],
       listener)
     dispatcher.subscribeDataAvailable(set)
-    def gwCtx = new GatewayContext(true, false)
+    def gwCtx = new GatewayContext(true)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.HEADERS_NO_COOKIES)
@@ -95,7 +95,7 @@ class EventDispatcherSpecification extends DDSpecification {
     set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
     set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
     dispatcher.subscribeDataAvailable(set)
-    def gwCtx = new GatewayContext(true, false)
+    def gwCtx = new GatewayContext(true)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
@@ -123,7 +123,7 @@ class EventDispatcherSpecification extends DDSpecification {
     def set = new EventDispatcher.DataSubscriptionSet()
     set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], listener)
     dispatcher.subscribeDataAvailable(set)
-    def gwCtx = new GatewayContext(false, false)
+    def gwCtx = new GatewayContext(false)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
@@ -160,7 +160,7 @@ class EventDispatcherSpecification extends DDSpecification {
     EventDispatcher anotherDispatcher = new EventDispatcher()
     EventProducerService.DataSubscriberInfo subInfo =
       anotherDispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
-    def gwCtx = new GatewayContext(false, false)
+    def gwCtx = new GatewayContext(false)
     dispatcher.publishDataEvent(subInfo, Stub(AppSecRequestContext), Stub(DataBundle), gwCtx)
 
     then:

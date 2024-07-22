@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RefResolverHelper;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -14,7 +15,9 @@ import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class HasAllExpressionTest {
@@ -23,55 +26,68 @@ class HasAllExpressionTest {
   @Test
   void testNullPredicate() {
     ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
-    HasAllExpression expression = new HasAllExpression(null, null);
-    assertFalse(expression.evaluate(resolver));
-    assertEquals("hasAll(null, true)", print(expression));
-    expression = new HasAllExpression(value(Values.UNDEFINED_OBJECT), null);
-    assertFalse(expression.evaluate(resolver));
-    assertEquals("hasAll(UNDEFINED, true)", print(expression));
-    expression = new HasAllExpression(value(this), null);
+    HasAllExpression nullExpression = new HasAllExpression(null, null);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> nullExpression.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("all(null, true)", print(nullExpression));
+    HasAllExpression undefinedExpression =
+        new HasAllExpression(value(Values.UNDEFINED_OBJECT), null);
+    exception =
+        assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(resolver));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
+    assertEquals("all(UNDEFINED, true)", print(undefinedExpression));
+    HasAllExpression expression = new HasAllExpression(value(this), null);
     assertTrue(expression.evaluate(resolver));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)",
-        print(expression));
+        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)", print(expression));
     expression = new HasAllExpression(value(Collections.singletonList(this)), null);
     assertTrue(expression.evaluate(resolver));
-    assertEquals("hasAll(List, true)", print(expression));
+    assertEquals("all(List, true)", print(expression));
     expression = new HasAllExpression(value(Collections.singletonMap(this, this)), null);
     assertTrue(expression.evaluate(resolver));
-    assertEquals("hasAll(Map, true)", print(expression));
+    assertEquals("all(Map, true)", print(expression));
   }
 
   @Test
   void testNullHasAll() {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
-    HasAllExpression expression = all(null, TRUE);
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(null, true)", print(expression));
+    HasAllExpression nullExpression1 = all(null, TRUE);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> nullExpression1.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("all(null, true)", print(nullExpression1));
 
-    expression = all(null, FALSE);
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(null, false)", print(expression));
+    HasAllExpression nullExpression2 = all(null, FALSE);
+    exception = assertThrows(EvaluationException.class, () -> nullExpression2.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("all(null, false)", print(nullExpression2));
 
-    expression = all(null, eq(ref("testField"), value(10)));
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(null, testField == 10)", print(expression));
+    HasAllExpression nullExpression3 = all(null, eq(ref("testField"), value(10)));
+    exception = assertThrows(EvaluationException.class, () -> nullExpression3.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("all(null, testField == 10)", print(nullExpression3));
   }
 
   @Test
   void testUndefinedHasAll() {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(this);
-    HasAllExpression expression = all(value(Values.UNDEFINED_OBJECT), TRUE);
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(UNDEFINED, true)", print(expression));
+    HasAllExpression undefinedExpression = all(value(Values.UNDEFINED_OBJECT), TRUE);
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
+    assertEquals("all(UNDEFINED, true)", print(undefinedExpression));
 
-    expression = all(null, FALSE);
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(null, false)", print(expression));
+    HasAllExpression nullExpression = all(null, FALSE);
+    exception = assertThrows(EvaluationException.class, () -> nullExpression.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+    assertEquals("all(null, false)", print(nullExpression));
 
-    expression = all(value(Values.UNDEFINED_OBJECT), eq(ref("testField"), value(10)));
-    assertFalse(expression.evaluate(ctx));
-    assertEquals("hasAll(UNDEFINED, testField == 10)", print(expression));
+    HasAllExpression expression =
+        all(value(Values.UNDEFINED_OBJECT), eq(ref("testField"), value(10)));
+    exception = assertThrows(EvaluationException.class, () -> expression.evaluate(ctx));
+    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
+    assertEquals("all(UNDEFINED, testField == 10)", print(expression));
   }
 
   @Test
@@ -81,19 +97,17 @@ class HasAllExpressionTest {
     HasAllExpression expression = all(targetExpression, TRUE);
     assertTrue(expression.evaluate(ctx));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)",
-        print(expression));
+        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, true)", print(expression));
 
     expression = all(targetExpression, FALSE);
     assertFalse(expression.evaluate(ctx));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, false)",
-        print(expression));
+        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, false)", print(expression));
 
     expression = all(targetExpression, eq(ref("testField"), value(10)));
     assertTrue(expression.evaluate(ctx));
     assertEquals(
-        "hasAll(com.datadog.debugger.el.expressions.HasAllExpressionTest, testField == 10)",
+        "all(com.datadog.debugger.el.expressions.HasAllExpressionTest, testField == 10)",
         print(expression));
   }
 
@@ -152,7 +166,7 @@ class HasAllExpressionTest {
   }
 
   @Test
-  void testMapHasAny() {
+  void testMapHasAll() {
     ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
     Map<String, String> valueMap = new HashMap<>();
     valueMap.put("a", "a");
@@ -174,6 +188,46 @@ class HasAllExpressionTest {
         all(
             targetExpression,
             eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
+    assertTrue(expression.evaluate(ctx));
+  }
+
+  @Test
+  void testSetHasAll() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    Set<String> valueSet = new HashSet<>();
+    valueSet.add("foo");
+    valueSet.add("bar");
+
+    ValueExpression<?> targetExpression = value(valueSet);
+
+    HasAllExpression expression = all(targetExpression, TRUE);
+    assertTrue(expression.evaluate(ctx));
+
+    expression = all(targetExpression, FALSE);
+    assertFalse(expression.evaluate(ctx));
+
+    expression = all(targetExpression, eq(ref(ValueReferences.ITERATOR_REF), value("key")));
+    assertFalse(expression.evaluate(ctx));
+
+    expression =
+        all(
+            targetExpression,
+            or(
+                eq(ref(ValueReferences.ITERATOR_REF), value("foo")),
+                eq(ref(ValueReferences.ITERATOR_REF), value("bar"))));
+    assertTrue(expression.evaluate(ctx));
+  }
+
+  @Test
+  void emptiness() {
+    ValueReferenceResolver ctx = RefResolverHelper.createResolver(null, null);
+    HasAllExpression expression = all(value(new String[] {}), TRUE);
+    assertTrue(expression.evaluate(ctx));
+    expression = all(value(Collections.emptyList()), TRUE);
+    assertTrue(expression.evaluate(ctx));
+    expression = all(value(Collections.emptyMap()), TRUE);
+    assertTrue(expression.evaluate(ctx));
+    expression = all(value(Collections.emptySet()), TRUE);
     assertTrue(expression.evaluate(ctx));
   }
 }

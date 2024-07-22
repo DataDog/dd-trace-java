@@ -55,6 +55,10 @@ public class SymbolSink {
     this.event = new BatchUploader.MultiPartContent(eventContent, "event", "event.json");
   }
 
+  public void stop() {
+    symbolUploader.shutdown();
+  }
+
   public boolean addScope(Scope jarScope) {
     ServiceVersion serviceVersion =
         new ServiceVersion(serviceName, env, version, "JAVA", Collections.singletonList(jarScope));
