@@ -279,7 +279,6 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       .withEndpointConfiguration(endpoint)
       .withCredentials(credentialsProvider)
       .build()
-    client.createQueue('somequeue')
 
     def connectionFactory = new SQSConnectionFactory(new ProviderConfiguration(), client)
     def connection = connectionFactory.createConnection()
