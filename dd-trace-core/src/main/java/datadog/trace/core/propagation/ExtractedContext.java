@@ -12,13 +12,13 @@ import java.util.Map;
  */
 public class ExtractedContext extends TagContext {
   private final DDTraceId traceId;
-  private long spanId;
+  private final long spanId;
   private final long endToEndStartTime;
   private final PropagationTags propagationTags;
 
   public ExtractedContext(
       final DDTraceId traceId,
-      long spanId,
+      final long spanId,
       final int samplingPriority,
       final CharSequence origin,
       final PropagationTags propagationTags,
@@ -39,7 +39,7 @@ public class ExtractedContext extends TagContext {
 
   public ExtractedContext(
       final DDTraceId traceId,
-      long spanId,
+      final long spanId,
       final int samplingPriority,
       final CharSequence origin,
       final long endToEndStartTime,
@@ -64,10 +64,6 @@ public class ExtractedContext extends TagContext {
   @Override
   public final long getSpanId() {
     return spanId;
-  }
-
-  public void updateSpanId(long spanId) {
-    this.spanId = spanId;
   }
 
   public final long getEndToEndStartTime() {
