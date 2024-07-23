@@ -22,12 +22,12 @@ jobs:
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
         with:
           submodules: 'recursive'
+      - name: Install ghcommit CLI
+        run: go install github.com/planetscale/ghcommit@v0.1.43
       - name: Pick a branch name
         run: echo "BRANCH_NAME=ci/update-gradle-dependencies-$(date +'%Y%m%d')" >> $GITHUB_ENV
       - name: Create a remote branch
-        run: |
-          git checkout -b $BRANCH_NAME
-          git push -u origin $BRANCH_NAME
+        run: git checkout -b $BRANCH_NAME
       - name: Update Gradle dependencies
         run: |
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
@@ -37,15 +37,34 @@ jobs:
           JAVA_17_HOME=$JAVA_HOME_17_X64 \
           JAVA_21_HOME=$JAVA_HOME_21_X64 \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
+      # - name: Commit changes
+      #   uses: planetscale/ghcommit-action@b68767a2e130a71926b365322e62b583404a5e09 # v0.1.43
+      #   with:
+      #     commit_message: "chore: Update Gradle dependencies"
+      #     repo: ${{ github.repository }}
+      #     branch: ${{ env.BRANCH_NAME }}
+      #     file_pattern: 'dd-java-agent/**'
+      #   env:
+      #     GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Commit changes
-        uses: planetscale/ghcommit-action@b68767a2e130a71926b365322e62b583404a5e09 # v0.1.43
-        with:
-          commit_message: "chore: Update Gradle dependencies"
-          repo: ${{ github.repository }}
-          branch: ${{ env.BRANCH_NAME }}
-          file_pattern: 'dd-java-agent/**'
-        env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          GH_ADD_ARGS=""
+          COUNT=0
+          for lockfile in $(git status --porcelain=v1 | awk '{ print $NF }'); do
+            echo "Found lockfile: $lockfile"
+            GH_ADD_ARGS="$GH_ADD_ARGS --add $lockfile"
+            COUNT=$((COUNT+1))
+            if [ $COUNT -eq 10 ]; then
+              echo "Creating a commit with $GH_ADD_ARGS"
+              ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME $GH_ADD_ARGS
+              GH_ADD_ARGS=""
+              COUNT=0
+            fi
+          done
+          if [ $COUNT -gt 0 ]; then
+            echo "Creating a commit with $GH_ADD_ARGS"
+            ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME $GH_ADD_ARGS
+          fi
       - name: Create pull request
         env:
           GH_TOKEN: ${{ github.token }}
