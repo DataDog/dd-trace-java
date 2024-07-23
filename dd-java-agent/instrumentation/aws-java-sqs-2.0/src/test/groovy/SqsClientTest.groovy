@@ -32,7 +32,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static java.nio.charset.StandardCharsets.UTF_8
 
 abstract class SqsClientTest extends VersionedNamingTestBase {
-  private MessageAttributeValue ddMsgAttribute
 
   def setup() {
     System.setProperty(SdkSystemSetting.AWS_ACCESS_KEY_ID.property(), "my-access-key")
@@ -298,11 +297,16 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     TEST_WRITER.clear()
 
     when:
+    def ddMsgAttribute = MessageAttributeValue.builder()
+      .dataType("Binary")
+      .binaryValue(SdkBytes.fromUtf8String("hello world")).build()
     connection.start()
-    TraceUtils.runUnderTrace('parent', {
-      def ddMsgAttribute = MessageAttributeValue.builder().dataType("Binary").binaryValue(SdkBytes.fromUtf8String("hello world")).build()
-      client.sendMessage(SendMessageRequest.builder().queueUrl(queue.queueUrl).messageBody('sometext').messageAttributes([_datadog: ddMsgAttribute]).build())
-    })
+    TraceUtils.runUnderTrace('parent') {
+      client.sendMessage(SendMessageRequest.builder()
+        .queueUrl(queue.queueUrl)
+        .messageBody('sometext')
+        .messageAttributes([_datadog: ddMsgAttribute]).build())
+    }
     def message = consumer.receive()
     consumer.receiveNoWait()
 
