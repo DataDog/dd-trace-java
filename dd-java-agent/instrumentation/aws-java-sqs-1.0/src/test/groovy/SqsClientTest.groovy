@@ -279,6 +279,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       .withEndpointConfiguration(endpoint)
       .withCredentials(credentialsProvider)
       .build()
+    client.createQueue('somequeue')
 
     def connectionFactory = new SQSConnectionFactory(new ProviderConfiguration(), client)
     def connection = connectionFactory.createConnection()
@@ -289,11 +290,15 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     TEST_WRITER.clear()
 
     when:
+    def ddMsgAttribute = new MessageAttributeValue()
+      .withDataType("Binary")
+      .withBinaryValue(ByteBuffer.wrap("hello world".getBytes(Charset.defaultCharset())))
     connection.start()
-    TraceUtils.runUnderTrace('parent', {
-      def ddMsgAttribute = new MessageAttributeValue().withDataType("Binary").withBinaryValue(ByteBuffer.wrap("hello world".getBytes(Charset.defaultCharset())))
-      client.sendMessage(new SendMessageRequest(queue.queueUrl, 'sometext').withMessageAttributes([_datadog: ddMsgAttribute]))
-    })
+    TraceUtils.runUnderTrace('parent') {
+      System.out.println(">> queue: " + queue.queueUrl)
+      client.sendMessage(new SendMessageRequest(queue.queueUrl, 'sometext')
+        .withMessageAttributes([_datadog: ddMsgAttribute]))
+    }
     def message = consumer.receive()
     consumer.receiveNoWait()
 

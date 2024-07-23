@@ -24,6 +24,9 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:jms')
 
   // SQS<->JMS testing:
+  testImplementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '4.0.2'
+  testImplementation group: 'org.glassfish.jaxb', name: 'jaxb-runtime', version: '4.0.5'
+
   testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.4.7'
   testImplementation group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '1.0.8'
 
