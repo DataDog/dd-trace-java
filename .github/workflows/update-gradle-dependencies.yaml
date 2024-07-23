@@ -24,8 +24,10 @@ jobs:
           submodules: 'recursive'
       - name: Install ghcommit CLI
         run: |
-          go install github.com/planetscale/ghcommit@v0.1.43
-          $GOPATH/bin/ghcommit --version
+          echo $PATH
+          curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o ghcommit
+          chmod +x ghcommit
+          ./ghcommit --version
       - name: Pick a branch name
         run: echo "BRANCH_NAME=ci/update-gradle-dependencies-$(date +'%Y%m%d')" >> $GITHUB_ENV
       - name: Create a remote branch
@@ -58,14 +60,14 @@ jobs:
             COUNT=$((COUNT+1))
             if [ $COUNT -eq 10 ]; then
               echo "Creating a commit with $GH_ADD_ARGS"
-              $GOPATH/bin/ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME $GH_ADD_ARGS
+              ./ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME $GH_ADD_ARGS
               GH_ADD_ARGS=""
               COUNT=0
             fi
           done
           if [ $COUNT -gt 0 ]; then
             echo "Creating a commit with $GH_ADD_ARGS"
-            $GOPATH/bin/ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME $GH_ADD_ARGS
+            ./ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME $GH_ADD_ARGS
           fi
       - name: Create pull request
         env:
