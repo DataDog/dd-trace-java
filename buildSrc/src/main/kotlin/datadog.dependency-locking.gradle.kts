@@ -25,8 +25,10 @@ tasks.register("resolveAndLockAll") {
   }
   doLast {
     configurations.filter {
-      // Add any custom filtering on the configurations to be resolved
-      it.isCanBeResolved
+      // Add any custom filtering on the configurations to be resolved:
+      // - Should be resolvable
+      // - Should skip Scala related task (https://github.com/ben-manes/gradle-versions-plugin/issues/816#issuecomment-1872264880)
+      it.isCanBeResolved && !it.name.startsWith("incrementalScalaAnalysis")
     }.forEach { it.resolve() }
   }
 }

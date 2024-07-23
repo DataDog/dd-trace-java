@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.java.net;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
+import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.net.URI;
 import javax.annotation.Nonnull;
@@ -17,10 +20,10 @@ public class URICallSite {
   public static URI afterCreate(
       @CallSite.Argument @Nullable final String value, @CallSite.Return @Nonnull final URI result) {
     if (value != null) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
+      final CodecModule module = InstrumentationBridge.CODEC;
       if (module != null) {
         try {
-          module.taintObjectIfTainted(result, value);
+          module.onUriCreate(result, value);
         } catch (final Throwable e) {
           module.onUnexpectedException("create threw", e);
         }
@@ -40,10 +43,10 @@ public class URICallSite {
   public static URI afterCtor(
       @CallSite.AllArguments final Object[] args, @CallSite.Return @Nonnull final URI result) {
     if (args != null && args.length > 0) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
+      final CodecModule module = InstrumentationBridge.CODEC;
       if (module != null) {
         try {
-          module.taintObjectIfAnyTainted(result, args);
+          module.onUriCreate(result, args);
         } catch (final Throwable e) {
           module.onUnexpectedException("ctor threw", e);
         }
@@ -52,14 +55,18 @@ public class URICallSite {
     return result;
   }
 
+  /**
+   * Internally the URI is tainted following the <code>toString</code> representation
+   *
+   * @see CodecModule#onUriCreate(URI, Object...)
+   */
   @CallSite.After("java.lang.String java.net.URI.toString()")
-  @CallSite.After("java.lang.String java.net.URI.toASCIIString()")
   public static String afterToString(
       @CallSite.This final URI url, @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(result, url);
+        module.taintStringIfTainted(result, url, true, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("After toString threw", e);
       }
@@ -67,13 +74,31 @@ public class URICallSite {
     return result;
   }
 
+  /** @see #afterToString(URI, String) */
+  @CallSite.After("java.lang.String java.net.URI.toASCIIString()")
+  public static String afterToASCIIString(
+      @CallSite.This final URI url, @CallSite.Return final String result) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module != null && result != null) {
+      try {
+        boolean keepRanges = url.toString().equals(result);
+        module.taintStringIfTainted(result, url, keepRanges, NOT_MARKED);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("After toASCIIString threw", e);
+      }
+    }
+    return result;
+  }
+
+  /** @see #afterToString(URI, String) */
   @CallSite.After("java.net.URI java.net.URI.normalize()")
   public static URI afterNormalize(
       @CallSite.This final URI url, @CallSite.Return final URI result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (module != null && result != null) {
       try {
-        module.taintObjectIfTainted(result, url);
+        boolean keepRanges = url.toString().equals(result.toString());
+        module.taintObjectIfTainted(result, url, keepRanges, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("After toString threw", e);
       }

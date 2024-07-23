@@ -13,6 +13,7 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import com.datadog.appsec.gateway.GatewayContext;
 import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.stack_trace.StackTraceEvent;
@@ -417,8 +418,7 @@ public class PowerWAFModule implements AppSecModule {
         ChangeableFlow flow,
         AppSecRequestContext reqCtx,
         DataBundle newData,
-        boolean isTransient,
-        boolean isRasp) {
+        GatewayContext gwCtx) {
       Powerwaf.ResultWithData resultWithData;
       CtxAndAddresses ctxAndAddr = ctxAndAddresses.get();
       if (ctxAndAddr == null) {
@@ -432,11 +432,18 @@ public class PowerWAFModule implements AppSecModule {
         start = System.currentTimeMillis();
       }
 
+      if (gwCtx.isRasp) {
+        WafMetricCollector.get().raspRuleEval(gwCtx.raspRuleType);
+      }
+
       try {
-        resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, isTransient, isRasp);
+        resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, gwCtx);
       } catch (TimeoutPowerwafException tpe) {
         reqCtx.increaseTimeouts();
         log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
+        if (gwCtx.isRasp) {
+          WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
+        }
         return;
       } catch (AbstractPowerwafException e) {
         log.error("Error calling WAF", e);
@@ -453,6 +460,10 @@ public class PowerWAFModule implements AppSecModule {
       if (resultWithData.result != Powerwaf.Result.OK) {
         if (log.isDebugEnabled()) {
           log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
+        }
+
+        if (gwCtx.isRasp) {
+          WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType);
         }
 
         for (Map.Entry<String, Map<String, Object>> action : resultWithData.actions.entrySet()) {
@@ -587,20 +598,20 @@ public class PowerWAFModule implements AppSecModule {
         AppSecRequestContext reqCtx,
         DataBundle newData,
         CtxAndAddresses ctxAndAddr,
-        boolean isTransient,
-        boolean isRasp)
+        GatewayContext gwCtx)
         throws AbstractPowerwafException {
 
-      Additive additive = reqCtx.getOrCreateAdditive(ctxAndAddr.ctx, wafMetricsEnabled, isRasp);
+      Additive additive =
+          reqCtx.getOrCreateAdditive(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
       PowerwafMetrics metrics;
-      if (isRasp) {
+      if (gwCtx.isRasp) {
         metrics = reqCtx.getRaspMetrics();
         reqCtx.getRaspMetricsCounter().incrementAndGet();
       } else {
         metrics = reqCtx.getWafMetrics();
       }
 
-      if (isTransient) {
+      if (gwCtx.isTransient) {
         return runPowerwafTransient(additive, metrics, newData, ctxAndAddr);
       } else {
         return runPowerwafAdditive(additive, metrics, newData, ctxAndAddr);

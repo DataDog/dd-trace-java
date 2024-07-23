@@ -100,7 +100,7 @@ public class CiVisibilitySystem {
 
       InstrumentationBridge.registerTestEventsHandlerFactory(
           new TestEventsHandlerFactory(services, repoServices, executionSettings));
-      CoverageBridge.registerCoverageProbeStoreRegistry(services.coverageProbeStoreFactory);
+      CoverageBridge.registerCoverageStoreRegistry(repoServices.coverageStoreFactory);
     }
   }
 
@@ -218,7 +218,7 @@ public class CiVisibilitySystem {
           repoServices.codeowners,
           services.methodLinesResolver,
           repoServices.moduleExecutionSettingsFactory,
-          services.coverageProbeStoreFactory,
+          repoServices.coverageStoreFactory,
           signalServer,
           repoServices.repoIndexProvider);
     };
@@ -243,7 +243,7 @@ public class CiVisibilitySystem {
           repoServices.sourcePathResolver,
           repoServices.codeowners,
           services.methodLinesResolver,
-          services.coverageProbeStoreFactory,
+          repoServices.coverageStoreFactory,
           coverageDataSupplier,
           services.signalClientFactory,
           moduleExecutionSettings);
@@ -268,7 +268,7 @@ public class CiVisibilitySystem {
           repoServices.sourcePathResolver,
           repoServices.codeowners,
           services.methodLinesResolver,
-          services.coverageProbeStoreFactory,
+          repoServices.coverageStoreFactory,
           moduleExecutionSettings);
     };
   }
@@ -288,7 +288,7 @@ public class CiVisibilitySystem {
           repoServices.sourcePathResolver,
           repoServices.codeowners,
           services.methodLinesResolver,
-          services.coverageProbeStoreFactory);
+          repoServices.coverageStoreFactory);
     };
   }
 }

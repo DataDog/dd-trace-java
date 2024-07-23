@@ -10,7 +10,7 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageBridge;
-import datadog.trace.api.civisibility.coverage.CoverageProbeStore;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -27,7 +27,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -70,7 +69,7 @@ public class TestImpl implements DDTest {
       SourcePathResolver sourcePathResolver,
       MethodLinesResolver methodLinesResolver,
       Codeowners codeowners,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
@@ -79,11 +78,10 @@ public class TestImpl implements DDTest {
     this.onSpanFinish = onSpanFinish;
 
     TestIdentifier identifier = new TestIdentifier(testSuiteName, testName, testParameters, null);
-    CoverageProbeStore probeStore =
-        coverageProbeStoreFactory.create(identifier, sourcePathResolver);
-    CoverageBridge.setThreadLocalCoverageProbeStore(probeStore);
+    CoverageStore coverageStore = coverageStoreFactory.create(identifier);
+    CoverageBridge.setThreadLocalCoverageProbes(coverageStore.getProbes());
 
-    this.context = new TestContextImpl(probeStore);
+    this.context = new TestContextImpl(coverageStore);
 
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
@@ -219,11 +217,11 @@ public class TestImpl implements DDTest {
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);
 
-    CoverageBridge.removeThreadLocalCoverageProbeStore();
+    CoverageBridge.removeThreadLocalCoverageProbes();
 
     // do not process coverage reports for skipped tests
     if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {
-      CoverageProbeStore coverageStore = context.getCoverageProbeStore();
+      CoverageStore coverageStore = context.getCoverageStore();
       boolean coveragesGathered = coverageStore.report(sessionId, suiteId, span.getSpanId());
       if (!coveragesGathered && !TestStatus.skip.equals(span.getTag(Tags.TEST_STATUS))) {
         // test is not skipped, but no coverages were gathered

@@ -535,8 +535,10 @@ public class LogProbe extends ProbeDefinition {
      */
     if (isCaptureSnapshot()) {
       snapshot.recordStackTrace(5);
+      sink.addSnapshot(snapshot);
+    } else {
+      sink.addHighRateSnapshot(snapshot);
     }
-    sink.addSnapshot(snapshot);
   }
 
   @Override

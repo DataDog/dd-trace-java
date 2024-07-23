@@ -56,6 +56,30 @@ public class WellKnownClasses {
         "java.util.concurrent.atomic.AtomicLong", WellKnownClasses::genericToString);
   }
 
+  private static final Set<String> EQUALS_SAFE_CLASSES = new HashSet<>();
+
+  static {
+    EQUALS_SAFE_CLASSES.add("java.lang.Class");
+    EQUALS_SAFE_CLASSES.add("java.lang.String");
+    EQUALS_SAFE_CLASSES.add("java.lang.Boolean");
+    EQUALS_SAFE_CLASSES.add("java.lang.Integer");
+    EQUALS_SAFE_CLASSES.add("java.lang.Long");
+    EQUALS_SAFE_CLASSES.add("java.lang.Double");
+    EQUALS_SAFE_CLASSES.add("java.lang.Character");
+    EQUALS_SAFE_CLASSES.add("java.lang.Byte");
+    EQUALS_SAFE_CLASSES.add("java.lang.Float");
+    EQUALS_SAFE_CLASSES.add("java.lang.Short");
+    EQUALS_SAFE_CLASSES.add("java.math.BigDecimal");
+    EQUALS_SAFE_CLASSES.add("java.math.BigInteger");
+    EQUALS_SAFE_CLASSES.add("java.time.Duration");
+    EQUALS_SAFE_CLASSES.add("java.time.Instant");
+    EQUALS_SAFE_CLASSES.add("java.time.LocalTime");
+    EQUALS_SAFE_CLASSES.add("java.time.LocalDate");
+    EQUALS_SAFE_CLASSES.add("java.time.LocalDateTime");
+    EQUALS_SAFE_CLASSES.add("java.util.UUID");
+    EQUALS_SAFE_CLASSES.add("java.net.URI");
+  }
+
   private static final Set<String> STRING_PRIMITIVES =
       new HashSet<>(
           Arrays.asList(
@@ -191,6 +215,12 @@ public class WellKnownClasses {
 
   private static String genericToString(Object o) {
     return String.valueOf(o);
+  }
+
+  public static boolean isEqualsSafe(Class<?> clazz) {
+    return clazz.isPrimitive()
+        || clazz.isEnum()
+        || EQUALS_SAFE_CLASSES.contains(clazz.getTypeName());
   }
 
   private static class ThrowableFields {

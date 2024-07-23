@@ -8,6 +8,7 @@ import com.datadog.appsec.event.OrderedCallback
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.gateway.AppSecRequestContext
+import com.datadog.appsec.gateway.GatewayContext
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.appsec.api.blocking.BlockingDetails
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -41,7 +42,7 @@ class BlockingServiceImplSpecification extends DDSpecification {
       final OrderedCallback.Priority priority = OrderedCallback.Priority.DEFAULT
 
       @Override
-      void onDataAvailable(ChangeableFlow flow, AppSecRequestContext context, DataBundle dataBundle, boolean isTransient, boolean isRasp) {
+      void onDataAvailable(ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle dataBundle, GatewayContext gwCtx) {
         if (dataBundle.get(KnownAddresses.USER_ID) == 'blocked.user') {
           flow.action = new Flow.Action.RequestBlockingAction(405, BlockingContentType.HTML)
         }

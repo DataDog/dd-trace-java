@@ -120,6 +120,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         // if we can't get the connection for any reason
         return null;
       } catch (BlockingException e) {
+        CallDepthThreadLocalMap.reset(Statement.class);
         // re-throw blocking exceptions
         throw e;
       } catch (Throwable e) {

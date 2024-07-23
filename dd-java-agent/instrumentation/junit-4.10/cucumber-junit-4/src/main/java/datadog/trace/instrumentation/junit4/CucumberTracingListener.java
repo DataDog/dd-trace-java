@@ -91,7 +91,7 @@ public class CucumberTracingListener extends TracingListener {
     try {
       URI pickleUri = CucumberUtils.getPickleUri(scenarioDescription);
       String featureRelativePath = pickleUri.getSchemeSpecificPart();
-      CoverageBridge.currentCoverageProbeStoreRecordNonCode(featureRelativePath);
+      CoverageBridge.recordCoverage(featureRelativePath);
     } catch (Exception e) {
       LOGGER.error("Could not record feature file coverage for {}", scenarioDescription, e);
     }

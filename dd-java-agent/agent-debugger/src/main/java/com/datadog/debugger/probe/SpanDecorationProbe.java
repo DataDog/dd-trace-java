@@ -324,6 +324,11 @@ public class SpanDecorationProbe extends ProbeDefinition {
     public List<Pair<String, String>> getTagsToDecorate() {
       return tagsToDecorate;
     }
+
+    @Override
+    public boolean isCapturing() {
+      return true;
+    }
   }
 
   public static SpanDecorationProbe.Builder builder() {

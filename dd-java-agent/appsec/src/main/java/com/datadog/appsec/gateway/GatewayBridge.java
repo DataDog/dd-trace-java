@@ -33,6 +33,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -235,7 +236,8 @@ public class GatewayBridge {
               DataBundle bundle =
                   new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
               try {
-                return producerService.publishDataEvent(subInfo, ctx, bundle, false, false);
+                GatewayContext gwCtx = new GatewayContext(false);
+                return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
               } catch (ExpiredSubscriberInfoException e) {
                 pathParamsSubInfo = null;
               }
@@ -269,7 +271,8 @@ public class GatewayBridge {
             DataBundle bundle =
                 new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
             try {
-              return producerService.publishDataEvent(subInfo, ctx, bundle, false, false);
+              GatewayContext gwCtx = new GatewayContext(false);
+              return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
             } catch (ExpiredSubscriberInfoException e) {
               rawRequestBodySubInfo = null;
             }
@@ -306,7 +309,8 @@ public class GatewayBridge {
                   new SingletonDataBundle<>(
                       KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
               try {
-                return producerService.publishDataEvent(subInfo, ctx, bundle, false, false);
+                GatewayContext gwCtx = new GatewayContext(false);
+                return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
               } catch (ExpiredSubscriberInfoException e) {
                 requestBodySubInfo = null;
               }
@@ -385,7 +389,8 @@ public class GatewayBridge {
             DataBundle bundle =
                 new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_METHOD, method);
             try {
-              return producerService.publishDataEvent(subInfo, ctx, bundle, true, false);
+              GatewayContext gwCtx = new GatewayContext(true);
+              return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
             } catch (ExpiredSubscriberInfoException e) {
               grpcServerMethodSubInfo = null;
             }
@@ -413,7 +418,8 @@ public class GatewayBridge {
             DataBundle bundle =
                 new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
             try {
-              return producerService.publishDataEvent(subInfo, ctx, bundle, true, false);
+              GatewayContext gwCtx = new GatewayContext(true);
+              return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
             } catch (ExpiredSubscriberInfoException e) {
               grpcServerRequestMsgSubInfo = null;
             }
@@ -440,7 +446,8 @@ public class GatewayBridge {
             DataBundle bundle =
                 new SingletonDataBundle<>(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS, data);
             try {
-              return producerService.publishDataEvent(subInfo, ctx, bundle, true, false);
+              GatewayContext gwCtx = new GatewayContext(true);
+              return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
             } catch (ExpiredSubscriberInfoException e) {
               graphqlServerRequestMsgSubInfo = null;
             }
@@ -481,7 +488,8 @@ public class GatewayBridge {
                     .add(KnownAddresses.DB_SQL_QUERY, sql)
                     .build();
             try {
-              return producerService.publishDataEvent(subInfo, ctx, bundle, false, true);
+              GatewayContext gwCtx = new GatewayContext(false, RuleType.SQL_INJECTION);
+              return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
             } catch (ExpiredSubscriberInfoException e) {
               dbSqlQuerySubInfo = null;
             }
@@ -678,7 +686,8 @@ public class GatewayBridge {
       }
 
       try {
-        return producerService.publishDataEvent(subInfo, ctx, bundle, false, false);
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;
       }
@@ -710,7 +719,8 @@ public class GatewayBridge {
       }
 
       try {
-        return producerService.publishDataEvent(subInfo, ctx, bundle, false, false);
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
       }
@@ -742,7 +752,8 @@ public class GatewayBridge {
               KnownAddresses.WAF_CONTEXT_PROCESSOR,
               Collections.singletonMap("extract-schema", true));
       try {
-        producerService.publishDataEvent(subInfo, ctx, bundle, false, false);
+        GatewayContext gwCtx = new GatewayContext(false);
+        producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
         return;
       } catch (ExpiredSubscriberInfoException e) {
         requestEndSubInfo = null;
