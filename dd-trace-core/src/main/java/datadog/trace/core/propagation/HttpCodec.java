@@ -243,8 +243,6 @@ public class HttpCodec {
                   long spanId = extractedContext.getSpanId();
                   CharSequence w3cParent = extractedContext.getPropagationTags().getLastParentId();
                   if (w3cParent != null) {
-                    // Use the result of getLastParentId() to set _dd.parent_id on the `context`
-                    // span
                     context = contextBuilder(context, spanId, w3cParent.toString());
 
                   } else if (!extractionCache.getDDParentHeaderValue().isEmpty()) {
