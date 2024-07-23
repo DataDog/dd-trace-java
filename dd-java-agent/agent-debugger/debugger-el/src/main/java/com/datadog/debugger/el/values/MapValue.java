@@ -101,10 +101,31 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
     return (Value<?>) mapHolder;
   }
 
+  @Override
+  public boolean contains(Value<?> val) {
+    if (mapHolder instanceof Map) {
+      if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
+        Map<?, ?> map = (Map<?, ?>) mapHolder;
+        if (val == null || val.isNull()) {
+          return map.containsKey(null);
+        }
+        if (WellKnownClasses.isEqualsSafe(val.getValue().getClass())) {
+          return map.containsKey(val.getValue());
+        }
+        throw new RuntimeException(
+            "Unsupported key class: " + val.getValue().getClass().getTypeName());
+      }
+      throw new RuntimeException("Unsupported Map class: " + mapHolder.getClass().getTypeName());
+    }
+    return false;
+  }
+
+  @Override
   public boolean isNull() {
     return mapHolder == null || (mapHolder instanceof Value && ((Value<?>) mapHolder).isNull());
   }
 
+  @Override
   public boolean isUndefined() {
     return mapHolder instanceof Value && ((Value<?>) mapHolder).isUndefined();
   }

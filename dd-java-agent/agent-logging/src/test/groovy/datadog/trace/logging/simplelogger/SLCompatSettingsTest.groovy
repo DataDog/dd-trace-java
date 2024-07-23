@@ -1,6 +1,7 @@
 package datadog.trace.logging.simplelogger
 
 import datadog.trace.logging.LogLevel
+import datadog.trace.logging.PrintStreamWrapper
 import spock.lang.Specification
 
 import java.text.SimpleDateFormat
@@ -63,7 +64,7 @@ class SLCompatSettingsTest extends Specification {
     then:
     settings.warnLevelString == null
     settings.levelInBrackets == false
-    settings.printStream == System.err
+    ((PrintStreamWrapper) settings.printStream).getOriginalPrintStream()  == System.err
     settings.showShortLogName == false
     settings.showLogName == true
     settings.showThreadName == true
@@ -83,7 +84,7 @@ class SLCompatSettingsTest extends Specification {
     then:
     settings.warnLevelString == "WRN"
     settings.levelInBrackets == true
-    settings.printStream == System.out
+    ((PrintStreamWrapper) settings.printStream).getOriginalPrintStream()  == System.out
     settings.showShortLogName == true
     settings.showLogName == false
     settings.showThreadName == false
@@ -124,8 +125,6 @@ class SLCompatSettingsTest extends Specification {
 
     expect:
     file.exists()
-    settings.printStream != System.err
-    settings.printStream != System.out
 
     cleanup:
     settings.printStream.close()
@@ -146,7 +145,7 @@ class SLCompatSettingsTest extends Specification {
 
     expect:
     !file.exists()
-    settings.printStream == System.err
+    ((PrintStreamWrapper) settings.printStream).getOriginalPrintStream() == System.err
 
     cleanup:
     dir.setWritable(true, true)

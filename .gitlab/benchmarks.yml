@@ -1,14 +1,14 @@
-variables:
-  BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
-
 .benchmarks:
   stage: benchmarks
-  when: on_success
   interruptible: true
   timeout: 1h
   tags: ["runner:apm-k8s-tweaked-metal"]
-  image: $BASE_CI_IMAGE
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
   needs: [ "build" ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: on_success
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - export CIRCLE_CI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.circleci_token --with-decryption --query "Parameter.Value" --out text)
@@ -69,6 +69,8 @@ benchmarks-post-results:
 .dsm-kafka-benchmarks:
   stage: benchmarks
   rules:
+    - if: '$POPULATE_CACHE'
+      when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
       changes:
         paths:
@@ -107,6 +109,8 @@ dsm-kafka-consumer-benchmark:
 debugger-benchmarks:
   stage: benchmarks
   rules:
+    - if: '$POPULATE_CACHE'
+      when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
       changes:
         paths:

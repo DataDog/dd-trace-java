@@ -6,9 +6,12 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.SetValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.Collections;
+import java.util.Set;
 
 /**
  * Checks a {@linkplain Value} against the given {@link BooleanExpression filter expression} to make
@@ -54,7 +57,8 @@ public final class HasAnyExpression extends MatchingExpression {
         }
       }
       return Boolean.FALSE;
-    } else if (value instanceof MapValue) {
+    }
+    if (value instanceof MapValue) {
       MapValue map = (MapValue) value;
       if (map.isEmpty()) {
         return Boolean.FALSE;
@@ -70,11 +74,31 @@ public final class HasAnyExpression extends MatchingExpression {
         }
       }
       return Boolean.FALSE;
-    } else {
-      return filterPredicateExpression.evaluate(
-          valueRefResolver.withExtensions(
-              Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)));
     }
+    if (value instanceof SetValue) {
+      SetValue set = (SetValue) value;
+      if (set.isEmpty()) {
+        return Boolean.FALSE;
+      }
+      Set<?> setHolder = (Set<?>) set.getSetHolder();
+      if (WellKnownClasses.isSafe(setHolder)) {
+        for (Object val : setHolder) {
+          if (filterPredicateExpression.evaluate(
+              valueRefResolver.withExtensions(
+                  Collections.singletonMap(
+                      ValueReferences.ITERATOR_EXTENSION_NAME, Value.of(val))))) {
+            return Boolean.TRUE;
+          }
+        }
+        return Boolean.FALSE;
+      }
+      throw new EvaluationException(
+          "Unsupported Set class: " + setHolder.getClass().getTypeName(),
+          PrettyPrintVisitor.print(this));
+    }
+    return filterPredicateExpression.evaluate(
+        valueRefResolver.withExtensions(
+            Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)));
   }
 
   @Override

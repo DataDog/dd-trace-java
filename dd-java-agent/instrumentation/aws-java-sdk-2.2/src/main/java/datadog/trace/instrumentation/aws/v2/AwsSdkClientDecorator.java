@@ -10,7 +10,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.experimental.DataStreamsContextCarrier.NoOp;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentDataStreamsMonitoring;
@@ -182,7 +181,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         for (Object ignored : records) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setProduceCheckpoint("kinesis", kinesisStreamArn.get(), NoOp.INSTANCE);
+              .setProduceCheckpoint("kinesis", kinesisStreamArn.get());
         }
       } else if (snsTopicName.isPresent()
           && "sns".equalsIgnoreCase(awsServiceName)
@@ -195,7 +194,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         for (Object ignored : entries) {
           AgentTracer.get()
               .getDataStreamsMonitoring()
-              .setProduceCheckpoint("sns", snsTopicName.get(), NoOp.INSTANCE);
+              .setProduceCheckpoint("sns", snsTopicName.get());
         }
       }
     }
