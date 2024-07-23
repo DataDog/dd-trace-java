@@ -144,7 +144,7 @@ public class StratumManager {
         }
         map.put(className, value);
         if (this.size() >= maxSize) {
-          IastMetricCollector.add(IastMetric.SOURCE_MAPPING_LIMIT_REACHED, (byte) 0, 1);
+          IastMetricCollector.add(IastMetric.SOURCE_MAPPING_LIMIT_REACHED, 1);
           limitReached = true;
         }
       }
