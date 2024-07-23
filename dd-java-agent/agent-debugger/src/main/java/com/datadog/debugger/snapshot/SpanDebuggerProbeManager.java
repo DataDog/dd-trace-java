@@ -35,7 +35,7 @@ public class SpanDebuggerProbeManager {
     return classNameFiltering;
   }
 
-  public String createProbesForSpan(StackTraceElement element, String signature) {
+  public String createProbeForFrame(StackTraceElement element, String signature) {
     Where where =
         Where.convertLineToMethod(
             element.getClassName(),

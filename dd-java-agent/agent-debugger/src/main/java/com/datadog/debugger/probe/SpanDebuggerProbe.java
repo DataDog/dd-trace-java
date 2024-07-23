@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SpanDebuggerProbe extends LogProbe implements FrameAware {
+public class SpanDebuggerProbe extends LogProbe implements ForceMethodInstrumentation {
   private static final Logger LOGGER = LoggerFactory.getLogger(SpanDebuggerProbe.class);
 
   private final String signature;
@@ -127,7 +127,7 @@ public class SpanDebuggerProbe extends LogProbe implements FrameAware {
 
   private void applySpanOriginTags(AgentSpan span) {
     if (isSpanDebugEnabled(span, ORIGIN_FRAME_ONLY, ALL_FRAMES)) {
-      List<StackTraceElement> entries = entries();
+      List<StackTraceElement> entries = getUserStackFrames();
       if (!entries.isEmpty()) {
         if (entrySpanProbe) {
           StackTraceElement entry = entries.get(0);
@@ -175,7 +175,7 @@ public class SpanDebuggerProbe extends LogProbe implements FrameAware {
     this.location = new ProbeLocation(type, method, where.getSourceFile(), null);
   }
 
-  private List<StackTraceElement> entries() {
+  private List<StackTraceElement> getUserStackFrames() {
     ClassNameFiltering classNameFiltering = probeManager.getClassNameFiltering();
     List<StackTraceElement> entries =
         StackWalkerFactory.INSTANCE.walk(

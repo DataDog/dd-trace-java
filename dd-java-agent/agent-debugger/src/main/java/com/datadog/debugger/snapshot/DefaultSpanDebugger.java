@@ -50,7 +50,7 @@ public class DefaultSpanDebugger implements SpanDebugger {
     }
 
     if (!probeManager.isAlreadyInstrumented(fingerprint)) {
-      String probeId = probeManager.createProbesForSpan(element, signature);
+      String probeId = probeManager.createProbeForFrame(element, signature);
       if (probeId != null) {
         taskScheduler.execute(
             () -> {
