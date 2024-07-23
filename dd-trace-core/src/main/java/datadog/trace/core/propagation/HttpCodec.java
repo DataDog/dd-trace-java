@@ -217,8 +217,6 @@ public class HttpCodec {
       ExtractionCache<C> extractionCache = new ExtractionCache<>(carrier, getter);
 
       for (final Extractor extractor : this.extractors) {
-        // check if extractor is dd - if so, store the span context for future use (dd parent id
-        // stuff)
         TagContext extracted = extractor.extract(extractionCache, extractionCache);
         // Check if context is valid
         if (extracted instanceof ExtractedContext) {
