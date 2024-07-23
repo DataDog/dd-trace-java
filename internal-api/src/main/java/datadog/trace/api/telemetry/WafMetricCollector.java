@@ -181,8 +181,11 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
 
     // Missing user id
-    if (missingUserIdCounter.get() > 0) {
-      rawMetricsQueue.offer(new MissingUserIdMetric(missingUserIdCounter.getAndReset()));
+    long missingUserId = missingUserIdCounter.getAndReset();
+    if (missingUserId > 0) {
+      if (!rawMetricsQueue.offer(new MissingUserIdMetric(missingUserId))) {
+        return;
+      }
     }
   }
 
