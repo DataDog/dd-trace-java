@@ -238,13 +238,8 @@ public class HttpCodec {
                 String extractedTracestate =
                     extractedContext.getPropagationTags().getW3CTracestate();
                 context.getPropagationTags().updateW3CTracestate(extractedTracestate);
-                // if span IDs are not equal, update `context` span ID with span ID from
-                // tracecontext headers (`extractedContext`)
-                // Also, check if there is a p tag in tracestate header from extractedContext - if
-                // so, use it to set a _dd.parent_id tag on context. Else,
-                // check if we extracted datadog headers. If so, find the span ID extracted from
-                // datadog headers (x-datadog-parent-id) and use it to set _dd.parent_id on context
                 if (context.getSpanId() != extractedContext.getSpanId()) {
+                  // extractedContext (w3c traceparent) will take precedence over the span ID in context
                   long spanId = extractedContext.getSpanId();
                   CharSequence w3cParent = extractedContext.getPropagationTags().getLastParentId();
                   if (w3cParent != null) {
