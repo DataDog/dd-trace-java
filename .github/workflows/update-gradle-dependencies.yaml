@@ -29,7 +29,9 @@ jobs:
       - name: Pick a branch name
         run: echo "BRANCH_NAME=ci/update-gradle-dependencies-$(date +'%Y%m%d')" >> $GITHUB_ENV
       - name: Create a remote branch
-        run: git checkout -b $BRANCH_NAME
+        run: |
+          git checkout -b $BRANCH_NAME
+          git push -u origin $BRANCH_NAME
       - name: Update Gradle dependencies
         run: |
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
@@ -73,7 +75,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git push -u origin $BRANCH_NAME
           gh pr create --title "Update Gradle dependencies" \
             --body "This PR updates the Gradle dependencies" \
             --base master \
