@@ -49,6 +49,8 @@ jobs:
       #   env:
       #     GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Commit changes
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
           GH_ADD_ARGS=""
           COUNT=0
