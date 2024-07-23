@@ -34,7 +34,9 @@ public abstract class ProcessHierarchyUtils {
 
   private static boolean isMavenParent() {
     return System.getProperty("maven.home") != null
-        && System.getProperty("classworlds.conf") != null;
+            && System.getProperty("classworlds.conf") != null
+        // Maven Wrapper
+        || ClassLoader.getSystemClassLoader().getResource("org/apache/maven/wrapper/") != null;
   }
 
   private static boolean isGradleDaemon() {

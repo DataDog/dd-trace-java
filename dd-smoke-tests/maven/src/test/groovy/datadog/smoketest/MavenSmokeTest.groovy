@@ -95,6 +95,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "test_failed_maven_run_flaky_retries"               | "3.9.8"              | 8              | 5                 | false         | true         | true           | []                                                            | 8
     "test_successful_maven_run_junit_platform_runner"   | "3.9.8"              | 4              | 0                 | true          | false        | false          | []                                                            | 8
     "test_successful_maven_run_with_arg_line_property"  | "3.9.8"              | 4              | 0                 | true          | false        | false          | ["-DargLine='-Dmy-custom-property=provided-via-command-line'"] | 8
+    "test_successful_maven_run_no_fork"                 | "3.9.8"              | 5              | 1                 | true          | false        | false           | []                                                             | 8
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) {

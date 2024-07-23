@@ -81,27 +81,24 @@ public class CiVisibilitySystem {
     InstrumentationBridge.registerBuildEventsHandlerFactory(buildEventsHandlerFactory(services));
     CIVisibility.registerSessionFactory(manualApiSessionFactory(services));
 
-    if (ProcessHierarchyUtils.isChild() || ProcessHierarchyUtils.isHeadless()) {
-      CiVisibilityRepoServices repoServices = services.repoServices(getCurrentPath());
-
-      ModuleExecutionSettings executionSettings =
-          repoServices.moduleExecutionSettingsFactory.create(
-              JvmInfo.CURRENT_JVM, repoServices.moduleName);
-      if (executionSettings.isCodeCoverageEnabled()
-          &&
-          // coverage with code segments is built on top of Jacoco,
-          // so if segments are explicitly enabled,
-          // we rely on Jacoco instrumentation rather than on our own coverage mechanism
-          !config.isCiVisibilityCoverageSegmentsEnabled()) {
-        Predicate<String> instrumentationFilter =
-            createCoverageInstrumentationFilter(config, executionSettings);
-        inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
-      }
-
-      InstrumentationBridge.registerTestEventsHandlerFactory(
-          new TestEventsHandlerFactory(services, repoServices, executionSettings));
-      CoverageBridge.registerCoverageStoreRegistry(repoServices.coverageStoreFactory);
+    CiVisibilityRepoServices repoServices = services.repoServices(getCurrentPath());
+    ModuleExecutionSettings executionSettings =
+        repoServices.moduleExecutionSettingsFactory.create(
+            JvmInfo.CURRENT_JVM, repoServices.moduleName);
+    if (executionSettings.isCodeCoverageEnabled()
+        &&
+        // coverage with code segments is built on top of Jacoco,
+        // so if segments are explicitly enabled,
+        // we rely on Jacoco instrumentation rather than on our own coverage mechanism
+        !config.isCiVisibilityCoverageSegmentsEnabled()) {
+      Predicate<String> instrumentationFilter =
+          createCoverageInstrumentationFilter(config, executionSettings);
+      inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
     }
+
+    InstrumentationBridge.registerTestEventsHandlerFactory(
+        new TestEventsHandlerFactory(services, repoServices, executionSettings));
+    CoverageBridge.registerCoverageStoreRegistry(repoServices.coverageStoreFactory);
   }
 
   private static Path getCurrentPath() {
@@ -154,12 +151,12 @@ public class CiVisibilitySystem {
         ModuleExecutionSettings executionSettings) {
       this.services = services;
       this.repoServices = repoServices;
-      if (ProcessHierarchyUtils.isChild()) {
+      if (ProcessHierarchyUtils.isHeadless()) {
         sessionFactory =
-            childTestFrameworkSessionFactory(services, repoServices, executionSettings);
+            headlessTestFrameworkSessionFactory(services, repoServices, executionSettings);
       } else {
         sessionFactory =
-            headlessTestFrameworkEssionFactory(services, repoServices, executionSettings);
+            childTestFrameworkSessionFactory(services, repoServices, executionSettings);
       }
     }
 
@@ -250,7 +247,7 @@ public class CiVisibilitySystem {
     };
   }
 
-  private static TestFrameworkSession.Factory headlessTestFrameworkEssionFactory(
+  private static TestFrameworkSession.Factory headlessTestFrameworkSessionFactory(
       CiVisibilityServices services,
       CiVisibilityRepoServices repoServices,
       ModuleExecutionSettings moduleExecutionSettings) {
