@@ -291,11 +291,10 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
 
     when:
     def ddMsgAttribute = new MessageAttributeValue()
-      .withDataType("Binary")
       .withBinaryValue(ByteBuffer.wrap("hello world".getBytes(Charset.defaultCharset())))
+      .withDataType("Binary")
     connection.start()
     TraceUtils.runUnderTrace('parent') {
-      System.out.println(">> queue: " + queue.queueUrl)
       client.sendMessage(new SendMessageRequest(queue.queueUrl, 'sometext')
         .withMessageAttributes([_datadog: ddMsgAttribute]))
     }
