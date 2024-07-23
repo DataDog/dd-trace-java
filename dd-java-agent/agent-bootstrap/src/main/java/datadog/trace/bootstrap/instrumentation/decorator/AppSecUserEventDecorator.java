@@ -23,7 +23,7 @@ public class AppSecUserEventDecorator {
   private static final Logger LOGGER = LoggerFactory.getLogger(AppSecUserEventDecorator.class);
   private static final int HASH_SIZE_BYTES = 16; // 128 bits
   private static final String ANONYM_PREFIX = "anon_";
-  private static AtomicBoolean SHA_MISSING_REPORTED = new AtomicBoolean(false);
+  private static final AtomicBoolean SHA_MISSING_REPORTED = new AtomicBoolean(false);
 
   public boolean isEnabled() {
     if (!ActiveSubsystems.APPSEC_ACTIVE) {
@@ -36,10 +36,7 @@ public class AppSecUserEventDecorator {
   }
 
   public void onUserNotFound() {
-    if (!isEnabled()) {
-      return;
-    }
-    TraceSegment segment = getSegment();
+    TraceSegment segment = beforeEvent();
     if (segment == null) {
       return;
     }
@@ -47,48 +44,57 @@ public class AppSecUserEventDecorator {
   }
 
   public void onLoginSuccess(String userId, Map<String, String> metadata) {
-    if (userId == null) {
-      onMissingUserId();
-      return;
-    }
-
-    TraceSegment segment = getSegment();
+    TraceSegment segment = beforeEvent(userId);
     if (segment == null) {
       return;
     }
-
     onUserId(segment, "usr.id", userId);
     onEvent(segment, "users.login.success", metadata);
   }
 
   public void onLoginFailure(String userId, Map<String, String> metadata) {
-    if (userId == null) {
-      onMissingUserId();
-      return;
-    }
-
-    TraceSegment segment = getSegment();
+    TraceSegment segment = beforeEvent(userId);
     if (segment == null) {
       return;
     }
-
     onUserId(segment, "appsec.events.users.login.failure.usr.id", userId);
     onEvent(segment, "users.login.failure", metadata);
   }
 
   public void onSignup(String userId, Map<String, String> metadata) {
-    if (userId == null) {
-      onMissingUserId();
-      return;
-    }
-
-    TraceSegment segment = getSegment();
+    TraceSegment segment = beforeEvent(userId);
     if (segment == null) {
       return;
     }
-
     onUserId(segment, "usr.id", userId);
     onEvent(segment, "users.signup", metadata);
+  }
+
+  /**
+   * Check if we can report a login event
+   *
+   * @return current trace segment if we can report the event, {@code null} otherwise
+   */
+  private TraceSegment beforeEvent() {
+    if (!isEnabled()) {
+      return null;
+    }
+    return getSegment();
+  }
+
+  /**
+   * Check if we can report a login event
+   *
+   * @param userId user id of the login event, if {@code null} the method will return {@code null}
+   *     and report a telemetry metric
+   * @see #beforeEvent()
+   */
+  private TraceSegment beforeEvent(String userId) {
+    if (userId == null) {
+      onMissingUserId();
+      return null;
+    }
+    return beforeEvent();
   }
 
   private void onEvent(@Nonnull TraceSegment segment, String eventName, Map<String, String> tags) {
