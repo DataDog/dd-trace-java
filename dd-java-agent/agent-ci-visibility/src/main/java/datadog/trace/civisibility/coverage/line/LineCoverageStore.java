@@ -80,9 +80,7 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
               "Skipping coverage reporting for {} because source path could not be determined",
               className);
           metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-          // Abort, since we cannot gather complete and accurate coverage.
-          // No coverage will be submitted, and ITR will not skip this test.
-          return null;
+          continue;
         }
 
         try (InputStream is = Utils.getClassStream(clazz)) {
@@ -126,9 +124,7 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
               "Skipping coverage reporting for {} because resource path could not be determined",
               nonCodeResource);
           metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-          // Abort, since we cannot gather complete and accurate coverage.
-          // No coverage will be submitted, and ITR will not skip this test.
-          return null;
+          continue;
         }
         fileEntries.add(new TestReportFileEntry(resourcePath, Collections.emptyList()));
       }
