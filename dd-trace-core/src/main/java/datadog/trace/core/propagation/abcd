@@ -1,8 +1,0 @@
-                    // See if we have a datadog propagator, and extract using this extractor
-                    for (final Extractor ddExtractor : this.extractors) {
-                      if (extracted.getPropagationStyle() == TracePropagationStyle.DATADOG) {
-                        TagContext ddExtracted = extractor.extract(extractionCache, extractionCache);
-                        if (ddExtracted instanceof ExtractedContext) {
-                          ExtractedContext ddExtractedContext = (ExtractedContext) ddExtracted;
-
-                        }

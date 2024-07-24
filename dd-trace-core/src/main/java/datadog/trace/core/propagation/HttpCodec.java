@@ -239,7 +239,8 @@ public class HttpCodec {
                     extractedContext.getPropagationTags().getW3CTracestate();
                 context.getPropagationTags().updateW3CTracestate(extractedTracestate);
                 if (context.getSpanId() != extractedContext.getSpanId()) {
-                  // extractedContext (w3c traceparent) will take precedence over the span ID in context
+                  // extractedContext (w3c traceparent) will take precedence over the span ID in
+                  // context
                   long spanId = extractedContext.getSpanId();
                   CharSequence w3cParent = extractedContext.getPropagationTags().getLastParentId();
                   if (w3cParent != null) {
