@@ -262,10 +262,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
-
+    final Statement instrumentationStatement;
     try (AgentScope scope = activateSpan(instrumentationSpan)) {
       String samplingDecision = instrumentationSpan.forceSamplingDecision() > 0 ? "1" : "0";
-      Statement instrumentationStatement = connection.createStatement();
+      instrumentationStatement = connection.createStatement();
       String instrumentationSql =
           "set context_info 0x"
               + samplingDecision
@@ -283,6 +283,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           e);
       DECORATE.onError(instrumentationSpan, e);
     } finally {
+      instrumentationStatement.close();
       instrumentationSpan.finish();
     }
     return spanID;
