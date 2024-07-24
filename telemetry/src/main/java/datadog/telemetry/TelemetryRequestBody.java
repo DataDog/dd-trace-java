@@ -275,7 +275,6 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.beginObject();
 
     for (Map.Entry<Products, Boolean> entry : products.entrySet()) {
-      bodyWriter.name(entry.getKey().getName()).value(entry.getValue());
       bodyWriter.name(entry.getKey().getName());
       bodyWriter.beginObject();
       bodyWriter.name("enabled").value(entry.getValue());
