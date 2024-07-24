@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
@@ -262,18 +263,17 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
-    final Statement instrumentationStatement;
+    PreparedStatement instrumentationStatement = null;
     try (AgentScope scope = activateSpan(instrumentationSpan)) {
       String samplingDecision = instrumentationSpan.forceSamplingDecision() > 0 ? "1" : "0";
-      instrumentationStatement = connection.createStatement();
       String instrumentationSql =
           "set context_info 0x"
               + samplingDecision
               + DDSpanId.toHexStringPadded(spanID)
               + instrumentationSpan.getTraceId().toHexString();
+      instrumentationStatement = connection.prepareStatement(instrumentationSql);
       DECORATE.onStatement(instrumentationSpan, instrumentationSql);
       instrumentationStatement.execute(instrumentationSql);
-      instrumentationStatement.close();
     } catch (SQLException e) {
       log.debug(
           "Failed to set extra DBM data in context info for trace {}. "
@@ -283,7 +283,12 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           e);
       DECORATE.onError(instrumentationSpan, e);
     } finally {
-      instrumentationStatement.close();
+      if (instrumentationStatement != null) {
+        try {
+          instrumentationStatement.close();
+        } catch (SQLException e) {
+        }
+      }
       instrumentationSpan.finish();
     }
     return spanID;
