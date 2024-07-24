@@ -164,4 +164,22 @@ class WafMetricCollectorTest extends DDSpecification {
     noExceptionThrown()
     collector.drain().size() == limit
   }
+
+  void 'test missing user id event metric'() {
+    given:
+    def collector = WafMetricCollector.get()
+
+    when:
+    collector.missingUserId()
+    collector.prepareMetrics()
+
+    then:
+    noExceptionThrown()
+    def metrics = collector.drain()
+    def metric = metrics.find { it.metricName == 'instrum.user_auth.missing_user_id'}
+    metric.namespace == 'appsec'
+    metric.type == 'count'
+    metric.value == 1
+    metric.tags == []
+  }
 }
