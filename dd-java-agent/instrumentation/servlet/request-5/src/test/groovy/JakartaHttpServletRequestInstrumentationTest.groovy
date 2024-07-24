@@ -3,6 +3,7 @@ import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
+import datadog.trace.api.iast.sink.ApplicationModule
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
@@ -10,12 +11,15 @@ import foo.bar.smoketest.JakartaHttpServletRequestTestSuite
 import foo.bar.smoketest.JakartaHttpServletRequestWrapperTestSuite
 import foo.bar.smoketest.ServletRequestTestSuite
 import jakarta.servlet.RequestDispatcher
+import jakarta.servlet.ServletContext
 import jakarta.servlet.ServletInputStream
+import jakarta.servlet.SessionTrackingMode
 import jakarta.servlet.http.Cookie
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletRequestWrapper
 
 import datadog.trace.agent.tooling.iast.TaintableEnumeration
+import jakarta.servlet.http.HttpSession
 
 class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
 
@@ -429,6 +433,31 @@ class JakartaHttpServletRequestInstrumentationTest extends AgentTestRunner {
 
     where:
     suite << testSuiteCallSites()
+  }
+
+  void 'test getSession'() {
+    setup:
+    final iastModule = Mock(ApplicationModule)
+    InstrumentationBridge.registerIastModule(iastModule)
+    final session = Mock(HttpSession)
+    final servletContext = Mock(ServletContext) {
+      getEffectiveSessionTrackingModes() >> new HashSet<SessionTrackingMode>(Arrays.asList(SessionTrackingMode.URL))
+    }
+    final mock = Mock(HttpServletRequest)
+    final request = suite.call(mock)
+
+    when:
+    final result = runUnderIastTrace { request.getSession() }
+
+    then:
+    result == session
+    1 * mock.getSession() >> session
+    1 * mock.getServletContext() >> servletContext
+    1 * iastModule.checkSessionTrackingModes(_)
+    0 * iastModule._
+
+    where:
+    suite << testSuite()
   }
 
   protected <E> E runUnderIastTrace(Closure<E> cl) {
