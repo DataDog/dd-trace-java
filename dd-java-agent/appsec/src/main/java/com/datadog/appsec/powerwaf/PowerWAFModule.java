@@ -432,11 +432,18 @@ public class PowerWAFModule implements AppSecModule {
         start = System.currentTimeMillis();
       }
 
+      if (gwCtx.isRasp) {
+        WafMetricCollector.get().raspRuleEval(gwCtx.raspRuleType);
+      }
+
       try {
         resultWithData = doRunPowerwaf(reqCtx, newData, ctxAndAddr, gwCtx);
       } catch (TimeoutPowerwafException tpe) {
         reqCtx.increaseTimeouts();
         log.debug(LogCollector.EXCLUDE_TELEMETRY, "Timeout calling the WAF", tpe);
+        if (gwCtx.isRasp) {
+          WafMetricCollector.get().raspTimeout(gwCtx.raspRuleType);
+        }
         return;
       } catch (AbstractPowerwafException e) {
         log.error("Error calling WAF", e);
@@ -453,6 +460,10 @@ public class PowerWAFModule implements AppSecModule {
       if (resultWithData.result != Powerwaf.Result.OK) {
         if (log.isDebugEnabled()) {
           log.warn("WAF signalled result {}: {}", resultWithData.result, resultWithData.data);
+        }
+
+        if (gwCtx.isRasp) {
+          WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType);
         }
 
         for (Map.Entry<String, Map<String, Object>> action : resultWithData.actions.entrySet()) {

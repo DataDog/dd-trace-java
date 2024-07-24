@@ -211,4 +211,22 @@ class StringsTest extends DDSpecification {
     " 測 試    " | true
     "   𐢀𐢀𐢀𐢀"    | true
   }
+
+  void 'test hexadecimal encoding of #value'() {
+    when:
+    def encoded = Strings.toHexString(value?.bytes)
+
+    then:
+    if (value == null) {
+      encoded == expected
+    } else {
+      encoded.equalsIgnoreCase(expected)
+    }
+
+    where:
+    value                   | expected
+    null                    | null
+    ''                      | ''
+    'zouzou@sansgluten.com' | '7A6F757A6F754073616E73676C7574656E2E636F6D'
+  }
 }

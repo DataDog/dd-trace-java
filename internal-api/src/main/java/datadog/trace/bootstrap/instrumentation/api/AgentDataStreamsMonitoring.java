@@ -40,4 +40,6 @@ public interface AgentDataStreamsMonitoring extends DataStreamsCheckpointer {
   boolean canSampleSchema(String topic);
 
   Schema getSchema(String schemaName, SchemaIterator iterator);
+
+  void setProduceCheckpoint(String type, String target);
 }

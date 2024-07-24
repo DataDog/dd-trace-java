@@ -2,7 +2,6 @@ package datadog.cws.tls;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.TraceConfig;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -50,12 +49,11 @@ public class TlsScopeListener implements ExtendedScopeListener {
 
   @Override
   public void afterScopeActivated() {
-    afterScopeActivated(DDTraceId.ZERO, DDSpanId.ZERO, DDSpanId.ZERO, null);
+    afterScopeActivated(DDTraceId.ZERO, DDSpanId.ZERO);
   }
 
   @Override
-  public void afterScopeActivated(
-      DDTraceId traceId, long localRootSpanId, long spanId, TraceConfig traceConfig) {
+  public void afterScopeActivated(DDTraceId traceId, long spanId) {
     push(traceId, spanId);
   }
 

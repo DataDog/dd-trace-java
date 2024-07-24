@@ -1008,5 +1008,17 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
+  void 'untrusted deserialization for an input stream'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
 
 }

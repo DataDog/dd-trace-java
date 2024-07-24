@@ -7,6 +7,7 @@ import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpCookie;
@@ -392,6 +393,12 @@ public class IastWebController {
       @RequestParam("param") String param, HttpServletResponse response) {
     response.addHeader("X-Test-Header", param);
     return "Ok";
+  }
+
+  @GetMapping("/untrusted_deserialization")
+  public String untrustedDeserialization(HttpServletRequest request) throws IOException {
+    ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
+    return "OK";
   }
 
   private void withProcess(final Operation<Process> op) {

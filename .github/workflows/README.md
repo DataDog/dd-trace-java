@@ -116,20 +116,6 @@ _Comment:_ To delete?
 
 ## Lib Injection
 
-### lib-injection [🔗](lib-injection.yaml)
-
-_Trigger:_ When pushing commits to `master`, release branches or any PR targetting `master`, and when creating tags.
-
-_Actions:_
-* Build and publish to GHCR a Docker image with the Java tracer agent,
-* Build lib-injection and run its system tests with the build Java agent.
-
-### lib-injection-manual-release [🔗](lib-injection-manual-release.yaml)
-
-_Trigger:_ When manually triggered.
-
-_Action:_ Build and publish to GHCR a Docker image with the given Java tracer version.
-
 ### lib-injection-prune-registry [🔗](lib-injection-prune-registry.yaml)
 
 _Trigger:_ Every week or manually.
