@@ -9,7 +9,7 @@ import datadog.trace.core.test.DDCoreSpecification
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED
 
 class CheckpointerTest extends DDCoreSpecification {
-  void 'test setting produce checkpoint'() {
+  void 'test setting produce & consume checkpoint'() {
     setup:
     // Enable DSM
     injectSysConfig(DATA_STREAMS_ENABLED, 'true')
@@ -27,6 +27,7 @@ class CheckpointerTest extends DDCoreSpecification {
     when:
     // Trigger produce checkpoint
     checkpointer.setProduceCheckpoint('kafka', 'testTopic', carrier)
+    checkpointer.setConsumeCheckpoint('kafka', 'testTopic', carrier)
     // Clean up span
     scope.close()
     span.finish()
