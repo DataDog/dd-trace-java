@@ -7,7 +7,10 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.telemetry.metric.Products;
 import datadog.trace.api.*;
+import datadog.trace.bootstrap.ActiveSubsystems;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -248,21 +251,14 @@ public class TelemetryService {
     return result == TelemetryClient.Result.SUCCESS;
   }
 
-  /** Send app-product-change request with changed product enabled status if any. */
+  /**
+   * Send app-product-change request with changed product enabled status if any. Needs to be updated
+   * with profiling, dynamic instrumentation or any new products
+   */
   public boolean sendAppProductChange() {
-    boolean isAppsecEnabled =
-        Config.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED;
-    boolean isProfilingEnabled = InstrumenterConfig.get().isProfilingEnabled();
-    boolean isDynamicInstrumentationEnabled = Config.get().isDebuggerEnabled();
-
+    boolean isAppsecEnabled = ActiveSubsystems.APPSEC_ACTIVE;
     boolean hasAppsecEnabledChanged = isAppsecEnabled != this.appsecEnabled;
-    boolean hasProfilingEnabledChanged = isProfilingEnabled != this.profilerEnabled;
-    boolean hasDynamicInstrumentationEnabledChanged =
-        isDynamicInstrumentationEnabled != this.dynamicInstrumentationEnabled;
-
-    if (!hasAppsecEnabledChanged
-        && !hasProfilingEnabledChanged
-        && !hasDynamicInstrumentationEnabledChanged) {
+    if (!hasAppsecEnabledChanged) {
       log.debug("No product change detected");
       return false;
     }
@@ -274,16 +270,15 @@ public class TelemetryService {
             messageBytesSoftLimit,
             RequestType.APP_PRODUCT_CHANGE,
             debug);
-    request.writeChangedProducts(
-        Pair.of(hasAppsecEnabledChanged, isAppsecEnabled),
-        Pair.of(hasProfilingEnabledChanged, isProfilingEnabled),
-        Pair.of(hasProfilingEnabledChanged, isDynamicInstrumentationEnabled));
+    Map<Products, Boolean> products = new HashMap<>();
+    if (hasAppsecEnabledChanged) {
+      products.put(Products.APPSEC, isAppsecEnabled);
+    }
+    request.writeChangedProducts(products);
     boolean result = telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS;
     if (result) {
       log.debug("App product change request has been sent successfully. Updating product status");
       this.appsecEnabled = isAppsecEnabled;
-      this.profilerEnabled = isProfilingEnabled;
-      this.dynamicInstrumentationEnabled = isDynamicInstrumentationEnabled;
     }
     return result;
   }

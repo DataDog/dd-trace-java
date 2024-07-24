@@ -8,8 +8,10 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.telemetry.metric.Products;
 import datadog.trace.api.*;
 import java.io.IOException;
+import java.util.Map;
 import okhttp3.MediaType;
 import okhttp3.Request;
 
@@ -94,12 +96,9 @@ public class TelemetryRequest {
     }
   }
 
-  public void writeChangedProducts(
-      Pair<Boolean, Boolean> appsecEnabling,
-      Pair<Boolean, Boolean> profilerEnabling,
-      Pair<Boolean, Boolean> dynamicInstrumentationEnabling) {
+  public void writeChangedProducts(final Map<Products, Boolean> products) {
     try {
-      requestBody.writeProducts(appsecEnabling, profilerEnabling, dynamicInstrumentationEnabling);
+      requestBody.writeProducts(products);
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("changed-products", e);
     }

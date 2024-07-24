@@ -1,9 +1,9 @@
 package datadog.telemetry
 
 import datadog.telemetry.api.RequestType
+import datadog.telemetry.metric.Products
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
-import datadog.trace.api.Pair
 import okio.Buffer
 import okhttp3.RequestBody
 import spock.lang.Specification
@@ -111,10 +111,20 @@ class TelemetryRequestBodySpecification extends Specification {
   void 'test writeProducts'(){
     setup:
     TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_PRODUCT_CHANGE)
+    final products = new HashMap<Products, Boolean>()
+    if(appsecChange) {
+      products.put(Products.APPSEC, appsecEnabled)
+    }
+    if(profilerChange) {
+      products.put(Products.PROFILER, profilerEnabled)
+    }
+    if(dynamicInstrumentationChange) {
+      products.put(Products.DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled)
+    }
 
     when:
     req.beginRequest(false)
-    req.writeProducts(Pair.of(appsecChange, appsecEnabled), Pair.of(profilerChange,profilerEnabled), Pair.of(dynamicInstrumentationChange, dynamicInstrumentationEnabled))
+    req.writeProducts(products)
     req.endRequest()
 
     then:

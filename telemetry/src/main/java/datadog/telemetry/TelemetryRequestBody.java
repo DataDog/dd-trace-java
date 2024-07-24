@@ -8,8 +8,11 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.telemetry.metric.Products;
 import datadog.trace.api.*;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
@@ -261,43 +264,19 @@ public class TelemetryRequestBody extends RequestBody {
     endMessageIfBatch(RequestType.APP_DEPENDENCIES_LOADED);
   }
 
-  /**
-   * Use a Pair of booleans to optionally write the products section of the telemetry request. left
-   * element is a boolean indicating if the products section should be written, right element is the
-   * enabling value.
-   */
-  public void writeProducts(
-      Pair<Boolean, Boolean> appsecEnabling,
-      Pair<Boolean, Boolean> profilerEnabling,
-      Pair<Boolean, Boolean> dynamicInstrumentationEnabling)
-      throws IOException {
+  public void writeProducts(final Map<Products, Boolean> products) throws IOException {
 
-    if (!appsecEnabling.getLeft()
-        && !profilerEnabling.getLeft()
-        && !dynamicInstrumentationEnabling.getLeft()) {
+    if (products == null || products.isEmpty()) {
       return;
     }
     bodyWriter.name("products");
     bodyWriter.beginObject();
 
-    if (appsecEnabling.getLeft()) {
-      bodyWriter.name("appsec");
+    for (Map.Entry<Products, Boolean> entry : products.entrySet()) {
+      bodyWriter.name(entry.getKey().getName()).value(entry.getValue());
+      bodyWriter.name(entry.getKey().getName());
       bodyWriter.beginObject();
-      bodyWriter.name("enabled").value(appsecEnabling.getRight());
-      bodyWriter.endObject();
-    }
-
-    if (appsecEnabling.getLeft()) {
-      bodyWriter.name("profiler");
-      bodyWriter.beginObject();
-      bodyWriter.name("enabled").value(profilerEnabling.getRight());
-      bodyWriter.endObject();
-    }
-
-    if (appsecEnabling.getLeft()) {
-      bodyWriter.name("dynamic_instrumentation");
-      bodyWriter.beginObject();
-      bodyWriter.name("enabled").value(dynamicInstrumentationEnabling.getRight());
+      bodyWriter.name("enabled").value(entry.getValue());
       bodyWriter.endObject();
     }
 
@@ -307,10 +286,11 @@ public class TelemetryRequestBody extends RequestBody {
   public void writeProducts(
       boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
       throws IOException {
-    writeProducts(
-        Pair.of(true, appsecEnabled),
-        Pair.of(true, profilerEnabled),
-        Pair.of(true, dynamicInstrumentationEnabled));
+    HashMap<Products, Boolean> products = new HashMap<>();
+    products.put(Products.APPSEC, appsecEnabled);
+    products.put(Products.PROFILER, profilerEnabled);
+    products.put(Products.DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled);
+    writeProducts(products);
   }
 
   public void writeInstallSignature(String installId, String installType, String installTime)
