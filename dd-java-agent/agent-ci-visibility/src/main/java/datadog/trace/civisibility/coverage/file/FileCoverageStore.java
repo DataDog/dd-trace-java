@@ -67,7 +67,9 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
               "Skipping coverage reporting for {} because source path could not be determined",
               clazz);
           metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-          continue;
+          // Abort, since we cannot gather complete and accurate coverage.
+          // No coverage will be submitted, and ITR will not skip this test.
+          return null;
         }
         coveredPaths.add(sourcePath);
       }
@@ -79,7 +81,9 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
               "Skipping coverage reporting for {} because resource path could not be determined",
               nonCodeResource);
           metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-          continue;
+          // Abort, since we cannot gather complete and accurate coverage.
+          // No coverage will be submitted, and ITR will not skip this test.
+          return null;
         }
         coveredPaths.add(resourcePath);
       }
