@@ -9,6 +9,7 @@ import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.trace.api.ProductActivation
+import datadog.trace.api.UserIdCollectionMode
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Files
@@ -16,6 +17,7 @@ import java.nio.file.Path
 
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES
@@ -26,6 +28,9 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING
 import static datadog.remoteconfig.PollingHinterNoop.NOOP
+import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION
+import static datadog.trace.api.UserIdCollectionMode.DISABLED
+import static datadog.trace.api.UserIdCollectionMode.IDENTIFICATION
 
 class AppSecConfigServiceImplSpecification extends DDSpecification {
 
@@ -49,8 +54,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_DD, _, _)
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_features_activation', _, _)
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_api_security', _, _)
+    1 * poller.addListener(Product.ASM_FEATURES, _, _)
     1 * poller.addListener(Product.ASM, _, _)
     1 * poller.addListener(Product.ASM_DATA, _, _)
     1 * poller.addConfigurationEndListener(_)
@@ -67,7 +71,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
     1 * poller.addListener(Product.ASM_DD, _, _)
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_api_security', _, _)
+    1 * poller.addListener(Product.ASM_FEATURES, _, _)
     1 * poller.addListener(Product.ASM, _, _)
     1 * poller.addListener(Product.ASM_DATA, _, _)
     1 * poller.addConfigurationEndListener(_)
@@ -85,7 +89,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.getAppSecActivation() >> ProductActivation.FULLY_DISABLED
     1 * poller.addListener(Product.ASM_DD, _, _)
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_api_security', _, _)
+    1 * poller.addListener(Product.ASM_FEATURES, _, _)
     1 * poller.addListener(Product.ASM, _, _)
     1 * poller.addListener(Product.ASM_DATA, _, _)
     1 * poller.addConfigurationEndListener(_)
@@ -108,8 +112,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_features_activation', _, _)
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_api_security', _, _)
+    1 * poller.addListener(Product.ASM_FEATURES, _, _)
     1 * poller.addConfigurationEndListener(_)
     0 * poller.addListener(*_)
   }
@@ -192,11 +195,10 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     1 * config.getAppSecRulesFile() >> null
     1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_features_activation', _, _) >> {
-      listeners.savedFeaturesDeserializer = it[2]
-      listeners.savedFeaturesListener = it[3]
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
     }
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_api_security', _, _)
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
     _ * poller._
     0 * _._
@@ -210,7 +212,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     1 * subconfigListener.onNewSubconfig({ CurrentAppSecConfig casc -> casc.ddConfig != null }, _)
-    0 * _._
     AppSecSystem.active == true
   }
 
@@ -242,14 +243,14 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedWafRulesOverrideDeserializer = it[1]
       listeners.savedWafRulesOverrideListener = it[2]
     }
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_features_activation', _, _) >> {
-      listeners.savedFeaturesDeserializer = it[2]
-      listeners.savedFeaturesListener = it[3]
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
     }
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_api_security', _, _)
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
     1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
     1 * poller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE)
+    1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
@@ -274,14 +275,13 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     listeners.savedFeaturesListener.accept(
-      'ignored config key',
+      'asm_features_activation',
       listeners.savedFeaturesDeserializer.deserialize(
       '{"asm":{"enabled": true}}'.bytes), null)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
     1 * subconfigListener.onNewSubconfig(_ as CurrentAppSecConfig, _)
-    0 * _._
     AppSecSystem.active == true
 
     when:
@@ -309,7 +309,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       ]
       casc.mergedAsmData == [[data: [], id: 'foo', type: '']]
     }, _)
-    0 * _._
 
     when:
     listeners.savedFeaturesListener.accept('asm_features_activation',
@@ -318,7 +317,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
-    0 * _._
     AppSecSystem.active == false
 
     when: 'switch back to enabled'
@@ -332,12 +330,11 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when: 'asm are not set'
     listeners.savedFeaturesListener.accept('asm_features_activation',
-      listeners.savedFeaturesDeserializer.deserialize('{}'.bytes),
+      null,
       NOOP)
     listeners.savedConfEndListener.onConfigurationEnd()
 
     then: 'it is disabled (<not set> == false)'
-    1 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     AppSecSystem.active == false
 
     when: 'switch back to enabled'
@@ -390,14 +387,14 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedWafRulesOverrideDeserializer = it[1]
       listeners.savedWafRulesOverrideListener = it[2]
     }
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_features_activation', _, _) >> {
-      listeners.savedFeaturesDeserializer = it[2]
-      listeners.savedFeaturesListener = it[3]
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
     }
-    1 * poller.addListener(Product.ASM_FEATURES, _, _, _)
     1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
     1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
     1 * poller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE)
+    1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
@@ -472,7 +469,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
-      | CAPABILITY_ASM_RASP_SQLI)
+      | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE,)
     4 * poller.removeListeners(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()
@@ -510,16 +508,59 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     appSecConfigService.maybeSubscribeConfigPolling()
 
     then:
-    1 * poller.addListener(Product.ASM_FEATURES, 'asm_api_security', _, _) >> {
-      listeners.savedFeaturesDeserializer = it[2]
-      listeners.savedFeaturesListener = it[3]
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
     }
     1 * poller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE)
+    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
 
     when:
     listeners.savedFeaturesListener.accept('asm_api_security', newConfig, null)
+    listeners.savedConfEndListener.onConfigurationEnd()
 
     then:
     1 * sampler.setSampling(0.2F)
+  }
+
+  void 'update auto user instrum mode via remote-config'() {
+    given:
+    def listeners = new SavedListeners()
+
+    when:
+    appSecConfigService.init()
+    appSecConfigService.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+    }
+    1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
+    1 * poller.addConfigurationEndListener(_) >> { listeners.savedConfEndListener = it[0] }
+
+    when:
+    listeners.savedFeaturesListener.accept('asm_auto_user_instrum', mode, null)
+    listeners.savedConfEndListener.onConfigurationEnd()
+
+    then:
+    UserIdCollectionMode.get() == expected
+
+    where:
+    mode                              | expected
+    null                              | IDENTIFICATION
+    autoUserInstrum(null)             | IDENTIFICATION
+    autoUserInstrum('identification') | IDENTIFICATION
+    autoUserInstrum('anonymization')  | ANONYMIZATION
+    autoUserInstrum('disabled')       | DISABLED
+    autoUserInstrum('yolo')           | DISABLED
+  }
+
+  private static AppSecFeatures autoUserInstrum(String mode) {
+    return new AppSecFeatures().tap { features ->
+      features.autoUserInstrum = new AppSecFeatures.AutoUserInstrum().tap { instrum ->
+        instrum.mode = mode
+      }
+    }
   }
 }
