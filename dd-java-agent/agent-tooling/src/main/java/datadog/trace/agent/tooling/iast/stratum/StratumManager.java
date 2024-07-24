@@ -22,10 +22,6 @@ public class StratumManager {
 
   private final LimitedConcurrentHashMap map;
 
-  public final StratumExt NO_DEBUG_INFO = new StratumExt();
-
-  private boolean EMPTY_DEBUG_INFO;
-
   public static final StratumManager INSTANCE =
       new StratumManager(Config.get().getIastSourceMappingMaxSize());
 
@@ -52,14 +48,7 @@ public class StratumManager {
   }
 
   public Stratum get(final String classname) {
-    StratumExt s = map.get(classname);
-    if (s != null) {
-      return s;
-    } else if (EMPTY_DEBUG_INFO) {
-      return NO_DEBUG_INFO;
-    } else {
-      return null;
-    }
+    return map.get(classname);
   }
 
   private SourceMap getResolvedSmap(final String smap) {
@@ -82,14 +71,12 @@ public class StratumManager {
     try {
       String[] classData = extractSourceDebugExtensionASM(bytes);
       if (classData[1] == null) {
-        EMPTY_DEBUG_INFO = true;
         return null;
       }
       SourceMap smap = getResolvedSmap(classData[1]);
       StratumExt stratum = smap != null ? smap.getStratum(smap.getDefaultStratumName()) : null;
 
       if (stratum == null) {
-        EMPTY_DEBUG_INFO = true;
         return null;
       }
 
