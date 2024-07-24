@@ -1,4 +1,4 @@
-package datadog.telemetry.metric;
+package datadog.telemetry;
 
 public enum Products {
   APPSEC("appsec"),

@@ -8,7 +8,6 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
-import datadog.telemetry.metric.Products;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import java.io.IOException;

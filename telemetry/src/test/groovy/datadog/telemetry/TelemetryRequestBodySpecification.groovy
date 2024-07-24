@@ -1,7 +1,6 @@
 package datadog.telemetry
 
 import datadog.telemetry.api.RequestType
-import datadog.telemetry.metric.Products
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
 import okio.Buffer
