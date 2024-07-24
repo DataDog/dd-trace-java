@@ -19,7 +19,7 @@ class CheckpointerTest extends DDCoreSpecification {
     // Get the test checkpointer
     def checkpointer = tracer.getDataStreamsCheckpointer()
     // Declare the carrier to test injected data
-    def carrier = Mock(DataStreamsContextCarrier)
+    def carrier = new CustomContextCarrier()
     // Start and activate a span
     def span = tracer.buildSpan('test', 'dsm-checkpoint').start()
     def scope = tracer.activateSpan(span)
@@ -33,7 +33,22 @@ class CheckpointerTest extends DDCoreSpecification {
     span.finish()
 
     then:
-    1 * carrier.set('dd-pathway-ctx-base64', _)
+    carrier.entries().any { entry -> entry.getKey() == "dd-pathway-ctx-base64" }
     span.context().pathwayContext.hash != 0
+  }
+
+  class CustomContextCarrier implements DataStreamsContextCarrier {
+
+    private Map<String, Object> data = new HashMap<>()
+
+    @Override
+    Set<Map.Entry<String, Object>> entries() {
+      return data.entrySet()
+    }
+
+    @Override
+    void set(String key, String value) {
+      data.put(key, value)
+    }
   }
 }
