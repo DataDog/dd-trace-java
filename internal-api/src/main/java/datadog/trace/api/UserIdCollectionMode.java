@@ -1,9 +1,14 @@
 package datadog.trace.api;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 public enum UserIdCollectionMode {
   IDENTIFICATION("identification", "ident"),
   ANONYMIZATION("anonymization", "anon"),
   DISABLED("disabled");
+
+  private static final AtomicReference<UserIdCollectionMode> CURRENT_MODE =
+      new AtomicReference<>(IDENTIFICATION);
 
   private final String[] values;
 
@@ -12,11 +17,26 @@ public enum UserIdCollectionMode {
   }
 
   public static UserIdCollectionMode fromString(String collectionMode, String trackingMode) {
-    if (collectionMode == null && trackingMode != null) {
-      return fromTracking(trackingMode);
-    } else {
-      return fromMode(collectionMode);
-    }
+    return CURRENT_MODE.updateAndGet(
+        current -> {
+          if (collectionMode == null && trackingMode != null) {
+            return fromTracking(trackingMode);
+          } else {
+            return fromMode(collectionMode);
+          }
+        });
+  }
+
+  public static UserIdCollectionMode fromRemoteConfig(final String mode) {
+    return CURRENT_MODE.updateAndGet(
+        current -> {
+          if (mode == null) {
+            // use locally configured value
+            return Config.get().getAppSecUserIdCollectionMode();
+          } else {
+            return fromMode(mode);
+          }
+        });
   }
 
   private static UserIdCollectionMode fromMode(String mode) {
@@ -51,5 +71,9 @@ public enum UserIdCollectionMode {
   @Override
   public String toString() {
     return values[0];
+  }
+
+  public static UserIdCollectionMode get() {
+    return CURRENT_MODE.get();
   }
 }

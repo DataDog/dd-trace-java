@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.Strings.toHexString;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.WafMetricCollector;
@@ -161,8 +160,7 @@ public class AppSecUserEventDecorator {
     WafMetricCollector.get().missingUserId();
   }
 
-  /** TODO link with remote config when ready */
   protected UserIdCollectionMode getUserIdCollectionMode() {
-    return Config.get().getAppSecUserIdCollectionMode();
+    return UserIdCollectionMode.get();
   }
 }
