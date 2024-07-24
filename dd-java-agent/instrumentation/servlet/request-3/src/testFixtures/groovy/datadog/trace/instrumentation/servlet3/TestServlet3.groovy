@@ -305,4 +305,13 @@ class TestServlet3 {
       }
     }
   }
+
+  @WebServlet
+  static class GetSession extends Sync {
+    @Override
+    void service(HttpServletRequest req, HttpServletResponse resp) {
+      req.getSession(true)
+      super.service(req,resp)
+    }
+  }
 }

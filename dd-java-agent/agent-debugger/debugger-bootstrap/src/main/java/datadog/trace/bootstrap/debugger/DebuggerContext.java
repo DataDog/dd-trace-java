@@ -143,6 +143,7 @@ public class DebuggerContext {
           break;
         case DISTRIBUTION:
           forwarder.distribution(probeId, name, value, tags);
+          break;
         default:
           throw new IllegalArgumentException("Unsupported metric kind: " + kind);
       }
