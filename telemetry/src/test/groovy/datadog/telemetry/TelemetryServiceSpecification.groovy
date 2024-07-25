@@ -495,7 +495,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
 
-    ActiveSubsystems.APPSEC_ACTIVE = true // appsec is enabled by
+    ActiveSubsystems.APPSEC_ACTIVE = true // appsec is enabled by RC
 
     when: 'first iteration'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
