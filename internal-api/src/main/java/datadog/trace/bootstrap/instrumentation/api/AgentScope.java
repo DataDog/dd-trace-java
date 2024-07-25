@@ -2,12 +2,14 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.context.TraceScope;
 import java.io.Closeable;
+import javax.annotation.Nullable;
 
 public interface AgentScope extends TraceScope, Closeable {
   AgentSpan span();
 
   byte source();
 
+  @Nullable
   @Override
   Continuation capture();
 
