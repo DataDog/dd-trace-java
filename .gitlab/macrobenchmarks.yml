@@ -1,6 +1,8 @@
 .macrobenchmarks:
   stage: macrobenchmarks
   rules:
+    - if: $POPULATE_CACHE
+      when: never
     - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
       when: always
     - when: manual

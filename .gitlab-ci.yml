@@ -17,10 +17,15 @@ stages:
   - ci-visibility-tests
   - generate-signing-key
 
+workflow:
+  rules:
+    - if: $POPULATE_CACHE == "true"
+      variables:
+        SKIP_SHARED_PIPELINE: "true"
+
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
-  SKIP_SHARED_PIPELINE: $POPULATE_CACHE
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -161,6 +166,8 @@ deploy_to_sonatype:
   stage: publish
   needs: [ build ]
   rules:
+    - if: '$POPULATE_CACHE'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     # Do not deploy release candidate versions
