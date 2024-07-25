@@ -128,15 +128,9 @@ class TelemetryRequestBodySpecification extends Specification {
 
     then:
     final result = drainToString(req)
-    if(appsecChange) {
-      result.contains("\"appsec.enabled\":${appsecEnabled}")
-    }
-    if(profilerChange) {
-      result.contains("\"profiler.enabled\":${profilerEnabled}")
-    }
-    if (dynamicInstrumentationChange) {
-      result.contains("\"dynamic_instrumentation.enabled\":${dynamicInstrumentationEnabled}")
-    }
+    result.contains("\"appsec\":{\"enabled\":${appsecEnabled}}") == appsecChange
+    result.contains("\"profiler\":{\"enabled\":${profilerEnabled}}") == profilerChange
+    result.contains("\"dynamic_instrumentation\":{\"enabled\":${dynamicInstrumentationEnabled}}") == dynamicInstrumentationChange
 
     where:
     appsecChange | profilerChange | dynamicInstrumentationChange | appsecEnabled | profilerEnabled | dynamicInstrumentationEnabled
