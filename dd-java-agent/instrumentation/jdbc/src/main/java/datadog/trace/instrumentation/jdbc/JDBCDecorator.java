@@ -266,14 +266,16 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     PreparedStatement instrumentationStatement = null;
     try (AgentScope scope = activateSpan(instrumentationSpan)) {
       String samplingDecision = instrumentationSpan.forceSamplingDecision() > 0 ? "1" : "0";
-      String instrumentationSql =
-          "set context_info 0x"
+      String contextInfo =
+          "0x"
               + samplingDecision
               + DDSpanId.toHexStringPadded(spanID)
               + instrumentationSpan.getTraceId().toHexString();
+
+      String instrumentationSql = "set context_info " + contextInfo;
       instrumentationStatement = connection.prepareStatement(instrumentationSql);
       DECORATE.onStatement(instrumentationSpan, instrumentationSql);
-      instrumentationStatement.execute(instrumentationSql);
+      instrumentationStatement.execute();
     } catch (SQLException e) {
       log.debug(
           "Failed to set extra DBM data in context info for trace {}. "
