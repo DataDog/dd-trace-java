@@ -8,10 +8,14 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
+import datadog.trace.api.telemetry.Product;
 import java.io.IOException;
-import java.util.Map;
+import java.util.HashMap;
 import okhttp3.MediaType;
 import okhttp3.Request;
 
@@ -87,20 +91,14 @@ public class TelemetryRequest {
     }
   }
 
-  public void writeProducts(
-      boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled) {
+  public void writeProducts() {
     try {
-      requestBody.writeProducts(appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
+      requestBody.writeProducts(
+          InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED,
+          InstrumenterConfig.get().isProfilingEnabled(),
+          Config.get().isDebuggerEnabled());
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
-    }
-  }
-
-  public void writeChangedProducts(final Map<Products, Boolean> products) {
-    try {
-      requestBody.writeProducts(products);
-    } catch (IOException e) {
-      throw new TelemetryRequestBody.SerializationException("changed-products", e);
     }
   }
 
@@ -198,6 +196,25 @@ public class TelemetryRequest {
       requestBody.endLogs();
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("logs-message", e);
+    }
+  }
+
+  public void writeChangedProducts() {
+    if (!isWithinSizeLimits() || !eventSource.hasProductChangeEvent()) {
+      return;
+    }
+    try {
+      requestBody.beginProducts();
+      HashMap<Product.ProductType, Boolean> products = new HashMap<>();
+      while (eventSource.hasProductChangeEvent() && isWithinSizeLimits()) {
+        Product event = eventSource.nextProductChangeEvent();
+        products.put(event.getProductType(), event.isEnabled());
+        eventSink.addProductChangeEvent(event);
+      }
+      requestBody.writeProducts(products);
+      requestBody.endProducts();
+    } catch (IOException e) {
+      throw new TelemetryRequestBody.SerializationException("changed-products", e);
     }
   }
 

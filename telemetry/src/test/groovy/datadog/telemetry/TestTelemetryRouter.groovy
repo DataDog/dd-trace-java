@@ -8,6 +8,7 @@ import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.telemetry.Product
 import groovy.json.JsonSlurper
 import okhttp3.Request
 import okio.Buffer
@@ -145,16 +146,6 @@ class TestTelemetryRouter extends TelemetryRouter {
       return this
     }
 
-    BodyAssertions assertProducts(boolean appsecEnabled = true) {
-      def products = body['products'] as Map<String, Object>
-      assert products != null
-      def expected = [
-        appsec: [enabled: appsecEnabled]
-      ]
-      assert products == expected
-      return this
-    }
-
     PayloadAssertions assertPayload() {
       def payload = body['payload'] as Map<String, Object>
       assert payload != null
@@ -265,6 +256,15 @@ class TestTelemetryRouter extends TelemetryRouter {
         assert id == null
       }
 
+      return this
+    }
+
+    PayloadAssertions productChange(Product product) {
+      def name = product.getProductType().getName()
+      def expected = [
+        (name) : [enabled: product.isEnabled()]
+      ]
+      assert this.payload['products'] == expected
       return this
     }
 

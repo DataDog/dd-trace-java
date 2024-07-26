@@ -12,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
+import datadog.trace.api.telemetry.Product.ProductType;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -266,7 +267,11 @@ public class TelemetryRequestBody extends RequestBody {
     endMessageIfBatch(RequestType.APP_DEPENDENCIES_LOADED);
   }
 
-  public void writeProducts(final Map<Products, Boolean> products) throws IOException {
+  public void beginProducts() throws IOException {
+    beginMessageIfBatch(RequestType.APP_PRODUCT_CHANGE);
+  }
+
+  public void writeProducts(final Map<ProductType, Boolean> products) throws IOException {
 
     if (products == null || products.isEmpty()) {
       return;
@@ -274,7 +279,7 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("products");
     bodyWriter.beginObject();
 
-    for (Map.Entry<Products, Boolean> entry : products.entrySet()) {
+    for (Map.Entry<ProductType, Boolean> entry : products.entrySet()) {
       bodyWriter.name(entry.getKey().getName());
       bodyWriter.beginObject();
       bodyWriter.name("enabled").value(entry.getValue());
@@ -287,11 +292,15 @@ public class TelemetryRequestBody extends RequestBody {
   public void writeProducts(
       boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
       throws IOException {
-    HashMap<Products, Boolean> products = new HashMap<>();
-    products.put(Products.APPSEC, appsecEnabled);
-    products.put(Products.PROFILER, profilerEnabled);
-    products.put(Products.DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled);
+    HashMap<ProductType, Boolean> products = new HashMap<>();
+    products.put(ProductType.APPSEC, appsecEnabled);
+    products.put(ProductType.PROFILER, profilerEnabled);
+    products.put(ProductType.DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled);
     writeProducts(products);
+  }
+
+  public void endProducts() throws IOException {
+    endMessageIfBatch(RequestType.APP_PRODUCT_CHANGE);
   }
 
   public void writeInstallSignature(String installId, String installType, String installTime)

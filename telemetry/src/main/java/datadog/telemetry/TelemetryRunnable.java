@@ -123,7 +123,6 @@ public class TelemetryRunnable implements Runnable {
       for (final TelemetryPeriodicAction action : this.actions) {
         action.doIteration(this.telemetryService);
       }
-      telemetryService.sendAppProductChange();
       for (int i = 0; i < MAX_CONSECUTIVE_REQUESTS; i++) {
         if (!telemetryService.sendTelemetryEvents()) {
           // stop if there is no more data to be sent, or it failed to send a request

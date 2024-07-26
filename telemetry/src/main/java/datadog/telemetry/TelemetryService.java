@@ -7,12 +7,8 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
-import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
-import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.ProductActivation;
-import datadog.trace.bootstrap.ActiveSubsystems;
-import java.util.HashMap;
+import datadog.trace.api.telemetry.Product;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -37,10 +33,18 @@ public class TelemetryService {
   private final BlockingQueue<DistributionSeries> distributionSeries =
       new LinkedBlockingQueue<>(1024);
 
+  private final BlockingQueue<Product> productChanges = new LinkedBlockingQueue<>();
+
   private final ExtendedHeartbeatData extendedHeartbeatData = new ExtendedHeartbeatData();
   private final EventSource.Queued eventSource =
       new EventSource.Queued(
-          configurations, integrations, dependencies, metrics, distributionSeries, logMessages);
+          configurations,
+          integrations,
+          dependencies,
+          metrics,
+          distributionSeries,
+          logMessages,
+          productChanges);
 
   private final long messageBytesSoftLimit;
   private final boolean debug;
@@ -50,13 +54,6 @@ public class TelemetryService {
    */
   private boolean openTracingIntegrationEnabled;
   private boolean openTelemetryIntegrationEnabled;
-
-  /*
-   * Keep track of Product enabling.
-   */
-  private boolean appsecEnabled;
-  private boolean profilerEnabled;
-  private boolean dynamicInstrumentationEnabled;
 
   public static TelemetryService build(
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
@@ -119,6 +116,10 @@ public class TelemetryService {
     return this.logMessages.offer(message);
   }
 
+  public boolean addProductChange(Product product) {
+    return this.productChanges.offer(product);
+  }
+
   public boolean addDistributionSeries(DistributionSeries series) {
     return this.distributionSeries.offer(series);
   }
@@ -159,12 +160,7 @@ public class TelemetryService {
         new TelemetryRequest(
             eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
 
-    this.appsecEnabled =
-        InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED;
-    this.profilerEnabled = InstrumenterConfig.get().isProfilingEnabled();
-    this.dynamicInstrumentationEnabled = Config.get().isDebuggerEnabled();
-
-    request.writeProducts(appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
+    request.writeProducts();
     request.writeConfigurations();
     request.writeInstallSignature();
     if (telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS) {
@@ -213,6 +209,7 @@ public class TelemetryService {
       request.writeMetrics();
       request.writeDistributions();
       request.writeLogs();
+      request.writeChangedProducts();
       isMoreDataAvailable = !this.eventSource.isEmpty();
     }
 
@@ -251,38 +248,6 @@ public class TelemetryService {
       log.warn("Telemetry Extended Heartbeat data does NOT fit in one request.");
     }
     return result == TelemetryClient.Result.SUCCESS;
-  }
-
-  /**
-   * Send app-product-change request with changed product enabled status if any. Needs to be updated
-   * with profiling, dynamic instrumentation or any new products
-   */
-  public boolean sendAppProductChange() {
-    boolean isAppsecEnabled = ActiveSubsystems.APPSEC_ACTIVE;
-    boolean hasAppsecEnabledChanged = isAppsecEnabled != this.appsecEnabled;
-    if (!hasAppsecEnabledChanged) {
-      log.debug("No product change detected");
-      return false;
-    }
-    log.debug("Preparing app-product-change request");
-    TelemetryRequest request =
-        new TelemetryRequest(
-            this.eventSource,
-            EventSink.NOOP,
-            messageBytesSoftLimit,
-            RequestType.APP_PRODUCT_CHANGE,
-            debug);
-    Map<Products, Boolean> products = new HashMap<>();
-    if (hasAppsecEnabledChanged) {
-      products.put(Products.APPSEC, isAppsecEnabled);
-    }
-    request.writeChangedProducts(products);
-    boolean result = telemetryRouter.sendRequest(request) == TelemetryClient.Result.SUCCESS;
-    if (result) {
-      log.debug("App product change request has been sent successfully. Updating product status");
-      this.appsecEnabled = isAppsecEnabled;
-    }
-    return result;
   }
 
   void warnAboutExclusiveIntegrations() {

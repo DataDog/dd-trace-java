@@ -3,9 +3,12 @@ package datadog.telemetry
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.telemetry.Product
 import okio.Buffer
 import okhttp3.RequestBody
 import spock.lang.Specification
+
+import static datadog.trace.api.telemetry.Product.ProductType.*
 
 /**
  * This test only verifies non-functional specifics that are not covered in TelemetryServiceSpecification
@@ -110,15 +113,15 @@ class TelemetryRequestBodySpecification extends Specification {
   void 'test writeProducts'(){
     setup:
     TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_PRODUCT_CHANGE)
-    final products = new HashMap<Products, Boolean>()
+    final products = new HashMap<Product.ProductType, Boolean>()
     if(appsecChange) {
-      products.put(Products.APPSEC, appsecEnabled)
+      products.put(APPSEC, appsecEnabled)
     }
     if(profilerChange) {
-      products.put(Products.PROFILER, profilerEnabled)
+      products.put(PROFILER, profilerEnabled)
     }
     if(dynamicInstrumentationChange) {
-      products.put(Products.DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled)
+      products.put(DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled)
     }
 
     when:

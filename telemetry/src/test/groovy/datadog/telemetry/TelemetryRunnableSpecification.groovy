@@ -66,7 +66,6 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * periodicAction.doIteration(telemetryService)
 
     then: 'two partial and one final telemetry data requests'
-    1 * telemetryService.sendAppProductChange()
     3 * telemetryService.sendTelemetryEvents() >>> [true, true, false]
     1 * timeSource.getCurrentTimeMillis() >> 60 * 1000 + 1
     1 * sleeperMock.sleep(9999)
@@ -163,7 +162,6 @@ class TelemetryRunnableSpecification extends DDSpecification {
     1 * periodicAction.doIteration(telemetryService)
 
     then:
-    1 * telemetryService.sendAppProductChange()
     1 * telemetryService.sendTelemetryEvents()
     1 * timeSource.getCurrentTimeMillis() >> 120 * 1000 + 7
     1 * sleeperMock.sleep(9993)
