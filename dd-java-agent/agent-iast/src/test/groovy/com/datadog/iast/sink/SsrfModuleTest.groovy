@@ -120,16 +120,15 @@ class SsrfModuleTest extends IastModuleImplTestBase {
     }
 
     where:
-    value                        | host          | uri                                | expected
-    'http://test.com/tested?1=1' | 'hello'       | 'http://test.com/tested?1=1'       | null
-    'http://test.com/tested?1=1' | '==>hello<==' | 'http://test.com/tested?1=1'       | '==>http://test.com/tested?1=1<==' // host tainted without match
-    'http://test.com/tested?1=1' | 'hello'       | '==>http://test.com/tested?1=1<==' | '==>http://test.com/tested?1=1<=='
-    'http://test.com/tested?1=1' | 'hello'       | '==>http://test.com/tested?1=1<==' | '==>http://test.com/tested?1=1<=='
-    'http://test.com/tested?1=1' | 'hello'       | '==>http<==://test.com/tested?1=1' | '==>http<==://test.com/tested?1=1'
-    'http://test.com/tested?1=1' | 'hello'       | 'http://==>test.com<==/tested?1=1' | 'http://==>test.com<==/tested?1=1'
-    'http://test.com/tested?1=1' | 'hello'       | 'http://test.com/==>tested<==?1=1' | 'http://test.com/==>tested<==?1=1'
-    'http://test.com/tested?1=1' | 'hello'       | 'http://test.com/tested==>?1=1<==' | 'http://test.com/tested==>?1=1<=='
-    'http://test.com/tested?1=1' | 'hello'       | 'http://==>another.com<=='         | '==>http://test.com/tested?1=1<==' // no match so full taint
+    value                        | host                | uri                                | expected
+    'http://test.com/tested?1=1' | 'test.com'          | 'http://test.com/tested?1=1'       | null
+    'http://test.com/tested?1=1' | '==>test.com<=='    | 'http://test.com/tested?1=1'       | 'http://==>test.com<==/tested?1=1'
+    'http://test.com/tested?1=1' | '==>another.com<==' | 'http://test.com/tested?1=1'       | '==>http://test.com/tested?1=1<==' // no match so full taint
+    'http://test.com/tested?1=1' | 'test.com'          | '==>http://test.com/tested?1=1<==' | '==>http://test.com/tested?1=1<=='
+    'http://test.com/tested?1=1' | 'test.com'          | '==>http<==://test.com/tested?1=1' | '==>http<==://test.com/tested?1=1'
+    'http://test.com/tested?1=1' | 'test.com'          | 'http://==>test.com<==/tested?1=1' | 'http://==>test.com<==/tested?1=1'
+    'http://test.com/tested?1=1' | 'test.com'          | 'http://test.com/==>tested<==?1=1' | 'http://test.com/==>tested<==?1=1'
+    'http://test.com/tested?1=1' | 'test.com'          | 'http://test.com/tested==>?1=1<==' | 'http://test.com/tested==>?1=1<=='
   }
 
   private taint(final Object value) {
@@ -137,12 +136,13 @@ class SsrfModuleTest extends IastModuleImplTestBase {
   }
 
 
-  private Object tainted(final String value) {
-    final ranges = fromTaintFormat(value)
+  private String tainted(final String url) {
+    final uri = getStringFromTaintFormat(url)
+    final ranges = fromTaintFormat(url)
     if (ranges?.length > 0) {
-      ctx.getTaintedObjects().taint(value, ranges)
+      ctx.getTaintedObjects().taint(uri, ranges)
     }
-    return value
+    return uri
   }
 
   private URI taintedURI(final String url) {
