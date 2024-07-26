@@ -34,14 +34,15 @@ jobs:
               // Pick the milestone with the highest version as title using semver
               milestoneNumber = response.data
                 .map(milestone => {
-                  const versionNumbers = milestone.title.match(/^\d+\.\d+\.\d+$/)
+                  // Parse version title as semver "<major>.<minor>.<patch>"
+                  const versionNumbers = milestone.title.match(/^(\d+)\.(\d+)\.(\d+)$/)
                   if (versionNumbers == null) {
                     return null
                   }
                   milestone.version = {
-                    majonr: parseInt(versionNumbers[0]),
-                    minor: parseInt(versionNumbers[1]),
-                    patch: parseInt(versionNumbers[2])
+                    major: parseInt(versionNumbers[1]),
+                    minor: parseInt(versionNumbers[2]),
+                    patch: parseInt(versionNumbers[3])
                   }
                   return milestone
                 })
