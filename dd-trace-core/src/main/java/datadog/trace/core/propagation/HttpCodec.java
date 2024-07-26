@@ -1,11 +1,12 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DD64bTraceId;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
@@ -234,38 +235,7 @@ public class HttpCodec {
             if (traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
               boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
               if (comingFromTraceContext) {
-                // Propagate newly extracted W3C tracestate to first valid context
-                String extractedTracestate =
-                    extractedContext.getPropagationTags().getW3CTracestate();
-                context.getPropagationTags().updateW3CTracestate(extractedTracestate);
-                if (context.getSpanId() != extractedContext.getSpanId()) {
-                  // extractedContext (In this case, w3c tracecontext) will take precedence over the span ID in
-                  // context
-                  long spanId = extractedContext.getSpanId();
-                  CharSequence w3cParent = extractedContext.getPropagationTags().getLastParentId();
-                  if (w3cParent != null) {
-                    context = contextBuilder(context, spanId, w3cParent.toString());
-
-                  } else if (!extractionCache.getDDParentHeaderValue().isEmpty()) {
-                    // If we've already extracted Datadog headers, use x-datadoog-parent-id header
-                    // value to set _dd.parent_id
-                    context =
-                        contextBuilder(context, spanId, extractionCache.getDDParentHeaderValue());
-                  } else {
-                    // See if we have a datadog propagator, and extract using this extractor
-                    for (final Extractor ddExtractor : this.extractors) {
-                      if (extracted.getPropagationStyle() == TracePropagationStyle.DATADOG) {
-                        TagContext ddExtracted = ddExtractor.extract(carrier, getter);
-                        if (ddExtracted instanceof ExtractedContext) {
-                          ExtractedContext ddExtractedContext = (ExtractedContext) ddExtracted;
-                          context =
-                              contextBuilder(
-                                  context, spanId, Long.toString(ddExtractedContext.getSpanId()));
-                        }
-                      }
-                    }
-                  }
-                }
+                injectTraceContextToFirstContext(context, extractedContext, extractionCache);
               }
             } else {
               // Terminate extracted context and add it as span link
@@ -291,6 +261,36 @@ public class HttpCodec {
         return null;
       }
     }
+
+    /**
+     * Applies W3C trace context over any other valid context previously found.
+     *
+     * @param firstContext The first valid context found.
+     * @param traceContext The trace context to apply.
+     * @param extractionCache The extraction cache to get quick access to any extra information.
+     * @param <C> The carrier type.
+     */
+    private <C> void injectTraceContextToFirstContext(
+        ExtractedContext firstContext,
+        ExtractedContext traceContext,
+        ExtractionCache<C> extractionCache) {
+      // Propagate newly extracted W3C tracestate to first valid context
+      String extractedTracestate = traceContext.getPropagationTags().getW3CTracestate();
+      firstContext.getPropagationTags().updateW3CTracestate(extractedTracestate);
+      // Check if parent spans differ to reconcile them
+      if (firstContext.getSpanId() != traceContext.getSpanId()) {
+        // Override parent span id with W3C one
+        firstContext.overrideSpanId(traceContext.getSpanId());
+        // Add last parent span id as tag (from W3C first, Datadog then)
+        CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
+        if (lastParentId == null) {
+          lastParentId = extractionCache.getDatadogSpanIdHeaderValue();
+        }
+        if (lastParentId != null) {
+          firstContext.getTags().put(PARENT_ID, lastParentId.toString());
+        }
+      }
+    }
   }
 
   private static class ExtractionCache<C>
@@ -298,27 +298,28 @@ public class HttpCodec {
           AgentPropagation.ContextVisitor<ExtractionCache<?>> {
     /** Cached context key-values (even indexes are header names, odd indexes are header values). */
     private final List<String> keysAndValues;
-
-    private int DDParentHeaderIndex;
+    /**
+     * {@link DatadogHttpCodec#SPAN_ID_KEY} header value for fast access, {@code null} if absent.
+     */
+    private String datadogSpanIdHeaderValue;
 
     public ExtractionCache(C carrier, AgentPropagation.ContextVisitor<C> getter) {
       this.keysAndValues = new ArrayList<>(32);
-      this.DDParentHeaderIndex = -1;
       getter.forEachKey(carrier, this);
     }
 
     @Override
     public boolean accept(String key, String value) {
       this.keysAndValues.add(key);
-      if (key.equals("x-datadog-parent-id")) {
-        this.DDParentHeaderIndex = this.keysAndValues.size();
+      if (SPAN_ID_KEY.equals(key)) {
+        this.datadogSpanIdHeaderValue = value;
       }
       this.keysAndValues.add(value);
       return true;
     }
 
-    public String getDDParentHeaderValue() {
-      return this.DDParentHeaderIndex != -1 ? this.keysAndValues.get(this.DDParentHeaderIndex) : "";
+    private String getDatadogSpanIdHeaderValue() {
+      return this.datadogSpanIdHeaderValue;
     }
 
     @Override
@@ -328,27 +329,6 @@ public class HttpCodec {
         classifier.accept(keysAndValues.get(i), keysAndValues.get(i + 1));
       }
     }
-  }
-
-  static ExtractedContext contextBuilder(
-      ExtractedContext oldContext, long spanId, String parentId) {
-    Map<String, String> tags = oldContext.getTags();
-    tags.put(DDTags.PARENT_ID, parentId);
-    // TODO: Figure out if passing the headers is important - if so, then figure out how to get
-    // access to them from ExtractedContext
-    TagContext.HttpHeaders headers = new TagContext.HttpHeaders();
-    return new ExtractedContext(
-        oldContext.getTraceId(),
-        spanId,
-        oldContext.getSamplingPriority(),
-        oldContext.getOrigin(),
-        oldContext.getEndToEndStartTime(),
-        oldContext.getBaggage(),
-        tags,
-        headers,
-        oldContext.getPropagationTags(),
-        oldContext.getTraceConfig(),
-        oldContext.getPropagationStyle());
   }
 
   /**
