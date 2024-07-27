@@ -48,6 +48,7 @@ public class SpanDebuggerTest {
 
   @BeforeEach
   public void setUp() {
+    System.setProperty("dd.trace.span.origin.enabled", String.valueOf(true));
     AgentTracer.registerIfAbsent(CoreTracer.builder().build());
     tracerAPI = AgentTracer.get();
     configurationUpdater = mock(ConfigurationUpdater.class);
@@ -89,6 +90,7 @@ public class SpanDebuggerTest {
 
     SpanDebuggerProbe[] probes =
         spanDebugger.probeManager().getProbes().toArray(new SpanDebuggerProbe[0]);
+
     assertEquals(2, probes.length);
     SpanDebuggerProbe entryProbe;
     SpanDebuggerProbe exitProbe;

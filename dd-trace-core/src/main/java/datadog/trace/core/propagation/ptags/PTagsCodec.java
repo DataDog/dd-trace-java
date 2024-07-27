@@ -41,7 +41,7 @@ abstract class PTagsCodec {
       if (ptags.isAppsecPropagationEnabled()) {
         size = codec.appendTag(sb, APPSEC_TAG, APPSEC_ENABLED_TAG_VALUE, size);
       }
-      if (ptags.getDebugPropagation() != -1) {
+      if (ptags.getDebugPropagation() != PTagsFactory.DEBUG_PROPAGATION_DEFAULT) {
         size =
             codec.appendTag(
                 sb, DEBUG_TAG, TagValue.from(String.valueOf(ptags.getDebugPropagation())), size);
