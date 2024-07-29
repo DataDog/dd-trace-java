@@ -1020,5 +1020,21 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
   }
 
+  void 'untrusted deserialization for an multipartfile which call inputStream'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization"
+    final RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("theFile", "theFileName",
+      RequestBody.create(MediaType.parse("application/octet-stream"), "FILE_CONTENT"))
+      .build()
+    final request = new Request.Builder().url(url).post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
 
 }

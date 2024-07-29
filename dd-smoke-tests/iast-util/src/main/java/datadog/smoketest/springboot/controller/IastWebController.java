@@ -401,6 +401,13 @@ public class IastWebController {
     return "OK";
   }
 
+  @PostMapping("/untrusted_deserialization")
+  public String untrustedDeserializationPost(@RequestParam("theFile") MultipartFile file)
+      throws IOException {
+    ObjectInputStream ois = new ObjectInputStream(file.getInputStream());
+    return "OK";
+  }
+
   private void withProcess(final Operation<Process> op) {
     Process process = null;
     try {
