@@ -19,8 +19,8 @@ public class AgentConnectionFactory implements ConnectionFactory {
   public AgentConnectionFactory() {}
 
   @Override
-  public Connection createConnection(Map<String, Object> map) throws IOException {
-    Object mbeanServerClass = map.get("mbean_server_class");
+  public Connection createConnection(Map<String, Object> connectionParams) throws IOException {
+    Object mbeanServerClass = connectionParams.get("mbean_server_class");
     if (mbeanServerClass != null) {
       MBeanServer mbeanServer = MBeanServerRegistry.getServer(mbeanServerClass.toString());
       if (mbeanServer != null) {
@@ -31,6 +31,6 @@ public class AgentConnectionFactory implements ConnectionFactory {
           mbeanServerClass);
       return new JvmDirectConnection();
     }
-    return defaultConnectionFactory.createConnection(map);
+    return defaultConnectionFactory.createConnection(connectionParams);
   }
 }

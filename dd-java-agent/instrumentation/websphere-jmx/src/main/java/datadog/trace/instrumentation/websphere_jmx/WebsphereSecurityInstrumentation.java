@@ -13,15 +13,18 @@ import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 
 /**
- * This instrumentation is needed in order to allow JMXFetch accessing to Admin mbean without
- * needing to change the server security configuration.
+ * Grant JMXFetch access to the WebSphere Admin MBean without changing the server security config.
  */
 @AutoService(InstrumenterModule.class)
 public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType {
 
+  private final String customBuilder;
+
   public WebsphereSecurityInstrumentation() {
     super("websphere-jmx");
+
+    customBuilder = System.getProperty("javax.management.builder.initial");
   }
 
   @Override
@@ -32,10 +35,9 @@ public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
   @Override
   public boolean isEnabled() {
     return super.isEnabled()
-        && "com.ibm.ws.management.PlatformMBeanServerBuilder"
-            .equals(System.getProperty("javax.management.builder.initial"))
-        // a shortcut to Config.get().isJmxFetchIntegrationEnabled("websphere", false) to avoid
-        // loading a Config instance from here
+        && "com.ibm.ws.management.PlatformMBeanServerBuilder".equals(customBuilder)
+        // we must avoid loading the global Config while setting up instrumentation, so use the same
+        // underlying provider call as Config.get().isJmxFetchIntegrationEnabled("websphere", false)
         && ConfigProvider.getInstance()
             .isEnabled(Collections.singletonList("websphere"), "jmxfetch.", ".enabled", false);
   }
@@ -50,6 +52,7 @@ public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
   public static class DisableSecurityAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(@Advice.Return(readOnly = false) boolean securityEnabled) {
+      // only grant access when we know the call is coming from one of our agent threads
       if (AgentThreadFactory.AGENT_THREAD_GROUP == Thread.currentThread().getThreadGroup()) {
         securityEnabled = false;
       }

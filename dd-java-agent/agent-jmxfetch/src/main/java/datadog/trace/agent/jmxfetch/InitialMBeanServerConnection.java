@@ -12,5 +12,7 @@ public class InitialMBeanServerConnection extends JvmDirectConnection {
   }
 
   @Override
-  protected void createConnection() throws IOException {}
+  protected void createConnection() {
+    // already connected
+  }
 }
