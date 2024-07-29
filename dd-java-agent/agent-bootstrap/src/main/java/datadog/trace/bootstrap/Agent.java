@@ -204,6 +204,14 @@ public class Agent {
 
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
     if (dataJobsEnabled) {
+      String javaCommand = System.getProperty("sun.java.command");
+      if (isDataJobsSupported(javaCommand)) {
+        log.error(
+            "Data Jobs Monitoring is not compatible with non-spark command {}. dd-trace-java will not be installed",
+            javaCommand);
+        return;
+      }
+
       log.info("Data Jobs Monitoring enabled, enabling spark integrations");
 
       setSystemPropertyDefault(
@@ -1306,5 +1314,17 @@ public class Agent {
     // nothing to do with JDK - but this should be safe because only thing this does is to delay
     // tracer install
     return BootstrapProxy.INSTANCE.getResource("jdk/jfr/Recording.class") != null;
+  }
+
+  private static boolean isDataJobsSupported(String javaCommand) {
+    if (javaCommand == null) {
+      return true;
+    }
+
+    if (javaCommand.contains("org.apache.spark") || javaCommand.contains("com.databricks")) {
+      return true;
+    }
+
+    return false;
   }
 }
