@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AgentConnectionFactory implements ConnectionFactory {
-  private static final Logger LOGGER = LoggerFactory.getLogger(AgentConnectionFactory.class);
+  private static final Logger log = LoggerFactory.getLogger(AgentConnectionFactory.class);
 
   private final ConnectionFactory defaultConnectionFactory = new DefaultConnectionFactory();
 
@@ -22,11 +22,11 @@ public class AgentConnectionFactory implements ConnectionFactory {
   public Connection createConnection(Map<String, Object> map) throws IOException {
     Object mbeanServerClass = map.get("mbean_server_class");
     if (mbeanServerClass != null) {
-      MBeanServer mBeanServer = MBeanServerRegistry.getServer(mbeanServerClass.toString());
-      if (mBeanServer != null) {
-        return new InitialMBeanServerConnection(mBeanServer);
+      MBeanServer mbeanServer = MBeanServerRegistry.getServer(mbeanServerClass.toString());
+      if (mbeanServer != null) {
+        return new InitialMBeanServerConnection(mbeanServer);
       }
-      LOGGER.warn(
+      log.warn(
           "Unable to provide a MBean server instance of {}. Falling back to platform default",
           mbeanServerClass);
       return new JvmDirectConnection();

@@ -5,13 +5,13 @@ import java.util.concurrent.ConcurrentMap;
 import javax.management.MBeanServer;
 
 public class MBeanServerRegistry {
-  private static final ConcurrentMap<String, MBeanServer> MAP = new ConcurrentHashMap<>();
+  private static final ConcurrentMap<String, MBeanServer> serverMap = new ConcurrentHashMap<>();
 
-  public static MBeanServer getServer(final String mbeanName) {
-    return MAP.get(mbeanName);
+  public static MBeanServer getServer(final String serverClass) {
+    return serverMap.get(serverClass);
   }
 
-  public static void putServer(final String mbeanName, final MBeanServer mBeanServer) {
-    MAP.putIfAbsent(mbeanName, mBeanServer);
+  public static void putServer(final String serverClass, final MBeanServer server) {
+    serverMap.putIfAbsent(serverClass, server);
   }
 }

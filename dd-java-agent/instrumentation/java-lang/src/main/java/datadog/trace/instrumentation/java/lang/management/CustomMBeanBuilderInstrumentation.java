@@ -15,17 +15,17 @@ import net.bytebuddy.asm.Advice;
 public class CustomMBeanBuilderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForConfiguredType {
 
+  private final String customBuilder;
+
   public CustomMBeanBuilderInstrumentation() {
     super("java-lang-management");
+
+    customBuilder = System.getProperty("javax.management.builder.initial");
   }
 
   @Override
   public boolean isEnabled() {
-    if (!super.isEnabled()) {
-      return false;
-    }
-    String customBuilder = System.getProperty("javax.management.builder.initial");
-    return customBuilder != null && !customBuilder.isEmpty();
+    return super.isEnabled() && customBuilder != null && !customBuilder.isEmpty();
   }
 
   @Override
@@ -37,13 +37,13 @@ public class CustomMBeanBuilderInstrumentation extends InstrumenterModule.Tracin
 
   @Override
   public String configuredMatchingType() {
-    return System.getProperty("javax.management.builder.initial");
+    return customBuilder;
   }
 
   public static class StoreMBeanServerAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterCreation(@Advice.Return final MBeanServer mBeanServer) {
-      MBeanServerRegistry.putServer(mBeanServer.getClass().getName(), mBeanServer);
+    public static void afterCreation(@Advice.Return final MBeanServer mbeanServer) {
+      MBeanServerRegistry.putServer(mbeanServer.getClass().getName(), mbeanServer);
     }
   }
 }
