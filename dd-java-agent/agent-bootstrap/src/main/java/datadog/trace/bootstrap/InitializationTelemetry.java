@@ -6,9 +6,7 @@ import java.lang.invoke.MethodType;
 
 /** Wrapper around BootstrapInitializationTelemetry used inside the Datadog ClassLoader. */
 public abstract class InitializationTelemetry {
-  /**
-   * Returns a proxy around a BoostrapInitializationTelemetry object 
-   **/
+  /** Returns a proxy around a BoostrapInitializationTelemetry object */
   public static final InitializationTelemetry proxy(Object bootstrapInitTelemetry) {
     if (bootstrapInitTelemetry == null) {
       return new BootstrapProxy(bootstrapInitTelemetry);
@@ -17,21 +15,19 @@ public abstract class InitializationTelemetry {
     }
   }
 
-  /**
-   * Returns a singleton of the none InitializationTelemetry
-   */
+  /** Returns a singleton of the none InitializationTelemetry */
   public static final InitializationTelemetry noneInstance() {
     return None.INSTANCE;
   }
 
   /**
-   * Indicates that an abort condition occurred during the bootstrapping process.  Abort conditions
+   * Indicates that an abort condition occurred during the bootstrapping process. Abort conditions
    * are assumed to leave the bootstrapping process incomplete. {@link #markIncomplete()}
    */
   public abstract void onAbort(String reasonCode);
 
   /**
-   * Indicates that an exception occurred during the bootstrapping process  By default the exception
+   * Indicates that an exception occurred during the bootstrapping process By default the exception
    * is assumed to NOT have fully stopped the initialization of the tracer.
    *
    * <p>If this exception stops the core bootstrapping of the tracer, then {@link #markIncomplete()}
@@ -46,8 +42,9 @@ public abstract class InitializationTelemetry {
   public abstract void onFatalError(Throwable t);
 
   /**
-   * Indicates that an exception conditional occurred during the bootstrapping process.  By default 
-   * the exceptional condition is assumed to NOT have fully stopped the initialization of the tracer.
+   * Indicates that an exception conditional occurred during the bootstrapping process. By default
+   * the exceptional condition is assumed to NOT have fully stopped the initialization of the
+   * tracer.
    *
    * <p>If this exception stops the core bootstrapping of the tracer, then {@link #markIncomplete()}
    * should also be called.
@@ -55,8 +52,8 @@ public abstract class InitializationTelemetry {
   public abstract void onError(String reasonCode);
 
   /**
-   * Marks bootstrapping of tracer as an incomplete
-   * Should only be called when a core (e.g. non-optional) component fails to initialize
+   * Marks bootstrapping of tracer as an incomplete Should only be called when a core (e.g.
+   * non-optional) component fails to initialize
    */
   public abstract void markIncomplete();
 

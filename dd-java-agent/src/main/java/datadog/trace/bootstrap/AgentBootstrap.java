@@ -135,12 +135,11 @@ public final class AgentBootstrap {
     if (isJdkTool()) {
       initTelemetry.onAbort("jdk_tool");
       return;
-    }    
+    }
     if (shouldAbortDueToOtherJavaAgents()) {
       initTelemetry.onAbort("other-java-agents");
       return;
     }
-
 
     final URL agentJarURL = installAgentJar(inst);
     final Class<?> agentClass;
