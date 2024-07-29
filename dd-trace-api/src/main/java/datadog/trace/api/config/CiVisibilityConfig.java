@@ -84,8 +84,7 @@ public final class CiVisibilityConfig {
       "civisibility.code.coverage.report.dump.dir";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
       "civisibility.jacoco.plugin.version";
-  public static final String CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS =
-      "civisibility.jacoco.gradle.sourcesets";
+  public static final String CIVISIBILITY_GRADLE_SOURCE_SETS = "civisibility.gradle.sourcesets";
 
   private CiVisibilityConfig() {}
 }

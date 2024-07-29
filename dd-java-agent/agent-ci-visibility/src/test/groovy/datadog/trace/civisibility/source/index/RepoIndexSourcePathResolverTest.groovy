@@ -3,6 +3,7 @@ package datadog.trace.civisibility.source.index
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
 import datadog.trace.api.Config
+import datadog.trace.api.civisibility.domain.Language
 import groovy.transform.PackageScope
 import spock.lang.Specification
 

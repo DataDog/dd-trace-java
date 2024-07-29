@@ -17,6 +17,7 @@ import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
+import datadog.trace.civisibility.ipc.ModuleCoverageDataJacoco;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.TestFramework;
@@ -166,29 +167,34 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   private void sendModuleExecutionResult() {
-    boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
-    boolean testSkippingEnabled = config.isCiVisibilityTestSkippingEnabled();
-    boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
-    boolean earlyFlakeDetectionFaulty =
-        earlyFlakeDetectionEnabled
-            && earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.get());
-    long testsSkippedTotal = testsSkipped.sum();
-    byte[] coverageData = coverageDataSupplier.get();
-
-    ModuleExecutionResult moduleExecutionResult =
-        new ModuleExecutionResult(
-            parentProcessSessionId,
-            parentProcessModuleId,
-            coverageEnabled,
-            testSkippingEnabled,
-            earlyFlakeDetectionEnabled,
-            earlyFlakeDetectionFaulty,
-            testsSkippedTotal,
-            new TreeSet<>(testFrameworks),
-            coverageData);
-
     try (SignalClient signalClient = signalClientFactory.create()) {
-      signalClient.send(moduleExecutionResult);
+      // FIXME nikita: Jacoco-specific. How would ITR implementation look?
+      byte[] coverageData = coverageDataSupplier.get();
+      if (coverageData != null) {
+        signalClient.send(
+            new ModuleCoverageDataJacoco(
+                parentProcessSessionId, parentProcessModuleId, coverageData));
+      }
+
+      boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
+      boolean testSkippingEnabled = config.isCiVisibilityTestSkippingEnabled();
+      boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
+      boolean earlyFlakeDetectionFaulty =
+          earlyFlakeDetectionEnabled
+              && earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.get());
+      long testsSkippedTotal = testsSkipped.sum();
+
+      signalClient.send(
+          new ModuleExecutionResult(
+              parentProcessSessionId,
+              parentProcessModuleId,
+              coverageEnabled,
+              testSkippingEnabled,
+              earlyFlakeDetectionEnabled,
+              earlyFlakeDetectionFaulty,
+              testsSkippedTotal,
+              new TreeSet<>(testFrameworks)));
+
     } catch (Exception e) {
       log.error("Error while reporting module execution result", e);
     }

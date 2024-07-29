@@ -19,14 +19,15 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.instrumentation.CoverageClassTransformer;
 import datadog.trace.civisibility.coverage.instrumentation.CoverageInstrumentationFilter;
+import datadog.trace.civisibility.coverage.percentage.JacocoCoverageCalculator;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
 import datadog.trace.civisibility.domain.BuildSystemSession;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl;
+import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter;
 import datadog.trace.civisibility.domain.buildsystem.ProxyTestSession;
-import datadog.trace.civisibility.domain.buildsystem.TestModuleRegistry;
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession;
 import datadog.trace.civisibility.domain.manualapi.ManualApiTestSession;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
@@ -198,21 +199,30 @@ public class CiVisibilitySystem {
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
       TestDecorator testDecorator = new TestDecoratorImpl(buildSystemName, repoServices.ciTags);
-      TestModuleRegistry testModuleRegistry = new TestModuleRegistry();
 
       String signalServerHost = services.config.getCiVisibilitySignalServerHost();
       int signalServerPort = services.config.getCiVisibilitySignalServerPort();
       SignalServer signalServer = new SignalServer(signalServerHost, signalServerPort);
 
-      return new BuildSystemSessionImpl(
+      ModuleSignalRouter moduleSignalRouter = new ModuleSignalRouter();
+      // FIXME nikita: implement logic that chooses between Jacoco-based and ITR-based calculation
+      JacocoCoverageCalculator.Factory coverageCalculatorFactory =
+          new JacocoCoverageCalculator.Factory(
+              services.config,
+              repoServices.repoIndexProvider,
+              repoServices.repoRoot,
+              moduleSignalRouter);
+
+      // FIXME nikita: consider creating a "SessionScopedServices", and passing that instead of the
+      // many parameters
+      return new BuildSystemSessionImpl<>(
           projectName,
-          repoServices.repoRoot,
           startCommand,
           startTime,
           repoServices.ciProvider,
           services.config,
           services.metricCollector,
-          testModuleRegistry,
+          moduleSignalRouter,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
@@ -220,7 +230,8 @@ public class CiVisibilitySystem {
           repoServices.moduleExecutionSettingsFactory,
           repoServices.coverageStoreFactory,
           signalServer,
-          repoServices.repoIndexProvider);
+          repoServices.repoIndexProvider,
+          coverageCalculatorFactory);
     };
   }
 

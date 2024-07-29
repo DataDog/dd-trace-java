@@ -1,12 +1,11 @@
 package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.domain.ModuleLayout;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -181,12 +180,13 @@ public class CiVisibilityGradleListener extends BuildAdapter
     Project project = gradle.getRootProject().project(projectPath);
     Task task = project.getTasks().getByName(taskIdentity.name);
 
-    Collection<File> compiledClassFolders =
-        (Collection<File>)
+    ModuleLayout moduleLayout =
+        (ModuleLayout)
             task.getInputs()
                 .getProperties()
-                .get(CiVisibilityPluginExtension.COMPILED_CLASS_FOLDERS_PROPERTY);
-    ciVisibilityService.onModuleStart(taskPath, compiledClassFolders);
+                .get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
+
+    ciVisibilityService.onModuleStart(taskPath, moduleLayout);
   }
 
   @Override

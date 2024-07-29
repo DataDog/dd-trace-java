@@ -7,7 +7,8 @@ public enum SignalType {
   REPO_INDEX_REQUEST((byte) 3),
   REPO_INDEX_RESPONSE((byte) 4),
   MODULE_SETTINGS_REQUEST((byte) 5),
-  MODULE_SETTINGS_RESPONSE((byte) 6);
+  MODULE_SETTINGS_RESPONSE((byte) 6),
+  MODULE_COVERAGE_DATA_JACOCO((byte) 7);
 
   private static final SignalType[] VALUES = SignalType.values();
 

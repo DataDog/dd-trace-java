@@ -29,7 +29,7 @@ import datadog.trace.civisibility.domain.BuildSystemSession
 import datadog.trace.civisibility.domain.TestFrameworkModule
 import datadog.trace.civisibility.domain.TestFrameworkSession
 import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl
-import datadog.trace.civisibility.domain.buildsystem.TestModuleRegistry
+import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
@@ -145,7 +145,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     BuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
-      TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
+      ModuleSignalRouter testModuleRegistry = new ModuleSignalRouter()
       SignalServer signalServer = new SignalServer()
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
       return new BuildSystemSessionImpl(

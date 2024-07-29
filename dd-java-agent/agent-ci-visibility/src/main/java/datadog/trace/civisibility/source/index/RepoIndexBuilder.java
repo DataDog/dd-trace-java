@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.source.index;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.domain.Language;
 import datadog.trace.civisibility.source.Utils;
 import datadog.trace.util.ClassNameTrie;
 import java.io.IOException;

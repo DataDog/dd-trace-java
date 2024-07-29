@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.source.index
 
+import datadog.trace.api.civisibility.domain.Language
 import spock.lang.Specification
 
 class LanguageDetectorTest extends Specification {

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.gradle;
 
+import datadog.trace.api.civisibility.domain.ModuleLayout;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -26,12 +27,12 @@ public abstract class CiVisibilityPluginExtension {
 
   private static final Logger LOGGER = Logging.getLogger(CiVisibilityPluginExtension.class);
 
-  public static final String COMPILED_CLASS_FOLDERS_PROPERTY = "compiledClassFolders";
+  public static final String MODULE_LAYOUT_PROPERTY = "moduleLayout";
 
   private final ObjectFactory objectFactory;
   private FileCollection compilerPluginClasspath;
   private String moduleName;
-  private FileCollection compiledClassFolders;
+  private ModuleLayout moduleLayout;
 
   @Inject
   public CiVisibilityPluginExtension(ObjectFactory objectFactory) {
@@ -46,8 +47,8 @@ public abstract class CiVisibilityPluginExtension {
     this.moduleName = moduleName;
   }
 
-  public void setCompiledClassesFolders(FileCollection compiledClassFolders) {
-    this.compiledClassFolders = compiledClassFolders;
+  public void setModuleLayout(ModuleLayout moduleLayout) {
+    this.moduleLayout = moduleLayout;
   }
 
   @ServiceReference
@@ -101,7 +102,7 @@ public abstract class CiVisibilityPluginExtension {
   }
 
   public void applyTo(Test task) {
-    task.getInputs().property(COMPILED_CLASS_FOLDERS_PROPERTY, compiledClassFolders.getFiles());
+    task.getInputs().property(MODULE_LAYOUT_PROPERTY, moduleLayout);
 
     Path jvmExecutable = getEffectiveExecutable(task);
     applyTracerSettings(

@@ -1,9 +1,8 @@
 package datadog.trace.api.civisibility.events;
 
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import java.io.File;
+import datadog.trace.api.civisibility.domain.ModuleLayout;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -24,7 +23,7 @@ public interface BuildEventsHandler<T> {
   ModuleInfo onTestModuleStart(
       T sessionKey,
       String moduleName,
-      Collection<File> outputClassesDirs,
+      ModuleLayout moduleLayout,
       @Nullable Map<String, Object> additionalTags);
 
   void onTestModuleSkip(T sessionKey, String moduleName, String reason);

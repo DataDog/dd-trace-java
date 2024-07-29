@@ -1,8 +1,13 @@
 package datadog.trace.instrumentation.gradle;
 
+import datadog.trace.api.civisibility.domain.Language;
+import datadog.trace.api.civisibility.domain.ModuleLayout;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -10,12 +15,13 @@ import java.util.stream.Collectors;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
-import org.gradle.api.tasks.SourceSetOutput;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.testing.jacoco.plugins.JacocoPluginExtension;
@@ -44,21 +50,54 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
   }
 
   private void calculateCompiledClassesFolders(CiVisibilityPluginExtension extension) {
-    FileCollection compiledClassFolders = project.files();
-    SourceSetContainer sourceSets = project.getExtensions().findByType(SourceSetContainer.class);
-    if (sourceSets == null) {
+    SourceSetContainer gradleSourceSets =
+        project.getExtensions().findByType(SourceSetContainer.class);
+    if (gradleSourceSets == null) {
       return;
     }
+
+    Collection<datadog.trace.api.civisibility.domain.SourceSet> sourceSets = new ArrayList<>();
     List<String> sourceSetNames = extension.getCoverageEnabledSourceSets();
     for (String sourceSetName : sourceSetNames) {
-      SourceSet sourceSet = sourceSets.findByName(sourceSetName);
+      SourceSet sourceSet = gradleSourceSets.findByName(sourceSetName);
       if (sourceSet != null) {
-        SourceSetOutput output = sourceSet.getOutput();
-        FileCollection classesDirs = output.getClassesDirs();
-        compiledClassFolders = compiledClassFolders.plus(classesDirs);
+        datadog.trace.api.civisibility.domain.SourceSet.Type sourceSetType =
+            sourceSet.getName().toLowerCase().contains("test")
+                ? datadog.trace.api.civisibility.domain.SourceSet.Type.TEST
+                : datadog.trace.api.civisibility.domain.SourceSet.Type.CODE;
+
+        sourceSets.add(fromGradleSourceSet(sourceSetType, sourceSet.getJava()));
+
+        ExtensionContainer sourceSetExtensions = sourceSet.getExtensions();
+        for (Language language : Language.values()) {
+          if (language.isNonCode()) {
+            continue;
+          }
+
+          String languageName = language.name().toLowerCase();
+          Object languageSpecificExtension = sourceSetExtensions.findByName(languageName);
+          if (languageSpecificExtension instanceof SourceDirectorySet) {
+            sourceSets.add(
+                fromGradleSourceSet(sourceSetType, (SourceDirectorySet) languageSpecificExtension));
+          }
+        }
       }
     }
-    extension.setCompiledClassesFolders(compiledClassFolders);
+
+    extension.setModuleLayout(new ModuleLayout(sourceSets));
+  }
+
+  private datadog.trace.api.civisibility.domain.SourceSet fromGradleSourceSet(
+      datadog.trace.api.civisibility.domain.SourceSet.Type sourceSetType,
+      SourceDirectorySet sourceDirectorySet) {
+    if (sourceDirectorySet == null) {
+      return null;
+    }
+
+    Collection<File> sources = sourceDirectorySet.getSrcDirs();
+    DirectoryProperty destinationDirectory = sourceDirectorySet.getDestinationDirectory();
+    File destination = destinationDirectory.get().getAsFile();
+    return new datadog.trace.api.civisibility.domain.SourceSet(sourceSetType, sources, destination);
   }
 
   private void applyCompilerPlugin(CiVisibilityPluginExtension extension) {
