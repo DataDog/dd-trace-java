@@ -3,7 +3,6 @@ package datadog.trace.core.datastreams
 
 import datadog.trace.api.experimental.DataStreamsContextCarrier
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.bootstrap.instrumentation.api.PathwayContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED
