@@ -8,7 +8,9 @@ import okio.Buffer
 import okhttp3.RequestBody
 import spock.lang.Specification
 
-import static datadog.trace.api.telemetry.Product.ProductType.*
+import static datadog.trace.api.telemetry.Product.ProductType.APPSEC
+import static datadog.trace.api.telemetry.Product.ProductType.DYNAMIC_INSTRUMENTATION
+import static datadog.trace.api.telemetry.Product.ProductType.PROFILER
 
 /**
  * This test only verifies non-functional specifics that are not covered in TelemetryServiceSpecification
