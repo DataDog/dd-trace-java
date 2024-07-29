@@ -4,28 +4,50 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 /** Telemetry class used to relay information about tracer activation. */
-abstract class InitializationTelemetry {
-  public static final InitializationTelemetry noneInstance() {
+public abstract class BootstrapInitializationTelemetry {
+  public static final BootstrapInitializationTelemetry noneInstance() {
     return None.INSTANCE;
   }
 
-  public static final InitializationTelemetry createFromForwarderPath(String forwarderPath) {
+  public static final BootstrapInitializationTelemetry createFromForwarderPath(
+      String forwarderPath) {
     return new ViaForwarderExecutable(forwarderPath);
   }
 
+  /**
+   * Adds meta information about the process to the initialization telemetry Does NOT support
+   * overriding an attr, each attr should be once and only once
+   */
   public abstract void initMetaInfo(String attr, String value);
 
+  /**
+   * Indicates that an abort condition occurred during the bootstrapping process Abort conditions
+   * are assumed to leave the bootstrapping process incomplete. {@link #markIncomplete()}
+   */
   public abstract void onAbort(String reasonCode);
 
-  public abstract void onAbort(Throwable t);
+  /**
+   * Indicates that an exception occurred during the bootstrapping process By default the exception
+   * is assumed to NOT have fully stopped the initialization of the tracer.
+   *
+   * <p>If this exception stops the core bootstrapping of the tracer, then {@link #markIncomplete()}
+   * should also be called.
+   */
+  public abstract void onError(Throwable t);
 
-  public abstract void onAbortRuntime(String reasonCode);
+  /**
+   * Indicates an exception that occurred during the bootstrapping process that left initialization
+   * incomplete. Equivalent to calling {@link #onError(Throwable)} and {@link #markIncomplete()}
+   */
+  public abstract void onFatalError(Throwable t);
 
-  public abstract void onComplete();
+  public abstract void onError(String reasonCode);
 
-  public abstract void flush();
+  public abstract void markIncomplete();
 
-  static final class None extends InitializationTelemetry {
+  public abstract void finish();
+
+  static final class None extends BootstrapInitializationTelemetry {
     static final None INSTANCE = new None();
 
     private None() {}
@@ -37,23 +59,29 @@ abstract class InitializationTelemetry {
     public void onAbort(String reasonCode) {}
 
     @Override
-    public void onAbortRuntime(String reasonCode) {}
+    public void onError(String reasonCode) {}
 
     @Override
-    public void onAbort(Throwable t) {}
+    public void onFatalError(Throwable t) {}
 
     @Override
-    public void onComplete() {}
+    public void onError(Throwable t) {}
 
     @Override
-    public void flush() {}
+    public void markIncomplete() {}
+
+    @Override
+    public void finish() {}
   }
 
-  static final class ViaForwarderExecutable extends InitializationTelemetry {
+  static final class ViaForwarderExecutable extends BootstrapInitializationTelemetry {
     private final String forwarderPath;
 
     private JsonBuffer metaBuffer = new JsonBuffer();
     private JsonBuffer pointsBuffer = new JsonBuffer();
+
+    // one way false to true
+    private volatile boolean incomplete = false;
 
     ViaForwarderExecutable(String forwarderPath) {
       this.forwarderPath = forwarderPath;
@@ -69,20 +97,31 @@ abstract class InitializationTelemetry {
     @Override
     public void onAbort(String reasonCode) {
       onPoint("library_entrypoint.abort", "reason:" + reasonCode);
+
+      markIncomplete();
     }
 
     @Override
-    public void onAbort(Throwable t) {
+    public void onError(Throwable t) {
       onPoint("library_entrypoint.error", "error_type:" + t.getClass().getName());
     }
 
     @Override
-    public void onComplete() {
-      onPoint("library_entrypoint.complete");
+    public void onFatalError(Throwable t) {
+      onError(t);
+
+      markIncomplete();
     }
 
     @Override
-    public void onAbortRuntime(String reasonCode) {}
+    public void onError(String reasonCode) {
+      onPoint("library_entrypoint.error", "error_type:" + reasonCode);
+    }
+
+    @Override
+    public void markIncomplete() {
+      incomplete = true;
+    }
 
     void onPoint(String pointName) {
       synchronized (pointsBuffer) {
@@ -111,7 +150,11 @@ abstract class InitializationTelemetry {
     }
 
     @Override
-    public void flush() {
+    public void finish() {
+      if (!incomplete) {
+        onPoint("library_entrypoint.complete");
+      }
+
       JsonBuffer buffer = new JsonBuffer();
       buffer.beginObject();
 

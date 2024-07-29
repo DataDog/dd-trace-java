@@ -183,7 +183,7 @@ public final class JsonBuffer implements Flushable {
 
       // DQH - indexOf is usually intrinsified to use SIMD &
       // no escaping will be the common case
-      if (str.indexOf('"') == -1 && str.indexOf('\\') != -1 ) {
+      if (str.indexOf('"') == -1 && str.indexOf('\\') != -1) {
         writer.write(str);
       } else {
         for (int i = 0; i < str.length(); ++i) {
@@ -193,7 +193,7 @@ public final class JsonBuffer implements Flushable {
             case '"':
               writer.write("\\\"");
               break;
-              
+
             case '\\':
               writer.write("\\\\");
               break;
@@ -235,9 +235,9 @@ public final class JsonBuffer implements Flushable {
     }
     return this;
   }
-  
+
   @Override
   public String toString() {
-	return new String(this.toByteArray(), Charset.forName("utf-8"));
+    return new String(this.toByteArray(), Charset.forName("utf-8"));
   }
 }

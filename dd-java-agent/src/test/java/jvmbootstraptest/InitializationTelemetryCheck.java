@@ -13,7 +13,7 @@ import java.util.Map;
  */
 public class InitializationTelemetryCheck {
   public static void main(String[] args) {}
-  
+
   /** Blocks the loading of the agent bootstrap */
   public static class BlockAgentLoading extends TestSecurityManager {
     @Override
@@ -53,12 +53,12 @@ public class InitializationTelemetryCheck {
       }
     }
   }
-  
+
   public static class BlockForwarderExecution extends TestSecurityManager {
-	@Override
-	protected boolean checkFileExecutePermission(FilePermission perm, Object ctx, String filePath) {
-	  return false;
-	}
+    @Override
+    protected boolean checkFileExecutePermission(FilePermission perm, Object ctx, String filePath) {
+      return false;
+    }
   }
 
   public static final int runTestJvm(Class<? extends TestSecurityManager> securityManagerClass)
@@ -86,24 +86,24 @@ public class InitializationTelemetryCheck {
 
   public static final Class<?>[] requiredClasses(
       Class<? extends TestSecurityManager> securityManagerClass) {
-	
-	if ( securityManagerClass == null ) {
-	  return new Class<?>[] { InitializationTelemetryCheck.class };
-	} else {
+
+    if (securityManagerClass == null) {
+      return new Class<?>[] {InitializationTelemetryCheck.class};
+    } else {
       return new Class<?>[] {
         InitializationTelemetryCheck.class,
         securityManagerClass,
         TestSecurityManager.class,
         CustomSecurityManager.class
       };
-	}
+    }
   }
 
   public static final String[] jvmArgs(Class<? extends TestSecurityManager> securityManagerClass) {
-    if ( securityManagerClass == null ) {
+    if (securityManagerClass == null) {
       return new String[] {};
     } else {
-	  return new String[] {"-Djava.security.manager=" + securityManagerClass.getName()};
+      return new String[] {"-Djava.security.manager=" + securityManagerClass.getName()};
     }
   }
 

@@ -57,20 +57,16 @@ public final class AgentBootstrap {
   }
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
-    InitializationTelemetry initTelemetry;
+    BootstrapInitializationTelemetry initTelemetry;
     try {
       initTelemetry = createInitializationTelemetry();
     } catch (Throwable t) {
-      initTelemetry = InitializationTelemetry.noneInstance();
+      initTelemetry = BootstrapInitializationTelemetry.noneInstance();
     }
     try {
-      boolean initialized = agentmainImpl(initTelemetry, agentArgs, inst);
-
-      if (initialized) {
-        initTelemetry.onComplete();
-      }
+      agentmainImpl(initTelemetry, agentArgs, inst);
     } catch (final Throwable ex) {
-      initTelemetry.onAbort(ex);
+      initTelemetry.onFatalError(ex);
 
       if (exceptionCauseChainContains(
           ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
@@ -81,21 +77,21 @@ public final class AgentBootstrap {
       ex.printStackTrace();
     } finally {
       try {
-        initTelemetry.flush();
+        initTelemetry.finish();
       } catch (Throwable t) {
         // safeguard - ignore
       }
     }
   }
 
-  private static InitializationTelemetry createInitializationTelemetry() {
+  private static BootstrapInitializationTelemetry createInitializationTelemetry() {
     String forwarderPath = SystemUtils.tryGetEnv("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath == null) {
-      return InitializationTelemetry.noneInstance();
+      return BootstrapInitializationTelemetry.noneInstance();
     }
 
-    InitializationTelemetry initTelemetry =
-        InitializationTelemetry.createFromForwarderPath(forwarderPath);
+    BootstrapInitializationTelemetry initTelemetry =
+        BootstrapInitializationTelemetry.createFromForwarderPath(forwarderPath);
     initTelemetry.initMetaInfo("runtime_name", "java");
     initTelemetry.initMetaInfo("language_name", "java");
 
@@ -115,26 +111,24 @@ public final class AgentBootstrap {
     return initTelemetry;
   }
 
-  private static boolean agentmainImpl(
-      final InitializationTelemetry initTelemetry,
+  private static void agentmainImpl(
+      final BootstrapInitializationTelemetry initTelemetry,
       final String agentArgs,
       final Instrumentation inst)
       throws IOException, URISyntaxException, ClassNotFoundException, NoSuchMethodException,
           IllegalAccessException, InvocationTargetException {
     if (alreadyInitialized()) {
-      initTelemetry.onAbort("already_initialized");
-
-      return false;
+      initTelemetry.onError("already_initialized");
+      // since tracer is presumably initialized elsewhere, still considering this complete
+      return;
     }
     if (lessThanJava8()) {
-      initTelemetry.onAbortRuntime("incompatible_runtime");
-
-      return false;
+      initTelemetry.onAbort("incompatible_runtime");
+      return;
     }
     if (isJdkTool()) {
-      initTelemetry.onAbortRuntime("jdk_tool");
-
-      return false;
+      initTelemetry.onAbort("jdk_tool");
+      return;
     }
 
     final URL agentJarURL = installAgentJar(inst);
@@ -148,12 +142,9 @@ public final class AgentBootstrap {
       throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
     }
     final Method startMethod =
-        agentClass.getMethod("start", Instrumentation.class, URL.class, String.class);
-    
-    Object result = startMethod.invoke(null, inst, agentJarURL, agentArgs);
-    return ( result instanceof Boolean ) ?
-      (Boolean)result :
-      true;
+        agentClass.getMethod("start", Object.class, Instrumentation.class, URL.class, String.class);
+
+    startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
   }
 
   static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
