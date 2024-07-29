@@ -10,10 +10,12 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import java.util.HashMap;
 import java.util.Map;
 import javax.jms.JMSException;
 import net.bytebuddy.asm.Advice;
 import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
 @AutoService(InstrumenterModule.class)
 public class SqsJmsMessageInstrumentation extends AbstractSqsInstrumentation
@@ -29,10 +31,27 @@ public class SqsJmsMessageInstrumentation extends AbstractSqsInstrumentation
     transformer.applyAdvice(
         isConstructor()
             .and(takesArgument(2, named("software.amazon.awssdk.services.sqs.model.Message"))),
-        getClass().getName() + "$CopyTracePropertyAdvice");
+        getClass().getName() + "$JmsSqsMessageConstructorAdvice");
   }
 
-  public static class CopyTracePropertyAdvice {
+  public static class JmsSqsMessageConstructorAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(value = 2, readOnly = false) Message sqsMessage) {
+      Map<String, MessageAttributeValue> messageAttributes = sqsMessage.messageAttributes();
+      MessageAttributeValue ddAttribute = messageAttributes.get("_datadog");
+      if (ddAttribute != null && "Binary".equals(ddAttribute.dataType())) {
+        // binary message attributes are not supported by amazon-sqs-java-messaging-lib, and there
+        // is a chance we might introduce one, either when the message was sent from SNS or from a
+        // DD-instrumented Javascript app.
+        // When we reach this point, the value would already have been used by the aws-sqs
+        // instrumentation, so we can safely remove it.
+        Map<String, MessageAttributeValue> messageAttributesCopy = new HashMap<>(messageAttributes);
+        // need to copy to remove because the original is an UnmodifiableMap
+        messageAttributesCopy.remove("_datadog");
+        sqsMessage = sqsMessage.toBuilder().messageAttributes(messageAttributesCopy).build();
+      }
+    }
+
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.Argument(2) Message sqsMessage, @Advice.FieldValue("properties") Map properties)
