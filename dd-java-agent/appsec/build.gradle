@@ -101,6 +101,7 @@ ext {
     'com.datadog.appsec.config.AppSecFeatures',
     'com.datadog.appsec.config.AppSecFeatures.Asm',
     'com.datadog.appsec.config.AppSecFeatures.ApiSecurity',
+    'com.datadog.appsec.config.AppSecFeatures.AutoUserInstrum',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
   ]
   excludedClassesBranchCoverage = [

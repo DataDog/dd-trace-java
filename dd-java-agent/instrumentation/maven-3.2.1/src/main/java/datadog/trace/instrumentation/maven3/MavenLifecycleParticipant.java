@@ -220,6 +220,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
   private String getEffectiveJvm(Mojo mojo) {
     Method getEffectiveJvmMethod = findGetEffectiveJvmMethod(mojo.getClass());
     if (getEffectiveJvmMethod == null) {
+      LOGGER.debug("Could not find getEffectiveJvm method in {} class", mojo.getClass().getName());
       return null;
     }
     getEffectiveJvmMethod.setAccessible(true);
@@ -241,13 +242,18 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
         return (String) jvmExecutable;
       } else if (jvmExecutable instanceof File) {
         return ((File) jvmExecutable).getAbsolutePath();
+      } else if (jvmExecutable == null) {
+        LOGGER.debug("Configured JVM executable is null");
+        return null;
       } else {
+        LOGGER.debug(
+            "Unexpected JVM executable type {}, returning null",
+            jvmExecutable.getClass().getName());
         return null;
       }
 
     } catch (Exception e) {
       LOGGER.debug("Error while getting effective JVM for mojo {}", mojo, e);
-      LOGGER.warn("Error while getting effective JVM");
       return null;
     }
   }
