@@ -14,7 +14,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
 import datadog.trace.api.telemetry.Product.ProductType;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
@@ -292,7 +292,7 @@ public class TelemetryRequestBody extends RequestBody {
   public void writeProducts(
       boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
       throws IOException {
-    HashMap<ProductType, Boolean> products = new HashMap<>();
+    Map<ProductType, Boolean> products = new EnumMap<>(ProductType.class);
     products.put(ProductType.APPSEC, appsecEnabled);
     products.put(ProductType.PROFILER, profilerEnabled);
     products.put(ProductType.DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled);

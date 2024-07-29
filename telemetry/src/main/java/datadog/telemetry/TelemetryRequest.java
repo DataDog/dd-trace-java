@@ -14,8 +14,10 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.Product;
+import datadog.trace.api.telemetry.Product.ProductType;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.EnumMap;
+import java.util.Map;
 import okhttp3.MediaType;
 import okhttp3.Request;
 
@@ -205,7 +207,7 @@ public class TelemetryRequest {
     }
     try {
       requestBody.beginProducts();
-      HashMap<Product.ProductType, Boolean> products = new HashMap<>();
+      Map<ProductType, Boolean> products = new EnumMap<>(ProductType.class);
       while (eventSource.hasProductChangeEvent() && isWithinSizeLimits()) {
         Product event = eventSource.nextProductChangeEvent();
         products.put(event.getProductType(), event.isEnabled());
