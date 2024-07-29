@@ -286,8 +286,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (manualCheckpoint) {
       sortedTags.put(MANUAL_TAG, "true");
     }
-    sortedTags.put(TOPIC_TAG, target);
     sortedTags.put(TYPE_TAG, type);
+    sortedTags.put(TOPIC_TAG, target);
 
     this.injector.injectPathwayContext(
         span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
