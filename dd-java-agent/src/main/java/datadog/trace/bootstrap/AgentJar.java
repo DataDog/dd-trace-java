@@ -27,6 +27,9 @@ public final class AgentJar {
           case "uploadCrash":
             uploadCrash(args);
             break;
+          case "sendOomeEvent":
+            sendOomeEvent(args);
+            break;
           case "scanDependencies":
             scanDependencies(args);
             break;
@@ -99,6 +102,13 @@ public final class AgentJar {
     installAgentCLI()
         .getMethod("uploadCrash", String[].class)
         .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
+  }
+
+  private static void sendOomeEvent(final String[] args) throws Exception {
+    if (args.length < 1) {
+      throw new IllegalArgumentException("unexpected arguments");
+    }
+    installAgentCLI().getMethod("sendOomeEvent", String.class).invoke(null, args[1]);
   }
 
   private static void scanDependencies(final String[] args) throws Exception {

@@ -19,5 +19,4 @@ allprojects {
   }
 
   apply from: "$sharedConfigDirectory/spotless.gradle"
-  apply from: "$sharedConfigDirectory/dependencies.gradle"
 }

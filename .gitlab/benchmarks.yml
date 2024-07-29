@@ -1,13 +1,14 @@
-variables:
-  BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
-
 .benchmarks:
   stage: benchmarks
-  when: on_success
   interruptible: true
   timeout: 1h
   tags: ["runner:apm-k8s-tweaked-metal"]
-  image: $BASE_CI_IMAGE
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
+  needs: [ "build" ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: on_success
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - export CIRCLE_CI_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.circleci_token --with-decryption --query "Parameter.Value" --out text)
@@ -68,6 +69,8 @@ benchmarks-post-results:
 .dsm-kafka-benchmarks:
   stage: benchmarks
   rules:
+    - if: '$POPULATE_CACHE'
+      when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
       changes:
         paths:
@@ -80,6 +83,7 @@ benchmarks-post-results:
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-dsm-kafka
+  needs: [ "build" ]
   script:
     - git clone --branch java/kafka-dsm-overhead https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git platform && cd platform
     - ./steps/run-benchmarks.sh
@@ -102,3 +106,39 @@ dsm-kafka-consumer-benchmark:
   variables:
     BP_KAFKA_SCENARIO_DIR: consumer-benchmark
 
+debugger-benchmarks:
+  stage: benchmarks
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        paths:
+          - dd-java-agent/agent-debugger/**/*
+        compare_to: "master"
+      when: on_success
+    - when: manual
+      allow_failure: true
+  tags: ["runner:apm-k8s-tweaked-metal"]
+  interruptible: true
+  timeout: 1h
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:java-debugger
+  needs: ["build"]
+  script:
+    - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
+    - git clone --branch java/debugger-benchmarks https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform.git /platform && cd /platform
+    - numactl --cpunodebind=1 --membind=1 bp-runner bp-runner.yml --debug
+    - "./steps/create-report.sh || :"
+    - "./steps/post-pr-comment.sh || :"
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
+    expire_in: 3 months
+  variables:
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID # The ID of the current project. This ID is unique across all projects on the GitLab instance.
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME # "dd-trace-java"
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
+    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
+    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"

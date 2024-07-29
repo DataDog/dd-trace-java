@@ -31,6 +31,8 @@ public abstract class ProfilerSettingsSupport {
   protected static final String NATIVE_STACKS_KEY = "Native Stacks";
   protected static final String STACK_DEPTH_KEY = "Stack Depth";
   protected static final String SELINUX_STATUS_KEY = "SELinux Status";
+  protected static final String SERVICE_INSTRUMENTATION_TYPE = "Service Instrumentation Type";
+  protected static final String SERVICE_INJECTION = "Service Injection";
 
   protected static final String DDPROF_UNAVAILABLE_REASON_KEY = "DDProf Unavailable Reason";
 
@@ -50,6 +52,8 @@ public abstract class ProfilerSettingsSupport {
   protected final String perfEventsParanoid;
   protected final boolean hasNativeStacks;
   protected final String seLinuxStatus;
+  protected final String serviceInstrumentationType;
+  protected final String serviceInjection;
 
   protected final String ddprofUnavailableReason;
 
@@ -122,6 +126,13 @@ public abstract class ProfilerSettingsSupport {
     seLinuxStatus = getSELinuxStatus();
     this.ddprofUnavailableReason = ddprofUnavailableReason;
     this.hasJfrStackDepthApplied = hasJfrStackDepthApplied;
+
+    serviceInjection =
+        configProvider.getString(
+            "injection.enabled"); // usually set via DD_INJECTION_ENABLED env var
+    serviceInstrumentationType =
+        // usually set via DD_INSTRUMENTATION_INSTALL_TYPE env var
+        configProvider.getString("instrumentation.install.type");
   }
 
   private String getSELinuxStatus() {

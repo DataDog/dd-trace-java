@@ -45,23 +45,23 @@ excludedClassesCoverage += [
 ]
 
 dependencies {
-  api deps.bytebuddy
-  api deps.bytebuddyagent
-  api deps.slf4j
-  api deps.spock
-  api deps.testLogging
-  api deps.guava
+  api libs.bytebuddy
+  api libs.bytebuddyagent
+  api libs.slf4j
+  api libs.bundles.spock
+  api libs.bundles.test.logging
+  api libs.guava
 
   api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
   // ^ 9.2 last to support java 7
-  api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: versions.okhttp_legacy
+  api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: libs.versions.okhttp.legacy.get()
 
   api project(':dd-java-agent:agent-tooling')
   api project(':dd-java-agent:agent-builder')
   api project(':utils:test-utils')
   api project(':utils:time-utils')
 
-  api deps.groovy
+  api libs.groovy
 
   implementation 'org.junit.platform:junit-platform-runner:1.9.0'
   implementation project(':dd-java-agent:appsec')
@@ -74,8 +74,8 @@ dependencies {
   testImplementation group: 'net.sf.jt400', name: 'jt400', version: '6.1'
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
-  testAnnotationProcessor deps.autoserviceProcessor
-  testCompileOnly deps.autoserviceAnnotation
+  testAnnotationProcessor libs.autoservice.processor
+  testCompileOnly libs.autoservice.annotation
 }
 
 shadowJar {

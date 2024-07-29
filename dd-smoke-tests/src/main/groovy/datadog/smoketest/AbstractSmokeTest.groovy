@@ -38,6 +38,28 @@ abstract class AbstractSmokeTest extends ProcessManager {
   @AutoCleanup
   protected TestHttpServer server = httpServer {
     handlers {
+      prefix("/info") {
+        response.status(200).send("""{
+          "version": "7.54.1",
+          "git_commit": "44d1992",
+          "endpoints": [
+            "/v0.4/traces",
+            "/v0.5/traces",
+            "/telemetry/proxy/",
+          ],
+          "client_drop_p0s": true,
+          "span_meta_structs": true,
+          "long_running_spans": true,
+          "evp_proxy_allowed_headers": [
+            "Content-Type",
+            "Accept-Encoding",
+            "Content-Encoding",
+            "User-Agent",
+            "DD-CI-PROVIDER-NAME"
+          ],
+          "config": {}
+        }""")
+      }
       prefix("/v0.4/traces") {
         def countString = request.getHeader("X-Datadog-Trace-Count")
         int count = countString != null ? Integer.parseInt(countString) : 0
@@ -82,6 +104,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
       }
       prefix("/v0.7/config") {
         response.status(200).send(remoteConfigResponse)
+      }
+      prefix("/telemetry/proxy/api/v2/apmtelemetry") {
+        response.status(202).send()
       }
     }
   }

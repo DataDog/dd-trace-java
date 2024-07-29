@@ -45,14 +45,18 @@ public class SymbolSink {
 
   SymbolSink(Config config, BatchUploader symbolUploader) {
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
-    this.env = config.getEnv();
-    this.version = config.getVersion();
+    this.env = TagsHelper.sanitize(config.getEnv());
+    this.version = TagsHelper.sanitize(config.getVersion());
     this.symbolUploader = symbolUploader;
     byte[] eventContent =
         String.format(
                 EVENT_FORMAT, TagsHelper.sanitize(config.getServiceName()), config.getRuntimeId())
             .getBytes(StandardCharsets.UTF_8);
     this.event = new BatchUploader.MultiPartContent(eventContent, "event", "event.json");
+  }
+
+  public void stop() {
+    symbolUploader.shutdown();
   }
 
   public boolean addScope(Scope jarScope) {

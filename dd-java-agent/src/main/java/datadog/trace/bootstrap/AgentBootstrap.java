@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.File;
@@ -14,16 +16,14 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.jar.JarFile;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Entry point for initializing the agent.
@@ -47,10 +47,15 @@ import java.util.regex.Pattern;
  * </ul>
  */
 public final class AgentBootstrap {
+  static final String LIB_INJECTION_ENABLED_FLAG = "DD_INJECTION_ENABLED";
+  static final String LIB_INJECTION_FORCE_FLAG = "DD_INJECT_FORCE";
+
   private static final Class<?> thisClass = AgentBootstrap.class;
   private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
+  private static final String JAVA_AGENT_ARGUMENT = "-javaagent:";
 
   private static boolean initialized = false;
+  private static List<File> agentFiles = null;
 
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
@@ -58,6 +63,7 @@ public final class AgentBootstrap {
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     BootstrapInitializationTelemetry initTelemetry;
+
     try {
       initTelemetry = createInitializationTelemetry();
     } catch (Throwable t) {
@@ -129,7 +135,12 @@ public final class AgentBootstrap {
     if (isJdkTool()) {
       initTelemetry.onAbort("jdk_tool");
       return;
+    }    
+    if (shouldAbortDueToOtherJavaAgents()) {
+      initTelemetry.onAbort("other-java-agents");
+      return;
     }
+
 
     final URL agentJarURL = installAgentJar(inst);
     final Class<?> agentClass;
@@ -147,6 +158,18 @@ public final class AgentBootstrap {
     startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
   }
 
+  static boolean getConfig(String configName) {
+    switch (configName) {
+      case LIB_INJECTION_ENABLED_FLAG:
+        return System.getenv(LIB_INJECTION_ENABLED_FLAG) != null;
+      case LIB_INJECTION_FORCE_FLAG:
+        String libInjectionForceFlag = System.getenv(LIB_INJECTION_FORCE_FLAG);
+        return "true".equalsIgnoreCase(libInjectionForceFlag) || "1".equals(libInjectionForceFlag);
+      default:
+        return false;
+    }
+  }
+
   static boolean exceptionCauseChainContains(Throwable ex, String exClassName) {
     Set<Throwable> stack = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
     Throwable t = ex;
@@ -157,6 +180,16 @@ public final class AgentBootstrap {
       }
       t = t.getCause();
     }
+    return false;
+  }
+
+  private static boolean alreadyInitialized() {
+    if (initialized) {
+      System.out.println(
+          "Warning: dd-java-agent is being initialized more than once. Please check that you are defining -javaagent:dd-java-agent.jar only once.");
+      return true;
+    }
+    initialized = true;
     return false;
   }
 
@@ -186,16 +219,6 @@ public final class AgentBootstrap {
           "Please upgrade your Java version to 8+ or use the 0.x version of dd-java-agent in your build tool or download it from https://dtdg.co/java-tracer-v0");
       return true;
     }
-    return false;
-  }
-
-  private static boolean alreadyInitialized() {
-    if (initialized) {
-      System.out.println(
-          "Warning: dd-java-agent is being initialized more than once. Please check that you are defining -javaagent:dd-java-agent.jar only once.");
-      return true;
-    }
-    initialized = true;
     return false;
   }
 
@@ -265,6 +288,34 @@ public final class AgentBootstrap {
     return major;
   }
 
+  static boolean shouldAbortDueToOtherJavaAgents() {
+    // Simply considering having multiple agents
+    if (getConfig(LIB_INJECTION_ENABLED_FLAG)
+        && !getConfig(LIB_INJECTION_FORCE_FLAG)
+        && getAgentFilesFromVMArguments().size() > 1) {
+      // Formatting agent file list, Java 7 style
+      StringBuilder agentFiles = new StringBuilder();
+      boolean first = true;
+      for (File agentFile : getAgentFilesFromVMArguments()) {
+        if (first) {
+          first = false;
+        } else {
+          agentFiles.append(", ");
+        }
+        agentFiles.append('"');
+        agentFiles.append(agentFile.getAbsolutePath());
+        agentFiles.append('"');
+      }
+      System.out.println(
+          "Info: multiple JVM agents detected, found "
+              + agentFiles
+              + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
+              + "Please set the DD_INJECT_FORCE configuration to TRUE to load Datadog APM/Tracing agent.");
+      return true;
+    }
+    return false;
+  }
+
   public static void main(final String[] args) {
     if (lessThanJava8()) {
       return;
@@ -289,7 +340,7 @@ public final class AgentBootstrap {
     }
 
     System.out.println("Could not get bootstrap jar from code source, using -javaagent arg");
-    File javaagentFile = getAgentFileFromJavaagentArg(inst);
+    File javaagentFile = getAgentFileFromJavaagentArg(getAgentFilesFromVMArguments());
     if (javaagentFile != null) {
       URL ddJavaAgentJarURL = javaagentFile.toURI().toURL();
       return appendAgentToBootstrapClassLoaderSearch(inst, ddJavaAgentJarURL, javaagentFile);
@@ -314,51 +365,45 @@ public final class AgentBootstrap {
     return ddJavaAgentJarURL;
   }
 
-  private static File getAgentFileFromJavaagentArg(Instrumentation inst) throws IOException {
-    URL ddJavaAgentJarURL;
-    // ManagementFactory indirectly references java.util.logging.LogManager
-    // - On Oracle-based JDKs after 1.8
-    // - On IBM-based JDKs since at least 1.7
-    // This prevents custom log managers from working correctly
-    // Use reflection to bypass the loading of the class
-    final List<String> arguments = getVMArgumentsThroughReflection();
+  private static File getAgentFileFromJavaagentArg(List<File> agentFiles) {
+    if (agentFiles.isEmpty()) {
+      System.out.println("Could not get bootstrap jar from -javaagent arg: no argument specified");
+      return null;
+    } else if (agentFiles.size() > 1) {
+      System.out.println(
+          "Could not get bootstrap jar from -javaagent arg: multiple javaagents specified");
+      return null;
+    } else {
+      return agentFiles.get(0);
+    }
+  }
 
-    String agentArgument = null;
-    for (final String arg : arguments) {
-      if (arg.startsWith("-javaagent")) {
-        if (agentArgument == null) {
-          agentArgument = arg;
-        } else {
-          System.out.println(
-              "Could not get bootstrap jar from -javaagent arg: multiple javaagents specified");
-          return null;
+  private static List<File> getAgentFilesFromVMArguments() {
+    if (agentFiles == null) {
+      agentFiles = new ArrayList<>();
+      // ManagementFactory indirectly references java.util.logging.LogManager
+      // - On Oracle-based JDKs after 1.8
+      // - On IBM-based JDKs since at least 1.7
+      // This prevents custom log managers from working correctly
+      // Use reflection to bypass the loading of the class~
+      for (final String argument : getVMArgumentsThroughReflection()) {
+        if (argument.startsWith(JAVA_AGENT_ARGUMENT)) {
+          int index = argument.indexOf('=', JAVA_AGENT_ARGUMENT.length());
+          String agentPathname =
+              argument.substring(
+                  JAVA_AGENT_ARGUMENT.length(), index == -1 ? argument.length() : index);
+          File agentFile = new File(agentPathname);
+          if (agentFile.exists() && agentFile.isFile()) {
+            agentFiles.add(agentFile);
+          } else {
+            System.out.println(
+                "Could not get bootstrap jar from -javaagent arg: unable to find javaagent file: "
+                    + agentFile);
+          }
         }
       }
     }
-
-    if (agentArgument == null) {
-      System.out.println("Could not get bootstrap jar from -javaagent arg: no argument specified");
-      return null;
-    }
-
-    // argument is of the form -javaagent:/path/to/dd-java-agent.jar=optionalargumentstring
-    final Matcher matcher = Pattern.compile("-javaagent:([^=]+).*").matcher(agentArgument);
-
-    if (!matcher.matches()) {
-      System.out.println(
-          "Could not get bootstrap jar from -javaagent arg: unable to parse javaagent parameter: "
-              + agentArgument);
-      return null;
-    }
-
-    final File javaagentFile = new File(matcher.group(1));
-    if (!(javaagentFile.exists() || javaagentFile.isFile())) {
-      System.out.println(
-          "Could not get bootstrap jar from -javaagent arg: unable to find javaagent file: "
-              + javaagentFile);
-      return null;
-    }
-    return javaagentFile;
+    return agentFiles;
   }
 
   @SuppressForbidden
@@ -384,9 +429,9 @@ public final class AgentBootstrap {
 
   @SuppressForbidden
   private static List<String> getVMArgumentsThroughReflection() {
+    // Try Oracle-based
+    // IBM Semeru Runtime 1.8.0_345-b01 will throw UnsatisfiedLinkError here.
     try {
-      // Try Oracle-based
-      // IBM Semeru Runtime 1.8.0_345-b01 will throw UnsatisfiedLinkError here.
       final Class<?> managementFactoryHelperClass =
           Class.forName("sun.management.ManagementFactoryHelper");
 
@@ -405,33 +450,43 @@ public final class AgentBootstrap {
         field.setAccessible(false);
       }
 
+      //noinspection unchecked
       return (List<String>) vmManagementClass.getMethod("getVmArguments").invoke(vmManagement);
-
-    } catch (final ReflectiveOperationException | UnsatisfiedLinkError e) {
-      try { // Try IBM-based.
-        final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
-        final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
-        return Arrays.asList(argArray);
-      } catch (final ReflectiveOperationException e1) {
-        // Fallback to default
-        System.out.println(
-            "WARNING: Unable to get VM args through reflection.  A custom java.util.logging.LogManager may not work correctly");
-
-        return ManagementFactory.getRuntimeMXBean().getInputArguments();
-      }
+    } catch (final ReflectiveOperationException | UnsatisfiedLinkError ignored) {
+      // Ignored exception
     }
+
+    // Try IBM-based.
+    try {
+      final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
+      final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
+      return Arrays.asList(argArray);
+    } catch (final ReflectiveOperationException ignored) {
+      // Ignored exception
+    }
+
+    // Fallback to default
+    try {
+      System.out.println(
+          "WARNING: Unable to get VM args through reflection. A custom java.util.logging.LogManager may not work correctly");
+      return ManagementFactory.getRuntimeMXBean().getInputArguments();
+    } catch (final Throwable t) {
+      // Throws InvocationTargetException on modularized applications
+      // with non-opened java.management module
+      System.out.println("WARNING: Unable to get VM args using managed beans");
+    }
+    return Collections.emptyList();
   }
 
-  private static boolean checkJarManifestMainClassIsThis(final URL jarUrl) throws IOException {
+  private static void checkJarManifestMainClassIsThis(final URL jarUrl) throws IOException {
     final URL manifestUrl = new URL("jar:" + jarUrl + "!/META-INF/MANIFEST.MF");
     final String mainClassLine = "Main-Class: " + thisClass.getCanonicalName();
     try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(manifestUrl.openStream(), StandardCharsets.UTF_8))) {
+        new BufferedReader(new InputStreamReader(manifestUrl.openStream(), UTF_8))) {
       String line;
       while ((line = reader.readLine()) != null) {
         if (line.equals(mainClassLine)) {
-          return true;
+          return;
         }
       }
     }

@@ -4,7 +4,6 @@ import datadog.trace.util.MethodHandles;
 import java.lang.invoke.MethodHandle;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import org.apache.maven.BuildFailureException;
@@ -16,6 +15,8 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.PlexusContainer;
+import org.codehaus.plexus.configuration.PlexusConfiguration;
+import org.codehaus.plexus.configuration.xml.XmlPlexusConfiguration;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
@@ -164,18 +165,6 @@ public abstract class MavenUtils {
       command.append(' ').append(goal);
     }
 
-    Properties userProperties = request.getUserProperties();
-    if (userProperties != null) {
-      for (Map.Entry<Object, Object> e : userProperties.entrySet()) {
-        command
-            .append(" -")
-            .append(CLIManager.SET_SYSTEM_PROPERTY)
-            .append(e.getKey())
-            .append('=')
-            .append(e.getValue());
-      }
-    }
-
     if (!request.getActiveProfiles().isEmpty()) {
       command.append(" -").append(CLIManager.ACTIVATE_PROFILES);
       Iterator<String> it = request.getActiveProfiles().iterator();
@@ -310,5 +299,14 @@ public abstract class MavenUtils {
       lookup = METHOD_HANDLES.invoke(ALTERNATIVE_LOOKUP_FIELD, session);
     }
     return METHOD_HANDLES.invoke(LOOKUP_METHOD, lookup, PlexusContainer.class);
+  }
+
+  public static PlexusConfiguration getPomConfiguration(MojoExecution mojoExecution) {
+    Xpp3Dom configuration = mojoExecution.getConfiguration();
+    if (configuration == null) {
+      return new XmlPlexusConfiguration("configuration");
+    } else {
+      return new XmlPlexusConfiguration(configuration);
+    }
   }
 }

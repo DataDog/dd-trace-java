@@ -23,7 +23,7 @@ dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.5.4'
 
   testImplementation project(':dd-smoke-tests')
-  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: versions.testcontainers
+  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: libs.versions.testcontainers.get()
 }
 
 tasks.withType(Test).configureEach {

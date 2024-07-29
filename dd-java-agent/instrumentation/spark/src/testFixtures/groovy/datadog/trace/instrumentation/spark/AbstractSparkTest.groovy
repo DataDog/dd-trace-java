@@ -684,7 +684,9 @@ abstract class AbstractSparkTest extends AgentTestRunner {
 
     where:
     ddService | sparkAppNameAsService | appName    | isRunningOnDatabricks | expectedService
-    "foobar"  | true                  | "some_app" | true                  | "(?!.*some_app).*"
+    "foobar"  | true                  | "some_app" | false                 | "(?!.*some_app).*"
+    "spark"   | true                  | "some_app" | false                 | "some_app"
+    "hadoop"  | true                  | "some_app" | false                 | "some_app"
     null      | true                  | "some_app" | true                  | "(?!.*some_app).*"
     null      | true                  | "some_app" | false                 | "some_app"
     null      | false                 | "some_app" | false                 | "(?!.*some_app).*"
@@ -738,6 +740,32 @@ abstract class AbstractSparkTest extends AgentTestRunner {
           // Exact SQL Plan changes depending on the spark version
           assert span.tags["_dd.spark.sql_plan"] =~ /.*HashAggregate.*Filter.*SerializeFromObject.*MapElements.*DeserializeToObject.*LocalTableScan.*/
           assert isJsonValid(span.tags["_dd.spark.sql_plan"].toString())
+        }
+      }
+    }
+  }
+
+  def "redact application parameters"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local")
+      .config("spark.database.password", "value")
+      .config("database.secret", "value")
+      .config("spark.DD-API-KEY", "value")
+      .config("spark.shuffle.compress", "false")
+      .getOrCreate()
+
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert span.tags["config.spark_database_password"] == "[redacted]"
+          assert span.tags["config.database_secret"] == "[redacted]"
+          assert span.tags["config.spark_DD-API-KEY"] == "[redacted]"
+          assert span.tags["config.spark_shuffle_compress"] == "false"
         }
       }
     }

@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import com.datadog.crashtracking.CrashUploader;
+import com.datadog.crashtracking.OOMENotifier;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.bootstrap.Agent;
@@ -83,6 +84,10 @@ public final class AgentCLI {
         System.exit(1);
       }
     }
+  }
+
+  public static void sendOomeEvent(String taglist) throws Exception {
+    OOMENotifier.sendOomeEvent(taglist);
   }
 
   public static void scanDependencies(final String[] args) throws Exception {

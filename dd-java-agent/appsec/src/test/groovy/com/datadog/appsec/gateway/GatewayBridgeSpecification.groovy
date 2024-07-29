@@ -18,7 +18,6 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
-import datadog.trace.api.time.TimeSource
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
@@ -59,9 +58,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     i
   }()
 
-  RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
   TraceSegmentPostProcessor pp = Mock()
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, rateLimiter, null, [pp])
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, null, [pp])
 
   Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
@@ -77,10 +75,11 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCB
   TriConsumer<RequestContext, String, String> respHeaderCB
   Function<RequestContext, Flow<Void>> respHeadersDoneCB
+  BiFunction<RequestContext, String, Flow<Void>> grpcServerMethodCB
   BiFunction<RequestContext, Object, Flow<Void>> grpcServerRequestMessageCB
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
   BiConsumer<RequestContext, String> databaseConnectionCB
-  BiConsumer<RequestContext, String> databaseSqlQueryCB
+  BiFunction<RequestContext, String, Flow<Void>> databaseSqlQueryCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -138,7 +137,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
-    1 * traceSegment.setTagTop('manual.keep', true)
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
     1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
     1 * traceSegment.setTagTop('appsec.event', true)
@@ -149,27 +147,6 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.closeAdditive()
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
-  }
-
-  void 'event publishing is rate limited'() {
-    AppSecEvent event = Stub()
-    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
-    mockAppSecCtx.requestHeaders >> [:]
-    RequestContext mockCtx = Stub(RequestContext) {
-      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
-      getTraceSegment() >> traceSegment
-    }
-    IGSpanInfo spanInfo = Mock(AgentSpan)
-
-    when:
-    11.times {requestEndedCB.apply(mockCtx, spanInfo) }
-
-    then:
-    11 * mockAppSecCtx.transferCollectedEvents() >> [event]
-    11 * mockAppSecCtx.close()
-    11 * mockAppSecCtx.closeAdditive()
-    10 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
-    10 * traceSegment.setDataTop("appsec", _)
   }
 
   void 'actor ip calculated from headers'() {
@@ -237,7 +214,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     ctx.data.rawURI = '/'
     ctx.data.peerAddress = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -252,11 +229,12 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'the socket address is distributed'() {
     DataBundle bundle
+    GatewayContext gatewayContext
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -266,15 +244,18 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     bundle.get(KnownAddresses.REQUEST_CLIENT_IP) == '0.0.0.0'
     bundle.get(KnownAddresses.REQUEST_CLIENT_PORT) == 5555
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
   }
 
   void 'the inferred ip address is distributed if published before the socket address'() {
     DataBundle bundle
+    GatewayContext gatewayContext
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -284,15 +265,18 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     bundle.get(KnownAddresses.REQUEST_INFERRED_CLIENT_IP) == '1.2.3.4'
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
   }
 
   void 'setting headers then request uri triggers initial data event'() {
     DataBundle bundle
+    GatewayContext gatewayContext
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     and:
     reqHeadersDoneCB.apply(ctx)
@@ -301,16 +285,19 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     bundle.get(KnownAddresses.REQUEST_URI_RAW) == '/a'
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
   }
 
   void 'the raw request uri is provided and decoded'() {
     DataBundle bundle
+    GatewayContext gatewayContext
     def adapter = TestURIDataAdapter.create(uri, supportsRaw)
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
@@ -318,7 +305,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
     then:
-    assert bundle.get(KnownAddresses.REQUEST_URI_RAW) == expected
+    bundle.get(KnownAddresses.REQUEST_URI_RAW) == expected
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
 
     if (null != uri) {
       def query = bundle.get(KnownAddresses.REQUEST_QUERY)
@@ -335,13 +324,14 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'exercise all decoding paths'() {
     DataBundle bundle
+    GatewayContext gatewayContext
     String uri = "/?foo=$encoded"
     def adapter = TestURIDataAdapter.create(uri)
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
@@ -350,7 +340,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     def query = bundle.get(KnownAddresses.REQUEST_QUERY)
-    assert query['foo'] == [decoded]
+    query['foo'] == [decoded]
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
 
     where:
     encoded  | decoded
@@ -367,17 +359,20 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'path params are published'() {
     DataBundle bundle
+    GatewayContext gatewayContext
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_PATH_PARAMS in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     and:
     pathParamsCB.apply(ctx, [a: 'b'])
 
     then:
-    assert bundle.get(KnownAddresses.REQUEST_PATH_PARAMS) == [a: 'b']
+    bundle.get(KnownAddresses.REQUEST_PATH_PARAMS) == [a: 'b']
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
   }
 
   void 'path params is not published twice'() {
@@ -413,6 +408,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeader(), _) >> { respHeaderCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.responseHeaderDone(), _) >> { respHeadersDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.grpcServerMethod(), _) >> { grpcServerMethodCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.grpcServerRequestMessage(), _) >> { grpcServerRequestMessageCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.databaseConnection(), _) >> { databaseConnectionCB = it[1]; null }
@@ -542,19 +538,22 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'forwards request body done events and distributes the body contents'() {
     DataBundle bundle
+    GatewayContext gatewayContext
     StoredBodySupplier supplier = Stub()
 
     setup:
     supplier.get() >> 'foobar'
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     when:
     requestBodyDoneCB.apply(ctx, supplier)
 
     then:
     bundle.get(KnownAddresses.REQUEST_BODY_RAW) == 'foobar'
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
   }
 
   void 'request body does not get published twice'() {
@@ -575,17 +574,21 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'forward request body processed'() {
     DataBundle bundle
+    GatewayContext gatewayContext
     Object obj = 'hello'
 
     setup:
     eventDispatcher.getDataSubscribers({KnownAddresses.REQUEST_BODY_OBJECT in it}) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >> { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext)
+    >> { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     when:
     requestBodyProcessedCB.apply(ctx, obj)
 
     then:
     bundle.get(KnownAddresses.REQUEST_BODY_OBJECT) == 'hello'
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
   }
 
   void 'processed body does not published twice'() {
@@ -605,6 +608,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     setup:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_OBJECT in it }) >> nonEmptyDsInfo
     DataBundle bundle
+    GatewayContext gatewayContext
 
     when:
     Flow<?> flow = requestBodyProcessedCB.apply(ctx, new Object() {
@@ -613,21 +617,24 @@ class GatewayBridgeSpecification extends DDSpecification {
       })
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { a, b, db, c -> bundle = db; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
     bundle.get(KnownAddresses.REQUEST_BODY_OBJECT) == [foo: 'bar']
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
   }
 
   void 'forwards request method'() {
     DataBundle bundle
+    GatewayContext gatewayContext
     def adapter = TestURIDataAdapter.create('http://example.com/')
 
     setup:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_METHOD in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     when:
     requestMethodURICB.apply(ctx, 'POST', adapter)
@@ -636,16 +643,19 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     bundle.get(KnownAddresses.REQUEST_METHOD) == 'POST'
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
   }
 
   void 'scheme is extracted from the uri adapter'() {
     DataBundle bundle
+    GatewayContext gatewayContext
     def adapter = TestURIDataAdapter.create('https://example.com/')
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_SCHEME in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
-    { bundle = it[2]; NoopFlow.INSTANCE }
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { bundle = it[2]; gatewayContext = it[3]; NoopFlow.INSTANCE }
 
     and:
     requestMethodURICB.apply(ctx, 'GET', adapter)
@@ -654,6 +664,8 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     bundle.get(KnownAddresses.REQUEST_SCHEME) == 'https'
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
   }
 
   void 'request data does not published twice'() {
@@ -683,7 +695,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     Flow<AppSecRequestContext> flow2 = respHeadersDoneCB.apply(ctx)
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
     { NoopFlow.INSTANCE }
     flow1.result == null
     flow1.action == Flow.Action.Noop.INSTANCE
@@ -695,6 +707,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     setup:
     eventDispatcher.getDataSubscribers({ KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE in it }) >> nonEmptyDsInfo
     DataBundle bundle
+    GatewayContext gatewayContext
 
     when:
     Flow<?> flow = grpcServerRequestMessageCB.apply(ctx, new Object() {
@@ -703,11 +716,63 @@ class GatewayBridgeSpecification extends DDSpecification {
       })
 
     then:
-    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, true) >>
-    { a, b, db, c -> bundle = db; NoopFlow.INSTANCE }
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
     bundle.get(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE) == [foo: 'bar']
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == true
+    gatewayContext.isRasp == false
+  }
+
+  void 'grpc server method publishes'() {
+    setup:
+    eventDispatcher.getDataSubscribers(KnownAddresses.GRPC_SERVER_METHOD) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = grpcServerMethodCB.apply(ctx, '/my.package.Greeter/SayHello')
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { args -> bundle = args[2]; gatewayContext = args[3]; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.GRPC_SERVER_METHOD) == '/my.package.Greeter/SayHello'
+    gatewayContext != null
+    gatewayContext.isTransient == true
+    gatewayContext.isRasp == false
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'process database type'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.DB_TYPE in it }) >> nonEmptyDsInfo
+
+    when:
+    databaseConnectionCB.accept(ctx, 'postgresql')
+
+    then:
+    arCtx.dbType == 'postgresql'
+  }
+
+  void 'process jdbc statement query object'() {
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.DB_SQL_QUERY in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = databaseSqlQueryCB.apply(ctx, 'SELECT * FROM foo')
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.DB_SQL_QUERY) == 'SELECT * FROM foo'
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == true
   }
 
   void 'calls trace segment post processor'() {

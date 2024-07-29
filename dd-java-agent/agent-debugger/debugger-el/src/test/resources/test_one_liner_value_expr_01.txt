@@ -1,0 +1,21 @@
+{"dsl": "", "json": {"eq": [{"ref": "i"}, 10]}}
+{"dsl": "", "json": {"==": [{"ref": "i"}, 10]}}
+{"dsl": "", "json": {"lt": [{"ref": "i"}, 11]}}
+{"dsl": "", "json": {"<": [{"ref": "i"}, 11]}}
+{"dsl": "", "json": {"le": [{"ref": "i"}, 10]}}
+{"dsl": "", "json": {"<=": [{"ref": "i"}, 10]}}
+{"dsl": "", "json": {"gt": [{"ref": "i"}, 0]}}
+{"dsl": "", "json": {">": [{"ref": "i"}, 0]}}
+{"dsl": "", "json": {"ge": [{"ref": "i"}, 10]}}
+{"dsl": "", "json": {">=": [{"ref": "i"}, 10]}}
+{"dsl": "", "json": {"not": {"eq": [{"ref": "i"}, 0]}}}
+{"dsl": "", "json": {"neq": [{"ref": "i"}, 0]}}
+{"dsl": "", "json": {"!=": [{"ref": "i"}, 0]}}
+{"dsl": "", "json": {"not": {"isEmpty": {"ref": "list"}}}}
+{"dsl": "", "json": {"any": [{"ref": "list"}, {"eq": [{"ref": "@it"}, "a"]}]}}
+{"dsl": "", "json": {"all": [{"ref": "list"}, {"neq": [{"ref": "@it"}, "d"]}]}}
+{"dsl": "", "json": {"startsWith": [{"ref": "str"}, "hel"]}}
+{"dsl": "", "json": {"endsWith": [{"ref": "str"}, "llo"]}}
+{"dsl": "", "json": {"contains": [{"ref": "str"}, "ll"]}}
+{"dsl": "", "json": {"matches": [{"ref": "str"}, "[helo]+"]}}
+{"dsl": "", "json": {"instanceof": [{"ref": "str"}, "java.lang.String"]}}

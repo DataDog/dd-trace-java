@@ -27,6 +27,7 @@ import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
 import io.grpc.Grpc;
 import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
@@ -76,6 +77,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     if (reqContext != null) {
       callIGCallbackClientAddress(cbp, reqContext, call);
       callIGCallbackHeaders(cbp, reqContext, headers);
+      callIGCallbackGrpcServerMethod(cbp, reqContext, call.getMethodDescriptor());
     }
 
     DECORATE.afterStart(span);
@@ -313,6 +315,16 @@ public class TracingServerInterceptor implements ServerInterceptor {
         callback.apply(requestContext, span);
       }
     }
+  }
+
+  private static <ReqT, RespT> void callIGCallbackGrpcServerMethod(
+      CallbackProvider cbp, RequestContext ctx, MethodDescriptor<ReqT, RespT> methodDescriptor) {
+    String method = methodDescriptor.getFullMethodName();
+    BiFunction<RequestContext, String, Flow<Void>> cb = cbp.getCallback(EVENTS.grpcServerMethod());
+    if (method == null || cb == null) {
+      return;
+    }
+    cb.apply(ctx, method);
   }
 
   private static void callIGCallbackGrpcMessage(@Nonnull final AgentSpan span, Object obj) {

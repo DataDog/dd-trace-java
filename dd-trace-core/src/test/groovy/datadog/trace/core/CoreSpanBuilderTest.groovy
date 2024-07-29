@@ -180,7 +180,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     1 * mockedContext.getSpanId() >> spanId
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
-    1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDTraceId.ONE)
+    1 * mockedContext.getTraceCollector() >> tracer.traceCollectorFactory.create(DDTraceId.ONE)
     _ * mockedContext.getPathwayContext() >> NoopPathwayContext.INSTANCE
 
     final String expectedName = "fakeName"
@@ -310,10 +310,10 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     }
 
     expect:
-    root.context().getTrace().rootSpan == root
-    root.context().getTrace().size() == nbSamples
-    root.context().getTrace().spans.containsAll(spans)
-    spans[(int) (Math.random() * nbSamples)].context.trace.spans.containsAll(spans)
+    root.context().getTraceCollector().rootSpan == root
+    root.context().getTraceCollector().size() == nbSamples
+    root.context().getTraceCollector().spans.containsAll(spans)
+    spans[(int) (Math.random() * nbSamples)].context.traceCollector.spans.containsAll(spans)
   }
 
   def "ExtractedContext should populate new span details"() {

@@ -2,6 +2,8 @@ package datadog.trace.api.sampling;
 
 import static datadog.trace.api.sampling.PrioritySampling.*;
 
+import datadog.trace.api.Config;
+
 public class SamplingMechanism {
   /** Not encouraged to use */
   public static final byte UNKNOWN = -1;
@@ -46,6 +48,10 @@ public class SamplingMechanism {
         return priority == USER_DROP || priority == USER_KEEP;
 
       case APPSEC:
+        return priority == PrioritySampling.USER_KEEP
+            || priority == SAMPLER_DROP
+            || priority == SAMPLER_KEEP; // Necessary for ASM standalone billing
+
       case DATA_JOBS:
         return priority == PrioritySampling.USER_KEEP;
 
@@ -53,6 +59,17 @@ public class SamplingMechanism {
         return false;
     }
     return true;
+  }
+
+  /**
+   * Returns true if sampling priority lock can be avoided for the given mechanism and priority
+   *
+   * @param mechanism
+   * @param priority
+   * @return
+   */
+  public static boolean canAvoidSamplingPriorityLock(int priority, int mechanism) {
+    return Config.get().isAppSecStandaloneEnabled() && mechanism == SamplingMechanism.APPSEC;
   }
 
   private SamplingMechanism() {}

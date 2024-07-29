@@ -31,7 +31,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_RESOURCE_FOL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED;
@@ -130,6 +129,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
+import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
@@ -141,11 +141,11 @@ import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.UserEventTrackingMode.SAFE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIMENTAL;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_REQUEST_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -159,6 +159,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_STACK_TRACE_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_STANDALONE_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
@@ -167,6 +168,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENT_JAR_URI;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED;
@@ -207,7 +209,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_CL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TELEMETRY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
@@ -494,6 +495,7 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
@@ -708,7 +710,7 @@ public class Config {
   private final String spanSamplingRules;
   private final String spanSamplingRulesFile;
 
-  private final boolean profilingEnabled;
+  private final ProfilingEnablement profilingEnabled;
   private final boolean profilingAgentless;
   private final boolean isDatadogProfilerEnabled;
   @Deprecated private final String profilingUrl;
@@ -749,12 +751,13 @@ public class Config {
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
-  private final UserEventTrackingMode appSecUserEventsTracking;
+  private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
   private final boolean appSecRaspEnabled;
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
+  private final boolean appSecStandaloneEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
 
@@ -779,7 +782,6 @@ public class Config {
   private final String ciVisibilityAgentlessUrl;
 
   private final boolean ciVisibilitySourceDataEnabled;
-  private final boolean ciVisibilitySourceDataRootCheckEnabled;
   private final boolean ciVisibilityBuildInstrumentationEnabled;
   private final Long ciVisibilitySessionId;
   private final Long ciVisibilityModuleId;
@@ -827,6 +829,7 @@ public class Config {
   private final String ciVisibilityModuleName;
   private final boolean ciVisibilityTelemetryEnabled;
   private final long ciVisibilityRumFlushWaitMillis;
+  private final boolean ciVisibilityAutoInjected;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1502,9 +1505,12 @@ public class Config {
     // on whether
     // the profiler was enabled at build time or not.
     // Otherwise just do the standard config lookup by key.
+    // An extra step is needed to properly handle the 'auto' value for profiling enablement via SSI.
     profilingEnabled =
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_ENABLED, instrumenterConfig.isProfilingEnabled());
+        ProfilingEnablement.of(
+            configProvider.getString(
+                ProfilingConfig.PROFILING_ENABLED,
+                String.valueOf(instrumenterConfig.isProfilingEnabled())));
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isDatadogProfilerEnabled =
@@ -1546,10 +1552,27 @@ public class Config {
     }
 
     profilingTags = configProvider.getMergedMap(PROFILING_TAGS);
-    profilingStartDelay =
+    int profilingStartDelayValue =
         configProvider.getInteger(PROFILING_START_DELAY, PROFILING_START_DELAY_DEFAULT);
-    profilingStartForceFirst =
+    boolean profilingStartForceFirstValue =
         configProvider.getBoolean(PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
+    if (profilingEnabled == ProfilingEnablement.AUTO) {
+      if (profilingStartDelayValue != PROFILING_START_DELAY_DEFAULT) {
+        log.info(
+            "Profiling start delay is set to {}s, but profiling enablement is set to auto. Using the default delay of {}s.",
+            profilingStartDelayValue,
+            PROFILING_START_DELAY_DEFAULT);
+      }
+      if (profilingStartForceFirstValue != PROFILING_START_FORCE_FIRST_DEFAULT) {
+        log.info(
+            "Profiling is requested to start immediately, but profiling enablement is set to auto. Profiling will be started with delay of {}s.",
+            PROFILING_START_DELAY_DEFAULT);
+      }
+      profilingStartDelayValue = PROFILING_START_DELAY_DEFAULT;
+      profilingStartForceFirstValue = PROFILING_START_FORCE_FIRST_DEFAULT;
+    }
+    profilingStartDelay = profilingStartDelayValue;
+    profilingStartForceFirst = profilingStartForceFirstValue;
     profilingUploadPeriod =
         configProvider.getInteger(PROFILING_UPLOAD_PERIOD, PROFILING_UPLOAD_PERIOD_DEFAULT);
     profilingTemplateOverrideFile = configProvider.getString(PROFILING_TEMPLATE_OVERRIDE_FILE);
@@ -1662,11 +1685,12 @@ public class Config {
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
-    appSecUserEventsTracking =
-        UserEventTrackingMode.fromString(
-            configProvider.getStringNotEmpty(
-                APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
+    appSecUserIdCollectionMode =
+        UserIdCollectionMode.fromString(
+            configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
+            configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
+    appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
         configProvider.getBoolean(APPSEC_STACK_TRACE_ENABLED, DEFAULT_APPSEC_STACK_TRACE_ENABLED);
@@ -1733,11 +1757,6 @@ public class Config {
     ciVisibilitySourceDataEnabled =
         configProvider.getBoolean(
             CIVISIBILITY_SOURCE_DATA_ENABLED, DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED);
-
-    ciVisibilitySourceDataRootCheckEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED,
-            DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED);
 
     ciVisibilityBuildInstrumentationEnabled =
         configProvider.getBoolean(
@@ -1867,6 +1886,8 @@ public class Config {
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
     ciVisibilityRumFlushWaitMillis =
         configProvider.getLong(CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS, 500);
+    ciVisibilityAutoInjected =
+        Strings.isNotBlank(configProvider.getString(CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER));
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -2592,7 +2613,8 @@ public class Config {
   }
 
   public boolean isTracerMetricsEnabled() {
-    return tracerMetricsEnabled;
+    // When ASM Standalone Billing is enabled metrics should be disabled
+    return tracerMetricsEnabled && !isAppSecStandaloneEnabled();
   }
 
   public boolean isTracerMetricsBufferingEnabled() {
@@ -2663,14 +2685,14 @@ public class Config {
 
   public boolean isProfilingEnabled() {
     if (Platform.isNativeImage()) {
-      if (!instrumenterConfig.isProfilingEnabled() && profilingEnabled) {
+      if (!instrumenterConfig.isProfilingEnabled() && profilingEnabled.isActive()) {
         log.warn(
             "Profiling was not enabled during the native image build. "
                 + "Please set DD_PROFILING_ENABLED=true in your native image build configuration if you want"
                 + "to use profiling.");
       }
     }
-    return profilingEnabled && instrumenterConfig.isProfilingEnabled();
+    return profilingEnabled.isActive() && instrumenterConfig.isProfilingEnabled();
   }
 
   public boolean isProfilingTimelineEventsEnabled() {
@@ -2758,7 +2780,7 @@ public class Config {
   }
 
   public boolean isDatadogProfilerEnabled() {
-    return profilingEnabled && isDatadogProfilerEnabled;
+    return isProfilingEnabled() && isDatadogProfilerEnabled;
   }
 
   public static boolean isDatadogProfilerEnablementOverridden() {
@@ -2889,8 +2911,8 @@ public class Config {
     return appSecHttpBlockedTemplateJson;
   }
 
-  public UserEventTrackingMode getAppSecUserEventsTrackingMode() {
-    return appSecUserEventsTracking;
+  public UserIdCollectionMode getAppSecUserIdCollectionMode() {
+    return appSecUserIdCollectionMode;
   }
 
   public boolean isApiSecurityEnabled() {
@@ -2987,10 +3009,6 @@ public class Config {
 
   public boolean isCiVisibilitySourceDataEnabled() {
     return ciVisibilitySourceDataEnabled;
-  }
-
-  public boolean isCiVisibilitySourceDataRootCheckEnabled() {
-    return ciVisibilitySourceDataRootCheckEnabled;
   }
 
   public boolean isCiVisibilityBuildInstrumentationEnabled() {
@@ -3196,6 +3214,10 @@ public class Config {
 
   public long getCiVisibilityRumFlushWaitMillis() {
     return ciVisibilityRumFlushWaitMillis;
+  }
+
+  public boolean isCiVisibilityAutoInjected() {
+    return ciVisibilityAutoInjected;
   }
 
   public String getAppSecRulesFile() {
@@ -3589,6 +3611,9 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
+    if (isAppSecStandaloneEnabled()) {
+      result.put(APM_ENABLED, 0);
+    }
 
     if (reportHostName) {
       final String hostName = getHostName();
@@ -4068,6 +4093,10 @@ public class Config {
 
   public Boolean getAppSecScaEnabled() {
     return appSecScaEnabled;
+  }
+
+  public boolean isAppSecStandaloneEnabled() {
+    return appSecStandaloneEnabled;
   }
 
   public boolean isAppSecRaspEnabled() {
@@ -4728,6 +4757,8 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
+        + ", appSecStandaloneEnabled="
+        + appSecStandaloneEnabled
         + '}';
   }
 }

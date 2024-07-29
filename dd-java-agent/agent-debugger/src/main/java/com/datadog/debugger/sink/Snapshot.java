@@ -34,7 +34,6 @@ public class Snapshot {
   private String exceptionId;
 
   public Snapshot(java.lang.Thread thread, ProbeImplementation probeImplementation, int maxDepth) {
-    this.id = UUID.randomUUID().toString();
     this.version = VERSION;
     this.timestamp = System.currentTimeMillis();
     this.captures = new Captures();
@@ -105,6 +104,10 @@ public class Snapshot {
   }
 
   public String getId() {
+    // lazily generates snapshot id
+    if (id == null) {
+      id = UUID.randomUUID().toString();
+    }
     return id;
   }
 

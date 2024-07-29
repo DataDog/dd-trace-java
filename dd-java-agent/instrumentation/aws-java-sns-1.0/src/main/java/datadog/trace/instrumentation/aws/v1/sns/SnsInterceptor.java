@@ -1,6 +1,11 @@
 package datadog.trace.instrumentation.aws.v1.sns;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
+import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v1.sns.TextMapInjectAdapter.SETTER;
 
 import com.amazonaws.AmazonWebServiceRequest;
@@ -16,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class SnsInterceptor extends RequestHandler2 {
@@ -26,11 +32,15 @@ public class SnsInterceptor extends RequestHandler2 {
     this.contextStore = contextStore;
   }
 
-  private ByteBuffer getMessageAttributeValueToInject(AmazonWebServiceRequest request) {
+  private ByteBuffer getMessageAttributeValueToInject(
+      AmazonWebServiceRequest request, String snsTopicName) {
     final AgentSpan span = newSpan(request);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append("{");
     propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    if (traceConfig().isDataStreamsEnabled()) {
+      propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(snsTopicName));
+    }
     jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
     jsonBuilder.append("}");
     return ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8));
@@ -47,6 +57,11 @@ public class SnsInterceptor extends RequestHandler2 {
       // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
       // the limit still applies here
       if (messageAttributes.size() < 10) {
+        // Extract the topic name from the ARN for DSM
+        String topicName =
+            pRequest.getTopicArn() == null ? pRequest.getTargetArn() : pRequest.getTopicArn();
+        topicName = topicName.substring(topicName.lastIndexOf(':') + 1);
+
         HashMap<String, MessageAttributeValue> modifiedMessageAttributes =
             new HashMap<>(messageAttributes);
         modifiedMessageAttributes.put(
@@ -56,12 +71,17 @@ public class SnsInterceptor extends RequestHandler2 {
                     "Binary") // Use Binary since SNS subscription filter policies fail silently
                 // with JSON strings
                 // https://github.com/DataDog/datadog-lambda-js/pull/269
-                .withBinaryValue(this.getMessageAttributeValueToInject(request)));
+                .withBinaryValue(this.getMessageAttributeValueToInject(request, topicName)));
+
         pRequest.setMessageAttributes(modifiedMessageAttributes);
       }
     } else if (request instanceof PublishBatchRequest) {
       PublishBatchRequest pmbRequest = (PublishBatchRequest) request;
-      final ByteBuffer bytebuffer = this.getMessageAttributeValueToInject(request);
+      // Extract the topic name from the ARN for DSM
+      String topicName = pmbRequest.getTopicArn();
+      topicName = topicName.substring(topicName.lastIndexOf(':') + 1);
+
+      final ByteBuffer bytebuffer = this.getMessageAttributeValueToInject(request, topicName);
       for (PublishBatchRequestEntry entry : pmbRequest.getPublishBatchRequestEntries()) {
         Map<String, MessageAttributeValue> messageAttributes = entry.getMessageAttributes();
         if (messageAttributes.size() < 10) {
@@ -83,5 +103,14 @@ public class SnsInterceptor extends RequestHandler2 {
     // activated
     contextStore.put(request, span);
     return span;
+  }
+
+  private LinkedHashMap<String, String> getTags(String snsTopicName) {
+    LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+    sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    sortedTags.put(TOPIC_TAG, snsTopicName);
+    sortedTags.put(TYPE_TAG, "sns");
+
+    return sortedTags;
   }
 }

@@ -12,6 +12,7 @@ public class Tags {
   public static final String SPAN_KIND_TEST_SUITE = "test_suite_end";
   public static final String SPAN_KIND_TEST_MODULE = "test_module_end";
   public static final String SPAN_KIND_TEST_SESSION = "test_session_end";
+  public static final String SPAN_KIND_INTERNAL = "internal";
 
   public static final String HTTP_URL = "http.url";
   public static final String HTTP_HOSTNAME = "http.hostname";
@@ -126,4 +127,9 @@ public class Tags {
   public static final String DD_ENV = "dd.env";
 
   public static final String ENV = "env";
+
+  /** ASM force tracer to keep the trace */
+  public static final String ASM_KEEP = "asm.keep";
+
+  public static final String PROPAGATED_APPSEC = "_dd.p.appsec";
 }

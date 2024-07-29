@@ -5,9 +5,9 @@ import javax.annotation.Nullable;
 
 public final class TestDescriptor {
   private final String testSuiteName;
-  private final Class<?> testClass;
+  private final @Nullable Class<?> testClass;
   private final String testName;
-  private final String testParameters;
+  private final @Nullable Object testParameters;
 
   /**
    * A test-framework-specific "tie-breaker" that helps to differentiate between tests that would
@@ -17,9 +17,9 @@ public final class TestDescriptor {
 
   public TestDescriptor(
       String testSuiteName,
-      Class<?> testClass,
+      @Nullable Class<?> testClass,
       String testName,
-      String testParameters,
+      @Nullable String testParameters,
       @Nullable Object testQualifier) {
     this.testSuiteName = testSuiteName;
     this.testClass = testClass;

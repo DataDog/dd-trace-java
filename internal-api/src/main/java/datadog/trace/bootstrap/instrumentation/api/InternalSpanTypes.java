@@ -45,4 +45,6 @@ public class InternalSpanTypes {
   public static final UTF8BytesString VULNERABILITY =
       UTF8BytesString.create(DDSpanTypes.VULNERABILITY);
   public static final UTF8BytesString PROTOBUF = UTF8BytesString.create(DDSpanTypes.PROTOBUF);
+
+  public static final UTF8BytesString TIBCO_BW = UTF8BytesString.create("tibco_bw");
 }

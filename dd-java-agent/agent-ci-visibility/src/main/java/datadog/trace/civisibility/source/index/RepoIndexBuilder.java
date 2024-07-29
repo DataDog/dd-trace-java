@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.source.index;
 
 import datadog.trace.api.Config;
+import datadog.trace.civisibility.source.Utils;
 import datadog.trace.util.ClassNameTrie;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileVisitOption;
@@ -11,9 +11,11 @@ import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.LinkedHashSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +25,6 @@ public class RepoIndexBuilder implements RepoIndexProvider {
 
   private final Config config;
   private final String repoRoot;
-  private final String scanRoot;
   private final PackageResolver packageResolver;
   private final ResourceResolver resourceResolver;
   private final FileSystem fileSystem;
@@ -34,13 +35,11 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   public RepoIndexBuilder(
       Config config,
       String repoRoot,
-      String scanRoot,
       PackageResolver packageResolver,
       ResourceResolver resourceResolver,
       FileSystem fileSystem) {
     this.config = config;
     this.repoRoot = repoRoot;
-    this.scanRoot = scanRoot;
     this.packageResolver = packageResolver;
     this.resourceResolver = resourceResolver;
     this.fileSystem = fileSystem;
@@ -59,34 +58,30 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   }
 
   private RepoIndex doGetIndex() {
-    log.debug("Building index of source files in {}, repo root is {}", scanRoot, repoRoot);
+    log.debug("Building index of source files in {}", repoRoot);
 
     Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
-    Path scanRootPath = toRealPath(fileSystem.getPath(scanRoot));
-    RepoIndexingFileVisitor repoIndexingFileVisitor =
+    RepoIndexingFileVisitor fileVisitor =
         new RepoIndexingFileVisitor(config, packageResolver, resourceResolver, repoRootPath);
 
     long startTime = System.currentTimeMillis();
     try {
       Files.walkFileTree(
-          scanRootPath,
-          EnumSet.of(FileVisitOption.FOLLOW_LINKS),
-          Integer.MAX_VALUE,
-          repoIndexingFileVisitor);
+          repoRootPath, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, fileVisitor);
     } catch (Exception e) {
-      log.debug("Failed to build index of {}", scanRootPath, e);
+      log.debug("Failed to build index of {}", repoRootPath, e);
     }
 
     long duration = System.currentTimeMillis() - startTime;
-    RepoIndexingStats stats = repoIndexingFileVisitor.indexingStats;
-    RepoIndex index = repoIndexingFileVisitor.getIndex();
+    RepoIndexingStats stats = fileVisitor.indexingStats;
+    RepoIndex index = fileVisitor.getIndex();
     log.debug(
         "Indexing took {} ms. Files visited: {}, source files visited: {}, resource files visited: {}, source roots found: {}, root packages found: {}",
         duration,
         stats.filesVisited,
         stats.sourceFilesVisited,
         stats.resourceFilesVisited,
-        repoIndexingFileVisitor.sourceRoots.size(),
+        fileVisitor.sourceRoots.size(),
         index.getRootPackages());
     return index;
   }
@@ -107,10 +102,11 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final PackageResolver packageResolver;
     private final ResourceResolver resourceResolver;
     private final ClassNameTrie.Builder trieBuilder;
-    private final LinkedHashSet<String> sourceRoots;
+    private final Map<RepoIndex.SourceRoot, Integer> sourceRoots;
     private final PackageTree packageTree;
     private final RepoIndexingStats indexingStats;
     private final Path repoRoot;
+    private final AtomicInteger sourceRootCounter;
 
     private RepoIndexingFileVisitor(
         Config config,
@@ -121,9 +117,10 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       this.resourceResolver = resourceResolver;
       this.repoRoot = repoRoot;
       trieBuilder = new ClassNameTrie.Builder();
-      sourceRoots = new LinkedHashSet<>();
+      sourceRoots = new HashMap<>();
       packageTree = new PackageTree(config);
       indexingStats = new RepoIndexingStats();
+      sourceRootCounter = new AtomicInteger();
     }
 
     @Override
@@ -152,14 +149,26 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       indexingStats.filesVisited++;
 
       try {
-        Path sourceRoot = getSourceRoot(file);
-        if (sourceRoot != null) {
-          sourceRoots.add(repoRoot.relativize(sourceRoot).toString());
+        String fileName = file.getFileName().toString();
+        Language language = Language.getByFileName(fileName);
+        if (language == null) {
+          // unknown language/filetype, skip indexing
+          return FileVisitResult.CONTINUE;
+        }
 
-          Path relativePath = sourceRoot.relativize(file);
-          String classNameWithExtension = relativePath.toString().replace(File.separatorChar, '.');
-          if (!classNameWithExtension.isEmpty()) {
-            trieBuilder.put(classNameWithExtension, sourceRoots.size() - 1);
+        Path sourceRoot =
+            language.isNonCode() ? getNonCodeSourceRoot(file) : getCodeSourceRoot(language, file);
+        if (sourceRoot != null) {
+          String relativeSourceRoot = repoRoot.relativize(sourceRoot).toString();
+          int sourceRootIdx =
+              sourceRoots.computeIfAbsent(
+                  new RepoIndex.SourceRoot(relativeSourceRoot, language),
+                  sr -> sourceRootCounter.getAndIncrement());
+
+          String relativePath = sourceRoot.relativize(file).toString();
+          if (!relativePath.isEmpty()) {
+            String key = Utils.toTrieKey(relativePath);
+            trieBuilder.put(key, sourceRootIdx);
           }
         }
       } catch (Exception e) {
@@ -168,34 +177,34 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       return FileVisitResult.CONTINUE;
     }
 
-    private Path getSourceRoot(Path file) throws IOException {
-      String fileName = file.getFileName().toString();
-      SourceType sourceType = SourceType.getByFileName(fileName);
-      if (sourceType == null) {
-        return null;
+    private Path getCodeSourceRoot(Language language, Path file) throws IOException {
+      indexingStats.sourceFilesVisited++;
+      Path packagePath = packageResolver.getPackage(file);
+      if (packagePath != null) {
+        packageTree.add(packagePath);
 
-      } else if (!sourceType.isResource()) {
-        indexingStats.sourceFilesVisited++;
-        Path packagePath = packageResolver.getPackage(file);
-        if (packagePath != null) {
-          packageTree.add(packagePath);
-          return getSourceRoot(file, packagePath);
-        } else {
-          return file.getParent();
+        Path folder = file.getParent();
+        if (folder.endsWith(packagePath)) {
+          // In non-JVM languages package names do not have to correspond to folder structure,
+          // so using package to find source root is not always possible
+          return folder
+              .getRoot()
+              .resolve(folder.subpath(0, folder.getNameCount() - packagePath.getNameCount()));
         }
+      }
 
-      } else {
-        indexingStats.resourceFilesVisited++;
+      if (language != Language.JAVA) {
+        // Fallback for non-JVM languages
         return resourceResolver.getResourceRoot(file);
+      } else {
+        // For Java assuming default package
+        return file.getParent();
       }
     }
 
-    private Path getSourceRoot(Path file, Path packagePath) {
-      Path folder = file.getParent();
-      // remove package path suffix from folder path to get source root
-      return folder
-          .getRoot()
-          .resolve(folder.subpath(0, folder.getNameCount() - packagePath.getNameCount()));
+    private Path getNonCodeSourceRoot(Path file) throws IOException {
+      indexingStats.resourceFilesVisited++;
+      return resourceResolver.getResourceRoot(file);
     }
 
     @Override
@@ -215,8 +224,12 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     }
 
     public RepoIndex getIndex() {
-      return new RepoIndex(
-          trieBuilder.buildTrie(), new ArrayList<>(sourceRoots), packageTree.asList());
+      RepoIndex.SourceRoot[] roots = new RepoIndex.SourceRoot[sourceRoots.size()];
+      for (Map.Entry<RepoIndex.SourceRoot, Integer> e : sourceRoots.entrySet()) {
+        roots[e.getValue()] = e.getKey();
+      }
+
+      return new RepoIndex(trieBuilder.buildTrie(), Arrays.asList(roots), packageTree.asList());
     }
   }
 

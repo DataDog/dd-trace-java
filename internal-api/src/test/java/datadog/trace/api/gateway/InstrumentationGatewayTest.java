@@ -185,6 +185,9 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.requestBodyProcessed(), callback);
     assertThat(cbp.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    ss.registerCallback(events.grpcServerMethod(), callback);
+    assertThat(cbp.getCallback(events.grpcServerMethod()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
     ss.registerCallback(events.grpcServerRequestMessage(), callback);
     assertThat(cbp.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
@@ -200,7 +203,7 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.databaseConnection(), callback);
     cbp.getCallback(events.databaseConnection()).accept(null, null);
     ss.registerCallback(events.databaseSqlQuery(), callback);
-    cbp.getCallback(events.databaseSqlQuery()).accept(null, null);
+    cbp.getCallback(events.databaseSqlQuery()).apply(null, null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -238,6 +241,9 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.requestBodyProcessed(), throwback);
     assertThat(cbp.getCallback(events.requestBodyProcessed()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
+    ss.registerCallback(events.grpcServerMethod(), throwback);
+    assertThat(cbp.getCallback(events.grpcServerMethod()).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
     ss.registerCallback(events.grpcServerRequestMessage(), throwback);
     assertThat(cbp.getCallback(events.grpcServerRequestMessage()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
@@ -253,7 +259,7 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.databaseConnection(), throwback);
     cbp.getCallback(events.databaseConnection()).accept(null, null);
     ss.registerCallback(events.databaseSqlQuery(), throwback);
-    cbp.getCallback(events.databaseSqlQuery()).accept(null, null);
+    cbp.getCallback(events.databaseSqlQuery()).apply(null, null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 

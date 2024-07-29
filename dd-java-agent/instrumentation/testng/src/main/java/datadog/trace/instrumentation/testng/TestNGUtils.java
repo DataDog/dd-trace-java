@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.testng;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.Strings;
 import java.io.InputStream;
@@ -245,16 +244,6 @@ public abstract class TestNGUtils {
         (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
     return new TestIdentifier(testSuiteName, testName, testParameters, null);
-  }
-
-  public static TestDescriptor toTestDescriptor(ITestResult result) {
-    String testSuiteName = result.getInstanceName();
-    IClass iTestClass = result.getTestClass();
-    Class<?> testClass = iTestClass != null ? iTestClass.getRealClass() : null;
-    String testName =
-        (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
-    String parameters = TestNGUtils.getParameters(result);
-    return new TestDescriptor(testSuiteName, testClass, testName, parameters, result);
   }
 
   public static TestSuiteDescriptor toSuiteDescriptor(ITestClass testClass) {

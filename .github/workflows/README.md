@@ -6,9 +6,9 @@ This lists and describes the repository GitHub actions.
 
 ### add-milestone-to-pull-requests [🔗](add-milestone-to-pull-requests.yaml)
 
-_Trigger:_ When a PR to `master` is closed.
+_Trigger:_ When a PR targeting `master` or a patch release (`release/vM.N.x`) branch is closed.
 
-_Action:_ Get the last (by name) opened milestone and affect it to the closed pull request.
+_Action:_ Attach the corresponding milestone to the closed pull request (if not set).
 
 _Recovery:_ Attach the milestone by hand to the PR.
 
@@ -40,7 +40,7 @@ _Actions:_
 
 _Recovery:_ Manually trigger the action again on the relevant tag.
 
-## increment-milestones-on-tag [🔗](increment-milestones-on-tag.yaml)
+### increment-milestones-on-tag [🔗](increment-milestones-on-tag.yaml)
 
 _Trigger:_ When creating a tag. Release Candidate tags containing "-RC" or "-rc" will skip this.
 
@@ -53,7 +53,7 @@ _Recovery:_ Manually close the related milestone and create a new one.
 _Notes:_ This actions will handle _minor_ releases only.
 As there is no milestone for _patch_ releases, it won't close and create _patch_ releated milestone.
 
-## update-download-releases [🔗](update-download-releases.yaml)
+### update-download-releases [🔗](update-download-releases.yaml)
 
 _Trigger:_ When a release is published.
 
@@ -63,7 +63,7 @@ _Recovery:_ Download artifacts and upload them manually to the related _download
 
 _Notes:_ _Download releases_ are special GitHub releases with fixed URL and tags, but rolling artifacts to provided stable download links (ex [latest](https://github.com/DataDog/dd-trace-java/releases/tag/download-latest) and [latest-v1](https://github.com/DataDog/dd-trace-java/releases/tag/download-latest-v1)).
 
-## update-issues-on-release [🔗](update-issues-on-release.yaml)
+### update-issues-on-release [🔗](update-issues-on-release.yaml)
 
 _Trigger:_ When a release is published. Releases of type `prereleased` should skip this.
 
@@ -94,6 +94,14 @@ _Trigger:_ When pushing commits to `master`.
 
 _Action:_ Run GitHub CodeQL action, upload result to GitHub security tab and DataDog Code Analysis.
 
+### update-gradle-dependencies [🔗](trivy-analysis.yml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Update the Grade dependencies and their locking files.
+
+_Recovery:_ Manually trigger the action again.
+
 ### trivy-analysis [🔗](trivy-analysis.yml)
 
 _Trigger:_ When pushing commits to `master` or any pull request to `master`.
@@ -107,20 +115,6 @@ _Action:_ Run Trivy security scanner on built artifacts and upload result to Git
 _Comment:_ To delete?
 
 ## Lib Injection
-
-### lib-injection [🔗](lib-injection.yaml)
-
-_Trigger:_ When pushing commits to `master`, release branches or any PR targetting `master`, and when creating tags.
-
-_Actions:_
-* Build and publish to GHCR a Docker image with the Java tracer agent,
-* Build lib-injection and run its system tests with the build Java agent.
-
-### lib-injection-manual-release [🔗](lib-injection-manual-release.yaml)
-
-_Trigger:_ When manually triggered.
-
-_Action:_ Build and publish to GHCR a Docker image with the given Java tracer version.
 
 ### lib-injection-prune-registry [🔗](lib-injection-prune-registry.yaml)
 

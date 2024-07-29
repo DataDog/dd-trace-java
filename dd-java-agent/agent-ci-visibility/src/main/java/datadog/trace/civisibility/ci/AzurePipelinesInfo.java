@@ -6,6 +6,7 @@ import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
@@ -133,5 +134,10 @@ class AzurePipelinesInfo implements CIProviderInfo {
     return new PersonInfo(
         System.getenv(AZURE_BUILD_REQUESTED_FOR_ID),
         System.getenv(AZURE_BUILD_REQUESTED_FOR_EMAIL));
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.AZP;
   }
 }

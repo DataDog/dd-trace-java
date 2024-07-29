@@ -32,6 +32,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -101,7 +102,9 @@ public class Agent {
     USM(propertyNameToSystemPropertyName(UsmConfig.USM_ENABLED), false),
     TELEMETRY(propertyNameToSystemPropertyName(GeneralConfig.TELEMETRY_ENABLED), true),
     DEBUGGER(propertyNameToSystemPropertyName(DebuggerConfig.DEBUGGER_ENABLED), false),
-    DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false);
+    DATA_JOBS(propertyNameToSystemPropertyName(GeneralConfig.DATA_JOBS_ENABLED), false),
+    AGENTLESS_LOG_SUBMISSION(
+        propertyNameToSystemPropertyName(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED), false);
 
     private final String systemProp;
     private final boolean enabledByDefault;
@@ -145,6 +148,7 @@ public class Agent {
   private static boolean usmEnabled = false;
   private static boolean telemetryEnabled = true;
   private static boolean debuggerEnabled = false;
+  private static boolean agentlessLogSubmissionEnabled = false;
 
   /**
    * Starts the agent; returns a boolean indicating if Agent started successfully
@@ -244,6 +248,7 @@ public class Agent {
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     debuggerEnabled = isFeatureEnabled(AgentFeature.DEBUGGER);
+    agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -375,7 +380,9 @@ public class Agent {
     if (telemetryEnabled) {
       stopTelemetry();
     }
-    shutdownLogsIntake();
+    if (agentlessLogSubmissionEnabled) {
+      shutdownLogsIntake();
+    }
   }
 
   public static synchronized Class<?> installAgentCLI() throws Exception {
@@ -652,14 +659,15 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
-    // crash uploader initialization relies on JMX being available
-    initializeCrashUploader();
+    // error tracking initialization relies on JMX being available
+    initializeErrorTracking();
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
     if (profilingEnabled) {
       registerDeadlockDetectionEvent();
+      registerSmapEntryEvent();
       if (PROFILER_INIT_AFTER_JMX != null) {
         if (getJmxStartDelay() == 0) {
           log.debug("Waiting for profiler initialization");
@@ -688,6 +696,23 @@ public class Agent {
       log.debug("JMX deadlock detection not supported");
     } catch (final Throwable ex) {
       log.error("Unable to initialize JMX thread deadlock detector", ex);
+    }
+  }
+
+  private static synchronized void registerSmapEntryEvent() {
+    log.debug("Initializing smap entry scraping");
+    try {
+      final Class<?> smapFactoryClass =
+          AGENT_CLASSLOADER.loadClass(
+              "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory");
+      final Method registerMethod = smapFactoryClass.getMethod("registerEvents");
+      registerMethod.invoke(null);
+    } catch (final NoClassDefFoundError
+        | ClassNotFoundException
+        | UnsupportedClassVersionError ignored) {
+      log.debug("Smap entry scraping not supported");
+    } catch (final Throwable ex) {
+      log.error("Unable to initialize smap entry scraping", ex);
     }
   }
 
@@ -821,18 +846,20 @@ public class Agent {
   }
 
   private static void maybeStartLogsIntake(Class<?> scoClass, Object sco) {
-    StaticEventLogger.begin("Logs Intake");
+    if (agentlessLogSubmissionEnabled) {
+      StaticEventLogger.begin("Logs Intake");
 
-    try {
-      final Class<?> logsIntakeSystemClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
-      final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
-      logsIntakeInstallerMethod.invoke(null, sco);
-    } catch (final Throwable e) {
-      log.warn("Not starting Logs Intake subsystem", e);
+      try {
+        final Class<?> logsIntakeSystemClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
+        final Method logsIntakeInstallerMethod = logsIntakeSystemClass.getMethod("start", scoClass);
+        logsIntakeInstallerMethod.invoke(null, sco);
+      } catch (final Throwable e) {
+        log.warn("Not starting Logs Intake subsystem", e);
+      }
+
+      StaticEventLogger.end("Logs Intake");
     }
-
-    StaticEventLogger.end("Logs Intake");
   }
 
   private static void shutdownLogsIntake() {
@@ -882,7 +909,7 @@ public class Agent {
     }
   }
 
-  private static void initializeCrashUploader() {
+  private static void initializeErrorTracking() {
     if (Platform.isJ9()) {
       // TODO currently crash tracking is supported only for HotSpot based JVMs
       return;
@@ -1072,6 +1099,9 @@ public class Agent {
       logLevel = "DEBUG";
     } else {
       logLevel = ddGetProperty("dd.log.level");
+      if (null == logLevel) {
+        logLevel = System.getenv("OTEL_LOG_LEVEL");
+      }
     }
 
     if (null == logLevel && !isFeatureEnabled(AgentFeature.STARTUP_LOGS)) {
@@ -1133,6 +1163,11 @@ public class Agent {
       // true unless it's explicitly set to "false"
       return !("false".equalsIgnoreCase(featureEnabled) || "0".equals(featureEnabled));
     } else {
+      if (feature == AgentFeature.PROFILING) {
+        // We need this hack because profiling in SSI can receive 'auto' value in
+        // the enablement config
+        return ProfilingEnablement.of(featureEnabled).isActive();
+      }
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }

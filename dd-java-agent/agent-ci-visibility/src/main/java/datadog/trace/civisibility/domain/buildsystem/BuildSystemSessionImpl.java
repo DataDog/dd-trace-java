@@ -5,15 +5,16 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
@@ -68,7 +69,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
       String repoRoot,
       String startCommand,
       @Nullable Long startTime,
-      boolean supportedCiProvider,
+      Provider ciProvider,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestModuleRegistry testModuleRegistry,
@@ -77,21 +78,21 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       SignalServer signalServer,
       RepoIndexProvider repoIndexProvider) {
     super(
         projectName,
         startTime,
         InstrumentationType.BUILD,
-        supportedCiProvider,
+        ciProvider,
         config,
         metricCollector,
         testDecorator,
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory);
+        coverageStoreFactory);
     this.repoRoot = repoRoot;
     this.startCommand = startCommand;
     this.testModuleRegistry = testModuleRegistry;

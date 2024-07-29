@@ -9,8 +9,8 @@ import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
-import datadog.remoteconfig.ConfigurationChangesListener;
-import datadog.remoteconfig.state.ParsedConfigKey;
+import datadog.remoteconfig.PollingRateHinter;
+import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.util.TagsHelper;
@@ -82,7 +82,7 @@ public class DebuggerProductChangesListener implements ProductListener {
 
   private static final Predicate<String> IS_UUID =
       Pattern.compile(
-              "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$")
+              "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
           .asPredicate();
 
   private final String serviceName;
@@ -95,10 +95,7 @@ public class DebuggerProductChangesListener implements ProductListener {
   }
 
   @Override
-  public void accept(
-      ParsedConfigKey configKey,
-      byte[] content,
-      datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
+  public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
       throws IOException {
     String configId = configKey.getConfigId();
     try {
@@ -136,15 +133,12 @@ public class DebuggerProductChangesListener implements ProductListener {
   }
 
   @Override
-  public void remove(
-      ParsedConfigKey configKey,
-      datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
-      throws IOException {
+  public void remove(ConfigKey configKey, PollingRateHinter pollingRateHinter) throws IOException {
     configChunks.remove(configKey.getConfigId());
   }
 
   @Override
-  public void commit(ConfigurationChangesListener.PollingRateHinter pollingRateHinter) {
+  public void commit(PollingRateHinter pollingRateHinter) {
     DefinitionBuilder builder = new DefinitionBuilder();
     for (Consumer<DefinitionBuilder> chunk : configChunks.values()) {
       chunk.accept(builder);

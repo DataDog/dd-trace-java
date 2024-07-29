@@ -3,6 +3,7 @@ package datadog.trace.api.gateway;
 import static datadog.trace.api.gateway.Events.DATABASE_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.DATABASE_SQL_QUERY_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
+import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
@@ -152,7 +153,7 @@ public class InstrumentationGateway {
   }
 
   /** Ensure that callbacks don't leak exceptions */
-  @SuppressWarnings({"unchecked", "rawtypes", "DuplicateBranchesInSwitch"})
+  @SuppressWarnings({"unchecked", "DuplicateBranchesInSwitch"})
   public static <C> C wrap(final EventType<C> eventType, final C callback) {
     switch (eventType.getId()) {
       case REQUEST_STARTED_ID:
@@ -287,6 +288,7 @@ public class InstrumentationGateway {
                 return callback.equals(obj);
               }
             };
+      case GRPC_SERVER_METHOD_ID:
       case REQUEST_INFERRED_CLIENT_ADDRESS_ID:
         return (C)
             new BiFunction<RequestContext, String, Flow<Void>>() {
@@ -364,7 +366,6 @@ public class InstrumentationGateway {
               }
             };
       case DATABASE_CONNECTION_ID:
-      case DATABASE_SQL_QUERY_ID:
         return (C)
             new BiConsumer<RequestContext, String>() {
               @Override
@@ -373,6 +374,20 @@ public class InstrumentationGateway {
                   ((BiConsumer<RequestContext, String>) callback).accept(ctx, arg);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
+                }
+              }
+            };
+      case DATABASE_SQL_QUERY_ID:
+        return (C)
+            new BiFunction<RequestContext, String, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, String arg) {
+                try {
+                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
+                      .apply(ctx, arg);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
                 }
               }
             };

@@ -421,6 +421,12 @@ class TagInterceptorTest extends DDCoreSpecification {
     DDTags.MANUAL_DROP     | "false" | null
     DDTags.MANUAL_DROP     | "asdf"  | null
 
+    Tags.ASM_KEEP          | true    | PrioritySampling.USER_KEEP
+    Tags.ASM_KEEP          | false   | null
+    Tags.ASM_KEEP          | "true"  | PrioritySampling.USER_KEEP
+    Tags.ASM_KEEP          | "false" | null
+    Tags.ASM_KEEP          | "asdf"  | null
+
     Tags.SAMPLING_PRIORITY | -1      | PrioritySampling.USER_DROP
     Tags.SAMPLING_PRIORITY | 0       | PrioritySampling.USER_DROP
     Tags.SAMPLING_PRIORITY | 1       | PrioritySampling.USER_KEEP
@@ -722,5 +728,19 @@ class TagInterceptorTest extends DDCoreSpecification {
     "/"   | "root-servlet"
     "/test"   | "test"
     "test"   | "test"
+  }
+
+  void "When intercepts appsec propagation tag addAppsecPropagationTag is called"(){
+    setup:
+    final ruleFlags = Mock(RuleFlags)
+    ruleFlags.isEnabled(_) >> true
+    final interceptor = new TagInterceptor(ruleFlags)
+    final context = Mock(DDSpanContext)
+
+    when:
+    interceptor.interceptTag(context, Tags.PROPAGATED_APPSEC, true)
+
+    then:
+    1 * context.updateAppsecPropagation(true)
   }
 }

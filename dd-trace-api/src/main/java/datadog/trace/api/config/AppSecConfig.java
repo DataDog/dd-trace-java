@@ -21,6 +21,8 @@ public final class AppSecConfig {
       "appsec.http.blocked.template.json";
   public static final String APPSEC_AUTOMATED_USER_EVENTS_TRACKING =
       "appsec.automated-user-events-tracking";
+  public static final String APPSEC_AUTO_USER_INSTRUMENTATION_MODE =
+      "appsec.auto-user-instrumentation-mode";
   public static final String API_SECURITY_ENABLED = "api-security.enabled";
   public static final String API_SECURITY_ENABLED_EXPERIMENTAL =
       "experimental.api-security.enabled";
@@ -31,6 +33,8 @@ public final class AppSecConfig {
   public static final String APPSEC_STACK_TRACE_ENABLED = "appsec.stacktrace.enabled";
   public static final String APPSEC_MAX_STACK_TRACES = "appsec.max.stacktraces";
   public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stacktrace.depth";
+
+  public static final String APPSEC_STANDALONE_ENABLED = "experimental.appsec.standalone.enabled";
 
   private AppSecConfig() {}
 }

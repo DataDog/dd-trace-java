@@ -5,10 +5,13 @@ import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.coverage.CoverageProbes
+import datadog.trace.api.civisibility.coverage.CoverageStore
+import datadog.trace.api.civisibility.coverage.NoOpCoverageStore
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.civisibility.codeowners.NoCodeowners
-import datadog.trace.civisibility.coverage.NoopCoverageProbeStore
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.domain.TestImpl
 import datadog.trace.civisibility.source.MethodLinesResolver
@@ -104,7 +107,28 @@ class TestImplTest extends DDSpecification {
     })
   }
 
-  private TestImpl givenATest() {
+  def "test coverage is not reported if test was skipped"() {
+    setup:
+    def coverageProbes = Mock(CoverageProbes)
+
+    def coverageStore = Mock(CoverageStore)
+    coverageStore.getProbes() >> coverageProbes
+
+    def coveageStoreFactory = Stub(CoverageStore.Factory)
+    coveageStoreFactory.create((TestIdentifier) _) >> coverageStore
+
+    def test = givenATest(coveageStoreFactory)
+
+    when:
+    test.setSkipReason("skipped")
+    test.end(null)
+
+    then:
+    0 * coverageStore.report(_, _, _)
+  }
+
+  private TestImpl givenATest(
+    CoverageStore.Factory coverageStoreFactory = new NoOpCoverageStore.Factory()) {
     def sessionId = 123
     def moduleId = 456
     def suiteId = 789
@@ -115,7 +139,6 @@ class TestImplTest extends DDSpecification {
     def testDecorator = new TestDecoratorImpl("component", [:])
     def methodLinesResolver = { it -> MethodLinesResolver.MethodLines.EMPTY }
     def codeowners = NoCodeowners.INSTANCE
-    def coverageProbeStoreFactory = new NoopCoverageProbeStore.NoopCoverageProbeStoreFactory()
     new TestImpl(
       sessionId,
       moduleId,
@@ -136,7 +159,7 @@ class TestImplTest extends DDSpecification {
       NoOpSourcePathResolver.INSTANCE,
       methodLinesResolver,
       codeowners,
-      coverageProbeStoreFactory,
+      coverageStoreFactory,
       SpanUtils.DO_NOT_PROPAGATE_CI_VISIBILITY_TAGS
       )
   }

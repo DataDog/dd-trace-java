@@ -15,7 +15,7 @@ dependencies {
   }
 
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
-  testImplementation "org.testcontainers:mongodb:${versions.testcontainers}"
+  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 
   testImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '3.10.0'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '3.+'

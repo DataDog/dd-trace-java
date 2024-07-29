@@ -7,6 +7,7 @@ import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpCookie;
@@ -248,14 +249,16 @@ public class IastWebController {
   }
 
   @PostMapping("/ssrf")
-  public String ssrf(@RequestParam("url") final String url) {
+  public String ssrf(
+      @RequestParam(value = "url", required = false) final String url,
+      @RequestParam(value = "host", required = false) final String host) {
     try {
-      final URL target = new URL(url);
+      final URL target = url != null ? new URL(url) : new URL("https", host, 443, "/test");
       final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
       conn.disconnect();
     } catch (final Exception e) {
     }
-    return "Url is: " + url;
+    return "ok";
   }
 
   @GetMapping("/weak_randomness")
@@ -390,6 +393,12 @@ public class IastWebController {
       @RequestParam("param") String param, HttpServletResponse response) {
     response.addHeader("X-Test-Header", param);
     return "Ok";
+  }
+
+  @GetMapping("/untrusted_deserialization")
+  public String untrustedDeserialization(HttpServletRequest request) throws IOException {
+    ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
+    return "OK";
   }
 
   private void withProcess(final Operation<Process> op) {

@@ -4,11 +4,15 @@ import datadog.smoketest.AbstractServerSmokeTest
 import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.DecodedTrace
 import datadog.trace.test.agent.decoder.Decoder
+import groovy.json.JsonGenerator
 import groovy.json.JsonSlurper
+import org.apache.commons.io.IOUtils
 import spock.lang.Shared
 
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.jar.JarFile
 
 abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
 
@@ -39,9 +43,9 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
   @Shared
   protected String[] defaultAppSecProperties = [
     "-Ddd.appsec.enabled=${System.getProperty('smoke_test.appsec.enabled') ?: 'true'}",
+    // TODO: rely on default once its true
+    "-Ddd.appsec.rasp.enabled=true",
     "-Ddd.profiling.enabled=false",
-    // decoding received traces is only available for v0.5 right now
-    "-Ddd.trace.agent.v0.5.enabled=true",
     // disable AppSec rate limit
     "-Ddd.appsec.trace.rate.limit=-1"
   ] + (System.getProperty('smoke_test.appsec.enabled') == 'inactive' ?
@@ -77,5 +81,24 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
       assert it.meta.get('_dd.appsec.json') != null, 'No attack detected'
     }
     rootSpans.collectMany {it.triggers }.forEach closure
+  }
+
+  /**
+   * This method fetches default ruleset included in the agent and appends the selected rules, then it points
+   * the {@code dd.appsec.rules} variable to the new file
+   */
+  void appendRules(final String path, final List<Map<String, Object>> customRules) {
+    // Prepare a file with the new rules
+    final jarFile = new JarFile(shadowJarPath)
+    final zipEntry = jarFile.getEntry("appsec/default_config.json")
+    final content = IOUtils.toString(jarFile.getInputStream(zipEntry), StandardCharsets.UTF_8)
+    final json = new JsonSlurper().parseText(content) as Map<String, Object>
+    final rules = json.rules as List<Map<String, Object>>
+    rules.addAll(customRules)
+    final gen = new JsonGenerator.Options().build()
+    IOUtils.write(gen.toJson(json), new FileOutputStream(path, false), StandardCharsets.UTF_8)
+
+    // Add a new property pointing to the new ruleset
+    defaultAppSecProperties += "-Ddd.appsec.rules=${path}" as String
   }
 }

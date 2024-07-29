@@ -1,0 +1,77 @@
+name: Update Gradle dependencies
+on:
+  schedule:
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+
+jobs:
+  update-gradle-dependencies:
+    runs-on: ubuntu-latest
+    name: Update Gradle dependencies
+    permissions:
+      # Commit and push changes to a new branch
+      contents: write
+      # Create a pull request
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
+        with:
+          submodules: 'recursive'
+      - name: Download ghcommit CLI
+        run: |
+          curl https://github.com/planetscale/ghcommit/releases/download/v0.1.48/ghcommit_linux_amd64 -o /usr/local/bin/ghcommit -L
+          chmod +x /usr/local/bin/ghcommit
+      - name: Pick a branch name
+        run: echo "BRANCH_NAME=ci/update-gradle-dependencies-$(date +'%Y%m%d')" >> $GITHUB_ENV
+      - name: Create branch
+        run: |
+          git checkout -b $BRANCH_NAME
+          git push -u origin $BRANCH_NAME --force
+      - name: Update Gradle dependencies
+        run: |
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
+          JAVA_HOME=$JAVA_HOME_8_X64 \
+          JAVA_8_HOME=$JAVA_HOME_8_X64 \
+          JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_17_HOME=$JAVA_HOME_17_X64 \
+          JAVA_21_HOME=$JAVA_HOME_21_X64 \
+          ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
+      - name: Commit changes
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          GH_ADD_ARGS=""
+          COUNT=0
+          BRANCH_HEAD=$(git rev-parse HEAD)
+          for lockfile in $(git status --porcelain=v1 | awk '{ print $NF }'); do
+            echo "Found lockfile: $lockfile"
+            GH_ADD_ARGS="$GH_ADD_ARGS --add $lockfile"
+            COUNT=$((COUNT+1))
+            if [ $COUNT -eq 10 ]; then
+              echo "Creating a commit to $BRANCH_NAME@$BRANCH_HEAD with $GH_ADD_ARGS"
+              OUTPUT=$(ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME --sha $BRANCH_HEAD $GH_ADD_ARGS --message "chore: Update Gradle dependencies" 2>&1)
+              echo $OUTPUT
+              if [[ $OUTPUT != *"Success. New commit"* ]]; then
+                exit 1
+              fi
+              BRANCH_HEAD=${OUTPUT##*/}
+              echo "ghcommit output: $OUTPUT"
+              GH_ADD_ARGS=""
+              COUNT=0
+            fi
+          done
+          if [ $COUNT -gt 0 ]; then
+            echo "Creating a commit to $BRANCH_NAME@$BRANCH_HEAD with $GH_ADD_ARGS"
+            ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME --sha $BRANCH_HEAD $GH_ADD_ARGS --message "chore: Update Gradle dependencies"
+          fi
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create --title "Update Gradle dependencies" \
+            --body "This PR updates the Gradle dependencies.  \n:warning: Don't forget to squash commits before merging :warning:" \
+            --base master \
+            --head $BRANCH_NAME \
+            --label "tag: dependencies" \
+            --label "tag: no release notes"

@@ -1,0 +1,32 @@
+{
+  "dsl": "",
+  "json": {
+    "and": [
+      {
+        "or": [
+          {"eq": [{"ref": "i"}, 10]},
+          {"==": [{"ref": "i"}, 10]},
+          {"lt": [{"ref": "i"}, 11]},
+          {"<": [{"ref": "i"}, 11]},
+          {"le": [{"ref": "i"}, 10]},
+          {"<=": [{"ref": "i"}, 10]},
+          {"gt": [{"ref": "i"}, 0]},
+          {">": [{"ref": "i"}, 0]},
+          {"ge": [{"ref": "i"}, 10]},
+          {">=": [{"ref": "i"}, 10]},
+          {"not": {"eq": [{"ref": "i"}, 0]}},
+          {"neq": [{"ref": "i"}, 0]},
+          {"!=": [{"ref": "i"}, 0]},
+          {"not": {"isEmpty": {"ref": "list"}}},
+          {"any": [{"ref": "list"}, {"eq": [{"ref": "@it"}, "a"]}]},
+          {"all": [{"ref": "list"}, {"neq": [{"ref": "@it"}, "d"]}]},
+          {"startsWith": [{"ref": "str"}, "hel"]},
+          {"endsWith": [{"ref": "str"}, "llo"]},
+          {"contains": [{"ref": "str"}, "ll"]},
+          {"matches": [{"ref": "str"}, "[helo]+"]},
+          {"instanceof": [{"ref": "str"}, "java.lang.String"]}
+        ]
+      }
+    ]
+  }
+}

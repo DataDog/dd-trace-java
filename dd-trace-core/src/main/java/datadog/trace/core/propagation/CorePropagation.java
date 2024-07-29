@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -56,7 +57,16 @@ public class CorePropagation implements AgentPropagation {
     }
 
     final DDSpanContext ddSpanContext = (DDSpanContext) context;
-    ddSpanContext.getTrace().setSamplingPriorityIfNecessary();
+    ddSpanContext.getTraceCollector().setSamplingPriorityIfNecessary();
+
+    /**
+     * If the experimental appsec standalone feature is enabled and appsec propagation is disabled
+     * (no ASM events), stop propagation
+     */
+    if (Config.get().isAppSecStandaloneEnabled()
+        && !ddSpanContext.getPropagationTags().isAppsecPropagationEnabled()) {
+      return;
+    }
 
     if (null == style) {
       injector.inject(ddSpanContext, carrier, setter);

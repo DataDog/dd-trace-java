@@ -110,7 +110,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DATADOG_PROFILER_WALL_COLLAPSING =
       "profiling.ddprof.wall.collapsing";
-  public static final boolean PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT = false;
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT = true;
 
   public static final String PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER =
       "profiling.ddprof.wall.context.filter";
@@ -198,6 +198,11 @@ public final class ProfilingConfig {
 
   public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = true;
 
+  public static final String PROFILING_SMAP_COLLECTION_ENABLED =
+      "profiling.smap.collection.enabled";
+
+  public static final boolean PROFILING_SMAP_COLLECTION_ENABLED_DEFAULT = true;
+
   public static final String PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS =
       "profiling.queueing.time.threshold.millis";
 
@@ -211,9 +216,12 @@ public final class ProfilingConfig {
   public static final String PROFILING_HEAP_HISTOGRAM_MODE = "profiling.heap.histogram.mode";
   public static final String PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT = "aftergc";
 
+  public static final String PROFILING_HEAP_TRACK_GENERATIONS = "profiling.heap.track.generations";
+  public static final boolean PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT = false;
+
   public static final String PROFILING_TIMELINE_EVENTS_ENABLED =
       "profiling.timeline.events.enabled";
-  public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = false;
+  public static final boolean PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_DETAILED_DEBUG_LOGGING = "profiling.detailed.debug.logging";
   public static final boolean PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT = false;

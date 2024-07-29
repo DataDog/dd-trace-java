@@ -1,8 +1,10 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.datastreams.StatsGroup
 import groovy.json.JsonSlurper
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
@@ -62,6 +64,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     super.configurePreAgent()
     // Set a service name that gets sorted early with SORT_BY_NAMES
     injectSysConfig(GeneralConfig.SERVICE_NAME, "A-service")
+    injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, isDataStreamsEnabled().toString())
   }
 
   @Override
@@ -94,6 +97,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     // injected value is here
     String injectedValue = messageBody["MessageAttributes"]["_datadog"]["Value"]
     injectedValue.length() > 0
+
     // original header value is still present
     messageBody["MessageAttributes"]["mykey"] != null
   }
@@ -111,6 +115,9 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     def messageBody = jsonSlurper.parseText(message.body())
     def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
 
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
     then:
     def sendSpan
     assertTraces(1) {
@@ -139,6 +146,9 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
             "aws.topic.name" "testtopic"
             "topicname" "testtopic"
             "aws.requestId" response.responseMetadata().requestId()
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }
@@ -147,6 +157,18 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     }
 
     and:
+
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+
+      verifyAll(first) {
+        edgeTags.contains("direction:out")
+        edgeTags.contains("topic:testtopic")
+        edgeTags.contains("type:sns")
+        edgeTags.size() == 3
+      }
+    }
+
     messageBody["Message"] == "sometext"
     String base64EncodedString = messageBody["MessageAttributes"]["_datadog"]["Value"]
     byte[] decodedBytes = base64EncodedString.decodeBase64()
@@ -156,6 +178,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     traceContextInJson['x-datadog-trace-id'] == sendSpan.traceId.toString()
     traceContextInJson['x-datadog-parent-id'] == sendSpan.spanId.toString()
     traceContextInJson['x-datadog-sampling-priority'] == "1"
+    !traceContextInJson['dd-pathway-ctx-base64'].toString().isBlank()
   }
 }
 
@@ -198,6 +221,56 @@ class SnsClientV1ForkedTest extends SnsClientTest {
     "A-service"
   }
 
+  @Override
+  int version() {
+    1
+  }
+}
+
+class SnsClientV0DataStreamsTest extends SnsClientTest {
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    if ("SNS" == awsService) {
+      return "aws.http"
+    }
+    return "http.request"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    if ("SNS" == awsService) {
+      return "sns"
+    }
+    return "A-service"
+  }
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
+  }
+  @Override
+  int version() {
+    0
+  }
+}
+class SnsClientV1DataStreamsForkedTest extends SnsClientTest {
+
+  @Override
+  String expectedOperation(String awsService, String awsOperation) {
+    if (awsService == "SNS" && awsOperation == "Publish") {
+      return "aws.sns.send"
+    }
+    return "http.client.request"
+  }
+
+  @Override
+  String expectedService(String awsService, String awsOperation) {
+    "A-service"
+  }
+  @Override
+  boolean isDataStreamsEnabled() {
+    true
+  }
   @Override
   int version() {
     1

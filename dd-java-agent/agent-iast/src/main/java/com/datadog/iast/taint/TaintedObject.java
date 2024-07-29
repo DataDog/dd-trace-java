@@ -43,4 +43,18 @@ public class TaintedObject extends WeakReference<Object> {
   public void setRanges(@Nonnull final Range[] ranges) {
     this.ranges = ranges;
   }
+
+  @Override
+  public String toString() {
+    final Object referent = get();
+    return "[hash: "
+        + positiveHashCode
+        + ", gen: "
+        + generation
+        + "] "
+        + (referent == null ? "GCed" : referent)
+        + " ("
+        + (ranges == null ? 0 : ranges.length)
+        + " ranges)";
+  }
 }

@@ -14,7 +14,7 @@ excludedClassesCoverage += [
 ]
 
 dependencies {
-  api deps.slf4j
+  api libs.slf4j
   api project(':internal-api')
 
   implementation project(path: ':dd-java-agent:agent-profiling:profiling-ddprof', configuration: 'shadow')
@@ -26,8 +26,8 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
   api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
 
-  testImplementation deps.junit5
-  testImplementation deps.mockito
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
 }
 
 subprojects { Project subProj ->
@@ -38,8 +38,9 @@ subprojects { Project subProj ->
 
 configurations {
   // exclude bootstrap dependencies from shadowJar
-  runtime.exclude module: deps.slf4j
-  runtime.exclude group: 'org.slf4j'
+  runtime {
+    exclude(group: 'org.slf4j', module: 'slf4j-api')
+  }
 }
 
 shadowJar {

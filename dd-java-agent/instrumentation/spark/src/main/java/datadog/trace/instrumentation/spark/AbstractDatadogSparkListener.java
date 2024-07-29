@@ -242,8 +242,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     AgentTracer.SpanBuilder builder =
         buildSparkSpan("spark.streaming_batch", jobProperties).withStartTimestamp(timeMs * 1000);
 
-    // Streaming spans will always be the root span, capturing all parameters on those
-    captureApplicationParameters(builder);
+    // Streaming spans will always be the root span, capturing job parameters on those
     captureJobParameters(builder, jobProperties);
 
     if (isRunningOnDatabricks) {
@@ -258,9 +257,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private void addDatabricksSpecificTags(
       AgentTracer.SpanBuilder builder, Properties properties, boolean withParentContext) {
-    // In databricks, there is no application span. Adding the spark conf parameters to the top
-    // level spark span
-    captureApplicationParameters(builder);
+    // Databricks has no application span. Adding the parameters to the top level spark span
     captureJobParameters(builder, properties);
 
     if (properties != null) {
@@ -368,9 +365,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, getSparkJobName(jobStart));
-
-    // Some properties can change at runtime, so capturing properties of all jobs
-    captureJobParameters(jobSpanBuilder, jobStart.properties());
 
     AgentSpan jobSpan = jobSpanBuilder.start();
     setDataJobsSamplingPriority(jobSpan);
@@ -1029,15 +1023,20 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void captureApplicationParameters(AgentTracer.SpanBuilder builder) {
-    for (Tuple2<String, String> conf : sparkConf.getAll()) {
-      if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
-        builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
-      }
+    for (Map.Entry<String, String> entry : SparkConfAllowList.getRedactedSparkConf(sparkConf)) {
+      builder.withTag("config." + entry.getKey().replace(".", "_"), entry.getValue());
     }
     builder.withTag("config.spark_version", sparkVersion);
   }
 
   private void captureJobParameters(AgentTracer.SpanBuilder builder, Properties properties) {
+    for (Tuple2<String, String> conf : sparkConf.getAll()) {
+      if (SparkConfAllowList.canCaptureJobParameter(conf._1)) {
+        builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
+      }
+    }
+
+    // Parameters from properties overwrite values from the spark conf
     if (properties != null) {
       for (final Map.Entry<Object, Object> entry : properties.entrySet()) {
         if (SparkConfAllowList.canCaptureJobParameter(entry.getKey().toString())) {
@@ -1118,13 +1117,26 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private static String getSparkServiceName(SparkConf conf, boolean isRunningOnDatabricks) {
-    if (Config.get().isServiceNameSetByUser()
-        || !Config.get().useSparkAppNameAsService()
-        || isRunningOnDatabricks) {
+    // If config is not set or running on databricks, not changing the service name
+    if (!Config.get().useSparkAppNameAsService() || isRunningOnDatabricks) {
       return null;
     }
 
-    return conf.get("spark.app.name", null);
+    // Keep service set by user, except if it is only "spark" or "hadoop" that can be set by USM
+    String serviceName = Config.get().getServiceName();
+    if (Config.get().isServiceNameSetByUser()
+        && !"spark".equals(serviceName)
+        && !"hadoop".equals(serviceName)) {
+      log.debug("Service '{}' explicitly set by user, not using the application name", serviceName);
+      return null;
+    }
+
+    String sparkAppName = conf.get("spark.app.name", null);
+    if (sparkAppName != null) {
+      log.info("Using Spark application name '{}' as the Datadog service name", sparkAppName);
+    }
+
+    return sparkAppName;
   }
 
   private static String getDatabricksRunName(SparkConf conf) {
