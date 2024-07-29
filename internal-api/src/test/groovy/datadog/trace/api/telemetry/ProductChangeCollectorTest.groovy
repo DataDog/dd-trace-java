@@ -21,6 +21,6 @@ class ProductChangeCollectorTest extends DDSpecification {
 
     then:
     ProductChangeCollector.get().drain() == [product1, product2, product3]
-    ProductChangeCollector.get().drain() == [:]
+    ProductChangeCollector.get().drain() == []
   }
 }
