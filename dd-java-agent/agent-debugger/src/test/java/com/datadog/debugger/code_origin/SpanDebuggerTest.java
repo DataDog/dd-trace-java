@@ -139,9 +139,6 @@ public class SpanDebuggerTest {
     assertFalse(
         span3.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_SNAPSHOT_ID),
         span3.getTags().keySet().toString());
-
-    System.out.println("****** SpanDebuggerTest.fingerprinting span1 = " + span1);
-    System.out.println("****** SpanDebuggerTest.fingerprinting span2 = " + span2);
   }
 
   private void invoke(AgentSpan span1, SpanDebuggerProbe probe) {
