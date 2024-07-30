@@ -10,7 +10,9 @@ import java.util.stream.Collectors;
 
 public class SpanOriginInfo {
   public static void entry(AgentSpan span, Method method) {
-    if (InstrumenterConfig.get().isSpanOriginEnabled()) {
+    if (InstrumenterConfig.get().isSpanOriginEnabled()
+        // i hate this too but need it for testing
+        || "true".equals(System.getProperty("dd.trace.span.origin.enabled"))) {
       String signature =
           stream(method.getParameterTypes())
               .map(Class::getName)
@@ -20,7 +22,9 @@ public class SpanOriginInfo {
   }
 
   public static void exit(AgentSpan span) {
-    if (InstrumenterConfig.get().isSpanOriginEnabled()) {
+    if (InstrumenterConfig.get().isSpanOriginEnabled()
+        // i hate this too but need it for testing
+        || "true".equals(System.getProperty("dd.trace.span.origin.enabled"))) {
       span.getLocalRootSpan().setMetaStruct(captureSnapshot(null), span);
     }
   }
