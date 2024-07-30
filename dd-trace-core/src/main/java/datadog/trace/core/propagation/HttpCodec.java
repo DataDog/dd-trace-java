@@ -234,8 +234,8 @@ public class HttpCodec {
               break;
             }
           }
-          // If another valid context is extracted
-          else {
+          // If another valid context is extracted, but trace IDs do not match
+          else if (!traceIdMatch(firstContext.getTraceId(), extractedContext.getTraceId())) {
             // Terminate extracted context and add it as span link
             firstContext.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
             // TODO Note: Other vendor tracestate will be lost here
