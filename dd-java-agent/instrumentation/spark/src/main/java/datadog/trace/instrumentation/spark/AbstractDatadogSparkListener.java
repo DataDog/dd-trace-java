@@ -162,7 +162,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder
           .withStartTimestamp(applicationStart.time() * 1000)
           .withTag("application_name", applicationStart.appName())
-          .withTag("spark_user", applicationStart.sparkUser());
+          .withTag("spark_user", applicationStart.sparkUser())
+          .withTag("_dd.spark.java.command", System.getProperty("sun.java.command"));
 
       if (applicationStart.appAttemptId().isDefined()) {
         builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
@@ -331,7 +332,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         buildSparkSpan("spark.job", jobStart.properties())
             .withStartTimestamp(jobStart.time() * 1000)
             .withTag("job_id", jobStart.jobId())
-            .withTag("stage_count", getStageCount(jobStart));
+            .withTag("stage_count", getStageCount(jobStart))
+            .withTag("_dd.spark.java.command", System.getProperty("sun.java.command"));
 
     String batchKey = getStreamingBatchKey(jobStart.properties());
     Long sqlExecutionId = getSqlExecutionId(jobStart.properties());
