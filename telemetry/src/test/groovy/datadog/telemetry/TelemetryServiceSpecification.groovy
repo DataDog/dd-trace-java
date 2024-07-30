@@ -12,7 +12,7 @@ import datadog.trace.api.ConfigSetting
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.DebuggerConfig
 import datadog.trace.api.config.ProfilingConfig
-import datadog.trace.api.telemetry.Product
+import datadog.trace.api.telemetry.ProductChange
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 
@@ -24,7 +24,7 @@ class TelemetryServiceSpecification extends DDSpecification {
   def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])
   def distribution = new DistributionSeries().namespace("tracers").metric("distro").points([1, 2, 3]).tags(["tag1", "tag2"]).common(false)
   def logMessage = new LogMessage().message("log-message").tags("tag1:tag2").level(LogMessageLevel.DEBUG).stackTrace("stack-trace").tracerTime(32423).count(1)
-  def productChange = new Product().productType(Product.ProductType.APPSEC).enabled(true)
+  def productChange = new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(true)
 
   def 'happy path without data'() {
     setup:

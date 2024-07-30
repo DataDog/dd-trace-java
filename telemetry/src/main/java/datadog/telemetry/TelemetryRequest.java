@@ -13,15 +13,20 @@ import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
-import datadog.trace.api.telemetry.Product;
-import datadog.trace.api.telemetry.Product.ProductType;
+import datadog.trace.api.telemetry.ProductChange;
+import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
 import java.util.EnumMap;
 import java.util.Map;
 import okhttp3.MediaType;
 import okhttp3.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TelemetryRequest {
+
+  private static final Logger log = LoggerFactory.getLogger(TelemetryRequest.class);
+
   static final String API_VERSION = "v2";
   static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
@@ -206,10 +211,11 @@ public class TelemetryRequest {
       return;
     }
     try {
+      log.debug("Writing changed products");
       requestBody.beginProducts();
       Map<ProductType, Boolean> products = new EnumMap<>(ProductType.class);
       while (eventSource.hasProductChangeEvent() && isWithinSizeLimits()) {
-        Product event = eventSource.nextProductChangeEvent();
+        ProductChange event = eventSource.nextProductChangeEvent();
         products.put(event.getProductType(), event.isEnabled());
         eventSink.addProductChangeEvent(event);
       }

@@ -6,7 +6,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
-import datadog.trace.api.telemetry.Product;
+import datadog.trace.api.telemetry.ProductChange;
 import java.util.ArrayList;
 
 /**
@@ -27,7 +27,7 @@ public final class BufferedEvents implements EventSource, EventSink {
   private int distributionSeriesIndex;
   private ArrayList<LogMessage> logMessageEvents;
   private int logMessageIndex;
-  private ArrayList<Product> productChangeEvents;
+  private ArrayList<ProductChange> productChangeEvents;
   private int productChangeIndex;
 
   public void addConfigChangeEvent(ConfigSetting event) {
@@ -78,7 +78,7 @@ public final class BufferedEvents implements EventSource, EventSink {
   }
 
   @Override
-  public void addProductChangeEvent(Product event) {
+  public void addProductChangeEvent(ProductChange event) {
     if (productChangeEvents == null) {
       productChangeEvents = new ArrayList<>(INITIAL_CAPACITY);
     }
@@ -152,7 +152,7 @@ public final class BufferedEvents implements EventSource, EventSink {
   }
 
   @Override
-  public Product nextProductChangeEvent() {
+  public ProductChange nextProductChangeEvent() {
     return productChangeEvents.get(productChangeIndex++);
   }
 }

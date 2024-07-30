@@ -2,19 +2,19 @@ package datadog.trace.api.telemetry
 
 import datadog.trace.test.util.DDSpecification
 
-import static datadog.trace.api.telemetry.Product.ProductType.APPSEC
-import static datadog.trace.api.telemetry.Product.ProductType.PROFILER
+import static datadog.trace.api.telemetry.ProductChange.ProductType.APPSEC
+import static datadog.trace.api.telemetry.ProductChange.ProductType.PROFILER
 
 class ProductChangeCollectorTest extends DDSpecification {
 
   def "update-drain product changes"() {
     setup:
-    def product1 = new Product().productType(APPSEC).enabled(true)
-    def product2 = new Product().productType(PROFILER).enabled(false)
-    def product3 = new Product().productType(APPSEC).enabled(false)
+    def product1 = new ProductChange().productType(APPSEC).enabled(true)
+    def product2 = new ProductChange().productType(PROFILER).enabled(false)
+    def product3 = new ProductChange().productType(APPSEC).enabled(false)
 
-    ProductChangeCollector.get().products.offer(product1)
-    ProductChangeCollector.get().products.offer(product2)
+    ProductChangeCollector.get().productChanges.offer(product1)
+    ProductChangeCollector.get().productChanges.offer(product2)
 
     when:
     ProductChangeCollector.get().update(product3)

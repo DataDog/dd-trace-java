@@ -3,14 +3,14 @@ package datadog.telemetry
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
-import datadog.trace.api.telemetry.Product
+import datadog.trace.api.telemetry.ProductChange
 import okio.Buffer
 import okhttp3.RequestBody
 import spock.lang.Specification
 
-import static datadog.trace.api.telemetry.Product.ProductType.APPSEC
-import static datadog.trace.api.telemetry.Product.ProductType.DYNAMIC_INSTRUMENTATION
-import static datadog.trace.api.telemetry.Product.ProductType.PROFILER
+import static datadog.trace.api.telemetry.ProductChange.ProductType.APPSEC
+import static datadog.trace.api.telemetry.ProductChange.ProductType.DYNAMIC_INSTRUMENTATION
+import static datadog.trace.api.telemetry.ProductChange.ProductType.PROFILER
 
 /**
  * This test only verifies non-functional specifics that are not covered in TelemetryServiceSpecification
@@ -115,7 +115,7 @@ class TelemetryRequestBodySpecification extends Specification {
   void 'test writeProducts'(){
     setup:
     TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_PRODUCT_CHANGE)
-    final products = new HashMap<Product.ProductType, Boolean>()
+    final products = new HashMap<ProductChange.ProductType, Boolean>()
     if(appsecChange) {
       products.put(APPSEC, appsecEnabled)
     }

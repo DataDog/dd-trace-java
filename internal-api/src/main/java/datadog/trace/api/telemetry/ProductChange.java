@@ -1,6 +1,6 @@
 package datadog.trace.api.telemetry;
 
-public class Product {
+public class ProductChange {
 
   private ProductType productType;
   private boolean enabled;
@@ -13,12 +13,12 @@ public class Product {
     return enabled;
   }
 
-  public Product productType(ProductType productType) {
+  public ProductChange productType(ProductType productType) {
     this.productType = productType;
     return this;
   }
 
-  public Product enabled(boolean enabled) {
+  public ProductChange enabled(boolean enabled) {
     this.enabled = enabled;
     return this;
   }

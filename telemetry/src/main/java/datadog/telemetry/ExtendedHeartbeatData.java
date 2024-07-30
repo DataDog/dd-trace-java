@@ -6,7 +6,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
-import datadog.trace.api.telemetry.Product;
+import datadog.trace.api.telemetry.ProductChange;
 import java.util.ArrayList;
 
 public class ExtendedHeartbeatData {
@@ -118,7 +118,7 @@ public class ExtendedHeartbeatData {
     }
 
     @Override
-    public Product nextProductChangeEvent() {
+    public ProductChange nextProductChangeEvent() {
       return null;
     }
   }

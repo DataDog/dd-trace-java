@@ -12,7 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
-import datadog.trace.api.telemetry.Product.ProductType;
+import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
 import java.util.EnumMap;
 import java.util.Map;

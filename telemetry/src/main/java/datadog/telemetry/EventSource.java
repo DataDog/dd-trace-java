@@ -6,7 +6,7 @@ import datadog.telemetry.api.LogMessage;
 import datadog.telemetry.api.Metric;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
-import datadog.trace.api.telemetry.Product;
+import datadog.trace.api.telemetry.ProductChange;
 import java.util.Queue;
 
 /**
@@ -41,7 +41,7 @@ interface EventSource {
 
   boolean hasProductChangeEvent();
 
-  Product nextProductChangeEvent();
+  ProductChange nextProductChangeEvent();
 
   default boolean isEmpty() {
     return !hasConfigChangeEvent()
@@ -59,7 +59,7 @@ interface EventSource {
     private final Queue<Metric> metricQueue;
     private final Queue<DistributionSeries> distributionSeriesQueue;
     private final Queue<LogMessage> logMessageQueue;
-    private final Queue<Product> productChanges;
+    private final Queue<ProductChange> productChanges;
 
     Queued(
         Queue<ConfigSetting> configChangeQueue,
@@ -68,7 +68,7 @@ interface EventSource {
         Queue<Metric> metricQueue,
         Queue<DistributionSeries> distributionSeriesQueue,
         Queue<LogMessage> logMessageQueue,
-        Queue<Product> productChanges) {
+        Queue<ProductChange> productChanges) {
       this.configChangeQueue = configChangeQueue;
       this.integrationQueue = integrationQueue;
       this.dependencyQueue = dependencyQueue;
@@ -144,7 +144,7 @@ interface EventSource {
     }
 
     @Override
-    public Product nextProductChangeEvent() {
+    public ProductChange nextProductChangeEvent() {
       return productChanges.poll();
     }
   }

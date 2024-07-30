@@ -9,7 +9,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class ProductChangeCollector {
 
   private static final ProductChangeCollector INSTANCE = new ProductChangeCollector();
-  private final Queue<Product> products = new LinkedBlockingQueue<>();
+  private final Queue<ProductChange> productChanges = new LinkedBlockingQueue<>();
 
   private ProductChangeCollector() {}
 
@@ -17,20 +17,20 @@ public class ProductChangeCollector {
     return INSTANCE;
   }
 
-  public synchronized void update(final Product product) {
-    products.offer(product);
+  public synchronized void update(final ProductChange productChange) {
+    productChanges.offer(productChange);
   }
 
-  public synchronized List<Product> drain() {
-    if (products.isEmpty()) {
+  public synchronized List<ProductChange> drain() {
+    if (productChanges.isEmpty()) {
       return Collections.emptyList();
     }
 
-    List<Product> list = new LinkedList<>();
+    List<ProductChange> list = new LinkedList<>();
 
-    Product product;
-    while ((product = products.poll()) != null) {
-      list.add(product);
+    ProductChange productChange;
+    while ((productChange = productChanges.poll()) != null) {
+      list.add(productChange);
     }
 
     return list;

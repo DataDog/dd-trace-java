@@ -8,7 +8,7 @@ import datadog.telemetry.api.Metric;
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.ConfigSetting;
-import datadog.trace.api.telemetry.Product;
+import datadog.trace.api.telemetry.ProductChange;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -33,7 +33,7 @@ public class TelemetryService {
   private final BlockingQueue<DistributionSeries> distributionSeries =
       new LinkedBlockingQueue<>(1024);
 
-  private final BlockingQueue<Product> productChanges = new LinkedBlockingQueue<>();
+  private final BlockingQueue<ProductChange> productChanges = new LinkedBlockingQueue<>();
 
   private final ExtendedHeartbeatData extendedHeartbeatData = new ExtendedHeartbeatData();
   private final EventSource.Queued eventSource =
@@ -116,8 +116,8 @@ public class TelemetryService {
     return this.logMessages.offer(message);
   }
 
-  public boolean addProductChange(Product product) {
-    return this.productChanges.offer(product);
+  public boolean addProductChange(ProductChange productChange) {
+    return this.productChanges.offer(productChange);
   }
 
   public boolean addDistributionSeries(DistributionSeries series) {

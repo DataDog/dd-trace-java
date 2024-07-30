@@ -18,7 +18,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.SubscriptionService;
-import datadog.trace.api.telemetry.Product;
+import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.util.Strings;
@@ -115,8 +115,9 @@ public class AppSecSystem {
   public static void setActive(boolean status) {
     ActiveSubsystems.APPSEC_ACTIVE = status;
     // Report to the product change via telemetry
+    log.debug("AppSec is now {}", status ? "active" : "inactive");
     ProductChangeCollector.get()
-        .update(new Product().productType(Product.ProductType.APPSEC).enabled(status));
+        .update(new ProductChange().productType(ProductChange.ProductType.APPSEC).enabled(status));
   }
 
   public static void stop() {
