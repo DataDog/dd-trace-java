@@ -12,6 +12,6 @@ class ProductChangeTest extends DDSpecification {
 
     then:
     productChange.getProductType() == APPSEC
-    productChange.isEnabled() == true
+    productChange.isEnabled()
   }
 }
