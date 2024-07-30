@@ -84,9 +84,6 @@ build_with_cache:
     <<: *default_cache
     policy: push
 
-deploy_to_reliability_env:
-  stage: publish
-
 deploy_to_profiling_backend:
   stage: publish
   needs: [ build ]
