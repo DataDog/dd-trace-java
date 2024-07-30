@@ -278,20 +278,23 @@ public class HttpCodec {
       if (firstContext == null || traceContext == null) {
         return;
       }
-      // Propagate newly extracted W3C tracestate to first valid context
-      String extractedTracestate = traceContext.getPropagationTags().getW3CTracestate();
-      firstContext.getPropagationTags().updateW3CTracestate(extractedTracestate);
-      // Check if trace IDs are equivalent, but parent spans differ, to reconcile them
-      if (traceIdMatch(firstContext.getTraceId(), traceContext.getTraceId())
-          && firstContext.getSpanId() != traceContext.getSpanId()) {
-        firstContext.overrideSpanId(traceContext.getSpanId());
-        // Add last parent span id as tag (check W3C first, else Datadog)
-        CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
-        if (lastParentId == null) {
-          lastParentId = extractionCache.getDatadogSpanIdHeaderValue();
-        }
-        if (lastParentId != null) {
-          firstContext.getTags().put(PARENT_ID, lastParentId.toString());
+      if (traceIdMatch(firstContext.getTraceId(), traceContext.getTraceId())) {
+        // Propagate newly extracted W3C tracestate to first valid context
+        String extractedTracestate = traceContext.getPropagationTags().getW3CTracestate();
+        firstContext.getPropagationTags().updateW3CTracestate(extractedTracestate);
+        // reconcile differences between parent IDs (traceContext takes precedence)
+        if (firstContext.getSpanId() != traceContext.getSpanId()) {
+          firstContext.overrideSpanId(traceContext.getSpanId());
+          // Add last parent span id as tag (check W3C first, else Datadog)
+          CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
+          if (lastParentId == null) {
+            lastParentId = extractionCache.getDatadogSpanIdHeaderValue();
+          }
+          if (lastParentId != null) {
+            // MTOFF: this is causing an exception, probably because firstContext.tags is null and
+            // needs to be allocated.
+            firstContext.getTags().put(PARENT_ID, lastParentId.toString());
+          }
         }
       }
     }
