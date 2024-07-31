@@ -236,27 +236,27 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   /* Interface for use of GatewayBridge */
 
-  public String getScheme() {
+  String getScheme() {
     return scheme;
   }
 
-  public void setScheme(String scheme) {
+  void setScheme(String scheme) {
     this.scheme = scheme;
   }
 
-  public String getMethod() {
+  String getMethod() {
     return method;
   }
 
-  public void setMethod(String method) {
+  void setMethod(String method) {
     this.method = method;
   }
 
-  public String getSavedRawURI() {
+  String getSavedRawURI() {
     return savedRawURI;
   }
 
-  public void setRawURI(String savedRawURI) {
+  void setRawURI(String savedRawURI) {
     if (this.savedRawURI != null && this.savedRawURI.compareToIgnoreCase(savedRawURI) != 0) {
       throw new IllegalStateException(
           "Forbidden attempt to set different raw URI for given request context");
@@ -264,7 +264,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.savedRawURI = savedRawURI;
   }
 
-  public void addRequestHeader(String name, String value) {
+  void addRequestHeader(String name, String value) {
     if (finishedRequestHeaders) {
       throw new IllegalStateException("Request headers were said to be finished before");
     }
@@ -278,19 +278,19 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     strings.add(value);
   }
 
-  public void finishRequestHeaders() {
+  void finishRequestHeaders() {
     this.finishedRequestHeaders = true;
   }
 
-  public boolean isFinishedRequestHeaders() {
+  boolean isFinishedRequestHeaders() {
     return finishedRequestHeaders;
   }
 
-  public Map<String, List<String>> getRequestHeaders() {
+  Map<String, List<String>> getRequestHeaders() {
     return requestHeaders;
   }
 
-  public void addResponseHeader(String name, String value) {
+  void addResponseHeader(String name, String value) {
     if (finishedResponseHeaders) {
       throw new IllegalStateException("Response headers were said to be finished before");
     }
@@ -312,11 +312,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return finishedResponseHeaders;
   }
 
-  public Map<String, List<String>> getResponseHeaders() {
+  Map<String, List<String>> getResponseHeaders() {
     return responseHeaders;
   }
 
-  public void addCookies(Map<String, List<String>> cookies) {
+  void addCookies(Map<String, List<String>> cookies) {
     if (finishedRequestHeaders) {
       throw new IllegalStateException("Request headers were said to be finished before");
     }
@@ -327,15 +327,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public Map<String, ? extends Collection<String>> getCookies() {
+  Map<String, ? extends Collection<String>> getCookies() {
     return collectedCookies != null ? collectedCookies : Collections.emptyMap();
   }
 
-  public String getPeerAddress() {
+  String getPeerAddress() {
     return peerAddress;
   }
 
-  public void setPeerAddress(String peerAddress) {
+  void setPeerAddress(String peerAddress) {
     this.peerAddress = peerAddress;
   }
 
@@ -347,15 +347,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.peerPort = peerPort;
   }
 
-  public void setInferredClientIp(String ipAddress) {
+  void setInferredClientIp(String ipAddress) {
     this.inferredClientIp = ipAddress;
   }
 
-  public String getInferredClientIp() {
+  String getInferredClientIp() {
     return inferredClientIp;
   }
 
-  public void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
+  void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
@@ -467,7 +467,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public Collection<AppSecEvent> transferCollectedEvents() {
+  Collection<AppSecEvent> transferCollectedEvents() {
     if (this.appSecEvents == null) {
       return Collections.emptyList();
     }
@@ -481,7 +481,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return events;
   }
 
-  public StackTraceCollection transferStackTracesCollection() {
+  StackTraceCollection transferStackTracesCollection() {
     if (this.stackTraceEvents == null) {
       return null;
     }
@@ -492,7 +492,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       stackTraces.add(item);
     }
 
-    if (!stackTraces.isEmpty()) {
+    if (stackTraces.size() != 0) {
       return new StackTraceCollection(stackTraces);
     } else {
       return null;
@@ -509,7 +509,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public boolean commitApiSchemas(TraceSegment traceSegment) {
+  boolean commitApiSchemas(TraceSegment traceSegment) {
     if (traceSegment == null || apiSchemas == null) {
       return false;
     }
