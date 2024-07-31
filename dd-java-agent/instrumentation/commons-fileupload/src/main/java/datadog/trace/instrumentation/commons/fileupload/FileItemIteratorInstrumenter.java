@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.commons.fileupload;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -15,22 +16,27 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.commons.fileupload.FileItemIterator;
 import org.apache.commons.fileupload.FileItemStream;
 
 @AutoService(InstrumenterModule.class)
 public class FileItemIteratorInstrumenter extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForTypeHierarchy {
 
   public FileItemIteratorInstrumenter() {
     super("commons-fileupload", "fileitemiterator");
   }
 
   @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.commons.fileupload.FileItemIterator",
-    };
+  public String hierarchyMarkerType() {
+    return "org.apache.commons.fileupload.FileItemIterator";
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return implementsInterface(named(hierarchyMarkerType()));
   }
 
   @Override
