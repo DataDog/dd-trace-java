@@ -56,7 +56,7 @@ class URLSinkCallSiteTest extends AgentTestRunner {
     injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, 'true')
   }
 
-  void 'test ssrf IAST endpoints'() {
+  void 'test ssrf IAST endpoints, method: #suite.V1'() {
     given:
     final method = suite.getV1()
     final args = suite.getV2()
@@ -73,7 +73,7 @@ class URLSinkCallSiteTest extends AgentTestRunner {
     suite << tests()
   }
 
-  void 'test ssrf RASP endpoints'() {
+  void 'test ssrf RASP endpoints, method: #suite.V1'() {
     given:
     final method = suite.getV1()
     final args = suite.getV2()
@@ -96,7 +96,9 @@ class URLSinkCallSiteTest extends AgentTestRunner {
     return [
       new Tuple2('openConnection', [URL]),
       new Tuple2('openConnection', [URL, Proxy.NO_PROXY]),
-      new Tuple2('openStream', [URL])
+      new Tuple2('openStream', [URL]),
+      new Tuple2('getContent', [URL]),
+      new Tuple2('getContent', [URL, [Object] as Class<?>[]])
     ]
   }
 }
