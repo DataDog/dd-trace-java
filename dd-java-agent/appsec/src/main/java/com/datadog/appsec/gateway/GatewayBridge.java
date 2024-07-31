@@ -23,8 +23,6 @@ import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.stack_trace.StackTraceCollection;
 import com.datadog.appsec.util.ObjectFlattener;
 import datadog.trace.api.Config;
-import datadog.trace.api.function.TriConsumer;
-import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -50,7 +48,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,18 +96,15 @@ public class GatewayBridge {
   }
 
   public void init() {
-    Events<AppSecRequestContext> events = Events.get();
     Collection<datadog.trace.api.gateway.EventType<?>> additionalIGEvents =
         IGAppSecEventDependencies.additionalIGEventTypes(
             producerService.allSubscribedDataAddresses());
 
-    subscriptionService.registerCallback(events.requestStarted(), this::onRequestStarted);
-    subscriptionService.registerCallback(events.requestEnded(), this::onRequestEnded);
-    subscriptionService.registerCallback(EVENTS.requestHeader(), new NewRequestHeaderCallback());
-    subscriptionService.registerCallback(
-        EVENTS.requestHeaderDone(), new RequestHeadersDoneCallback());
-    subscriptionService.registerCallback(
-        EVENTS.requestMethodUriRaw(), new MethodAndRawURICallback());
+    subscriptionService.registerCallback(EVENTS.requestStarted(), this::onRequestStarted);
+    subscriptionService.registerCallback(EVENTS.requestEnded(), this::onRequestEnded);
+    subscriptionService.registerCallback(EVENTS.requestHeader(), this::onRequestHeader);
+    subscriptionService.registerCallback(EVENTS.requestHeaderDone(), this::onRequestHeadersDone);
+    subscriptionService.registerCallback(EVENTS.requestMethodUriRaw(), this::onRequestMethodUriRaw);
     subscriptionService.registerCallback(EVENTS.requestBodyStart(), this::onRequestBodyStart);
     subscriptionService.registerCallback(EVENTS.requestBodyDone(), this::onRequestBodyDone);
     subscriptionService.registerCallback(
@@ -478,6 +472,61 @@ public class GatewayBridge {
     return NoopFlow.INSTANCE;
   }
 
+  private Flow<Void> onRequestHeadersDone(RequestContext ctx_) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || ctx.isReqDataPublished()) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.finishRequestHeaders();
+    return maybePublishRequestData(ctx);
+  }
+
+  private Flow<Void> onRequestMethodUriRaw(RequestContext ctx_, String method, URIDataAdapter uri) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+
+    if (ctx.isReqDataPublished()) {
+      log.debug(
+          "Request method and URI already published; will ignore new values {}, {}", method, uri);
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setMethod(method);
+    ctx.setScheme(uri.scheme());
+    if (uri.supportsRaw()) {
+      ctx.setRawURI(uri.raw());
+    } else {
+      try {
+        URI encodedUri = new URI(null, null, uri.path(), uri.query(), null);
+        String q = encodedUri.getRawQuery();
+        StringBuilder encoded = new StringBuilder();
+        encoded.append(encodedUri.getRawPath());
+        if (null != q && !q.isEmpty()) {
+          encoded.append('?').append(q);
+        }
+        ctx.setRawURI(encoded.toString());
+      } catch (URISyntaxException e) {
+        log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
+      }
+    }
+    return maybePublishRequestData(ctx);
+  }
+
+  private void onRequestHeader(RequestContext ctx_, String name, String value) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return;
+    }
+
+    if (name.equalsIgnoreCase("cookie")) {
+      Map<String, List<String>> cookies = CookieCutter.parseCookieHeader(value);
+      ctx.addCookies(cookies);
+    } else {
+      ctx.addRequestHeader(name, value);
+    }
+  }
+
   public void stop() {
     subscriptionService.reset();
   }
@@ -545,71 +594,6 @@ public class GatewayBridge {
     @Override
     public AppSecRequestContext getResult() {
       return appSecRequestContext;
-    }
-  }
-
-  private static class NewRequestHeaderCallback
-      implements TriConsumer<RequestContext, String, String> {
-    @Override
-    public void accept(RequestContext ctx_, String name, String value) {
-      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null) {
-        return;
-      }
-
-      if (name.equalsIgnoreCase("cookie")) {
-        Map<String, List<String>> cookies = CookieCutter.parseCookieHeader(value);
-        ctx.addCookies(cookies);
-      } else {
-        ctx.addRequestHeader(name, value);
-      }
-    }
-  }
-
-  private class RequestHeadersDoneCallback implements Function<RequestContext, Flow<Void>> {
-    public Flow<Void> apply(RequestContext ctx_) {
-      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null || ctx.isReqDataPublished()) {
-        return NoopFlow.INSTANCE;
-      }
-      ctx.finishRequestHeaders();
-      return maybePublishRequestData(ctx);
-    }
-  }
-
-  private class MethodAndRawURICallback
-      implements TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> {
-    @Override
-    public Flow<Void> apply(RequestContext ctx_, String method, URIDataAdapter uri) {
-      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null) {
-        return NoopFlow.INSTANCE;
-      }
-
-      if (ctx.isReqDataPublished()) {
-        log.debug(
-            "Request method and URI already published; will ignore new values {}, {}", method, uri);
-        return NoopFlow.INSTANCE;
-      }
-      ctx.setMethod(method);
-      ctx.setScheme(uri.scheme());
-      if (uri.supportsRaw()) {
-        ctx.setRawURI(uri.raw());
-      } else {
-        try {
-          URI encodedUri = new URI(null, null, uri.path(), uri.query(), null);
-          String q = encodedUri.getRawQuery();
-          StringBuilder encoded = new StringBuilder();
-          encoded.append(encodedUri.getRawPath());
-          if (null != q && !q.isEmpty()) {
-            encoded.append('?').append(q);
-          }
-          ctx.setRawURI(encoded.toString());
-        } catch (URISyntaxException e) {
-          log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
-        }
-      }
-      return maybePublishRequestData(ctx);
     }
   }
 
