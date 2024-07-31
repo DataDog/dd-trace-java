@@ -1,6 +1,5 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 
@@ -223,9 +222,6 @@ public class HttpCodec {
         // Check if context is valid
         if (extracted instanceof ExtractedContext) {
           ExtractedContext extractedContext = (ExtractedContext) extracted;
-          if (extracted.getPropagationStyle() == TRACECONTEXT) {
-            traceContext = extractedContext;
-          }
           // If no prior valid context, store it as first valid context
           if (firstContext == null) {
             firstContext = extractedContext;
@@ -234,11 +230,16 @@ public class HttpCodec {
               break;
             }
           }
-          // If another valid context is extracted, but trace IDs do not match
-          else if (!traceIdMatch(firstContext.getTraceId(), extractedContext.getTraceId())) {
-            // Terminate extracted context and add it as span link
-            firstContext.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
-            // TODO Note: Other vendor tracestate will be lost here
+          // If another valid context is extracted (2+ contexts extracted)
+          else {
+            if (extracted.getPropagationStyle() == TRACECONTEXT) {
+              traceContext = extractedContext;
+            }
+            if (!traceIdMatch(firstContext.getTraceId(), extractedContext.getTraceId())) {
+              // Terminate extracted context and add it as span link
+              firstContext.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
+              // TODO Note: Other vendor tracestate will be lost here
+            }
           }
         }
         // Check if context is at least partial to keep it as first valid partial context found
@@ -247,8 +248,8 @@ public class HttpCodec {
         }
       }
 
-      // After all the extractors have run, we want to do processing on the extracted firstContext
-      // and traceContext (if available)
+      // After all the extractors have run, process the first extracted context and tracecontext (if
+      // available)
       injectTraceContextToFirstContext(firstContext, traceContext, extractionCache);
 
       if (firstContext != null) {
@@ -264,7 +265,8 @@ public class HttpCodec {
     }
 
     /**
-     * Applies W3C trace context over any other valid context previously found.
+     * Applies W3C trace context over any other valid context previously found. Noop if either
+     * firstContext or traceContext is null.
      *
      * @param firstContext The first valid context found.
      * @param traceContext The trace context to apply.
@@ -291,9 +293,8 @@ public class HttpCodec {
             lastParentId = extractionCache.getDatadogSpanIdHeaderValue();
           }
           if (lastParentId != null) {
-            // MTOFF: this is causing an exception, probably because firstContext.tags is null and
-            // needs to be allocated.
-            firstContext.getTags().put(PARENT_ID, lastParentId.toString());
+            firstContext.getPropagationTags().updateLastParentId(lastParentId);
+            //            firstContext.getTags().put(PARENT_ID, lastParentId.toString());
           }
         }
       }
