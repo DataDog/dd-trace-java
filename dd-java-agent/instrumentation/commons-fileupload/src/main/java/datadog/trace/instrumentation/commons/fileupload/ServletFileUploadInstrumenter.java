@@ -25,17 +25,15 @@ import org.apache.commons.fileupload.FileItemIterator;
 
 @AutoService(InstrumenterModule.class)
 public class ServletFileUploadInstrumenter extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes {
+    implements Instrumenter.ForSingleType {
 
   public ServletFileUploadInstrumenter() {
     super("commons-fileupload", "servlet");
   }
 
   @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.commons.fileupload.servlet.ServletFileUpload",
-    };
+  public String instrumentedType() {
+    return "org.apache.commons.fileupload.servlet.ServletFileUpload";
   }
 
   @Override
