@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.domain.ModuleLayout;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -54,6 +55,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       ModuleSignalRouter moduleSignalRouter,
       CoverageCalculator.Factory<T> coverageCalculatorFactory,
       T sessionCoverageCalculator,
+      ModuleExecutionSettings moduleExecutionSettings,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -71,7 +73,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     this.signalServerAddress = signalServerAddress;
     this.coverageCalculator =
         coverageCalculatorFactory.moduleCoverage(
-            span.getSpanId(), moduleLayout, sessionCoverageCalculator);
+            span.getSpanId(), moduleLayout, moduleExecutionSettings, sessionCoverageCalculator);
     this.moduleSignalRouter = moduleSignalRouter;
 
     moduleSignalRouter.registerModuleHandler(

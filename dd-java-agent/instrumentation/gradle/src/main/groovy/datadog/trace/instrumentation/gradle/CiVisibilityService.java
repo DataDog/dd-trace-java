@@ -119,8 +119,8 @@ public abstract class CiVisibilityService
         SESSION_KEY, buildPath, projectRoot, startCommand, "gradle", gradleVersion, additionalTags);
   }
 
-  public void onModuleStart(String taskPath, ModuleLayout moduleLayout) {
-    buildEventsHandler.onTestModuleStart(SESSION_KEY, taskPath, moduleLayout, null);
+  public void onModuleStart(String taskPath, ModuleLayout moduleLayout, Path jvmExecutable) {
+    buildEventsHandler.onTestModuleStart(SESSION_KEY, taskPath, moduleLayout, jvmExecutable, null);
   }
 
   public void onModuleFinish(

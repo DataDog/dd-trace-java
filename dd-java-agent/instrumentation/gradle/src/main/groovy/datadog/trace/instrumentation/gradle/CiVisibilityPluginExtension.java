@@ -115,7 +115,7 @@ public abstract class CiVisibilityPluginExtension {
     }
   }
 
-  private Path getEffectiveExecutable(Test task) {
+  public static Path getEffectiveExecutable(Test task) {
     Property<JavaLauncher> javaLauncher = task.getJavaLauncher();
     if (javaLauncher.isPresent()) {
       try {

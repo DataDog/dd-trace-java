@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.coverage.percentage;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.domain.ModuleLayout;
 import datadog.trace.api.civisibility.domain.SourceSet;
 import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter;
@@ -37,8 +38,7 @@ import org.jacoco.report.html.HTMLFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Calculates what percentage of executable lines is covered with tests. */
-// FIXME nikita: expand Javadoc with explanation on how this works (jacoco-based)
+/** Uses Jacoco execution data to calculate the percentage of covered lines. */
 public class JacocoCoverageCalculator implements CoverageCalculator {
 
   public static final class Factory
@@ -66,7 +66,10 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
 
     @Override
     public JacocoCoverageCalculator moduleCoverage(
-        long moduleId, ModuleLayout moduleLayout, JacocoCoverageCalculator sessionCoverage) {
+        long moduleId,
+        ModuleLayout moduleLayout,
+        ModuleExecutionSettings moduleExecutionSettings,
+        JacocoCoverageCalculator sessionCoverage) {
       return new JacocoCoverageCalculator(
           config,
           repoIndexProvider,
@@ -141,8 +144,8 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
     }
   }
 
-  private SignalResponse addCoverageData(ModuleCoverageDataJacoco moduleCoverageDataJacoco) {
-    byte[] rawCoverageData = moduleCoverageDataJacoco.getCoverageData();
+  private SignalResponse addCoverageData(ModuleCoverageDataJacoco moduleCoverageData) {
+    byte[] rawCoverageData = moduleCoverageData.getCoverageData();
     ExecutionDataStore parsedCoverageData = parseCoverageData(rawCoverageData);
     if (parsedCoverageData != null) {
       synchronized (coverageDataLock) {
@@ -158,7 +161,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
       // and modifying an ExecutionData in one module is going
       // to be visible in another module
       // (see internal implementation of org.jacoco.core.data.ExecutionDataStore.accept)
-      parent.addCoverageData(moduleCoverageDataJacoco);
+      parent.addCoverageData(moduleCoverageData);
     }
 
     return AckResponse.INSTANCE;
@@ -226,7 +229,10 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
   private File getCoverageReportFolder() {
     String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
     if (coverageReportDumpDir != null) {
-      return Paths.get(coverageReportDumpDir, "session-" + eventId, "aggregated")
+      return Paths.get(
+              coverageReportDumpDir,
+              (parent == null ? "session" : "module") + "-" + eventId,
+              "aggregated")
           .toAbsolutePath()
           .toFile();
     } else {
@@ -253,10 +259,10 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
   }
 
   private static long getCoveragePercentage(IBundleCoverage coverageBundle) {
-    ICounter instructionCounter = coverageBundle.getInstructionCounter();
-    int totalInstructionsCount = instructionCounter.getTotalCount();
-    int coveredInstructionsCount = instructionCounter.getCoveredCount();
-    return Math.round((100d * coveredInstructionsCount) / totalInstructionsCount);
+    ICounter lineCounter = coverageBundle.getLineCounter();
+    int coveredLines = lineCounter.getCoveredCount();
+    int totalLines = lineCounter.getTotalCount();
+    return Math.round((100d * coveredLines) / totalLines);
   }
 
   private static final class RepoIndexFileLocator extends InputStreamSourceFileLocator {

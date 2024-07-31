@@ -13,7 +13,6 @@ import org.gradle.BuildAdapter;
 import org.gradle.BuildResult;
 import org.gradle.StartParameter;
 import org.gradle.api.Project;
-import org.gradle.api.Task;
 import org.gradle.api.internal.BuildDefinition;
 import org.gradle.api.internal.StartParameterInternal;
 import org.gradle.api.internal.project.taskfactory.TaskIdentity;
@@ -178,7 +177,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
     String taskPath = taskIdentity.getTaskPath();
 
     Project project = gradle.getRootProject().project(projectPath);
-    Task task = project.getTasks().getByName(taskIdentity.name);
+    Test task = (Test) project.getTasks().getByName(taskIdentity.name);
 
     ModuleLayout moduleLayout =
         (ModuleLayout)
@@ -186,7 +185,8 @@ public class CiVisibilityGradleListener extends BuildAdapter
                 .getProperties()
                 .get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
 
-    ciVisibilityService.onModuleStart(taskPath, moduleLayout);
+    Path jvmExecutable = CiVisibilityPluginExtension.getEffectiveExecutable(task);
+    ciVisibilityService.onModuleStart(taskPath, moduleLayout, jvmExecutable);
   }
 
   @Override

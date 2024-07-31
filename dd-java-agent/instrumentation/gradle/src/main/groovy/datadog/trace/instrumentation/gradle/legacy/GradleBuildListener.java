@@ -146,9 +146,10 @@ public class GradleBuildListener extends BuildAdapter {
 
       List<String> sourceSetNames = Config.get().getCiVisibilityJacocoGradleSourceSets();
       ModuleLayout moduleLayout = GradleUtils.getModuleLayout(project, sourceSetNames);
+      Path jvmExecutable = GradleUtils.getEffectiveExecutable(task);
 
       BuildEventsHandler.ModuleInfo moduleInfo =
-          buildEventsHandler.onTestModuleStart(gradle, taskPath, moduleLayout, null);
+          buildEventsHandler.onTestModuleStart(gradle, taskPath, moduleLayout, jvmExecutable, null);
 
       JavaForkOptions taskForkOptions = (JavaForkOptions) task;
       taskForkOptions.jvmArgs(

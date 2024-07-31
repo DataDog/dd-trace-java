@@ -8,6 +8,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,8 +19,9 @@ public class JvmInfoFactoryImpl implements JvmInfoFactory {
 
   private static final int JVM_VERSION_LAUNCH_TIMEOUT = 5_000;
 
+  @Nonnull
   @Override
-  public JvmInfo getJvmInfo(Path jvmExecutablePath) {
+  public JvmInfo getJvmInfo(@Nullable Path jvmExecutablePath) {
     String currentJvm =
         ProcessUtils.getCurrentJvmPath(); // might be home dir or full executable path
     // if we cannot determine forked JVM,

@@ -7,6 +7,7 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -86,8 +87,10 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       Map<String, Object> additionalTags =
           Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
 
+      Path forkedJvmPath = MavenUtils.getForkedJvmPath(session, mojoExecution);
       BuildEventsHandler.ModuleInfo moduleInfo =
-          buildEventsHandler.onTestModuleStart(request, moduleName, moduleLayout, additionalTags);
+          buildEventsHandler.onTestModuleStart(
+              request, moduleName, moduleLayout, forkedJvmPath, additionalTags);
 
       Xpp3Dom configuration = mojoExecution.getConfiguration();
       boolean forkTestVm =

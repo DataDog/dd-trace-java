@@ -24,6 +24,7 @@ public interface BuildEventsHandler<T> {
       T sessionKey,
       String moduleName,
       ModuleLayout moduleLayout,
+      @Nullable Path jvmExecutable,
       @Nullable Map<String, Object> additionalTags);
 
   void onTestModuleSkip(T sessionKey, String moduleName, String reason);

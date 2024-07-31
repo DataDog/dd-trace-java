@@ -6,9 +6,17 @@ import datadog.trace.api.civisibility.domain.SourceSet
 import org.gradle.StartParameter
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.internal.jvm.Jvm
 import org.gradle.process.JavaForkOptions
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
+import java.nio.file.Path
+import java.nio.file.Paths
 
 abstract class GradleUtils {
+
+  private static final Logger log = LoggerFactory.getLogger(GradleUtils.class)
 
   private static final String TEST_TASK_CLASS_NAME = "org.gradle.api.tasks.testing.Test"
 
@@ -95,5 +103,19 @@ abstract class GradleUtils {
       }
     }
     return new ModuleLayout(sourceSets)
+  }
+
+  static Path getEffectiveExecutable(Task task) {
+    if (task.hasProperty('javaLauncher') && task.javaLauncher.isPresent()) {
+      try {
+        return task.javaLauncher.get().getExecutablePath().toString()
+      } catch (Exception e) {
+        log.error("Could not get Java launcher for test task", e)
+      }
+    }
+    def stringPath = task.hasProperty('executable') && task.executable != null
+      ? task.executable
+      : Jvm.current().getJavaExecutable().getAbsolutePath()
+    return stringPath != null ? Paths.get(stringPath) : null
   }
 }

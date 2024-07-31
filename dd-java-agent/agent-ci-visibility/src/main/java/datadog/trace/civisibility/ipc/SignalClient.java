@@ -13,7 +13,7 @@ import java.nio.channels.SocketChannel;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Function;
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,9 +126,11 @@ public class SignalClient implements AutoCloseable {
       this.config = config;
     }
 
-    public @Nullable SignalClient create() {
+    @Nonnull
+    public SignalClient create() {
       if (signalServerAddress == null) {
-        return null;
+        throw new IllegalArgumentException(
+            "Cannot create signal client: no signal server address configured");
       }
       try {
         return new SignalClient(

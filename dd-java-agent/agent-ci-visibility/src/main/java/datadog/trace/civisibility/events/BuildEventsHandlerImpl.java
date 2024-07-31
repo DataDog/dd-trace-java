@@ -81,10 +81,13 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
       final T sessionKey,
       final String moduleName,
       ModuleLayout moduleLayout,
+      @Nullable Path jvmExecutable,
       @Nullable Map<String, Object> additionalTags) {
 
     BuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
-    BuildSystemModule testModule = testSession.testModuleStart(moduleName, null, moduleLayout);
+    JvmInfo jvmInfo = jvmInfoFactory.getJvmInfo(jvmExecutable);
+    BuildSystemModule testModule =
+        testSession.testModuleStart(moduleName, null, moduleLayout, jvmInfo);
     testModule.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (additionalTags != null) {

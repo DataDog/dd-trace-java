@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage.percentage;
 
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.domain.ModuleLayout;
 import org.jetbrains.annotations.Nullable;
 
@@ -23,7 +24,10 @@ public class NoOpCoverageCalculator implements CoverageCalculator {
 
     @Override
     public NoOpCoverageCalculator moduleCoverage(
-        long moduleId, ModuleLayout moduleLayout, NoOpCoverageCalculator sessionCoverage) {
+        long moduleId,
+        ModuleLayout moduleLayout,
+        ModuleExecutionSettings moduleExecutionSettings,
+        NoOpCoverageCalculator sessionCoverage) {
       return INSTANCE;
     }
   }

@@ -16,7 +16,7 @@ public interface BuildSystemSession {
   void end(@Nullable Long endTime);
 
   BuildSystemModule testModuleStart(
-      String moduleName, @Nullable Long startTime, ModuleLayout moduleLayout);
+      String moduleName, @Nullable Long startTime, ModuleLayout moduleLayout, JvmInfo jvmInfo);
 
   ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo);
 

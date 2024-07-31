@@ -2,23 +2,12 @@ package datadog.trace.api.civisibility.coverage;
 
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
-import javax.annotation.Nullable;
 
 public abstract class CoverageBridge {
 
   private static final ThreadLocal<CoverageProbes> COVERAGE_PROBES = new ThreadLocal<>();
 
   private static volatile CoverageStore.Registry COVERAGE_STORE_REGISTRY;
-  private static volatile CoverageDataSupplier COVERAGE_DATA_SUPPLIER;
-
-  public static void registerCoverageDataSupplier(CoverageDataSupplier coverageDataSupplier) {
-    COVERAGE_DATA_SUPPLIER = coverageDataSupplier;
-  }
-
-  @Nullable
-  public static byte[] getCoverageData() {
-    return COVERAGE_DATA_SUPPLIER != null ? COVERAGE_DATA_SUPPLIER.get() : null;
-  }
 
   public static void registerCoverageStoreRegistry(CoverageStore.Registry coverageStoreRegistry) {
     COVERAGE_STORE_REGISTRY = coverageStoreRegistry;

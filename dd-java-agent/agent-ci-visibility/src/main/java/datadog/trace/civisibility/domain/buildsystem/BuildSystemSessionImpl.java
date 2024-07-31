@@ -5,7 +5,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.domain.ModuleLayout;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
@@ -64,7 +63,6 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       ModuleExecutionSettingsFactory moduleExecutionSettingsFactory,
-      CoverageStore.Factory coverageStoreFactory,
       SignalServer signalServer,
       RepoIndexProvider repoIndexProvider,
       CoverageCalculator.Factory<T> coverageCalculatorFactory) {
@@ -78,8 +76,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
-        coverageStoreFactory);
+        methodLinesResolver);
     this.startCommand = startCommand;
     this.moduleSignalRouter = moduleSignalRouter;
     this.moduleExecutionSettingsFactory = moduleExecutionSettingsFactory;
@@ -92,6 +89,8 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         SignalType.MODULE_EXECUTION_RESULT, moduleSignalRouter::onModuleSignalReceived);
     signalServer.registerSignalHandler(
         SignalType.MODULE_COVERAGE_DATA_JACOCO, moduleSignalRouter::onModuleSignalReceived);
+    signalServer.registerSignalHandler(
+        SignalType.MODULE_COVERAGE_DATA_ITR, moduleSignalRouter::onModuleSignalReceived);
     signalServer.registerSignalHandler(
         SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
     signalServer.registerSignalHandler(
@@ -138,6 +137,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
               settings.getSystemProperties(),
               settings.getItrCorrelationId(),
               skippableTests,
+              settings.getSkippableTestsCoverage(),
               settings.getFlakyTests(moduleName),
               knownTests,
               settings.getCoverageEnabledPackages());
@@ -150,7 +150,8 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
 
   @Override
   public BuildSystemModuleImpl testModuleStart(
-      String moduleName, @Nullable Long startTime, ModuleLayout moduleLayout) {
+      String moduleName, @Nullable Long startTime, ModuleLayout moduleLayout, JvmInfo jvmInfo) {
+    ModuleExecutionSettings moduleExecutionSettings = getModuleExecutionSettings(jvmInfo);
     return new BuildSystemModuleImpl(
         span.context(),
         span.getSpanId(),
@@ -168,6 +169,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         moduleSignalRouter,
         coverageCalculatorFactory,
         coverageCalculator,
+        moduleExecutionSettings,
         this::onModuleFinish);
   }
 

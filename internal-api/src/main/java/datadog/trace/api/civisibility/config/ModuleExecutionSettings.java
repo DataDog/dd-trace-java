@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.config;
 
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -19,6 +20,7 @@ public class ModuleExecutionSettings {
           Collections.emptyMap(),
           null,
           Collections.emptyMap(),
+          Collections.emptyMap(),
           Collections.emptyList(),
           null,
           Collections.emptyList());
@@ -31,6 +33,7 @@ public class ModuleExecutionSettings {
   private final Map<String, String> systemProperties;
   private final String itrCorrelationId;
   private final Map<String, Collection<TestIdentifier>> skippableTestsByModule;
+  @Nullable private final Map<String, BitSet> skippableTestsCoverage;
   @Nullable private final Collection<TestIdentifier> flakyTests;
   @Nullable private final Map<String, Collection<TestIdentifier>> knownTestsByModule;
   private final List<String> coverageEnabledPackages;
@@ -44,6 +47,7 @@ public class ModuleExecutionSettings {
       Map<String, String> systemProperties,
       String itrCorrelationId,
       Map<String, Collection<TestIdentifier>> skippableTestsByModule,
+      Map<String, BitSet> skippableTestsCoverage,
       Collection<TestIdentifier> flakyTests,
       Map<String, Collection<TestIdentifier>> knownTestsByModule,
       List<String> coverageEnabledPackages) {
@@ -55,6 +59,7 @@ public class ModuleExecutionSettings {
     this.systemProperties = systemProperties;
     this.itrCorrelationId = itrCorrelationId;
     this.skippableTestsByModule = skippableTestsByModule;
+    this.skippableTestsCoverage = skippableTestsCoverage;
     this.flakyTests = flakyTests;
     this.knownTestsByModule = knownTestsByModule;
     this.coverageEnabledPackages = coverageEnabledPackages;
@@ -95,6 +100,12 @@ public class ModuleExecutionSettings {
 
   public Map<String, Collection<TestIdentifier>> getSkippableTestsByModule() {
     return skippableTestsByModule;
+  }
+
+  /** A bit vector of covered lines by relative source file path. */
+  @Nullable
+  public Map<String, BitSet> getSkippableTestsCoverage() {
+    return skippableTestsCoverage;
   }
 
   public Collection<TestIdentifier> getFlakyTests() {
@@ -147,6 +158,7 @@ public class ModuleExecutionSettings {
         && Objects.equals(systemProperties, that.systemProperties)
         && Objects.equals(itrCorrelationId, that.itrCorrelationId)
         && Objects.equals(skippableTestsByModule, that.skippableTestsByModule)
+        && Objects.equals(skippableTestsCoverage, that.skippableTestsCoverage)
         && Objects.equals(flakyTests, that.flakyTests)
         && Objects.equals(knownTestsByModule, that.knownTestsByModule)
         && Objects.equals(coverageEnabledPackages, that.coverageEnabledPackages);
@@ -162,6 +174,7 @@ public class ModuleExecutionSettings {
         systemProperties,
         itrCorrelationId,
         skippableTestsByModule,
+        skippableTestsCoverage,
         flakyTests,
         knownTestsByModule,
         coverageEnabledPackages);
