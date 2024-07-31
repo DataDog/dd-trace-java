@@ -32,6 +32,8 @@ public class URLSinkCallSite {
   @CallSite.Before("java.net.URLConnection java.net.URL.openConnection()")
   @CallSite.Before("java.net.URLConnection java.net.URL.openConnection(java.net.Proxy)")
   @CallSite.Before("java.io.InputStream java.net.URL.openStream()")
+  @CallSite.Before("java.lang.Object java.net.URL.getContent()")
+  @CallSite.Before("java.lang.Object java.net.URL.getContent(java.lang.Class[])")
   public static void beforeOpenConnection(@CallSite.This final URL url) {
     if (url == null) {
       return;
