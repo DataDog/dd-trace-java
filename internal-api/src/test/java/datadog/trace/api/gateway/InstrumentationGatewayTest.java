@@ -204,6 +204,8 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.databaseConnection()).accept(null, null);
     ss.registerCallback(events.databaseSqlQuery(), callback);
     cbp.getCallback(events.databaseSqlQuery()).apply(null, null);
+    ss.registerCallback(events.networkConnection(), callback);
+    cbp.getCallback(events.networkConnection()).apply(null, null);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -260,6 +262,8 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.databaseConnection()).accept(null, null);
     ss.registerCallback(events.databaseSqlQuery(), throwback);
     cbp.getCallback(events.databaseSqlQuery()).apply(null, null);
+    ss.registerCallback(events.networkConnection(), throwback);
+    cbp.getCallback(events.networkConnection()).apply(null, null);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
