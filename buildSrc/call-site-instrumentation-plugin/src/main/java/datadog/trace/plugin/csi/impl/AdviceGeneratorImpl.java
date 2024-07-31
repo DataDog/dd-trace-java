@@ -55,6 +55,7 @@ import datadog.trace.plugin.csi.impl.CallSiteSpecification.Enabled;
 import datadog.trace.plugin.csi.util.ErrorCode;
 import datadog.trace.plugin.csi.util.MethodType;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -156,9 +157,11 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
     type.setModifier(PUBLIC, true);
     type.setName(getClassName(advice));
     type.addImplementedType(CALL_SITES_CLASS);
-    if (!CALL_SITES_FQCN.equals(callSite.getSpi().getClassName())) {
-      javaClass.addImport(callSite.getSpi().getClassName());
-      type.addImplementedType(getClassName(callSite.getSpi(), false));
+    for (final Type spi : callSite.getSpi()) {
+      if (!CALL_SITES_FQCN.equals(spi.getClassName())) {
+        javaClass.addImport(spi.getClassName());
+        type.addImplementedType(getClassName(spi, false));
+      }
     }
     javaClass.addType(type);
     return type;
@@ -168,9 +171,11 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       final ClassOrInterfaceDeclaration javaClass, final CallSiteSpecification callSite) {
     final NormalAnnotationExpr autoService = new NormalAnnotationExpr();
     autoService.setName(AUTO_SERVICE_FQDN);
-    autoService.addPair(
-        "value",
-        new ClassExpr(new ClassOrInterfaceType().setName(getClassName(callSite.getSpi(), false))));
+    final List<Expression> spiExprs = new ArrayList<>();
+    for (final Type spi : callSite.getSpi()) {
+      spiExprs.add(new ClassExpr(new ClassOrInterfaceType().setName(getClassName(spi, false))));
+    }
+    autoService.addPair("value", new ArrayInitializerExpr().setValues(new NodeList<>(spiExprs)));
     javaClass.addAnnotation(autoService);
   }
 
