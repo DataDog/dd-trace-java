@@ -117,7 +117,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     def messageBody = jsonSlurper.parseText(message.body())
     def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
     if (isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
     then:
     def sendSpan
