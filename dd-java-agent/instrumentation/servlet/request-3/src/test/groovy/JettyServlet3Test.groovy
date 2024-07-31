@@ -11,6 +11,7 @@ import groovy.servlet.AbstractHttpServlet
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
+import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
 import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
@@ -52,6 +53,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
       }
 
       ServletContextHandler servletContext = new ServletContextHandler(null, "/$context", ServletContextHandler.SESSIONS)
+      servletContext.sessionHandler = new SessionHandler()
       servletContext.errorHandler = new ErrorHandler() {
           @Override
           void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -521,6 +523,11 @@ class JettyServlet3ServeFromAsyncTimeout extends JettyServlet3Test {
 }
 
 class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
+
+  @Override
+  Class<Servlet> servlet() {
+    return TestServlet3.GetSession
+  }
 
   @Override
   void configurePreAgent() {

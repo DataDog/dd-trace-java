@@ -12,8 +12,8 @@
 {"dsl": "", "json": {"neq": [{"ref": "i"}, 0]}}
 {"dsl": "", "json": {"!=": [{"ref": "i"}, 0]}}
 {"dsl": "", "json": {"not": {"isEmpty": {"ref": "list"}}}}
-{"dsl": "", "json": {"hasAny": [{"ref": "list"}, {"eq": [{"ref": "@it"}, "a"]}]}}
-{"dsl": "", "json": {"hasAll": [{"ref": "list"}, {"neq": [{"ref": "@it"}, "d"]}]}}
+{"dsl": "", "json": {"any": [{"ref": "list"}, {"eq": [{"ref": "@it"}, "a"]}]}}
+{"dsl": "", "json": {"all": [{"ref": "list"}, {"neq": [{"ref": "@it"}, "d"]}]}}
 {"dsl": "", "json": {"startsWith": [{"ref": "str"}, "hel"]}}
 {"dsl": "", "json": {"endsWith": [{"ref": "str"}, "llo"]}}
 {"dsl": "", "json": {"contains": [{"ref": "str"}, "ll"]}}

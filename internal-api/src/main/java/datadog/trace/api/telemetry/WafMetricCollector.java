@@ -8,6 +8,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongArray;
 
 public class WafMetricCollector implements MetricCollector<WafMetricCollector.WafMetric> {
 
@@ -28,6 +29,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicRequestCounter wafRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafTriggeredRequestCounter = new AtomicRequestCounter();
   private static final AtomicRequestCounter wafBlockedRequestCounter = new AtomicRequestCounter();
+  private static final AtomicLongArray raspRuleEvalCounter =
+      new AtomicLongArray(RuleType.getNumValues());
+  private static final AtomicLongArray raspRuleMatchCounter =
+      new AtomicLongArray(RuleType.getNumValues());
+  private static final AtomicLongArray respTimeoutCounter =
+      new AtomicLongArray(RuleType.getNumValues());
+  private static final AtomicRequestCounter missingUserIdCounter = new AtomicRequestCounter();
 
   /** WAF version that will be initialized with wafInit and reused for all metrics. */
   private static String wafVersion = "";
@@ -68,6 +76,22 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void wafRequestBlocked() {
     wafBlockedRequestCounter.increment();
+  }
+
+  public void raspRuleEval(final RuleType ruleType) {
+    raspRuleEvalCounter.incrementAndGet(ruleType.ordinal());
+  }
+
+  public void raspRuleMatch(final RuleType ruleType) {
+    raspRuleMatchCounter.incrementAndGet(ruleType.ordinal());
+  }
+
+  public void raspTimeout(final RuleType ruleType) {
+    respTimeoutCounter.incrementAndGet(ruleType.ordinal());
+  }
+
+  public void missingUserId() {
+    missingUserIdCounter.increment();
   }
 
   @Override
@@ -112,13 +136,56 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
     // Blocked requests
     if (wafBlockedRequestCounter.get() > 0) {
-      rawMetricsQueue.offer(
+      if (!rawMetricsQueue.offer(
           new WafRequestsRawMetric(
               wafBlockedRequestCounter.getAndReset(),
               WafMetricCollector.wafVersion,
               WafMetricCollector.rulesVersion,
               true,
-              true));
+              true))) {
+        return;
+      }
+    }
+
+    // RASP rule eval per rule type
+    for (RuleType ruleType : RuleType.values()) {
+      long counter = raspRuleEvalCounter.getAndSet(ruleType.ordinal(), 0);
+      if (counter > 0) {
+        if (!rawMetricsQueue.offer(
+            new RaspRuleEval(counter, ruleType, WafMetricCollector.wafVersion))) {
+          return;
+        }
+      }
+    }
+
+    // RASP rule match per rule type
+    for (RuleType ruleType : RuleType.values()) {
+      long counter = raspRuleMatchCounter.getAndSet(ruleType.ordinal(), 0);
+      if (counter > 0) {
+        if (!rawMetricsQueue.offer(
+            new RaspRuleMatch(counter, ruleType, WafMetricCollector.wafVersion))) {
+          return;
+        }
+      }
+    }
+
+    // RASP timeout per rule type
+    for (RuleType ruleType : RuleType.values()) {
+      long counter = respTimeoutCounter.getAndSet(ruleType.ordinal(), 0);
+      if (counter > 0) {
+        if (!rawMetricsQueue.offer(
+            new RaspTimeout(counter, ruleType, WafMetricCollector.wafVersion))) {
+          return;
+        }
+      }
+    }
+
+    // Missing user id
+    long missingUserId = missingUserIdCounter.getAndReset();
+    if (missingUserId > 0) {
+      if (!rawMetricsQueue.offer(new MissingUserIdMetric(missingUserId))) {
+        return;
+      }
     }
   }
 
@@ -148,6 +215,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
   }
 
+  public static class MissingUserIdMetric extends WafMetric {
+
+    public MissingUserIdMetric(long counter) {
+      super("instrum.user_auth.missing_user_id", counter);
+    }
+  }
+
   public static class WafRequestsRawMetric extends WafMetric {
     public WafRequestsRawMetric(
         final long counter,
@@ -162,6 +236,24 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "event_rules_version:" + rulesVersion,
           "rule_triggered:" + triggered,
           "request_blocked:" + blocked);
+    }
+  }
+
+  public static class RaspRuleEval extends WafMetric {
+    public RaspRuleEval(final long counter, final RuleType ruleType, final String wafVersion) {
+      super("rasp.rule.eval", counter, "rule_type:" + ruleType, "waf_version:" + wafVersion);
+    }
+  }
+
+  public static class RaspRuleMatch extends WafMetric {
+    public RaspRuleMatch(final long counter, final RuleType ruleType, final String wafVersion) {
+      super("rasp.rule.match", counter, "rule_type:" + ruleType, "waf_version:" + wafVersion);
+    }
+  }
+
+  public static class RaspTimeout extends WafMetric {
+    public RaspTimeout(final long counter, final RuleType ruleType, final String wafVersion) {
+      super("rasp.timeout", counter, "rule_type:" + ruleType, "waf_version:" + wafVersion);
     }
   }
 

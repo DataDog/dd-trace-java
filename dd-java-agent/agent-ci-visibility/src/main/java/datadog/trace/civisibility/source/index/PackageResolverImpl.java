@@ -8,8 +8,12 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PackageResolverImpl implements PackageResolver {
+
+  private static final Logger log = LoggerFactory.getLogger(PackageResolverImpl.class);
 
   private static final String PACKAGE_KEYWORD = "package";
   private final FileSystem fileSystem;
@@ -33,12 +37,20 @@ public class PackageResolverImpl implements PackageResolver {
   @Nullable
   @Override
   public Path getPackage(Path sourceFile) throws IOException {
+    Language language = Language.getByFileName(sourceFile.getFileName().toString());
     Path folder = sourceFile.getParent();
     try (BufferedReader br = Files.newBufferedReader(sourceFile)) {
       String line;
       while ((line = br.readLine()) != null) {
         int packageDeclarationStart = line.indexOf(PACKAGE_KEYWORD);
         if (packageDeclarationStart == -1) {
+          continue;
+        }
+
+        int charAfterPackageKeyword = packageDeclarationStart + PACKAGE_KEYWORD.length();
+        if (charAfterPackageKeyword >= line.length()
+            || !Character.isWhitespace(line.charAt(charAfterPackageKeyword))) {
+          // "package" keyword is not followed by a whitespace
           continue;
         }
 
@@ -51,7 +63,7 @@ public class PackageResolverImpl implements PackageResolver {
 
         int packageNameEnd = line.indexOf(';', packageNameStart);
         if (packageNameEnd == -1) {
-          packageNameEnd = lineLength; // no ';' is possible if this is a Groovy file
+          packageNameEnd = lineLength; // possible if this is a non-Java (e.g. Groovy, Scala) file
         }
 
         String packageName = line.substring(packageNameStart, packageNameEnd);
@@ -59,10 +71,13 @@ public class PackageResolverImpl implements PackageResolver {
         try {
           packagePath = fileSystem.getPath(packageName.replace('.', File.separatorChar));
         } catch (InvalidPathException e) {
+          log.debug("Invalid package {} found for source file {}", packageName, sourceFile, e);
           continue;
         }
 
-        if (folder.endsWith(packagePath)) {
+        // we only do the "sanity check" for Java, as with the other languages
+        // it is possible to have package that does not correspond to folder
+        if (language != Language.JAVA || folder.endsWith(packagePath)) {
           return packagePath;
         }
       }

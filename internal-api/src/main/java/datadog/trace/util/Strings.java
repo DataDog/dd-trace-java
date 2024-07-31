@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import static java.nio.charset.StandardCharsets.US_ASCII;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -11,6 +13,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nonnull;
 
 public final class Strings {
+
+  private static final byte[] HEX_DIGITS = {
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+  };
 
   public static String escapeToJson(String string) {
     if (string == null || string.isEmpty()) {
@@ -354,5 +360,18 @@ public final class Strings {
       c[i] = (char) ('a' + ThreadLocalRandom.current().nextInt(26));
     }
     return new String(c);
+  }
+
+  public static String toHexString(byte[] value) {
+    if (value == null) {
+      return null;
+    }
+    byte[] bytes = new byte[value.length * 2];
+    for (int i = 0; i < value.length; i++) {
+      byte v = value[i];
+      bytes[i * 2] = HEX_DIGITS[(v & 0xF0) >>> 4];
+      bytes[i * 2 + 1] = HEX_DIGITS[v & 0x0F];
+    }
+    return new String(bytes, US_ASCII);
   }
 }

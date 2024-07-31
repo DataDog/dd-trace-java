@@ -39,7 +39,18 @@ public final class DatadogAttributeParser {
       return;
     }
     try {
-      forEachProperty(classifier, UTF_8.decode(BASE_64.decode(json)).toString());
+      String jsonStr;
+      // peak at the first character to know if we're dealing with json or base64 (since '{' is not
+      // a valid b64 char).
+      if (json.get(0) == '{') {
+        jsonStr = UTF_8.decode(json).toString();
+      } else {
+        // TODO remove this branch once we are sure that this is never happening.
+        // passing a base64 string in a byte buffer is a nonsense, since the base64 is a less
+        // efficient representation.
+        jsonStr = UTF_8.decode(BASE_64.decode(json)).toString();
+      }
+      forEachProperty(classifier, jsonStr);
     } catch (Exception e) {
       log.debug("Problem decoding _datadog context", e);
     }

@@ -15,7 +15,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '10.0.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '10.1.0'
   implementation libs.moshi
 
   testImplementation libs.bytebuddy
@@ -101,6 +101,7 @@ ext {
     'com.datadog.appsec.config.AppSecFeatures',
     'com.datadog.appsec.config.AppSecFeatures.Asm',
     'com.datadog.appsec.config.AppSecFeatures.ApiSecurity',
+    'com.datadog.appsec.config.AppSecFeatures.AutoUserInstrum',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
   ]
   excludedClassesBranchCoverage = [

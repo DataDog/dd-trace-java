@@ -86,7 +86,7 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
 
       List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredPaths.size());
       for (String path : coveredPaths) {
-        fileEntries.add(new TestReportFileEntry(path, Collections.emptyList()));
+        fileEntries.add(new TestReportFileEntry(path, null));
       }
 
       TestReport report = new TestReport(testSessionId, testSuiteId, testSpanId, fileEntries);

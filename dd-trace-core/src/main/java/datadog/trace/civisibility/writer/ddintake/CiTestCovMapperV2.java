@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -42,7 +43,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   private static final byte[] SPAN_ID = "span_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] FILES = "files".getBytes(StandardCharsets.UTF_8);
   private static final byte[] FILENAME = "filename".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] SEGMENTS = "segments".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] BITMAP = "bitmap".getBytes(StandardCharsets.UTF_8);
 
   private final int size;
   private final GrowableBuffer headerBuffer;
@@ -102,23 +103,17 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       writable.startArray(fileEntries.size());
 
       for (TestReportFileEntry entry : fileEntries) {
-        writable.startMap(2);
+        BitSet coveredLines = entry.getCoveredLines();
+        boolean lineInfoPresent = coveredLines != null;
+
+        writable.startMap(1 + (lineInfoPresent ? 1 : 0));
 
         writable.writeUTF8(FILENAME);
         writable.writeString(entry.getSourceFileName(), null);
 
-        Collection<TestReportFileEntry.Segment> segments = entry.getSegments();
-
-        writable.writeUTF8(SEGMENTS);
-        writable.startArray(segments.size());
-
-        for (TestReportFileEntry.Segment segment : segments) {
-          writable.startArray(5);
-          writable.writeInt(segment.getStartLine());
-          writable.writeInt(segment.getStartColumn());
-          writable.writeInt(segment.getEndLine());
-          writable.writeInt(segment.getEndColumn());
-          writable.writeInt(segment.getNumberOfExecutions());
+        if (lineInfoPresent) {
+          writable.writeUTF8(BITMAP);
+          writable.writeBinary(coveredLines.toByteArray());
         }
       }
 

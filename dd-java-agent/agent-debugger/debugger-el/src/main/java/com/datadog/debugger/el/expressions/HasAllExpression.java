@@ -6,9 +6,12 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
+import com.datadog.debugger.el.values.SetValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.Collections;
+import java.util.Set;
 
 /**
  * Checks a {@linkplain Value} against the given {@link BooleanExpression filter expression} to make
@@ -40,8 +43,8 @@ public final class HasAllExpression extends MatchingExpression {
     if (value instanceof ListValue) {
       ListValue collection = (ListValue) value;
       if (collection.isEmpty()) {
-        // always return FALSE for empty values
-        return Boolean.FALSE;
+        // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
+        return Boolean.TRUE;
       }
       int len = collection.count();
       for (int i = 0; i < len; i++) {
@@ -53,11 +56,12 @@ public final class HasAllExpression extends MatchingExpression {
         }
       }
       return Boolean.TRUE;
-    } else if (value instanceof MapValue) {
+    }
+    if (value instanceof MapValue) {
       MapValue map = (MapValue) value;
       if (map.isEmpty()) {
-        // always return FALSE for empty values
-        return Boolean.FALSE;
+        // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
+        return Boolean.TRUE;
       }
       for (Value<?> key : map.getKeys()) {
         Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
@@ -69,11 +73,31 @@ public final class HasAllExpression extends MatchingExpression {
         }
       }
       return Boolean.TRUE;
-    } else {
-      return filterPredicateExpression.evaluate(
-          valueRefResolver.withExtensions(
-              Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)));
     }
+    if (value instanceof SetValue) {
+      SetValue set = (SetValue) value;
+      if (set.isEmpty()) {
+        // always return TRUE for empty values (cf vacuous truth, see also Stream::allMatch)
+        return Boolean.TRUE;
+      }
+      Set<?> setHolder = (Set<?>) set.getSetHolder();
+      if (WellKnownClasses.isSafe(setHolder)) {
+        for (Object val : setHolder) {
+          if (!filterPredicateExpression.evaluate(
+              valueRefResolver.withExtensions(
+                  Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, val)))) {
+            return Boolean.FALSE;
+          }
+        }
+        return Boolean.TRUE;
+      }
+      throw new EvaluationException(
+          "Unsupported Set class: " + setHolder.getClass().getTypeName(),
+          PrettyPrintVisitor.print(this));
+    }
+    return filterPredicateExpression.evaluate(
+        valueRefResolver.withExtensions(
+            Collections.singletonMap(ValueReferences.ITERATOR_EXTENSION_NAME, value)));
   }
 
   @Override
