@@ -37,7 +37,7 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.IAST) || isRaspEnabled();
+    return enabledSystems.contains(TargetSystem.IAST) || Config.get().isAppSecRaspEnabled();
   }
 
   @Override
@@ -48,21 +48,15 @@ public class IastInstrumentation extends CallSiteInstrumentation {
   @Override
   protected Advices buildAdvices(final Iterable<CallSites> callSites) {
     final List<Listener> listeners = new LinkedList<>();
-    if (isIastActive()) {
+    final boolean iastActive =
+        InstrumenterConfig.get().getIastActivation() == ProductActivation.FULLY_ENABLED;
+    if (iastActive) {
       if (Config.get().isIastHardcodedSecretEnabled()) {
         listeners.add(IastHardcodedSecretListener.INSTANCE);
       }
       listeners.add(StratumListener.INSTANCE);
     }
     return Advices.fromCallSites(callSites, listeners.toArray(new Listener[0]));
-  }
-
-  protected static boolean isIastActive() {
-    return InstrumenterConfig.get().getIastActivation() == ProductActivation.FULLY_ENABLED;
-  }
-
-  protected static boolean isRaspEnabled() {
-    return Config.get().isAppSecRaspEnabled();
   }
 
   public static final class IastMatchers {
@@ -91,17 +85,18 @@ public class IastInstrumentation extends CallSiteInstrumentation {
     public static final CallSiteSupplier INSTANCE;
 
     static {
-      final boolean iastActive = isIastActive();
       final List<Class<?>> spi = new LinkedList<>();
+      final boolean iastActive =
+          InstrumenterConfig.get().getIastActivation() == ProductActivation.FULLY_ENABLED;
       if (iastActive) {
         spi.add(IastCallSites.class);
       }
-      if (isRaspEnabled()) {
+      if (Config.get().isAppSecRaspEnabled()) {
         spi.add(RaspCallSites.class);
       }
       CallSiteSupplier supplier = new IastCallSiteSupplier(spi.toArray(new Class[0]));
       final Verbosity verbosity = Config.get().getIastTelemetryVerbosity();
-      if (isIastActive() && verbosity != Verbosity.OFF) {
+      if (iastActive && verbosity != Verbosity.OFF) {
         supplier = new TelemetryCallSiteSupplier(verbosity, supplier);
       }
       INSTANCE = supplier;
