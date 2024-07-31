@@ -11,6 +11,10 @@ import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.VulnerabilityMarks
 import datadog.trace.api.iast.sink.SsrfModule
 
+import static com.datadog.iast.taint.TaintUtils.fromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.getStringFromTaintFormat
+import static com.datadog.iast.taint.TaintUtils.taintFormat
+
 class SsrfModuleTest extends IastModuleImplTestBase {
 
   private SsrfModule module
@@ -101,34 +105,52 @@ class SsrfModuleTest extends IastModuleImplTestBase {
     0 * reporter.report(_, _)
 
     when:
-    if (toTaint == 'both') {
-      taint(host)
-      taint(uri)
-    } else {
-      taint(toTaint == 'host' ? host : uri)
-    }
+    host = tainted(host)
+    uri = taintedURI(uri)
     module.onURLConnection(value, host, uri)
 
     then: 'report is called when the host or uri are tainted'
     tracer.activeSpan() >> span
-    1 * reporter.report(span, {
-      Vulnerability vul ->
-      vul.type == VulnerabilityType.SSRF
-      && vul.evidence.value == value
-      && vul.evidence.ranges.length == 1
-      && vul.evidence.ranges[0].start == 0
-      && vul.evidence.ranges[0].length == value.length()
-    })
-
+    if (expected == null) {
+      0 * reporter.report(_, _)
+    } else {
+      1 * reporter.report(span, { Vulnerability vul ->
+        vul.type == VulnerabilityType.SSRF && taintFormat(vul.evidence.value, vul.evidence.ranges) == expected
+      })
+    }
 
     where:
-    value             | host         | uri                               | toTaint
-    'http://test.com' | new Object() | new URI('http://test.com/tested') | 'host'
-    'http://test.com' | new Object() | new URI('http://test.com/tested') | 'uri'
-    'http://test.com' | new Object() | new URI('http://test.com/tested') | 'both'
+    value                        | host                | uri                                | expected
+    'http://test.com/tested?1=1' | 'test.com'          | 'http://test.com/tested?1=1'       | null
+    'http://test.com/tested?1=1' | '==>test.com<=='    | 'http://test.com/tested?1=1'       | 'http://==>test.com<==/tested?1=1'
+    'http://test.com/tested?1=1' | '==>another.com<==' | 'http://test.com/tested?1=1'       | '==>http://test.com/tested?1=1<==' // no match so full taint
+    'http://test.com/tested?1=1' | 'test.com'          | '==>http://test.com/tested?1=1<==' | '==>http://test.com/tested?1=1<=='
+    'http://test.com/tested?1=1' | 'test.com'          | '==>http<==://test.com/tested?1=1' | '==>http<==://test.com/tested?1=1'
+    'http://test.com/tested?1=1' | 'test.com'          | 'http://==>test.com<==/tested?1=1' | 'http://==>test.com<==/tested?1=1'
+    'http://test.com/tested?1=1' | 'test.com'          | 'http://test.com/==>tested<==?1=1' | 'http://test.com/==>tested<==?1=1'
+    'http://test.com/tested?1=1' | 'test.com'          | 'http://test.com/tested==>?1=1<==' | 'http://test.com/tested==>?1=1<=='
   }
 
-  private void taint(final Object value) {
+  private taint(final Object value) {
     ctx.getTaintedObjects().taint(value, Ranges.forObject(new Source(SourceTypes.REQUEST_PARAMETER_VALUE, 'name', value.toString())))
+  }
+
+
+  private String tainted(final String url) {
+    final uri = getStringFromTaintFormat(url)
+    final ranges = fromTaintFormat(url)
+    if (ranges?.length > 0) {
+      ctx.getTaintedObjects().taint(uri, ranges)
+    }
+    return uri
+  }
+
+  private URI taintedURI(final String url) {
+    final uri = new URI(getStringFromTaintFormat(url))
+    final ranges = fromTaintFormat(url)
+    if (ranges?.length > 0) {
+      ctx.getTaintedObjects().taint(uri, ranges)
+    }
+    return uri
   }
 }

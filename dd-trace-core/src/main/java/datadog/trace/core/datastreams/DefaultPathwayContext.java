@@ -61,9 +61,12 @@ public class DefaultPathwayContext implements PathwayContext {
               TagsProcessor.TOPIC_TAG,
               TagsProcessor.EXCHANGE_TAG));
 
-  private static final Set<String> dataSetTagKeys =
+  private static final Set<String> extraAggregationTagKeys =
       new HashSet<String>(
-          Arrays.asList(TagsProcessor.DATASET_NAME_TAG, TagsProcessor.DATASET_NAMESPACE_TAG));
+          Arrays.asList(
+              TagsProcessor.DATASET_NAME_TAG,
+              TagsProcessor.DATASET_NAMESPACE_TAG,
+              TagsProcessor.MANUAL_TAG));
 
   public DefaultPathwayContext(TimeSource timeSource, WellKnownTags wellKnownTags) {
     this.timeSource = timeSource;
@@ -125,7 +128,7 @@ public class DefaultPathwayContext implements PathwayContext {
       // the number of tag keys for now. We should revisit this later if it's no longer the case.
       List<String> allTags = new ArrayList<>(sortedTags.size());
       PathwayHashBuilder pathwayHashBuilder = new PathwayHashBuilder(wellKnownTags);
-      DataSetHashBuilder dataSetHashBuilder = new DataSetHashBuilder();
+      DataSetHashBuilder aggregationHashBuilder = new DataSetHashBuilder();
 
       if (!started) {
         if (defaultTimestamp == 0) {
@@ -153,8 +156,8 @@ public class DefaultPathwayContext implements PathwayContext {
         if (hashableTagKeys.contains(entry.getKey())) {
           pathwayHashBuilder.addTag(tag);
         }
-        if (dataSetTagKeys.contains(entry.getKey())) {
-          dataSetHashBuilder.addValue(tag);
+        if (extraAggregationTagKeys.contains(entry.getKey())) {
+          aggregationHashBuilder.addValue(tag);
         }
         allTags.add(tag);
       }
@@ -174,7 +177,7 @@ public class DefaultPathwayContext implements PathwayContext {
       }
 
       long newHash = generatePathwayHash(nodeHash, hash);
-      long dataSetHash = dataSetHashBuilder.addValue(String.valueOf(newHash));
+      long aggregationHash = aggregationHashBuilder.addValue(String.valueOf(newHash));
 
       long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
       long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
@@ -184,7 +187,7 @@ public class DefaultPathwayContext implements PathwayContext {
               allTags,
               newHash,
               hash,
-              dataSetHash,
+              aggregationHash,
               startNanos,
               pathwayLatencyNano,
               edgeLatencyNano,
