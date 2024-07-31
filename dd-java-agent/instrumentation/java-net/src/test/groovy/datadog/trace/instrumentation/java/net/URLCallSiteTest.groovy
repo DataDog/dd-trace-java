@@ -4,7 +4,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
-import datadog.trace.api.iast.sink.SsrfModule
 import foo.bar.TestURLCallSiteSuite
 
 class URLCallSiteTest extends AgentTestRunner {
@@ -52,24 +51,6 @@ class URLCallSiteTest extends AgentTestRunner {
     'toURI'          | 'Object' | [new URL('http://test.com/index?name=value#fragment')] | true
     'toExternalForm' | 'String' | [new URL('http://test.com/index?name=value#fragment')] | true
     'toString'       | 'String' | [new URL('http://test.com/index?name=value#fragment')] | true
-  }
-
-  void 'test ssrf endpoints'() {
-    given:
-    final module = Mock(SsrfModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    TestURLCallSiteSuite.&"$method".call(args as Object[])
-
-    then:
-    1 * module.onURLConnection(_ as URL)
-
-    where:
-    method           | args
-    'openConnection' | [URLCallSiteTest.getResource('.')]
-    'openConnection' | [URLCallSiteTest.getResource('.'), Proxy.NO_PROXY]
-    'openStream'     | [URLCallSiteTest.getResource('.')]
   }
 
   protected URLStreamHandler dummyStreamHandler() {

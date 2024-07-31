@@ -31,11 +31,19 @@ class AssertBuilder<C extends CallSiteAssert> {
     def (enabled, enabledArgs) = getEnabledDeclaration(targetType, interfaces)
     return (C) new CallSiteAssert([
       interfaces : getInterfaces(targetType),
+      spi        : getSpi(targetType),
       helpers    : getHelpers(targetType),
       advices    : getAdvices(targetType),
       enabled    : enabled,
       enabledArgs: enabledArgs
     ])
+  }
+
+  protected List<Class<?>> getSpi(final ClassOrInterfaceDeclaration type) {
+    return type.getAnnotationByName('AutoService').get().asNormalAnnotationExpr()
+      .collect { it.pairs.find { it.name.toString() == 'value' }.value.asArrayInitializerExpr() }
+      .collectMany { it.getValues() }
+      .collect { it.asClassExpr().getType().resolve().typeDeclaration.get().clazz }
   }
 
   protected List<Class<?>> getInterfaces(final ClassOrInterfaceDeclaration type) {
@@ -74,7 +82,7 @@ class AssertBuilder<C extends CallSiteAssert> {
     return getMethodCalls(acceptMethod).findAll {
       it.nameAsString == 'addAdvice'
     }.collect {
-      def (owner, method, descriptor) =  it.arguments.subList(0, 3)*.asStringLiteralExpr()*.asString()
+      def (owner, method, descriptor) = it.arguments.subList(0, 3)*.asStringLiteralExpr()*.asString()
       final handlerLambda = it.arguments[3].asLambdaExpr()
       final advice = handlerLambda.body.asBlockStmt().statements*.toString()
       return new AdviceAssert([
