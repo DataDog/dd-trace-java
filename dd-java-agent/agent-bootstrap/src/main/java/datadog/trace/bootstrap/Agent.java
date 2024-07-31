@@ -204,11 +204,13 @@ public class Agent {
 
     boolean dataJobsEnabled = isFeatureEnabled(AgentFeature.DATA_JOBS);
     if (dataJobsEnabled) {
-      if (!isDataJobsSupported()) {
+      String javaCommand = System.getProperty("sun.java.command");
+      String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
+      if (!isDataJobsSupported(javaCommand, dataJobsCommandPattern)) {
         log.warn(
             "Data Jobs Monitoring is not compatible with non-spark command {} based on command pattern {}. dd-trace-java will not be installed",
-            System.getProperty("sun.java.command"),
-            Config.get().getDataJobsCommandPattern());
+            javaCommand,
+            dataJobsCommandPattern);
         return;
       }
 
@@ -1316,10 +1318,7 @@ public class Agent {
     return BootstrapProxy.INSTANCE.getResource("jdk/jfr/Recording.class") != null;
   }
 
-  private static boolean isDataJobsSupported() {
-    String javaCommand = System.getProperty("sun.java.command");
-    String dataJobsCommandPattern = Config.get().getDataJobsCommandPattern();
-
+  private static boolean isDataJobsSupported(String javaCommand, String dataJobsCommandPattern) {
     if (null == javaCommand || null == dataJobsCommandPattern) {
       // if sun.java.command somehow is not set or data jobs command pattern is not
       // set, assume it's supported due to lack of info.
