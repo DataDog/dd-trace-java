@@ -65,6 +65,7 @@ dependencies {
   spring6TestImplementation group: 'org.springframework', name: 'spring-context', version: '6.0.0.RELEASE'
   spring6TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '3.0.0'
 
+  spring6LatestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
   spring6LatestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '6.+'
   spring6LatestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '3.+'
 
