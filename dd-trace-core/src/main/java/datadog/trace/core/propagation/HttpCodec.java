@@ -211,10 +211,11 @@ public class HttpCodec {
     @Override
     public <C> TagContext extract(
         final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
-      ExtractedContext firstContext = null;
+      ExtractedContext context = null;
       ExtractedContext traceContext = null;
       TagContext partialContext = null;
       // Extract and cache all headers in advance
+      // Caching does not require an extractor to run
       ExtractionCache<C> extractionCache = new ExtractionCache<>(carrier, getter);
 
       for (final Extractor extractor : this.extractors) {
@@ -223,21 +224,23 @@ public class HttpCodec {
         if (extracted instanceof ExtractedContext) {
           ExtractedContext extractedContext = (ExtractedContext) extracted;
           // If no prior valid context, store it as first valid context
-          if (firstContext == null) {
-            firstContext = extractedContext;
+          if (context == null) {
+            context = extractedContext;
             // Stop extraction if only extracting first valid context and drop everything else
             if (this.extractFirst) {
               break;
             }
           }
-          // If another valid context is extracted (2+ contexts extracted)
+          // If another valid context is extracted
           else {
-            if (extracted.getPropagationStyle() == TRACECONTEXT) {
-              traceContext = extractedContext;
-            }
-            if (!traceIdMatch(firstContext.getTraceId(), extractedContext.getTraceId())) {
+            if (traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
+              boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
+              if (comingFromTraceContext) {
+                applyTraceContextToFirstContext(context, extractedContext, extractionCache);
+              }
+            } else {
               // Terminate extracted context and add it as span link
-              firstContext.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
+              context.addTerminatedContextLink(DDSpanLink.from((ExtractedContext) extracted));
               // TODO Note: Other vendor tracestate will be lost here
             }
           }
@@ -248,13 +251,9 @@ public class HttpCodec {
         }
       }
 
-      // After all the extractors have run, process the first extracted context and tracecontext (if
-      // available)
-      injectTraceContextToFirstContext(firstContext, traceContext, extractionCache);
-
-      if (firstContext != null) {
-        log.debug("Extract complete context {}", firstContext);
-        return firstContext;
+      if (context != null) {
+        log.debug("Extract complete context {}", context);
+        return context;
       } else if (partialContext != null) {
         log.debug("Extract incomplete context {}", partialContext);
         return partialContext;
@@ -265,37 +264,33 @@ public class HttpCodec {
     }
 
     /**
-     * Applies W3C trace context over any other valid context previously found. Noop if either
-     * firstContext or traceContext is null.
+     * Applies W3C trace context over any other valid context previously found.
      *
      * @param firstContext The first valid context found.
      * @param traceContext The trace context to apply.
      * @param extractionCache The extraction cache to get quick access to any extra information.
      * @param <C> The carrier type.
      */
-    private <C> void injectTraceContextToFirstContext(
+    private <C> void applyTraceContextToFirstContext(
         ExtractedContext firstContext,
         ExtractedContext traceContext,
         ExtractionCache<C> extractionCache) {
-      if (firstContext == null || traceContext == null) {
-        return;
-      }
-      if (traceIdMatch(firstContext.getTraceId(), traceContext.getTraceId())) {
-        // Propagate newly extracted W3C tracestate to first valid context
-        String extractedTracestate = traceContext.getPropagationTags().getW3CTracestate();
-        firstContext.getPropagationTags().updateW3CTracestate(extractedTracestate);
-        // reconcile differences between parent IDs (traceContext takes precedence)
-        if (firstContext.getSpanId() != traceContext.getSpanId()) {
-          firstContext.overrideSpanId(traceContext.getSpanId());
-          // Add last parent span id as tag (check W3C first, else Datadog)
-          CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
-          if (lastParentId == null) {
-            lastParentId = extractionCache.getDatadogSpanIdHeaderValue();
-          }
-          if (lastParentId != null) {
-            firstContext.getPropagationTags().updateLastParentId(lastParentId);
-            //            firstContext.getTags().put(PARENT_ID, lastParentId.toString());
-          }
+      // Propagate newly extracted W3C tracestate to first valid context
+      String extractedTracestate = traceContext.getPropagationTags().getW3CTracestate();
+      firstContext.getPropagationTags().updateW3CTracestate(extractedTracestate);
+      // Check if parent spans differ to reconcile them
+      if (firstContext.getSpanId() != traceContext.getSpanId()) {
+        // Override parent span id with W3C one
+        firstContext.overrideSpanId(traceContext.getSpanId());
+        // Add last parent span id as tag (from W3C first, else Datadog)
+        CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
+        if (lastParentId == null) {
+          lastParentId = extractionCache.getDatadogSpanIdHeaderValue();
+        }
+        if (lastParentId != null) {
+          // NOTE: This does not work to set _dd.parent_id on the resulting span.
+          firstContext.getPropagationTags().updateLastParentId(lastParentId);
+          //            firstContext.getTags().put(PARENT_ID, lastParentId.toString());
         }
       }
     }

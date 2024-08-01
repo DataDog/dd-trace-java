@@ -18,6 +18,11 @@ import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 
 class HttpExtractorTest extends DDSpecification {
 
+  private static final String W3C_TRACE_ID = "00000000000000000000000000000001"
+  private static final long W3C_SPAN_ID_LONG = 1311768467463790320L
+  private static final String W3C_SPAN_ID = Long.toString(W3C_SPAN_ID_LONG)
+  private static final CharSequence TRACE_PARENT_VALUE = '00-00000000000000000000000000000001-123456789abcdef0-01'
+
   @Shared
   String outOfRangeTraceId = (TRACE_ID_MAX + 1).toString()
 
@@ -45,6 +50,9 @@ class HttpExtractorTest extends DDSpecification {
     if (b3SpanId != null) {
       actual.put(B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId)
     }
+    if (w3cTraceParent != null) {
+      actual.put(W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), w3cTraceParent)
+    }
 
     if (putDatadogFields) {
       actual.put("SOME_HEADER", "my-interesting-info")
@@ -60,8 +68,16 @@ class HttpExtractorTest extends DDSpecification {
       if (expectedTraceId == null) {
         assert context == null
       } else {
-        assert context.traceId.toLong() == DDTraceId.from(expectedTraceId).toLong()
-        assert context.spanId == DDSpanId.from(expectedSpanId)
+        if (expectedTraceId == W3C_TRACE_ID) {
+          assert context.traceId == DDTraceId.fromHex(expectedTraceId)
+        } else {
+          assert context.traceId.toLong() == DDTraceId.from(expectedTraceId).toLong()
+        }
+        if (expectedSpanId == W3C_SPAN_ID) {
+          assert context.spanId == W3C_SPAN_ID_LONG
+        } else {
+          assert context.spanId == DDSpanId.from(expectedSpanId)
+        }
       }
     }
 
@@ -76,29 +92,30 @@ class HttpExtractorTest extends DDSpecification {
 
     where:
     // spotless:off
-    styles                           | datadogTraceId    | datadogSpanId     | b3TraceId         | b3SpanId          | w3cTraceId      | w3cSpanId       | expectedTraceId | expectedSpanId | putDatadogFields | expectDatadogFields | tagContext
-    [DATADOG, B3MULTI]               | "1"               | "2"               | "a"               | "b"               | null            | null            | "1"             | "2"            | true             | true                | false
-    [DATADOG, B3MULTI]               | null              | null              | "a"               | "b"               | null            | null            | "10"            | "11"           | false            | false               | true
-    [DATADOG, B3MULTI]               | null              | null              | "a"               | "b"               | null            | null            | null            | null           | true             | true                | true
-    [DATADOG]                        | "1"               | "2"               | "a"               | "b"               | null            | null            | "1"             | "2"            | true             | true                | false
-    [B3MULTI]                        | "1"               | "2"               | "a"               | "b"               | null            | null            | "10"            | "11"           | false            | false               | false
-    [B3MULTI, DATADOG]               | "1"               | "2"               | "a"               | "b"               | null            | null            | "10"            | "11"           | false            | false               | false
-    []                               | "1"               | "2"               | "a"               | "b"               | null            | null            | null            | null           | false            | false               | false
-    [DATADOG, B3MULTI]               | "abc"             | "2"               | "a"               | "b"               | null            | null            | "10"            | "11"           | false            | false               | false
-    [DATADOG]                        | "abc"             | "2"               | "a"               | "b"               | null            | null            | null            | null           | false            | false               | false
-    [DATADOG, B3MULTI]               | outOfRangeTraceId | "2"               | "a"               | "b"               | null            | null            | "10"            | "11"           | false            | false               | false
-    [DATADOG, B3MULTI]               | "1"               | outOfRangeTraceId | "a"               | "b"               | null            | null            | "10"            | "11"           | false            | false               | false
-    [DATADOG]                        | outOfRangeTraceId | "2"               | "a"               | "b"               | null            | null            | null            | null           | false            | false               | false
-    [DATADOG]                        | "1"               | outOfRangeTraceId | "a"               | "b"               | null            | null            | null            | null           | false            | false               | false
-    [DATADOG, B3MULTI]               | "1"               | "2"               | outOfRangeTraceId | "b"               | null            | null            | "1"             | "2"            | true             | false               | false
-    [DATADOG, B3MULTI]               | "1"               | "2"               | "a"               | outOfRangeTraceId | null            | null            | "1"             | "2"            | true             | false               | false
-    [NONE]                           | "1"               | "2"               | null              | null              | null            | null            | null            | null           | true             | false               | true
-    [DATADOG, TRACECONTEXT]          | "1"               | "2"               | null              | null              | "3"             | "4"             | "1"             | "4"            | false            | false               | true
-    [DATADOG, TRACECONTEXT, B3MULTI] | "1"               | "2"               | "a"               | "b"               | "3"             | "4"             | "1"             | "4"            | false            | false               | true
-    [TRACECONTEXT, DATADOG]          | "1"               | "2"               | null              | null              | "3"             | "4"             | "1"             | "4"            | false            | false               | true
-    [TRACECONTEXT, B3MULTI]          | null              | null              | "a"               | "b"               | "3"             | "4"             | "3"             | "4"            | false            | false               | true
-    [TRACECONTEXT, B3MULTI, DATADOG] | "1"               | "2"               | "a"               | "b"               | "3"             | "4"             | "3"             | "4"            | false            | false               | true
-    [B3MULTI, DATADOG, TRACECONTEXT] | "1"               | "2"               | "a"               | "b"               | "3"             | "4"             | "3"             | "4"            | false            | false               | true
+    styles                           | datadogTraceId    | datadogSpanId     | b3TraceId         | b3SpanId          | w3cTraceParent     | expectedTraceId | expectedSpanId | putDatadogFields | expectDatadogFields | tagContext
+    [DATADOG, B3MULTI]               | "1"               | "2"               | "a"               | "b"               | null               | "1"             | "2"            | true             | true                | false
+    [DATADOG, B3MULTI]               | null              | null              | "a"               | "b"               | null               | "10"            | "11"           | false            | false               | true
+    [DATADOG, B3MULTI]               | null              | null              | "a"               | "b"               | null               | null            | null           | true             | true                | true
+    [DATADOG]                        | "1"               | "2"               | "a"               | "b"               | null               | "1"             | "2"            | true             | true                | false
+    [B3MULTI]                        | "1"               | "2"               | "a"               | "b"               | null               | "10"            | "11"           | false            | false               | false
+    [B3MULTI, DATADOG]               | "1"               | "2"               | "a"               | "b"               | null               | "10"            | "11"           | false            | false               | false
+    []                               | "1"               | "2"               | "a"               | "b"               | null               | null            | null           | false            | false               | false
+    [DATADOG, B3MULTI]               | "abc"             | "2"               | "a"               | "b"               | null               | "10"            | "11"           | false            | false               | false
+    [DATADOG]                        | "abc"             | "2"               | "a"               | "b"               | null               | null            | null           | false            | false               | false
+    [DATADOG, B3MULTI]               | outOfRangeTraceId | "2"               | "a"               | "b"               | null               | "10"            | "11"           | false            | false               | false
+    [DATADOG, B3MULTI]               | "1"               | outOfRangeTraceId | "a"               | "b"               | null               | "10"            | "11"           | false            | false               | false
+    [DATADOG]                        | outOfRangeTraceId | "2"               | "a"               | "b"               | null               | null            | null           | false            | false               | false
+    [DATADOG]                        | "1"               | outOfRangeTraceId | "a"               | "b"               | null               | null            | null           | false            | false               | false
+    [DATADOG, B3MULTI]               | "1"               | "2"               | outOfRangeTraceId | "b"               | null               | "1"             | "2"            | true             | false               | false
+    [DATADOG, B3MULTI]               | "1"               | "2"               | "a"               | outOfRangeTraceId | null               | "1"             | "2"            | true             | false               | false
+    [NONE]                           | "1"               | "2"               | null              | null              | null               | null            | null           | true             | false               | true
+    [DATADOG, TRACECONTEXT]          | "1"               | "2"               | null              | null              | TRACE_PARENT_VALUE | "1"             | W3C_SPAN_ID    | false            | false               | false
+    [DATADOG, TRACECONTEXT, B3MULTI] | "1"               | "2"               | "1"               | "2"               | TRACE_PARENT_VALUE | "1"             | W3C_SPAN_ID    | false            | false               | false
+    [TRACECONTEXT, DATADOG]          | "1"               | "2"               | null              | null              | TRACE_PARENT_VALUE | W3C_TRACE_ID    | W3C_SPAN_ID    | false            | false               | false
+    [TRACECONTEXT, B3MULTI]          | null              | null              | "1"               | "2"               | TRACE_PARENT_VALUE | W3C_TRACE_ID    | W3C_SPAN_ID    | false            | false               | false
+    [TRACECONTEXT, B3MULTI, DATADOG] | "1"               | "2"               | "1"               | "4"               | TRACE_PARENT_VALUE | W3C_TRACE_ID    | W3C_SPAN_ID    | false            | false               | false
+    [B3MULTI, DATADOG, TRACECONTEXT] | "1"               | "2"               | "1"               | "4"               | TRACE_PARENT_VALUE | "1"             | W3C_SPAN_ID    | false            | false               | false
+    [TRACECONTEXT]                   | null              | null              | null              | null              | TRACE_PARENT_VALUE | W3C_TRACE_ID    | W3C_SPAN_ID    | false            | false               | false
     // spotless:on
   }
 }
