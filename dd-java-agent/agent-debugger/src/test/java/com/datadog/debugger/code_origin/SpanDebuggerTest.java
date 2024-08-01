@@ -28,15 +28,14 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.test.util.DDSpecification;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.Arrays;
 import java.util.HashSet;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class SpanDebuggerTest {
+public class SpanDebuggerTest extends DDSpecification {
   private ClassNameFiltering classNameFiltering;
 
   private ConfigurationUpdater configurationUpdater;
@@ -48,18 +47,9 @@ public class SpanDebuggerTest {
   private DefaultSpanDebugger spanDebugger;
   private TracerAPI tracerAPI;
 
-  @BeforeAll
-  public static void enableCodeOrigin() {
-    System.setProperty("dd.trace.span.origin.enabled", "true");
-  }
-
-  @AfterAll
-  public static void disableCodeOrigin() {
-    System.setProperty("dd.trace.span.origin.enabled", "false");
-  }
-
   @BeforeEach
   public void setUp() {
+    injectSysConfig("dd.trace.span.origin.enabled", "true");
     AgentTracer.registerIfAbsent(CoreTracer.builder().build());
     tracerAPI = AgentTracer.get();
     configurationUpdater = mock(ConfigurationUpdater.class);

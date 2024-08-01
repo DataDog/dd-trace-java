@@ -138,7 +138,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority,
         CharSequence origin,
         CharSequence lastParentId) {
-      assert tagPairs == null || tagPairs.size() % DEBUG_PROPAGATION_DEFAULT == 0;
+      assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
       this.canChangeDecisionMaker = decisionMakerTagValue == null;
