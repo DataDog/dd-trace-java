@@ -212,10 +212,8 @@ public class HttpCodec {
     public <C> TagContext extract(
         final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
       ExtractedContext context = null;
-      ExtractedContext traceContext = null;
       TagContext partialContext = null;
       // Extract and cache all headers in advance
-      // Caching does not require an extractor to run
       ExtractionCache<C> extractionCache = new ExtractionCache<>(carrier, getter);
 
       for (final Extractor extractor : this.extractors) {
