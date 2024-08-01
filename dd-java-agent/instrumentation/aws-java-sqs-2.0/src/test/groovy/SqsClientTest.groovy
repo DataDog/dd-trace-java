@@ -1,14 +1,11 @@
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static java.nio.charset.StandardCharsets.UTF_8
-
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Config
-import datadog.trace.api.DDTags
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.naming.SpanNaming
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -22,14 +19,17 @@ import software.amazon.awssdk.core.SdkSystemSetting
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
-import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import software.amazon.awssdk.services.sqs.model.Message
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import javax.jms.Session
+
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static java.nio.charset.StandardCharsets.UTF_8
 
 abstract class SqsClientTest extends VersionedNamingTestBase {
 
@@ -297,10 +297,16 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     TEST_WRITER.clear()
 
     when:
+    def ddMsgAttribute = MessageAttributeValue.builder()
+      .dataType("Binary")
+      .binaryValue(SdkBytes.fromUtf8String("hello world")).build()
     connection.start()
-    TraceUtils.runUnderTrace('parent', {
-      client.sendMessage(SendMessageRequest.builder().queueUrl(queue.queueUrl).messageBody('sometext').build())
-    })
+    TraceUtils.runUnderTrace('parent') {
+      client.sendMessage(SendMessageRequest.builder()
+        .queueUrl(queue.queueUrl)
+        .messageBody('sometext')
+        .messageAttributes([_datadog: ddMsgAttribute]).build())
+    }
     def message = consumer.receive()
     consumer.receiveNoWait()
 
@@ -428,6 +434,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     def expectedTraceProperty = 'X-Amzn-Trace-Id'.toLowerCase(Locale.ENGLISH).replace('-', '__dash__')
     assert message.getStringProperty(expectedTraceProperty) =~
     /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
+    assert !message.propertyExists("_datadog")
 
     cleanup:
     session.close()

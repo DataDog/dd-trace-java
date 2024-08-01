@@ -1,5 +1,6 @@
 package datadog.cws.tls;
 
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
@@ -24,8 +25,7 @@ public class TlsScopeListener implements ExtendedScopeListener {
     Deque<Span> stack = spanStack.get();
 
     Span top = stack.peek();
-    if (top == null || top.getTraceId().toLong() != traceId.toLong() || top.getSpanId() != spanId) {
-
+    if (top == null || !top.getTraceId().equals(traceId) || top.getSpanId() != spanId) {
       Span span = new Span(traceId, spanId);
       stack.push(span);
     }
@@ -44,7 +44,7 @@ public class TlsScopeListener implements ExtendedScopeListener {
         return;
       }
     }
-    tls.registerSpan(DDTraceId.ZERO, DDSpanId.ZERO);
+    tls.registerSpan(DD128bTraceId.ZERO, DDSpanId.ZERO);
   }
 
   @Override

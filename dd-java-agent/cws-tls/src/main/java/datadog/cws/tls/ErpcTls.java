@@ -10,6 +10,7 @@ import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import datadog.cws.erpc.Erpc;
 import datadog.cws.erpc.Request;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
 
 /**
@@ -21,7 +22,9 @@ import datadog.trace.api.DDTraceId;
 public class ErpcTls implements Tls {
   public static final byte REGISTER_SPAN_TLS_OP = 6;
   public static final long TLS_FORMAT = 0;
-  static final long ENTRY_SIZE = Native.LONG_SIZE * 2;
+  static final int SPAN_ID_SIZE = 8; // 64 bits
+  static final int TRACE_ID_SIZE = 16; // 128 bits
+  static final long ENTRY_SIZE = SPAN_ID_SIZE + TRACE_ID_SIZE;
 
   // Thread local storage
   private Pointer tls;
@@ -134,7 +137,7 @@ public class ErpcTls implements Tls {
   }
 
   private long getTraceIdOffset(int threadId) {
-    return getSpanIdOffset(threadId) + Native.LONG_SIZE;
+    return getSpanIdOffset(threadId) + SPAN_ID_SIZE;
   }
 
   public void registerSpan(int threadId, DDTraceId traceId, long spanId) {
@@ -142,7 +145,8 @@ public class ErpcTls implements Tls {
     long traceIdOffset = getTraceIdOffset(threadId);
 
     tls.setLong(spanIdOffset, spanId);
-    tls.setLong(traceIdOffset, traceId.toLong());
+    tls.setLong(traceIdOffset, traceId.toLong()); // low bits
+    tls.setLong(traceIdOffset + 8, traceId.toHighOrderLong()); // high bits
   }
 
   public void registerSpan(DDTraceId traceId, long spanId) {
@@ -160,7 +164,9 @@ public class ErpcTls implements Tls {
 
   public DDTraceId getTraceId(int threadId) {
     long offset = getTraceIdOffset(threadId);
-    return DDTraceId.from(tls.getLong(offset));
+    long lowBits = tls.getLong(offset);
+    long highBits = tls.getLong(offset + 8);
+    return DD128bTraceId.from(highBits, lowBits);
   }
 
   public DDTraceId getTraceId() {

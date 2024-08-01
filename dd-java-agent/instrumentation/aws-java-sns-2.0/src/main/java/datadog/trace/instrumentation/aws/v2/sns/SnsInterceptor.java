@@ -100,8 +100,8 @@ public class SnsInterceptor implements ExecutionInterceptor {
   private LinkedHashMap<String, String> getTags(String snsTopicName) {
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-    sortedTags.put(TYPE_TAG, "sns");
     sortedTags.put(TOPIC_TAG, snsTopicName);
+    sortedTags.put(TYPE_TAG, "sns");
 
     return sortedTags;
   }
