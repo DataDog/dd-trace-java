@@ -13,7 +13,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 final jacksonVersion = '1.9.13'
 dependencies {
+  implementation project(':dd-java-agent:instrumentation:appsec-utils')
   compileOnly(group: 'org.codehaus.jackson', name: 'jackson-core-asl', version: jacksonVersion)
-
   testImplementation(group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: jacksonVersion)
 }
