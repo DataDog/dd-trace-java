@@ -21,6 +21,9 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 final jacksonVersion = '2.14.0'
 dependencies {
+
+  implementation project(':dd-java-agent:instrumentation:appsec-utils')
+
   compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: jacksonVersion)
   compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion)
 
