@@ -60,7 +60,7 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
 
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    repoRoot = ciInfo.getCiWorkspace();
+    repoRoot = ciInfo.getNormalizedCiWorkspace();
     moduleName = getModuleName(services.config, path, ciInfo);
     ciTags = new CITagsProvider().getCiTags(ciInfo);
 
@@ -97,7 +97,7 @@ public class CiVisibilityRepoServices {
     if (parentModuleName != null) {
       return parentModuleName;
     }
-    String repoRoot = ciInfo.getCiWorkspace();
+    String repoRoot = ciInfo.getNormalizedCiWorkspace();
     if (repoRoot != null
         && path.startsWith(repoRoot)
         // module name cannot be empty

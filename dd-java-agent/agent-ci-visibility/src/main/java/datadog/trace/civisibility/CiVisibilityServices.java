@@ -90,7 +90,7 @@ public class CiVisibilityServices {
           new ConventionBasedResourceResolver(
               fileSystem, config.getCiVisibilityResourceFolderNames());
       this.repoIndexProviderFactory =
-          new CachingRepoIndexBuilderFactory(config, packageResolver, resourceResolver, fileSystem);
+          new CachingRepoIndexBuilderFactory(config, packageResolver, resourceResolver);
     }
   }
 

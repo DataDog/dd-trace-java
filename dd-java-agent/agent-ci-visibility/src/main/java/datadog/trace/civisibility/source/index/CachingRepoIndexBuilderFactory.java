@@ -3,7 +3,6 @@ package datadog.trace.civisibility.source.index;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import java.nio.file.FileSystem;
 
 public class CachingRepoIndexBuilderFactory implements RepoIndexProvider.Factory {
 
@@ -11,17 +10,14 @@ public class CachingRepoIndexBuilderFactory implements RepoIndexProvider.Factory
   private final Config config;
   private final PackageResolver packageResolver;
   private final ResourceResolver resourceResolver;
-  private final FileSystem fileSystem;
 
   public CachingRepoIndexBuilderFactory(
       Config config,
       PackageResolver packageResolver,
-      ResourceResolver resourceResolver,
-      FileSystem fileSystem) {
+      ResourceResolver resourceResolver) {
     this.config = config;
     this.packageResolver = packageResolver;
     this.resourceResolver = resourceResolver;
-    this.fileSystem = fileSystem;
   }
 
   @Override
@@ -30,6 +26,6 @@ public class CachingRepoIndexBuilderFactory implements RepoIndexProvider.Factory
   }
 
   private RepoIndexProvider doCreate(String repoRoot) {
-    return new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem);
+    return new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver);
   }
 }

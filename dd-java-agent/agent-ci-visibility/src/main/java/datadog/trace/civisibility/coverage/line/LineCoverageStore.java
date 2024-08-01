@@ -15,12 +15,14 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.data.ExecutionDataStore;
@@ -40,7 +42,7 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
   private final SourcePathResolver sourcePathResolver;
 
   private LineCoverageStore(
-      Supplier<LineProbes> probesFactory,
+      Function<Boolean, LineProbes> probesFactory,
       CiVisibilityMetricCollector metrics,
       SourcePathResolver sourcePathResolver) {
     super(probesFactory);
@@ -151,8 +153,8 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       return new LineCoverageStore(this::createProbes, metrics, sourcePathResolver);
     }
 
-    private LineProbes createProbes() {
-      return new LineProbes(metrics, probeCounts);
+    private LineProbes createProbes(boolean isTestThread) {
+      return new LineProbes(metrics, probeCounts, isTestThread);
     }
 
     @Override

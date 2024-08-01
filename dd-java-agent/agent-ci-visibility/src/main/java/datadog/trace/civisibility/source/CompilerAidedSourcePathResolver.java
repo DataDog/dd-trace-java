@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.source;
 
 import datadog.compiler.utils.CompilerUtils;
-import java.io.File;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -10,7 +9,7 @@ public class CompilerAidedSourcePathResolver implements SourcePathResolver {
   private final String repoRoot;
 
   public CompilerAidedSourcePathResolver(String repoRoot) {
-    this.repoRoot = repoRoot.endsWith(File.separator) ? repoRoot : (repoRoot + File.separator);
+    this.repoRoot = repoRoot;
   }
 
   @Nullable

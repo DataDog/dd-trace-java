@@ -17,6 +17,7 @@ import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.civisibility.communication.TelemetryListener;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
@@ -298,8 +299,12 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       if (encodedCoverage != null) {
         coverage = new HashMap<>();
         for (Map.Entry<String, String> e : encodedCoverage.entrySet()) {
+          String relativeSourceFilePath = e.getKey();
+          String normalizedSourceFilePath = relativeSourceFilePath.startsWith(File.separator)
+              ? relativeSourceFilePath.substring(1)
+              : relativeSourceFilePath;
           byte[] decodedLines = Base64.getDecoder().decode(e.getValue());
-          coverage.put(e.getKey(), BitSet.valueOf(decodedLines));
+          coverage.put(normalizedSourceFilePath, BitSet.valueOf(decodedLines));
         }
       } else {
         coverage = null;

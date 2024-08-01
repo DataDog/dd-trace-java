@@ -3053,8 +3053,7 @@ public class Config {
   }
 
   // FIXME nikita: see if I can have this enabled automatically if there's Jacoco
-  // FIXME nikita: see if I can avoid enabling this if the backend tells me test_skipping is
-  // disabled for this session
+  // FIXME nikita: see if I can avoid enabling this if the backend tells me code_coverage is disabled for this session
   public boolean isCiVisibilityItrCodeCoveragePercentageCalculationEnabled() {
     return ciVisibilityItrCodeCoveragePercentageCalculationEnabled;
   }

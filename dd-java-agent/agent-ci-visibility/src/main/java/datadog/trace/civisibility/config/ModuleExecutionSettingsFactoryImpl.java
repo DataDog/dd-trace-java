@@ -100,7 +100,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         skippableTestsByModuleName =
             (Map<String, Collection<TestIdentifier>>)
                 groupTestsByModule(tracerEnvironment, skippableTests.getIdentifiers());
-        skippableTestsCoverage = skippableTests.getCoveredLinesByRelativeSourcePath();
+        skippableTestsCoverage = skippableTests.getCoveredLinesByRelativeSourcePath(); // FIXME nikita: check the "line_data_missing" attribute
       }
     }
 

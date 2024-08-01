@@ -8,6 +8,7 @@ import datadog.trace.civisibility.ipc.AckResponse;
 import datadog.trace.civisibility.ipc.ModuleCoverageDataItr;
 import datadog.trace.civisibility.ipc.SignalResponse;
 import datadog.trace.civisibility.ipc.SignalType;
+import datadog.trace.civisibility.utils.FileUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.BitSet;
@@ -72,7 +73,6 @@ public class ItrCoverageCalculator implements CoverageCalculator {
 
   private final Object coverageDataLock = new Object();
 
-  // FIXME nikita: consider using a Trie
   @GuardedBy("coverageDataLock")
   private final Collection<String> sourceDirsRelativeToRepoRoot = new HashSet<>();
 
@@ -117,10 +117,10 @@ public class ItrCoverageCalculator implements CoverageCalculator {
           continue;
         }
         for (File source : sourceSet.getSources()) {
-          String sourceString = source.toString();
+          String sourceString = FileUtils.toRealPath(source.toString());
           if (sourceString.startsWith(repoRoot)) {
             sourceDirsRelativeToRepoRoot.add(
-                sourceString.substring(repoRoot.length() + (repoRoot.endsWith("/") ? 0 : 1)));
+                sourceString.substring(repoRoot.length()));
           }
         }
         outputClassesDirs.add(sourceSet.getOutput());
@@ -178,6 +178,7 @@ public class ItrCoverageCalculator implements CoverageCalculator {
   }
 
   private boolean include(String sourceFileName) {
+    // TODO consider using a trie if this ever shows up in a performance profile
     for (String sourceDir : sourceDirsRelativeToRepoRoot) {
       if (sourceFileName.startsWith(sourceDir)) {
         return true;
@@ -186,7 +187,7 @@ public class ItrCoverageCalculator implements CoverageCalculator {
     return false;
   }
 
-  // TODO see if this can be done without relying on Jacoco
+  // TODO see if this can be done without Jacoco's help
   private int getTotalExecutableLines() throws IOException {
     CoverageBuilder coverageBuilder = new CoverageBuilder();
     Analyzer analyzer = new Analyzer(new ExecutionDataStore(), coverageBuilder);

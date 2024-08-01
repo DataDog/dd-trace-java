@@ -51,6 +51,8 @@ public abstract class CoverageBridge {
       return currentTest.getCoverageStore().getProbes();
     }
 
+    // FIXME nikita: return "global" coverage probes if ITR code coverage is enabled
+
     return NoOpProbes.INSTANCE;
   }
 

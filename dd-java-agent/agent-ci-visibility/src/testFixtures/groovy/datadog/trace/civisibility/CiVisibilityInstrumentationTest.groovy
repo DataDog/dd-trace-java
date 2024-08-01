@@ -163,7 +163,6 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       codeowners,
       methodLinesResolver,
       moduleExecutionSettingsFactory,
-      coverageStoreFactory,
       signalServer,
       repoIndexBuilder,
       new NoOpCoverageCalculator.Factory()

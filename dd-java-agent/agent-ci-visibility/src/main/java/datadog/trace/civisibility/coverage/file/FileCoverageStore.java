@@ -17,7 +17,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +34,7 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
   private final SourcePathResolver sourcePathResolver;
 
   private FileCoverageStore(
-      Supplier<FileProbes> probesFactory,
+      Function<Boolean, FileProbes> probesFactory,
       CiVisibilityMetricCollector metrics,
       SourcePathResolver sourcePathResolver) {
     super(probesFactory);
@@ -120,8 +120,8 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
       return new FileCoverageStore(this::createProbes, metrics, sourcePathResolver);
     }
 
-    private FileProbes createProbes() {
-      return new FileProbes(metrics);
+    private FileProbes createProbes(boolean isTestThread) {
+      return new FileProbes(metrics, isTestThread);
     }
 
     @Override
