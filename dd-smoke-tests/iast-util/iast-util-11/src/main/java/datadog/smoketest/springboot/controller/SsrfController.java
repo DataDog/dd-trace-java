@@ -13,14 +13,20 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/ssrf")
 public class SsrfController {
 
+  private static final String DEFAULT_PROTOCOL = "http://";
+
   @PostMapping("/java-net")
   public String javaNet(
       @RequestParam(value = "url", required = false) final String url,
       @RequestParam(value = "async", required = false) final boolean async,
-      @RequestParam(value = "promise", required = false) final boolean promise) {
+      @RequestParam(value = "promise", required = false) final boolean promise,
+      @RequestParam(value = "domain", required = false) final String domain) {
     HttpClient httpClient = HttpClient.newBuilder().build();
     try {
-      HttpRequest httpRequest = HttpRequest.newBuilder().uri(new URI(url)).build();
+      HttpRequest httpRequest =
+          HttpRequest.newBuilder()
+              .uri(new URI(url != null ? url : DEFAULT_PROTOCOL + domain))
+              .build();
       if (async) {
         if (promise) {
           httpClient.sendAsync(

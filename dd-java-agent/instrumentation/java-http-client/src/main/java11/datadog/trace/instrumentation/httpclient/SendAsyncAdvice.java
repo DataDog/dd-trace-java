@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,25 +20,32 @@ public class SendAsyncAdvice {
   public static AgentScope methodEnter(
       @Advice.Argument(value = 0) final HttpRequest httpRequest,
       @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler) {
-    // Here we avoid having the advice applied twice in case we have nested call of this intercepted
-    // method.
-    // In this particular case, in HttpClientImpl the send method is calling sendAsync under the
-    // hood and we do not want to instrument twice.
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
-      return null;
-    }
-    final AgentSpan span = AgentTracer.startSpan(JavaNetClientDecorator.OPERATION_NAME);
-    final AgentScope scope = activateSpan(span, true);
-    if (bodyHandler != null) {
-      bodyHandler = new BodyHandlerWrapper<>(bodyHandler, captureSpan(span));
-    }
+    try {
+      // Here we avoid having the advice applied twice in case we have nested call of this
+      // intercepted
+      // method.
+      // In this particular case, in HttpClientImpl the send method is calling sendAsync under the
+      // hood and we do not want to instrument twice.
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+      if (callDepth > 0) {
+        return null;
+      }
+      final AgentSpan span = AgentTracer.startSpan(JavaNetClientDecorator.OPERATION_NAME);
+      final AgentScope scope = activateSpan(span, true);
+      if (bodyHandler != null) {
+        bodyHandler = new BodyHandlerWrapper<>(bodyHandler, captureSpan(span));
+      }
 
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, httpRequest);
+      DECORATE.afterStart(span);
+      DECORATE.onRequest(span, httpRequest);
 
-    // propagation is done by another instrumentation since Headers are immutable
-    return scope;
+      // propagation is done by another instrumentation since Headers are immutable
+      return scope;
+    } catch (BlockingException e) {
+      CallDepthThreadLocalMap.reset(HttpClient.class);
+      // re-throw blocking exceptions
+      throw e;
+    }
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

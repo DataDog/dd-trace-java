@@ -1,17 +1,28 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.SsrfModule;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
@@ -21,6 +32,7 @@ import java.net.URISyntaxException;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,8 +80,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
+
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
+
+      if (CLIENT_TAG_HEADERS) {
+        for (Map.Entry<String, String> headerTag :
+            traceConfig(span).getRequestHeaderTags().entrySet()) {
+          String headerValue = getRequestHeader(request, headerTag.getKey());
+          if (null != headerValue) {
+            span.setTag(headerTag.getValue(), headerValue);
+          }
+        }
+      }
 
       // Copy of HttpServerDecorator url handling
       try {
@@ -86,24 +109,15 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           if (shouldSetResourceName()) {
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
           }
+          // SSRF exploit prevention check
+          onNetworkConnection(url.toString());
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
       }
-
       ssrfIastCheck(request);
-
-      if (CLIENT_TAG_HEADERS) {
-        for (Map.Entry<String, String> headerTag :
-            traceConfig(span).getRequestHeaderTags().entrySet()) {
-          String headerValue = getRequestHeader(request, headerTag.getKey());
-          if (null != headerValue) {
-            span.setTag(headerTag.getValue(), headerValue);
-          }
-        }
-      }
     }
     return span;
   }
@@ -173,6 +187,48 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     }
 
     return 0;
+  }
+
+  private void onNetworkConnection(final String networkConnection) {
+    if (!Config.get().isAppSecRaspEnabled()) {
+      return;
+    }
+    if (networkConnection == null) {
+      return;
+    }
+    final BiFunction<RequestContext, String, Flow<Void>> networkConnectionCallback =
+        AgentTracer.get()
+            .getCallbackProvider(RequestContextSlot.APPSEC)
+            .getCallback(EVENTS.networkConnection());
+
+    if (networkConnectionCallback == null) {
+      return;
+    }
+
+    final AgentSpan span = AgentTracer.get().activeSpan();
+    if (span == null) {
+      return;
+    }
+
+    final RequestContext ctx = span.getRequestContext();
+    if (ctx == null) {
+      return;
+    }
+
+    Flow<Void> flow = networkConnectionCallback.apply(ctx, networkConnection);
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      BlockResponseFunction brf = ctx.getBlockResponseFunction();
+      if (brf != null) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        brf.tryCommitBlockingResponse(
+            ctx.getTraceSegment(),
+            rba.getStatusCode(),
+            rba.getBlockingContentType(),
+            rba.getExtraHeaders());
+      }
+      throw new BlockingException("Blocked request (for SSRF attempt)");
+    }
   }
 
   /* This method must be overriden after making the proper propagations to the client before **/

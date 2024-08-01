@@ -8,6 +8,11 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.HttpMethod;
+import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -65,12 +70,52 @@ public class WebController {
   }
 
   @GetMapping("/ssrf/query")
-  public String ssrfQuery(@RequestParam("domain") String domain) {
+  public String ssrfQuery(@RequestParam("domain") final String domain) {
     try {
       new URL("http://" + domain).openStream().close();
     } catch (Throwable e) {
       // ignore errors opening connection
     }
+    return "EXECUTED";
+  }
+
+  @GetMapping("/ssrf/apache-httpclient4")
+  public String apacheHttpClient4(@RequestParam("domain") final String domain) {
+    final DefaultHttpClient client = new DefaultHttpClient();
+    try {
+      final HttpGet request = new HttpGet("http://" + domain);
+      client.execute(request);
+    } catch (Exception e) {
+      // ignore errors opening connection
+    }
+    client.getConnectionManager().shutdown();
+    return "EXECUTED";
+  }
+
+  @GetMapping("/ssrf/commons-httpclient2")
+  public String commonsHttpClient2(@RequestParam("domain") final String domain) {
+    final HttpClient client = new HttpClient();
+    final HttpMethod method = new GetMethod("http://" + domain);
+    try {
+      client.executeMethod(method);
+    } catch (final Exception e) {
+      // ignore errors opening connection
+    }
+    method.releaseConnection();
+    return "EXECUTED";
+  }
+
+  @GetMapping("/ssrf/okHttp3")
+  public String okHttp3(@RequestParam("domain") final String domain) {
+    final okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
+    final okhttp3.Request request = new okhttp3.Request.Builder().url("http://" + domain).build();
+    try {
+      client.newCall(request).execute();
+    } catch (final Exception e) {
+      // ignore errors opening connection
+    }
+    client.dispatcher().executorService().shutdown();
+    client.connectionPool().evictAll();
     return "EXECUTED";
   }
 
