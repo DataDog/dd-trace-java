@@ -10,6 +10,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
+import datadog.trace.util.AgentThreadFactory;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -132,7 +133,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     // - no access to the exit code
     Runtime.getRuntime()
         .addShutdownHook(
-            new Thread(
+            AgentThreadFactory.newAgentThread(
+                AgentThreadFactory.AgentThread.DATA_JOBS_MONITORING_SHUTDOWN_HOOK,
                 () -> {
                   if (!applicationEnded) {
                     log.info("Finishing application trace from shutdown hook");
