@@ -38,13 +38,19 @@ public class ServletFileUploadInstrumenter extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("parseRequest").and(isPublic()).and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
+        named("parseRequest")
+            .and(isPublic())
+            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
         getClass().getName() + "$ParseRequestAdvice");
     transformer.applyAdvice(
-        named("parseParameterMap").and(isPublic()).and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
+        named("parseParameterMap")
+            .and(isPublic())
+            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
         getClass().getName() + "$ParseParameterMapAdvice");
     transformer.applyAdvice(
-        named("getItemIterator").and(isPublic()).and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
+        named("getItemIterator")
+            .and(isPublic())
+            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
         getClass().getName() + "$GetItemIteratorAdvice");
   }
 
