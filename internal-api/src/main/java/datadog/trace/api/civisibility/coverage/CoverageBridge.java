@@ -10,9 +10,7 @@ public abstract class CoverageBridge {
 
   private static volatile CoverageStore.Registry COVERAGE_STORE_REGISTRY;
 
-  /**
-   * Store for coverage that does not belong to any test (e.g. suite setup / teardown actions)
-   */
+  /** Store for coverage that does not belong to any test (e.g. suite setup / teardown actions) */
   private static volatile CoverageStore GLOBAL_COVERAGE_STORE = NoOpCoverageStore.INSTANCE;
 
   public static void registerCoverageStoreRegistry(CoverageStore.Registry coverageStoreRegistry) {
