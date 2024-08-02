@@ -167,6 +167,7 @@ public class CrashUploaderTest {
     assertEquals(
         readFileAsString("redacted-stacktrace.txt"),
         event.get("payload").get(0).get("message").asText());
+    assertEquals("severity:crash", event.get("payload").get(0).get("tags").asText());
     // application:
     assertEquals(ENV, event.get("application").get("env").asText());
     assertEquals("jvm", event.get("application").get("language_name").asText());

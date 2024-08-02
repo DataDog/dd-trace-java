@@ -16,19 +16,35 @@ jobs:
         env:
           TAG_NAME: ${{ github.event.release.tag_name }}
         run: echo "VERSION=$(echo ${TAG_NAME/#v/})" >> $GITHUB_OUTPUT
-      - name: Append release to Cloud Foundry repository
-        env:
-            VERSION: ${{ steps.get-release-version.outputs.VERSION }}
-            GH_TOKEN: ${{ github.token }}
+      - name: Get release URL
+        id: get-release-url
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b ci/cloudfoundry
-          echo "${VERSION}: https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar" >> index.yml
-          git add index.yml
-          git commit -m "chore: Add version ${VERSION} to Cloud Foundry"
-          git push -u origin ci/cloudfoundry --force
-          gh pr create \
-            --title "Add version ${VERSION} to Cloud Foundry" \
-            --body "This PR add the version ${VERSION} to Cloud Foundry.  Make sure [the JAR is online](https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar) before merging." \
-            --base cloudfoundry
+          echo "URL=https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${{ steps.get-release-version.outputs.VERSION }}/dd-java-agent-${{ steps.get-release-version.outputs.VERSION }}.jar" >> $GITHUB_OUTPUT
+      - name: Wait for the release to be available
+        run: |
+          TRY=0
+          MAX_TRIES=60 # Wait up to 30 minutes
+          DELAY=30
+          while [ $TRY -lt $MAX_TRIES ]; do
+            if curl -s -I ${{ steps.get-release-url.outputs.URL }} | grep -q "200 OK"; then
+              break
+            fi
+            echo "Waiting for the release to be available..."
+            sleep $DELAY
+            TRY=$((TRY+1))
+            if [ $TRY -eq $MAX_TRIES ]; then
+              echo "The release is not available after 30 mins. Aborting..."
+              exit 1
+            fi
+          done
+      - name: Append release to Cloud Foundry repository
+        run: |
+          echo "${{ steps.get-release-version.outputs.VERSION }}: ${{ steps.get-release-url.outputs.URL }}" >> index.yml
+      - name: Commit and push changes
+        uses: planetscale/ghcommit-action@b68767a2e130a71926b365322e62b583404a5e09 # v0.1.43
+        with:
+          commit_message: "chore: Add version ${{ steps.get-release-version.outputs.VERSION }} to Cloud Foundry"
+          repo: ${{ github.repository }}
+          branch: cloudfoundry
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}

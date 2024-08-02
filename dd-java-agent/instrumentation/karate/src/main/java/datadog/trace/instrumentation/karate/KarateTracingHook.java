@@ -19,6 +19,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -31,6 +32,12 @@ public class KarateTracingHook implements RuntimeHook {
   private static final String FRAMEWORK_NAME = "karate";
   private static final String FRAMEWORK_VERSION = FileUtils.KARATE_VERSION;
   private static final String KARATE_STEP_SPAN_NAME = "karate.step";
+
+  private final ContextStore<FeatureRuntime, Boolean> manualFeatureHooks;
+
+  public KarateTracingHook(ContextStore<FeatureRuntime, Boolean> manualFeatureHooks) {
+    this.manualFeatureHooks = manualFeatureHooks;
+  }
 
   @Override
   public boolean beforeFeature(FeatureRuntime fr) {
@@ -90,6 +97,14 @@ public class KarateTracingHook implements RuntimeHook {
     Scenario scenario = sr.scenario;
     Feature feature = scenario.getFeature();
 
+    // There are cases when Karate does not call "beforeFeature" hooks,
+    // for example when using built-in retries
+    boolean beforeFeatureHookExecuted = KarateUtils.isBeforeHookExecuted(sr.featureRuntime);
+    if (!beforeFeatureHookExecuted) {
+      beforeFeature(sr.featureRuntime);
+      manualFeatureHooks.put(sr.featureRuntime, true);
+    }
+
     TestSuiteDescriptor suiteDescriptor = KarateUtils.toSuiteDescriptor(sr.featureRuntime);
     TestDescriptor testDescriptor = KarateUtils.toTestDescriptor(sr);
     String featureName = feature.getNameForReport();
@@ -148,6 +163,12 @@ public class KarateTracingHook implements RuntimeHook {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
     }
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+
+    Boolean runHooksManually = manualFeatureHooks.remove(sr.featureRuntime);
+    if (runHooksManually != null && runHooksManually) {
+      afterFeature(sr.featureRuntime);
+      KarateUtils.resetBeforeHook(sr.featureRuntime);
+    }
   }
 
   private Throwable getFailedReason(ScenarioResult result) {
