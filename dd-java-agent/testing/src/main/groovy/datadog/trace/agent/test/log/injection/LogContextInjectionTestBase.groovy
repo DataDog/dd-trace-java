@@ -15,6 +15,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
  * satisfy in order to support log injection.
  */
 abstract class LogContextInjectionTestBase extends AgentTestRunner {
+  def INSTR_NAME = 'test'
   /**
    * Set in the framework-specific context the given value at the given key
    */
@@ -37,7 +38,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   def "Log context shows trace and span ids for active scope"() {
     when:
     put("foo", "bar")
-    AgentSpan rootSpan = startSpan("root")
+    AgentSpan rootSpan = startSpan(INSTR_NAME, "root")
     AgentScope rootScope = activateSpan(rootSpan)
 
     then:
@@ -46,7 +47,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get("foo") == "bar"
 
     when:
-    AgentSpan childSpan = startSpan("child")
+    AgentSpan childSpan = startSpan(INSTR_NAME, "child")
     AgentScope childScope = activateSpan(childSpan)
 
     then:
