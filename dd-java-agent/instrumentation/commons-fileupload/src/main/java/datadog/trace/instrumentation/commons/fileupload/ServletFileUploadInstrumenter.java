@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.commons.fileupload;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
@@ -18,7 +18,6 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.List;
 import java.util.Map;
-import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileItemIterator;
@@ -39,13 +38,13 @@ public class ServletFileUploadInstrumenter extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("parseRequest").and(isPublic()).and(takesArguments(HttpServletRequest.class)),
+        named("parseRequest").and(isPublic()).and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
         getClass().getName() + "$ParseRequestAdvice");
     transformer.applyAdvice(
-        named("parseParameterMap").and(isPublic()).and(takesArguments(HttpServletRequest.class)),
+        named("parseParameterMap").and(isPublic()).and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
         getClass().getName() + "$ParseParameterMapAdvice");
     transformer.applyAdvice(
-        named("getItemIterator").and(isPublic()).and(takesArguments(HttpServletRequest.class)),
+        named("getItemIterator").and(isPublic()).and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
         getClass().getName() + "$GetItemIteratorAdvice");
   }
 

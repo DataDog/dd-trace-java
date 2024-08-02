@@ -11,7 +11,6 @@ import java.util.Locale;
 import java.util.Map;
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
-import javax.servlet.ReadListener;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -22,7 +21,6 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import javax.servlet.http.HttpUpgradeHandler;
 import javax.servlet.http.Part;
 
 public class MockHttpServletRequest implements HttpServletRequest {
@@ -70,11 +68,6 @@ public class MockHttpServletRequest implements HttpServletRequest {
   }
 
   @Override
-  public long getContentLengthLong() {
-    return contentLength;
-  }
-
-  @Override
   public String getContentType() {
     return contentType + "; boundary=" + BOUNDARY;
   }
@@ -84,19 +77,6 @@ public class MockHttpServletRequest implements HttpServletRequest {
     String body = BOUNDARY_START + inputStream + BOUNDARY_END;
     ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(body.getBytes());
     return new ServletInputStream() {
-      @Override
-      public boolean isFinished() {
-        return byteArrayInputStream.available() == 0;
-      }
-
-      @Override
-      public boolean isReady() {
-        return true;
-      }
-
-      @Override
-      public void setReadListener(ReadListener readListener) {}
-
       @Override
       public int read() throws IOException {
         return byteArrayInputStream.read();
@@ -353,11 +333,6 @@ public class MockHttpServletRequest implements HttpServletRequest {
   }
 
   @Override
-  public String changeSessionId() {
-    return null;
-  }
-
-  @Override
   public boolean isRequestedSessionIdValid() {
     return false;
   }
@@ -396,12 +371,6 @@ public class MockHttpServletRequest implements HttpServletRequest {
 
   @Override
   public Part getPart(String var1) throws IOException, ServletException {
-    return null;
-  }
-
-  @Override
-  public <T extends HttpUpgradeHandler> T upgrade(Class<T> var1)
-      throws IOException, ServletException {
     return null;
   }
 }
