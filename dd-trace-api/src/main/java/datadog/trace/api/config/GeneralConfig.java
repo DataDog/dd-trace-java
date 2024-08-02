@@ -68,6 +68,7 @@ public final class GeneralConfig {
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
 
   public static final String DATA_JOBS_ENABLED = "data.jobs.enabled";
+  public static final String DATA_JOBS_COMMAND_PATTERN = "data.jobs.command.pattern";
 
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =

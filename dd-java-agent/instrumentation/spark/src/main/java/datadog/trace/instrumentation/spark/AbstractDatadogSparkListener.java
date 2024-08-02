@@ -10,6 +10,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
+import datadog.trace.util.AgentThreadFactory;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -111,7 +112,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
 
-  private boolean applicationEnded = false;
+  private volatile boolean applicationEnded = false;
 
   public AbstractDatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
     tracer = AgentTracer.get();
@@ -124,6 +125,22 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
     sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
+
+    // If JVM exiting with System.exit(code), it bypass the code closing the application span
+    //
+    // Using shutdown hook to close the span, but it is only best effort:
+    // - no guarantee it will be executed before the tracer shuts down
+    // - no access to the exit code
+    Runtime.getRuntime()
+        .addShutdownHook(
+            AgentThreadFactory.newAgentThread(
+                AgentThreadFactory.AgentThread.DATA_JOBS_MONITORING_SHUTDOWN_HOOK,
+                () -> {
+                  if (!applicationEnded) {
+                    log.info("Finishing application trace from shutdown hook");
+                    finishApplication(System.currentTimeMillis(), null, 0, null);
+                  }
+                }));
 
     log.info("Created datadog spark listener: {}", this.getClass().getSimpleName());
   }
