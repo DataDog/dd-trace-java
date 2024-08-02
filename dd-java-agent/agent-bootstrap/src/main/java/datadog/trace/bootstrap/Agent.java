@@ -14,6 +14,8 @@ import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.context.ContextListener;
+import datadog.context.ContextProvider;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -949,14 +951,14 @@ public class Agent {
           public void withTracer(TracerAPI tracer) {
             log.debug("Registering CWS scope tracker");
             try {
-              ScopeListener scopeListener =
-                  (ScopeListener)
+              ContextListener contextListener =
+                  (ContextListener)
                       AGENT_CLASSLOADER
-                          .loadClass("datadog.cws.tls.TlsScopeListener")
+                          .loadClass("datadog.cws.tls.TlsContextListener")
                           .getDeclaredConstructor()
                           .newInstance();
-              tracer.addScopeListener(scopeListener);
-              log.debug("Scope event factory {} has been registered", scopeListener);
+              ContextProvider.addListener(contextListener);
+              log.debug("Scope event factory {} has been registered", contextListener);
             } catch (Throwable e) {
               if (e instanceof InvocationTargetException) {
                 e = e.getCause();
