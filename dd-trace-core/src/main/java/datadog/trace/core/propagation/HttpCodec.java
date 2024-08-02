@@ -284,11 +284,10 @@ public class HttpCodec {
         firstContext.overrideSpanId(traceContext.getSpanId());
         // Add last parent span id as tag (from W3C first, else Datadog)
         CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
-        if (lastParentId == null) {
-          lastParentId = extractionCache.getDatadogSpanId();
+        if (lastParentId == null || lastParentId.equals("0000000000000000")) {
+          lastParentId = extractionCache.getDatadogSpanIdHex();
         }
         if (lastParentId != null) {
-          firstContext.getPropagationTags().updateLastParentId(lastParentId);
           firstContext.putTag(PARENT_ID, lastParentId.toString());
         }
       }
@@ -304,7 +303,7 @@ public class HttpCodec {
      * {@link DatadogHttpCodec#SPAN_ID_KEY} header value for fast access, {@code null} if absent or
      * invalid.
      */
-    private String datadogSpanId;
+    private String datadogSpanIdHex;
 
     public ExtractionCache(C carrier, AgentPropagation.ContextVisitor<C> getter) {
       this.keysAndValues = new ArrayList<>(32);
@@ -320,17 +319,16 @@ public class HttpCodec {
     }
 
     private void cacheDatadogSpanId(String key, String value) {
-      if (SPAN_ID_KEY.equals(key)) {
+      if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
         try {
-          DDSpanId.from(value);
-          this.datadogSpanId = value;
+          this.datadogSpanIdHex = DDSpanId.toHexStringPadded(DDSpanId.from(value));
         } catch (NumberFormatException ignored) {
         }
       }
     }
 
-    private String getDatadogSpanId() {
-      return this.datadogSpanId;
+    private String getDatadogSpanIdHex() {
+      return this.datadogSpanIdHex;
     }
 
     @Override

@@ -21,7 +21,8 @@ class HttpExtractorTest extends DDSpecification {
   static final W3C_TRACE_ID = "00000000000000000000000000000001"
   static final W3C_SPAN_ID = "123456789abcdef0"
   static final W3C_TRACE_PARENT = "00-$W3C_TRACE_ID-$W3C_SPAN_ID-01"
-  static final W3C_TRACE_STATE = "dd=p:456789abcdef0123"
+  static final W3C_TRACE_STATE_WITH_P = "dd=p:456789abcdef0123"
+  static final W3C_TRACE_STATE_NO_P = "dd=s:2,foo=1"
   static final W3C_SPAN_ID_LSTR = DDSpanId.fromHex(W3C_SPAN_ID).toString()
 
   @Shared
@@ -133,8 +134,8 @@ class HttpExtractorTest extends DDSpecification {
     if (b3SpanId != null) {
       actual.put(B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId)
     }
-    if (putTraceState) {
-      actual.put(W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), W3C_TRACE_STATE)
+    if (traceState != null) {
+      actual.put(W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), traceState)
     }
 
     when:
@@ -144,24 +145,26 @@ class HttpExtractorTest extends DDSpecification {
     assert context.traceId.toLong() == DDTraceId.from(expectedTraceId).toLong()
     assert context.spanId == DDSpanId.from(expectedSpanId)
     assert context.tags[PARENT_ID] == expectedParentId
-    assert context.propagationTags.w3CTracestate == expectedTraceState
     // TODO Some other test ideas
     // assert context.propagationTags.traceIdHighOrderBits ==
-    // assert context.propagationTags.lastParentId
 
 
     // TODO Add more cases to cover every behavior
     where:
     // spotless:off
-    styles                           | datadogTraceId | datadogSpanId | b3TraceId | b3SpanId | putTraceState | expectedTraceId | expectedSpanId | expectedParentId
-    [DATADOG, TRACECONTEXT]          | "1"            | "2"           | null      | null     | true           | "1"             | W3C_SPAN_ID_LSTR | "456789abcdef0123"
-    [DATADOG, TRACECONTEXT, B3MULTI] | "1"            | "2"           | "1"       | "2"      | true           | "1"             | W3C_SPAN_ID_LSTR | "456789abcdef0123"
-    [TRACECONTEXT, DATADOG]          | "1"            | "2"           | null      | null     | true           | "1"             | W3C_SPAN_ID_LSTR | null
-    [TRACECONTEXT, B3MULTI]          | null           | null          | "1"       | "2"      | true           | "1"             | W3C_SPAN_ID_LSTR | null
-    [TRACECONTEXT, B3MULTI, DATADOG] | "1"            | "2"           | "1"       | "4"      | true           | "1"             | W3C_SPAN_ID_LSTR | null
-    [B3MULTI, DATADOG, TRACECONTEXT] | "1"            | "2"           | "1"       | "4"      | true           | "1"             | W3C_SPAN_ID_LSTR | "456789abcdef0123"
-    [TRACECONTEXT]                   | null           | null          | null      | null     | true           | "1"             | W3C_SPAN_ID_LSTR | null
+    styles                           | datadogTraceId | datadogSpanId | b3TraceId | b3SpanId | traceState             | expectedTraceId | expectedSpanId   | expectedParentId
+    [DATADOG, TRACECONTEXT]          | "1"            | "2"           | null      | null     | W3C_TRACE_STATE_WITH_P | "1"             | W3C_SPAN_ID_LSTR | "456789abcdef0123"
+    [DATADOG, TRACECONTEXT]          | "1"            | "2"           | null      | null     | null                   | "1"             | W3C_SPAN_ID_LSTR | "0000000000000002"
+    [DATADOG, TRACECONTEXT, B3MULTI] | "1"            | "2"           | "1"       | "2"      | W3C_TRACE_STATE_WITH_P | "1"             | W3C_SPAN_ID_LSTR | "456789abcdef0123"
+    [TRACECONTEXT, DATADOG]          | "1"            | "2"           | null      | null     | W3C_TRACE_STATE_WITH_P | "1"             | W3C_SPAN_ID_LSTR | null
+    [TRACECONTEXT, B3MULTI]          | null           | null          | "1"       | "2"      | W3C_TRACE_STATE_WITH_P | "1"             | W3C_SPAN_ID_LSTR | null
+    [TRACECONTEXT, B3MULTI, DATADOG] | "1"            | "2"           | "1"       | "4"      | W3C_TRACE_STATE_WITH_P | "1"             | W3C_SPAN_ID_LSTR | null
+    [B3MULTI, DATADOG, TRACECONTEXT] | "1"            | "2"           | "1"       | "4"      | W3C_TRACE_STATE_WITH_P | "1"             | W3C_SPAN_ID_LSTR | "456789abcdef0123"
+    [TRACECONTEXT]                   | null           | null          | null      | null     | W3C_TRACE_STATE_WITH_P | "1"             | W3C_SPAN_ID_LSTR | null
+    [B3MULTI, TRACECONTEXT]          | null           | null          | "1"       | "2"      | W3C_TRACE_STATE_WITH_P | "1"             | W3C_SPAN_ID_LSTR | "456789abcdef0123"
+    [B3MULTI, DATADOG, TRACECONTEXT] | "1"            | "2"           | "1"       | "4"      | null                   | "1"             | W3C_SPAN_ID_LSTR | "0000000000000002"
+    [DATADOG, TRACECONTEXT]          | "1"            | "2"           | null      | null     | W3C_TRACE_STATE_NO_P   | "1"             | W3C_SPAN_ID_LSTR | "0000000000000002"
     // spotless:on
-    expectedTraceState = putTraceState ? W3C_TRACE_STATE : null
+    //    expectedTraceState = traceState == W3C_TRACE_STATE_WITH_P ? traceState : traceState == W3C_TRACE_STATE_NO_P && datadogSpanId != null ? "dd=p:" + datadogSpanId : null
   }
 }
