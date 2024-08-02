@@ -395,16 +395,9 @@ public class IastWebController {
     return "Ok";
   }
 
-  @GetMapping("/untrusted_deserialization")
-  public String untrustedDeserialization(HttpServletRequest request) throws IOException {
-    ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
-    return "OK";
-  }
-
   @PostMapping("/untrusted_deserialization")
-  public String untrustedDeserializationPost(@RequestParam("theFile") MultipartFile file)
-      throws IOException {
-    ObjectInputStream ois = new ObjectInputStream(file.getInputStream());
+  public String untrustedDeserialization(HttpServletRequest request) throws IOException {
+    new ObjectInputStream(request.getInputStream());
     return "OK";
   }
 

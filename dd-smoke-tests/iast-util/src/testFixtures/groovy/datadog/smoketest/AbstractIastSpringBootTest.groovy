@@ -1011,7 +1011,11 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
   void 'untrusted deserialization for an input stream'() {
     setup:
     final url = "http://localhost:${httpPort}/untrusted_deserialization"
-    final request = new Request.Builder().url(url).get().build()
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray())
+    final request = new Request.Builder().url(url).post(requestBody).build()
 
     when:
     client.newCall(request).execute()
@@ -1020,14 +1024,56 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
   }
 
-  void 'untrusted deserialization for an multipartfile which call inputStream'() {
+  void 'untrusted deserialization for a servlet file upload which calls parseRequest'() {
     setup:
-    final url = "http://localhost:${httpPort}/untrusted_deserialization"
-    final RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
-      .addFormDataPart("theFile", "theFileName",
-      RequestBody.create(MediaType.parse("application/octet-stream"), "FILE_CONTENT"))
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/parse_request"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
       .build()
     final request = new Request.Builder().url(url).post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
+  void 'untrusted deserialization for a servlet file upload which calls parseParameterMap'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/parse_parameter_map"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+      .build()
+    final request = new Request.Builder().url(url).post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
+  void 'untrusted deserialization for a servlet file upload which calls getItemIterator'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/get_item_iterator"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+      .build()
+    final request = new Request.Builder().url(url)
+      .post(requestBody).build()
 
     when:
     client.newCall(request).execute()
