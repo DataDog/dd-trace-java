@@ -31,6 +31,8 @@ addTestSuiteExtendingForDir('v44IastIntegrationTest', 'iastIntegrationTest', 'ia
 addTestSuiteExtendingForDir('v45IastIntegrationTest', 'iastIntegrationTest', 'iastIntegrationTest')
 
 dependencies {
+  implementation project(':dd-java-agent:instrumentation:appsec-utils')
+
   compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
   testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
   testImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
