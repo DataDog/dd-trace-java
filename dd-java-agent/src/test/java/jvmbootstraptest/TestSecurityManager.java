@@ -131,6 +131,27 @@ public class TestSecurityManager extends CustomSecurityManager {
     // override to allow ClassLoader creation & set context ClassLoader
     return true;
   }
+  
+  @Override
+  protected boolean checkRuntimeMBeanProviderAccess(RuntimePermission perm, Object ctx) {
+    return true;
+  }
+  
+  @Override
+  protected boolean checkRuntimeSystemModuleAccess(RuntimePermission perm, Object ctx) {
+    // slf4j fails to initialize without this; what else?
+    return true;
+  }
+  
+  @Override
+  protected boolean checkRuntimeManageProcess(RuntimePermission perm, Object ctx) {
+    return true;
+  }
+  
+  @Override
+  protected boolean checkRuntimeContextClassLoader(RuntimePermission perm, Object ctx) {
+    return true;
+  }
 
   @Override
   protected boolean checkRuntimeShutdownHooks(RuntimePermission perm, Object ctx) {

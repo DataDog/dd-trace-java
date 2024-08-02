@@ -86,6 +86,21 @@ public class CustomSecurityManager extends SecurityManager {
       case "readFileDescriptor":
       case "writeFileDescriptor":
         return checkRuntimeFileSystemAccess(perm, ctx, name);
+        
+      case "accessSystemModules":
+        return checkRuntimeSystemModuleAccess(perm, ctx);
+        
+      case "jdk.internal.perf.Perf.getPerf":
+      return checkRuntimePerfAccess(perm, ctx);
+      
+      case "sun.management.spi.PlatformMBeanProvider.subclass":
+        return checkRuntimeMBeanProviderAccess(perm, ctx);
+      
+      case "manageProcess":
+        return checkRuntimeManageProcess(perm, ctx);
+        
+      case "enableContextClassLoaderOverride":
+        return checkRuntimeContextClassLoader(perm, ctx);
     }
 
     if (name.startsWith("accessClassInPackage.")) {
@@ -156,6 +171,16 @@ public class CustomSecurityManager extends SecurityManager {
       RuntimePermission perm, Object ctx, String packageName) {
     return isBuiltinPackage(packageName);
   }
+  
+  protected boolean checkRuntimePerfAccess(
+      RuntimePermission perm, Object ctx) {
+    return defaultCheckRuntimePerfAccess(perm, ctx);
+  }
+
+  protected final boolean defaultCheckRuntimePerfAccess(
+      RuntimePermission perm, Object ctx) {
+    return true;
+   }
 
   protected static final boolean isBuiltinPackage(String packageName) {
     return isSunPackage(packageName)
@@ -198,8 +223,10 @@ public class CustomSecurityManager extends SecurityManager {
     switch (libraryName) {
       case "instrument":
       case "management":
+      case "management_ext":
       case "sunec":
       case "net":
+      case "extnet":
         return true;
 
       default:
@@ -243,7 +270,31 @@ public class CustomSecurityManager extends SecurityManager {
   protected final boolean defaultCheckRuntimeShutdownHooks(RuntimePermission perm, Object ctx) {
     return false;
   }
+  
+  protected boolean checkRuntimeSystemModuleAccess(RuntimePermission perm, Object ctx) {
+    return defaultCheckRuntimeSystemModuleAccess(perm, ctx);
+  }
 
+  protected final boolean defaultCheckRuntimeSystemModuleAccess(RuntimePermission perm, Object ctx) {
+    return false;
+  }
+
+  protected boolean checkRuntimeManageProcess(RuntimePermission perm, Object ctx) {
+    return defaultCheckRuntimeManageProcess(perm, ctx);
+  }
+
+  protected final boolean defaultCheckRuntimeManageProcess(RuntimePermission perm, Object ctx) {
+    return false;
+  }
+  
+  protected boolean checkRuntimeContextClassLoader(RuntimePermission perm, Object ctx) {
+    return defaultCheckRuntimeContextClassLoader(perm, ctx);
+  }
+
+  protected final boolean defaultCheckRuntimeContextClassLoader(RuntimePermission perm, Object ctx) {
+    return false;
+  }
+  
   protected boolean checkOtherRuntimePermission(
       RuntimePermission perm, Object ctx, String permName) {
     return defaultOtherRuntimePermission(perm, ctx, permName);
@@ -498,6 +549,7 @@ public class CustomSecurityManager extends SecurityManager {
     return isSunProperty(propertyName)
         || isJavaProperty(propertyName)
         || isJdkProperty(propertyName)
+        || isJmxProperty(propertyName)
         || isOsProperty(propertyName)
         || isUserLocaleProperty(propertyName)
         || isGraalProperty(propertyName)
@@ -516,6 +568,10 @@ public class CustomSecurityManager extends SecurityManager {
 
   protected static final boolean isJdkProperty(String propertyName) {
     return propertyName.startsWith("jdk.");
+  }
+  
+  protected static final boolean isJmxProperty(String propertyName) {
+    return propertyName.startsWith("jmx.");
   }
 
   protected static final boolean isOsProperty(String propertyName) {
@@ -556,7 +612,15 @@ public class CustomSecurityManager extends SecurityManager {
         return false;
     }
   }
-
+  
+  protected boolean checkRuntimeMBeanProviderAccess(RuntimePermission perm, Object ctx) {
+    return defaultCheckRuntimeMBeanProviderAccess(perm, ctx);
+  }
+  
+  protected final boolean defaultCheckRuntimeMBeanProviderAccess(RuntimePermission perm, Object ctx) {
+    return false;
+  }
+  
   protected boolean checkMBeanServerPermission(MBeanServerPermission perm, Object ctx) {
     return defaultCheckMBeanServerPermission(perm, ctx);
   }
