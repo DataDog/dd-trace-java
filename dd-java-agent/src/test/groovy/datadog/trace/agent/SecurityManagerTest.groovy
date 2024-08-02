@@ -15,7 +15,7 @@ class SecurityManagerTest extends Specification {
 
   def "minimal property access"() {
     expect:
-    SecurityManagerCheck.runTestJvm(TestSecurityManager.MinimalPropertyAccess) == 0
+    SecurityManagerCheck.runTestJvm(TestSecurityManager.MinimalPropertyAccess, true) == 0
   }
 
   def "no process execution"() {
