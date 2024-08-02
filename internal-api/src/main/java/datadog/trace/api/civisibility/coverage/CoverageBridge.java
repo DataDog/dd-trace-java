@@ -2,6 +2,7 @@ package datadog.trace.api.civisibility.coverage;
 
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
+import javax.annotation.Nonnull;
 
 public abstract class CoverageBridge {
 
@@ -9,12 +10,21 @@ public abstract class CoverageBridge {
 
   private static volatile CoverageStore.Registry COVERAGE_STORE_REGISTRY;
 
+  /**
+   * Store for coverage that does not belong to any test (e.g. suite setup / teardown actions)
+   */
+  private static volatile CoverageStore GLOBAL_COVERAGE_STORE = NoOpCoverageStore.INSTANCE;
+
   public static void registerCoverageStoreRegistry(CoverageStore.Registry coverageStoreRegistry) {
     COVERAGE_STORE_REGISTRY = coverageStoreRegistry;
   }
 
   public static CoverageStore.Registry getCoverageStoreRegistry() {
     return COVERAGE_STORE_REGISTRY;
+  }
+
+  public static void registerGlobalCoverageStore(@Nonnull CoverageStore coverageStore) {
+    GLOBAL_COVERAGE_STORE = coverageStore;
   }
 
   /* This method is referenced by name in bytecode added in jacoco instrumentation module (see datadog.trace.instrumentation.jacoco.ProbeInserterInstrumentation.InsertProbeAdvice) */
@@ -51,9 +61,7 @@ public abstract class CoverageBridge {
       return currentTest.getCoverageStore().getProbes();
     }
 
-    // FIXME nikita: return "global" coverage probes if ITR code coverage is enabled
-
-    return NoOpProbes.INSTANCE;
+    return GLOBAL_COVERAGE_STORE.getProbes();
   }
 
   public static void setThreadLocalCoverageProbes(CoverageProbes probes) {

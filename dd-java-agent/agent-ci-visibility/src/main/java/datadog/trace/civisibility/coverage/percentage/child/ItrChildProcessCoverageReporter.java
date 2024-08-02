@@ -36,7 +36,7 @@ public class ItrChildProcessCoverageReporter implements ChildProcessCoverageRepo
     }
 
     @Override
-    public CoverageStore create(TestIdentifier testIdentifier) {
+    public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
       return new ItrCoverageStore(delegate.create(testIdentifier));
     }
 

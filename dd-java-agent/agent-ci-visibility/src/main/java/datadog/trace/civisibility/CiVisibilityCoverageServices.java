@@ -49,6 +49,7 @@ public class CiVisibilityCoverageServices {
   static class Child {
     final CoverageStore.Factory coverageStoreFactory;
     final ChildProcessCoverageReporter coverageReporter;
+    final CoverageStore globalCoverageStore;
 
     Child(
         CiVisibilityServices services,
@@ -64,6 +65,8 @@ public class CiVisibilityCoverageServices {
       coverageStoreFactory =
           buildCoverageStoreFactory(
               services, repoServices, moduleExecutionSettings, coverageReporter);
+
+      globalCoverageStore = coverageStoreFactory.create(null);
     }
 
     private static CoverageStore.Factory buildCoverageStoreFactory(

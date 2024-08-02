@@ -27,7 +27,8 @@ public class LineProbes implements CoverageProbes {
   private Class<?> lastCoveredClass;
   private ExecutionDataAdapter lastCoveredExecutionData;
 
-  LineProbes(CiVisibilityMetricCollector metrics, Map<String, Integer> probeCounts, boolean isTestThread) {
+  LineProbes(
+      CiVisibilityMetricCollector metrics, Map<String, Integer> probeCounts, boolean isTestThread) {
     this.metrics = metrics;
     this.probeCounts = probeCounts;
     executionData = isTestThread ? new IdentityHashMap<>() : new ConcurrentHashMap<>();

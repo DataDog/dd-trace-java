@@ -32,6 +32,7 @@ public class ProxyTestSession implements TestFrameworkSession {
   private final MethodLinesResolver methodLinesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final ChildProcessCoverageReporter childProcessCoverageReporter;
+  private final CoverageStore globalCoverageStore;
   private final SignalClient.Factory signalClientFactory;
   private final ModuleExecutionSettings moduleExecutionSettings;
 
@@ -46,6 +47,7 @@ public class ProxyTestSession implements TestFrameworkSession {
       MethodLinesResolver methodLinesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ChildProcessCoverageReporter childProcessCoverageReporter,
+      CoverageStore globalCoverageStore,
       SignalClient.Factory signalClientFactory,
       ModuleExecutionSettings moduleExecutionSettings) {
     this.parentProcessSessionId = parentProcessSessionId;
@@ -58,6 +60,7 @@ public class ProxyTestSession implements TestFrameworkSession {
     this.methodLinesResolver = methodLinesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.childProcessCoverageReporter = childProcessCoverageReporter;
+    this.globalCoverageStore = globalCoverageStore;
     this.signalClientFactory = signalClientFactory;
     this.moduleExecutionSettings = moduleExecutionSettings;
   }
@@ -85,6 +88,7 @@ public class ProxyTestSession implements TestFrameworkSession {
         methodLinesResolver,
         coverageStoreFactory,
         childProcessCoverageReporter,
+        globalCoverageStore,
         signalClientFactory);
   }
 }

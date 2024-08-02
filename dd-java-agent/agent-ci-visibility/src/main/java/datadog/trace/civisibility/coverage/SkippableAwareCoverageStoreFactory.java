@@ -4,6 +4,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.NoOpCoverageStore;
 import java.util.Collection;
+import javax.annotation.Nullable;
 
 /**
  * Coverage store factory that returns no-op stores for skippable tests. This is done to reduce
@@ -23,7 +24,7 @@ public class SkippableAwareCoverageStoreFactory implements CoverageStore.Factory
   }
 
   @Override
-  public CoverageStore create(TestIdentifier testIdentifier) {
+  public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
     if (skippableTests.contains(testIdentifier)) {
       return NoOpCoverageStore.INSTANCE;
     } else {

@@ -103,6 +103,7 @@ public class CiVisibilitySystem {
           new TestEventsHandlerFactory(
               services, repoServices, coverageServices, executionSettings));
       CoverageBridge.registerCoverageStoreRegistry(coverageServices.coverageStoreFactory);
+      CoverageBridge.registerGlobalCoverageStore(coverageServices.globalCoverageStore);
     }
   }
 
@@ -250,6 +251,7 @@ public class CiVisibilitySystem {
           services.methodLinesResolver,
           coverageServices.coverageStoreFactory,
           coverageServices.coverageReporter,
+          coverageServices.globalCoverageStore,
           services.signalClientFactory,
           moduleExecutionSettings);
     };

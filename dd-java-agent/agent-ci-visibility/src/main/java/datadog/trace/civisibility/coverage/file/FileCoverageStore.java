@@ -116,7 +116,7 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
     }
 
     @Override
-    public CoverageStore create(TestIdentifier testIdentifier) {
+    public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
       return new FileCoverageStore(this::createProbes, metrics, sourcePathResolver);
     }
 

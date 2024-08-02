@@ -119,8 +119,7 @@ public class ItrCoverageCalculator implements CoverageCalculator {
         for (File source : sourceSet.getSources()) {
           String sourceString = FileUtils.toRealPath(source.toString());
           if (sourceString.startsWith(repoRoot)) {
-            sourceDirsRelativeToRepoRoot.add(
-                sourceString.substring(repoRoot.length()));
+            sourceDirsRelativeToRepoRoot.add(sourceString.substring(repoRoot.length()));
           }
         }
         outputClassesDirs.add(sourceSet.getOutput());

@@ -12,9 +12,7 @@ public class CachingRepoIndexBuilderFactory implements RepoIndexProvider.Factory
   private final ResourceResolver resourceResolver;
 
   public CachingRepoIndexBuilderFactory(
-      Config config,
-      PackageResolver packageResolver,
-      ResourceResolver resourceResolver) {
+      Config config, PackageResolver packageResolver, ResourceResolver resourceResolver) {
     this.config = config;
     this.packageResolver = packageResolver;
     this.resourceResolver = resourceResolver;

@@ -300,9 +300,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         coverage = new HashMap<>();
         for (Map.Entry<String, String> e : encodedCoverage.entrySet()) {
           String relativeSourceFilePath = e.getKey();
-          String normalizedSourceFilePath = relativeSourceFilePath.startsWith(File.separator)
-              ? relativeSourceFilePath.substring(1)
-              : relativeSourceFilePath;
+          String normalizedSourceFilePath =
+              relativeSourceFilePath.startsWith(File.separator)
+                  ? relativeSourceFilePath.substring(1)
+                  : relativeSourceFilePath;
           byte[] decodedLines = Base64.getDecoder().decode(e.getValue());
           coverage.put(normalizedSourceFilePath, BitSet.valueOf(decodedLines));
         }

@@ -51,6 +51,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final String itrCorrelationId;
   private final SignalClient.Factory signalClientFactory;
   private final ChildProcessCoverageReporter childProcessCoverageReporter;
+  private final CoverageStore globalCoverageStore;
   private final Config config;
   private final CiVisibilityMetricCollector metricCollector;
   private final TestDecorator testDecorator;
@@ -81,10 +82,12 @@ public class ProxyTestModule implements TestFrameworkModule {
       MethodLinesResolver methodLinesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ChildProcessCoverageReporter childProcessCoverageReporter,
+      CoverageStore globalCoverageStore,
       SignalClient.Factory signalClientFactory) {
     this.parentProcessSessionId = parentProcessSessionId;
     this.parentProcessModuleId = parentProcessModuleId;
     this.moduleName = moduleName;
+    this.globalCoverageStore = globalCoverageStore;
     this.signalClientFactory = signalClientFactory;
     this.childProcessCoverageReporter = childProcessCoverageReporter;
     this.config = config;
@@ -157,6 +160,9 @@ public class ProxyTestModule implements TestFrameworkModule {
 
   @Override
   public void end(@Nullable Long endTime) {
+    // needed for total coverage percentage calculation
+    globalCoverageStore.report(parentProcessSessionId, -1L, -1L);
+
     // we have no span locally,
     // send execution result to parent process that manages the span
     sendModuleExecutionResult();

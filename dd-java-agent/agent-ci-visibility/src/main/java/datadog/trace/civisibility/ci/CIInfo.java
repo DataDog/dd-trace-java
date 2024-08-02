@@ -193,7 +193,8 @@ public class CIInfo {
   }
 
   /**
-   * @deprecated This method is here only to satisfy CI spec tests. Use {@link #getNormalizedCiWorkspace()}
+   * @deprecated This method is here only to satisfy CI spec tests. Use {@link
+   *     #getNormalizedCiWorkspace()}
    */
   @Deprecated
   public String getCiWorkspace() {
