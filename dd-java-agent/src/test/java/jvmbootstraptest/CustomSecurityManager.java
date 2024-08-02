@@ -535,6 +535,8 @@ public class CustomSecurityManager extends SecurityManager {
       case "java.home":
       case "sun.boot.library.path":
       case "sun.jnu.encoding":
+      case "jdk.module.main":
+      case "jdk.debug":
         return true;
     }
 
