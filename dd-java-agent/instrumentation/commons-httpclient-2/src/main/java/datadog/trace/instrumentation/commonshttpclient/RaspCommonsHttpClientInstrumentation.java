@@ -8,8 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.iast.Sink;
-import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule;
 import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import net.bytebuddy.asm.Advice;
@@ -52,7 +50,6 @@ public class RaspCommonsHttpClientInstrumentation extends InstrumenterModule.App
 
   public static class NetworkConnectionRaspAdvice {
     @Advice.OnMethodEnter()
-    @Sink(VulnerabilityTypes.SSRF)
     public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
       if (httpMethod == null) {
         return;
