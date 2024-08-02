@@ -537,6 +537,12 @@ public class CustomSecurityManager extends SecurityManager {
       case "sun.jnu.encoding":
       case "jdk.module.main":
       case "jdk.debug":
+      case "jdk.instrument.traceUsage":
+      case "jdk.util.jar.version":
+      case "jdk.util.jar.enableMultiRelease":
+      case "jdk.jar.maxSignatureFileSize":
+      case "jdk.util.zip.disableZip64ExtraFieldValidation":
+      case "user.dir":
         return true;
     }
 
