@@ -1,9 +1,8 @@
-package datadog.trace.instrumentation.appsec.rasp.advices;
+package datadog.trace.instrumentation.appsec.rasp.modules;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -11,23 +10,20 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
-import java.net.URL;
 import java.util.function.BiFunction;
-import net.bytebuddy.asm.Advice;
 
-public class NetworkConnectionRaspAdvice {
+public class NetworkConnectionModule {
 
-  @Advice.OnMethodExit()
-  public static void onExit(
-      @Advice.Argument(0) final Object input, @Advice.This final Object self) {
+  public static final NetworkConnectionModule INSTANCE = new NetworkConnectionModule();
 
-    if (!Config.get().isAppSecRaspEnabled()) {
+  private NetworkConnectionModule() {
+    // prevent instantiation
+  }
+
+  public void onNetworkConnection(final Object nc) {
+    if (nc == null) {
       return;
     }
-    if (input == null || !(input instanceof URL)) {
-      return;
-    }
-
     try {
       final BiFunction<RequestContext, String, Flow<Void>> networkConnectionCallback =
           AgentTracer.get()
@@ -48,7 +44,7 @@ public class NetworkConnectionRaspAdvice {
         return;
       }
 
-      Flow<Void> flow = networkConnectionCallback.apply(ctx, input.toString());
+      Flow<Void> flow = networkConnectionCallback.apply(ctx, nc.toString());
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         BlockResponseFunction brf = ctx.getBlockResponseFunction();
@@ -67,7 +63,8 @@ public class NetworkConnectionRaspAdvice {
       throw e;
     } catch (final Throwable e) {
       // suppress anything else
-      InstrumentationLogger.debug("Exception during SSRF rasp advice", self.getClass(), e);
+      InstrumentationLogger.debug(
+          "Exception during SSRF rasp advice", NetworkConnectionModule.class, e);
     }
   }
 }
