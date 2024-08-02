@@ -165,6 +165,5 @@ class HttpExtractorTest extends DDSpecification {
     [B3MULTI, DATADOG, TRACECONTEXT] | "1"            | "2"           | "1"       | "4"      | null                   | "1"             | W3C_SPAN_ID_LSTR | "0000000000000002"
     [DATADOG, TRACECONTEXT]          | "1"            | "2"           | null      | null     | W3C_TRACE_STATE_NO_P   | "1"             | W3C_SPAN_ID_LSTR | "0000000000000002"
     // spotless:on
-    //    expectedTraceState = traceState == W3C_TRACE_STATE_WITH_P ? traceState : traceState == W3C_TRACE_STATE_NO_P && datadogSpanId != null ? "dd=p:" + datadogSpanId : null
   }
 }
