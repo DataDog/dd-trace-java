@@ -28,6 +28,10 @@ public abstract class KarateUtils {
       METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "feature");
   private static final MethodHandle FEATURE_RUNTIME_FEATURE_CALL_GETTER =
       METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "featureCall");
+  private static final MethodHandle FEATURE_RUNTIME_BEFORE_HOOK_DONE_GETTER =
+      METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "beforeHookDone");
+  private static final MethodHandle FEATURE_RUNTIME_BEFORE_HOOK_DONE_SETTER =
+      METHOD_HANDLES.privateFieldSetter(FeatureRuntime.class, "beforeHookDone");
   private static final MethodHandle FEATURE_CALL_FEATURE_GETTER =
       METHOD_HANDLES.privateFieldGetter("com.intuit.karate.core.FeatureCall", "feature");
   private static final MethodHandle ABORTED_RESULT_DURATION_NANOS =
@@ -107,5 +111,15 @@ public abstract class KarateUtils {
       long durationNanos = 1;
       return METHOD_HANDLES.invoke(ABORTED_RESULT_DURATION_NANOS, durationNanos);
     }
+  }
+
+  public static boolean isBeforeHookExecuted(FeatureRuntime featureRuntime) {
+    Boolean beforeHookDone =
+        METHOD_HANDLES.invoke(FEATURE_RUNTIME_BEFORE_HOOK_DONE_GETTER, featureRuntime);
+    return beforeHookDone != null ? beforeHookDone : true;
+  }
+
+  public static void resetBeforeHook(FeatureRuntime featureRuntime) {
+    METHOD_HANDLES.invoke(FEATURE_RUNTIME_BEFORE_HOOK_DONE_SETTER, featureRuntime, false);
   }
 }
