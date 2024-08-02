@@ -70,15 +70,14 @@ class RaspCommonsHttpClientInstrumentationTest extends AgentTestRunner {
     final url = server.address.toString()
     final callbackProvider = Mock(CallbackProvider)
     final listener = Mock(BiFunction)
+    final httpMethod = new GetMethod(url)
     tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
 
     when:
-    def httpMethod = new GetMethod(url)
     new HttpClient().executeMethod(httpMethod)
 
     then:
     1 * callbackProvider.getCallback(EVENTS.networkConnection()) >> listener
-    1 * listener.apply(reqCtx, url.toString())
+    1 * listener.apply(reqCtx, httpMethod.getURI().toString())
   }
-
 }
