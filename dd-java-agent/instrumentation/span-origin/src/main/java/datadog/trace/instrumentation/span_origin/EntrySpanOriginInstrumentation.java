@@ -1,11 +1,9 @@
 package datadog.trace.instrumentation.span_origin;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-
 import datadog.trace.agent.tooling.Instrumenter.ForTypeHierarchy;
 import datadog.trace.agent.tooling.InstrumenterModule.Tracing;
+import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
+import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.OneOf;
 import datadog.trace.api.InstrumenterConfig;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -21,7 +19,7 @@ public abstract class EntrySpanOriginInstrumentation extends Tracing implements 
   @SuppressForbidden
   public EntrySpanOriginInstrumentation(String instrumentationName) {
     super(instrumentationName);
-    this.matcher = namedOneOf(getAnnotations());
+    this.matcher = NameMatchers.namedOneOf(getAnnotations());
   }
 
   @Override
@@ -38,13 +36,13 @@ public abstract class EntrySpanOriginInstrumentation extends Tracing implements 
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return declaresMethod(isAnnotatedWith(matcher));
+    return HierarchyMatchers.declaresMethod(HierarchyMatchers.isAnnotatedWith(matcher));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isAnnotatedWith(matcher),
+        HierarchyMatchers.isAnnotatedWith(matcher),
         "datadog.trace.instrumentation.span_origin.EntrySpanOriginAdvice");
   }
 }
