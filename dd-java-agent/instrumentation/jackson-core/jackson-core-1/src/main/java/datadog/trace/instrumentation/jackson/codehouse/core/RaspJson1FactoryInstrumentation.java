@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule;
 import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import java.io.InputStream;
@@ -53,14 +52,10 @@ public class RaspJson1FactoryInstrumentation extends InstrumenterModule.AppSec
 
     @Advice.OnMethodExit()
     public static void onExit(@Advice.Argument(0) final Object input) {
-
-      if (!Config.get().isAppSecRaspEnabled()) {
+      if (!(input instanceof URL)) {
         return;
       }
-      if (input == null || !(input instanceof URL)) {
-        return;
-      }
-      NetworkConnectionModule.INSTANCE.onNetworkConnection(input);
+      NetworkConnectionModule.INSTANCE.onNetworkConnection(input.toString());
     }
   }
 }
