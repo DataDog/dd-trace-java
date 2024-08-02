@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import java.io.InputStream;
 import java.io.Reader;
 import java.net.URL;
@@ -17,6 +18,11 @@ public class RaspJson1FactoryInstrumentation extends InstrumenterModule.AppSec
 
   public RaspJson1FactoryInstrumentation() {
     super("jackson", "jackson-1");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {InstrumentationLogger.class.getName()};
   }
 
   @Override
