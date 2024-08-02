@@ -8,17 +8,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
-import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
-import datadog.trace.api.iast.sink.SsrfModule;
 import datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule;
 import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import net.bytebuddy.asm.Advice;
 import org.apache.commons.httpclient.HttpMethod;
-
-import java.net.URL;
 
 @AutoService(InstrumenterModule.class)
 public class RaspCommonsHttpClientInstrumentation extends InstrumenterModule.AppSec
@@ -41,7 +36,7 @@ public class RaspCommonsHttpClientInstrumentation extends InstrumenterModule.App
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        InstrumentationLogger.class.getName(), NetworkConnectionModule.class.getName()
+      InstrumentationLogger.class.getName(), NetworkConnectionModule.class.getName()
     };
   }
 
@@ -56,16 +51,20 @@ public class RaspCommonsHttpClientInstrumentation extends InstrumenterModule.App
   }
 
   public static class NetworkConnectionRaspAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     @Sink(VulnerabilityTypes.SSRF)
     public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
-      if (!Config.get().isAppSecRaspEnabled()) {
-        return;
-      }
       if (httpMethod == null) {
         return;
       }
-      NetworkConnectionModule.INSTANCE.onNetworkConnection(httpMethod);
+      String uri = null;
+      try {
+        uri = httpMethod.getURI().toString();
+      } catch (Exception e) {
+        InstrumentationLogger.debug(
+            "Failed to get URI from HttpMethod", NetworkConnectionRaspAdvice.class, e);
+      }
+      NetworkConnectionModule.INSTANCE.onNetworkConnection(uri);
     }
   }
 }
