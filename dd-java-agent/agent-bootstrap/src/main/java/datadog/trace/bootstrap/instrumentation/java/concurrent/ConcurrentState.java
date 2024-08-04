@@ -36,8 +36,8 @@ public final class ConcurrentState {
         return null;
       }
       final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
-      if (!state.captureAndSetContinuation(scope) && log.isDebugEnabled()) {
-        log.debug(
+      if (!state.captureAndSetContinuation(scope)) {
+        log.trace(
             "continuation was already set for {} in scope {}, no continuation captured.",
             key,
             scope);
