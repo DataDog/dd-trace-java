@@ -26,7 +26,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
   private static final int MAX_MEMBER_COUNT = 32;
-  public static final CharSequence INVALID_LAST_PARENT_SPAN = "0000000000000000";
+  public static final CharSequence INVALID_SPAN_ID = "0000000000000000";
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -96,7 +96,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     TagValue traceIdTagValue = null;
     boolean appsecPropagationEnabled = false;
     int maxUnknownSize = 0;
-    CharSequence lastParentId = null;
+    CharSequence lastParentId = INVALID_SPAN_ID;
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -242,7 +242,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     }
     // append last ParentId (p)
     CharSequence lastParent = ptags.getLastParentId();
-    if (lastParent != null && !INVALID_LAST_PARENT_SPAN.equals(lastParent)) {
+    if (lastParent != null && !INVALID_SPAN_ID.equals(lastParent)) {
       if (sb.length() > EMPTY_SIZE) {
         sb.append(';');
       }
