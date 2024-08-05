@@ -1082,5 +1082,45 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
   }
 
+  void 'untrusted deserialization for a multipart file'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/multipart"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+      .build()
+    final request = new Request.Builder().url(url)
+      .post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
+  void 'untrusted deserialization for a part'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/part"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+      .build()
+    final request = new Request.Builder().url(url)
+      .post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
 
 }
