@@ -1,9 +1,10 @@
 package com.datadog.profiling.ddprof;
 
 import co.elastic.otel.UniversalProfilingCorrelation;
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Random;
@@ -11,13 +12,14 @@ import java.util.Random;
 public class ElasticCorrelation {
 
   private static ElasticCorrelation INSTANCE;
-//  private static ByteBuffer
+  //  private static ByteBuffer
   private ElasticCorrelation() {
-    synchronized(ElasticCorrelation.class) {
-      openCorrelationSocket();
+    synchronized (ElasticCorrelation.class) {
+      String correlationSocketPath = openCorrelationSocket();
+      assert correlationSocketPath != null; // temporary check, different API in the long term
+      UniversalProfilingCorrelation.setProcessStorage(
+          generateProcessCorrelationStorage(correlationSocketPath));
     }
-    // open socket
-    // set bytebuffer for process info
     // set register bytebuffers for each thread?
   }
 
@@ -28,13 +30,34 @@ public class ElasticCorrelation {
     return INSTANCE;
   }
 
-  private void openCorrelationSocket(){
+  // Adapted from elastic-otel-java
+  private ByteBuffer generateProcessCorrelationStorage(String correlationSocketPath) {
+    ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
+    buffer.order(ByteOrder.nativeOrder());
+    buffer.position(0);
+
+    buffer.putChar((char) 1); // layout-minor-version
+    writeUtf8Str(buffer, "test service name");
+    writeUtf8Str(buffer, "test service environment");
+    writeUtf8Str(buffer, correlationSocketPath); // socket-file-path
+    return buffer;
+  }
+
+  // Copied from elastic-otel-java
+  private void writeUtf8Str(ByteBuffer buffer, String str) {
+    byte[] utf8 = str.getBytes(StandardCharsets.UTF_8);
+    buffer.putInt(utf8.length);
+    buffer.put(utf8);
+  }
+
+  private String openCorrelationSocket() {
     String correlationSocketPath;
     try {
       correlationSocketPath = generateSocketPath();
       UniversalProfilingCorrelation.startProfilerReturnChannel(correlationSocketPath);
+      return correlationSocketPath;
     } catch (IOException e) {
-      // Not good, debug
+      return null;
     }
   }
 
@@ -59,7 +82,4 @@ public class ElasticCorrelation {
     }
     return name.toString();
   }
-
-
-
 }
