@@ -1,4 +1,4 @@
-package com.datadog.debugger.code_origin;
+package com.datadog.debugger.origin;
 
 import static datadog.trace.bootstrap.debugger.CapturedContext.EMPTY_CAPTURING_CONTEXT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
@@ -11,18 +11,18 @@ import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.agent.DebuggerAgentHelper;
+import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
+import com.datadog.debugger.codeorigin.SpanDebug;
+import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.LogProbe.LogStatus;
-import com.datadog.debugger.probe.SpanDebuggerProbe;
 import com.datadog.debugger.sink.ProbeStatusSink;
-import com.datadog.debugger.snapshot.DefaultSpanDebugger;
-import com.datadog.debugger.snapshot.SpanDebug;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.TestSnapshotListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
-import datadog.trace.bootstrap.debugger.spanorigin.SpanOriginInfo;
+import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -35,7 +35,7 @@ import java.util.HashSet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class SpanDebuggerTest extends DDSpecification {
+public class CodeOriginTest extends DDSpecification {
   private ClassNameFiltering classNameFiltering;
 
   private ConfigurationUpdater configurationUpdater;
@@ -44,12 +44,12 @@ public class SpanDebuggerTest extends DDSpecification {
 
   private TestSnapshotListener listener;
 
-  private DefaultSpanDebugger spanDebugger;
+  private DefaultCodeOriginRecorder codeOriginRecorder;
   private TracerAPI tracerAPI;
 
   @BeforeEach
   public void setUp() {
-    injectSysConfig("dd.trace.span.origin.enabled", "true");
+    injectSysConfig("dd.code.origin.enabled", "true");
     AgentTracer.registerIfAbsent(CoreTracer.builder().build());
     tracerAPI = AgentTracer.get();
     configurationUpdater = mock(ConfigurationUpdater.class);
@@ -65,46 +65,40 @@ public class SpanDebuggerTest extends DDSpecification {
                     "worker.org.gradle",
                     "datadog",
                     "com.datadog.debugger.probe",
-                    "com.datadog.debugger.snapshot")));
-    spanDebugger = new DefaultSpanDebugger(configurationUpdater, classNameFiltering);
-    spanDebugger.taskScheduler(
+                    "com.datadog.debugger.codeorigin")));
+    codeOriginRecorder = new DefaultCodeOriginRecorder(configurationUpdater, classNameFiltering);
+    codeOriginRecorder.taskScheduler(
         new AgentTaskScheduler(TASK_SCHEDULER) {
           @Override
           public void execute(Runnable target) {
             target.run();
           }
         });
-    DebuggerContext.initSpanDebugger(spanDebugger);
+    DebuggerContext.initSpanDebugger(codeOriginRecorder);
 
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }
 
   @Test
-  public void fingerprinting() throws InterruptedException {
+  public void fingerprinting() {
 
     AgentSpan span1 = createProbePath1();
-    SpanDebug.enableDebug(span1, SpanDebug.ALL_FRAMES);
     AgentSpan span2 = createProbePath1a();
-    SpanDebug.enableDebug(span2, 31);
     AgentSpan span3 = createProbePath1();
 
-    SpanDebuggerProbe[] probes =
-        spanDebugger.probeManager().getProbes().toArray(new SpanDebuggerProbe[0]);
+    CodeOriginProbe[] probes =
+        codeOriginRecorder.probeManager().getProbes().toArray(new CodeOriginProbe[0]);
 
     assertEquals(2, probes.length);
-    SpanDebuggerProbe entryProbe;
-    SpanDebuggerProbe exitProbe;
-    if (probes[0].isEntrySpanProbe()) {
-      entryProbe = probes[0];
-      exitProbe = probes[1];
-    } else {
-      entryProbe = probes[1];
-      exitProbe = probes[0];
-    }
-    assertTrue(entryProbe.isEntrySpanProbe());
-    assertFalse(exitProbe.isEntrySpanProbe());
+    Arrays.sort(probes, (o1, o2) -> o1.isEntrySpanProbe() ? -1 : 1);
+    CodeOriginProbe entryProbe = probes[0];
+    CodeOriginProbe exitProbe = probes[1];
+
     invoke(span1, entryProbe);
+    SpanDebug.enableDebug(span2);
+    invoke(span2, exitProbe);
+    invoke(span3, entryProbe);
 
     assertTrue(
         span1.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_FILE),
@@ -113,15 +107,12 @@ public class SpanDebuggerTest extends DDSpecification {
         span1.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_SNAPSHOT_ID),
         span1.getTags().keySet().toString());
 
-    invoke(span2, exitProbe);
     assertTrue(
         span2.getTags().containsKey(String.format(DDTags.DD_EXIT_LOCATION_FILE, 0)),
         span2.getTags().keySet().toString());
     assertTrue(
         span2.getTags().containsKey(DDTags.DD_EXIT_LOCATION_SNAPSHOT_ID),
         span2.getTags().keySet().toString());
-
-    invoke(span3, entryProbe);
 
     assertTrue(
         span3.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_FILE),
@@ -131,8 +122,8 @@ public class SpanDebuggerTest extends DDSpecification {
         span3.getTags().keySet().toString());
   }
 
-  private void invoke(AgentSpan span1, SpanDebuggerProbe probe) {
-    tracerAPI.activateSpan(span1, ScopeSource.MANUAL);
+  private void invoke(AgentSpan span, CodeOriginProbe probe) {
+    tracerAPI.activateSpan(span, ScopeSource.MANUAL);
     probe.evaluate(EMPTY_CAPTURING_CONTEXT, LogStatus.EMPTY_LOG_STATUS, MethodLocation.EXIT);
     probe.commit(EMPTY_CAPTURING_CONTEXT, EMPTY_CAPTURING_CONTEXT, emptyList());
   }
@@ -154,9 +145,9 @@ public class SpanDebuggerTest extends DDSpecification {
     try {
 
       if (count % 2 == 1) {
-        SpanOriginInfo.entry(span, getClass().getDeclaredMethod("createProbePath3"));
+        CodeOriginInfo.entry(span, getClass().getDeclaredMethod("createProbePath3"));
       } else {
-        SpanOriginInfo.exit(span);
+        CodeOriginInfo.exit(span);
       }
 
       return span;

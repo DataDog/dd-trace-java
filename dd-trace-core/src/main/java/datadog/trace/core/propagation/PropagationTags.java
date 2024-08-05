@@ -105,9 +105,9 @@ public abstract class PropagationTags {
 
   public abstract boolean isAppsecPropagationEnabled();
 
-  public abstract void updateDebugPropagation(int level);
+  public abstract void updateDebugPropagation(String value);
 
-  public abstract int getDebugPropagation();
+  public abstract String getDebugPropagation();
 
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();

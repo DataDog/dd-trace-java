@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Trace;
-import datadog.trace.bootstrap.debugger.spanorigin.SpanOriginInfo;
+import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator;
@@ -91,7 +91,7 @@ public class TraceDecorator extends AsyncResultDecorator {
     afterStart(span);
     span.setResourceName(resourceName);
 
-    SpanOriginInfo.entry(span, method);
+    CodeOriginInfo.entry(span, method);
     if (measured || InstrumenterConfig.get().isMethodMeasured(method)) {
       span.setMeasured(true);
     }

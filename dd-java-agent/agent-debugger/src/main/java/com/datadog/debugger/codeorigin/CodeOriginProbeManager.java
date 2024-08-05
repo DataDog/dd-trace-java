@@ -1,6 +1,6 @@
-package com.datadog.debugger.snapshot;
+package com.datadog.debugger.codeorigin;
 
-import com.datadog.debugger.probe.SpanDebuggerProbe;
+import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -10,16 +10,16 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class SpanDebuggerProbeManager {
+public class CodeOriginProbeManager {
   private Map<String, String> fingerprints = new HashMap<>();
-  private final Map<String, SpanDebuggerProbe> probes = new ConcurrentHashMap<>();
+  private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
   private final ClassNameFiltering classNameFiltering;
 
-  public SpanDebuggerProbeManager(ClassNameFiltering classNameFiltering) {
+  public CodeOriginProbeManager(ClassNameFiltering classNameFiltering) {
     this.classNameFiltering = classNameFiltering;
   }
 
-  public Collection<SpanDebuggerProbe> getProbes() {
+  public Collection<CodeOriginProbe> getProbes() {
     return probes.values();
   }
 
@@ -42,8 +42,8 @@ public class SpanDebuggerProbeManager {
             element.getMethodName(),
             signature,
             String.valueOf(element.getLineNumber()));
-    SpanDebuggerProbe probe =
-        new SpanDebuggerProbe(new ProbeId(UUID.randomUUID().toString(), 0), signature, where, this);
+    CodeOriginProbe probe =
+        new CodeOriginProbe(new ProbeId(UUID.randomUUID().toString(), 0), signature, where, this);
     probes.putIfAbsent(probe.getId(), probe);
     return probe.getId();
   }

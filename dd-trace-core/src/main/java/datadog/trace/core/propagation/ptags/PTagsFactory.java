@@ -23,8 +23,6 @@ import javax.annotation.Nonnull;
 public class PTagsFactory implements PropagationTags.Factory {
   static final String PROPAGATION_ERROR_TAG_KEY = "_dd.propagation_error";
 
-  static final int DEBUG_PROPAGATION_DEFAULT = 2;
-
   private final EnumMap<HeaderType, PTagsCodec> DEC_ENC_MAP = new EnumMap<>(HeaderType.class);
 
   private final int xDatadogTagsLimit;
@@ -84,7 +82,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile TagValue decisionMakerTagValue;
 
     private volatile boolean appsecPropagationEnabled;
-    private volatile int debugPropagation = DEBUG_PROPAGATION_DEFAULT;
+    private volatile String debugPropagation;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
@@ -217,12 +215,12 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateDebugPropagation(int level) {
-      debugPropagation = level;
+    public void updateDebugPropagation(String value) {
+      debugPropagation = value;
     }
 
     @Override
-    public int getDebugPropagation() {
+    public String getDebugPropagation() {
       return debugPropagation;
     }
 

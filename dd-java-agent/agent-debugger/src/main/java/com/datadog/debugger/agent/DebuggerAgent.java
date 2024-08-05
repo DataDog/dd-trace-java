@@ -3,13 +3,13 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
+import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
 import com.datadog.debugger.exception.DefaultExceptionDebugger;
 import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
-import com.datadog.debugger.snapshot.DefaultSpanDebugger;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
@@ -101,7 +101,7 @@ public class DebuggerAgent {
     }
     if (config.isDebuggerSpanDebugEnabled()) {
       DebuggerContext.initSpanDebugger(
-          new DefaultSpanDebugger(configurationUpdater, classNameFiltering));
+          new DefaultCodeOriginRecorder(configurationUpdater, classNameFiltering));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(

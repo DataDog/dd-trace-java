@@ -1,33 +1,35 @@
-package com.datadog.debugger.snapshot;
+package com.datadog.debugger.codeorigin;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.SPAN_DEBUG;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.util.ClassNameFiltering;
-import datadog.trace.bootstrap.debugger.DebuggerContext.SpanDebugger;
+import datadog.trace.bootstrap.debugger.DebuggerContext.CodeOriginRecorder;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DefaultSpanDebugger implements SpanDebugger {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultSpanDebugger.class);
+public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
+  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultCodeOriginRecorder.class);
 
-  private final SpanDebuggerProbeManager probeManager;
+  private final CodeOriginProbeManager probeManager;
   private final ConfigurationUpdater configurationUpdater;
   private final ClassNameFiltering classNameFiltering;
 
   private AgentTaskScheduler taskScheduler = AgentTaskScheduler.INSTANCE;
 
-  public DefaultSpanDebugger(
+  public DefaultCodeOriginRecorder(
       ConfigurationUpdater configurationUpdater, ClassNameFiltering classNameFiltering) {
-    this.probeManager = new SpanDebuggerProbeManager(classNameFiltering);
+    this.probeManager = new CodeOriginProbeManager(classNameFiltering);
     this.configurationUpdater = configurationUpdater;
     this.classNameFiltering = classNameFiltering;
   }
 
-  public SpanDebuggerProbeManager probeManager() {
+  public CodeOriginProbeManager probeManager() {
     return probeManager;
   }
 
@@ -35,13 +37,13 @@ public class DefaultSpanDebugger implements SpanDebugger {
     return taskScheduler;
   }
 
-  public DefaultSpanDebugger taskScheduler(AgentTaskScheduler taskScheduler) {
+  public DefaultCodeOriginRecorder taskScheduler(AgentTaskScheduler taskScheduler) {
     this.taskScheduler = taskScheduler;
     return this;
   }
 
   @Override
-  public String captureSnapshot(String signature) {
+  public String captureCodeOrigin(String signature) {
     StackTraceElement element = findPlaceInStack();
     String fingerprint = Fingerprinter.fingerprint(element);
     if (fingerprint == null) {
@@ -67,10 +69,13 @@ public class DefaultSpanDebugger implements SpanDebugger {
   private StackTraceElement findPlaceInStack() {
     return StackWalkerFactory.INSTANCE.walk(
         stream -> {
-          return stream
-              .filter(element -> !classNameFiltering.isExcluded(element.getClassName()))
-              .findFirst()
-              .orElse(null);
+          List<StackTraceElement> list = stream.collect(Collectors.toList());
+          list =
+              list.stream()
+                  .filter(element -> !classNameFiltering.isExcluded(element.getClassName()))
+                  .collect(Collectors.toList());
+
+          return list.stream().findFirst().orElse(null);
         });
   }
 }
