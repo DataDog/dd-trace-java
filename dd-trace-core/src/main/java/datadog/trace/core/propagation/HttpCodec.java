@@ -284,7 +284,7 @@ public class HttpCodec {
         firstContext.overrideSpanId(traceContext.getSpanId());
         // Add last parent span id as tag (from W3C first, else Datadog)
         CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
-        if (lastParentId == null || lastParentId.equals("0000000000000000")) {
+        if (lastParentId == null) {
           lastParentId = extractionCache.getDatadogSpanIdHex();
         }
         if (lastParentId != null) {
@@ -300,8 +300,8 @@ public class HttpCodec {
     /** Cached context key-values (even indexes are header names, odd indexes are header values). */
     private final List<String> keysAndValues;
     /**
-     * {@link DatadogHttpCodec#SPAN_ID_KEY} header value for fast access, {@code null} if absent or
-     * invalid.
+     * The parent span identifier from {@link DatadogHttpCodec#SPAN_ID_KEY} header formatted as 16
+     * hexadecimal characters, {@code null} if absent or invalid.
      */
     private String datadogSpanIdHex;
 
@@ -321,7 +321,10 @@ public class HttpCodec {
     private void cacheDatadogSpanId(String key, String value) {
       if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
         try {
-          this.datadogSpanIdHex = DDSpanId.toHexStringPadded(DDSpanId.from(value));
+          long parentId = DDSpanId.from(value);
+          if (parentId > 0) {
+            this.datadogSpanIdHex = DDSpanId.toHexStringPadded(parentId);
+          }
         } catch (NumberFormatException ignored) {
         }
       }
