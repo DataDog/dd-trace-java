@@ -689,7 +689,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     then:
     hasVulnerability { vul ->
-      if (vul.type = !'SSRF') {
+      if (vul.type != 'SSRF') {
         return false
       }
       final parts = vul.evidence.valueParts
