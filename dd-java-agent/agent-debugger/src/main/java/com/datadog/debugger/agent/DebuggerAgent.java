@@ -9,6 +9,7 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
+import com.datadog.debugger.snapshot.DefaultSpanDebugger;
 import com.datadog.debugger.symbol.SymDBEnablement;
 import com.datadog.debugger.symbol.SymbolAggregator;
 import com.datadog.debugger.uploader.BatchUploader;
@@ -97,6 +98,10 @@ public class DebuggerAgent {
               EXCEPTION_CAPTURE_INTERVAL,
               config.getDebuggerMaxExceptionPerSecond());
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
+    }
+    if (config.isDebuggerSpanDebugEnabled()) {
+      DebuggerContext.initSpanDebugger(
+          new DefaultSpanDebugger(configurationUpdater, classNameFiltering));
     }
     if (config.isDebuggerInstrumentTheWorld()) {
       setupInstrumentTheWorldTransformer(

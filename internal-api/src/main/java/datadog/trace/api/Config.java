@@ -55,6 +55,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_EXCEPTION_PE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SPAN_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD;
@@ -233,6 +234,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SPAN_DEBUG_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FORCE_UPLOAD;
@@ -249,6 +251,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
@@ -867,6 +870,7 @@ public class Config {
   private final int debuggerMaxExceptionPerSecond;
   private final boolean debuggerExceptionOnlyLocalRoot;
   private final int debuggerExceptionMaxCapturedFrames;
+  private final boolean debuggerSpanDebugEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -935,6 +939,7 @@ public class Config {
   private final int cwsTlsRefresh;
 
   private final boolean dataJobsEnabled;
+  private final String dataJobsCommandPattern;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -1961,6 +1966,8 @@ public class Config {
             DEBUGGER_EXCEPTION_ENABLED,
             DEFAULT_DEBUGGER_EXCEPTION_ENABLED,
             EXCEPTION_REPLAY_ENABLED);
+    debuggerSpanDebugEnabled =
+        configProvider.getBoolean(DEBUGGER_SPAN_DEBUG_ENABLED, DEFAULT_DEBUGGER_SPAN_DEBUG_ENABLED);
     debuggerMaxExceptionPerSecond =
         configProvider.getInteger(
             DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
@@ -2078,6 +2085,7 @@ public class Config {
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+    dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -3340,6 +3348,10 @@ public class Config {
     return debuggerExceptionMaxCapturedFrames;
   }
 
+  public boolean isDebuggerSpanDebugEnabled() {
+    return debuggerSpanDebugEnabled;
+  }
+
   public Set<String> getThirdPartyIncludes() {
     return debuggerThirdPartyIncludes;
   }
@@ -3601,6 +3613,10 @@ public class Config {
 
   public boolean isDataJobsEnabled() {
     return dataJobsEnabled;
+  }
+
+  public String getDataJobsCommandPattern() {
+    return dataJobsCommandPattern;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -4757,6 +4773,8 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
+        + ", dataJobsCommandPattern="
+        + dataJobsCommandPattern
         + ", appSecStandaloneEnabled="
         + appSecStandaloneEnabled
         + '}';
