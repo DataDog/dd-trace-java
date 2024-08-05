@@ -98,7 +98,6 @@ public final class DatadogProfiler {
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
   private final ContextSetter contextSetter;
-  private final ElasticCorrelation elasticCorrelation;
 
   private final List<String> orderedContextAttributes;
 
