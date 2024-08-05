@@ -20,7 +20,8 @@ public class MultipartParseRequestServlet extends HttpServlet {
     final ServletFileUpload servletFileUpload = new ServletFileUpload(fileItemFactory);
     try {
       final List<FileItem> fileItemIterator = servletFileUpload.parseRequest(request);
-      new ObjectInputStream(fileItemIterator.get(0).getInputStream());
+      final ObjectInputStream ois = new ObjectInputStream(fileItemIterator.get(0).getInputStream());
+      ois.close();
       response.setHeader("Content-Type", "text/plain");
       response.getWriter().write("OK");
     } catch (FileUploadException e) {

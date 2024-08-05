@@ -399,14 +399,16 @@ public class IastWebController {
 
   @PostMapping("/untrusted_deserialization")
   public String untrustedDeserialization(HttpServletRequest request) throws IOException {
-    new ObjectInputStream(request.getInputStream());
+    final ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
+    ois.close();
     return "OK";
   }
 
   @PostMapping("/untrusted_deserialization/multipart")
   public String untrustedDeserializationMultipart(@RequestParam("file") MultipartFile file)
       throws IOException {
-    new ObjectInputStream(file.getInputStream());
+    final ObjectInputStream ois = new ObjectInputStream(file.getInputStream());
+    ois.close();
     return "OK";
   }
 
@@ -414,7 +416,8 @@ public class IastWebController {
   public String untrustedDeserializationParts(HttpServletRequest request)
       throws IOException, ServletException {
     List<Part> parts = (List<Part>) request.getParts();
-    new ObjectInputStream(parts.get(0).getInputStream());
+    final ObjectInputStream ois = new ObjectInputStream(parts.get(0).getInputStream());
+    ois.close();
     return "OK";
   }
 

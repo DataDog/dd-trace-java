@@ -19,7 +19,8 @@ public class MultipartGetItemIteratorServlet extends HttpServlet {
     final ServletFileUpload servletFileUpload = new ServletFileUpload(fileItemFactory);
     try {
       final FileItemIterator fileItemIterator = servletFileUpload.getItemIterator(request);
-      new ObjectInputStream(fileItemIterator.next().openStream());
+      final ObjectInputStream ois = new ObjectInputStream(fileItemIterator.next().openStream());
+      ois.close();
       response.setHeader("Content-Type", "text/plain");
       response.getWriter().write("OK");
     } catch (FileUploadException e) {

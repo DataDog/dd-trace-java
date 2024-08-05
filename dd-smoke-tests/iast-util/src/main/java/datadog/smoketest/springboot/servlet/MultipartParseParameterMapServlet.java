@@ -22,7 +22,8 @@ public class MultipartParseParameterMapServlet extends HttpServlet {
     try {
       final Map<String, List<FileItem>> fileItemList = servletFileUpload.parseParameterMap(request);
       for (final List<FileItem> fileItem : fileItemList.values()) {
-        new ObjectInputStream(fileItem.get(0).getInputStream());
+        final ObjectInputStream ois = new ObjectInputStream(fileItem.get(0).getInputStream());
+        ois.close();
       }
       response.setHeader("Content-Type", "text/plain");
       response.getWriter().write("OK");
