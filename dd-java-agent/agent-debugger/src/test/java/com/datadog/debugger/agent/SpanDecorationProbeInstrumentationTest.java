@@ -8,6 +8,7 @@ import static com.datadog.debugger.el.DSL.value;
 import static com.datadog.debugger.probe.SpanDecorationProbe.TargetSpan.ACTIVE;
 import static com.datadog.debugger.probe.SpanDecorationProbe.TargetSpan.ROOT;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,6 +25,7 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -41,7 +43,7 @@ import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
@@ -100,7 +102,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     installSingleSpanDecoration(
         CLASS_NAME,
         ACTIVE,
-        Arrays.asList(deco1, deco2, deco3, deco4, deco5),
+        asList(deco1, deco2, deco3, deco4, deco5),
         "process",
         "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -122,11 +124,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", "{strField}");
     SpanDecorationProbe.Decoration deco4 = createDecoration("tag4", "{@return}");
     installSingleSpanDecoration(
-        CLASS_NAME,
-        ROOT,
-        Arrays.asList(deco1, deco2, deco3, deco4),
-        "process3",
-        "int (java.lang.String)");
+        CLASS_NAME, ROOT, asList(deco1, deco2, deco3, deco4), "process3", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(45, result);
@@ -259,7 +257,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     SpanDecorationProbe.Decoration deco2 = createDecoration("tag2", "{this.intField}");
     SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", "{strField}");
     installSingleSpanDecoration(
-        CLASS_NAME, ROOT, Arrays.asList(deco1, deco2, deco3), "CapturedSnapshot21.java", 67);
+        CLASS_NAME, ROOT, asList(deco1, deco2, deco3), "CapturedSnapshot21.java", 67);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(45, result);
@@ -321,12 +319,24 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{arg}");
     SpanDecorationProbe spanDecoProbe1 =
         createProbeBuilder(
-                PROBE_ID1, ACTIVE, singletonList(decoration1), CLASS_NAME, "process", null, null)
+                PROBE_ID1,
+                ACTIVE,
+                singletonList(decoration1),
+                CLASS_NAME,
+                "process",
+                null,
+                (String[]) null)
             .evaluateAt(MethodLocation.EXIT)
             .build();
     SpanDecorationProbe spanDecoProbe2 =
         createProbeBuilder(
-                PROBE_ID2, ACTIVE, singletonList(decoration2), CLASS_NAME, "process", null, null)
+                PROBE_ID2,
+                ACTIVE,
+                singletonList(decoration2),
+                CLASS_NAME,
+                "process",
+                null,
+                (String[]) null)
             .evaluateAt(MethodLocation.ENTRY)
             .build();
     LogProbe logProbe1 =
@@ -374,12 +384,24 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{arg}");
     SpanDecorationProbe spanDecoProbe1 =
         createProbeBuilder(
-                PROBE_ID1, ACTIVE, singletonList(decoration1), CLASS_NAME, "process", null, null)
+                PROBE_ID1,
+                ACTIVE,
+                singletonList(decoration1),
+                CLASS_NAME,
+                "process",
+                null,
+                (String[]) null)
             .evaluateAt(MethodLocation.EXIT)
             .build();
     SpanDecorationProbe spanDecoProbe2 =
         createProbeBuilder(
-                PROBE_ID2, ACTIVE, singletonList(decoration2), CLASS_NAME, "process", null, null)
+                PROBE_ID2,
+                ACTIVE,
+                singletonList(decoration2),
+                CLASS_NAME,
+                "process",
+                null,
+                (String[]) null)
             .evaluateAt(MethodLocation.ENTRY)
             .build();
     Configuration configuration =
@@ -404,7 +426,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{this.password}");
     SpanDecorationProbe.Decoration decoration3 = createDecoration("tag3", "{strMap['password']}");
     List<SpanDecorationProbe.Decoration> decorations =
-        Arrays.asList(decoration1, decoration2, decoration3);
+        asList(decoration1, decoration2, decoration3);
     installSingleSpanDecoration(
         CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -447,7 +469,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
             "tag3",
             "foo");
     List<SpanDecorationProbe.Decoration> decorations =
-        Arrays.asList(decoration1, decoration2, decoration3);
+        asList(decoration1, decoration2, decoration3);
     installSingleSpanDecoration(
         CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -481,7 +503,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{this.creds}");
     SpanDecorationProbe.Decoration decoration3 = createDecoration("tag3", "{credMap['dave']}");
     List<SpanDecorationProbe.Decoration> decorations =
-        Arrays.asList(decoration1, decoration2, decoration3);
+        asList(decoration1, decoration2, decoration3);
     installSingleSpanDecoration(
         CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -533,7 +555,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
             "tag3",
             "foo");
     List<SpanDecorationProbe.Decoration> decorations =
-        Arrays.asList(decoration1, decoration2, decoration3);
+        asList(decoration1, decoration2, decoration3);
     installSingleSpanDecoration(
         CLASS_NAME, ACTIVE, decorations, "process", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -558,7 +580,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
 
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {
     List<SpanDecorationProbe.Tag> tags =
-        Arrays.asList(
+        asList(
             new SpanDecorationProbe.Tag(
                 tagName, new SpanDecorationProbe.TagValue(valueDsl, parseTemplate(valueDsl))));
     return new SpanDecorationProbe.Decoration(null, tags);
@@ -567,7 +589,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   private SpanDecorationProbe.Decoration createDecoration(
       BooleanExpression expression, String dsl, String tagName, String valueDsl) {
     List<SpanDecorationProbe.Tag> tags =
-        Arrays.asList(
+        asList(
             new SpanDecorationProbe.Tag(
                 tagName, new SpanDecorationProbe.TagValue(valueDsl, parseTemplate(valueDsl))));
     return new SpanDecorationProbe.Decoration(new ProbeCondition(DSL.when(expression), dsl), tags);
@@ -579,8 +601,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
       SpanDecorationProbe.Decoration decoration,
       String methodName,
       String signature) {
-    installSingleSpanDecoration(
-        typeName, targetSpan, Arrays.asList(decoration), methodName, signature);
+    installSingleSpanDecoration(typeName, targetSpan, asList(decoration), methodName, signature);
   }
 
   private void installSingleSpanDecoration(
@@ -589,7 +610,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
       SpanDecorationProbe.Decoration decoration,
       String sourceFile,
       int line) {
-    installSingleSpanDecoration(typeName, targetSpan, Arrays.asList(decoration), sourceFile, line);
+    installSingleSpanDecoration(typeName, targetSpan, asList(decoration), sourceFile, line);
   }
 
   private void installSingleSpanDecoration(
@@ -675,7 +696,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
         expectedClassName,
         Configuration.builder()
             .setService(SERVICE_NAME)
-            .addSpanDecorationProbes(Arrays.asList(probes))
+            .addSpanDecorationProbes(asList(probes))
             .build());
   }
 
@@ -697,15 +718,29 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     DebuggerContext.initClassFilter(new DenyListHelper(null));
   }
 
-  private ProbeImplementation resolver(String encodedProbeId, Configuration configuration) {
-    for (SpanDecorationProbe probe : configuration.getSpanDecorationProbes()) {
-      if (probe.getProbeId().getEncodedId().equals(encodedProbeId)) {
+  static ProbeImplementation resolver(String encodedProbeId, Configuration configuration) {
+    List<Collection<? extends ProbeDefinition>> list1 =
+        asList(
+            configuration.getSpanDecorationProbes(),
+            configuration.getLogProbes(),
+            configuration.getDebuggerProbes());
+    for (Collection<? extends ProbeDefinition> list : list1) {
+
+      ProbeImplementation probe = scanForProbe(encodedProbeId, list);
+      if (probe != null) {
         return probe;
       }
     }
-    for (LogProbe probe : configuration.getLogProbes()) {
-      if (probe.getProbeId().getEncodedId().equals(encodedProbeId)) {
-        return probe;
+    return null;
+  }
+
+  private static ProbeDefinition scanForProbe(
+      String encodedProbeId, Collection<? extends ProbeDefinition> probes) {
+    if (probes != null) {
+      for (ProbeDefinition probe : probes) {
+        if (probe.getProbeId().getEncodedId().equals(encodedProbeId)) {
+          return probe;
+        }
       }
     }
     return null;

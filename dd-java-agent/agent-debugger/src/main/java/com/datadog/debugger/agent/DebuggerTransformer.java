@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toList;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.ForceMethodInstrumentation;
 import com.datadog.debugger.probe.LogProbe;
@@ -77,7 +78,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final List<Class<?>> PROBE_ORDER =
-      Arrays.asList(MetricProbe.class, LogProbe.class, SpanDecorationProbe.class, SpanProbe.class);
+      Arrays.asList(
+          DebuggerProbe.class,
+          MetricProbe.class,
+          LogProbe.class,
+          SpanDecorationProbe.class,
+          SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
 
   private final Config config;
@@ -212,7 +218,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     Map<Where, List<ProbeDefinition>> mergedProbes = new HashMap<>();
     for (ProbeDefinition definition : definitions) {
       Where where = definition.getWhere();
-      if (definition instanceof ExceptionProbe) {
+      if (definition instanceof ForceMethodInstrumentation) {
         // normalize where for line => to precise method location
         where = Where.convertLineToMethod(definition.getWhere(), classFileLines);
       }
