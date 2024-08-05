@@ -17,7 +17,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExceptionProbe extends LogProbe {
+public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentation {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProbe.class);
   private final transient ExceptionProbeManager exceptionProbeManager;
 
@@ -76,7 +76,7 @@ public class ExceptionProbe extends LogProbe {
       // capture only on uncaught exception matching the fingerprint
       ExceptionProbeStatus exceptionStatus = (ExceptionProbeStatus) status;
       ExceptionProbeManager.ThrowableState state =
-          exceptionProbeManager.getSateByThrowable(innerMostThrowable);
+          exceptionProbeManager.getStateByThrowable(innerMostThrowable);
       if (state != null) {
         // Already unwinding the exception
         if (!state.isSampling()) {

@@ -467,6 +467,7 @@ include ':dd-java-agent:instrumentation:vertx-web-3.5'
 include ':dd-java-agent:instrumentation:vertx-web-3.9'
 include ':dd-java-agent:instrumentation:vertx-web-4.0'
 include ':dd-java-agent:instrumentation:redisson-2.0.0'
+include ':dd-java-agent:instrumentation:websphere-jmx'
 include ':dd-java-agent:instrumentation:zio'
 include ':dd-java-agent:instrumentation:zio:zio-2.0'
 

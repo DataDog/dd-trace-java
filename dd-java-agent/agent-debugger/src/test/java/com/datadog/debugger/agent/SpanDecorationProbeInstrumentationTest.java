@@ -368,6 +368,36 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   }
 
   @Test
+  public void mixedEntryExit() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{intLocal}");
+    SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{arg}");
+    SpanDecorationProbe spanDecoProbe1 =
+        createProbeBuilder(
+                PROBE_ID1, ACTIVE, singletonList(decoration1), CLASS_NAME, "process", null, null)
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    SpanDecorationProbe spanDecoProbe2 =
+        createProbeBuilder(
+                PROBE_ID2, ACTIVE, singletonList(decoration2), CLASS_NAME, "process", null, null)
+            .evaluateAt(MethodLocation.ENTRY)
+            .build();
+    Configuration configuration =
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .add(spanDecoProbe1)
+            .add(spanDecoProbe2)
+            .build();
+    installSpanDecorationProbes(CLASS_NAME, configuration);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(84, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertEquals("84", span.getTags().get("tag1"));
+    assertEquals("1", span.getTags().get("tag2"));
+  }
+
+  @Test
   public void keywordRedaction() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot28";
     SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{password}");
