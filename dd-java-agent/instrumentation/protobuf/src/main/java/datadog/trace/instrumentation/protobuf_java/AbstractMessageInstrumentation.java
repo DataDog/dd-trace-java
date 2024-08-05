@@ -58,7 +58,11 @@ public final class AbstractMessageInstrumentation extends InstrumenterModule.Tra
   public static class WriteToAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.This AbstractMessage message) {
-      SchemaExtractor.attachSchemaOnSpan(message, activeSpan(), SchemaExtractor.serialization);
+      if (message == null) {
+        return;
+      }
+      SchemaExtractor.attachSchemaOnSpan(
+          message.getDescriptorForType(), activeSpan(), SchemaExtractor.serialization);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
