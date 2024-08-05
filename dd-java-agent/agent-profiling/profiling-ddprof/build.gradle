@@ -30,6 +30,8 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-utils')
   implementation project.hasProperty('ddprof.jar') ? files(project.getProperty('ddprof.jar')) : libs.ddprof
+  implementation 'co.elastic.otel:jvmti-access:0.5.0'
+  implementation 'co.elastic.otel:universal-profiling-integration:0.5.0'
 
   annotationProcessor libs.autoservice.processor
   compileOnly libs.autoservice.annotation
