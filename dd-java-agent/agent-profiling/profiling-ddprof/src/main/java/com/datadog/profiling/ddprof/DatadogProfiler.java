@@ -98,6 +98,7 @@ public final class DatadogProfiler {
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
   private final ContextSetter contextSetter;
+  private final ElasticCorrelation elasticCorrelation;
 
   private final List<String> orderedContextAttributes;
 
@@ -145,6 +146,9 @@ public final class DatadogProfiler {
         configProvider.getLong(
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
+    if (!ElasticCorrelation.isEnabled()) {
+      ElasticCorrelation.getInstance(); // "enable" it and set up the once-per-process resources
+    }
   }
 
   void addThread() {
@@ -313,6 +317,7 @@ public final class DatadogProfiler {
     debugLogging(rootSpanId);
     try {
       profiler.setContext(spanId, rootSpanId);
+      ElasticCorrelation.updateThreadCorrelationStorage(spanId, rootSpanId);
     } catch (IllegalStateException e) {
       log.debug("Failed to clear context", e);
     }
