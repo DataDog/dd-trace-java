@@ -1,0 +1,35 @@
+init_config:
+  is_jmx: true
+
+instances:
+  - jvm_direct: true
+    mbean_server_class: com.ibm.ws.management.PlatformMBeanServer
+    name: dd-java-agent for websphere
+    collect_default_jvm_metrics: false
+    conf:
+      # The metrics are included for now. When we'll have a dedicate core integration we can
+      # remove that, but we'll need to keep shipping the connection factory
+      - include:
+          domain: WebSphere
+          type: ThreadPool
+          attribute:
+            stats.PoolSize.lowerBound:
+              alias: websphere.thread_pool.lower_bound
+            stats.PoolSize.upperBound:
+              alias: websphere.thread_pool.upper_bound
+            stats.PoolSize.highWaterMark:
+              alias: websphere.thread_pool.high_water_mark
+            stats.PoolSize.lowWaterMark:
+              alias: websphere.thread_pool.low_water_mark
+            stats.PoolSize.current:
+              alias: websphere.thread_pool.current
+            stats.ActiveCount.lowerBound:
+              alias: websphere.thread_pool.active.lower_bound
+            stats.ActiveCount.upperBound:
+              alias: websphere.thread_pool.active.upper_bound
+            stats.ActiveCount.highWaterMark:
+              alias: websphere.thread_pool.active.high_water_mark
+            stats.ActiveCount.lowWaterMark:
+              alias: websphere.thread_pool.active.low_water_mark
+            stats.ActiveCount.current:
+              alias: websphere.thread_pool.active.current

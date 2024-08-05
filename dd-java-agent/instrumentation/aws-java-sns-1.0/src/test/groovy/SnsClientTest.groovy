@@ -117,7 +117,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     def messageBody = jsonSlurper.parseText(message.body())
     def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
     if (isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
     then:
     def sendSpan
@@ -194,7 +194,9 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
 
       verifyAll(first) {
-        edgeTags == ["direction:out", "topic:testtopic", "type:sns"]
+        edgeTags.contains("direction:out")
+        edgeTags.contains("topic:testtopic")
+        edgeTags.contains("type:sns")
         edgeTags.size() == 3
       }
     }

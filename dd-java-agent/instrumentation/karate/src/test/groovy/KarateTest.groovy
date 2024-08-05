@@ -3,6 +3,7 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.karate.TestEventsHandlerHolder
+import org.example.TestFailedBuiltInRetryKarate
 import org.example.TestFailedKarate
 import org.example.TestFailedParameterizedKarate
 import org.example.TestFailedThenSucceedKarate
@@ -35,13 +36,14 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName, expectedTracesCount)
 
     where:
-    testcaseName            | tests                       | expectedTracesCount | assumption
-    "test-succeed"          | [TestSucceedKarate]         | 3                   | true
-    "test-succeed-parallel" | [TestSucceedParallelKarate] | 3                   | true
-    "test-with-setup"       | [TestWithSetupKarate]       | 3                   | isSetupTagSupported(FileUtils.KARATE_VERSION)
-    "test-parameterized"    | [TestParameterizedKarate]   | 3                   | true
-    "test-failed"           | [TestFailedKarate]          | 3                   | true
-    "test-skipped-feature"  | [TestSkippedFeatureKarate]  | 1                   | true
+    testcaseName            | tests                          | expectedTracesCount | assumption
+    "test-succeed"          | [TestSucceedKarate]            | 3                   | true
+    "test-succeed-parallel" | [TestSucceedParallelKarate]    | 3                   | true
+    "test-with-setup"       | [TestWithSetupKarate]          | 3                   | isSetupTagSupported(FileUtils.KARATE_VERSION)
+    "test-parameterized"    | [TestParameterizedKarate]      | 3                   | true
+    "test-failed"           | [TestFailedKarate]             | 3                   | true
+    "test-skipped-feature"  | [TestSkippedFeatureKarate]     | 1                   | true
+    "test-built-in-retry"   | [TestFailedBuiltInRetryKarate] | 4                   | true
   }
 
   def "test ITR #testcaseName"() {

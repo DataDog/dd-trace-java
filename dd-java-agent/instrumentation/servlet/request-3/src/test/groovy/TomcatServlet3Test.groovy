@@ -529,6 +529,11 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
 class IastTomcatServlet3ForkedTest extends TomcatServlet3TestSync {
 
   @Override
+  Class<Servlet> servlet() {
+    return TestServlet3.GetSession
+  }
+
+  @Override
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig('dd.iast.enabled', 'true')

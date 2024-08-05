@@ -1,2 +1,6 @@
 
 apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+}
