@@ -17,6 +17,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.telemetry.OtelEnvMetricCollector;
 import datadog.trace.util.Strings;
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -43,6 +44,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   private final Properties otelConfigFile = loadOtelConfigFile();
 
   private final Properties datadogConfigFile;
+  private static final OtelEnvMetricCollector otelEnvMetricCollector =
+      OtelEnvMetricCollector.getInstance();
 
   @Override
   protected String get(String key) {
@@ -76,7 +79,6 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   private void setupOteEnvironment() {
-
     // only applies when OTEL is enabled by default (otherwise TRACE_OTEL_ENABLED takes precedence)
     String sdkDisabled = getOtelProperty("otel.sdk.disabled", "dd." + TRACE_OTEL_ENABLED);
     if ("true".equalsIgnoreCase(sdkDisabled)) {
@@ -144,6 +146,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
           Strings.toEnvVar(ddSysProp),
           otelEnvVar,
           otelEnvVar);
+      otelEnvMetricCollector.setHidingOtelEnvVarMetric(
+          otelSysProp.replace('.', '_'), ddSysProp.replace('.', '_'));
       return null;
     }
     return otelValue;
@@ -285,6 +289,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
           buf.append(TracePropagationStyle.valueOfDisplayName(style)).append(',');
         } catch (IllegalArgumentException e) {
           log.warn("OTEL_PROPAGATORS={} is not supported", style);
+          otelEnvMetricCollector.setInvalidOtelEnvVarMetric(
+              "otel_propagators", "dd_trace_propagation_style");
         }
       }
     }
@@ -318,6 +324,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     log.warn("OTEL_TRACES_SAMPLER={} is not supported", tracesSampler);
+    otelEnvMetricCollector.setInvalidOtelEnvVarMetric(
+        "otel_traces_sampler", "dd_trace_sample_rate");
     return null;
   }
 
@@ -333,6 +341,14 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     log.warn("OTEL_{}_EXPORTER={} is not supported", type, exporter.toUpperCase(Locale.ROOT));
+    if (type.equalsIgnoreCase("logs"))
+      otelEnvMetricCollector.setUnsupportedOtelEnvVarMetric("otel_logs_exporter");
+    else {
+      String ddEnvVar =
+          type.equalsIgnoreCase("metrics") ? "runtime_metrics_enabled" : "trace_enabled";
+      otelEnvMetricCollector.setInvalidOtelEnvVarMetric(
+          "otel_" + type.toLowerCase() + "_exporter", "dd_" + ddEnvVar);
+    }
     return null;
   }
 
