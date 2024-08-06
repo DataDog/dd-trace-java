@@ -14,7 +14,7 @@ import javax.management.MBeanServerPermission;
  * fashion.
  *
  * <p>This security manager grants access to java packages, java properties, and libraries bundled
- * with the JVM, but blocks
+ * with the JVM, but blocks everything else.
  */
 public class CustomSecurityManager extends SecurityManager {
   public static final boolean DEBUG = true;
