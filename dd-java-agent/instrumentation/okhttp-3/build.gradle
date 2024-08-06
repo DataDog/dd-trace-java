@@ -12,6 +12,7 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  implementation project(':dd-java-agent:instrumentation:appsec-utils')
   compileOnly(group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.0.0')
 
   testImplementation(group: 'com.squareup.okhttp3', name: 'okhttp') {
