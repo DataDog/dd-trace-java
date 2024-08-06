@@ -276,7 +276,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       String instrumentationSql = "set context_info ?";
       instrumentationStatement = connection.prepareStatement(instrumentationSql);
       instrumentationStatement.setBytes(1, DatatypeConverter.parseHexBinary(contextInfo));
-      // instrumentationStatement.setBytes(1, contextInfo.getBytes());
       DECORATE.onStatement(instrumentationSpan, instrumentationSql);
       instrumentationStatement.execute();
     } catch (Exception e) {
