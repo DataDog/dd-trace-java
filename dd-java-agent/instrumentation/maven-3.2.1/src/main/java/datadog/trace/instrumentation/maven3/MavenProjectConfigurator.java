@@ -37,7 +37,9 @@ class MavenProjectConfigurator {
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   public void configureTracer(
-      MavenTestExecution mavenTestExecution, Map<String, String> propagatedSystemProperties) {
+      MavenTestExecution mavenTestExecution,
+      Map<String, String> propagatedSystemProperties,
+      List<String> jvmOptions) {
     MojoExecution mojoExecution = mavenTestExecution.getExecution();
     PlexusConfiguration pomConfiguration = MavenUtils.getPomConfiguration(mojoExecution);
 
@@ -48,6 +50,10 @@ class MavenProjectConfigurator {
     }
 
     StringBuilder addedArgLine = new StringBuilder();
+    for (String jvmOption : jvmOptions) {
+      addedArgLine.append(jvmOption).append(" ");
+    }
+
     // propagate to child process all "dd." system properties available in current process
     for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
       addedArgLine.append("-D").append(e.getKey()).append('=').append(e.getValue()).append(" ");

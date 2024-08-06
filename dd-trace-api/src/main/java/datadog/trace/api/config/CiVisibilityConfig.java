@@ -66,6 +66,8 @@ public final class CiVisibilityConfig {
       "civisibility.rum.flush.wait.millis";
   public static final String CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER =
       "civisibility.auto.instrumentation.provider";
+  public static final String CIVISIBILITY_JVM_PATCHING_ENABLED =
+      "civisibility.jvm.patching.enabled";
 
   /* COVERAGE SETTINGS */
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =

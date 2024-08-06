@@ -112,6 +112,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       ], 0)
       : EarlyFlakeDetectionSettings.DEFAULT,
       properties,
+      [],
       itrEnabled ? "itrCorrelationId" : null,
       Collections.singletonMap(dummyModule, skippableTests),
       flakyTests,

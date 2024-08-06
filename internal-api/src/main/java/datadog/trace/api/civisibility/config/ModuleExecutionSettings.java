@@ -17,6 +17,7 @@ public class ModuleExecutionSettings {
           false,
           EarlyFlakeDetectionSettings.DEFAULT,
           Collections.emptyMap(),
+          Collections.emptyList(),
           null,
           Collections.emptyMap(),
           Collections.emptyList(),
@@ -29,6 +30,7 @@ public class ModuleExecutionSettings {
   private final boolean flakyTestRetriesEnabled;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final Map<String, String> systemProperties;
+  private final List<String> jvmOptions;
   private final String itrCorrelationId;
   private final Map<String, Collection<TestIdentifier>> skippableTestsByModule;
   @Nullable private final Collection<TestIdentifier> flakyTests;
@@ -42,6 +44,7 @@ public class ModuleExecutionSettings {
       boolean flakyTestRetriesEnabled,
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       Map<String, String> systemProperties,
+      List<String> jvmOptions,
       String itrCorrelationId,
       Map<String, Collection<TestIdentifier>> skippableTestsByModule,
       Collection<TestIdentifier> flakyTests,
@@ -53,6 +56,7 @@ public class ModuleExecutionSettings {
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.systemProperties = systemProperties;
+    this.jvmOptions = jvmOptions;
     this.itrCorrelationId = itrCorrelationId;
     this.skippableTestsByModule = skippableTestsByModule;
     this.flakyTests = flakyTests;
@@ -86,6 +90,10 @@ public class ModuleExecutionSettings {
 
   public Map<String, String> getSystemProperties() {
     return systemProperties;
+  }
+
+  public List<String> getJvmOptions() {
+    return jvmOptions;
   }
 
   @Nullable
@@ -145,6 +153,7 @@ public class ModuleExecutionSettings {
         && testSkippingEnabled == that.testSkippingEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
         && Objects.equals(systemProperties, that.systemProperties)
+        && Objects.equals(jvmOptions, that.jvmOptions)
         && Objects.equals(itrCorrelationId, that.itrCorrelationId)
         && Objects.equals(skippableTestsByModule, that.skippableTestsByModule)
         && Objects.equals(flakyTests, that.flakyTests)
@@ -160,6 +169,7 @@ public class ModuleExecutionSettings {
         testSkippingEnabled,
         earlyFlakeDetectionSettings,
         systemProperties,
+        jvmOptions,
         itrCorrelationId,
         skippableTestsByModule,
         flakyTests,
