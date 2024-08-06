@@ -26,6 +26,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
+import javax.xml.bind.DatatypeConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -267,16 +268,18 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     try (AgentScope scope = activateSpan(instrumentationSpan)) {
       String samplingDecision = instrumentationSpan.forceSamplingDecision() > 0 ? "1" : "0";
       String contextInfo =
-          "0x"
+          "0"
               + samplingDecision
               + DDSpanId.toHexStringPadded(spanID)
               + instrumentationSpan.getTraceId().toHexString();
 
-      String instrumentationSql = "set context_info " + contextInfo;
+      String instrumentationSql = "set context_info ?";
       instrumentationStatement = connection.prepareStatement(instrumentationSql);
+      instrumentationStatement.setBytes(1, DatatypeConverter.parseHexBinary(contextInfo));
+      // instrumentationStatement.setBytes(1, contextInfo.getBytes());
       DECORATE.onStatement(instrumentationSpan, instrumentationSql);
       instrumentationStatement.execute();
-    } catch (SQLException e) {
+    } catch (Exception e) {
       log.debug(
           "Failed to set extra DBM data in context info for trace {}. "
               + "To disable this behavior, set DBM_PROPAGATION_MODE to 'service' mode. "
