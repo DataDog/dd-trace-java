@@ -3,7 +3,6 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.*;
-import static datadog.trace.core.propagation.ptags.W3CPTagsCodec.INVALID_SPAN_ID;
 
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -107,7 +106,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     /**
      * The last parent span id using the 16-characters zero padded hexadecimal representation,
-     * {@code null} if not set, {@link W3CPTagsCodec#INVALID_SPAN_ID} if set but not valid.
+     * {@code null} if not set.
      */
     private volatile CharSequence lastParentId;
 
@@ -260,9 +259,6 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateLastParentId(CharSequence lastParentId) {
-      if (INVALID_SPAN_ID.equals(lastParentId)) {
-        lastParentId = null;
-      }
       if (!Objects.equals(this.lastParentId, lastParentId)) {
         clearCachedHeader(W3C);
         this.lastParentId = TagValue.from(lastParentId);

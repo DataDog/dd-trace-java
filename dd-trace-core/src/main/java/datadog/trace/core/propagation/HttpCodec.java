@@ -3,7 +3,6 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
-import static datadog.trace.core.propagation.ptags.W3CPTagsCodec.INVALID_SPAN_ID;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -285,7 +284,7 @@ public class HttpCodec {
         firstContext.overrideSpanId(traceContext.getSpanId());
         // Add last parent span id as tag (from W3C first, else Datadog)
         CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
-        if (lastParentId == null || INVALID_SPAN_ID.equals(lastParentId)) {
+        if (lastParentId == null) {
           lastParentId = extractionCache.getDatadogSpanIdHex();
         }
         if (lastParentId != null) {
@@ -322,10 +321,8 @@ public class HttpCodec {
     private void cacheDatadogSpanId(String key, String value) {
       if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
         try {
-          long parentId = DDSpanId.from(value);
-          if (parentId > 0) {
-            this.datadogSpanIdHex = DDSpanId.toHexStringPadded(parentId);
-          }
+          // Parse numeric header value to format it as 16 hexadecimal character format
+          this.datadogSpanIdHex = DDSpanId.toHexStringPadded(DDSpanId.from(value));
         } catch (NumberFormatException ignored) {
         }
       }
