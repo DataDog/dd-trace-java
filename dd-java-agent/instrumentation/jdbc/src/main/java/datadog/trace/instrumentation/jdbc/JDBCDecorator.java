@@ -26,7 +26,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
-import javax.xml.bind.DatatypeConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -244,6 +243,16 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return "sqlserver".equals(dbInfo.getType());
   }
 
+  public static byte[] hexStringToByteArray(String s) {
+    int len = s.length();
+    byte[] data = new byte[len / 2];
+    for (int i = 0; i < len; i += 2) {
+      data[i / 2] =
+          (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
+    }
+    return data;
+  }
+
   /**
    * Executes a `SET CONTEXT_INFO` statement on the DB with the active trace ID and the given span
    * ID. This context will be "attached" to future queries on the same connection. See <a
@@ -275,7 +284,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       String instrumentationSql = "set context_info ?";
       instrumentationStatement = connection.prepareStatement(instrumentationSql);
-      instrumentationStatement.setBytes(1, DatatypeConverter.parseHexBinary(contextInfo));
+      instrumentationStatement.setBytes(1, hexStringToByteArray(contextInfo));
       DECORATE.onStatement(instrumentationSpan, instrumentationSql);
       instrumentationStatement.execute();
     } catch (Exception e) {
