@@ -32,6 +32,7 @@ class HttpExtractorTest extends DDSpecification {
     setup:
     Config config = Mock(Config) {
       getTracePropagationStylesToExtract() >> styles
+      isTracePropagationExtractFirst() >> extractFirst
     }
     DynamicConfig dynamicConfig = DynamicConfig.create()
       .setHeaderTags(["SOME_HEADER": "some-tag"])
@@ -85,30 +86,32 @@ class HttpExtractorTest extends DDSpecification {
 
     where:
     // spotless:off
-    styles                           | datadogTraceId    | datadogSpanId     | b3TraceId         | b3SpanId          | w3cTraceParent   | expectedTraceId | expectedSpanId   | putDatadogFields | expectDatadogFields | tagContext
-    [DATADOG, B3MULTI]               | "1"               | "2"               | "a"               | "b"               | null             | "1"             | "2"              | true             | true                | false
-    [DATADOG, B3MULTI]               | null              | null              | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | true
-    [DATADOG, B3MULTI]               | null              | null              | "a"               | "b"               | null             | null            | null             | true             | true                | true
-    [DATADOG]                        | "1"               | "2"               | "a"               | "b"               | null             | "1"             | "2"              | true             | true                | false
-    [B3MULTI]                        | "1"               | "2"               | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false
-    [B3MULTI, DATADOG]               | "1"               | "2"               | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false
-    []                               | "1"               | "2"               | "a"               | "b"               | null             | null            | null             | false            | false               | false
-    [DATADOG, B3MULTI]               | "abc"             | "2"               | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false
-    [DATADOG]                        | "abc"             | "2"               | "a"               | "b"               | null             | null            | null             | false            | false               | false
-    [DATADOG, B3MULTI]               | outOfRangeTraceId | "2"               | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false
-    [DATADOG, B3MULTI]               | "1"               | outOfRangeTraceId | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false
-    [DATADOG]                        | outOfRangeTraceId | "2"               | "a"               | "b"               | null             | null            | null             | false            | false               | false
-    [DATADOG]                        | "1"               | outOfRangeTraceId | "a"               | "b"               | null             | null            | null             | false            | false               | false
-    [DATADOG, B3MULTI]               | "1"               | "2"               | outOfRangeTraceId | "b"               | null             | "1"             | "2"              | true             | false               | false
-    [DATADOG, B3MULTI]               | "1"               | "2"               | "a"               | outOfRangeTraceId | null             | "1"             | "2"              | true             | false               | false
-    [NONE]                           | "1"               | "2"               | null              | null              | null             | null            | null             | true             | false               | true
-    [DATADOG, TRACECONTEXT]          | "1"               | "2"               | null              | null              | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false
-    [DATADOG, TRACECONTEXT, B3MULTI] | "1"               | "2"               | "1"               | "2"               | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false
-    [TRACECONTEXT, DATADOG]          | "1"               | "2"               | null              | null              | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false
-    [TRACECONTEXT, B3MULTI]          | null              | null              | "1"               | "2"               | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false
-    [TRACECONTEXT, B3MULTI, DATADOG] | "1"               | "2"               | "1"               | "4"               | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false
-    [B3MULTI, DATADOG, TRACECONTEXT] | "1"               | "2"               | "1"               | "4"               | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false
-    [TRACECONTEXT]                   | null              | null              | null              | null              | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false
+    styles                           | datadogTraceId    | datadogSpanId     | b3TraceId         | b3SpanId          | w3cTraceParent   | expectedTraceId | expectedSpanId   | putDatadogFields | expectDatadogFields | tagContext | extractFirst
+    [DATADOG, B3MULTI]               | "1"               | "2"               | "a"               | "b"               | null             | "1"             | "2"              | true             | true                | false      | false
+    [DATADOG, B3MULTI]               | null              | null              | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | true       | false
+    [DATADOG, B3MULTI]               | null              | null              | "a"               | "b"               | null             | null            | null             | true             | true                | true       | false
+    [DATADOG]                        | "1"               | "2"               | "a"               | "b"               | null             | "1"             | "2"              | true             | true                | false      | false
+    [B3MULTI]                        | "1"               | "2"               | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false      | false
+    [B3MULTI, DATADOG]               | "1"               | "2"               | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false      | false
+    []                               | "1"               | "2"               | "a"               | "b"               | null             | null            | null             | false            | false               | false      | false
+    [DATADOG, B3MULTI]               | "abc"             | "2"               | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false      | false
+    [DATADOG]                        | "abc"             | "2"               | "a"               | "b"               | null             | null            | null             | false            | false               | false      | false
+    [DATADOG, B3MULTI]               | outOfRangeTraceId | "2"               | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false      | false
+    [DATADOG, B3MULTI]               | "1"               | outOfRangeTraceId | "a"               | "b"               | null             | "10"            | "11"             | false            | false               | false      | false
+    [DATADOG]                        | outOfRangeTraceId | "2"               | "a"               | "b"               | null             | null            | null             | false            | false               | false      | false
+    [DATADOG]                        | "1"               | outOfRangeTraceId | "a"               | "b"               | null             | null            | null             | false            | false               | false      | false
+    [DATADOG, B3MULTI]               | "1"               | "2"               | outOfRangeTraceId | "b"               | null             | "1"             | "2"              | true             | false               | false      | false
+    [DATADOG, B3MULTI]               | "1"               | "2"               | "a"               | outOfRangeTraceId | null             | "1"             | "2"              | true             | false               | false      | false
+    [NONE]                           | "1"               | "2"               | null              | null              | null             | null            | null             | true             | false               | true       | false
+    [DATADOG, TRACECONTEXT]          | "1"               | "2"               | null              | null              | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false      | false
+    [DATADOG, TRACECONTEXT, B3MULTI] | "1"               | "2"               | "1"               | "2"               | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false      | false
+    [TRACECONTEXT, DATADOG]          | "1"               | "2"               | null              | null              | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false      | false
+    [TRACECONTEXT, B3MULTI]          | null              | null              | "1"               | "2"               | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false      | false
+    [TRACECONTEXT, B3MULTI, DATADOG] | "1"               | "2"               | "1"               | "4"               | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false      | false
+    [B3MULTI, DATADOG, TRACECONTEXT] | "1"               | "2"               | "1"               | "4"               | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false      | false
+    [TRACECONTEXT]                   | null              | null              | null              | null              | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false      | false
+    [DATADOG, TRACECONTEXT]          | "1"               | null              | null              | null              | W3C_TRACE_PARENT | "1"             | W3C_SPAN_ID_LSTR | false            | false               | false      | false
+    [DATADOG, TRACECONTEXT]          | "1"               | "2"               | null              | null              | W3C_TRACE_PARENT | "1"             | "2"              | false            | false               | false      | true
     // spotless:on
   }
 
