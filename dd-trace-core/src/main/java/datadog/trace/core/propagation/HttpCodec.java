@@ -282,7 +282,7 @@ public class HttpCodec {
       if (firstContext.getSpanId() != traceContext.getSpanId()) {
         // Override parent span id with W3C one
         firstContext.overrideSpanId(traceContext.getSpanId());
-        // Add last parent span id as tag (from W3C first, else Datadog)
+        // Add last parent ID as a span tag (check W3C first, else Datadog)
         CharSequence lastParentId = traceContext.getPropagationTags().getLastParentId();
         if (lastParentId == null) {
           lastParentId = extractionCache.getDatadogSpanIdHex();
