@@ -303,6 +303,8 @@ import static datadog.trace.api.config.IastConfig.IAST_HARDCODED_SECRET_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
+import static datadog.trace.api.config.IastConfig.IAST_SOURCE_MAPPING_ENABLED;
+import static datadog.trace.api.config.IastConfig.IAST_SOURCE_MAPPING_MAX_SIZE;
 import static datadog.trace.api.config.IastConfig.IAST_STACKTRACE_LEAK_SUPPRESS;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
 import static datadog.trace.api.config.IastConfig.IAST_TRUNCATION_MAX_VALUE_LENGTH;
@@ -779,6 +781,8 @@ public class Config {
   private final IastContext.Mode iastContextMode;
   private final boolean iastHardcodedSecretEnabled;
   private final boolean iastAnonymousClassesEnabled;
+  private final boolean iastSourceMappingEnabled;
+  private final int iastSourceMappingMaxSize;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1751,6 +1755,8 @@ public class Config {
     iastAnonymousClassesEnabled =
         configProvider.getBoolean(
             IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
+    iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
+    iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -2985,6 +2991,14 @@ public class Config {
 
   public boolean isIastHardcodedSecretEnabled() {
     return iastHardcodedSecretEnabled;
+  }
+
+  public boolean isIastSourceMappingEnabled() {
+    return iastSourceMappingEnabled;
+  }
+
+  public int getIastSourceMappingMaxSize() {
+    return iastSourceMappingMaxSize;
   }
 
   public IastDetectionMode getIastDetectionMode() {
