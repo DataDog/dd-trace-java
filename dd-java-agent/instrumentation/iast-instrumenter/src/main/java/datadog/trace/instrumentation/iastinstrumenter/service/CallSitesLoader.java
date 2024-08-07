@@ -16,18 +16,19 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class MultipleServiceLoader {
+public abstract class CallSitesLoader {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MultipleServiceLoader.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CallSitesLoader.class);
+  private static final int CALL_SITE_COUNT = 64;
 
-  private MultipleServiceLoader() {}
+  private CallSitesLoader() {}
 
   public static <E> List<E> load(final ClassLoader classLoader, final Class<?>... spiInterfaces) {
     if (spiInterfaces == null || spiInterfaces.length == 0) {
       return Collections.emptyList();
     }
     try {
-      List<E> services = new ArrayList<>();
+      List<E> services = new ArrayList<>(CALL_SITE_COUNT);
       for (String site : loadServiceNames(classLoader, spiInterfaces)) {
         try {
           @SuppressWarnings({"rawtypes", "unchecked"})
@@ -36,6 +37,11 @@ public abstract class MultipleServiceLoader {
         } catch (Throwable e) {
           LOGGER.error("Failed to load call site {}", site, e);
         }
+      }
+      if (services.size() > CALL_SITE_COUNT) {
+        LOGGER.debug(
+            "Call site count has gone over the expected threshold CALL_SITE_COUNT={}, consider setting a bigger value",
+            CALL_SITE_COUNT);
       }
       return services;
     } catch (final IOException e) {
@@ -47,8 +53,7 @@ public abstract class MultipleServiceLoader {
       final ClassLoader loader, final Class<?>... spiInterfaces) throws IOException {
     Set<String> lines = new LinkedHashSet<>();
     for (final Class<?> spi : spiInterfaces) {
-      Enumeration<URL> urls =
-          loader.getResources(String.format("META-INF/services/%s", spi.getName()));
+      Enumeration<URL> urls = loader.getResources("META-INF/services/" + spi.getName());
       while (urls.hasMoreElements()) {
         try (BufferedReader reader =
             new BufferedReader(new InputStreamReader(urls.nextElement().openStream(), UTF_8))) {
