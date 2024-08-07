@@ -65,7 +65,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
-  private final WellKnownTags wellKnownTags;
+  private final long hashOfKnownTags;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
   private final DataStreamContextInjector injector;
@@ -124,7 +124,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
-    this.wellKnownTags = wellKnownTags;
+    this.hashOfKnownTags = DefaultPathwayContext.getBaseHash(wellKnownTags);
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
     this.injector = new DataStreamContextInjector(this);
@@ -189,7 +189,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, wellKnownTags);
+      return new DefaultPathwayContext(timeSource, hashOfKnownTags);
     } else {
       return AgentTracer.NoopPathwayContext.INSTANCE;
     }
@@ -197,7 +197,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
-    return new DataStreamContextExtractor(delegate, timeSource, traceConfigSupplier, wellKnownTags);
+    return new DataStreamContextExtractor(
+        delegate, timeSource, traceConfigSupplier, hashOfKnownTags);
   }
 
   @Override
@@ -213,7 +214,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               carrier,
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
-              this.wellKnownTags);
+              this.hashOfKnownTags);
       ((DDSpan) span).context().mergePathwayContext(pathwayContext);
     }
   }
