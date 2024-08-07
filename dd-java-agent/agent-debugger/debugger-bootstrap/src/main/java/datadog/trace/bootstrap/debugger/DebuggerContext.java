@@ -103,7 +103,7 @@ public class DebuggerContext {
     DebuggerContext.exceptionDebugger = exceptionDebugger;
   }
 
-  public static void initSpanDebugger(CodeOriginRecorder codeOriginRecorder) {
+  public static void initCodeOrigin(CodeOriginRecorder codeOriginRecorder) {
     DebuggerContext.codeOriginRecorder = codeOriginRecorder;
   }
 

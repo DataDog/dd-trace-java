@@ -88,7 +88,9 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       List<CapturedThrowable> caughtExceptions) {
     if (isSpanDebugEnabled(span)) {
       String key =
-          entrySpanProbe ? DDTags.DD_ENTRY_LOCATION_SNAPSHOT_ID : DD_EXIT_LOCATION_SNAPSHOT_ID;
+          entrySpanProbe
+              ? DDTags.DD_CODE_ORIGIN_LOCATION_SNAPSHOT_ID
+              : DD_EXIT_LOCATION_SNAPSHOT_ID;
       Snapshot snapshot = createSnapshot();
       if (fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot)) {
         LOGGER.debug(
@@ -131,16 +133,17 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
           Set<AgentSpan> spans = new LinkedHashSet<>();
           spans.add(span);
           AgentSpan rootSpan = span.getLocalRootSpan();
-          if (rootSpan != null && rootSpan.getTags().get(DDTags.DD_ENTRY_LOCATION_FILE) == null) {
+          if (rootSpan != null
+              && rootSpan.getTags().get(DDTags.DD_CODE_ORIGIN_LOCATION_FILE) == null) {
             spans.add(rootSpan);
           }
           for (AgentSpan s : spans) {
             s.setTag("_dd.di.has_code_location", true);
-            s.setTag(DDTags.DD_ENTRY_LOCATION_FILE, toFileName(entry.getClassName()));
-            s.setTag(DDTags.DD_ENTRY_METHOD, entry.getMethodName());
-            s.setTag(DDTags.DD_ENTRY_LINE, entry.getLineNumber());
-            s.setTag(DDTags.DD_ENTRY_TYPE, entry.getClassName());
-            s.setTag(DDTags.DD_ENTRY_METHOD_SIGNATURE, signature);
+            s.setTag(DDTags.DD_CODE_ORIGIN_LOCATION_FILE, toFileName(entry.getClassName()));
+            s.setTag(DDTags.DD_CODE_ORIGIN_METHOD, entry.getMethodName());
+            s.setTag(DDTags.DD_CODE_ORIGIN_LINE, entry.getLineNumber());
+            s.setTag(DDTags.DD_CODE_ORIGIN_TYPE, entry.getClassName());
+            s.setTag(DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE, signature);
           }
         } else {
           span.setTag("_dd.di.has_code_location", true);

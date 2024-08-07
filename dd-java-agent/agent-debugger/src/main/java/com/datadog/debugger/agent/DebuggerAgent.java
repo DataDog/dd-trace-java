@@ -99,8 +99,8 @@ public class DebuggerAgent {
               config.getDebuggerMaxExceptionPerSecond());
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }
-    if (config.isDebuggerSpanDebugEnabled()) {
-      DebuggerContext.initSpanDebugger(
+    if (config.isDebuggerCodeOriginEnabled()) {
+      DebuggerContext.initCodeOrigin(
           new DefaultCodeOriginRecorder(configurationUpdater, classNameFiltering));
     }
     if (config.isDebuggerInstrumentTheWorld()) {

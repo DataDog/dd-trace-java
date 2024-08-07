@@ -6,21 +6,23 @@ import datadog.trace.core.propagation.PropagationTags;
 
 public final class SpanDebug {
   public static boolean isSpanDebugEnabled(AgentSpan span) {
+    boolean enabled = false;
     if (span.context() instanceof DDSpanContext) {
       String debug = getDebugLevel(span);
-      return debug != null && !("false".equals(debug) || "0".equals(debug));
+      enabled = debug != null && !("false".equals(debug) || "0".equals(debug));
     }
 
-    return false;
+    return enabled;
   }
 
   public static boolean isSpanDebugDisabled(AgentSpan span) {
+    boolean disabled = true;
     if (span.context() instanceof DDSpanContext) {
       String debug = getDebugLevel(span);
-      return "false".equals(debug) || "0".equals(debug);
+      disabled = "false".equals(debug) || "0".equals(debug);
     }
 
-    return true;
+    return disabled;
   }
 
   private static String getDebugLevel(AgentSpan span) {

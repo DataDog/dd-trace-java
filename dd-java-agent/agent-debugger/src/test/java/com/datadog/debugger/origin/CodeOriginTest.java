@@ -74,7 +74,7 @@ public class CodeOriginTest extends DDSpecification {
             target.run();
           }
         });
-    DebuggerContext.initSpanDebugger(codeOriginRecorder);
+    DebuggerContext.initCodeOrigin(codeOriginRecorder);
 
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
@@ -101,10 +101,10 @@ public class CodeOriginTest extends DDSpecification {
     invoke(span3, entryProbe);
 
     assertTrue(
-        span1.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_FILE),
+        span1.getTags().containsKey(DDTags.DD_CODE_ORIGIN_LOCATION_FILE),
         span1.getTags().keySet().toString());
     assertFalse(
-        span1.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_SNAPSHOT_ID),
+        span1.getTags().containsKey(DDTags.DD_CODE_ORIGIN_LOCATION_SNAPSHOT_ID),
         span1.getTags().keySet().toString());
 
     assertTrue(
@@ -115,10 +115,10 @@ public class CodeOriginTest extends DDSpecification {
         span2.getTags().keySet().toString());
 
     assertTrue(
-        span3.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_FILE),
+        span3.getTags().containsKey(DDTags.DD_CODE_ORIGIN_LOCATION_FILE),
         span3.getTags().keySet().toString());
     assertFalse(
-        span3.getTags().containsKey(DDTags.DD_ENTRY_LOCATION_SNAPSHOT_ID),
+        span3.getTags().containsKey(DDTags.DD_CODE_ORIGIN_LOCATION_SNAPSHOT_ID),
         span3.getTags().keySet().toString());
   }
 

@@ -2,12 +2,12 @@ package datadog.trace.api;
 
 public class DDTags {
 
-  public static final String DD_ENTRY_LOCATION_FILE = "_dd.entry_location.file";
-  public static final String DD_ENTRY_METHOD = "_dd.entry_location.method";
-  public static final String DD_ENTRY_METHOD_SIGNATURE = "_dd.entry_location.signature";
-  public static final String DD_ENTRY_LINE = "_dd.entry_location.line";
-  public static final String DD_ENTRY_LOCATION_SNAPSHOT_ID = "_dd.entry_location.snapshot_id";
-  public static final String DD_ENTRY_TYPE = "_dd.entry_location.type";
+  public static final String DD_CODE_ORIGIN_LOCATION_FILE = "_dd.ld.code_origin.file";
+  public static final String DD_CODE_ORIGIN_METHOD = "_dd.ld.code_origin.method";
+  public static final String DD_CODE_ORIGIN_METHOD_SIGNATURE = "_dd.ld.code_origin.signature";
+  public static final String DD_CODE_ORIGIN_LINE = "_dd.ld.code_origin.line";
+  public static final String DD_CODE_ORIGIN_LOCATION_SNAPSHOT_ID = "_dd.ld.code_origin.snapshot_id";
+  public static final String DD_CODE_ORIGIN_TYPE = "_dd.ld.code_origin.type";
   public static final String DD_EXIT_LOCATION_FILE = "_dd.exit_location.%d.file";
   public static final String DD_EXIT_LOCATION_LINE = "_dd.exit_location.%d.line";
   public static final String DD_EXIT_LOCATION_METHOD = "_dd.exit_location.%d.method";

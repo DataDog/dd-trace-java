@@ -180,7 +180,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND = 100;
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = true;
   static final int DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES = 3;
-  static final boolean DEFAULT_DEBUGGER_SPAN_DEBUG_ENABLED = false;
+  static final boolean DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
