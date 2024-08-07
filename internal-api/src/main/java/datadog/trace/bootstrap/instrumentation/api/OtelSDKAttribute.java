@@ -9,7 +9,7 @@ import java.util.Map;
 
 /** This class is a base implementation of {@link Attributes}. */
 public class OtelSDKAttribute implements Attributes {
-  /** An empty span links attributes. */
+  /** Represent an empty attributes. */
   public static final Attributes EMPTY = new OtelSDKAttribute(Collections.emptyMap());
 
   private final Map<String, String> attributes;
@@ -19,19 +19,19 @@ public class OtelSDKAttribute implements Attributes {
   }
 
   /**
-   * Gets a builder to create span link attributes.
+   * Gets a builder to create attributes.
    *
-   * @return A builder to create span link attributes.
+   * @return A builder to create attributes.
    */
   public static Builder builder() {
     return new Builder();
   }
 
   /**
-   * Create span link attributes from its map representation.
+   * Create attributes from its map representation.
    *
-   * @param map A map representing the span link attributes.
-   * @return The related span link attributes.
+   * @param map A map representing the attributes.
+   * @return The related attributes.
    */
   public static OtelSDKAttribute fromMap(Map<String, String> map) {
     return new OtelSDKAttribute(new HashMap<>(map));
