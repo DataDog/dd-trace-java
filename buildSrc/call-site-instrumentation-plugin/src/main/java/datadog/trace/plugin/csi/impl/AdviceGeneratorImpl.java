@@ -171,8 +171,9 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       final ClassOrInterfaceDeclaration javaClass, final CallSiteSpecification callSite) {
     final NormalAnnotationExpr autoService = new NormalAnnotationExpr();
     autoService.setName(AUTO_SERVICE_FQDN);
-    final List<Expression> spiExprs = new ArrayList<>();
-    for (final Type spi : callSite.getSpi()) {
+    final Type[] spiTypes = callSite.getSpi();
+    final List<Expression> spiExprs = new ArrayList<>(spiTypes.length);
+    for (final Type spi : spiTypes) {
       spiExprs.add(new ClassExpr(new ClassOrInterfaceType().setName(getClassName(spi, false))));
     }
     autoService.addPair("value", new ArrayInitializerExpr().setValues(new NodeList<>(spiExprs)));

@@ -2,25 +2,27 @@ package datadog.trace.plugin.csi.impl.assertion
 
 import java.lang.reflect.Method
 
+import static java.util.Arrays.asList
+
 class CallSiteAssert {
 
-  protected Collection<Class<?>> interfaces
-  protected Collection<Class<?>> spi
-  protected Collection<Class<?>> helpers
+  protected Set<Class<?>> interfaces
+  protected Set<Class<?>> spi
+  protected Set<Class<?>> helpers
   protected Collection<AdviceAssert> advices
   protected Method enabled
-  protected Collection<String> enabledArgs
+  protected Set<String> enabledArgs
 
   void interfaces(Class<?>... values) {
-    assertList(values.toList(), interfaces)
+    assertSameElements(interfaces, values)
   }
 
   void helpers(Class<?>... values) {
-    assertList(values.toList(), helpers)
+    assertSameElements(helpers, values)
   }
 
   void spi(Class<?>...values) {
-    assertList(values.toList(), spi)
+    assertSameElements(spi, values)
   }
 
   void advices(int index, @DelegatesTo(AdviceAssert) Closure closure) {
@@ -31,10 +33,10 @@ class CallSiteAssert {
 
   void enabled(Method method, String... args) {
     assert method == enabled
-    assertList(args.toList(), enabledArgs)
+    assertSameElements(enabledArgs, args)
   }
 
-  private static <E> void assertList(final Collection<E> received, final Collection<E> expected) {
-    assert received.size() == expected.size() && received.containsAll(expected)
+  private static <E> void assertSameElements(final Set<E> expected, final E...received) {
+    assert received.length == expected.size() && expected.containsAll(asList(received))
   }
 }

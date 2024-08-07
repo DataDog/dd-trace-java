@@ -15,7 +15,7 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.api.appsec.RaspCallSites;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.telemetry.Verbosity;
-import datadog.trace.instrumentation.iastinstrumenter.service.MultipleServiceLoader;
+import datadog.trace.instrumentation.iastinstrumenter.service.CallSitesLoader;
 import datadog.trace.instrumentation.iastinstrumenter.telemetry.TelemetryCallSiteSupplier;
 import java.util.LinkedList;
 import java.util.List;
@@ -111,7 +111,7 @@ public class IastInstrumentation extends CallSiteInstrumentation {
     @Override
     public Iterable<CallSites> get() {
       final ClassLoader targetClassLoader = CallSiteInstrumentation.class.getClassLoader();
-      return MultipleServiceLoader.load(targetClassLoader, spiInterfaces);
+      return CallSitesLoader.load(targetClassLoader, spiInterfaces);
     }
   }
 }
