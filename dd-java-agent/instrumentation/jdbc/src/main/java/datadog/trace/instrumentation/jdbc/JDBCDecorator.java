@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -20,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -244,16 +246,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return "sqlserver".equals(dbInfo.getType());
   }
 
-  public static byte[] hexStringToByteArray(String s) {
-    int len = s.length();
-    byte[] data = new byte[len / 2];
-    for (int i = 0; i < len; i += 2) {
-      data[i / 2] =
-          (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
-    }
-    return data;
-  }
-
   /**
    * Executes a `SET CONTEXT_INFO` statement on the DB with the active trace ID and the given span
    * ID. This context will be "attached" to future queries on the same connection. See <a
@@ -269,7 +261,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    * @return spanID pre-created spanID
    */
   public long setContextInfo(Connection connection, DBInfo dbInfo) {
-    final String VERSION = "0";
+    final byte VERSION = 0;
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     AgentSpan instrumentationSpan =
         AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
@@ -277,13 +269,20 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     DECORATE.onConnection(instrumentationSpan, dbInfo);
     PreparedStatement instrumentationStatement = null;
     try (AgentScope scope = activateSpan(instrumentationSpan)) {
-      String samplingDecision = instrumentationSpan.forceSamplingDecision() > 0 ? "1" : "0";
+      final byte samplingDecision =
+          (byte) (instrumentationSpan.forceSamplingDecision() > 0 ? 1 : 0);
+      final byte versionAndSamplingDecision =
+          (byte) ((VERSION << 4) & 0b11110000 | samplingDecision & 0b00000001);
 
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-      outputStream.write(hexStringToByteArray(VERSION + samplingDecision));
-      outputStream.write(hexStringToByteArray(DDSpanId.toHexStringPadded(spanID)));
-      outputStream.write(hexStringToByteArray(instrumentationSpan.getTraceId().toHexString()));
-      final byte[] contextInfo = outputStream.toByteArray();
+      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+      DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
+      dataOutputStream.writeByte(versionAndSamplingDecision);
+      dataOutputStream.writeLong(spanID);
+      final DDTraceId traceId = instrumentationSpan.getTraceId();
+      dataOutputStream.writeLong(traceId.toHighOrderLong());
+      dataOutputStream.writeLong(traceId.toLong());
+      dataOutputStream.flush();
+      final byte[] contextInfo = byteArrayOutputStream.toByteArray();
 
       String instrumentationSql = "set context_info ?";
       instrumentationStatement = connection.prepareStatement(instrumentationSql);
