@@ -268,6 +268,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    * @return spanID pre-created spanID
    */
   public long setContextInfo(Connection connection, DBInfo dbInfo) {
+    final String VERSION = "0";
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     AgentSpan instrumentationSpan =
         AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
@@ -277,7 +278,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     try (AgentScope scope = activateSpan(instrumentationSpan)) {
       String samplingDecision = instrumentationSpan.forceSamplingDecision() > 0 ? "1" : "0";
       String contextInfo =
-          "0"
+          VERSION
               + samplingDecision
               + DDSpanId.toHexStringPadded(spanID)
               + instrumentationSpan.getTraceId().toHexString();
