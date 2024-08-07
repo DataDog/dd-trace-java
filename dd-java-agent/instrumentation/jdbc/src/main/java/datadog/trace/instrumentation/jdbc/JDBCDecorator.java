@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
+import java.io.ByteArrayOutputStream;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -277,15 +278,16 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     PreparedStatement instrumentationStatement = null;
     try (AgentScope scope = activateSpan(instrumentationSpan)) {
       String samplingDecision = instrumentationSpan.forceSamplingDecision() > 0 ? "1" : "0";
-      String contextInfo =
-          VERSION
-              + samplingDecision
-              + DDSpanId.toHexStringPadded(spanID)
-              + instrumentationSpan.getTraceId().toHexString();
+
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      outputStream.write(hexStringToByteArray(VERSION + samplingDecision));
+      outputStream.write(hexStringToByteArray(DDSpanId.toHexStringPadded(spanID)));
+      outputStream.write(hexStringToByteArray(instrumentationSpan.getTraceId().toHexString()));
+      final byte[] contextInfo = outputStream.toByteArray();
 
       String instrumentationSql = "set context_info ?";
       instrumentationStatement = connection.prepareStatement(instrumentationSql);
-      instrumentationStatement.setBytes(1, hexStringToByteArray(contextInfo));
+      instrumentationStatement.setBytes(1, contextInfo);
       DECORATE.onStatement(instrumentationSpan, instrumentationSql);
       instrumentationStatement.execute();
     } catch (Exception e) {
