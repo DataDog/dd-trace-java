@@ -66,7 +66,7 @@ public class JavaTimerInstrumentation extends InstrumenterModule.Tracing
       if (!exclude(RUNNABLE, task)) {
         ContextStore<Runnable, State> contextStore =
             InstrumentationContext.get(Runnable.class, State.class);
-        capture(contextStore, task, true);
+        capture(contextStore, task);
         startQueuingTimer(contextStore, Timer.class, task);
       }
     }

@@ -53,7 +53,7 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
   public static final class Construct {
     @Advice.OnMethodExit
     public static void captureScope(@Advice.This Runnable task) {
-      capture(InstrumentationContext.get(Runnable.class, State.class), task, true);
+      capture(InstrumentationContext.get(Runnable.class, State.class), task);
     }
   }
 

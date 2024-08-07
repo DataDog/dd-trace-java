@@ -65,7 +65,7 @@ public final class QueuedCommandInstrumentation extends InstrumenterModule.Profi
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(@Advice.This Object command) {
       ContextStore<Object, State> contextStore = InstrumentationContext.get(QUEUED_COMMAND, STATE);
-      capture(contextStore, command, false);
+      capture(contextStore, command);
       QueueTimerHelper.startQueuingTimer(contextStore, Channel.class, command);
     }
   }

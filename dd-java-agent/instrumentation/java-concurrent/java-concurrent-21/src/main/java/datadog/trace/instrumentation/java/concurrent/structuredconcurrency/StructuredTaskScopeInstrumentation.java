@@ -71,7 +71,7 @@ public class StructuredTaskScopeInstrumentation extends InstrumenterModule.Traci
           InstrumentationContext.get(
               "java.util.concurrent.StructuredTaskScope.SubtaskImpl",
               "datadog.trace.bootstrap.instrumentation.java.concurrent.State");
-      capture(contextStore, task, true);
+      capture(contextStore, task);
     }
   }
 }
