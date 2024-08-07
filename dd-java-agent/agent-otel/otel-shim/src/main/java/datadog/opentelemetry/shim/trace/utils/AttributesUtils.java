@@ -1,35 +1,15 @@
-package datadog.opentelemetry.shim.trace;
+package datadog.opentelemetry.shim.trace.utils;
 
-import datadog.opentelemetry.shim.context.propagation.TraceStateHelper;
-import datadog.opentelemetry.shim.trace.utils.AttributesUtils;
-import datadog.trace.api.DDSpanId;
-import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.Attributes;
-import datadog.trace.bootstrap.instrumentation.api.SpanLink;
-import datadog.trace.bootstrap.instrumentation.api.SpanLinkAttributes;
-import io.opentelemetry.api.trace.SpanContext;
+import datadog.trace.bootstrap.instrumentation.api.OtelSDKAttribute;
 import java.util.List;
 
-public class OtelSpanLink extends SpanLink {
-  public OtelSpanLink(SpanContext spanContext) {
-    this(spanContext, io.opentelemetry.api.common.Attributes.empty());
-  }
-
-  public OtelSpanLink(SpanContext spanContext, io.opentelemetry.api.common.Attributes attributes) {
-    super(
-        DDTraceId.fromHex(spanContext.getTraceId()),
-        DDSpanId.fromHex(spanContext.getSpanId()),
-        spanContext.isSampled() ? SAMPLED_FLAG : DEFAULT_FLAGS,
-        TraceStateHelper.encodeHeader(spanContext.getTraceState()),
-        //        convertAttributes(attributes));
-        AttributesUtils.convertAttributes(attributes));
-  }
-
-  private static Attributes convertAttributes(io.opentelemetry.api.common.Attributes attributes) {
+public class AttributesUtils {
+  public static Attributes convertAttributes(io.opentelemetry.api.common.Attributes attributes) {
     if (attributes.isEmpty()) {
-      return SpanLinkAttributes.EMPTY;
+      return OtelSDKAttribute.EMPTY;
     }
-    SpanLinkAttributes.Builder builder = SpanLinkAttributes.builder();
+    OtelSDKAttribute.Builder builder = OtelSDKAttribute.builder();
     attributes.forEach(
         (attributeKey, value) -> {
           String key = attributeKey.getKey();

@@ -9,6 +9,7 @@ import com.squareup.moshi.ToJson;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.Attributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanLinkAttributes;
 import datadog.trace.core.propagation.ExtractedContext;

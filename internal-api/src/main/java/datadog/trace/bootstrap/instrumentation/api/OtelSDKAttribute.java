@@ -8,13 +8,13 @@ import java.util.List;
 import java.util.Map;
 
 /** This class is a base implementation of {@link Attributes}. */
-public class SpanLinkAttributes implements Attributes {
+public class OtelSDKAttribute implements Attributes {
   /** An empty span links attributes. */
-  public static final Attributes EMPTY = new SpanLinkAttributes(Collections.emptyMap());
+  public static final Attributes EMPTY = new OtelSDKAttribute(Collections.emptyMap());
 
   private final Map<String, String> attributes;
 
-  protected SpanLinkAttributes(Map<String, String> attributes) {
+  protected OtelSDKAttribute(Map<String, String> attributes) {
     this.attributes = attributes;
   }
 
@@ -33,8 +33,8 @@ public class SpanLinkAttributes implements Attributes {
    * @param map A map representing the span link attributes.
    * @return The related span link attributes.
    */
-  public static SpanLinkAttributes fromMap(Map<String, String> map) {
-    return new SpanLinkAttributes(new HashMap<>(map));
+  public static OtelSDKAttribute fromMap(Map<String, String> map) {
+    return new OtelSDKAttribute(new HashMap<>(map));
   }
 
   @Override
@@ -49,7 +49,7 @@ public class SpanLinkAttributes implements Attributes {
 
   @Override
   public String toString() {
-    return "SpanLinkAttributes{" + this.attributes + '}';
+    return "OtelSDKAttribute{" + this.attributes + '}';
   }
 
   public static class Builder {
@@ -115,7 +115,7 @@ public class SpanLinkAttributes implements Attributes {
     }
 
     public Attributes build() {
-      return new SpanLinkAttributes(this.attributes);
+      return new OtelSDKAttribute(this.attributes);
     }
   }
 }
