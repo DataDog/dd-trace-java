@@ -30,6 +30,7 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_SYMBOL_INCLUDES = "symbol.database.includes";
   public static final String DEBUGGER_SYMBOL_FLUSH_THRESHOLD = "symbol.database.flush.threshold";
   public static final String DEBUGGER_EXCEPTION_ENABLED = "exception.debugging.enabled";
+  public static final String DEBUGGER_SPAN_DEBUG_ENABLED = "span.debug.enabled";
   public static final String EXCEPTION_REPLAY_ENABLED = "exception.replay.enabled";
   public static final String DEBUGGER_MAX_EXCEPTION_PER_SECOND =
       "exception.replay.max.exception.analysis.limit";

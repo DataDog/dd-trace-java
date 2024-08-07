@@ -1,7 +1,10 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.Generated;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CapturedContext.CapturedThrowable;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
@@ -16,6 +19,10 @@ import java.util.UUID;
 public class Snapshot {
   private static final String LANGUAGE = "java";
   private static final int VERSION = 2;
+
+  private String gitSha;
+
+  private String gitUrl;
 
   private String id;
   private final transient int version;
@@ -41,6 +48,10 @@ public class Snapshot {
     this.thread = new CapturedThread(thread);
     this.probe = probeImplementation;
     this.maxDepth = maxDepth;
+
+    GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
+    gitSha = gitInfo.getCommit().getSha();
+    gitUrl = gitInfo.getRepositoryURL();
   }
 
   public Snapshot(
@@ -49,10 +60,10 @@ public class Snapshot {
       long timestamp,
       long duration,
       List<CapturedStackFrame> stack,
-      Snapshot.Captures captures,
+      Captures captures,
       ProbeImplementation probeImplementation,
       String language,
-      Snapshot.CapturedThread thread,
+      CapturedThread thread,
       String traceId,
       String spanId,
       int maxDepth) {
@@ -70,6 +81,14 @@ public class Snapshot {
     this.maxDepth = maxDepth;
   }
 
+  public String getGitSha() {
+    return gitSha;
+  }
+
+  public String getGitUrl() {
+    return gitUrl;
+  }
+
   public void setEntry(CapturedContext context) {
     captures.setEntry(context);
   }
@@ -80,6 +99,14 @@ public class Snapshot {
 
   public void setDuration(long duration) {
     this.duration = duration;
+  }
+
+  public void setGitSha(String gitSha) {
+    this.gitSha = gitSha;
+  }
+
+  public void setGitUrl(String gitUrl) {
+    this.gitUrl = gitUrl;
   }
 
   public void setMessage(String message) {
@@ -94,11 +121,11 @@ public class Snapshot {
     captures.addLine(line, context);
   }
 
-  public void addCaughtExceptions(List<CapturedContext.CapturedThrowable> throwables) {
+  public void addCaughtExceptions(List<CapturedThrowable> throwables) {
     if (throwables == null) {
       return;
     }
-    for (CapturedContext.CapturedThrowable throwable : throwables) {
+    for (CapturedThrowable throwable : throwables) {
       captures.addCaughtException(throwable);
     }
   }
@@ -212,7 +239,7 @@ public class Snapshot {
     // returnValue encoded into a local of CapturedContext
     private CapturedContext _return;
 
-    private List<CapturedContext.CapturedThrowable> caughtExceptions;
+    private List<CapturedThrowable> caughtExceptions;
 
     public CapturedContext getEntry() {
       return entry;
@@ -226,7 +253,7 @@ public class Snapshot {
       return _return;
     }
 
-    public List<CapturedContext.CapturedThrowable> getCaughtExceptions() {
+    public List<CapturedThrowable> getCaughtExceptions() {
       return caughtExceptions;
     }
 
@@ -245,7 +272,7 @@ public class Snapshot {
       lines.put(line, context); // /!\ boxing /!\
     }
 
-    public void addCaughtException(CapturedContext.CapturedThrowable context) {
+    public void addCaughtException(CapturedThrowable context) {
       if (caughtExceptions == null) {
         caughtExceptions = new ArrayList<>();
       }
@@ -290,7 +317,7 @@ public class Snapshot {
     private final long id;
     private final String name;
 
-    public CapturedThread(java.lang.Thread thread) {
+    public CapturedThread(Thread thread) {
       this(thread.getId(), thread.getName());
     }
 

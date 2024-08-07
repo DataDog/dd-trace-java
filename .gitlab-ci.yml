@@ -17,10 +17,16 @@ stages:
   - ci-visibility-tests
   - generate-signing-key
 
+workflow:
+  rules:
+    - if: $POPULATE_CACHE == "true"
+      variables:
+        SKIP_SHARED_PIPELINE: "true"
+    - when: always
+
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
-  SKIP_SHARED_PIPELINE: $POPULATE_CACHE
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -53,10 +59,6 @@ variables:
 build: &build
   <<: *gradle_build
   stage: build
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
   script:
     - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
@@ -81,9 +83,6 @@ build_with_cache:
   cache:
     <<: *default_cache
     policy: push
-
-deploy_to_reliability_env:
-  stage: publish
 
 deploy_to_profiling_backend:
   stage: publish
@@ -161,6 +160,8 @@ deploy_to_sonatype:
   stage: publish
   needs: [ build ]
   rules:
+    - if: '$POPULATE_CACHE'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     # Do not deploy release candidate versions
@@ -205,6 +206,9 @@ deploy_artifacts_to_github:
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+  retry:
+    max: 2
+    when: always
 
 package-oci:
   needs: [ build ]
