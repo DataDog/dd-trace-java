@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static datadog.trace.bootstrap.instrumentation.api.SpanLinkAttributes.EMPTY;
+import static datadog.trace.bootstrap.instrumentation.api.OtelSDKAttribute.EMPTY;
 
 import datadog.trace.api.DDTraceId;
 
