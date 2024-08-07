@@ -5,4 +5,51 @@ init_config:
 instances:
   - jvm_direct: true
     name: dd-java-agent default
-    conf: [] # Intentionally left empty for now
+    conf:
+      # IBM J9 gencon
+      - include:
+          domain: java.lang
+          type: GarbageCollector
+          name: scavenge
+          attribute:
+            CollectionCount:
+              alias: jvm.gc.minor_collection_count
+              metric_type: counter
+            CollectionTime:
+              alias: jvm.gc.minor_collection_time
+              metric_type: counter
+      - include:
+          domain: java.lang
+          type: GarbageCollector
+          name: global
+          attribute:
+            CollectionCount:
+              alias: jvm.gc.major_collection_count
+              metric_type: counter
+            CollectionTime:
+              alias: jvm.gc.major_collection_time
+              metric_type: counter
+      # IBM J9 balanced
+      - include:
+          domain: java.lang
+          type: GarbageCollector
+          name: partial gc
+          attribute:
+            CollectionCount:
+              alias: jvm.gc.minor_collection_count
+              metric_type: counter
+            CollectionTime:
+              alias: jvm.gc.minor_collection_time
+              metric_type: counter
+      - include:
+          domain: java.lang
+          type: GarbageCollector
+          name: global garbage collect
+          attribute:
+            CollectionCount:
+              alias: jvm.gc.major_collection_count
+              metric_type: counter
+            CollectionTime:
+              alias: jvm.gc.major_collection_time
+              metric_type: counter
+
