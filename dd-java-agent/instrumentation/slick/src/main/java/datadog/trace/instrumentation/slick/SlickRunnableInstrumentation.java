@@ -52,7 +52,7 @@ public final class SlickRunnableInstrumentation extends InstrumenterModule.Traci
   public static final class Construct {
     @Advice.OnMethodExit
     public static void capture(@Advice.This Runnable zis) {
-      AdviceUtils.capture(InstrumentationContext.get(Runnable.class, State.class), zis, true);
+      AdviceUtils.capture(InstrumentationContext.get(Runnable.class, State.class), zis);
     }
   }
 
