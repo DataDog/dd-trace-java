@@ -2,6 +2,7 @@ package com.datadog.appsec.powerwaf
 
 import com.datadog.appsec.AppSecModule
 import com.datadog.appsec.config.AppSecConfig
+import com.datadog.appsec.config.AppSecData
 import com.datadog.appsec.config.AppSecModuleConfigurer
 import com.datadog.appsec.config.AppSecUserConfig
 import com.datadog.appsec.config.CurrentAppSecConfig
@@ -171,7 +172,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
         on_match: ['block2']
       ]
     ]
-    def ipData = [
+    def ipData = new AppSecData(rules: [
       [
         id  : 'ip_data',
         type: 'ip_with_expiration',
@@ -180,7 +181,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
             expiration: '0',
           ]]
       ]
-    ]
+    ])
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
         new AppSecUserConfig('b', ruleOverrides, actions, [], []))
@@ -249,7 +250,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * _
 
     when: 'merges new waf data with the one in the rules config'
-    def newData = [
+    def newData = new AppSecData(rules: [
       [
         id  : 'blocked_users',
         type: 'data_with_expiration',
@@ -260,7 +261,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
           ]
         ]
       ]
-    ]
+    ])
     service.currentAppSecConfig.with {
       mergedAsmData.addConfig('c', newData)
       it.dirtyStatus.data = true
@@ -999,7 +1000,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     setupWithStubConfigService()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
     ChangeableFlow flow = Mock()
-    def ipData = [
+    def ipData = new AppSecData(rules: [
       [
         id  : 'ip_data',
         type: 'ip_with_expiration',
@@ -1008,7 +1009,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
             expiration: '0',
           ]]
       ]
-    ]
+    ])
 
     when:
     service.currentAppSecConfig.with {
@@ -1051,7 +1052,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     setupWithStubConfigService()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
     ChangeableFlow flow = Mock()
-    def ipData = [
+    def ipData = new AppSecData(rules: [
       [
         id  : 'ip_data',
         type: 'ip_with_expiration',
@@ -1060,7 +1061,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
             expiration: '0',
           ]]
       ]
-    ]
+    ])
 
     when: 'reconfigure with data and toggling'
     service.currentAppSecConfig.with {
@@ -1435,6 +1436,54 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     waf.rateLimiter.limitPerSec == 5
 
+  }
+
+  void 'suspicious attacker blocking'() {
+    given:
+    final flow = Mock(ChangeableFlow)
+    final reconf = Mock(AppSecModuleConfigurer.Reconfiguration)
+    final suspiciousIp = '34.65.27.85'
+    setupWithStubConfigService('rules_suspicious_attacker_blocking.json')
+    dataListener = pwafModule.dataSubscriptions.first()
+    ctx.closeAdditive()
+    final bundle = MapDataBundle.of(
+      KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
+      suspiciousIp,
+      KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': ['Arachni/v1.5.1']])
+      )
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeAdditive()
+
+    then:
+    0 * flow.setAction(_)
+
+    when:
+    final ipData = new AppSecData(exclusion: [
+      [
+        id  : 'suspicious_ips_data_id',
+        type: 'ip_with_expiration',
+        data: [[value: suspiciousIp]]
+      ]
+    ])
+    service.currentAppSecConfig.with {
+      mergedAsmData.addConfig('suspicious_ips', ipData)
+      it.dirtyStatus.data = true
+      it.dirtyStatus.mergeFrom(dirtyStatus)
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      it.dirtyStatus.clearDirty()
+    }
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeAdditive()
+
+    then:
+    1 * reconf.reloadSubscriptions()
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 402 && rba.blockingContentType == BlockingContentType.AUTO
+    })
   }
 
   private Map<String, Object> getDefaultConfig() {
