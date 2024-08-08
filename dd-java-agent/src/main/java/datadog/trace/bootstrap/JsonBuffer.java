@@ -5,6 +5,7 @@ import java.io.Flushable;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Light weight JSON writer with no dependencies other than JDK. Loosely modeled after GSON
@@ -15,7 +16,7 @@ public final class JsonBuffer implements Flushable {
   private OutputStreamWriter writer;
 
   private byte[] cachedBytes = null;
-  private boolean lastWasValue = false;
+  private boolean requireComma = false;
 
   public JsonBuffer() {
     this.reset();
@@ -23,10 +24,10 @@ public final class JsonBuffer implements Flushable {
 
   public void reset() {
     bytesOut = new ByteArrayOutputStream();
-    writer = new OutputStreamWriter(this.bytesOut, Charset.forName("utf-8"));
+    writer = new OutputStreamWriter(bytesOut, Charset.forName("utf-8"));
 
     cachedBytes = null;
-    lastWasValue = false;
+    requireComma = false;
   }
 
   public JsonBuffer beginObject() {
@@ -47,24 +48,24 @@ public final class JsonBuffer implements Flushable {
     return this;
   }
 
-  public JsonBuffer name(String key) {
+  public JsonBuffer name(String name) {
     injectCommaIfNeeded();
 
-    return writeStringLiteral(key).write(':');
+    return writeStringLiteral(name).write(':');
   }
 
   public JsonBuffer nullValue() {
     injectCommaIfNeeded();
     endsValue();
 
-    return this.writeStringRaw("null");
+    return writeStringRaw("null");
   }
 
   public JsonBuffer value(JsonBuffer buffer) {
     injectCommaIfNeeded();
     endsValue();
 
-    return this.writeBytesRaw(buffer.toByteArray());
+    return writeBytesRaw(buffer.toByteArray());
   }
 
   public JsonBuffer value(boolean value) {
@@ -152,12 +153,14 @@ public final class JsonBuffer implements Flushable {
   }
 
   void injectCommaIfNeeded() {
-    if (lastWasValue) this.write(',');
-    lastWasValue = false;
+    if (requireComma) {
+      write(',');
+    }
+    requireComma = false;
   }
 
   void endsValue() {
-    lastWasValue = true;
+    requireComma = true;
   }
 
   void clearBytesCache() {
@@ -238,6 +241,6 @@ public final class JsonBuffer implements Flushable {
 
   @Override
   public String toString() {
-    return new String(this.toByteArray(), Charset.forName("utf-8"));
+    return new String(this.toByteArray(), StandardCharsets.UTF_8);
   }
 }
