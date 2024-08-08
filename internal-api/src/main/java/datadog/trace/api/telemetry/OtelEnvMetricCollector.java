@@ -12,12 +12,11 @@ import org.slf4j.LoggerFactory;
 public class OtelEnvMetricCollector
     implements MetricCollector<OtelEnvMetricCollector.OtelEnvMetric> {
   private static final Logger log = LoggerFactory.getLogger(OtelEnvMetricCollector.class);
-  private static final String OTEL_ENV_HIDING = "otel.env.hiding";
-  private static final String OTEL_ENV_INVALID = "otel.env.invalid";
-  private static final String OTEL_ENV_UNSUPPORTED = "otel.env.unsupported";
-  private static final String CONFIG_OTEL = "config_opentelemetry:";
-  private static final String CONFIG_DATADOG = "config_datadog:";
-
+  private static final String OTEL_ENV_HIDING_METRIC_NAME = "otel.env.hiding";
+  private static final String OTEL_ENV_INVALID_METRIC_NAME = "otel.env.invalid";
+  private static final String OTEL_ENV_UNSUPPORTED_METRIC_NAME = "otel.env.unsupported";
+  private static final String CONFIG_OTEL_KEY_TAG = "config_opentelemetry:";
+  private static final String CONFIG_DATADOG_KEY_TAG = "config_datadog:";
   private static final String NAMESPACE = "tracers";
   private static final OtelEnvMetricCollector INSTANCE = new OtelEnvMetricCollector();
 
@@ -32,15 +31,21 @@ public class OtelEnvMetricCollector
   }
 
   public void setHidingOtelEnvVarMetric(String otelName, String ddName) {
-    setMetricOtelEnvVarMetric(OTEL_ENV_HIDING, CONFIG_OTEL + otelName, CONFIG_DATADOG + ddName);
+    setMetricOtelEnvVarMetric(
+        OTEL_ENV_HIDING_METRIC_NAME,
+        CONFIG_OTEL_KEY_TAG + otelName,
+        CONFIG_DATADOG_KEY_TAG + ddName);
   }
 
   public void setInvalidOtelEnvVarMetric(String otelName, String ddName) {
-    setMetricOtelEnvVarMetric(OTEL_ENV_INVALID, CONFIG_OTEL + otelName, CONFIG_DATADOG + ddName);
+    setMetricOtelEnvVarMetric(
+        OTEL_ENV_INVALID_METRIC_NAME,
+        CONFIG_OTEL_KEY_TAG + otelName,
+        CONFIG_DATADOG_KEY_TAG + ddName);
   }
 
   public void setUnsupportedOtelEnvVarMetric(String otelName) {
-    setMetricOtelEnvVarMetric(OTEL_ENV_UNSUPPORTED, CONFIG_OTEL + otelName);
+    setMetricOtelEnvVarMetric(OTEL_ENV_UNSUPPORTED_METRIC_NAME, CONFIG_OTEL_KEY_TAG + otelName);
   }
 
   private void setMetricOtelEnvVarMetric(String metricName, final String... tags) {

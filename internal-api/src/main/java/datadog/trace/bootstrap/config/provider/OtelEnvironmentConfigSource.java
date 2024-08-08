@@ -79,6 +79,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   private void setupOteEnvironment() {
+
     // only applies when OTEL is enabled by default (otherwise TRACE_OTEL_ENABLED takes precedence)
     String sdkDisabled = getOtelProperty("otel.sdk.disabled", "dd." + TRACE_OTEL_ENABLED);
     if ("true".equalsIgnoreCase(sdkDisabled)) {
@@ -147,7 +148,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
           otelEnvVar,
           otelEnvVar);
       otelEnvMetricCollector.setHidingOtelEnvVarMetric(
-          otelSysProp.replace('.', '_'), ddSysProp.replace('.', '_'));
+          Strings.toEnvVarLowerCase(otelSysProp), Strings.toEnvVarLowerCase(ddSysProp));
       return null;
     }
     return otelValue;
@@ -341,9 +342,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     log.warn("OTEL_{}_EXPORTER={} is not supported", type, exporter.toUpperCase(Locale.ROOT));
-    if (type.equalsIgnoreCase("logs"))
+    if (type.equalsIgnoreCase("logs")) {
       otelEnvMetricCollector.setUnsupportedOtelEnvVarMetric("otel_logs_exporter");
-    else {
+    } else {
       String ddEnvVar =
           type.equalsIgnoreCase("metrics") ? "runtime_metrics_enabled" : "trace_enabled";
       otelEnvMetricCollector.setInvalidOtelEnvVarMetric(

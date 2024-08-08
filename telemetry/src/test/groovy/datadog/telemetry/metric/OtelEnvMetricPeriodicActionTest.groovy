@@ -8,10 +8,8 @@ class OtelEnvMetricPeriodicActionTest extends Specification{
 
   void 'test otel env var hiding metric'() {
     setup:
-
     final telemetryService = Mock(TelemetryService)
     final action = new OtelEnvMetricPeriodicAction()
-
 
     when:
     action.collector().setHidingOtelEnvVarMetric("otel_service_name","dd_service_name")
@@ -26,15 +24,14 @@ class OtelEnvMetricPeriodicActionTest extends Specification{
         metric.tags == ['config_opentelemetry:otel_service_name', 'config_datadog:dd_service_name'] &&
         metric.type == Metric.TypeEnum.COUNT
     } )
-
     0 * _._
   }
+
   void 'test otel env var unsupported metric'() {
     setup:
 
     final telemetryService = Mock(TelemetryService)
     final action = new OtelEnvMetricPeriodicAction()
-
 
     when:
     action.collector().setUnsupportedOtelEnvVarMetric("unsupported_env_var")
@@ -49,15 +46,13 @@ class OtelEnvMetricPeriodicActionTest extends Specification{
         metric.tags == ['config_opentelemetry:unsupported_env_var'] &&
         metric.type == Metric.TypeEnum.COUNT
     } )
-
     0 * _._
   }
+
   void 'test otel env var invalid metric'() {
     setup:
-
     final telemetryService = Mock(TelemetryService)
     final action = new OtelEnvMetricPeriodicAction()
-
 
     when:
     action.collector().setInvalidOtelEnvVarMetric("otel_env_var","dd_env_var")
@@ -72,16 +67,13 @@ class OtelEnvMetricPeriodicActionTest extends Specification{
         metric.tags == ['config_opentelemetry:otel_env_var', 'config_datadog:dd_env_var'] &&
         metric.type == Metric.TypeEnum.COUNT
     } )
-
     0 * _._
   }
 
-  void 'test Ootel env var multiple metrics'() {
+  void 'test Otel env var multiple metrics'() {
     setup:
-
     final telemetryService = Mock(TelemetryService)
     final action = new OtelEnvMetricPeriodicAction()
-
 
     when:
     action.collector().setInvalidOtelEnvVarMetric("otel_env_var","dd_env_var")
