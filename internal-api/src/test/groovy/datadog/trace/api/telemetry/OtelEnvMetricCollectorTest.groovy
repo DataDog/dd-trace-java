@@ -12,7 +12,7 @@ import datadog.trace.test.util.DDSpecification
 // We are calling ConfigProvider.createDefault()) twice
 
 
-public class OtelEnvMetricCollectorTest extends DDSpecification {
+class OtelEnvMetricCollectorTest extends DDSpecification {
 
   def "otel disabled - no metric"() {
     setup:
