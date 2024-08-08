@@ -331,24 +331,19 @@ class OpenTracing32Test extends AgentTestRunner {
     USER_DROP       | MANUAL            | USER_DROP
   }
 
-  def "tolerate null span activation"() {
+  def "null activation should mute tracing"() {
     when:
-    try {
-      tracer.scopeManager().activate(null)?.close()
-    } catch (Exception ignored) {}
+    def nullScope = tracer.scopeManager().activate(null)
 
-    try {
-      tracer.activateSpan(null)?.close()
-    } catch (Exception ignored) {}
-
-    // make sure scope stack has been left in a valid state
     Span testSpan = tracer.buildSpan("someOperation").start()
     Scope testScope = tracer.scopeManager().activate(testSpan)
     testSpan.finish()
     testScope.close()
+    nullScope.close()
 
     then:
-    assert tracer.scopeManager().active() == null
+    assertTraces(0, {})
+    assert tracer.scopeManager().activeSpan() == null
   }
 
   def "test resource name assignment through MutableSpan casting"() {

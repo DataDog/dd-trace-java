@@ -26,11 +26,7 @@ class OTScopeManager implements ScopeManager {
 
   @Override
   public Scope activate(final Span span, final boolean finishSpanOnClose) {
-    if (null == span) {
-      return null;
-    }
-
-    final AgentSpan agentSpan = converter.toAgentSpan(span);
+    final AgentSpan agentSpan = span != null ? converter.toAgentSpan(span) : tracer.blackholeSpan();
     final AgentScope agentScope = tracer.activateSpan(agentSpan, ScopeSource.MANUAL);
 
     return converter.toScope(agentScope, finishSpanOnClose);
