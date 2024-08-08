@@ -66,7 +66,6 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
       "datadog.opentelemetry.shim.trace.OtelExtractedContext",
       "datadog.opentelemetry.shim.trace.OtelConventions",
       "datadog.opentelemetry.shim.trace.OtelConventions$1",
-      "datadog.opentelemetry.shim.trace.OtelConventions$2",
       "datadog.opentelemetry.shim.trace.OtelSpan",
       "datadog.opentelemetry.shim.trace.OtelSpan$1",
       "datadog.opentelemetry.shim.trace.OtelSpan$NoopSpan",
