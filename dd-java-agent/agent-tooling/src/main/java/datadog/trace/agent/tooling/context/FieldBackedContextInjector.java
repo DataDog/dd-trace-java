@@ -72,6 +72,8 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   /** Keeps track of injection requests for the class being transformed by the current thread. */
   static final ThreadLocal<BitSet> INJECTED_STORE_IDS = new ThreadLocal<>();
 
+  static final ThreadLocal<String> CURRENT_CLASS = new ThreadLocal<>();
+
   final boolean serialVersionUIDFieldInjection =
       InstrumenterConfig.get().isSerialVersionUIDFieldInjection();
 
@@ -129,7 +131,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
         // keep track of all injection requests for the class currently being transformed
         // because we need to switch between them in the generated getter/putter methods
-        int storeId = injectContextStore(keyClassName, contextClassName);
+        int storeId = injectContextStore(name, keyClassName, contextClassName);
         storeFieldName = CONTEXT_STORE_ACCESS_PREFIX + storeId;
 
         if (interfaces == null) {
@@ -484,14 +486,19 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   }
 
   /** Requests injection of a context store for a key and context. */
-  static int injectContextStore(final String keyClassName, final String contextClassName) {
+  static int injectContextStore(
+      final String className, final String keyClassName, final String contextClassName) {
     int storeId = getContextStoreId(keyClassName, contextClassName);
 
+    String currentClass = CURRENT_CLASS.get();
     BitSet injectedStoreIds = INJECTED_STORE_IDS.get();
-    if (null == injectedStoreIds) {
+
+    if (!className.equals(currentClass)) {
       injectedStoreIds = new BitSet();
       INJECTED_STORE_IDS.set(injectedStoreIds);
+      CURRENT_CLASS.set(className);
     }
+
     injectedStoreIds.set(storeId);
 
     return storeId;
@@ -501,6 +508,7 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   static BitSet getInjectedContextStores() {
     BitSet injectedStoreIds = INJECTED_STORE_IDS.get();
     if (null != injectedStoreIds) {
+      CURRENT_CLASS.remove();
       INJECTED_STORE_IDS.remove();
     }
     return injectedStoreIds;
