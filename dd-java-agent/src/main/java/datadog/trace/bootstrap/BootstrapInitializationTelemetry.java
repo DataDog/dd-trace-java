@@ -11,7 +11,7 @@ public abstract class BootstrapInitializationTelemetry {
 
   public static final BootstrapInitializationTelemetry createFromForwarderPath(
       String forwarderPath) {
-    return new ViaForwarderExecutable(forwarderPath);
+    return new JsonBased(new ForwarderJsonSender(forwarderPath));
   }
 
   /**
@@ -74,8 +74,8 @@ public abstract class BootstrapInitializationTelemetry {
     public void finish() {}
   }
 
-  static final class ViaForwarderExecutable extends BootstrapInitializationTelemetry {
-    private final String forwarderPath;
+  static final class JsonBased extends BootstrapInitializationTelemetry {
+    private final JsonSender sender;
 
     private JsonBuffer metaBuffer = new JsonBuffer();
     private JsonBuffer pointsBuffer = new JsonBuffer();
@@ -83,8 +83,8 @@ public abstract class BootstrapInitializationTelemetry {
     // one way false to true
     private volatile boolean incomplete = false;
 
-    ViaForwarderExecutable(String forwarderPath) {
-      this.forwarderPath = forwarderPath;
+    JsonBased(JsonSender sender) {
+      this.sender = sender;
     }
 
     @Override
@@ -173,13 +173,27 @@ public abstract class BootstrapInitializationTelemetry {
       buffer.endObject();
 
       try {
-        send(buffer);
+        sender.send(buffer);
       } catch (Throwable t) {
-        // ignore
+        // Since this is the reporting mechanism, there's little recourse here
+        // Decided to simply ignore - arguably might want to write to stderr
       }
     }
+  }
 
-    void send(JsonBuffer buffer) throws IOException {
+  static interface JsonSender {
+    public abstract void send(JsonBuffer buffer) throws IOException;
+  }
+
+  static final class ForwarderJsonSender implements JsonSender {
+    private final String forwarderPath;
+
+    ForwarderJsonSender(String forwarderPath) {
+      this.forwarderPath = forwarderPath;
+    }
+
+    @Override
+    public void send(JsonBuffer buffer) throws IOException {
       ProcessBuilder builder = new ProcessBuilder(forwarderPath);
 
       Process process = builder.start();
