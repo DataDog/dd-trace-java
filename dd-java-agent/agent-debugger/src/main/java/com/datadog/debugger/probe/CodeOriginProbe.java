@@ -1,7 +1,7 @@
 package com.datadog.debugger.probe;
 
-import static com.datadog.debugger.codeorigin.SpanDebug.isSpanDebugDisabled;
-import static com.datadog.debugger.codeorigin.SpanDebug.isSpanDebugEnabled;
+import static com.datadog.debugger.codeorigin.DebuggerConfiguration.isDebuggerDisabled;
+import static com.datadog.debugger.codeorigin.DebuggerConfiguration.isDebuggerEnabled;
 import static datadog.trace.api.DDTags.DD_EXIT_LOCATION_SNAPSHOT_ID;
 import static java.lang.String.format;
 
@@ -86,7 +86,7 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedThrowable> caughtExceptions) {
-    if (isSpanDebugEnabled(span)) {
+    if (isDebuggerEnabled(span)) {
       String key =
           entrySpanProbe
               ? DDTags.DD_CODE_ORIGIN_LOCATION_SNAPSHOT_ID
@@ -125,7 +125,7 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
   }
 
   private void applySpanOriginTags(AgentSpan span) {
-    if (!isSpanDebugDisabled(span)) {
+    if (!isDebuggerDisabled(span)) {
       List<StackTraceElement> entries = getUserStackFrames();
       if (!entries.isEmpty()) {
         if (entrySpanProbe) {

@@ -4,8 +4,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.PropagationTags;
 
-public final class SpanDebug {
-  public static boolean isSpanDebugEnabled(AgentSpan span) {
+public final class DebuggerConfiguration {
+  public static boolean isDebuggerEnabled(AgentSpan span) {
     boolean enabled = false;
     if (span.context() instanceof DDSpanContext) {
       String debug = getDebugLevel(span);
@@ -15,7 +15,7 @@ public final class SpanDebug {
     return enabled;
   }
 
-  public static boolean isSpanDebugDisabled(AgentSpan span) {
+  public static boolean isDebuggerDisabled(AgentSpan span) {
     boolean disabled = true;
     if (span.context() instanceof DDSpanContext) {
       String debug = getDebugLevel(span);

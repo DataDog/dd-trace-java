@@ -11,8 +11,8 @@ import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.agent.DebuggerAgentHelper;
+import com.datadog.debugger.codeorigin.DebuggerConfiguration;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
-import com.datadog.debugger.codeorigin.SpanDebug;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.LogProbe.LogStatus;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -96,7 +96,7 @@ public class CodeOriginTest extends DDSpecification {
     CodeOriginProbe exitProbe = probes[1];
 
     invoke(span1, entryProbe);
-    SpanDebug.enableDebug(span2);
+    DebuggerConfiguration.enableDebug(span2);
     invoke(span2, exitProbe);
     invoke(span3, entryProbe);
 
