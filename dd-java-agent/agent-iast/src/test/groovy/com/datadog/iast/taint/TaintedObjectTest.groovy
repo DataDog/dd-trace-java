@@ -22,5 +22,6 @@ class TaintedObjectTest extends Specification {
     then:
     ranges.size() > max
     tainted.ranges.size() == max
+    tainted.toString().contains("${tainted.ranges.size()} ranges")
   }
 }

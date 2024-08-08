@@ -535,8 +535,10 @@ public class LogProbe extends ProbeDefinition {
      */
     if (isCaptureSnapshot()) {
       snapshot.recordStackTrace(5);
+      sink.addSnapshot(snapshot);
+    } else {
+      sink.addHighRateSnapshot(snapshot);
     }
-    sink.addSnapshot(snapshot);
   }
 
   @Override
@@ -582,9 +584,9 @@ public class LogProbe extends ProbeDefinition {
   }
 
   public static class LogStatus extends CapturedContext.Status {
-    private static final LogStatus EMPTY_LOG_STATUS =
+    public static final LogStatus EMPTY_LOG_STATUS =
         new LogStatus(ProbeImplementation.UNKNOWN, false);
-    private static final LogStatus EMPTY_CAPTURING_LOG_STATUS =
+    public static final LogStatus EMPTY_CAPTURING_LOG_STATUS =
         new LogStatus(ProbeImplementation.UNKNOWN, true);
 
     private boolean condition = true;

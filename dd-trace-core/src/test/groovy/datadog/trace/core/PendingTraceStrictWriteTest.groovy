@@ -11,16 +11,16 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     rootSpan.finish()
 
     then:
-    trace.pendingReferenceCount == 1
-    trace.spans.asList() == [rootSpan]
+    traceCollector.pendingReferenceCount == 1
+    traceCollector.spans.asList() == [rootSpan]
     writer == []
 
     when: "root span buffer delay expires"
     writer.waitForTracesMax(1, 1)
 
     then:
-    trace.pendingReferenceCount == 1
-    trace.spans.asList() == [rootSpan]
+    traceCollector.pendingReferenceCount == 1
+    traceCollector.spans.asList() == [rootSpan]
     writer == []
     writer.traceCount.get() == 0
 
@@ -28,8 +28,8 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     continuation.cancel()
 
     then:
-    trace.pendingReferenceCount == 0
-    trace.spans.isEmpty()
+    traceCollector.pendingReferenceCount == 0
+    traceCollector.spans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
   }
@@ -43,23 +43,23 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     rootSpan.finish()
 
     then:
-    trace.pendingReferenceCount == 1
-    trace.spans.asList() == [rootSpan]
+    traceCollector.pendingReferenceCount == 1
+    traceCollector.spans.asList() == [rootSpan]
     writer == []
 
     when: "continuation is finished the first time"
     continuation.cancel()
 
     then:
-    trace.pendingReferenceCount == 0
-    trace.spans.isEmpty()
+    traceCollector.pendingReferenceCount == 0
+    traceCollector.spans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
 
     when: "continuation is finished the second time"
     // Yes this should be guarded by the used flag in the continuation,
     // so cancel it anyway to trigger the exception
-    trace.cancelContinuation(continuation)
+    traceCollector.cancelContinuation(continuation)
 
     then:
     thrown IllegalStateException

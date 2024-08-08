@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -21,7 +22,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
-import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -56,7 +56,9 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
+      packageName + ".JDBCDecorator",
+      packageName + ".SQLCommenter",
+      packageName + ".InstrumentationLogger",
     };
   }
 
@@ -71,7 +73,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class StatementAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
         @Advice.This final Statement statement) {
@@ -112,10 +114,19 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   injectTraceContext,
                   appendComment);
         }
-        DECORATE.onStatement(span, DBQueryInfo.ofStatement(copy));
+        DECORATE.onStatement(span, copy);
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
+        return null;
+      } catch (BlockingException e) {
+        CallDepthThreadLocalMap.reset(Statement.class);
+        // re-throw blocking exceptions
+        throw e;
+      } catch (Throwable e) {
+        // suppress anything else
+        InstrumentationLogger.debug(
+            "datadog.trace.instrumentation.jdbc.StatementInstrumentation", statement.getClass(), e);
         return null;
       }
     }

@@ -296,10 +296,12 @@ public class CapturedSnapshotTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCaptureFields(
         snapshot.getCaptures().getEntry(), "obj2", "java.lang.Object", (String) null);
-    CapturedContext.CapturedValue obj2 = snapshot.getCaptures().getReturn().getFields().get("obj2");
-    Map<String, CapturedContext.CapturedValue> fields = getFields(obj2);
-    assertEquals(24, fields.get("intValue").getValue());
-    assertEquals(3.14, fields.get("doubleValue").getValue());
+    CapturedContext.CapturedValue obj2 =
+        getFields(snapshot.getCaptures().getReturn().getArguments().get("this")).get("obj2");
+    Map<String, CapturedContext.CapturedValue> obj2Fields =
+        (Map<String, CapturedContext.CapturedValue>) obj2.getValue();
+    assertEquals(24, obj2Fields.get("intValue").getValue());
+    assertEquals(3.14, obj2Fields.get("doubleValue").getValue());
   }
 
   @Test
@@ -722,6 +724,25 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void fieldExtractorDuplicateUnionDepth() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot04";
+    LogProbe.Builder builder = createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
+    LogProbe probe1 = builder.capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
+    LogProbe probe2 = builder.capture(3, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe1, probe2);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "").get();
+    assertEquals(143, result);
+    List<Snapshot> snapshots = assertSnapshots(listener, 2);
+    CapturedContext.CapturedValue simpleData =
+        snapshots.get(0).getCaptures().getReturn().getLocals().get("simpleData");
+    Map<String, CapturedContext.CapturedValue> simpleDataFields = getFields(simpleData);
+    assertEquals(4, simpleDataFields.size());
+    assertEquals("foo", simpleDataFields.get("strValue").getValue());
+    assertEquals(42, simpleDataFields.get("intValue").getValue());
+  }
+
+  @Test
   public void fieldExtractorCount2() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
     LogProbe.Builder builder =
@@ -1058,7 +1079,7 @@ public class CapturedSnapshotTest {
   public void staticFieldCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot19";
     LogProbe logProbe =
-        createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "int (java.lang.String)")
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "process", "int (java.lang.String)")
             .when(
                 new ProbeCondition(
                     DSL.when(DSL.eq(DSL.ref("strField"), DSL.value("foo"))), "strField == 'foo'"))
@@ -1117,8 +1138,7 @@ public class CapturedSnapshotTest {
     List<EvaluationError> evaluationErrors = listener.snapshots.get(0).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
     Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    Assertions.assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
   }
 
   @Test
@@ -1162,11 +1182,11 @@ public class CapturedSnapshotTest {
     assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     CapturedContext.CapturedValue maybeStrField =
-        snapshot.getCaptures().getReturn().getFields().get("maybeStr");
-    assertEquals(Optional.class.getTypeName(), maybeStrField.getType());
-    CapturedContext.CapturedValue valued = VALUE_ADAPTER.fromJson(maybeStrField.getStrValue());
-    CapturedContext.CapturedValue value =
-        ((Map<String, CapturedContext.CapturedValue>) valued.getValue()).get("value");
+        getFields(snapshot.getCaptures().getReturn().getArguments().get("this")).get("maybeStr");
+    assertEquals(Optional.class.getTypeName(), maybeStrField.getDeclaredType());
+    Map<String, CapturedContext.CapturedValue> maybeStrFields =
+        (Map<String, CapturedContext.CapturedValue>) maybeStrField.getValue();
+    CapturedContext.CapturedValue value = maybeStrFields.get("value");
     assertEquals("maybe foo", value.getValue());
   }
 
@@ -1244,8 +1264,7 @@ public class CapturedSnapshotTest {
     List<EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
     Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    Assertions.assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
   }
 
   @Test
@@ -1264,8 +1283,7 @@ public class CapturedSnapshotTest {
     List<EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
     Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    Assertions.assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
     assertNull(snapshots.get(1).getEvaluationErrors());
   }
 
@@ -1285,8 +1303,7 @@ public class CapturedSnapshotTest {
     List<EvaluationError> evaluationErrors = snapshots.get(0).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
     Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    Assertions.assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
   }
 
   @Test
@@ -1306,8 +1323,7 @@ public class CapturedSnapshotTest {
     List<EvaluationError> evaluationErrors = snapshots.get(1).getEvaluationErrors();
     Assertions.assertEquals(1, evaluationErrors.size());
     Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals(
-        "Cannot dereference to field: fld", evaluationErrors.get(0).getMessage());
+    Assertions.assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
   }
 
   @Test
@@ -1343,7 +1359,7 @@ public class CapturedSnapshotTest {
     int result = Reflect.onClass(testClass).call("main", "f").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 7); // +2 for correlation ids
+    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 5);
     assertCaptureFields(snapshot.getCaptures().getEntry(), "intValue", "int", "24");
     assertCaptureFields(snapshot.getCaptures().getEntry(), "doubleValue", "double", "3.14");
     assertCaptureFields(
@@ -1355,7 +1371,7 @@ public class CapturedSnapshotTest {
         Arrays.asList("foo", "bar"));
     assertCaptureFields(
         snapshot.getCaptures().getEntry(), "strMap", "java.util.HashMap", Collections.emptyMap());
-    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 7); // +2 for correlation ids
+    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 5);
     assertCaptureFields(snapshot.getCaptures().getReturn(), "intValue", "int", "48");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "doubleValue", "double", "3.14");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "strValue", "java.lang.String", "done");
@@ -1384,11 +1400,11 @@ public class CapturedSnapshotTest {
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     // Only Declared fields in the current class are captured, not inherited fields
-    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 7); // +2 for correlation ids
+    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 5);
     assertCaptureFields(
         snapshot.getCaptures().getEntry(), "strValue", "java.lang.String", "foobar");
     assertCaptureFields(snapshot.getCaptures().getEntry(), "intValue", "int", "24");
-    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 7); // +2 for correlation ids
+    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 5);
     assertCaptureFields(
         snapshot.getCaptures().getReturn(), "strValue", "java.lang.String", "barfoo");
     assertCaptureFields(snapshot.getCaptures().getEntry(), "intValue", "int", "24");
@@ -1443,12 +1459,12 @@ public class CapturedSnapshotTest {
     setCorrelationSingleton(spyCorrelationAccess);
     doReturn(true).when(spyCorrelationAccess).isAvailable();
     TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "33"));
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "37"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "static", "email@address").get();
     assertEquals(8, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    CapturedContext context = snapshot.getCaptures().getLines().get(33);
+    CapturedContext context = snapshot.getCaptures().getLines().get(37);
     assertNotNull(context);
     assertCaptureLocals(context, "idx", "int", "5");
   }
@@ -1460,15 +1476,32 @@ public class CapturedSnapshotTest {
     setCorrelationSingleton(spyCorrelationAccess);
     doReturn(true).when(spyCorrelationAccess).isAvailable();
     TestSnapshotListener listener =
-        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "44"));
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "48"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "capturing", "email@address").get();
     assertEquals(8, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    CapturedContext context = snapshot.getCaptures().getLines().get(44);
+    CapturedContext context = snapshot.getCaptures().getLines().get(48);
     assertNotNull(context);
     assertCaptureLocals(context, "idx", "int", "5");
     assertCaptureFields(context, "strValue", "java.lang.String", "email@address");
+  }
+
+  @Test
+  public void multiLambdas() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot07";
+    CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
+    setCorrelationSingleton(spyCorrelationAccess);
+    doReturn(true).when(spyCorrelationAccess).isAvailable();
+    TestSnapshotListener listener =
+        installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, null, null, "58"));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "multi", "FOO1,FOO2,FOO3").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    CapturedContext context = snapshot.getCaptures().getLines().get(58);
+    assertNotNull(context);
+    assertCaptureArgs(context, "arg", String.class.getTypeName(), "FOO1,FOO2,FOO3");
   }
 
   @Test
@@ -2355,14 +2388,14 @@ public class CapturedSnapshotTest {
 
   private void assertCaptureFields(
       CapturedContext context, String name, String typeName, String value) {
-    CapturedContext.CapturedValue field = context.getFields().get(name);
+    CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
     assertEquals(typeName, field.getType());
     assertEquals(value, MoshiSnapshotTestHelper.getValue(field));
   }
 
   private void assertCaptureFields(
       CapturedContext context, String name, String typeName, Collection<?> collection) {
-    CapturedContext.CapturedValue field = context.getFields().get(name);
+    CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
     assertEquals(typeName, field.getType());
     Iterator<?> iterator = collection.iterator();
     for (Object obj : getCollection(field)) {
@@ -2376,7 +2409,7 @@ public class CapturedSnapshotTest {
 
   private void assertCaptureFields(
       CapturedContext context, String name, String typeName, Map<Object, Object> expectedMap) {
-    CapturedContext.CapturedValue field = context.getFields().get(name);
+    CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
     assertEquals(typeName, field.getType());
     Map<Object, Object> map = getMap(field);
     assertEquals(expectedMap.size(), map.size());
@@ -2388,7 +2421,7 @@ public class CapturedSnapshotTest {
 
   private void assertCaptureFieldsNotCaptured(
       CapturedContext context, String name, String expectedReasonRegEx) {
-    CapturedContext.CapturedValue field = context.getFields().get(name);
+    CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
     assertTrue(
         field.getNotCapturedReason().matches(expectedReasonRegEx), field.getNotCapturedReason());
   }
@@ -2401,7 +2434,7 @@ public class CapturedSnapshotTest {
   }
 
   private void assertCaptureFieldCount(CapturedContext context, int expectedFieldCount) {
-    assertEquals(expectedFieldCount, context.getFields().size());
+    assertEquals(expectedFieldCount, getFields(context.getArguments().get("this")).size());
   }
 
   private void assertCaptureReturnValue(CapturedContext context, String typeName, String value) {
@@ -2471,6 +2504,9 @@ public class CapturedSnapshotTest {
 
   private static Collection<?> getCollection(CapturedContext.CapturedValue capturedValue) {
     try {
+      if (capturedValue.getStrValue() == null) {
+        return (Collection<?>) capturedValue.getValue();
+      }
       Map<String, Object> capturedValueMap = GENERIC_ADAPTER.fromJson(capturedValue.getStrValue());
       List<Object> elements = (List<Object>) capturedValueMap.get("elements");
       if (elements == null) {
@@ -2498,6 +2534,9 @@ public class CapturedSnapshotTest {
 
   private Map<Object, Object> getMap(CapturedContext.CapturedValue capturedValue) {
     try {
+      if (capturedValue.getStrValue() == null) {
+        return (Map<Object, Object>) capturedValue.getValue();
+      }
       Map<String, Object> capturedValueMap = GENERIC_ADAPTER.fromJson(capturedValue.getStrValue());
       List<Object> entries = (List<Object>) capturedValueMap.get("entries");
       if (entries == null) {

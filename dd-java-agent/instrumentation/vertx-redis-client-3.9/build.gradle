@@ -25,7 +25,7 @@ dependencies {
   testImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
   testImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '3.9.0'
   testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
-  testImplementation deps.testcontainers
+  testImplementation libs.testcontainers
 
   redis4xTestImplementation group: 'io.vertx', name: 'vertx-redis-client', version: '4.0.0'
   redis4xTestImplementation group: 'io.vertx', name: 'vertx-rx-java2', version: '4.0.0'

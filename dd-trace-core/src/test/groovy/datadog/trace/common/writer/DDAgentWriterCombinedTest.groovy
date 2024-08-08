@@ -292,7 +292,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   def createMinimalTrace() {
     def context = createMinimalContext()
     def minimalSpan = new DDSpan("test", 0, context, null)
-    context.getTrace().getRootSpan() >> minimalSpan
+    context.getTraceCollector().getRootSpan() >> minimalSpan
     def minimalTrace = [minimalSpan]
 
     return minimalTrace

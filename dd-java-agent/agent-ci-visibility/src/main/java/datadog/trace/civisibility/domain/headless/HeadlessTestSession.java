@@ -4,14 +4,15 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
@@ -36,27 +37,27 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
   public HeadlessTestSession(
       String projectName,
       @Nullable Long startTime,
-      boolean supportedCiProvider,
+      Provider ciProvider,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       ModuleExecutionSettings moduleExecutionSettings) {
     super(
         projectName,
         startTime,
         InstrumentationType.HEADLESS,
-        supportedCiProvider,
+        ciProvider,
         config,
         metricCollector,
         testDecorator,
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory);
+        coverageStoreFactory);
     this.moduleExecutionSettings = moduleExecutionSettings;
   }
 
@@ -73,7 +74,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory,
+        coverageStoreFactory,
         moduleExecutionSettings,
         this::propagateModuleTags);
   }

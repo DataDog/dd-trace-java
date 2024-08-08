@@ -47,6 +47,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
   def collectedAppSecHeaders = [:]
   boolean appSecHeaderDone = false
   def collectedAppSecReqMsgs = []
+  def collectedAppSecServerMethods = []
 
   @Override
   final String service() {
@@ -89,6 +90,10 @@ abstract class GrpcTest extends VersionedNamingTestBase {
       collectedAppSecReqMsgs << obj
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, Object, Flow<Void>>)
+    ig.registerCallback(EVENTS.grpcServerMethod(), { reqCtx, method ->
+      collectedAppSecServerMethods << method
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, String, Flow<Void>>)
   }
 
   def cleanup() {
@@ -217,6 +222,8 @@ abstract class GrpcTest extends VersionedNamingTestBase {
     traceId.toLong() as String == collectedAppSecHeaders['x-datadog-trace-id']
     collectedAppSecReqMsgs.size() == 1
     collectedAppSecReqMsgs.first().name == name
+    collectedAppSecServerMethods.size() == 1
+    collectedAppSecServerMethods.first() == 'example.Greeter/SayHello'
 
     and:
     if (isDataStreamsEnabled()) {
@@ -690,5 +697,28 @@ class GrpcDataStreamsDisabledForkedTest extends GrpcTest {
   @Override
   protected String serverOperation() {
     return "grpc.server"
+  }
+}
+
+class GrpcProfilingForkedTest extends GrpcTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.profiling.enabled", "true")
+  }
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client.request"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server.request"
   }
 }

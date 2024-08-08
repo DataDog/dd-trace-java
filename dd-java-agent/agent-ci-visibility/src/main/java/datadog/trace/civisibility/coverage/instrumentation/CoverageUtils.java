@@ -14,7 +14,7 @@ public class CoverageUtils {
     mv.visitMethodInsn(
         Opcodes.INVOKESTATIC,
         "datadog/trace/api/civisibility/coverage/CoverageBridge",
-        "currentCoverageProbeStoreRecord",
+        "recordCoverage",
         "(Ljava/lang/Class;)V",
         false);
   }

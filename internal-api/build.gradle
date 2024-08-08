@@ -23,6 +23,7 @@ tasks.compileTestJava.configure {
 
 minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
+
 excludedClassesCoverage += [
   "datadog.trace.api.EndpointTracker",
   "datadog.trace.api.Platform",
@@ -69,7 +70,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentDataStreamsMonitoring",
-  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTrace",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTraceCollector",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopPathwayContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
@@ -93,14 +94,19 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.config.ModuleExecutionSettings",
   "datadog.trace.api.civisibility.config.TestIdentifier",
   "datadog.trace.api.civisibility.coverage.CoverageBridge",
+  "datadog.trace.api.civisibility.coverage.NoOpCoverageStore",
+  "datadog.trace.api.civisibility.coverage.NoOpCoverageStore.Factory",
+  "datadog.trace.api.civisibility.coverage.NoOpProbes",
   "datadog.trace.api.civisibility.coverage.TestReport",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry",
-  "datadog.trace.api.civisibility.coverage.TestReportFileEntry.Segment",
   "datadog.trace.api.civisibility.events.BuildEventsHandler.ModuleInfo",
   "datadog.trace.api.civisibility.events.TestDescriptor",
   "datadog.trace.api.civisibility.events.TestSuiteDescriptor",
   "datadog.trace.api.civisibility.telemetry.tag.ErrorType",
   "datadog.trace.api.civisibility.telemetry.tag.ExitCode",
+  "datadog.trace.api.civisibility.telemetry.tag.Library",
+  "datadog.trace.api.civisibility.telemetry.tag.ResponseCompressed",
+  "datadog.trace.api.civisibility.telemetry.tag.StatusCode",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric.IndexHolder",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityMetricData",
@@ -119,6 +125,7 @@ excludedClassesCoverage += [
   // tested indirectly by dependent modules
   "datadog.trace.api.git.RawParseUtils",
   // tested indirectly by dependent modules
+  "datadog.trace.api.logging.intake.LogsIntake",
   "datadog.trace.logging.LoggingSettingsDescription",
   "datadog.trace.util.AgentProxySelector",
   "datadog.trace.util.AgentTaskScheduler",
@@ -169,7 +176,6 @@ excludedClassesCoverage += [
   'datadog.trace.logging.LogLevel',
   'datadog.trace.logging.GlobalLogLevelSwitcher'
 ]
-
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
   'datadog.trace.api.Config',
@@ -183,7 +189,7 @@ compileTestJava.dependsOn 'generateTestClassNameTries'
 dependencies {
   // references TraceScope and Continuation from public api
   api project(':dd-trace-api')
-  api deps.slf4j
+  api libs.slf4j
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:
@@ -192,11 +198,11 @@ dependencies {
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")
-  testImplementation deps.junit5
-  testImplementation("org.junit.vintage:junit-vintage-engine:${versions.junit5}")
-  testImplementation deps.commonsMath
-  testImplementation deps.mockito
-  testImplementation deps.truth
+  testImplementation libs.bundles.junit5
+  testImplementation group: 'org.junit.vintage', name: 'junit-vintage-engine', version: libs.versions.junit5.get()
+  testImplementation libs.commons.math
+  testImplementation libs.bundles.mockito
+  testImplementation libs.truth
 }
 
 jmh {

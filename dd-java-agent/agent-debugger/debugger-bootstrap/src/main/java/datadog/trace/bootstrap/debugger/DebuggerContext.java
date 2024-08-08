@@ -67,12 +67,17 @@ public class DebuggerContext {
     void handleException(Throwable t, AgentSpan span);
   }
 
+  public interface SpanDebugger {
+    String captureSnapshot(String signature);
+  }
+
   private static volatile ProbeResolver probeResolver;
   private static volatile ClassFilter classFilter;
   private static volatile MetricForwarder metricForwarder;
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
+  private static volatile SpanDebugger spanDebugger;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
@@ -96,6 +101,10 @@ public class DebuggerContext {
 
   public static void initExceptionDebugger(ExceptionDebugger exceptionDebugger) {
     DebuggerContext.exceptionDebugger = exceptionDebugger;
+  }
+
+  public static void initSpanDebugger(SpanDebugger spanDebugger) {
+    DebuggerContext.spanDebugger = spanDebugger;
   }
 
   /**
@@ -143,6 +152,7 @@ public class DebuggerContext {
           break;
         case DISTRIBUTION:
           forwarder.distribution(probeId, name, value, tags);
+          break;
         default:
           throw new IllegalArgumentException("Unsupported metric kind: " + kind);
       }
@@ -330,6 +340,18 @@ public class DebuggerContext {
     } catch (Exception ex) {
       LOGGER.debug("Error in commit: ", ex);
     }
+  }
+
+  public static String captureSnapshot(String signature) {
+    try {
+      SpanDebugger debugger = spanDebugger;
+      if (debugger != null) {
+        return debugger.captureSnapshot(signature);
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in addSnapshot: ", ex);
+    }
+    return null;
   }
 
   public static void handleException(Throwable t, AgentSpan span) {

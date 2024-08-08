@@ -20,6 +20,7 @@ public class TagsProcessor {
     }
   }
 
+  public static final String MANUAL_TAG = "manual_checkpoint";
   public static final String TYPE_TAG = "type";
   private static final DDCache<String, String> TYPE_TAG_CACHE = DDCaches.newFixedSizeCache(32);
   private static final Function<String, String> TYPE_TAG_PREFIX = new StringPrefix("type:");

@@ -3,7 +3,6 @@ package datadog.trace.civisibility.domain;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
@@ -12,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -30,7 +28,6 @@ public abstract class AbstractTestModule {
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
   protected final MethodLinesResolver methodLinesResolver;
-  protected final CoverageProbeStoreFactory coverageProbeStoreFactory;
   private final Consumer<AgentSpan> onSpanFinish;
 
   public AbstractTestModule(
@@ -45,7 +42,6 @@ public abstract class AbstractTestModule {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.sessionId = sessionId;
     this.moduleName = moduleName;
@@ -55,7 +51,6 @@ public abstract class AbstractTestModule {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.onSpanFinish = onSpanFinish;
 
     if (startTime != null) {
@@ -75,7 +70,7 @@ public abstract class AbstractTestModule {
 
     // setting status to skip initially,
     // as we do not know in advance whether the module will have any children
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
     testDecorator.afterStart(span);
 
@@ -93,11 +88,11 @@ public abstract class AbstractTestModule {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
     }

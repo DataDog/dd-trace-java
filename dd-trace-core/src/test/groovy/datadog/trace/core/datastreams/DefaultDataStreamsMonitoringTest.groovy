@@ -77,11 +77,18 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, wellKnownTags, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
 
     then:
+    // the first received schema is sampled, with a weight of one.
+    dataStreams.canSampleSchema("schema1")
     dataStreams.trySampleSchema("schema1") == 1
+    // the sampling is done by topic, so a schema on a different topic will also be sampled at once, also with a weight of one.
+    dataStreams.canSampleSchema("schema2")
     dataStreams.trySampleSchema("schema2") == 1
-    dataStreams.trySampleSchema("schema1") == 0
-    dataStreams.trySampleSchema("schema1") == 0
+    // no time has passed from the last sampling, so the same schema is not sampled again (two times in a row).
+    !dataStreams.canSampleSchema("schema1")
+    !dataStreams.canSampleSchema("schema1")
     timeSource.advance(30*1e9 as long)
+    // now, 30 seconds have passed, so the schema is sampled again, with a weight of 3 (so it includes the two times the schema was not sampled).
+    dataStreams.canSampleSchema("schema1")
     dataStreams.trySampleSchema("schema1") == 3
   }
 
@@ -451,8 +458,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
         edgeTags.size() == 3
         hash == 1
         parentHash == 2
-        pathwayLatency.getMaxValue() >= 10
-        pathwayLatency.getMaxValue() < 10.1
+        Math.abs((pathwayLatency.getMaxValue()-10)/10) < 0.01
       }
     }
 
@@ -467,8 +473,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
         parentHash == 2
         edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic"])
         edgeTags.size() == 3
-        pathwayLatency.getMaxValue() >= 5
-        pathwayLatency.getMaxValue() < 5.1
+        Math.abs((pathwayLatency.getMaxValue()-5)/5) < 0.01
       }
 
       with(sortedGroups[1]) {
@@ -476,8 +481,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
         parentHash == 4
         edgeTags.containsAll(["type:testType", "group:testGroup", "topic:testTopic2"])
         edgeTags.size() == 3
-        pathwayLatency.getMaxValue() >= 2
-        pathwayLatency.getMaxValue() < 2.1
+        Math.abs((pathwayLatency.getMaxValue()-2)/2) < 0.01
       }
     }
 

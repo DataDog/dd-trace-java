@@ -17,13 +17,13 @@ minimumInstructionCoverage = 0.7
 excludedClassesCoverage += ['com.datadog.profiling.controller.oracle.JdkTypeIDs_8']
 
 dependencies {
-  api deps.slf4j
+  api libs.slf4j
   api project(':internal-api')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
 
-  testImplementation deps.junit5
-  testImplementation deps.mockito
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
   testImplementation project(':dd-java-agent:agent-profiling')

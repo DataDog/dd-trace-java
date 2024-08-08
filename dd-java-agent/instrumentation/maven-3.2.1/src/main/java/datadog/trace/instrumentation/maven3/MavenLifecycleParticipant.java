@@ -104,7 +104,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
         // otherwise reference to "@{argLine}" that we add when configuring tracer
         // might cause failure
         // (test executions config is changed even if auto configuration is disabled:
-        // for passing module and sesion IDs to child JVM)
+        // for passing module and session IDs to child JVM)
         projectProperties.setProperty("argLine", "");
       }
     }
@@ -220,6 +220,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
   private String getEffectiveJvm(Mojo mojo) {
     Method getEffectiveJvmMethod = findGetEffectiveJvmMethod(mojo.getClass());
     if (getEffectiveJvmMethod == null) {
+      LOGGER.debug("Could not find getEffectiveJvm method in {} class", mojo.getClass().getName());
       return null;
     }
     getEffectiveJvmMethod.setAccessible(true);
@@ -241,13 +242,18 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
         return (String) jvmExecutable;
       } else if (jvmExecutable instanceof File) {
         return ((File) jvmExecutable).getAbsolutePath();
+      } else if (jvmExecutable == null) {
+        LOGGER.debug("Configured JVM executable is null");
+        return null;
       } else {
+        LOGGER.debug(
+            "Unexpected JVM executable type {}, returning null",
+            jvmExecutable.getClass().getName());
         return null;
       }
 
     } catch (Exception e) {
       LOGGER.debug("Error while getting effective JVM for mojo {}", mojo, e);
-      LOGGER.warn("Error while getting effective JVM");
       return null;
     }
   }
@@ -298,9 +304,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 
     for (MavenTestExecution testExecution : testExecutions) {
       MavenProjectConfigurator.INSTANCE.configureTracer(
-          testExecution.getProject(),
-          testExecution.getExecution(),
-          moduleExecutionSettings.getSystemProperties());
+          testExecution, moduleExecutionSettings.getSystemProperties());
       MavenProjectConfigurator.INSTANCE.configureJacoco(testExecution, moduleExecutionSettings);
     }
     return null;

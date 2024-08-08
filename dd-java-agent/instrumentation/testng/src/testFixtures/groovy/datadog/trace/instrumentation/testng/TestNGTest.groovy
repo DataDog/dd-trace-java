@@ -12,6 +12,7 @@ import org.example.TestFailedThenSucceed
 import org.example.TestFailedWithSuccessPercentage
 import org.example.TestInheritance
 import org.example.TestParameterized
+import org.example.TestParameterizedModifiesParams
 import org.example.TestSkipped
 import org.example.TestSkippedClass
 import org.example.TestSkippedNested
@@ -47,6 +48,7 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-error"                                          | [TestError]                                        | 2
     "test-skipped"                                        | [TestSkipped]                                      | 2
     "test-parameterized"                                  | [TestParameterized]                                | 3
+    "test-parameterized-modifies-params"                  | [TestParameterizedModifiesParams]                  | 2
     "test-success-with-groups"                            | [TestSucceedGroups]                                | 2
     "test-class-skipped"                                  | [TestSkippedClass]                                 | 3
     "test-success-and-skipped"                            | [TestSucceedAndSkipped]                            | 3

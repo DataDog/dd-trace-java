@@ -6,7 +6,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptySet;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -47,7 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 
-class DefaultExceptionDebuggerTest {
+public class DefaultExceptionDebuggerTest {
 
   private ClassNameFiltering classNameFiltering;
   private ConfigurationUpdater configurationUpdater;
@@ -60,7 +60,8 @@ class DefaultExceptionDebuggerTest {
     configurationUpdater = mock(ConfigurationUpdater.class);
     classNameFiltering = new ClassNameFiltering(emptySet());
     exceptionDebugger =
-        new DefaultExceptionDebugger(configurationUpdater, classNameFiltering, Duration.ofHours(1));
+        new DefaultExceptionDebugger(
+            configurationUpdater, classNameFiltering, Duration.ofHours(1), 100);
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }
@@ -94,16 +95,20 @@ class DefaultExceptionDebuggerTest {
   @Test
   public void nestedException() {
     RuntimeException exception = createNestException();
+    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     AgentSpan span = mock(AgentSpan.class);
     doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
     exceptionDebugger.handleException(exception, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
     generateSnapshots(exception);
     exception.printStackTrace();
     exceptionDebugger.handleException(exception, span);
     ExceptionProbeManager.ThrowableState state =
         exceptionDebugger
             .getExceptionProbeManager()
-            .getSateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
+            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
     assertEquals(
         state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
     Map<String, Snapshot> snapshotMap =
@@ -143,7 +148,9 @@ class DefaultExceptionDebuggerTest {
   @Test
   public void doubleNestedException() {
     RuntimeException nestedException = createNestException();
+    String nestedFingerprint = Fingerprinter.fingerprint(nestedException, classNameFiltering);
     RuntimeException simpleException = new RuntimeException("test");
+    String simpleFingerprint = Fingerprinter.fingerprint(simpleException, classNameFiltering);
     AgentSpan span = mock(AgentSpan.class);
     doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
     when(span.getTag(anyString()))
@@ -153,6 +160,12 @@ class DefaultExceptionDebuggerTest {
     exceptionDebugger.handleException(nestedException, span);
     // instrument first simple Exception
     exceptionDebugger.handleException(simpleException, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(nestedFingerprint),
+        Duration.ofSeconds(30));
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(simpleFingerprint),
+        Duration.ofSeconds(30));
     generateSnapshots(nestedException);
     generateSnapshots(simpleException);
     exceptionDebugger.handleException(simpleException, span);
@@ -161,7 +174,7 @@ class DefaultExceptionDebuggerTest {
     ExceptionProbeManager.ThrowableState state =
         exceptionDebugger
             .getExceptionProbeManager()
-            .getSateByThrowable(ExceptionHelper.getInnerMostThrowable(nestedException));
+            .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(nestedException));
     assertEquals(
         state.getExceptionId(), spanTags.get(DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID));
     Map<String, Snapshot> snapshotMap =
@@ -203,7 +216,7 @@ class DefaultExceptionDebuggerTest {
   public void filteringOutErrors() {
     ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
     exceptionDebugger =
-        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering);
+        new DefaultExceptionDebugger(manager, configurationUpdater, classNameFiltering, 100);
     exceptionDebugger.handleException(new AssertionError("test"), mock(AgentSpan.class));
     verify(manager, times(0)).isAlreadyInstrumented(any());
   }
@@ -298,7 +311,7 @@ class DefaultExceptionDebuggerTest {
       ExceptionProbeManager.ThrowableState state =
           exceptionDebugger
               .getExceptionProbeManager()
-              .getSateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
+              .getStateByThrowable(ExceptionHelper.getInnerMostThrowable(exception));
       Snapshot lastSnapshot = state.getSnapshots().get(state.getSnapshots().size() - 1);
       lastSnapshot.getStack().clear();
       lastSnapshot
@@ -323,7 +336,7 @@ class DefaultExceptionDebuggerTest {
     return new RuntimeException("test2", cause);
   }
 
-  private static Config createConfig() {
+  public static Config createConfig() {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);

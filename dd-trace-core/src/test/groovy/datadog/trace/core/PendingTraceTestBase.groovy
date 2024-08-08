@@ -17,12 +17,12 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
   def tracer = tracerBuilder().writer(writer).build()
 
   DDSpan rootSpan = tracer.buildSpan("fakeOperation").start()
-  PendingTrace trace = rootSpan.context().trace
+  PendingTrace traceCollector = rootSpan.context().traceCollector
 
   def setup() {
-    assert trace.size() == 0
-    assert trace.pendingReferenceCount == 1
-    assert trace.rootSpanWritten == false
+    assert traceCollector.size() == 0
+    assert traceCollector.pendingReferenceCount == 1
+    assert traceCollector.rootSpanWritten == false
   }
 
   def cleanup() {
@@ -35,7 +35,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.spans.isEmpty()
+    traceCollector.spans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
   }
@@ -45,14 +45,14 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     def child = tracer.buildSpan("child").asChildOf(rootSpan).start()
 
     then:
-    trace.pendingReferenceCount == 2
+    traceCollector.pendingReferenceCount == 2
 
     when:
     child.finish()
 
     then:
-    trace.pendingReferenceCount == 1
-    trace.spans.asList() == [child]
+    traceCollector.pendingReferenceCount == 1
+    traceCollector.spans.asList() == [child]
     writer == []
 
     when:
@@ -60,8 +60,8 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.pendingReferenceCount == 0
-    trace.spans.isEmpty()
+    traceCollector.pendingReferenceCount == 0
+    traceCollector.spans.isEmpty()
     writer == [[rootSpan, child]]
     writer.traceCount.get() == 1
   }
@@ -71,14 +71,14 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     def child = tracer.buildSpan("child").asChildOf(rootSpan).start()
 
     then:
-    trace.pendingReferenceCount == 2
+    traceCollector.pendingReferenceCount == 2
 
     when:
     rootSpan.finish()
 
     then:
-    trace.pendingReferenceCount == 1
-    trace.spans.asList() == [rootSpan]
+    traceCollector.pendingReferenceCount == 1
+    traceCollector.spans.asList() == [rootSpan]
     writer == []
 
     when:
@@ -86,8 +86,8 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.pendingReferenceCount == 0
-    trace.spans.isEmpty()
+    traceCollector.pendingReferenceCount == 0
+    traceCollector.spans.isEmpty()
     writer == [[child, rootSpan]]
     writer.traceCount.get() == 1
   }
@@ -103,15 +103,15 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(2)
 
     expect:
-    trace.pendingReferenceCount == 0
-    trace.spans.isEmpty()
+    traceCollector.pendingReferenceCount == 0
+    traceCollector.spans.isEmpty()
     writer == [[rootSpan], [childSpan]]
   }
 
   def "test getCurrentTimeNano"() {
     expect:
     // Generous 5 seconds to execute this test
-    Math.abs(TimeUnit.NANOSECONDS.toSeconds(trace.currentTimeNano) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())) < 5
+    Math.abs(TimeUnit.NANOSECONDS.toSeconds(traceCollector.currentTimeNano) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())) < 5
   }
 
   def "partial flush"() {
@@ -119,19 +119,19 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "2")
     def quickTracer = tracerBuilder().writer(writer).build()
     def rootSpan = quickTracer.buildSpan("root").start()
-    def trace = rootSpan.context().trace
+    def traceCollector = rootSpan.context().traceCollector
     def child1 = quickTracer.buildSpan("child1").asChildOf(rootSpan).start()
     def child2 = quickTracer.buildSpan("child2").asChildOf(rootSpan).start()
 
     then:
-    trace.pendingReferenceCount == 3
+    traceCollector.pendingReferenceCount == 3
 
     when:
     child2.finish()
 
     then:
-    trace.pendingReferenceCount == 2
-    trace.spans.asList() == [child2]
+    traceCollector.pendingReferenceCount == 2
+    traceCollector.spans.asList() == [child2]
     writer == []
     writer.traceCount.get() == 0
 
@@ -140,8 +140,8 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.pendingReferenceCount == 1
-    trace.spans.asList() == []
+    traceCollector.pendingReferenceCount == 1
+    traceCollector.spans.asList() == []
     writer == [[child1, child2]]
     writer.traceCount.get() == 1
 
@@ -150,8 +150,8 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(2)
 
     then:
-    trace.pendingReferenceCount == 0
-    trace.spans.isEmpty()
+    traceCollector.pendingReferenceCount == 0
+    traceCollector.spans.isEmpty()
     writer == [[child1, child2], [rootSpan]]
     writer.traceCount.get() == 2
 
@@ -164,7 +164,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "2")
     def quickTracer = tracerBuilder().writer(writer).build()
     def rootSpan = quickTracer.buildSpan("root").start()
-    def trace = rootSpan.context().trace
+    def trace = rootSpan.context().traceCollector
     def child1 = quickTracer.buildSpan("child1").asChildOf(rootSpan).start()
     def child2 = quickTracer.buildSpan("child2").asChildOf(rootSpan).start()
 
@@ -213,7 +213,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     setup:
     def latch = new CountDownLatch(1)
     def rootSpan = tracer.buildSpan("test", "root").start()
-    PendingTrace trace = rootSpan.context().trace
+    PendingTrace traceCollector = rootSpan.context().traceCollector
     def exceptions = []
     def threads = (1..threadCount).collect {
       Thread.start {
@@ -243,12 +243,12 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     threads.each {
       it.join()
     }
-    trace.pendingTraceBuffer.flush()
+    traceCollector.pendingTraceBuffer.flush()
     logger.setLevel(previousLevel)
 
     then:
     exceptions.isEmpty()
-    trace.pendingReferenceCount == 0
+    traceCollector.pendingReferenceCount == 0
     writer.sum { it.size() } == threadCount * spanCount + 1
 
     cleanup:

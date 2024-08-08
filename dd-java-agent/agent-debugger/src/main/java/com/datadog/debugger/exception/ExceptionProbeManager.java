@@ -6,6 +6,7 @@ import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.WeakIdentityHashMap;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.time.Clock;
 import java.time.Duration;
@@ -33,20 +34,33 @@ public class ExceptionProbeManager {
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
   private final long captureIntervalS;
   private final Clock clock;
+  private final int maxCapturedFrames;
 
   public ExceptionProbeManager(ClassNameFiltering classNameFiltering, Duration captureInterval) {
-    this(classNameFiltering, captureInterval, Clock.systemUTC());
+    this(
+        classNameFiltering,
+        captureInterval,
+        Clock.systemUTC(),
+        Config.get().getDebuggerExceptionMaxCapturedFrames());
   }
 
   ExceptionProbeManager(ClassNameFiltering classNameFiltering) {
-    this(classNameFiltering, Duration.ofHours(1), Clock.systemUTC());
+    this(
+        classNameFiltering,
+        Duration.ofHours(1),
+        Clock.systemUTC(),
+        Config.get().getDebuggerExceptionMaxCapturedFrames());
   }
 
   ExceptionProbeManager(
-      ClassNameFiltering classNameFiltering, Duration captureInterval, Clock clock) {
+      ClassNameFiltering classNameFiltering,
+      Duration captureInterval,
+      Clock clock,
+      int maxCapturedFrames) {
     this.classNameFiltering = classNameFiltering;
     this.captureIntervalS = captureInterval.getSeconds();
     this.clock = clock;
+    this.maxCapturedFrames = maxCapturedFrames;
   }
 
   public ClassNameFiltering getClassNameFiltering() {
@@ -55,7 +69,11 @@ public class ExceptionProbeManager {
 
   public boolean createProbesForException(StackTraceElement[] stackTraceElements) {
     boolean created = false;
+    int maxFrames = maxCapturedFrames;
     for (StackTraceElement stackTraceElement : stackTraceElements) {
+      if (maxFrames <= 0) {
+        break;
+      }
       if (stackTraceElement.isNativeMethod() || stackTraceElement.getLineNumber() < 0) {
         // Skip native methods and lines without line numbers
         // TODO log?
@@ -73,6 +91,7 @@ public class ExceptionProbeManager {
       ExceptionProbe probe = createMethodProbe(this, where);
       created = true;
       probes.putIfAbsent(probe.getId(), probe);
+      maxFrames--;
     }
     return created;
   }
@@ -128,7 +147,7 @@ public class ExceptionProbeManager {
     state.addSnapshot(snapshot);
   }
 
-  public ThrowableState getSateByThrowable(Throwable throwable) {
+  public ThrowableState getStateByThrowable(Throwable throwable) {
     return snapshotsByThrowable.get(throwable);
   }
 

@@ -115,6 +115,7 @@ includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 includeSubprojShadowJar ':dd-java-agent:agent-iast', 'iast'
 includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
 includeSubprojShadowJar ':dd-java-agent:agent-ci-visibility', 'ci-visibility'
+includeSubprojShadowJar ':dd-java-agent:agent-logs-intake', 'logs-intake'
 if (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) {
   includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'
 }
@@ -211,20 +212,20 @@ dependencies {
   testImplementation project(':dd-trace-core')
   testImplementation project(':utils:test-utils')
 
-  testImplementation deps.testLogging
-  testImplementation deps.guava
-  testImplementation deps.okhttp
+  testImplementation libs.bundles.test.logging
+  testImplementation libs.guava
+  testImplementation libs.okhttp
   testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
+  shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared
   // force a controlled version of ASM that is used by Debugger while pulled transitively by jnr
-  sharedShadowInclude deps.asm
-  sharedShadowInclude deps.asmcommons
+  sharedShadowInclude libs.bundles.asm
   sharedShadowInclude project(':communication'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects
@@ -235,8 +236,11 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
-  sharedShadowInclude deps.cafe_crypto
-  sharedShadowInclude project(':remote-config'), {
+  sharedShadowInclude libs.bundles.cafe.crypto
+  sharedShadowInclude project(':remote-config:remote-config-api'), {
+    transitive = false
+  }
+  sharedShadowInclude project(':remote-config:remote-config-core'), {
     transitive = false
   }
   sharedShadowInclude project(':utils:container-utils'), {

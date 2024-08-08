@@ -68,6 +68,7 @@ class TagsAssert {
     assertedTags.add(DDTags.DD_ENTRY_METHOD_SIGNATURE)
     assertedTags.add(DDTags.DSM_ENABLED)
     assertedTags.add(DDTags.DJM_ENABLED)
+    assertedTags.add(DDTags.PARENT_ID)
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null

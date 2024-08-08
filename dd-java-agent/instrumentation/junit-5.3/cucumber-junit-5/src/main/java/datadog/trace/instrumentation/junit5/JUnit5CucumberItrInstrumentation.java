@@ -31,13 +31,13 @@ public class JUnit5CucumberItrInstrumentation extends InstrumenterModule.CiVisib
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("io.cucumber.junit.platform.engine.CucumberTestEngine");
   }
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityItrEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityTestSkippingEnabled();
   }
 
   @Override

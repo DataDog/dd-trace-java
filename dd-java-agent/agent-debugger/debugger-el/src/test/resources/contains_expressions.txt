@@ -1,0 +1,5 @@
+{"dsl": "", "json": {"contains": [{"ref": "str"}, "ell"]}}
+{"dsl": "", "json": {"contains": [{"ref": "str"}, {"ref": "str"}]}}
+{"dsl": "", "json": {"contains": [{"ref": "arrayStr"}, {"ref": "str"}]}}
+{"dsl": "", "json": {"contains": [{"ref": "mapStr"}, {"ref": "str"}]}}
+{"dsl": "", "json": {"contains": [{"ref": "mapStr"}, {"index": [{"ref": "arrayStr"}, 1]}]}}

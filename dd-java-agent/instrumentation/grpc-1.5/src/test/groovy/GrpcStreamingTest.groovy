@@ -265,3 +265,27 @@ class GrpcStreamingV1ForkedTest extends GrpcStreamingTest {
     return "grpc.server.request"
   }
 }
+
+class GrpcStreamingProfilingForkedTest extends GrpcStreamingTest {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.profiling.enabled", "true")
+  }
+
+  @Override
+  int version() {
+    return 1
+  }
+
+  @Override
+  protected String clientOperation() {
+    return "grpc.client.request"
+  }
+
+  @Override
+  protected String serverOperation() {
+    return "grpc.server.request"
+  }
+}

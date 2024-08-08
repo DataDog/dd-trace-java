@@ -1,16 +1,10 @@
 package datadog.smoketest.appsec
 
 import datadog.trace.agent.test.utils.ThreadUtils
-import groovy.json.JsonGenerator
-import groovy.json.JsonSlurper
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
-import org.apache.commons.io.IOUtils
 import spock.lang.Shared
-
-import java.nio.charset.StandardCharsets
-import java.util.jar.JarFile
 
 class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
@@ -21,33 +15,72 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   def prepareCustomRules() {
     // Prepare ruleset with additional test rules
-    final jarFile = new JarFile(shadowJarPath)
-    final zipEntry = jarFile.getEntry("appsec/default_config.json")
-    final content = IOUtils.toString(jarFile.getInputStream(zipEntry), StandardCharsets.UTF_8)
-    final json = new JsonSlurper().parseText(content) as Map<String, Object>
-    final rules = json.rules as List<Map<String, Object>>
-    rules.add([
-      id: '__test_request_body_block',
-      name: 'test rule to block on request body',
-      tags: [
-        type: 'test',
-        category: 'test',
-        confidence: '1',
-      ],
-      conditions: [
+    appendRules(
+      customRulesPath,
+      [
         [
-          parameters: [
-            inputs: [ [ address: 'server.request.body' ] ],
-            regex: 'dd-test-request-body-block',
+          id          : '__test_request_body_block',
+          name        : 'test rule to block on request body',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
           ],
-          operator: 'match_regex',
+          conditions  : [
+            [
+              parameters: [
+                inputs: [[address: 'server.request.body']],
+                regex : 'dd-test-request-body-block',
+              ],
+              operator  : 'match_regex',
+            ]
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : '__test_sqli_stacktrace_on_query',
+          name        : 'test rule to generate stacktrace on sqli',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
+          ],
+          conditions: [
+            [
+              parameters: [
+                resource: [[address: "server.db.statement"]],
+                params: [[ address: "server.request.query" ]],
+                db_type: [[ address: "server.db.system" ]],
+              ],
+              operator: "sqli_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['stack_trace']
+        ],
+        [
+          id          : '__test_sqli_block_on_header',
+          name        : 'test rule to block on sqli',
+          tags        : [
+            type      : 'test',
+            category  : 'test',
+            confidence: '1',
+          ],
+          conditions: [
+            [
+              parameters: [
+                resource: [[address: "server.db.statement"]],
+                params: [[ address: "server.request.headers.no_cookies" ]],
+                db_type: [[ address: "server.db.system" ]],
+              ],
+              operator: "sqli_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
         ]
-      ],
-      transformers: [],
-      on_match: [ 'block' ]
-    ])
-    final gen = new JsonGenerator.Options().build()
-    IOUtils.write(gen.toJson(json), new FileOutputStream(customRulesPath, false), StandardCharsets.UTF_8)
+      ])
   }
 
   @Override
@@ -62,7 +95,6 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll(defaultAppSecProperties)
-    command.add("-Ddd.appsec.rules=${customRulesPath}" as String)
     command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -206,5 +238,72 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpans.each {
       assert it.meta.get('appsec.blocked') != null, 'appsec.blocked is not set'
     }
+  }
+
+  void 'rasp reports stacktrace on sql injection'() {
+    when:
+    String url = "http://localhost:${httpPort}/sqli/query?id=' OR 1=1 --"
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 200
+    responseBodyStr == 'EXECUTED'
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == null, 'appsec.blocked is set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_sqli_stacktrace_on_query') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+  }
+
+  void 'rasp blocks on sql injection'() {
+    when:
+    String url = "http://localhost:${httpPort}/sqli/header"
+    def request = new Request.Builder()
+      .url(url)
+      .header("x-custom-header", "' OR 1=1 --")
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr == '{"errors":[{"title":"You\'ve been blocked","detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}\n'
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_sqli_block_on_header') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
   }
 }

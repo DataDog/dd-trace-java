@@ -16,14 +16,6 @@ public interface TestFrameworkModule {
       TestFrameworkInstrumentation instrumentation);
 
   /**
-   * Checks if a given test can be skipped with Intelligent Test Runner or not
-   *
-   * @param test Test to be checked
-   * @return {@code true} if the test can be skipped, {@code false} otherwise
-   */
-  boolean isSkippable(TestIdentifier test);
-
-  /**
    * Checks if a given test is "new" or not. A test is considered "new" if the backend has no
    * information about it.
    *
@@ -32,6 +24,14 @@ public interface TestFrameworkModule {
    *     list of known tests is not available</b>.
    */
   boolean isNew(TestIdentifier test);
+
+  /**
+   * Checks if a given test should be skipped with Intelligent Test Runner or not
+   *
+   * @param test Test to be checked
+   * @return {@code true} if the test can be skipped, {@code false} otherwise
+   */
+  boolean shouldBeSkipped(TestIdentifier test);
 
   /**
    * Checks if a given test can be skipped with Intelligent Test Runner or not. If the test is

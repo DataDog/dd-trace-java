@@ -26,8 +26,8 @@ addTestSuite('ot31CompatibilityTest')
 addTestSuite('ot33CompatibilityTest')
 
 dependencies {
-  annotationProcessor deps.autoserviceProcessor
-  compileOnly deps.autoserviceAnnotation
+  annotationProcessor libs.autoservice.processor
+  compileOnly libs.autoservice.annotation
 
   modules {
     module("com.squareup.okio:okio") {
@@ -36,18 +36,18 @@ dependencies {
   }
 
   api project(':dd-trace-api')
-  implementation (project(':dd-trace-core')) {
+  implementation(project(':dd-trace-core')) {
     // why all communication pulls in remote config is beyond me...
-    exclude(group: 'com.datadoghq', module: 'remote-config')
+    exclude(group: 'com.datadoghq', module: 'remote-config-core')
   }
 
   // OpenTracing
   api group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
   api group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
   api group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
-  api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
+  api group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.6'
 
-  api deps.slf4j
+  api libs.slf4j
   implementation project(':dd-trace-ot:correlation-id-injection')
 
   testImplementation project(":dd-java-agent:testing")

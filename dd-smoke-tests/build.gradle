@@ -3,8 +3,8 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'dd-smoke-tests'
 
 dependencies {
-  api deps.spock
-  api deps.okhttp
+  api libs.bundles.spock
+  api libs.okhttp
   api project(':dd-java-agent:testing')
   api project(':utils:test-utils')
   api project(':utils:test-agent-utils:decoder')

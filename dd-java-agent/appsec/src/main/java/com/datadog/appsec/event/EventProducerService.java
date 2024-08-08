@@ -3,6 +3,7 @@ package com.datadog.appsec.event;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import com.datadog.appsec.gateway.GatewayContext;
 import datadog.trace.api.gateway.Flow;
 import java.util.Collection;
 
@@ -14,7 +15,7 @@ public interface EventProducerService {
    * set of addresses is identical.
    *
    * <p>The return value is to be passed to {@link #publishDataEvent(DataSubscriberInfo,
-   * AppSecRequestContext, DataBundle, boolean)}.
+   * AppSecRequestContext, DataBundle, GatewayContext)}.
    *
    * @param newAddresses the addresses contained in the {@link DataBundle} that is to be passed to
    *     <code>publishDataEvent()</code>.
@@ -33,9 +34,9 @@ public interface EventProducerService {
    */
   Flow<Void> publishDataEvent(
       DataSubscriberInfo subscribers,
-      AppSecRequestContext ctx,
+      AppSecRequestContext appSecRequestContext,
       DataBundle newData,
-      boolean isTransient)
+      GatewayContext gatewayContext)
       throws ExpiredSubscriberInfoException;
 
   interface DataSubscriberInfo {

@@ -41,6 +41,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.function.Predicate;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,7 +100,7 @@ public class CiVisibilitySystem {
 
       InstrumentationBridge.registerTestEventsHandlerFactory(
           new TestEventsHandlerFactory(services, repoServices, executionSettings));
-      CoverageBridge.registerCoverageProbeStoreRegistry(services.coverageProbeStoreFactory);
+      CoverageBridge.registerCoverageStoreRegistry(repoServices.coverageStoreFactory);
     }
   }
 
@@ -163,21 +164,19 @@ public class CiVisibilitySystem {
     }
 
     @Override
-    public <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component) {
-      return create(
-          component, new ConcurrentHashMapContextStore<>(), new ConcurrentHashMapContextStore<>());
-    }
-
-    @Override
     public <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(
         String component,
-        ContextStore<SuiteKey, DDTestSuite> suiteStore,
-        ContextStore<TestKey, DDTest> testStore) {
+        @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
+        @Nullable ContextStore<TestKey, DDTest> testStore) {
       TestFrameworkSession testSession =
           sessionFactory.startSession(repoServices.moduleName, component, null);
       TestFrameworkModule testModule = testSession.testModuleStart(repoServices.moduleName, null);
       return new TestEventsHandlerImpl<>(
-          services.metricCollector, testSession, testModule, suiteStore, testStore);
+          services.metricCollector,
+          testSession,
+          testModule,
+          suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
+          testStore != null ? testStore : new ConcurrentHashMapContextStore<>());
     }
   }
 
@@ -210,7 +209,7 @@ public class CiVisibilitySystem {
           repoServices.repoRoot,
           startCommand,
           startTime,
-          repoServices.supportedCiProvider,
+          repoServices.ciProvider,
           services.config,
           services.metricCollector,
           testModuleRegistry,
@@ -219,7 +218,7 @@ public class CiVisibilitySystem {
           repoServices.codeowners,
           services.methodLinesResolver,
           repoServices.moduleExecutionSettingsFactory,
-          services.coverageProbeStoreFactory,
+          repoServices.coverageStoreFactory,
           signalServer,
           repoServices.repoIndexProvider);
     };
@@ -244,7 +243,7 @@ public class CiVisibilitySystem {
           repoServices.sourcePathResolver,
           repoServices.codeowners,
           services.methodLinesResolver,
-          services.coverageProbeStoreFactory,
+          repoServices.coverageStoreFactory,
           coverageDataSupplier,
           services.signalClientFactory,
           moduleExecutionSettings);
@@ -262,14 +261,14 @@ public class CiVisibilitySystem {
       return new HeadlessTestSession(
           projectName,
           startTime,
-          repoServices.supportedCiProvider,
+          repoServices.ciProvider,
           services.config,
           services.metricCollector,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
           services.methodLinesResolver,
-          services.coverageProbeStoreFactory,
+          repoServices.coverageStoreFactory,
           moduleExecutionSettings);
     };
   }
@@ -282,14 +281,14 @@ public class CiVisibilitySystem {
       return new ManualApiTestSession(
           projectName,
           startTime,
-          repoServices.supportedCiProvider,
+          repoServices.ciProvider,
           services.config,
           services.metricCollector,
           testDecorator,
           repoServices.sourcePathResolver,
           repoServices.codeowners,
           services.methodLinesResolver,
-          services.coverageProbeStoreFactory);
+          repoServices.coverageStoreFactory);
     };
   }
 }

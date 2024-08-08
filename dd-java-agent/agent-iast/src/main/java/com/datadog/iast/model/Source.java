@@ -5,6 +5,7 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import com.datadog.iast.model.json.SourceTypeString;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.ref.Reference;
 import java.util.Objects;
 import java.util.StringJoiner;
@@ -51,6 +52,10 @@ public final class Source implements Taintable.Source {
     return asString(value);
   }
 
+  @SuppressFBWarnings(
+      value = "DM_STRING_CTOR",
+      justification = "New string instance requires constructor")
+  @SuppressWarnings("StringOperationCanBeSimplified")
   @Nullable
   private String asString(@Nullable final Object target) {
     Object value = target;
@@ -58,7 +63,10 @@ public final class Source implements Taintable.Source {
       value = null;
     } else if (value instanceof Reference) {
       value = ((Reference<?>) value).get();
-      if (value == null) {
+      if (value != null) {
+        // avoid exposing internal weak reference to the outer world
+        value = new String(value.toString());
+      } else {
         value = GARBAGE_COLLECTED_REF;
         if (!gcReported) {
           gcReported = true;
@@ -96,10 +104,14 @@ public final class Source implements Taintable.Source {
     return Objects.hash(origin, getName(), getValue());
   }
 
-  public Source attachValue(final CharSequence result) {
+  public Source attachValue(final Object newValue) {
     if (value != PROPAGATION_PLACEHOLDER) {
       return this;
     }
-    return new Source(origin, name, result);
+    return new Source(origin, name, newValue);
+  }
+
+  public boolean isReference() {
+    return name instanceof Reference || value instanceof Reference;
   }
 }

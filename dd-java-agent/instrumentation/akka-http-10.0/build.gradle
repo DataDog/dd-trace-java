@@ -98,7 +98,7 @@ sourceSets {
 }
 
 dependencies {
-  compileOnly deps.scala211
+  compileOnly libs.scala211
   compileOnly group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
 
   // These are the common dependencies that are inherited by the other test sets
@@ -109,7 +109,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
   testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
 
-  baseTestImplementation deps.scala211
+  baseTestImplementation libs.scala211
   // First 10.0.x version with a convenient way to test http2 support
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.10'
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http2-support_2.11', version: '10.0.10'
@@ -123,7 +123,7 @@ dependencies {
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:akka-http-10.2-iast')
 
   // There are some internal API changes in 10.1 that we would like to test separately for
-  version101TestImplementation deps.scala212
+  version101TestImplementation libs.scala212
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.12', version: '10.1.+'
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-http2-support_2.12', version: '10.1.+'
   version101TestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.12', version: '2.5.+'
@@ -132,19 +132,19 @@ dependencies {
 
   version101IastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
-  version102IastTestImplementation deps.scala212
+  version102IastTestImplementation libs.scala212
   version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.12', version: '10.2.+'
   version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.12', version: '2.6.+'
   version102IastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.12', version: '10.2.+'
   version102IastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
-  version102Scala213TestImplementation deps.scala213
+  version102Scala213TestImplementation libs.scala213
   version102Scala213TestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.2.+'
   version102Scala213TestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.6.+'
   version102Scala213TestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '10.2.+'
   version102Scala213TestImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.13', version: '10.2.+'
 
-  latestDepTestImplementation deps.scala213
+  latestDepTestImplementation libs.scala213
   latestDepTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.5.+'
   // http2 support is included in akka-http since 10.2.x
   latestDepTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.7.0'
@@ -152,7 +152,7 @@ dependencies {
   latestDepTestImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.13', version: '10.5.+'
 
   // TODO: test with Scala 3
-  latestDepIastTestImplementation deps.scala213
+  latestDepIastTestImplementation libs.scala213
   // Use akka-2.8.+ since latest akka-http release is still not compatible with akka-2.9.0-M1+.
   // akka-http versions are limited to 10.5.2 as this is the final version with Java 8 support
   // See: https://github.com/akka/akka-http/releases
@@ -162,7 +162,7 @@ dependencies {
   latestDepIastTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '[10.+,10.5.2)'
   latestDepIastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
 
-  lagomTestImplementation deps.scala211
+  lagomTestImplementation libs.scala211
   lagomTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
   lagomTestImplementation project(':dd-java-agent:instrumentation:akka-init')
   lagomTestImplementation group: 'com.lightbend.lagom', name: 'lagom-javadsl-testkit_2.11', version: '1.4.0'

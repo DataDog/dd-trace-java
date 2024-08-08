@@ -64,8 +64,13 @@ public class Where {
 
   public static Where convertLineToMethod(Where lineWhere, ClassFileLines classFileLines) {
     if (lineWhere.methodName != null && lineWhere.lines != null) {
-      MethodNode method = classFileLines.getMethodByLine(lineWhere.lines[0].getFrom());
-      return new Where(lineWhere.typeName, method.name, method.desc, (SourceLine[]) null, null);
+      List<MethodNode> methodsByLine =
+          classFileLines.getMethodsByLine(lineWhere.lines[0].getFrom());
+      if (methodsByLine != null && !methodsByLine.isEmpty()) {
+        // pick the first method, as we can have multiple methods (lambdas) on the same line
+        MethodNode method = methodsByLine.get(0);
+        return new Where(lineWhere.typeName, method.name, method.desc, (SourceLine[]) null, null);
+      }
     }
     throw new IllegalArgumentException("Invalid where to convert from line to method " + lineWhere);
   }
@@ -122,7 +127,11 @@ public class Where {
         return true;
       }
       // try matching by line
-      return classFileLines.getMethodByLine(lines[0].getFrom()) == methodNode;
+      List<MethodNode> methodsByLine = classFileLines.getMethodsByLine(lines[0].getFrom());
+      if (methodsByLine == null || methodsByLine.isEmpty()) {
+        return false;
+      }
+      return methodsByLine.stream().anyMatch(m -> m == methodNode);
     }
     if (signature.equals("*") || signature.equals(targetMethodDescriptor)) {
       return true;

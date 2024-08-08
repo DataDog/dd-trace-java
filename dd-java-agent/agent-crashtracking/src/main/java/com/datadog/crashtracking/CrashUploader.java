@@ -279,6 +279,7 @@ public final class CrashUploader {
           writer.beginObject();
           writer.name("message").value(extractErrorStackTrace(message));
           writer.name("level").value("ERROR");
+          writer.name("tags").value("severity:crash");
           writer.endObject();
         }
         writer.endArray();

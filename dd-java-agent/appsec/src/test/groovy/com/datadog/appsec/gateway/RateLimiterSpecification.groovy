@@ -163,4 +163,16 @@ class RateLimiterSpecification extends Specification {
     2 * mock.nanoTicks >> initialTime - 1_000_000_000L
     count == 11
   }
+
+  void 'test NoOP'(){
+    setup:
+    RateLimiter rateLimiter = new RateLimiter(10, { -> 0L } as TimeSource, RateLimiter.ThrottledCallback.NOOP)
+    def count = 0
+
+    when:
+    15.times {rateLimiter.isThrottled() || count++ }
+
+    then:
+    count == 10
+  }
 }

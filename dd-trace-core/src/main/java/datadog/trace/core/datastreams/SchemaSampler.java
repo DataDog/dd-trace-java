@@ -13,14 +13,11 @@ public class SchemaSampler {
   }
 
   public int trySample(long currentTimeMillis) {
-    weight.incrementAndGet();
     if (currentTimeMillis >= lastSampleMillis + SAMPLE_INTERVAL_MILLIS) {
       synchronized (this) {
         if (currentTimeMillis >= lastSampleMillis + SAMPLE_INTERVAL_MILLIS) {
           lastSampleMillis = currentTimeMillis;
-          int currentWeight = weight.get();
-          weight.set(0);
-          return currentWeight;
+          return weight.getAndSet(0);
         }
       }
     }
@@ -28,6 +25,7 @@ public class SchemaSampler {
   }
 
   public boolean canSample(long currentTimeMillis) {
+    weight.incrementAndGet();
     return currentTimeMillis >= lastSampleMillis + SAMPLE_INTERVAL_MILLIS;
   }
 }

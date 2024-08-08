@@ -191,6 +191,10 @@ public class CapturedContextInstrumentor extends Instrumentor {
             || current.getType() == AbstractInsnNode.LINE)) {
       current = current.getNext();
     }
+    if (current == null) {
+      reportWarning("Cannot add exception local variable to catch block - no instructions.");
+      return -1;
+    }
     if (current.getOpcode() != Opcodes.ASTORE) {
       reportWarning("Cannot add exception local variable to catch block - no store instruction.");
       return -1;
@@ -548,7 +552,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
     collectStaticFields(insnList);
     // stack: [capturedcontext]
-    collectFields(insnList);
+    collectCorrelationInfo(insnList);
     // stack: [capturedcontext]
     if (kind != Snapshot.Kind.UNHANDLED_EXCEPTION) {
       /*
@@ -673,8 +677,11 @@ public class CapturedContextInstrumentor extends Instrumentor {
     List<LocalVariableNode> applicableVars = new ArrayList<>();
     for (LocalVariableNode variableNode : methodNode.localVariables) {
       int idx = variableNode.index - localVarBaseOffset;
-      if (idx >= argOffset && isInScope(variableNode, location)) {
-        applicableVars.add(variableNode);
+      if (idx >= argOffset) {
+        // var is local not arg
+        if (ASMHelper.isInScope(methodNode, variableNode, location)) {
+          applicableVars.add(variableNode);
+        }
       }
     }
 
@@ -850,7 +857,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
   }
 
-  private void collectFields(InsnList insnList) {
+  private void collectCorrelationInfo(InsnList insnList) {
     // expected stack top: [capturedcontext]
     /*
      * We are cheating a bit with CorrelationAccess - utilizing the knowledge that it is a singleton loaded by the
@@ -862,96 +869,27 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // static method and no correlation info, no need to capture fields
       return;
     }
-    List<FieldNode> fieldsToCapture =
-        extractInstanceField(classNode, isStatic, classLoader, limits);
-    if (fieldsToCapture.isEmpty()) {
-      // bail out if no fields
-      return;
-    }
+    extractSpecialId(insnList, "dd.trace_id", "getTraceId", "addTraceId");
+    // stack: [capturedcontext]
+    extractSpecialId(insnList, "dd.span_id", "getSpanId", "addSpanId");
+    // stack: [capturedcontext]
+  }
+
+  private void extractSpecialId(
+      InsnList insnList, String fieldName, String getMethodName, String addMethodName) {
     insnList.add(new InsnNode(Opcodes.DUP));
     // stack: [capturedcontext, capturedcontext]
-    ldc(insnList, fieldsToCapture.size());
-    // stack: [capturedcontext, capturedcontext, int]
-    insnList.add(new TypeInsnNode(Opcodes.ANEWARRAY, CAPTURED_VALUE.getInternalName()));
-    // stack: [capturedcontext, capturedcontext, array]
-    int counter = 0;
-    for (FieldNode fieldNode : fieldsToCapture) {
-      insnList.add(new InsnNode(Opcodes.DUP));
-      // stack: [capturedcontext, capturedcontext, array, array]
-      ldc(insnList, counter++);
-      // stack: [capturedcontext, capturedcontext, array, array, int]
-      if (!isAccessible(fieldNode)) {
-        insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-        // stack: [capturedcontext, capturedcontext, array, array, int, this]
-        ldc(insnList, fieldNode.name);
-        // stack: [capturedcontext, capturedcontext, array, array, int, this, string]
-        invokeStatic(
-            insnList,
-            REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
-            "getFieldAsCapturedValue",
-            CAPTURED_VALUE,
-            OBJECT_TYPE,
-            STRING_TYPE);
-        // stack: [capturedcontext, capturedcontext, array, array, int, CapturedValue]
-        insnList.add(new InsnNode(Opcodes.AASTORE));
-        // stack: [capturedcontext, capturedcontext, array]
-        continue;
-      }
-      ldc(insnList, fieldNode.name);
-      // stack: [capturedcontext, capturedcontext, array, array, int, string]
-      Type fieldType = Type.getType(fieldNode.desc);
-      ldc(insnList, fieldType.getClassName());
-      // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name]
-      if (Redaction.isRedactedKeyword(fieldNode.name)) {
-        addCapturedValueRedacted(insnList);
-      } else {
-        switch (fieldNode.name) {
-          case "dd.trace_id":
-            {
-              invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-              // access]
-              invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getTraceId", STRING_TYPE);
-              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-              // field_value]
-              break;
-            }
-          case "dd.span_id":
-            {
-              invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
-              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-              // access]
-              invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, "getSpanId", STRING_TYPE);
-              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-              // field_value]
-              break;
-            }
-          default:
-            {
-              insnList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-              // this]
-              insnList.add(
-                  new FieldInsnNode(
-                      Opcodes.GETFIELD, classNode.name, fieldNode.name, fieldNode.desc));
-              // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name,
-              // field_value]
-            }
-        }
-        tryBox(fieldType, insnList);
-        // stack: [capturedcontext, capturedcontext, array, array, int, string, type_name, object]
-        addCapturedValueOf(insnList, limits);
-      }
-      // stack: [capturedcontext, capturedcontext, array, array, int, CapturedValue]
-      insnList.add(new InsnNode(Opcodes.AASTORE));
-      // stack: [capturedcontext, capturedcontext, array]
-    }
-    invokeVirtual(
-        insnList,
-        CAPTURED_CONTEXT_TYPE,
-        "addFields",
-        Type.VOID_TYPE,
-        Types.asArray(CAPTURED_VALUE, 1));
+    ldc(insnList, fieldName);
+    // stack: [capturedcontext, capturedcontext, name]
+    ldc(insnList, STRING_TYPE.getClassName());
+    // stack: [capturedcontext, capturedcontext, name, type_name]
+    invokeStatic(insnList, CORRELATION_ACCESS_TYPE, "instance", CORRELATION_ACCESS_TYPE);
+    // stack: [capturedcontext, capturedcontext, name, type_name, access]
+    invokeVirtual(insnList, CORRELATION_ACCESS_TYPE, getMethodName, STRING_TYPE);
+    // stack: [capturedcontext, capturedcontext, name, type_name, id]
+    addCapturedValueOf(insnList, limits);
+    // stack: [capturedcontext, capturedcontext, captured_value]
+    invokeVirtual(insnList, CAPTURED_CONTEXT_TYPE, addMethodName, Type.VOID_TYPE, CAPTURED_VALUE);
     // stack: [capturedcontext]
   }
 
@@ -1070,22 +1008,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
       clazz = clazz.getSuperclass();
       superClassName = clazz.getTypeName();
     }
-  }
-
-  private boolean isInScope(LocalVariableNode variableNode, AbstractInsnNode location) {
-    AbstractInsnNode startScope =
-        variableNode.start != null ? variableNode.start : methodNode.instructions.getFirst();
-    AbstractInsnNode endScope =
-        variableNode.end != null ? variableNode.end : methodNode.instructions.getLast();
-
-    AbstractInsnNode insn = startScope;
-    while (insn != null && insn != endScope) {
-      if (insn == location) {
-        return true;
-      }
-      insn = insn.getNext();
-    }
-    return false;
   }
 
   private int declareContextVar(InsnList insnList) {

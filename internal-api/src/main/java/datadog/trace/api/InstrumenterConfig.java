@@ -8,7 +8,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SPAN_ORIGIN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
@@ -17,6 +16,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_SPAN_ORIGIN_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
@@ -48,7 +49,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_L
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
-import static datadog.trace.api.config.TraceInstrumentationConfig.SPAN_ORIGIN_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
@@ -63,11 +63,14 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_SPAN_ORIGIN_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_SPAN_ORIGIN_ENRICHED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
+import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
@@ -100,10 +103,11 @@ public class InstrumenterConfig {
   private final boolean integrationsEnabled;
 
   private final boolean spanOriginEnabled;
+  private final boolean spanOriginEnriched;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean logs128bTraceIdEnabled;
-  private final boolean profilingEnabled;
+  private final ProfilingEnablement profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final ProductActivation iastActivation;
@@ -172,13 +176,18 @@ public class InstrumenterConfig {
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
 
-    spanOriginEnabled = configProvider.getBoolean(SPAN_ORIGIN_ENABLED, DEFAULT_SPAN_ORIGIN_ENABLED);
+    spanOriginEnabled =
+        configProvider.getBoolean(TRACE_SPAN_ORIGIN_ENABLED, DEFAULT_TRACE_SPAN_ORIGIN_ENABLED);
+    spanOriginEnriched =
+        configProvider.getBoolean(TRACE_SPAN_ORIGIN_ENRICHED, DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     logs128bTraceIdEnabled =
         configProvider.getBoolean(
             TRACE_128_BIT_TRACEID_LOGGING_ENABLED, DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED);
-    profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, PROFILING_ENABLED_DEFAULT);
+    profilingEnabled =
+        ProfilingEnablement.of(
+            configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
 
     if (!Platform.isNativeImageBuilder()) {
       ciVisibilityEnabled =
@@ -269,6 +278,10 @@ public class InstrumenterConfig {
     return spanOriginEnabled;
   }
 
+  public boolean isSpanOriginEnriched() {
+    return spanOriginEnriched;
+  }
+
   public boolean isTriageEnabled() {
     return triageEnabled;
   }
@@ -301,7 +314,7 @@ public class InstrumenterConfig {
   }
 
   public boolean isProfilingEnabled() {
-    return profilingEnabled;
+    return profilingEnabled.isActive();
   }
 
   public boolean isCiVisibilityEnabled() {
@@ -573,6 +586,8 @@ public class InstrumenterConfig {
         + serialVersionUIDFieldInjection
         + ", spanOriginEnabled="
         + spanOriginEnabled
+        + ", spanOriginEnriched="
+        + spanOriginEnriched
         + ", traceAnnotations='"
         + traceAnnotations
         + '\''

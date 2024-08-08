@@ -1,5 +1,6 @@
 package com.datadog.appsec.gateway;
 
+import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_0_2;
 import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
 import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
@@ -19,10 +20,9 @@ import com.datadog.appsec.event.data.ObjectIntrospection;
 import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
+import com.datadog.appsec.stack_trace.StackTraceCollection;
+import com.datadog.appsec.util.ObjectFlattener;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
-import datadog.trace.api.function.TriConsumer;
-import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -31,6 +31,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -47,7 +48,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +69,6 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
-  private final RateLimiter rateLimiter;
   private final ApiSecurityRequestSampler requestSampler;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors;
 
@@ -79,340 +78,453 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo requestBodySubInfo;
   private volatile DataSubscriberInfo pathParamsSubInfo;
   private volatile DataSubscriberInfo respDataSubInfo;
+  private volatile DataSubscriberInfo grpcServerMethodSubInfo;
   private volatile DataSubscriberInfo grpcServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo graphqlServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo requestEndSubInfo;
+  private volatile DataSubscriberInfo dbSqlQuerySubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
       EventProducerService producerService,
-      RateLimiter rateLimiter,
       ApiSecurityRequestSampler requestSampler,
       List<TraceSegmentPostProcessor> traceSegmentPostProcessors) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
-    this.rateLimiter = rateLimiter;
     this.requestSampler = requestSampler;
     this.traceSegmentPostProcessors = traceSegmentPostProcessors;
   }
 
   public void init() {
-    Events<AppSecRequestContext> events = Events.get();
     Collection<datadog.trace.api.gateway.EventType<?>> additionalIGEvents =
         IGAppSecEventDependencies.additionalIGEventTypes(
             producerService.allSubscribedDataAddresses());
 
+    subscriptionService.registerCallback(EVENTS.requestStarted(), this::onRequestStarted);
+    subscriptionService.registerCallback(EVENTS.requestEnded(), this::onRequestEnded);
+    subscriptionService.registerCallback(EVENTS.requestHeader(), this::onRequestHeader);
+    subscriptionService.registerCallback(EVENTS.requestHeaderDone(), this::onRequestHeadersDone);
+    subscriptionService.registerCallback(EVENTS.requestMethodUriRaw(), this::onRequestMethodUriRaw);
+    subscriptionService.registerCallback(EVENTS.requestBodyStart(), this::onRequestBodyStart);
+    subscriptionService.registerCallback(EVENTS.requestBodyDone(), this::onRequestBodyDone);
     subscriptionService.registerCallback(
-        events.requestStarted(),
-        () -> {
-          if (!AppSecSystem.isActive()) {
-            return RequestContextSupplier.EMPTY;
-          }
-          return new RequestContextSupplier();
-        });
-
+        EVENTS.requestClientSocketAddress(), this::onRequestClientSocketAddress);
     subscriptionService.registerCallback(
-        events.requestEnded(),
-        (RequestContext ctx_, IGSpanInfo spanInfo) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null) {
-            return NoopFlow.INSTANCE;
-          }
-
-          maybeExtractSchemas(ctx);
-
-          // WAF call
-          ctx.closeAdditive();
-
-          TraceSegment traceSeg = ctx_.getTraceSegment();
-
-          // AppSec report metric and events for web span only
-          if (traceSeg != null) {
-            traceSeg.setTagTop("_dd.appsec.enabled", 1);
-            traceSeg.setTagTop("_dd.runtime_family", "jvm");
-
-            Collection<AppSecEvent> collectedEvents = ctx.transferCollectedEvents();
-
-            for (TraceSegmentPostProcessor pp : this.traceSegmentPostProcessors) {
-              pp.processTraceSegment(traceSeg, ctx, collectedEvents);
-            }
-
-            if (rateLimiter == null || !rateLimiter.isThrottled()) {
-              // If detected any events - mark span at appsec.event
-              if (!collectedEvents.isEmpty()) {
-                // Keep event related span, because it could be ignored in case of
-                // reduced datadog sampling rate.
-                traceSeg.setTagTop(DDTags.MANUAL_KEEP, true);
-                traceSeg.setTagTop("appsec.event", true);
-                traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
-
-                // Reflect client_ip as actor.ip for backward compatibility
-                Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
-                if (clientIp != null) {
-                  traceSeg.setTagTop("actor.ip", clientIp);
-                }
-
-                // Report AppSec events via "_dd.appsec.json" tag
-                AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
-                traceSeg.setDataTop("appsec", wrapper);
-
-                // Report collected request and response headers based on allow list
-                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
-                writeResponseHeaders(
-                    traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
-              } else if (hasUserTrackingEvent(traceSeg)) {
-                // Report all collected request headers on user tracking event
-                writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
-              } else {
-                // Report minimum set of collected request headers
-                writeRequestHeaders(
-                    traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
-              }
-            }
-            // If extracted any Api Schemas - commit them
-            if (!ctx.commitApiSchemas(traceSeg)) {
-              log.debug("Unable to commit, api security schemas and will be skipped");
-            }
-
-            if (ctx.isBlocked()) {
-              WafMetricCollector.get().wafRequestBlocked();
-            } else if (!collectedEvents.isEmpty()) {
-              WafMetricCollector.get().wafRequestTriggered();
-            } else {
-              WafMetricCollector.get().wafRequest();
-            }
-          }
-
-          ctx.close();
-          return NoopFlow.INSTANCE;
-        });
-
-    subscriptionService.registerCallback(EVENTS.requestHeader(), new NewRequestHeaderCallback());
+        EVENTS.requestInferredClientAddress(), this::onRequestInferredClientAddress);
+    subscriptionService.registerCallback(EVENTS.responseStarted(), this::onResponseStarted);
+    subscriptionService.registerCallback(EVENTS.responseHeader(), this::onResponseHeader);
+    subscriptionService.registerCallback(EVENTS.responseHeaderDone(), this::onResponseHeaderDone);
+    subscriptionService.registerCallback(EVENTS.grpcServerMethod(), this::onGrpcServerMethod);
     subscriptionService.registerCallback(
-        EVENTS.requestHeaderDone(), new RequestHeadersDoneCallback());
-
+        EVENTS.grpcServerRequestMessage(), this::onGrpcServerRequestMessage);
     subscriptionService.registerCallback(
-        EVENTS.requestMethodUriRaw(), new MethodAndRawURICallback());
-
-    subscriptionService.registerCallback(
-        EVENTS.requestBodyStart(),
-        (RequestContext ctx_, StoredBodySupplier supplier) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null) {
-            return null;
-          }
-
-          ctx.setStoredRequestBodySupplier(supplier);
-          return null;
-        });
+        EVENTS.graphqlServerRequestMessage(), this::onGraphqlServerRequestMessage);
+    subscriptionService.registerCallback(EVENTS.databaseConnection(), this::onDatabaseConnection);
+    subscriptionService.registerCallback(EVENTS.databaseSqlQuery(), this::onDatabaseSqlQuery);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
-      subscriptionService.registerCallback(
-          EVENTS.requestPathParams(),
-          (ctx_, data) -> {
-            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null || ctx.isPathParamsPublished()) {
-              return NoopFlow.INSTANCE;
-            }
-            ctx.setPathParamsPublished(true);
-
-            while (true) {
-              DataSubscriberInfo subInfo = pathParamsSubInfo;
-              if (subInfo == null) {
-                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
-                pathParamsSubInfo = subInfo;
-              }
-              if (subInfo == null || subInfo.isEmpty()) {
-                return NoopFlow.INSTANCE;
-              }
-              DataBundle bundle =
-                  new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
-              try {
-                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
-              } catch (ExpiredSubscriberInfoException e) {
-                pathParamsSubInfo = null;
-              }
-            }
-          });
+      subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
     }
-
-    subscriptionService.registerCallback(
-        EVENTS.requestBodyDone(),
-        (RequestContext ctx_, StoredBodySupplier supplier) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null || ctx.isRawReqBodyPublished()) {
-            return NoopFlow.INSTANCE;
-          }
-          ctx.setRawReqBodyPublished(true);
-
-          while (true) {
-            DataSubscriberInfo subInfo = rawRequestBodySubInfo;
-            if (subInfo == null) {
-              subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
-              rawRequestBodySubInfo = subInfo;
-            }
-            if (subInfo == null || subInfo.isEmpty()) {
-              return NoopFlow.INSTANCE;
-            }
-
-            CharSequence bodyContent = supplier.get();
-            if (bodyContent == null || bodyContent.length() == 0) {
-              return NoopFlow.INSTANCE;
-            }
-            DataBundle bundle =
-                new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
-            try {
-              return producerService.publishDataEvent(subInfo, ctx, bundle, false);
-            } catch (ExpiredSubscriberInfoException e) {
-              rawRequestBodySubInfo = null;
-            }
-          }
-        });
-
     if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
       subscriptionService.registerCallback(
-          EVENTS.requestBodyProcessed(),
-          (RequestContext ctx_, Object obj) -> {
-            AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-            if (ctx == null) {
-              return NoopFlow.INSTANCE;
-            }
+          EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
+    }
+  }
 
-            if (ctx.isConvertedReqBodyPublished()) {
-              log.debug(
-                  "Request body already published; will ignore new value of type {}",
-                  obj.getClass());
-              return NoopFlow.INSTANCE;
-            }
-            ctx.setConvertedReqBodyPublished(true);
+  private Flow<Void> onDatabaseSqlQuery(RequestContext ctx_, String sql) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = dbSqlQuerySubInfo;
+      if (subInfo == null) {
+        subInfo =
+            producerService.getDataSubscribers(KnownAddresses.DB_TYPE, KnownAddresses.DB_SQL_QUERY);
+        dbSqlQuerySubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2)
+              .add(KnownAddresses.DB_TYPE, ctx.getDbType())
+              .add(KnownAddresses.DB_SQL_QUERY, sql)
+              .build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(false, RuleType.SQL_INJECTION);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        dbSqlQuerySubInfo = null;
+      }
+    }
+  }
 
-            while (true) {
-              DataSubscriberInfo subInfo = requestBodySubInfo;
-              if (subInfo == null) {
-                subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
-                requestBodySubInfo = subInfo;
-              }
-              if (subInfo == null || subInfo.isEmpty()) {
-                return NoopFlow.INSTANCE;
-              }
-              DataBundle bundle =
-                  new SingletonDataBundle<>(
-                      KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
-              try {
-                return producerService.publishDataEvent(subInfo, ctx, bundle, false);
-              } catch (ExpiredSubscriberInfoException e) {
-                requestBodySubInfo = null;
-              }
-            }
-          });
+  private void onDatabaseConnection(RequestContext ctx_, String dbType) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return;
+    }
+    ctx.setDbType(dbType);
+  }
+
+  private Flow<Void> onGraphqlServerRequestMessage(RequestContext ctx_, Map<String, ?> data) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = graphqlServerRequestMsgSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS);
+        graphqlServerRequestMsgSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new SingletonDataBundle<>(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS, data);
+      try {
+        GatewayContext gwCtx = new GatewayContext(true);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        graphqlServerRequestMsgSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onGrpcServerRequestMessage(RequestContext ctx_, Object obj) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = grpcServerRequestMsgSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
+        grpcServerRequestMsgSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      Object convObj = ObjectIntrospection.convert(obj);
+      DataBundle bundle =
+          new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
+      try {
+        GatewayContext gwCtx = new GatewayContext(true);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        grpcServerRequestMsgSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onGrpcServerMethod(RequestContext ctx_, String method) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || method == null || method.isEmpty()) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = grpcServerMethodSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_METHOD);
+        grpcServerMethodSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_METHOD, method);
+      try {
+        GatewayContext gwCtx = new GatewayContext(true);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        grpcServerMethodSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onResponseHeaderDone(RequestContext ctx_) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || ctx.isRespDataPublished()) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.finishResponseHeaders();
+    return maybePublishResponseData(ctx);
+  }
+
+  private void onResponseHeader(RequestContext ctx_, String name, String value) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx != null) {
+      ctx.addResponseHeader(name, value);
+    }
+  }
+
+  private Flow<Void> onResponseStarted(RequestContext ctx_, Integer status) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || ctx.isRespDataPublished()) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setResponseStatus(status);
+    return maybePublishResponseData(ctx);
+  }
+
+  private NoopFlow onRequestInferredClientAddress(RequestContext ctx_, String ip) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx != null) {
+      ctx.setInferredClientIp(ip);
+    }
+    return NoopFlow.INSTANCE;
+  }
+
+  private Flow<Void> onRequestClientSocketAddress(RequestContext ctx_, String ip, Integer port) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || ctx.isReqDataPublished()) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setPeerAddress(ip);
+    ctx.setPeerPort(port);
+    return maybePublishRequestData(ctx);
+  }
+
+  private Flow<Void> onRequestBodyProcessed(RequestContext ctx_, Object obj) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
     }
 
-    subscriptionService.registerCallback(
-        EVENTS.requestClientSocketAddress(),
-        (ctx_, ip, port) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null || ctx.isReqDataPublished()) {
-            return NoopFlow.INSTANCE;
-          }
-          ctx.setPeerAddress(ip);
-          ctx.setPeerPort(port);
-          return maybePublishRequestData(ctx);
-        });
+    if (ctx.isConvertedReqBodyPublished()) {
+      log.debug("Request body already published; will ignore new value of type {}", obj.getClass());
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setConvertedReqBodyPublished(true);
 
-    subscriptionService.registerCallback(
-        EVENTS.requestInferredClientAddress(),
-        (ctx_, ip) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx != null) {
-            ctx.setInferredClientIp(ip);
-          }
-          return NoopFlow.INSTANCE; // expected to be called before requestClientSocketAddress
-        });
+    while (true) {
+      DataSubscriberInfo subInfo = requestBodySubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_OBJECT);
+        requestBodySubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new SingletonDataBundle<>(
+              KnownAddresses.REQUEST_BODY_OBJECT, ObjectIntrospection.convert(obj));
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        requestBodySubInfo = null;
+      }
+    }
+  }
 
-    subscriptionService.registerCallback(
-        EVENTS.responseStarted(),
-        (ctx_, status) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null || ctx.isRespDataPublished()) {
-            return NoopFlow.INSTANCE;
-          }
-          ctx.setResponseStatus(status);
-          return maybePublishResponseData(ctx);
-        });
+  private Flow<Void> onRequestBodyDone(RequestContext ctx_, StoredBodySupplier supplier) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || ctx.isRawReqBodyPublished()) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setRawReqBodyPublished(true);
 
-    subscriptionService.registerCallback(
-        EVENTS.responseHeader(),
-        (ctx_, name, value) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx != null) {
-            ctx.addResponseHeader(name, value);
-          }
-        });
-    subscriptionService.registerCallback(
-        EVENTS.responseHeaderDone(),
-        ctx_ -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null || ctx.isRespDataPublished()) {
-            return NoopFlow.INSTANCE;
-          }
-          ctx.finishResponseHeaders();
-          return maybePublishResponseData(ctx);
-        });
+    while (true) {
+      DataSubscriberInfo subInfo = rawRequestBodySubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
+        rawRequestBodySubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
 
-    subscriptionService.registerCallback(
-        EVENTS.grpcServerRequestMessage(),
-        (ctx_, obj) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null) {
-            return NoopFlow.INSTANCE;
-          }
-          while (true) {
-            DataSubscriberInfo subInfo = grpcServerRequestMsgSubInfo;
-            if (subInfo == null) {
-              subInfo =
-                  producerService.getDataSubscribers(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE);
-              grpcServerRequestMsgSubInfo = subInfo;
-            }
-            if (subInfo == null || subInfo.isEmpty()) {
-              return NoopFlow.INSTANCE;
-            }
-            Object convObj = ObjectIntrospection.convert(obj);
-            DataBundle bundle =
-                new SingletonDataBundle<>(KnownAddresses.GRPC_SERVER_REQUEST_MESSAGE, convObj);
-            try {
-              return producerService.publishDataEvent(subInfo, ctx, bundle, true);
-            } catch (ExpiredSubscriberInfoException e) {
-              grpcServerRequestMsgSubInfo = null;
-            }
-          }
-        });
+      CharSequence bodyContent = supplier.get();
+      if (bodyContent == null || bodyContent.length() == 0) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        rawRequestBodySubInfo = null;
+      }
+    }
+  }
 
-    subscriptionService.registerCallback(
-        EVENTS.graphqlServerRequestMessage(),
-        (RequestContext ctx_, Map<String, ?> data) -> {
-          AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-          if (ctx == null) {
-            return NoopFlow.INSTANCE;
+  private Flow<Void> onRequestPathParams(RequestContext ctx_, Map<String, ?> data) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || ctx.isPathParamsPublished()) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setPathParamsPublished(true);
+
+    while (true) {
+      DataSubscriberInfo subInfo = pathParamsSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_PATH_PARAMS);
+        pathParamsSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle = new SingletonDataBundle<>(KnownAddresses.REQUEST_PATH_PARAMS, data);
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        pathParamsSubInfo = null;
+      }
+    }
+  }
+
+  private Void onRequestBodyStart(RequestContext ctx_, StoredBodySupplier supplier) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return null;
+    }
+
+    ctx.setStoredRequestBodySupplier(supplier);
+    return null;
+  }
+
+  private Flow<AppSecRequestContext> onRequestStarted() {
+    if (!AppSecSystem.isActive()) {
+      return RequestContextSupplier.EMPTY;
+    }
+    return new RequestContextSupplier();
+  }
+
+  private NoopFlow onRequestEnded(RequestContext ctx_, IGSpanInfo spanInfo) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+
+    maybeExtractSchemas(ctx);
+
+    // WAF call
+    ctx.closeAdditive();
+
+    TraceSegment traceSeg = ctx_.getTraceSegment();
+
+    // AppSec report metric and events for web span only
+    if (traceSeg != null) {
+      traceSeg.setTagTop("_dd.appsec.enabled", 1);
+      traceSeg.setTagTop("_dd.runtime_family", "jvm");
+
+      Collection<AppSecEvent> collectedEvents = ctx.transferCollectedEvents();
+
+      for (TraceSegmentPostProcessor pp : this.traceSegmentPostProcessors) {
+        pp.processTraceSegment(traceSeg, ctx, collectedEvents);
+      }
+
+      // If detected any events - mark span at appsec.event
+      if (!collectedEvents.isEmpty()) {
+        // Set asm keep in case that root span was not available when events are detected
+        traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        traceSeg.setTagTop(Tags.PROPAGATED_APPSEC, true);
+        traceSeg.setTagTop("appsec.event", true);
+        traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
+
+        // Reflect client_ip as actor.ip for backward compatibility
+        Object clientIp = spanInfo.getTags().get(Tags.HTTP_CLIENT_IP);
+        if (clientIp != null) {
+          traceSeg.setTagTop("actor.ip", clientIp);
+        }
+
+        // Report AppSec events via "_dd.appsec.json" tag
+        AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
+        traceSeg.setDataTop("appsec", wrapper);
+
+        // Report collected request and response headers based on allow list
+        writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+        writeResponseHeaders(traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders());
+
+        // Report collected stack traces
+        StackTraceCollection stackTraceCollection = ctx.transferStackTracesCollection();
+        if (stackTraceCollection != null) {
+          Object flatStruct = ObjectFlattener.flatten(stackTraceCollection);
+          if (flatStruct != null) {
+            traceSeg.setMetaStructTop("_dd.stack", flatStruct);
           }
-          while (true) {
-            DataSubscriberInfo subInfo = graphqlServerRequestMsgSubInfo;
-            if (subInfo == null) {
-              subInfo =
-                  producerService.getDataSubscribers(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS);
-              graphqlServerRequestMsgSubInfo = subInfo;
-            }
-            if (subInfo == null || subInfo.isEmpty()) {
-              return NoopFlow.INSTANCE;
-            }
-            DataBundle bundle =
-                new SingletonDataBundle<>(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS, data);
-            try {
-              return producerService.publishDataEvent(subInfo, ctx, bundle, true);
-            } catch (ExpiredSubscriberInfoException e) {
-              graphqlServerRequestMsgSubInfo = null;
-            }
-          }
-        });
+        }
+      } else if (hasUserTrackingEvent(traceSeg)) {
+        // Report all collected request headers on user tracking event
+        writeRequestHeaders(traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+      } else {
+        // Report minimum set of collected request headers
+        writeRequestHeaders(traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
+      }
+      // If extracted any Api Schemas - commit them
+      if (!ctx.commitApiSchemas(traceSeg)) {
+        log.debug("Unable to commit, api security schemas and will be skipped");
+      }
+
+      if (ctx.isBlocked()) {
+        WafMetricCollector.get().wafRequestBlocked();
+      } else if (!collectedEvents.isEmpty()) {
+        WafMetricCollector.get().wafRequestTriggered();
+      } else {
+        WafMetricCollector.get().wafRequest();
+      }
+    }
+
+    ctx.close();
+    return NoopFlow.INSTANCE;
+  }
+
+  private Flow<Void> onRequestHeadersDone(RequestContext ctx_) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || ctx.isReqDataPublished()) {
+      return NoopFlow.INSTANCE;
+    }
+    ctx.finishRequestHeaders();
+    return maybePublishRequestData(ctx);
+  }
+
+  private Flow<Void> onRequestMethodUriRaw(RequestContext ctx_, String method, URIDataAdapter uri) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+
+    if (ctx.isReqDataPublished()) {
+      log.debug(
+          "Request method and URI already published; will ignore new values {}, {}", method, uri);
+      return NoopFlow.INSTANCE;
+    }
+    ctx.setMethod(method);
+    ctx.setScheme(uri.scheme());
+    if (uri.supportsRaw()) {
+      ctx.setRawURI(uri.raw());
+    } else {
+      try {
+        URI encodedUri = new URI(null, null, uri.path(), uri.query(), null);
+        String q = encodedUri.getRawQuery();
+        StringBuilder encoded = new StringBuilder();
+        encoded.append(encodedUri.getRawPath());
+        if (null != q && !q.isEmpty()) {
+          encoded.append('?').append(q);
+        }
+        ctx.setRawURI(encoded.toString());
+      } catch (URISyntaxException e) {
+        log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
+      }
+    }
+    return maybePublishRequestData(ctx);
+  }
+
+  private void onRequestHeader(RequestContext ctx_, String name, String value) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return;
+    }
+
+    if (name.equalsIgnoreCase("cookie")) {
+      Map<String, List<String>> cookies = CookieCutter.parseCookieHeader(value);
+      ctx.addCookies(cookies);
+    } else {
+      ctx.addRequestHeader(name, value);
+    }
   }
 
   public void stop() {
@@ -485,71 +597,6 @@ public class GatewayBridge {
     }
   }
 
-  private static class NewRequestHeaderCallback
-      implements TriConsumer<RequestContext, String, String> {
-    @Override
-    public void accept(RequestContext ctx_, String name, String value) {
-      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null) {
-        return;
-      }
-
-      if (name.equalsIgnoreCase("cookie")) {
-        Map<String, List<String>> cookies = CookieCutter.parseCookieHeader(value);
-        ctx.addCookies(cookies);
-      } else {
-        ctx.addRequestHeader(name, value);
-      }
-    }
-  }
-
-  private class RequestHeadersDoneCallback implements Function<RequestContext, Flow<Void>> {
-    public Flow<Void> apply(RequestContext ctx_) {
-      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null || ctx.isReqDataPublished()) {
-        return NoopFlow.INSTANCE;
-      }
-      ctx.finishRequestHeaders();
-      return maybePublishRequestData(ctx);
-    }
-  }
-
-  private class MethodAndRawURICallback
-      implements TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> {
-    @Override
-    public Flow<Void> apply(RequestContext ctx_, String method, URIDataAdapter uri) {
-      AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-      if (ctx == null) {
-        return NoopFlow.INSTANCE;
-      }
-
-      if (ctx.isReqDataPublished()) {
-        log.debug(
-            "Request method and URI already published; will ignore new values {}, {}", method, uri);
-        return NoopFlow.INSTANCE;
-      }
-      ctx.setMethod(method);
-      ctx.setScheme(uri.scheme());
-      if (uri.supportsRaw()) {
-        ctx.setRawURI(uri.raw());
-      } else {
-        try {
-          URI encodedUri = new URI(null, null, uri.path(), uri.query(), null);
-          String q = encodedUri.getRawQuery();
-          StringBuilder encoded = new StringBuilder();
-          encoded.append(encodedUri.getRawPath());
-          if (null != q && !q.isEmpty()) {
-            encoded.append('?').append(q);
-          }
-          ctx.setRawURI(encoded.toString());
-        } catch (URISyntaxException e) {
-          log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
-        }
-      }
-      return maybePublishRequestData(ctx);
-    }
-  }
-
   private Flow<Void> maybePublishRequestData(AppSecRequestContext ctx) {
     String savedRawURI = ctx.getSavedRawURI();
 
@@ -604,7 +651,8 @@ public class GatewayBridge {
       }
 
       try {
-        return producerService.publishDataEvent(subInfo, ctx, bundle, false);
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;
       }
@@ -636,7 +684,8 @@ public class GatewayBridge {
       }
 
       try {
-        return producerService.publishDataEvent(subInfo, ctx, bundle, false);
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
       }
@@ -668,7 +717,8 @@ public class GatewayBridge {
               KnownAddresses.WAF_CONTEXT_PROCESSOR,
               Collections.singletonMap("extract-schema", true));
       try {
-        producerService.publishDataEvent(subInfo, ctx, bundle, false);
+        GatewayContext gwCtx = new GatewayContext(false);
+        producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
         return;
       } catch (ExpiredSubscriberInfoException e) {
         requestEndSubInfo = null;

@@ -5,15 +5,14 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.test.util.DDSpecification
 import io.opentracing.Scope
 import io.opentracing.Span
-import io.opentracing.util.GlobalTracer
 import spock.lang.Shared
 
 class OTSpanTest extends DDSpecification {
   @Shared
   DDTracer tracer = DDTracer.builder().build()
 
-  def setup() {
-    GlobalTracer.register(tracer)
+  def cleanup() {
+    tracer?.close()
   }
 
   def "test resource name assignment through MutableSpan casting"() {
@@ -22,9 +21,9 @@ class OTSpanTest extends DDSpecification {
     OTScopeManager.OTScope testScope = tracer.activateSpan(testSpan) as OTScopeManager.OTScope
 
     when:
-    Span active = GlobalTracer.get().activeSpan()
-    Span child = GlobalTracer.get().buildSpan("child").asChildOf(active).start()
-    Scope scope = GlobalTracer.get().activateSpan(child)
+    Span active = tracer.activeSpan()
+    Span child = tracer.buildSpan("child").asChildOf(active).start()
+    Scope scope = tracer.activateSpan(child)
 
     MutableSpan localRootSpan = ((MutableSpan) child).getLocalRootSpan()
     localRootSpan.setResourceName("correct-resource")

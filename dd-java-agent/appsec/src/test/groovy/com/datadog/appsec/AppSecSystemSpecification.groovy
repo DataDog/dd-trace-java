@@ -7,7 +7,6 @@ import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.util.AbortStartupException
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Counter
 import datadog.communication.monitor.Monitoring
 import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationEndListener
@@ -81,36 +80,6 @@ class AppSecSystemSpecification extends DDSpecification {
     1 * appSecReqCtx.getRequestHeaders() >> ['foo-bar': ['1.1.1.1']]
     1 * appSecReqCtx.getResponseHeaders() >> [:]
     1 * traceSegment.setTagTop('actor.ip', '1.1.1.1')
-  }
-
-  void 'honors appsec.trace.rate.limit'() {
-    BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
-    RequestContext requestContext = Mock()
-    TraceSegment traceSegment = Mock()
-    AppSecRequestContext appSecReqCtx = Mock()
-    def sco = sharedCommunicationObjects()
-    Counter throttledCounter = Mock()
-    IGSpanInfo span = Mock(AgentSpan)
-
-    setup:
-    injectSysConfig('dd.appsec.trace.rate.limit', '5')
-
-    when:
-    AppSecSystem.start(subService, sco)
-    7.times { requestEndedCB.apply(requestContext, span) }
-
-    then:
-    span.getTags() >> ['http.client_ip':'1.1.1.1']
-    1 * sco.monitoring.newCounter('_dd.java.appsec.rate_limit.dropped_traces') >> throttledCounter
-    1 * subService.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
-    7 * requestContext.getData(RequestContextSlot.APPSEC) >> appSecReqCtx
-    7 * requestContext.traceSegment >> traceSegment
-    7 * appSecReqCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
-    // allow for one extra in case we move to another second and round down the prev count
-    (5..6) * appSecReqCtx.getRequestHeaders() >> [:]
-    (5..6) * appSecReqCtx.getResponseHeaders() >> [:]
-    (5..6) * traceSegment.setDataTop("appsec", _)
-    (1..2) * throttledCounter.increment(1)
   }
 
   void 'throws if the config file is not parseable'() {

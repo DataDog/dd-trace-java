@@ -356,17 +356,28 @@ public class DebuggerTransformerTest {
             .add(metricProbe)
             .add(logProbe)
             .build();
-    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
+    DebuggerTransformer debuggerTransformer =
+        new DebuggerTransformer(
+            config,
+            configuration,
+            (definition, result) -> {
+              if (result.isInstalled()) {
+                invocationOrder.add(definition);
+              }
+            },
+            new DebuggerSink(
+                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     debuggerTransformer.transform(
         ClassLoader.getSystemClassLoader(),
         ArrayList.class.getName(), // always FQN
         ArrayList.class,
         null,
         getClassFileBytes(ArrayList.class));
-    assertEquals(3, invocationOrder.size());
+    assertEquals(4, invocationOrder.size());
     assertEquals(metricProbe, invocationOrder.get(0));
     assertEquals(logProbe, invocationOrder.get(1));
     assertEquals(spanProbe, invocationOrder.get(2));
+    assertEquals(spanDecorationProbe, invocationOrder.get(3));
   }
 
   <T extends ProbeDefinition> T createMock(
@@ -374,7 +385,6 @@ public class DebuggerTransformerTest {
     ProbeDefinition mock = mock(clazz);
     doAnswer(
             invocation -> {
-              invocationOrder.add(mock);
               return InstrumentationResult.Status.INSTALLED;
             })
         .when(mock)

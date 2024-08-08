@@ -32,7 +32,7 @@ public class Elasticsearch73TransportClientInstrumentation extends InstrumenterM
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Avoid matching pre-ES7 releases which have their own instrumentations.
     return hasClassNamed("org.elasticsearch.action.ActionType");
   }

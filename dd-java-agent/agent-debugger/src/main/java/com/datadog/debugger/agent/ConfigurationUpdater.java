@@ -1,5 +1,9 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.LOG_PROBE_PREFIX;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.METRIC_PROBE_PREFIX;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_DECORATION_PROBE_PREFIX;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_PROBE_PREFIX;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
@@ -9,6 +13,7 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.util.TagsHelper;
@@ -72,6 +77,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   // /!\ Can be called by different threads and concurrently /!\
   // Should throw a runtime exception if there is a problem. The message of
   // the exception will be reported in the next request to the conf service
+  @Override
   public void accept(Source source, Collection<? extends ProbeDefinition> definitions) {
     try {
       LOGGER.debug("Received new definitions from {}", source);
@@ -82,6 +88,31 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       ExceptionHelper.logException(LOGGER, e, "Error during accepting new debugger configuration:");
       throw e;
     }
+  }
+
+  @Override
+  public void handleException(String configId, Exception ex) {
+    if (configId == null) {
+      return;
+    }
+    ProbeId probeId;
+    if (configId.startsWith(LOG_PROBE_PREFIX)) {
+      probeId = extractPrefix(LOG_PROBE_PREFIX, configId);
+    } else if (configId.startsWith(METRIC_PROBE_PREFIX)) {
+      probeId = extractPrefix(METRIC_PROBE_PREFIX, configId);
+    } else if (configId.startsWith(SPAN_PROBE_PREFIX)) {
+      probeId = extractPrefix(SPAN_PROBE_PREFIX, configId);
+    } else if (configId.startsWith(SPAN_DECORATION_PROBE_PREFIX)) {
+      probeId = extractPrefix(SPAN_DECORATION_PROBE_PREFIX, configId);
+    } else {
+      probeId = new ProbeId(configId, 0);
+    }
+    LOGGER.warn("Error handling probe configuration: {}", configId, ex);
+    sink.getProbeStatusSink().addError(probeId, ex);
+  }
+
+  private ProbeId extractPrefix(String prefix, String configId) {
+    return new ProbeId(configId.substring(prefix.length()), 0);
   }
 
   private void applyNewConfiguration(Configuration newConfiguration) {

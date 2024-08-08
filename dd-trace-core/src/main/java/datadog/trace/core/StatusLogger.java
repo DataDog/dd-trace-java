@@ -12,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.logging.LoggingSettingsDescription;
 import datadog.trace.util.AgentTaskScheduler;
+import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -117,6 +118,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.getAppSecActivation().toString());
     writer.name("appsec_rules_file_path");
     writer.value(config.getAppSecRulesFile());
+    writer.name("rasp_enabled");
+    writer.value(config.isAppSecRaspEnabled());
     writer.name("telemetry_enabled");
     writer.value(config.isTelemetryEnabled());
     writer.name("telemetry_dependency_collection_enabled");
@@ -153,11 +156,15 @@ public final class StatusLogger extends JsonAdapter<Config>
   }
 
   private static boolean agentServiceCheck(Config config) {
-    try (Socket s = new Socket()) {
-      s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()), 500);
-      return true;
-    } catch (IOException ex) {
-      return false;
+    if (config.getAgentUrl().startsWith("unix:")) {
+      return new File(config.getAgentUnixDomainSocket()).exists();
+    } else {
+      try (Socket s = new Socket()) {
+        s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()), 500);
+        return true;
+      } catch (IOException ex) {
+        return false;
+      }
     }
   }
 

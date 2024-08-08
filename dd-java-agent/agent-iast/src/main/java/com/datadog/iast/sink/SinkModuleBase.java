@@ -19,10 +19,12 @@ import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.ObjectVisitor;
 import com.datadog.iast.util.RangeBuilder;
 import datadog.trace.api.Config;
+import datadog.trace.api.Pair;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
+import datadog.trace.instrumentation.iastinstrumenter.SourceMapperImpl;
 import datadog.trace.util.stacktrace.StackWalker;
 import java.util.Iterator;
 import java.util.stream.Stream;
@@ -210,6 +212,7 @@ public abstract class SinkModuleBase {
   }
 
   @Nullable
+  @SuppressWarnings("unused")
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,
@@ -218,6 +221,7 @@ public abstract class SinkModuleBase {
   }
 
   @Nullable
+  @SuppressWarnings("unused")
   protected Evidence checkInjectionDeeply(
       final VulnerabilityType type,
       final Object value,
@@ -301,7 +305,20 @@ public abstract class SinkModuleBase {
   }
 
   protected final StackTraceElement getCurrentStackTrace() {
-    return stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
+    StackTraceElement stackTraceElement =
+        stackWalker.walk(SinkModuleBase::findValidPackageForVulnerability);
+    // If the source mapper is enabled, we should try to map the stack trace element to the original
+    // source file
+    if (SourceMapperImpl.INSTANCE != null) {
+      Pair<String, Integer> pair =
+          SourceMapperImpl.INSTANCE.getFileAndLine(
+              stackTraceElement.getClassName(), stackTraceElement.getLineNumber());
+      if (pair != null && pair.getLeft() != null && pair.getRight() != null) {
+        return new StackTraceElement(
+            pair.getLeft(), stackTraceElement.getMethodName(), pair.getLeft(), pair.getRight());
+      }
+    }
+    return stackTraceElement;
   }
 
   static StackTraceElement findValidPackageForVulnerability(

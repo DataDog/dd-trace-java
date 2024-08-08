@@ -10,7 +10,6 @@ import datadog.trace.api.Config;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.gradle.initialization.ClassLoaderRegistry;
 import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.internal.service.scopes.BuildScopeServices;
 
@@ -23,7 +22,7 @@ public class GradleBuildScopeServicesInstrumentation extends InstrumenterModule.
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Only instrument Gradle 8.3+
     return hasClassNamed("org.gradle.api.file.ConfigurableFilePermissions");
   }
@@ -36,7 +35,7 @@ public class GradleBuildScopeServicesInstrumentation extends InstrumenterModule.
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CiVisibilityGradleListenerProvider",
+      packageName + ".CiVisibilityGradleListenerInjector",
     };
   }
 
@@ -55,9 +54,8 @@ public class GradleBuildScopeServicesInstrumentation extends InstrumenterModule.
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterConstructor(
         @Advice.This final BuildScopeServices buildScopeServices,
-        @Advice.Argument(0) final ServiceRegistry parent) {
-      ClassLoaderRegistry classLoaderRegistry = parent.get(ClassLoaderRegistry.class);
-      buildScopeServices.addProvider(new CiVisibilityGradleListenerProvider(classLoaderRegistry));
+        @Advice.Argument(0) final ServiceRegistry parentServices) {
+      CiVisibilityGradleListenerInjector.inject(parentServices, buildScopeServices);
     }
   }
 }

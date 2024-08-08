@@ -22,10 +22,15 @@ dependencies {
   testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '1.0.3'
   testImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.0.3'
 
-  latestDepTestImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '+'
-  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '+'
-  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '+'
+  // Maven 4 requires Java 17: https://datadoghq.atlassian.net/browse/AIDM-159
+  latestDepTestImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '3.+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '1.+'
+  latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-http', version: '1.+'
   latestDepTestImplementation group: 'org.fusesource.jansi', name: 'jansi', version: '+'
+  // Fix issue "No implementation for RepositorySystem was bound while locating DefaultProjectBuildingHelper"
+  // See: https://issues.apache.org/jira/browse/MNG-6561
+  // Source: https://www.lorenzobettini.it/2024/02/running-maven-from-java-the-maven-embedder/
+  latestDepTestImplementation group: 'org.apache.maven', name: 'maven-compat', version: '3.+'
 
   // latest maven-embedder declares these container dependencies as provided (non-transitive)
   latestDepTestImplementation group: 'javax.inject', name: 'javax.inject', version: '1'

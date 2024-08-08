@@ -72,7 +72,7 @@ abstract class DDCoreSpecification extends DDSpecification {
       false,
       spanType,
       0,
-      tracer.pendingTraceFactory.create(DDTraceId.ONE),
+      tracer.traceCollectorFactory.create(DDTraceId.ONE),
       null,
       null,
       ciVisibilityContextData,
@@ -80,7 +80,8 @@ abstract class DDCoreSpecification extends DDSpecification {
       false,
       propagationTags,
       ProfilingContextIntegration.NoOp.INSTANCE,
-      true)
+      true,
+      false)
 
     def span = DDSpan.create("test", timestamp, context, null)
     for (Map.Entry<String, Object> e : tags.entrySet()) {
