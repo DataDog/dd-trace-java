@@ -5,7 +5,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.DynamicConfig
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
-import datadog.trace.bootstrap.instrumentation.api.OtelSDKAttribute
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
 import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
@@ -19,7 +19,7 @@ import java.util.stream.IntStream
 import static datadog.trace.api.DDTags.SPAN_LINKS
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.DEFAULT_FLAGS
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.SAMPLED_FLAG
-import static datadog.trace.bootstrap.instrumentation.api.OtelSDKAttribute.EMPTY
+import static datadog.trace.bootstrap.instrumentation.api.SpanAttributes.EMPTY
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY
 import static java.util.stream.Collectors.toList
@@ -172,7 +172,7 @@ class DDSpanLinkTest extends DDCoreSpecification {
       DDSpanId.fromHex(String.format("123456789abc%04d", index)),
       index % 2 == 0 ? SAMPLED_FLAG : DEFAULT_FLAGS,
       "",
-      OtelSDKAttribute.fromMap(attributes))
+      SpanAttributes.fromMap(attributes))
   }
 
   def assertLink(SpanLink expected, DDSpanLink.SpanLinkJson actual) {

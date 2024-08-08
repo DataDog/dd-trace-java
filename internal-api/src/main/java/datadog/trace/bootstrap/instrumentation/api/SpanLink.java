@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static datadog.trace.bootstrap.instrumentation.api.OtelSDKAttribute.EMPTY;
+import static datadog.trace.bootstrap.instrumentation.api.SpanAttributes.EMPTY;
 
 import datadog.trace.api.DDTraceId;
 
@@ -10,10 +10,14 @@ public class SpanLink implements AgentSpanLink {
   private final long spanId;
   private final byte traceFlags;
   private final String traceState;
-  private final Attributes attributes;
+  private final AgentSpanAttributes attributes;
 
   protected SpanLink(
-      DDTraceId traceId, long spanId, byte traceFlags, String traceState, Attributes attributes) {
+      DDTraceId traceId,
+      long spanId,
+      byte traceFlags,
+      String traceState,
+      AgentSpanAttributes attributes) {
     this.traceId = traceId == null ? DDTraceId.ZERO : traceId;
     this.spanId = spanId;
     this.traceFlags = traceFlags;
@@ -43,7 +47,10 @@ public class SpanLink implements AgentSpanLink {
    * @return A span link to the given context.
    */
   public static SpanLink from(
-      AgentSpan.Context context, byte traceFlags, String traceState, Attributes attributes) {
+      AgentSpan.Context context,
+      byte traceFlags,
+      String traceState,
+      AgentSpanAttributes attributes) {
     if (context.getSamplingPriority() > 0) {
       traceFlags = (byte) (traceFlags | SAMPLED_FLAG);
     }
@@ -72,7 +79,7 @@ public class SpanLink implements AgentSpanLink {
   }
 
   @Override
-  public Attributes attributes() {
+  public AgentSpanAttributes attributes() {
     return this.attributes;
   }
 

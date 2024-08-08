@@ -1,15 +1,16 @@
 package datadog.opentelemetry.shim.trace.utils;
 
-import datadog.trace.bootstrap.instrumentation.api.Attributes;
-import datadog.trace.bootstrap.instrumentation.api.OtelSDKAttribute;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanAttributes;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import java.util.List;
 
 public class AttributesUtils {
-  public static Attributes convertAttributes(io.opentelemetry.api.common.Attributes attributes) {
+  public static AgentSpanAttributes convertAttributes(
+      io.opentelemetry.api.common.Attributes attributes) {
     if (attributes.isEmpty()) {
-      return OtelSDKAttribute.EMPTY;
+      return SpanAttributes.EMPTY;
     }
-    OtelSDKAttribute.Builder builder = OtelSDKAttribute.builder();
+    SpanAttributes.Builder builder = SpanAttributes.builder();
     attributes.forEach(
         (attributeKey, value) -> {
           String key = attributeKey.getKey();

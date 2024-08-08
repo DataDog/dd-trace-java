@@ -49,5 +49,5 @@ public interface AgentSpanLink {
    *
    * @return The link attributes.
    */
-  Attributes attributes();
+  AgentSpanAttributes attributes();
 }

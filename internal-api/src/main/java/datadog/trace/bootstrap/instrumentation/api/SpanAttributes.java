@@ -7,14 +7,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** This class is a base implementation of {@link Attributes}. */
-public class OtelSDKAttribute implements Attributes {
+/** This class is a base implementation of {@link AgentSpanAttributes}. */
+public class SpanAttributes implements AgentSpanAttributes {
   /** Represent an empty attributes. */
-  public static final Attributes EMPTY = new OtelSDKAttribute(Collections.emptyMap());
+  public static final AgentSpanAttributes EMPTY = new SpanAttributes(Collections.emptyMap());
 
   private final Map<String, String> attributes;
 
-  protected OtelSDKAttribute(Map<String, String> attributes) {
+  protected SpanAttributes(Map<String, String> attributes) {
     this.attributes = attributes;
   }
 
@@ -33,8 +33,8 @@ public class OtelSDKAttribute implements Attributes {
    * @param map A map representing the attributes.
    * @return The related attributes.
    */
-  public static OtelSDKAttribute fromMap(Map<String, String> map) {
-    return new OtelSDKAttribute(new HashMap<>(map));
+  public static SpanAttributes fromMap(Map<String, String> map) {
+    return new SpanAttributes(new HashMap<>(map));
   }
 
   @Override
@@ -49,7 +49,7 @@ public class OtelSDKAttribute implements Attributes {
 
   @Override
   public String toString() {
-    return "OtelSDKAttribute{" + this.attributes + '}';
+    return "SpanAttributes{" + this.attributes + '}';
   }
 
   public static class Builder {
@@ -114,8 +114,8 @@ public class OtelSDKAttribute implements Attributes {
       return this;
     }
 
-    public Attributes build() {
-      return new OtelSDKAttribute(this.attributes);
+    public AgentSpanAttributes build() {
+      return new SpanAttributes(this.attributes);
     }
   }
 }

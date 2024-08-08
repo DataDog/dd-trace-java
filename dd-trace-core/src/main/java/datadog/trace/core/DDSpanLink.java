@@ -1,6 +1,6 @@
 package datadog.trace.core;
 
-import static datadog.trace.bootstrap.instrumentation.api.OtelSDKAttribute.EMPTY;
+import static datadog.trace.bootstrap.instrumentation.api.SpanAttributes.EMPTY;
 
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
@@ -8,9 +8,9 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.ToJson;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
-import datadog.trace.bootstrap.instrumentation.api.Attributes;
-import datadog.trace.bootstrap.instrumentation.api.OtelSDKAttribute;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
@@ -26,7 +26,11 @@ public class DDSpanLink extends SpanLink {
   private static final int TAG_MAX_LENGTH = 25_000;
 
   protected DDSpanLink(
-      DDTraceId traceId, long spanId, byte traceFlags, String traceState, Attributes attributes) {
+      DDTraceId traceId,
+      long spanId,
+      byte traceFlags,
+      String traceState,
+      AgentSpanAttributes attributes) {
     super(traceId, spanId, traceFlags, traceState, attributes);
   }
 
@@ -49,7 +53,7 @@ public class DDSpanLink extends SpanLink {
    * @param attributes The span link attributes.
    * @return A span link to the given context with custom attributes.
    */
-  public static SpanLink from(ExtractedContext context, Attributes attributes) {
+  public static SpanLink from(ExtractedContext context, AgentSpanAttributes attributes) {
     byte traceFlags = context.getSamplingPriority() > 0 ? SAMPLED_FLAG : DEFAULT_FLAGS;
     String traceState =
         context.getPropagationTags() == null
@@ -131,7 +135,7 @@ public class DDSpanLink extends SpanLink {
           DDSpanId.fromHex(json.span_id),
           json.flags,
           json.tracestate,
-          OtelSDKAttribute.fromMap(json.attributes));
+          SpanAttributes.fromMap(json.attributes));
     }
   }
 
