@@ -6,6 +6,8 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
@@ -25,7 +27,7 @@ public class OpenlineageParentContext implements AgentSpan.Context {
   private final String parentRunId;
 
   public static Optional<OpenlineageParentContext> from(SparkConf sparkConf) {
-    if (!sparkConf.contains("spark.openlineage.parentJobNamespace")) {
+    if (!sparkConf.contains("spark.openlineage.parentRunId")) {
       return Optional.empty();
     }
     return Optional.of(
@@ -65,8 +67,8 @@ public class OpenlineageParentContext implements AgentSpan.Context {
   }
 
   private long computeSpanId(MessageDigest digest, String parentJobNamespace, String parentRunId) {
-    // TODO: implement this
-    return DDSpanId.ZERO;
+    byte[] hash = digest.digest(parentRunId.getBytes(StandardCharsets.UTF_8));
+    return ByteBuffer.wrap(hash).getLong();
   }
 
   private DDTraceId computeTraceId(
