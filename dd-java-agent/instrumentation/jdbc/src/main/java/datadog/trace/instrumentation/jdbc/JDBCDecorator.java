@@ -20,8 +20,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -274,15 +274,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final byte versionAndSamplingDecision =
           (byte) ((VERSION << 4) & 0b11110000 | samplingDecision & 0b00000001);
 
-      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-      DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
-      dataOutputStream.writeByte(versionAndSamplingDecision);
-      dataOutputStream.writeLong(spanID);
+      ByteBuffer byteBuffer = ByteBuffer.allocate(1 + 3 * Long.BYTES);
+      byteBuffer.order(ByteOrder.BIG_ENDIAN);
+
+      byteBuffer.put(versionAndSamplingDecision);
+      byteBuffer.putLong(spanID);
       final DDTraceId traceId = instrumentationSpan.getTraceId();
-      dataOutputStream.writeLong(traceId.toHighOrderLong());
-      dataOutputStream.writeLong(traceId.toLong());
-      dataOutputStream.flush();
-      final byte[] contextInfo = byteArrayOutputStream.toByteArray();
+      byteBuffer.putLong(traceId.toHighOrderLong());
+      byteBuffer.putLong(traceId.toLong());
+      final byte[] contextInfo = byteBuffer.array();
 
       String instrumentationSql = "set context_info ?";
       instrumentationStatement = connection.prepareStatement(instrumentationSql);
