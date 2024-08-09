@@ -354,6 +354,8 @@
 0 org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite
 2 org.xml.*
 2 org.yaml.snakeyaml.*
+# Need for IAST sink
+0 org.yaml.snakeyaml.Yaml
 # saves ~0.5s skipping instrumentation of almost ~470 classes
 2 scala.collection.*
 
