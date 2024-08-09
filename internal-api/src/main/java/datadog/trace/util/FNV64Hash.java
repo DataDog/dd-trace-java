@@ -18,20 +18,33 @@ public class FNV64Hash {
     return generateHash(data.getBytes(), version);
   }
 
+  public static long continueHash(long currentHash, String data, Version version) {
+    return continueHash(currentHash, data.getBytes(), version);
+  }
+
   public static long generateHash(byte[] data, Version version) {
     return generateHash(data, 0, data.length, version);
   }
 
+  public static long continueHash(long currentHash, byte[] data, Version version) {
+    return continueHash(currentHash, data, 0, data.length, version);
+  }
+
   public static long generateHash(byte[] data, int start, int length, Version version) {
+    return continueHash(FNV_INIT, data, start, length, version);
+  }
+
+  public static long continueHash(
+      long currentHash, byte[] data, int start, int length, Version version) {
     if (version == Version.v1) {
-      return generateFNV1Hash(data, start, length);
+      return generateFNV1Hash(currentHash, data, start, length);
     } else {
-      return generateFNV1AHash(data, start, length);
+      return generateFNV1AHash(currentHash, data, start, length);
     }
   }
 
-  private static long generateFNV1Hash(byte[] data, int start, int length) {
-    long hash = FNV_INIT;
+  private static long generateFNV1Hash(long currentHash, byte[] data, int start, int length) {
+    long hash = currentHash;
 
     for (int i = start; i < start + length; i++) {
       hash *= FNV_PRIME;
@@ -41,8 +54,8 @@ public class FNV64Hash {
     return hash;
   }
 
-  private static long generateFNV1AHash(byte[] data, int start, int length) {
-    long hash = FNV_INIT;
+  private static long generateFNV1AHash(long currentHash, byte[] data, int start, int length) {
+    long hash = currentHash;
 
     for (int i = start; i < start + length; i++) {
       hash ^= 0xffL & data[i];
