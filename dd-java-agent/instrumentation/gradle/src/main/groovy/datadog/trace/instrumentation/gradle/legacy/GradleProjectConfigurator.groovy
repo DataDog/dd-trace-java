@@ -7,9 +7,6 @@ import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.util.Strings
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.internal.jvm.Jvm
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -37,8 +34,6 @@ import java.util.regex.Pattern
  * to achieve the same result (in particular, when configuring dependencies).
  */
 class GradleProjectConfigurator {
-
-  private static final Logger log = LoggerFactory.getLogger(GradleProjectConfigurator.class)
 
   /*
    * Each Groovy Closure in here is a separate class.
@@ -230,23 +225,10 @@ class GradleProjectConfigurator {
     Map<Path, Collection<Task>> testExecutions = new HashMap<>()
     for (Task task : project.tasks) {
       if (GradleUtils.isTestTask(task)) {
-        def executable = Paths.get(getEffectiveExecutable(task))
+        def executable = GradleUtils.getEffectiveExecutable(task)
         testExecutions.computeIfAbsent(executable, k -> new ArrayList<>()).add(task)
       }
     }
     return testExecutions
-  }
-
-  private static String getEffectiveExecutable(Task task) {
-    if (task.hasProperty('javaLauncher') && task.javaLauncher.isPresent()) {
-      try {
-        return task.javaLauncher.get().getExecutablePath().toString()
-      } catch (Exception e) {
-        log.error("Could not get Java launcher for test task", e)
-      }
-    }
-    return task.hasProperty('executable') && task.executable != null
-      ? task.executable
-      : Jvm.current().getJavaExecutable().getAbsolutePath()
   }
 }

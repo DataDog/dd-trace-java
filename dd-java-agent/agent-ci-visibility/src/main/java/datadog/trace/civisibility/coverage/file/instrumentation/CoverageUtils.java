@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.coverage.instrumentation;
+package datadog.trace.civisibility.coverage.file.instrumentation;
 
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;

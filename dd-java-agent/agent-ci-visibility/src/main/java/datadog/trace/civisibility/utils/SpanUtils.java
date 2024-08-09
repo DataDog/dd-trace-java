@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.TreeSet;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 
 public class SpanUtils {
@@ -125,6 +126,23 @@ public class SpanUtils {
   public static void propagateTags(AgentSpan parentSpan, AgentSpan childSpan, String... tagNames) {
     for (String tagName : tagNames) {
       parentSpan.setTag(tagName, childSpan.getTag(tagName));
+    }
+  }
+
+  public static <T> void propagateTag(AgentSpan parentSpan, AgentSpan childSpan, String tagName) {
+    propagateTag(parentSpan, childSpan, tagName, (p, c) -> c);
+  }
+
+  public static <T> void propagateTag(
+      AgentSpan parentSpan, AgentSpan childSpan, String tagName, BinaryOperator<T> mergeStrategy) {
+    T childTag = (T) childSpan.getTag(tagName);
+    if (childTag != null) {
+      T parentTag = (T) parentSpan.getTag(tagName);
+      if (parentTag == null) {
+        parentSpan.setTag(tagName, childTag);
+      } else {
+        parentSpan.setTag(tagName, mergeStrategy.apply(parentTag, childTag));
+      }
     }
   }
 }

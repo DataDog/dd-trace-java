@@ -33,6 +33,7 @@ import javax.annotation.Nullable;
 public class HeadlessTestSession extends AbstractTestSession implements TestFrameworkSession {
 
   private final ModuleExecutionSettings moduleExecutionSettings;
+  private final CoverageStore.Factory coverageStoreFactory;
 
   public HeadlessTestSession(
       String projectName,
@@ -56,9 +57,9 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         testDecorator,
         sourcePathResolver,
         codeowners,
-        methodLinesResolver,
-        coverageStoreFactory);
+        methodLinesResolver);
     this.moduleExecutionSettings = moduleExecutionSettings;
+    this.coverageStoreFactory = coverageStoreFactory;
   }
 
   @Override

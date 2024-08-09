@@ -74,18 +74,15 @@ public final class CiVisibilityConfig {
       "civisibility.code.coverage.includes";
   public static final String CIVISIBILITY_CODE_COVERAGE_EXCLUDES =
       "civisibility.code.coverage.excludes";
-  public static final String CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED =
-      "civisibility.code.coverage.segments.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT =
       "civisibility.code.coverage.root.packages.limit";
-  public static final String CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED =
-      "civisibility.code.coverage.percentage.calculation.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR =
       "civisibility.code.coverage.report.dump.dir";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
       "civisibility.jacoco.plugin.version";
-  public static final String CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS =
-      "civisibility.jacoco.gradle.sourcesets";
+  public static final String CIVISIBILITY_GRADLE_SOURCE_SETS = "civisibility.gradle.sourcesets";
+  public static final String CIVISIBILITY_ITR_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED =
+      "civisibility.itr.code.coverage.percentage.calculation.enabled";
 
   private CiVisibilityConfig() {}
 }

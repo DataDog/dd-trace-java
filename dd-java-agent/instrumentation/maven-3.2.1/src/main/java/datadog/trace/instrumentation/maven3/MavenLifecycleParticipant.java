@@ -7,12 +7,10 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.util.AgentThreadFactory;
-import java.io.File;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -35,7 +33,6 @@ import org.apache.maven.lifecycle.internal.LifecycleTask;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.BuildPluginManager;
 import org.apache.maven.plugin.MavenPluginManager;
-import org.apache.maven.plugin.Mojo;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
@@ -189,9 +186,8 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
           // ensure plugin realm is loaded in container
           buildPluginManager.getPluginRealm(session, pluginDescriptor);
 
-          Mojo mojo = mavenPluginManager.getConfiguredMojo(Mojo.class, session, mojoExecution);
-          String forkedJvm = getEffectiveJvm(mojo);
-          Path forkedJvmPath = forkedJvm != null ? Paths.get(forkedJvm) : null;
+          Path forkedJvmPath =
+              MavenUtils.getForkedJvmPath(session, mojoExecution, mavenPluginManager);
           if (forkedJvmPath == null) {
             Plugin plugin = mojoExecution.getPlugin();
             String pluginKey = plugin.getKey();
@@ -215,59 +211,6 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
           "Error while getting test executions for session {} and project {}", session, project, e);
       return testExecutions;
     }
-  }
-
-  private String getEffectiveJvm(Mojo mojo) {
-    Method getEffectiveJvmMethod = findGetEffectiveJvmMethod(mojo.getClass());
-    if (getEffectiveJvmMethod == null) {
-      LOGGER.debug("Could not find getEffectiveJvm method in {} class", mojo.getClass().getName());
-      return null;
-    }
-    getEffectiveJvmMethod.setAccessible(true);
-    try {
-      // result type differs based on Maven version
-      Object effectiveJvm = getEffectiveJvmMethod.invoke(mojo);
-
-      if (effectiveJvm instanceof String) {
-        return (String) effectiveJvm;
-      } else if (effectiveJvm instanceof File) {
-        return ((File) effectiveJvm).getAbsolutePath();
-      }
-
-      Class<?> effectiveJvmClass = effectiveJvm.getClass();
-      Method getJvmExecutableMethod = effectiveJvmClass.getMethod("getJvmExecutable");
-      Object jvmExecutable = getJvmExecutableMethod.invoke(effectiveJvm);
-
-      if (jvmExecutable instanceof String) {
-        return (String) jvmExecutable;
-      } else if (jvmExecutable instanceof File) {
-        return ((File) jvmExecutable).getAbsolutePath();
-      } else if (jvmExecutable == null) {
-        LOGGER.debug("Configured JVM executable is null");
-        return null;
-      } else {
-        LOGGER.debug(
-            "Unexpected JVM executable type {}, returning null",
-            jvmExecutable.getClass().getName());
-        return null;
-      }
-
-    } catch (Exception e) {
-      LOGGER.debug("Error while getting effective JVM for mojo {}", mojo, e);
-      return null;
-    }
-  }
-
-  private Method findGetEffectiveJvmMethod(Class<?> mojoClass) {
-    do {
-      try {
-        return mojoClass.getDeclaredMethod("getEffectiveJvm");
-      } catch (NoSuchMethodException e) {
-        // continue
-      }
-      mojoClass = mojoClass.getSuperclass();
-    } while (mojoClass != null);
-    return null;
   }
 
   private void configureTestExecutions(

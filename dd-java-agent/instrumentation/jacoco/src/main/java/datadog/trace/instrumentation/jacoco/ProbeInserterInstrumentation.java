@@ -35,8 +35,7 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
     return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityCodeCoverageEnabled()
-        && Config.get().isCiVisibilityCoverageSegmentsEnabled();
+        && Config.get().isCiVisibilityItrCodeCoveragePercentageCalculationEnabled();
   }
 
   @Override

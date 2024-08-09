@@ -1,11 +1,22 @@
 package datadog.trace.instrumentation.gradle.legacy
 
+import datadog.trace.api.civisibility.domain.Language
+import datadog.trace.api.civisibility.domain.ModuleLayout
+import datadog.trace.api.civisibility.domain.SourceSet
 import org.gradle.StartParameter
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.internal.jvm.Jvm
 import org.gradle.process.JavaForkOptions
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
+import java.nio.file.Path
+import java.nio.file.Paths
 
 abstract class GradleUtils {
+
+  private static final Logger log = LoggerFactory.getLogger(GradleUtils.class)
 
   private static final String TEST_TASK_CLASS_NAME = "org.gradle.api.tasks.testing.Test"
 
@@ -52,24 +63,59 @@ abstract class GradleUtils {
     return command.toString()
   }
 
-  /**
-   * Returns folders where compiled classes are stored
-   */
-  static Collection<File> getOutputClassesDirs(Project project, List<String> sourceSetNames) {
-    def sourceSets = project.sourceSets
-    Collection<File> allOutputClassesDirs = new HashSet<>()
+  static ModuleLayout getModuleLayout(Project project, List<String> sourceSetNames) {
+    Collection<SourceSet> sourceSets = new ArrayList<>()
     for (String sourceSetName : sourceSetNames) {
-      def sourceSet = sourceSets.findByName(sourceSetName)
+      def sourceSet = project.sourceSets.findByName(sourceSetName)
       if (sourceSet == null) {
         continue
       }
 
-      def sourceSetOutput = sourceSet.output
-      if (sourceSetOutput.hasProperty('classesDirs')) {
-        def outputClassesDirs = sourceSetOutput.classesDirs
-        allOutputClassesDirs.addAll(outputClassesDirs.files)
+      for (Language language : Language.values()) {
+        if (language.isNonCode()) {
+          continue
+        }
+
+        def languageName = language.name().toLowerCase()
+        if (!sourceSet.hasProperty(languageName)) {
+          continue
+        }
+
+        def sourceDirectorySet = sourceSet[languageName]
+        Set<File> sourceDirectories = sourceDirectorySet.srcDirs
+        File destinationDirectory = null
+
+        if (sourceDirectorySet.hasProperty('destinationDirectory')) {
+          def directoryProperty = sourceDirectorySet.destinationDirectory
+          if (directoryProperty != null) {
+            def directory = directoryProperty.get()
+            if (directory != null) {
+              destinationDirectory = directory.asFile
+            }
+          }
+        } else {
+          // fallback for Gradle versions older than 6.1
+          destinationDirectory = (File) sourceSet.output.files.iterator().next()
+        }
+
+        SourceSet.Type type = sourceSet.name.toLowerCase().contains("test") ? SourceSet.Type.TEST : SourceSet.Type.CODE
+        sourceSets.add(new SourceSet(type, sourceDirectories, destinationDirectory))
       }
     }
-    return allOutputClassesDirs
+    return new ModuleLayout(sourceSets)
+  }
+
+  static Path getEffectiveExecutable(Task task) {
+    if (task.hasProperty('javaLauncher') && task.javaLauncher.isPresent()) {
+      try {
+        return task.javaLauncher.get().getExecutablePath().toString()
+      } catch (Exception e) {
+        log.error("Could not get Java launcher for test task", e)
+      }
+    }
+    def stringPath = task.hasProperty('executable') && task.executable != null
+      ? task.executable
+      : Jvm.current().getJavaExecutable().getAbsolutePath()
+    return stringPath != null ? Paths.get(stringPath) : null
   }
 }

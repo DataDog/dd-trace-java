@@ -14,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
@@ -85,11 +84,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     codeCoverageEnabled = executionSettings.isCodeCoverageEnabled();
     testSkippingEnabled = executionSettings.isTestSkippingEnabled();
     itrCorrelationId = executionSettings.getItrCorrelationId();
-    skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
-    this.coverageStoreFactory =
-        executionSettings.isItrEnabled()
-            ? new SkippableAwareCoverageStoreFactory(skippableTests, coverageStoreFactory)
-            : coverageStoreFactory;
+    skippableTests = executionSettings.getSkippableTests(moduleName);
+    this.coverageStoreFactory = coverageStoreFactory;
 
     flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
     Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);

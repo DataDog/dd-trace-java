@@ -23,13 +23,14 @@ import datadog.trace.civisibility.config.JvmInfo
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
 import datadog.trace.civisibility.coverage.file.FileCoverageStore
+import datadog.trace.civisibility.coverage.percentage.NoOpCoverageCalculator
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.domain.BuildSystemSession
 import datadog.trace.civisibility.domain.TestFrameworkModule
 import datadog.trace.civisibility.domain.TestFrameworkSession
 import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl
-import datadog.trace.civisibility.domain.buildsystem.TestModuleRegistry
+import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
@@ -114,6 +115,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       properties,
       itrEnabled ? "itrCorrelationId" : null,
       Collections.singletonMap(dummyModule, skippableTests),
+      [:],
       flakyTests,
       earlyFlakinessDetectionEnabled
       ? [(dummyModule): knownTests]
@@ -145,26 +147,25 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     BuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
-      TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
+      ModuleSignalRouter moduleSignalRouter = new ModuleSignalRouter()
       SignalServer signalServer = new SignalServer()
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
       return new BuildSystemSessionImpl(
       projectName,
-      rootPath.toString(),
       startCommand,
       startTime,
       ciProvider,
       Config.get(),
       metricCollector,
-      testModuleRegistry,
+      moduleSignalRouter,
       testDecorator,
       sourcePathResolver,
       codeowners,
       methodLinesResolver,
       moduleExecutionSettingsFactory,
-      coverageStoreFactory,
       signalServer,
-      repoIndexBuilder
+      repoIndexBuilder,
+      new NoOpCoverageCalculator.Factory()
       )
     }
 

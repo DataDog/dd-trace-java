@@ -3,7 +3,6 @@ package datadog.trace.civisibility.domain;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
@@ -37,7 +36,6 @@ public abstract class AbstractTestSession {
   protected final SourcePathResolver sourcePathResolver;
   protected final Codeowners codeowners;
   protected final MethodLinesResolver methodLinesResolver;
-  protected final CoverageStore.Factory coverageStoreFactory;
 
   public AbstractTestSession(
       String projectName,
@@ -49,8 +47,7 @@ public abstract class AbstractTestSession {
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
-      MethodLinesResolver methodLinesResolver,
-      CoverageStore.Factory coverageStoreFactory) {
+      MethodLinesResolver methodLinesResolver) {
     this.ciProvider = ciProvider;
     this.instrumentationType = instrumentationType;
     this.config = config;
@@ -59,7 +56,6 @@ public abstract class AbstractTestSession {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.coverageStoreFactory = coverageStoreFactory;
 
     if (startTime != null) {
       span = startSpan(testDecorator.component() + ".test_session", startTime);

@@ -93,7 +93,7 @@ class ConfigCollectorTest extends DDSpecification {
     IastConfig.IAST_TELEMETRY_VERBOSITY                        | Verbosity.INFORMATION.toString()
     TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | "v" + SpanNaming.SCHEMA_MIN_VERSION
     GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | new Float(DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL).toString()
-    CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS  | "main"
+    CiVisibilityConfig.CIVISIBILITY_GRADLE_SOURCE_SETS         | "main,test"
     IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | DEFAULT_IAST_WEAK_HASH_ALGORITHMS.join(",")
     TracerConfig.HTTP_CLIENT_ERROR_STATUSES                    | "400-500"
   }

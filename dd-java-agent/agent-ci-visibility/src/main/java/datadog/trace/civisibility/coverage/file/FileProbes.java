@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
@@ -24,10 +25,10 @@ public class FileProbes implements CoverageProbes {
 
   private Class<?> lastCoveredClass;
 
-  FileProbes(CiVisibilityMetricCollector metrics) {
+  FileProbes(CiVisibilityMetricCollector metrics, boolean isTestThread) {
     this.metrics = metrics;
-    coveredClasses = new IdentityHashMap<>();
-    nonCodeResources = new HashMap<>();
+    coveredClasses = isTestThread ? new IdentityHashMap<>() : new ConcurrentHashMap<>();
+    nonCodeResources = isTestThread ? new HashMap<>() : new ConcurrentHashMap<>();
   }
 
   @Override

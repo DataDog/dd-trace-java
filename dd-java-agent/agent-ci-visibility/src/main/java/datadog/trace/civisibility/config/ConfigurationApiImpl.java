@@ -1,7 +1,9 @@
 package datadog.trace.civisibility.config;
 
+import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.ToJson;
 import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
 import datadog.communication.http.OkHttpUtils;
@@ -15,9 +17,12 @@ import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.ItrSkipEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.civisibility.communication.TelemetryListener;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -65,6 +70,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .add(ConfigurationsJson.JsonAdapter.INSTANCE)
             .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
             .add(EarlyFlakeDetectionSettingsJsonAdapter.INSTANCE)
+            .add(MetaDtoJsonAdapter.INSTANCE)
             .build();
 
     ParameterizedType requestType =
@@ -155,7 +161,9 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_RESPONSE_TESTS, testIdentifiers.size());
 
     String correlationId = response.meta != null ? response.meta.correlation_id : null;
-    return new SkippableTests(correlationId, testIdentifiers);
+    Map<String, BitSet> coveredLinesByRelativeSourcePath =
+        response.meta != null ? response.meta.coverage : null;
+    return new SkippableTests(correlationId, testIdentifiers, coveredLinesByRelativeSourcePath);
   }
 
   @Override
@@ -268,9 +276,47 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final class MetaDto {
     private final String correlation_id;
+    private final Map<String, BitSet> coverage;
 
-    private MetaDto(String correlation_id) {
+    private MetaDto(String correlation_id, Map<String, BitSet> coverage) {
       this.correlation_id = correlation_id;
+      this.coverage = coverage;
+    }
+  }
+
+  private static final class MetaDtoJsonAdapter {
+
+    private static final MetaDtoJsonAdapter INSTANCE = new MetaDtoJsonAdapter();
+
+    @FromJson
+    public MetaDto fromJson(Map<String, Object> json) {
+      if (json == null) {
+        return null;
+      }
+
+      Map<String, BitSet> coverage;
+      Map<String, String> encodedCoverage = (Map<String, String>) json.get("coverage");
+      if (encodedCoverage != null) {
+        coverage = new HashMap<>();
+        for (Map.Entry<String, String> e : encodedCoverage.entrySet()) {
+          String relativeSourceFilePath = e.getKey();
+          String normalizedSourceFilePath =
+              relativeSourceFilePath.startsWith(File.separator)
+                  ? relativeSourceFilePath.substring(1)
+                  : relativeSourceFilePath;
+          byte[] decodedLines = Base64.getDecoder().decode(e.getValue());
+          coverage.put(normalizedSourceFilePath, BitSet.valueOf(decodedLines));
+        }
+      } else {
+        coverage = null;
+      }
+
+      return new MetaDto((String) json.get("correlation_id"), coverage);
+    }
+
+    @ToJson
+    public Map<String, Object> toJson(MetaDto metaDto) {
+      throw new UnsupportedOperationException();
     }
   }
 

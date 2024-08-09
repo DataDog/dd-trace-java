@@ -2,21 +2,16 @@ package datadog.trace.api.civisibility.coverage;
 
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
+import javax.annotation.Nonnull;
 
 public abstract class CoverageBridge {
 
   private static final ThreadLocal<CoverageProbes> COVERAGE_PROBES = new ThreadLocal<>();
 
   private static volatile CoverageStore.Registry COVERAGE_STORE_REGISTRY;
-  private static volatile CoverageDataSupplier COVERAGE_DATA_SUPPLIER;
 
-  public static void registerCoverageDataSupplier(CoverageDataSupplier coverageDataSupplier) {
-    COVERAGE_DATA_SUPPLIER = coverageDataSupplier;
-  }
-
-  public static byte[] getCoverageData() {
-    return COVERAGE_DATA_SUPPLIER != null ? COVERAGE_DATA_SUPPLIER.get() : null;
-  }
+  /** Store for coverage that does not belong to any test (e.g. suite setup / teardown actions) */
+  private static volatile CoverageStore GLOBAL_COVERAGE_STORE = NoOpCoverageStore.INSTANCE;
 
   public static void registerCoverageStoreRegistry(CoverageStore.Registry coverageStoreRegistry) {
     COVERAGE_STORE_REGISTRY = coverageStoreRegistry;
@@ -24,6 +19,10 @@ public abstract class CoverageBridge {
 
   public static CoverageStore.Registry getCoverageStoreRegistry() {
     return COVERAGE_STORE_REGISTRY;
+  }
+
+  public static void registerGlobalCoverageStore(@Nonnull CoverageStore coverageStore) {
+    GLOBAL_COVERAGE_STORE = coverageStore;
   }
 
   /* This method is referenced by name in bytecode added in jacoco instrumentation module (see datadog.trace.instrumentation.jacoco.ProbeInserterInstrumentation.InsertProbeAdvice) */
@@ -60,7 +59,7 @@ public abstract class CoverageBridge {
       return currentTest.getCoverageStore().getProbes();
     }
 
-    return NoOpProbes.INSTANCE;
+    return GLOBAL_COVERAGE_STORE.getProbes();
   }
 
   public static void setThreadLocalCoverageProbes(CoverageProbes probes) {

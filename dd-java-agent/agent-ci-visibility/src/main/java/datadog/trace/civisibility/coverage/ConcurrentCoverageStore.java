@@ -6,19 +6,21 @@ import datadog.trace.api.civisibility.coverage.TestReport;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import org.jetbrains.annotations.Nullable;
 
 /** A store that keeps track of coverage probes allocated for multiple threads. */
 public abstract class ConcurrentCoverageStore<T extends CoverageProbes> implements CoverageStore {
 
-  private final Supplier<T> probesFactory;
+  private final Thread testThread;
+  private final Function<Boolean, T> probesFactory;
   private final Map<Thread, T> probes;
 
   private volatile TestReport report;
 
-  protected ConcurrentCoverageStore(Supplier<T> probesFactory) {
+  protected ConcurrentCoverageStore(Function<Boolean, T> probesFactory) {
     this.probesFactory = probesFactory;
+    this.testThread = Thread.currentThread();
     this.probes = new ConcurrentHashMap<>();
   }
 
@@ -28,7 +30,7 @@ public abstract class ConcurrentCoverageStore<T extends CoverageProbes> implemen
   }
 
   private T create(Thread thread) {
-    return probesFactory.get();
+    return probesFactory.apply(thread == testThread);
   }
 
   @Override

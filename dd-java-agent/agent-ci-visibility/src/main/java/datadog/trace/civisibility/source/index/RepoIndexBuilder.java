@@ -1,15 +1,16 @@
 package datadog.trace.civisibility.source.index;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.domain.Language;
 import datadog.trace.civisibility.source.Utils;
 import datadog.trace.util.ClassNameTrie;
 import java.io.IOException;
-import java.nio.file.FileSystem;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -27,7 +28,6 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   private final String repoRoot;
   private final PackageResolver packageResolver;
   private final ResourceResolver resourceResolver;
-  private final FileSystem fileSystem;
 
   private final Object indexInitializationLock = new Object();
   private volatile RepoIndex index;
@@ -36,13 +36,11 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       Config config,
       String repoRoot,
       PackageResolver packageResolver,
-      ResourceResolver resourceResolver,
-      FileSystem fileSystem) {
+      ResourceResolver resourceResolver) {
     this.config = config;
     this.repoRoot = repoRoot;
     this.packageResolver = packageResolver;
     this.resourceResolver = resourceResolver;
-    this.fileSystem = fileSystem;
   }
 
   @Override
@@ -60,7 +58,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   private RepoIndex doGetIndex() {
     log.debug("Building index of source files in {}", repoRoot);
 
-    Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
+    Path repoRootPath = Paths.get(repoRoot);
     RepoIndexingFileVisitor fileVisitor =
         new RepoIndexingFileVisitor(config, packageResolver, resourceResolver, repoRootPath);
 
@@ -84,15 +82,6 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         fileVisitor.sourceRoots.size(),
         index.getRootPackages());
     return index;
-  }
-
-  private Path toRealPath(Path path) {
-    try {
-      return path.toRealPath();
-    } catch (Exception e) {
-      log.debug("Could not determine real path for {}", path, e);
-      return path;
-    }
   }
 
   private static final class RepoIndexingFileVisitor implements FileVisitor<Path> {

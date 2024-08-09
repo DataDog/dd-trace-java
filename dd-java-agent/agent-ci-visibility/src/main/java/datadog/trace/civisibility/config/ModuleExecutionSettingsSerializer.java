@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.civisibility.ipc.Serializer;
 import java.nio.ByteBuffer;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,10 @@ public class ModuleExecutionSettingsSerializer {
         settings.getSkippableTestsByModule(),
         Serializer::write,
         (sr, c) -> sr.write(c, TestIdentifierSerializer::serialize));
+    s.write(
+        settings.getSkippableTestsCoverage(),
+        Serializer::write,
+        ModuleExecutionSettingsSerializer::writeBitSet);
     s.write(settings.getFlakyTests(), TestIdentifierSerializer::serialize);
     s.write(
         settings.getKnownTestsByModule(),
@@ -61,7 +66,10 @@ public class ModuleExecutionSettingsSerializer {
         Serializer.readMap(
             buffer,
             Serializer::readString,
-            b -> Serializer.readList(b, TestIdentifierSerializer::deserialize));
+            b -> Serializer.readSet(b, TestIdentifierSerializer::deserialize));
+    Map<String, BitSet> skippableTestsCoverage =
+        Serializer.readMap(
+            buffer, Serializer::readString, ModuleExecutionSettingsSerializer::readBitSet);
     List<TestIdentifier> flakyTests =
         Serializer.readList(buffer, TestIdentifierSerializer::deserialize);
     Map<String, Collection<TestIdentifier>> knownTestsByModule =
@@ -80,8 +88,22 @@ public class ModuleExecutionSettingsSerializer {
         systemProperties,
         itrCorrelationId,
         skippableTestsByModule,
+        skippableTestsCoverage,
         flakyTests,
         knownTestsByModule,
         codeCoveragePackages);
+  }
+
+  private static void writeBitSet(Serializer serializer, BitSet bitSet) {
+    if (bitSet != null) {
+      serializer.write(bitSet.toByteArray());
+    } else {
+      serializer.write((byte[]) null);
+    }
+  }
+
+  private static BitSet readBitSet(ByteBuffer byteBuffer) {
+    byte[] bytes = Serializer.readByteArray(byteBuffer);
+    return bytes != null ? BitSet.valueOf(bytes) : null;
   }
 }

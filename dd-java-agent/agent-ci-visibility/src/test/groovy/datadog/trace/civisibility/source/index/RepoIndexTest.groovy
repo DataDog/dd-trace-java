@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.source.index
 
+import datadog.trace.api.civisibility.domain.Language
 import datadog.trace.util.ClassNameTrie
 import spock.lang.Specification
 

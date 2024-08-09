@@ -1,18 +1,23 @@
 package datadog.trace.instrumentation.maven3;
 
+import datadog.trace.api.civisibility.domain.ModuleLayout;
+import datadog.trace.api.civisibility.domain.SourceSet;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
 import java.io.File;
-import java.util.Collection;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.maven.execution.AbstractExecutionListener;
 import org.apache.maven.execution.ExecutionEvent;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.Build;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
@@ -65,11 +70,13 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenProject project = event.getProject();
       String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
-      String outputClassesDir = project.getBuild().getOutputDirectory();
-      Collection<File> outputClassesDirs =
-          outputClassesDir != null
-              ? Collections.singleton(new File(outputClassesDir))
-              : Collections.emptyList();
+      Build build = project.getBuild();
+      SourceSet classes =
+          getSourceSet(SourceSet.Type.CODE, build.getSourceDirectory(), build.getOutputDirectory());
+      SourceSet tests =
+          getSourceSet(
+              SourceSet.Type.TEST, build.getTestSourceDirectory(), build.getTestOutputDirectory());
+      ModuleLayout moduleLayout = new ModuleLayout(Arrays.asList(classes, tests));
 
       String executionId =
           mojoExecution.getPlugin().getArtifactId()
@@ -80,9 +87,10 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       Map<String, Object> additionalTags =
           Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
 
+      Path forkedJvmPath = MavenUtils.getForkedJvmPath(session, mojoExecution);
       BuildEventsHandler.ModuleInfo moduleInfo =
           buildEventsHandler.onTestModuleStart(
-              request, moduleName, outputClassesDirs, additionalTags);
+              request, moduleName, moduleLayout, forkedJvmPath, additionalTags);
 
       Xpp3Dom configuration = mojoExecution.getConfiguration();
       boolean forkTestVm =
@@ -117,6 +125,14 @@ public class MavenExecutionListener extends AbstractExecutionListener {
             String.valueOf(moduleInfo.moduleId));
       }
     }
+  }
+
+  @Nullable
+  private SourceSet getSourceSet(SourceSet.Type type, String source, String output) {
+    if (source == null || output == null) {
+      return null;
+    }
+    return new SourceSet(type, Collections.singleton(new File(source)), new File(output));
   }
 
   private static Xpp3Dom setForkedVmSystemProperty(

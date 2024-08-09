@@ -3,13 +3,13 @@ package datadog.trace.instrumentation.gradle;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.domain.ModuleLayout;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -119,8 +119,8 @@ public abstract class CiVisibilityService
         SESSION_KEY, buildPath, projectRoot, startCommand, "gradle", gradleVersion, additionalTags);
   }
 
-  public void onModuleStart(String taskPath, Collection<File> compiledClassFolders) {
-    buildEventsHandler.onTestModuleStart(SESSION_KEY, taskPath, compiledClassFolders, null);
+  public void onModuleStart(String taskPath, ModuleLayout moduleLayout, Path jvmExecutable) {
+    buildEventsHandler.onTestModuleStart(SESSION_KEY, taskPath, moduleLayout, jvmExecutable, null);
   }
 
   public void onModuleFinish(

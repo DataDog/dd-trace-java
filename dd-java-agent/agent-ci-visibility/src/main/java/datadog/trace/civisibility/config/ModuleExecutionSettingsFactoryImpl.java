@@ -16,6 +16,7 @@ import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -90,6 +91,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
 
     String itrCorrelationId = null;
     Map<String, Collection<TestIdentifier>> skippableTestsByModuleName = Collections.emptyMap();
+    Map<String, BitSet> skippableTestsCoverage = null;
     if (itrEnabled && repositoryRoot != null) {
       SkippableTests skippableTests =
           getSkippableTests(Paths.get(repositoryRoot), tracerEnvironment);
@@ -98,6 +100,9 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         skippableTestsByModuleName =
             (Map<String, Collection<TestIdentifier>>)
                 groupTestsByModule(tracerEnvironment, skippableTests.getIdentifiers());
+        skippableTestsCoverage =
+            skippableTests.getCoveredLinesByRelativeSourcePath(); // FIXME nikita: check the
+        // "line_data_missing" attribute
       }
     }
 
@@ -125,6 +130,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         systemProperties,
         itrCorrelationId,
         skippableTestsByModuleName,
+        skippableTestsCoverage,
         flakyTests,
         knownTestsByModuleName,
         coverageEnabledPackages);
@@ -146,7 +152,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
 
     /*
      * IMPORTANT: JVM and OS properties should match tags
-     * set in datadog.trace.civisibility.decorator.TestDecorator
+     * set in datadog.trace.civisibility.decorator.TestDecoratorImpl
      */
     return builder
         .service(config.getServiceName())
@@ -305,7 +311,8 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
                 t ->
                     t.getConfigurations() != null && t.getConfigurations().getTestBundle() != null
                         ? t.getConfigurations().getTestBundle()
-                        : defaultBundle));
+                        : defaultBundle,
+                Collectors.toSet()));
   }
 
   private Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {

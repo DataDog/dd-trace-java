@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.events;
 
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.domain.ModuleLayout;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.config.JvmInfo;
@@ -8,9 +9,7 @@ import datadog.trace.civisibility.config.JvmInfoFactory;
 import datadog.trace.civisibility.domain.BuildSystemModule;
 import datadog.trace.civisibility.domain.BuildSystemSession;
 import datadog.trace.civisibility.domain.TestStatus;
-import java.io.File;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -81,11 +80,14 @@ public class BuildEventsHandlerImpl<T> implements BuildEventsHandler<T> {
   public ModuleInfo onTestModuleStart(
       final T sessionKey,
       final String moduleName,
-      Collection<File> outputClassesDirs,
+      ModuleLayout moduleLayout,
+      @Nullable Path jvmExecutable,
       @Nullable Map<String, Object> additionalTags) {
 
     BuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
-    BuildSystemModule testModule = testSession.testModuleStart(moduleName, null, outputClassesDirs);
+    JvmInfo jvmInfo = jvmInfoFactory.getJvmInfo(jvmExecutable);
+    BuildSystemModule testModule =
+        testSession.testModuleStart(moduleName, null, moduleLayout, jvmInfo);
     testModule.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (additionalTags != null) {

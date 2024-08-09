@@ -3,65 +3,59 @@ package datadog.trace.civisibility.domain.buildsystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.domain.ModuleLayout;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageUtils;
+import datadog.trace.civisibility.coverage.percentage.CoverageCalculator;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.BuildSystemModule;
+import datadog.trace.civisibility.ipc.AckResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import datadog.trace.civisibility.ipc.SignalResponse;
+import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.utils.SpanUtils;
-import java.io.File;
 import java.net.InetSocketAddress;
-import java.nio.file.Paths;
-import java.util.Collection;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
-import org.jacoco.core.analysis.IBundleCoverage;
-import org.jacoco.core.analysis.ICounter;
-import org.jacoco.core.data.ExecutionDataStore;
 
 public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSystemModule {
 
-  private final String repoRoot;
   private final InetSocketAddress signalServerAddress;
-  private final Collection<File> outputClassesDirs;
-  private final RepoIndexProvider repoIndexProvider;
-  private final TestModuleRegistry testModuleRegistry;
+  private final CoverageCalculator coverageCalculator;
+  private final ModuleSignalRouter moduleSignalRouter;
+
   private final LongAdder testsSkipped = new LongAdder();
+
   private volatile boolean codeCoverageEnabled;
   private volatile boolean testSkippingEnabled;
-  private final Object coverageDataLock = new Object();
 
-  @GuardedBy("coverageDataLock")
-  private ExecutionDataStore coverageData;
-
-  public BuildSystemModuleImpl(
+  public <T extends CoverageCalculator> BuildSystemModuleImpl(
       AgentSpan.Context sessionSpanContext,
       long sessionId,
       String moduleName,
-      String repoRoot,
       String startCommand,
       @Nullable Long startTime,
       InetSocketAddress signalServerAddress,
-      Collection<File> outputClassesDirs,
+      ModuleLayout moduleLayout,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      RepoIndexProvider repoIndexProvider,
-      TestModuleRegistry testModuleRegistry,
+      ModuleSignalRouter moduleSignalRouter,
+      CoverageCalculator.Factory<T> coverageCalculatorFactory,
+      T sessionCoverageCalculator,
+      ModuleExecutionSettings moduleExecutionSettings,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -76,11 +70,16 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         codeowners,
         methodLinesResolver,
         onSpanFinish);
-    this.repoRoot = repoRoot;
     this.signalServerAddress = signalServerAddress;
-    this.outputClassesDirs = outputClassesDirs;
-    this.repoIndexProvider = repoIndexProvider;
-    this.testModuleRegistry = testModuleRegistry;
+    this.coverageCalculator =
+        coverageCalculatorFactory.moduleCoverage(
+            span.getSpanId(), moduleLayout, moduleExecutionSettings, sessionCoverageCalculator);
+    this.moduleSignalRouter = moduleSignalRouter;
+
+    moduleSignalRouter.registerModuleHandler(
+        span.getSpanId(),
+        SignalType.MODULE_EXECUTION_RESULT,
+        this::onModuleExecutionResultReceived);
 
     setTag(Tags.TEST_COMMAND, startCommand);
   }
@@ -116,8 +115,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
    *
    * @param result Module execution results received from a forked JVM.
    */
-  @Override
-  public void onModuleExecutionResultReceived(ModuleExecutionResult result) {
+  private SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
     if (result.isCoverageEnabled()) {
       codeCoverageEnabled = true;
     }
@@ -133,25 +131,9 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
-    // it is important that modules parse their own instances of ExecutionDataStore
-    // and not share them with the session:
-    // ExecutionData instances that reside inside the store are mutable,
-    // and modifying an ExecutionData in one module is going
-    // to be visible in another module
-    // (see internal implementation of org.jacoco.core.data.ExecutionDataStore.accept)
-    ExecutionDataStore coverageData = CoverageUtils.parse(result.getCoverageData());
-    if (coverageData != null) {
-      synchronized (coverageDataLock) {
-        if (this.coverageData == null) {
-          this.coverageData = coverageData;
-        } else {
-          // merge module coverage data from multiple VMs
-          coverageData.accept(this.coverageData);
-        }
-      }
-    }
-
     SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
+
+    return AckResponse.INSTANCE;
   }
 
   @Override
@@ -171,52 +153,13 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       }
     }
 
-    synchronized (coverageDataLock) {
-      if (coverageData != null && !coverageData.getContents().isEmpty()) {
-        processCoverageData(coverageData);
-      }
+    Long coveragePercentage = coverageCalculator.calculateCoveragePercentage();
+    if (coveragePercentage != null) {
+      setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
     }
 
-    testModuleRegistry.removeModule(this);
+    moduleSignalRouter.removeModuleHandlers(span.getSpanId());
 
     super.end(endTime);
-  }
-
-  private void processCoverageData(ExecutionDataStore coverageData) {
-    if (coverageData == null) {
-      return;
-    }
-    IBundleCoverage coverageBundle =
-        CoverageUtils.createCoverageBundle(coverageData, outputClassesDirs);
-    if (coverageBundle == null) {
-      return;
-    }
-
-    long coveragePercentage = getCoveragePercentage(coverageBundle);
-    setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
-
-    File coverageReportFolder = getCoverageReportFolder();
-    if (coverageReportFolder != null) {
-      CoverageUtils.dumpCoverageReport(
-          coverageBundle, repoIndexProvider.getIndex(), repoRoot, coverageReportFolder);
-    }
-  }
-
-  private static long getCoveragePercentage(IBundleCoverage coverageBundle) {
-    ICounter instructionCounter = coverageBundle.getInstructionCounter();
-    int totalInstructionsCount = instructionCounter.getTotalCount();
-    int coveredInstructionsCount = instructionCounter.getCoveredCount();
-    return Math.round((100d * coveredInstructionsCount) / totalInstructionsCount);
-  }
-
-  private File getCoverageReportFolder() {
-    String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
-    if (coverageReportDumpDir != null) {
-      return Paths.get(coverageReportDumpDir, "session-" + sessionId, moduleName)
-          .toAbsolutePath()
-          .toFile();
-    } else {
-      return null;
-    }
   }
 }

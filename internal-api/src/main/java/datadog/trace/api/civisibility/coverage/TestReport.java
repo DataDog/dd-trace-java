@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.coverage;
 
 import java.util.Collection;
+import javax.annotation.Nonnull;
 
 public class TestReport {
 
@@ -13,7 +14,7 @@ public class TestReport {
       Long testSessionId,
       Long testSuiteId,
       long spanId,
-      Collection<TestReportFileEntry> testReportFileEntries) {
+      @Nonnull Collection<TestReportFileEntry> testReportFileEntries) {
     this.testSessionId = testSessionId;
     this.testSuiteId = testSuiteId;
     this.spanId = spanId;
@@ -32,6 +33,7 @@ public class TestReport {
     return spanId;
   }
 
+  @Nonnull
   public Collection<TestReportFileEntry> getTestReportFileEntries() {
     return testReportFileEntries;
   }

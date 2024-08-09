@@ -21,7 +21,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.data.ExecutionDataStore;
 import org.jetbrains.annotations.Nullable;
@@ -40,7 +40,7 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
   private final SourcePathResolver sourcePathResolver;
 
   private LineCoverageStore(
-      Supplier<LineProbes> probesFactory,
+      Function<Boolean, LineProbes> probesFactory,
       CiVisibilityMetricCollector metrics,
       SourcePathResolver sourcePathResolver) {
     super(probesFactory);
@@ -147,12 +147,12 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     }
 
     @Override
-    public CoverageStore create(TestIdentifier testIdentifier) {
+    public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
       return new LineCoverageStore(this::createProbes, metrics, sourcePathResolver);
     }
 
-    private LineProbes createProbes() {
-      return new LineProbes(metrics, probeCounts);
+    private LineProbes createProbes(boolean isTestThread) {
+      return new LineProbes(metrics, probeCounts, isTestThread);
     }
 
     @Override
