@@ -28,6 +28,7 @@ abstract class DDCoreSpecification extends DDSpecification {
   @Override
   void setupSpec() {
     TagsPostProcessorFactory.withAddBaseService(false)
+    TagsPostProcessorFactory.withAddRemoteHostname(false)
   }
 
   @Override

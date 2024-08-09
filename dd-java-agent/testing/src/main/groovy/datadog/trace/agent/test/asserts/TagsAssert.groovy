@@ -83,6 +83,8 @@ class TagsAssert {
       // If runtime id is actually different here, it might indicate that
       // the Config class was loaded on multiple different class loaders.
       assert tags[DDTags.RUNTIME_ID_TAG] == Config.get().runtimeId
+      assertedTags.add(DDTags.TRACER_HOST)
+      assert tags[DDTags.TRACER_HOST] == Config.get().getHostName()
     } else {
       assert tags[DDTags.RUNTIME_ID_TAG] == null
     }
