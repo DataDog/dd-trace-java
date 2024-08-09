@@ -383,6 +383,7 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     metrics.size() == 4
   }
 
+
   /// The following tests don't work because the code is not implemented in the OtelEnvironmentConfigSource
   /* def "otel_log_level - hiding - DD_TRACE_DEBUG "() {
    setup:
