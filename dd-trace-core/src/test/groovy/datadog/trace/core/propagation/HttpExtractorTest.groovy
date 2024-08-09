@@ -148,11 +148,8 @@ class HttpExtractorTest extends DDSpecification {
     assert context.traceId.toLong() == DDTraceId.from(expectedTraceId).toLong()
     assert context.spanId == DDSpanId.from(expectedSpanId)
     assert context.tags[PARENT_ID] == expectedParentId
-    // TODO Some other test ideas
-    // assert context.propagationTags.traceIdHighOrderBits ==
+    // TODO Add some more W3C override checks
 
-
-    // TODO Add more cases to cover every behavior
     where:
     // spotless:off
     styles                           | datadogTraceId | datadogSpanId | b3TraceId | b3SpanId | traceState             | expectedTraceId | expectedSpanId   | expectedParentId
