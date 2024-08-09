@@ -89,9 +89,11 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
+import datadog.trace.payloadtags.JsonToTags;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -219,6 +221,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final CallbackProvider universalCallbackProvider;
 
   private final PropagationTags.Factory propagationTagsFactory;
+
+  private final JsonToTags requestJsonToTags;
+  private final JsonToTags responseJsonToTags;
 
   @Override
   public ConfigSnapshot captureTraceConfig() {
@@ -769,6 +774,20 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.localRootSpanTags = localRootSpanTags;
     }
+
+    requestJsonToTags =
+        new JsonToTags.Builder()
+            // TODO add common expansion / redaction rules
+            .parseRedactionRules(config.getCloudRequestPayloadTagging())
+            .tagPrefix("aws.request.body")
+            .build();
+
+    responseJsonToTags =
+        new JsonToTags.Builder()
+            // TODO add common expansion / redaction rules
+            .parseRedactionRules(config.getCloudResponsePayloadTagging())
+            .tagPrefix("aws.response.body")
+            .build();
   }
 
   /** Used by AgentTestRunner to inject configuration into the test tracer. */
@@ -1186,6 +1205,28 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
     return null;
+  }
+
+  @Override
+  public void addTagsFromResponseBody(AgentSpan span, InputStream body) {
+    if (responseJsonToTags != null) {
+      Map<String, Object> tags = responseJsonToTags.process(body);
+      setTags(span, tags);
+    }
+  }
+
+  @Override
+  public void addTagsFromRequestBody(AgentSpan span, InputStream body) {
+    if (requestJsonToTags != null) {
+      Map<String, Object> tags = requestJsonToTags.process(body);
+      setTags(span, tags);
+    }
+  }
+
+  private static void setTags(AgentSpan span, Map<String, Object> tags) {
+    for (Map.Entry<String, Object> entry : tags.entrySet()) {
+      span.setTag(entry.getKey(), entry.getValue());
+    }
   }
 
   public void addTracerReportToFlare(ZipOutputStream zip) throws IOException {

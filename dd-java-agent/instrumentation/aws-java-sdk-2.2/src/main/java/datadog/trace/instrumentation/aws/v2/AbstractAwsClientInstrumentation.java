@@ -12,7 +12,9 @@ public abstract class AbstractAwsClientInstrumentation extends InstrumenterModul
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AwsSdkClientDecorator", packageName + ".TracingExecutionInterceptor"
+      packageName + ".AwsSdkClientDecorator",
+      packageName + ".TracingExecutionInterceptor",
+      packageName + ".ResponseBodyStreamWrapper",
     };
   }
 }

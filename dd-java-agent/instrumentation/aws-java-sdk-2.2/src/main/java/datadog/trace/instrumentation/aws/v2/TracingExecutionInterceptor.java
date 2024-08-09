@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.io.InputStream;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +59,12 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     if (span != null) {
       try (AgentScope ignored = activateSpan(span)) {
         DECORATE.onRequest(span, context.httpRequest());
-        DECORATE.onSdkRequest(span, context.request(), context.httpRequest(), executionAttributes);
+        DECORATE.onSdkRequest(
+            span,
+            context.request(),
+            context.httpRequest(),
+            executionAttributes,
+            context.requestBody());
       }
     }
   }
@@ -97,6 +103,15 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     }
   }
 
+  public Optional<InputStream> modifyHttpResponseContent(
+      Context.ModifyHttpResponse context, ExecutionAttributes executionAttributes) {
+    // Wrap the response so that it can be read again for tag extraction.
+    // TODO wrap only if tag extraction is enabled
+    return ExecutionInterceptor.super
+        .modifyHttpResponseContent(context, executionAttributes)
+        .map(ResponseBodyStreamWrapper::new);
+  }
+
   @Override
   public void afterExecution(
       final Context.AfterExecution context, final ExecutionAttributes executionAttributes) {
@@ -104,7 +119,12 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     if (span != null) {
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, null);
       // Call onResponse on both types of responses:
-      DECORATE.onSdkResponse(span, context.response(), context.httpResponse(), executionAttributes);
+      DECORATE.onSdkResponse(
+          span,
+          context.response(),
+          context.httpResponse(),
+          executionAttributes,
+          context.responseBody());
       DECORATE.onResponse(span, context.httpResponse());
       DECORATE.beforeFinish(span);
       span.finish();
@@ -127,7 +147,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       Optional<SdkResponse> responseOpt = context.response();
       if (responseOpt.isPresent()) {
         SdkResponse response = responseOpt.get();
-        DECORATE.onSdkResponse(span, response, response.sdkHttpResponse(), executionAttributes);
+        DECORATE.onSdkResponse(
+            span, response, response.sdkHttpResponse(), executionAttributes, Optional.empty());
         DECORATE.onResponse(span, response.sdkHttpResponse());
         if (span.isError()) {
           DECORATE.onError(span, context.exception());

@@ -135,5 +135,10 @@ public final class TracerConfig {
 
   public static final String TRACE_POST_PROCESSING_TIMEOUT = "trace.post-processing.timeout";
 
+  public static final String TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING =
+      "trace.cloud.request.payload.tagging";
+  public static final String TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING =
+      "trace.cloud.response.payload.tagging";
+
   private TracerConfig() {}
 }
