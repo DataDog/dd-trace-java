@@ -265,7 +265,10 @@ public class TelemetryRequestBody extends RequestBody {
   }
 
   public void writeProducts(
-      boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
+      boolean appsecEnabled,
+      boolean profilerEnabled,
+      boolean dynamicInstrumentationEnabled,
+      boolean ciVisibilityEnabled)
       throws IOException {
     bodyWriter.name("products");
     bodyWriter.beginObject();
@@ -283,6 +286,11 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("dynamic_instrumentation");
     bodyWriter.beginObject();
     bodyWriter.name("enabled").value(dynamicInstrumentationEnabled);
+    bodyWriter.endObject();
+
+    bodyWriter.name("civisibility");
+    bodyWriter.beginObject();
+    bodyWriter.name("enabled").value(ciVisibilityEnabled);
     bodyWriter.endObject();
 
     bodyWriter.endObject();

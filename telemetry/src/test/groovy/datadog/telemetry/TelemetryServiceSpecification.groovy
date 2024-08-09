@@ -10,6 +10,7 @@ import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
 import datadog.trace.api.config.AppSecConfig
+import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.DebuggerConfig
 import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.test.util.DDSpecification
@@ -465,6 +466,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     injectEnvConfig(Strings.toEnvVar(AppSecConfig.APPSEC_ENABLED), appsecConfig)
     injectEnvConfig(Strings.toEnvVar(ProfilingConfig.PROFILING_ENABLED), profilingConfig)
     injectEnvConfig(Strings.toEnvVar(DebuggerConfig.DEBUGGER_ENABLED), dynInstrConfig)
+    injectEnvConfig(Strings.toEnvVar(CiVisibilityConfig.CIVISIBILITY_ENABLED), ciVisConfig)
 
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
@@ -474,16 +476,16 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.sendAppStartedEvent()
 
     then: 'app-started'
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products(appsecEnabled, profilingEnabled, dynInstrEnabled)
+    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products(appsecEnabled, profilingEnabled, dynInstrEnabled, ciVisEnabled)
     testHttpClient.assertNoMoreRequests()
 
     where:
-    appsecConfig | appsecEnabled | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled
-    "1"          | true          | "1"             | true             | "1"            | true
-    "1"          | true          | "1"             | true             | "0"            | false
-    "1"          | true          | "0"             | false            | "1"            | true
-    "1"          | true          | "0"             | false            | "0"            | false
-    "0"          | false         | "0"             | false            | "0"            | false
-    "inactive"   | true          | "0"             | false            | "0"            | false
+    appsecConfig | appsecEnabled | profilingConfig | profilingEnabled | dynInstrConfig | dynInstrEnabled | ciVisConfig | ciVisEnabled
+    "1"          | true          | "1"             | true             | "1"            | true            | "1"         | true
+    "1"          | true          | "1"             | true             | "0"            | false           | "0"         | false
+    "1"          | true          | "0"             | false            | "1"            | true            | "1"         | true
+    "1"          | true          | "0"             | false            | "0"            | false           | "0"         | false
+    "0"          | false         | "0"             | false            | "0"            | false           | "0"         | false
+    "inactive"   | true          | "0"             | false            | "0"            | false           | "0"         | false
   }
 }
