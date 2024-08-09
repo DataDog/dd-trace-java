@@ -298,12 +298,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           e);
       DECORATE.onError(instrumentationSpan, e);
     } finally {
-      if (instrumentationStatement != null) {
-        try {
-          instrumentationStatement.close();
-        } catch (SQLException e) {
-        } finally {
-          instrumentationSpan.finish();
+      try {
+        instrumentationSpan.finish();
+      } catch (Exception e) {
+      } finally {
+        if (instrumentationStatement != null) {
+          try {
+            instrumentationStatement.close();
+          } catch (SQLException e) {
+          }
         }
       }
     }
