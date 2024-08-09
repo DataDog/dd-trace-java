@@ -110,6 +110,10 @@ public class PTagsFactory implements PropagationTags.Factory {
      */
     protected volatile String error;
 
+    /**
+     * The last parent span id using the 16-characters zero padded hexadecimal representation,
+     * {@code null} if not set.
+     */
     private volatile CharSequence lastParentId;
 
     public PTags(
@@ -271,7 +275,6 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateLastParentId(CharSequence lastParentId) {
-      lastParentId = "0000000000000000".equals(lastParentId) ? null : lastParentId;
       if (!Objects.equals(this.lastParentId, lastParentId)) {
         clearCachedHeader(W3C);
         this.lastParentId = TagValue.from(lastParentId);

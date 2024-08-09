@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * When calling extract, we allow for grabbing other configured headers as tags. Those tags are
@@ -22,7 +23,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private static final HttpHeaders EMPTY_HTTP_HEADERS = new HttpHeaders();
 
   private final CharSequence origin;
-  private final Map<String, String> tags;
+  private Map<String, String> tags;
   private List<AgentSpanLink> terminatedContextLinks;
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
@@ -166,6 +167,13 @@ public class TagContext implements AgentSpan.Context.Extracted {
 
   public final Map<String, String> getTags() {
     return tags;
+  }
+
+  public void putTag(final String key, final String value) {
+    if (this.tags.isEmpty()) {
+      this.tags = new TreeMap<>();
+    }
+    this.tags.put(key, value);
   }
 
   @Override
