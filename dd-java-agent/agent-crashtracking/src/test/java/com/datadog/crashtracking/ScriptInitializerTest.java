@@ -68,6 +68,17 @@ public class ScriptInitializerTest {
     assertTrue(lines.stream().anyMatch(l -> l.contains(hsErrFile)));
   }
 
+  @Test
+  void testCrashUploaderInitializationExisting() throws IOException {
+    Path file = tempDir.resolve("dd_crash_uploader.sh");
+    Files.createFile(file);
+    ScriptInitializer.initializeCrashUploader(file.toString(), "/tmp/hs_err%p.log");
+    assertTrue(Files.exists(file), "File " + file + " should not have been removed");
+    assertTrue(
+        Files.readAllLines(file).isEmpty(),
+        "File " + file + " content should not have been modified");
+  }
+
   private static Stream<Arguments> crashTrackingScripts() {
     return Stream.of(
         Arguments.of("dd_crash_uploader.sh", ""),
