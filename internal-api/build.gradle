@@ -189,12 +189,15 @@ compileTestJava.dependsOn 'generateTestClassNameTries'
 dependencies {
   // references TraceScope and Continuation from public api
   api project(':dd-trace-api')
+  api project(':components:context:context-api')
   api libs.slf4j
   api project(":utils:time-utils")
 
   // has to be loaded by system classloader:
   // it contains annotations that are also present in the instrumented application classes
   api "com.datadoghq:dd-javac-plugin-client:0.1.7"
+
+  implementation project(':components:context:context-core')
 
   testImplementation project(":utils:test-utils")
   testImplementation("org.assertj:assertj-core:3.20.2")

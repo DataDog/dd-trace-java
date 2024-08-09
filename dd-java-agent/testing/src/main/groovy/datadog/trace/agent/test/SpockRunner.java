@@ -34,6 +34,7 @@ public class SpockRunner extends JUnitPlatform {
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
     "datadog.slf4j",
     "datadog.appsec.api",
+    "datadog.context",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
     "datadog.trace.context",
