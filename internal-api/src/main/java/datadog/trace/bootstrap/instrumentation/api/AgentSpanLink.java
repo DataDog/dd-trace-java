@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
-import java.util.Map;
 
 /**
  * This interface describes a link to another span. The linked span could be part of the same trace
@@ -50,21 +49,5 @@ public interface AgentSpanLink {
    *
    * @return The link attributes.
    */
-  Attributes attributes();
-
-  interface Attributes {
-    /**
-     * Gets the attributes as an immutable map.
-     *
-     * @return The attributes as an immutable map.
-     */
-    Map<String, String> asMap();
-
-    /**
-     * Checks whether the attributes are empty.
-     *
-     * @return {@code true} if the attributes are empty, {@code false} otherwise.
-     */
-    boolean isEmpty();
-  }
+  AgentSpanAttributes attributes();
 }

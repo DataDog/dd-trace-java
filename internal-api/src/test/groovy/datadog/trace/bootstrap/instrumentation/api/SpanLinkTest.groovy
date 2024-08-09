@@ -27,7 +27,7 @@ class SpanLinkTest extends DDSpecification {
     link.spanId() == spanId
     link.traceFlags() == (sampled ? SAMPLED_FLAG : DEFAULT_FLAGS)
     link.traceState() == ""
-    link.attributes() == SpanLinkAttributes.EMPTY
+    link.attributes() == SpanAttributes.EMPTY
 
     when:
     link.toString()
@@ -53,13 +53,13 @@ class SpanLinkTest extends DDSpecification {
 
   def "test span link attributes api"() {
     when:
-    def attributes = SpanLinkAttributes.builder().build()
+    def attributes = SpanAttributes.builder().build()
 
     then:
     attributes.isEmpty()
 
     when:
-    attributes = SpanLinkAttributes.builder().put('key', 'value').build()
+    attributes = SpanAttributes.builder().put('key', 'value').build()
 
     then:
     !attributes.isEmpty()
@@ -67,7 +67,7 @@ class SpanLinkTest extends DDSpecification {
 
   def "test span link attributes encoding"() {
     setup:
-    def builder = SpanLinkAttributes.builder()
+    def builder = SpanAttributes.builder()
 
     when:
     builder.put('string', 'value')
@@ -129,7 +129,7 @@ class SpanLinkTest extends DDSpecification {
     !map.containsKey('double-array-null')
 
     when:
-    def attributes = SpanLinkAttributes.fromMap(map)
+    def attributes = SpanAttributes.fromMap(map)
 
     then:
     attributes.asMap() == map
@@ -137,7 +137,7 @@ class SpanLinkTest extends DDSpecification {
 
   def "test span link attributes toString"() {
     when:
-    SpanLinkAttributes.builder().build().toString()
+    SpanAttributes.builder().build().toString()
 
     then:
     notThrown(NullPointerException)
