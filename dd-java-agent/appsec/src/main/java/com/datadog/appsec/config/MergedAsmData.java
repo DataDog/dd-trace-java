@@ -3,25 +3,27 @@ package com.datadog.appsec.config;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
-import java.util.AbstractList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class MergedAsmData extends AbstractList<Map<String, Object>> {
-  public static final String KEY_BUNDLED_RULE_DATA = "<rule data bundled in rule config>";
+public class MergedAsmData {
+  public static final String KEY_BUNDLED_DATA = "<data bundled in config>";
 
-  private final Map<String /* cfg key */, List<Map<String, Object>>> configs;
-  private List<Map<String, Object>> mergedData;
+  private final Map<String /* cfg key */, AppSecData> configs;
+  private AppSecData mergedData;
 
-  public MergedAsmData(Map<String, List<Map<String, Object>>> configs) {
+  public MergedAsmData(Map<String, AppSecData> configs) {
     this.configs = configs;
   }
 
-  public void addConfig(String cfgKey, List<Map<String, Object>> config) {
+  public void addConfig(String cfgKey, AppSecData config) {
     this.configs.put(cfgKey, config);
     this.mergedData = null;
   }
@@ -40,19 +42,15 @@ public class MergedAsmData extends AbstractList<Map<String, Object>> {
    *     - value: 192.168.1.1
    *       expiration: 555
    */
-  public List<Map<String, Object>> getMergedData() throws InvalidAsmDataException {
+  public AppSecData getMergedData() throws InvalidAsmDataException {
     if (mergedData != null) {
       return mergedData;
     }
 
     try {
-      // map of id -> list of maps across all the configs with such id
-      Map<String, List<Map<String, Object>>> dataPerId =
-          configs.values().stream()
-              .flatMap(l -> l.stream())
-              .collect(groupingBy(d -> (String) d.get("id")));
-
-      this.mergedData = buildMergedData(dataPerId);
+      this.mergedData = new AppSecData();
+      this.mergedData.setRules(buildMergedData(groupById(AppSecData::getRules)));
+      this.mergedData.setExclusion(buildMergedData(groupById(AppSecData::getExclusion)));
     } catch (InvalidAsmDataException iade) {
       throw iade;
     } catch (RuntimeException rte) {
@@ -60,6 +58,16 @@ public class MergedAsmData extends AbstractList<Map<String, Object>> {
     }
 
     return this.mergedData;
+  }
+
+  /** map of id -> list of maps across all the configs with such id */
+  private Map<String, List<Map<String, Object>>> groupById(
+      final Function<AppSecData, List<Map<String, Object>>> property) {
+    return configs.values().stream()
+        .map(property)
+        .map(it -> it == null ? Collections.<Map<String, Object>>emptyList() : it)
+        .flatMap(Collection::stream)
+        .collect(groupingBy(d -> (String) d.get("id")));
   }
 
   private List<Map<String, Object>> buildMergedData(
@@ -135,16 +143,6 @@ public class MergedAsmData extends AbstractList<Map<String, Object>> {
               return point;
             })
         .collect(toList());
-  }
-
-  @Override
-  public Map<String, Object> get(int index) {
-    return getMergedData().get(index);
-  }
-
-  @Override
-  public int size() {
-    return getMergedData().size();
   }
 
   public class InvalidAsmDataException extends RuntimeException {
