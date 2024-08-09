@@ -47,7 +47,7 @@ public abstract class BootstrapInitializationTelemetry {
 
   public abstract void finish();
 
-  static final class None extends BootstrapInitializationTelemetry {
+  public static final class None extends BootstrapInitializationTelemetry {
     static final None INSTANCE = new None();
 
     private None() {}
@@ -74,7 +74,7 @@ public abstract class BootstrapInitializationTelemetry {
     public void finish() {}
   }
 
-  static final class JsonBased extends BootstrapInitializationTelemetry {
+  public static final class JsonBased extends BootstrapInitializationTelemetry {
     private final JsonSender sender;
 
     private JsonBuffer metaBuffer = new JsonBuffer();
@@ -181,11 +181,11 @@ public abstract class BootstrapInitializationTelemetry {
     }
   }
 
-  static interface JsonSender {
+  public static interface JsonSender {
     public abstract void send(JsonBuffer buffer) throws IOException;
   }
 
-  static final class ForwarderJsonSender implements JsonSender {
+  public static final class ForwarderJsonSender implements JsonSender {
     private final String forwarderPath;
 
     ForwarderJsonSender(String forwarderPath) {
