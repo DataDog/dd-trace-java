@@ -402,7 +402,7 @@ public class IastWebController {
     return "OK";
   }
 
-  @GetMapping("/untrusted_deserialization")
+  @GetMapping("/untrusted_deserialization/snakeyaml")
   public String untrustedDeserializationSnakeYaml(@RequestParam("yaml") String param) {
     new Yaml().load(param);
     return "OK";
