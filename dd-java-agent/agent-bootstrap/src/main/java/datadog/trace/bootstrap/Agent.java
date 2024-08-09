@@ -151,7 +151,19 @@ public class Agent {
   private static boolean debuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
 
-  public static void start(final Instrumentation inst, final URL agentJarURL, String agentArgs) {
+  /**
+   * Starts the agent; returns a boolean indicating if Agent started successfully
+   *
+   * <p>The Agent is considered to start successfully if Instrumentation can be activated. All other
+   * pieces are considered optional.
+   */
+  public static void start(
+      final Object bootstrapInitTelemetry,
+      final Instrumentation inst,
+      final URL agentJarURL,
+      final String agentArgs) {
+    InitializationTelemetry initTelemetry = InitializationTelemetry.proxy(bootstrapInitTelemetry);
+
     StaticEventLogger.begin("Agent");
     StaticEventLogger.begin("Agent.start");
 
@@ -163,8 +175,9 @@ public class Agent {
       remoteConfigEnabled = false;
       telemetryEnabled = false;
       // apply trace instrumentation, but skip starting other services
-      startDatadogAgent(inst);
+      startDatadogAgent(initTelemetry, inst);
       StaticEventLogger.end("Agent.start");
+
       return;
     }
 
@@ -279,7 +292,7 @@ public class Agent {
      * when it will happen after the class transformers were added.
      */
     AgentTaskScheduler.initialize();
-    startDatadogAgent(inst);
+    startDatadogAgent(initTelemetry, inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);
 
@@ -326,7 +339,7 @@ public class Agent {
      * logging facility. Likewise on IBM JDKs OkHttp may indirectly load 'IBMSASL' which in turn loads LogManager.
      */
     InstallDatadogTracerCallback installDatadogTracerCallback =
-        new InstallDatadogTracerCallback(inst);
+        new InstallDatadogTracerCallback(initTelemetry, inst);
     if (delayOkHttp) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
       registerLogManagerCallback(installDatadogTracerCallback);
@@ -397,10 +410,10 @@ public class Agent {
   }
 
   /** Used by AgentCLI to send sample traces from the command-line. */
-  public static void startDatadogTracer() throws Exception {
+  public static void startDatadogTracer(InitializationTelemetry initTelemetry) throws Exception {
     Class<?> scoClass =
         AGENT_CLASSLOADER.loadClass("datadog.communication.ddagent.SharedCommunicationObjects");
-    installDatadogTracer(scoClass, scoClass.getConstructor().newInstance());
+    installDatadogTracer(initTelemetry, scoClass, scoClass.getConstructor().newInstance());
     startJmx(); // send runtime metrics along with the traces
   }
 
@@ -475,9 +488,12 @@ public class Agent {
   }
 
   protected static class InstallDatadogTracerCallback extends ClassLoadCallBack {
+    private final InitializationTelemetry initTelemetry;
     private final Instrumentation instrumentation;
 
-    public InstallDatadogTracerCallback(Instrumentation instrumentation) {
+    public InstallDatadogTracerCallback(
+        InitializationTelemetry initTelemetry, Instrumentation instrumentation) {
+      this.initTelemetry = initTelemetry;
       this.instrumentation = instrumentation;
     }
 
@@ -502,7 +518,7 @@ public class Agent {
         throw new UndeclaredThrowableException(e);
       }
 
-      installDatadogTracer(scoClass, sco);
+      installDatadogTracer(initTelemetry, scoClass, sco);
       maybeStartAppSec(scoClass, sco);
       maybeStartIast(scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
@@ -582,9 +598,9 @@ public class Agent {
     StaticEventLogger.end("Remote Config");
   }
 
-  private static synchronized void startDatadogAgent(final Instrumentation inst) {
+  private static synchronized void startDatadogAgent(
+      final InitializationTelemetry initTelemetry, final Instrumentation inst) {
     if (null != inst) {
-
       StaticEventLogger.begin("BytebuddyAgent");
 
       try {
@@ -595,13 +611,15 @@ public class Agent {
         agentInstallerMethod.invoke(null, inst);
       } catch (final Throwable ex) {
         log.error("Throwable thrown while installing the Datadog Agent", ex);
+        initTelemetry.onFatalError(ex);
+      } finally {
+        StaticEventLogger.end("BytebuddyAgent");
       }
-
-      StaticEventLogger.end("BytebuddyAgent");
     }
   }
 
-  private static synchronized void installDatadogTracer(Class<?> scoClass, Object sco) {
+  private static synchronized void installDatadogTracer(
+      InitializationTelemetry initTelemetry, Class<?> scoClass, Object sco) {
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
@@ -622,6 +640,8 @@ public class Agent {
       throw ex;
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
+
+      initTelemetry.onFatalError(ex);
     }
 
     StaticEventLogger.end("GlobalTracer");
