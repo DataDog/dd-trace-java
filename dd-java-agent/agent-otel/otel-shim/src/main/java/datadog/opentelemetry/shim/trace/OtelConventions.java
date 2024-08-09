@@ -14,6 +14,7 @@ import static io.opentelemetry.api.trace.SpanKind.SERVER;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
 
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.opentelemetry.api.common.AttributeKey;
@@ -127,7 +128,7 @@ public final class OtelConventions {
     if (events == null || events.isEmpty()) {
       return;
     }
-    span.setTag("events", OtelSpanEvent.toTag(events));
+    span.setTag(DDTags.SPAN_EVENTS, OtelSpanEvent.toTag(events));
   }
 
   private static String computeOperationName(AgentSpan span) {
