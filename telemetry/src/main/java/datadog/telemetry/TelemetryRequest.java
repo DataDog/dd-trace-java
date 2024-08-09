@@ -13,11 +13,20 @@ import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.telemetry.ProductChange;
+import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
+import java.util.EnumMap;
+import java.util.Map;
 import okhttp3.MediaType;
 import okhttp3.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TelemetryRequest {
+
+  private static final Logger log = LoggerFactory.getLogger(TelemetryRequest.class);
+
   static final String API_VERSION = "v2";
   static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
@@ -90,14 +99,11 @@ public class TelemetryRequest {
   }
 
   public void writeProducts() {
-    InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
-    Config config = Config.get();
     try {
-      boolean appsecEnabled =
-          instrumenterConfig.getAppSecActivation() != ProductActivation.FULLY_DISABLED;
-      boolean profilerEnabled = instrumenterConfig.isProfilingEnabled();
-      boolean dynamicInstrumentationEnabled = config.isDebuggerEnabled();
-      requestBody.writeProducts(appsecEnabled, profilerEnabled, dynamicInstrumentationEnabled);
+      requestBody.writeProducts(
+          InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED,
+          InstrumenterConfig.get().isProfilingEnabled(),
+          Config.get().isDebuggerEnabled());
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
     }
@@ -197,6 +203,26 @@ public class TelemetryRequest {
       requestBody.endLogs();
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("logs-message", e);
+    }
+  }
+
+  public void writeChangedProducts() {
+    if (!isWithinSizeLimits() || !eventSource.hasProductChangeEvent()) {
+      return;
+    }
+    try {
+      log.debug("Writing changed products");
+      requestBody.beginProducts();
+      Map<ProductType, Boolean> products = new EnumMap<>(ProductType.class);
+      while (eventSource.hasProductChangeEvent() && isWithinSizeLimits()) {
+        ProductChange event = eventSource.nextProductChangeEvent();
+        products.put(event.getProductType(), event.isEnabled());
+        eventSink.addProductChangeEvent(event);
+      }
+      requestBody.writeProducts(products);
+      requestBody.endProducts();
+    } catch (IOException e) {
+      throw new TelemetryRequestBody.SerializationException("changed-products", e);
     }
   }
 
