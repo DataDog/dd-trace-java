@@ -45,7 +45,7 @@ public class SnakeYamlInstrumenter extends InstrumenterModule.Iast
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".YamlHelper",
+      packageName + ".SnakeYamlHelper",
     };
   }
 
