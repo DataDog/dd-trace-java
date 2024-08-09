@@ -15,6 +15,8 @@ import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Subject
 
 import java.security.InvalidParameterException
+import java.sql.Time
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.DDTags.ERROR_MSG
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
@@ -33,6 +35,9 @@ import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
 
 class OpenTelemetry14Test extends AgentTestRunner {
+  static final TIME_MILLIS = 1723220824705
+  static final TIME_NANO = TIME_MILLIS * 1_000_000L
+
   @Subject
   def tracer = GlobalOpenTelemetry.get().tracerProvider.get("some-instrumentation")
 
@@ -175,27 +180,85 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  def "test non-supported features do not crash"() {
+  def "test multiple span events"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
-    def anotherSpan = tracer.spanBuilder("another-name").startSpan()
-    anotherSpan.end()
 
     when:
     // Adding event is not supported
     def result = builder.startSpan()
-    result.addEvent("some-event")
+    result.addEvent(name1, timestamp, TimeUnit.NANOSECONDS)
+    result.addEvent(name2, timestamp, TimeUnit.NANOSECONDS)
     result.end()
 
     then:
-    assertTraces(2) {
-      trace(1) {
-        span {}
+    def expectedEventTag = """
+    [
+      { "name": "${name1}",
+        "time_unix_nano": ${timestamp}
+      },
+      { "name": "${name2}",
+        "time_unix_nano": ${timestamp}
       }
+    ]"""
+    assertTraces(1) {
       trace(1) {
-        span {}
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
+          }
+        }
       }
     }
+    where:
+    name1 = "evt1"
+    name2 = "evt2"
+    timestamp = 1723220824705 * 1_000_000L
+  }
+
+  def "test add single event"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+
+    when:
+    // Adding event is not supported
+    def result = builder.startSpan()
+    result.addEvent(name, timestamp, unit)
+    result.end()
+
+    then:
+    long expectTime = timestamp
+    if (unit != TimeUnit.NANOSECONDS) {
+      // unit is milliseconds
+      expectTime = timestamp * 1_000_000L
+    }
+
+    def expectedEventTag = """
+    [
+      { "name": "${name}",
+        "time_unix_nano": ${expectTime}}
+    ]"""
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
+          }
+        }
+      }
+    }
+
+    where:
+    // NOTE: Don't know how to test where timestamp is null.
+    name   | attributes | timestamp   | unit
+    //    null   | null       | null        | null
+    //    "evt1" | null       | null        | null
+    "evt2" | null       | TIME_MILLIS | TimeUnit.MILLISECONDS
+    "evt3" | null       | TIME_NANO   | TimeUnit.NANOSECONDS
   }
 
   def "test simple span links"() {

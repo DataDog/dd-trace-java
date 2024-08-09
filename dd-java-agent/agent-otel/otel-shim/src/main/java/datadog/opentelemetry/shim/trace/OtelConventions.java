@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.SpanKind;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,6 +121,13 @@ public final class OtelConventions {
     if (span.getOperationName() == SPAN_KIND_INTERNAL) {
       span.setOperationName(computeOperationName(span).toLowerCase(ROOT));
     }
+  }
+
+  public static void setEventsAsTag(AgentSpan span, List<OtelSpanEvent> events) {
+    if (events == null || events.isEmpty()) {
+      return;
+    }
+    span.setTag("events", OtelSpanEvent.toTag(events));
   }
 
   private static String computeOperationName(AgentSpan span) {
