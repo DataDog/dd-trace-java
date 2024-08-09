@@ -32,19 +32,19 @@ public class CallSiteSpecification implements Validatable {
 
   private final Type clazz;
   private final List<AdviceSpecification> advices;
-  private final Type spi;
+  private final Type[] spi;
   private final Enabled enabled;
   private final Type[] helpers;
 
   public CallSiteSpecification(
       @Nonnull final Type clazz,
       @Nonnull final List<AdviceSpecification> advices,
-      @Nonnull final Type spi,
+      @Nonnull final Set<Type> spi,
       @Nonnull final List<String> enabled,
       @Nonnull final Set<Type> helpers) {
     this.clazz = clazz;
     this.advices = advices;
-    this.spi = spi;
+    this.spi = spi.toArray(new Type[0]);
     this.enabled = enabled.isEmpty() ? null : new Enabled(enabled);
     this.helpers = helpers.toArray(new Type[0]);
   }
@@ -53,12 +53,14 @@ public class CallSiteSpecification implements Validatable {
   public void validate(@Nonnull final ValidationContext context) {
     final TypeResolver typeResolver = context.getContextProperty(TYPE_RESOLVER);
     try {
-      Class<?> spiClass = typeResolver.resolveType(spi);
-      if (!spiClass.isInterface()) {
-        context.addError(ErrorCode.CALL_SITE_SPI_SHOULD_BE_AN_INTERFACE, spiClass);
-      } else {
-        if (spiClass.getDeclaredMethods().length > 0) {
-          context.addError(ErrorCode.CALL_SITE_SPI_SHOULD_BE_EMPTY, spiClass);
+      for (Type spiType : spi) {
+        Class<?> spiClass = typeResolver.resolveType(spiType);
+        if (!spiClass.isInterface()) {
+          context.addError(ErrorCode.CALL_SITE_SPI_SHOULD_BE_AN_INTERFACE, spiClass);
+        } else {
+          if (spiClass.getDeclaredMethods().length > 0) {
+            context.addError(ErrorCode.CALL_SITE_SPI_SHOULD_BE_EMPTY, spiClass);
+          }
         }
       }
     } catch (ResolutionException e) {
@@ -84,7 +86,7 @@ public class CallSiteSpecification implements Validatable {
     return clazz;
   }
 
-  public Type getSpi() {
+  public Type[] getSpi() {
     return spi;
   }
 

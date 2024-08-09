@@ -53,6 +53,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
+import org.objectweb.asm.Type;
 
 @SuppressWarnings("OptionalGetWithoutIsPresent")
 public class IastExtension implements Extension {
@@ -79,7 +80,12 @@ public class IastExtension implements Extension {
 
   @Override
   public boolean appliesTo(@Nonnull final CallSiteSpecification spec) {
-    return IAST_CALL_SITES_FQCN.equals(spec.getSpi().getClassName());
+    for (Type spi : spec.getSpi()) {
+      if (IAST_CALL_SITES_FQCN.equals(spi.getClassName())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
