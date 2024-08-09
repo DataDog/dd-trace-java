@@ -689,7 +689,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     then:
     hasVulnerability { vul ->
-      if (vul.type = !'SSRF') {
+      if (vul.type != 'SSRF') {
         return false
       }
       final parts = vul.evidence.valueParts
@@ -1006,6 +1006,18 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerabilityInLogs { vul ->
       vul.type == 'SESSION_REWRITING'
     }
+  }
+
+  void 'untrusted deserialization for an input stream'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
   }
 
 

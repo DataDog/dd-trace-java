@@ -321,6 +321,8 @@ public class AgentTracer {
     <T> SpanBuilder withRequestContextData(RequestContextSlot slot, T data);
 
     SpanBuilder withLink(AgentSpanLink link);
+
+    SpanBuilder withSpanId(long spanId);
   }
 
   static class NoopTracerAPI implements TracerAPI {
@@ -1118,6 +1120,9 @@ public class AgentTracer {
     public Schema getSchema(String schemaName, SchemaIterator iterator) {
       return null;
     }
+
+    @Override
+    public void setProduceCheckpoint(String type, String target) {}
 
     @Override
     public void setConsumeCheckpoint(

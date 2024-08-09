@@ -32,7 +32,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   @Test
   public void methodSimpleSpan() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    MockTracer tracer = installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)", null);
+    MockTracer tracer = installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -48,7 +48,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   public void methodSimpleSpanWithPackage() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot10";
     final String SIMPLE_CLASS_NAME = CLASS_NAME.substring(CLASS_NAME.lastIndexOf('.') + 1);
-    MockTracer tracer = installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)", null);
+    MockTracer tracer = installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)");
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(1764, result);
@@ -75,7 +75,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   @Test
   public void lineRangeSimpleSpan() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 4, 8, null);
+    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 4, 8);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -90,7 +90,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   @Test
   public void lineRangeErrorSimpleSpan() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 5, 9, null);
+    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 5, 9);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -101,7 +101,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   @Test
   public void invalidLineSimpleSpan() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 4, 10, null);
+    MockTracer tracer = installSingleSpan(CLASS_NAME + ".java", 4, 10);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -112,7 +112,7 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   @Test
   public void spanThrows() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot01";
-    MockTracer tracer = installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)", null);
+    MockTracer tracer = installSingleSpan(CLASS_NAME, "main", "int (java.lang.String)");
     tracer.setThrowing(true);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();

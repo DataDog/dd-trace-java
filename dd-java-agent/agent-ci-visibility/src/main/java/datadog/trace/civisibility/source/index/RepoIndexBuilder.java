@@ -157,7 +157,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         }
 
         Path sourceRoot =
-            language.isNonCode() ? getNonCodeSourceRoot(file) : getCodeSourceRoot(file);
+            language.isNonCode() ? getNonCodeSourceRoot(file) : getCodeSourceRoot(language, file);
         if (sourceRoot != null) {
           String relativeSourceRoot = repoRoot.relativize(sourceRoot).toString();
           int sourceRootIdx =
@@ -177,19 +177,27 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       return FileVisitResult.CONTINUE;
     }
 
-    private Path getCodeSourceRoot(Path file) throws IOException {
+    private Path getCodeSourceRoot(Language language, Path file) throws IOException {
       indexingStats.sourceFilesVisited++;
       Path packagePath = packageResolver.getPackage(file);
       if (packagePath != null) {
         packageTree.add(packagePath);
 
         Path folder = file.getParent();
-        // remove package path suffix from folder path to get source root
-        return folder
-            .getRoot()
-            .resolve(folder.subpath(0, folder.getNameCount() - packagePath.getNameCount()));
+        if (folder.endsWith(packagePath)) {
+          // In non-JVM languages package names do not have to correspond to folder structure,
+          // so using package to find source root is not always possible
+          return folder
+              .getRoot()
+              .resolve(folder.subpath(0, folder.getNameCount() - packagePath.getNameCount()));
+        }
+      }
+
+      if (language != Language.JAVA) {
+        // Fallback for non-JVM languages
+        return resourceResolver.getResourceRoot(file);
       } else {
-        // assuming default package
+        // For Java assuming default package
         return file.getParent();
       }
     }

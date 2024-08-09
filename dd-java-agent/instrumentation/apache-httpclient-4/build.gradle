@@ -41,6 +41,7 @@ dependencies {
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:jetty-9'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:apache-httpcore-4'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:servlet'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java-lang'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java-net'))
   iastIntegrationTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 

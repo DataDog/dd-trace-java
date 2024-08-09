@@ -46,6 +46,8 @@ excludedClassesCoverage += [
   'datadog.trace.core.TracingConfigPoller.TracingSamplingRules',
   'datadog.trace.core.TracingConfigPoller.TracingSamplingRulesAdapter',
   'datadog.trace.core.TracingConfigPoller.Updater',
+  // covered with dd-trace-core/src/test/groovy/datadog/trace/core/datastreams/CheckpointerTest.groovy
+  'datadog.trace.core.datastreams.DefaultDataStreamsMonitoring',
 ]
 
 addTestSuite('traceAgentTest')

@@ -27,7 +27,9 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
 
   def "test writes message"() {
     given:
-    def trace = givenTrace(new TestReport(1, 2, 3, [new TestReportFileEntry("source", [new TestReportFileEntry.Segment(4, -1, 4, -1, 11)])]))
+    def trace = givenTrace(new TestReport(1, 2, 3, [new TestReportFileEntry("source", BitSet.valueOf(new long[] {
+        3, 5, 8
+      }))]))
 
     when:
     def message = getMappedMessage(trace)
@@ -43,7 +45,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
           files          : [
             [
               filename: "source",
-              segments: [[4, -1, 4, -1, 11]]
+              bitmap: [3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8]
             ]
           ]
         ]
@@ -54,14 +56,12 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
   def "test writes message with multiple files and multiple lines"() {
     given:
     def trace = givenTrace(new TestReport(1, 2, 3, [
-      new TestReportFileEntry("sourceA", [
-        new TestReportFileEntry.Segment(4, -1, 4, -1, 1),
-        new TestReportFileEntry.Segment(5, -1, 5, -1, 1)
-      ]),
-      new TestReportFileEntry("sourceB", [
-        new TestReportFileEntry.Segment(20, -1, 20, -1, 1),
-        new TestReportFileEntry.Segment(21, -1, 21, -1, 1)
-      ])
+      new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {
+        3, 5, 8
+      })),
+      new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {
+        1, 255, 7
+      }))
     ]))
 
     when:
@@ -78,11 +78,11 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
           files          : [
             [
               filename: "sourceA",
-              segments: [[4, -1, 4, -1, 1], [5, -1, 5, -1, 1]]
+              bitmap:[3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8]
             ],
             [
               filename: "sourceB",
-              segments: [[20, -1, 20, -1, 1], [21, -1, 21, -1, 1]]
+              bitmap:[1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 7]
             ]
           ]
         ]
@@ -93,13 +93,17 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
   def "test writes message with multiple reports"() {
     given:
     def trace = givenTrace(
-      new TestReport(1, 2, 3, [
-        new TestReportFileEntry("sourceA", [new TestReportFileEntry.Segment(14, -1, 14, -1, 1),])
-      ]),
-      new TestReport(1, 2, 4, [
-        new TestReportFileEntry("sourceB", [new TestReportFileEntry.Segment(24, -1, 24, -1, 1),])
-      ]),
-      )
+    new TestReport(1, 2, 3, [
+      new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {
+        2, 17, 41
+      }))
+    ]),
+    new TestReport(1, 2, 4, [
+      new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {
+        11, 13, 55
+      }))
+    ]),
+    )
 
     when:
     def message = getMappedMessage(trace)
@@ -115,7 +119,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
           files          : [
             [
               filename: "sourceA",
-              segments: [[14, -1, 14, -1, 1]]
+              bitmap:[2, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 41]
             ]
           ]
         ],
@@ -126,7 +130,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
           files          : [
             [
               filename: "sourceB",
-              segments: [[24, -1, 24, -1, 1]]
+              bitmap:[11, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 55]
             ]
           ]
         ]
@@ -136,7 +140,9 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
 
   def "skips spans that have no reports"() {
     given:
-    def trace = givenTrace(null, new TestReport(1, 2, 3, [new TestReportFileEntry("source", [new TestReportFileEntry.Segment(4, -1, 4, -1, 11)])]), null)
+    def trace = givenTrace(null, new TestReport(1, 2, 3, [new TestReportFileEntry("source", BitSet.valueOf(new long[] {
+        83, 25, 48
+      }))]), null)
 
     when:
     def message = getMappedMessage(trace)
@@ -152,7 +158,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
           files          : [
             [
               filename: "source",
-              segments: [[4, -1, 4, -1, 11]]
+              bitmap:[83, 0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 48]
             ]
           ]
         ]
@@ -163,11 +169,13 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
   def "skips empty reports"() {
     given:
     def trace = givenTrace(
-      new TestReport(1, 2, 3, [
-        new TestReportFileEntry("source", [new TestReportFileEntry.Segment(4, -1, 4, -1, 11)])
-      ]),
-      new TestReport(1, 2, 4, [])
-      )
+    new TestReport(1, 2, 3, [
+      new TestReportFileEntry("source", BitSet.valueOf(new long[] {
+        33, 53, 87
+      }))
+    ]),
+    new TestReport(1, 2, 4, [])
+    )
 
     when:
     def message = getMappedMessage(trace)
@@ -183,7 +191,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
           files          : [
             [
               filename: "source",
-              segments: [[4, -1, 4, -1, 11]]
+              bitmap:[33, 0, 0, 0, 0, 0, 0, 0, 53, 0, 0, 0, 0, 0, 0, 0, 87]
             ]
           ]
         ]
@@ -195,7 +203,9 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
     given:
     def trace = new ArrayList()
 
-    def report = new TestReport(1, 2, 3, [new TestReportFileEntry("source", [new TestReportFileEntry.Segment(4, -1, 4, -1, 11)])])
+    def report = new TestReport(1, 2, 3, [new TestReportFileEntry("source", BitSet.valueOf(new long[] {
+        3, 5, 8
+      }))])
 
     trace.add(buildSpan(0, InternalSpanTypes.TEST, PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, new DummyTestContext(new DummyReportHolder(report))))
     trace.add(buildSpan(0, "testChild", PropagationTags.factory().empty(), [:], PrioritySampling.SAMPLER_KEEP, new DummyTestContext(new DummyReportHolder(report))))
@@ -214,7 +224,7 @@ class CiTestCovMapperV2Test extends DDCoreSpecification {
           files          : [
             [
               filename: "source",
-              segments: [[4, -1, 4, -1, 11]]
+              bitmap:[3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8]
             ]
           ]
         ]

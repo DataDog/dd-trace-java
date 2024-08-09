@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_IN;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_OUT;
 import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
+import static datadog.trace.core.datastreams.TagsProcessor.MANUAL_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
@@ -64,7 +65,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
-  private final WellKnownTags wellKnownTags;
+  private final long hashOfKnownTags;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
   private final DataStreamContextInjector injector;
@@ -123,7 +124,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
-    this.wellKnownTags = wellKnownTags;
+    this.hashOfKnownTags = DefaultPathwayContext.getBaseHash(wellKnownTags);
     this.payloadWriter = payloadWriter;
     this.bucketDurationNanos = bucketDurationNanos;
     this.injector = new DataStreamContextInjector(this);
@@ -181,9 +182,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void setProduceCheckpoint(String type, String target) {
+    setProduceCheckpoint(type, target, DataStreamsContextCarrier.NoOp.INSTANCE, false);
+  }
+
+  @Override
   public PathwayContext newPathwayContext() {
     if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, wellKnownTags);
+      return new DefaultPathwayContext(timeSource, hashOfKnownTags);
     } else {
       return AgentTracer.NoopPathwayContext.INSTANCE;
     }
@@ -191,7 +197,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public HttpCodec.Extractor extractor(HttpCodec.Extractor delegate) {
-    return new DataStreamContextExtractor(delegate, timeSource, traceConfigSupplier, wellKnownTags);
+    return new DataStreamContextExtractor(
+        delegate, timeSource, traceConfigSupplier, hashOfKnownTags);
   }
 
   @Override
@@ -207,7 +214,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               carrier,
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
-              this.wellKnownTags);
+              this.hashOfKnownTags);
       ((DDSpan) span).context().mergePathwayContext(pathwayContext);
     }
   }
@@ -255,14 +262,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_IN);
+    sortedTags.put(MANUAL_TAG, "true");
     sortedTags.put(TOPIC_TAG, source);
     sortedTags.put(TYPE_TAG, type);
 
     setCheckpoint(span, sortedTags, 0, 0);
   }
 
-  @Override
-  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+  public void setProduceCheckpoint(
+      String type, String target, DataStreamsContextCarrier carrier, boolean manualCheckpoint) {
     if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
       log.warn("SetProduceCheckpoint should be called with non-empty type and target");
       return;
@@ -276,11 +284,19 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
     sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+    if (manualCheckpoint) {
+      sortedTags.put(MANUAL_TAG, "true");
+    }
     sortedTags.put(TOPIC_TAG, target);
     sortedTags.put(TYPE_TAG, type);
 
     this.injector.injectPathwayContext(
         span, carrier, DataStreamsContextCarrierAdapter.INSTANCE, sortedTags);
+  }
+
+  @Override
+  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+    setProduceCheckpoint(type, target, carrier, true);
   }
 
   @Override

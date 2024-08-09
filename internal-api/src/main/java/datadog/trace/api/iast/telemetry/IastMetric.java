@@ -19,7 +19,9 @@ public enum IastMetric {
   EXECUTED_TAINTED("executed.tainted", true, Scope.REQUEST, Verbosity.DEBUG),
   REQUEST_TAINTED("request.tainted", true, Scope.REQUEST, Verbosity.INFORMATION),
   TAINTED_FLAT_MODE("tainted.flat.mode", false, Scope.GLOBAL, Verbosity.INFORMATION),
-  JSON_TAG_SIZE_EXCEED("json.tag.size.exceeded", true, Scope.GLOBAL, Verbosity.INFORMATION);
+  JSON_TAG_SIZE_EXCEED("json.tag.size.exceeded", true, Scope.GLOBAL, Verbosity.INFORMATION),
+  SOURCE_MAPPING_LIMIT_REACHED(
+      "source.mapping.limit.reached", true, Scope.GLOBAL, Verbosity.INFORMATION);
 
   private static final int COUNT;
 

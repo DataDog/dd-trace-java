@@ -55,6 +55,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_EXCEPTION_PE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SPAN_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD;
@@ -141,11 +142,11 @@ import static datadog.trace.api.DDTags.RUNTIME_VERSION_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.UserEventTrackingMode.SAFE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIMENTAL;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_REQUEST_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
@@ -233,6 +234,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SPAN_DEBUG_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FORCE_UPLOAD;
@@ -249,6 +251,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
@@ -300,6 +303,8 @@ import static datadog.trace.api.config.IastConfig.IAST_HARDCODED_SECRET_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.config.IastConfig.IAST_REDACTION_VALUE_PATTERN;
+import static datadog.trace.api.config.IastConfig.IAST_SOURCE_MAPPING_ENABLED;
+import static datadog.trace.api.config.IastConfig.IAST_SOURCE_MAPPING_MAX_SIZE;
 import static datadog.trace.api.config.IastConfig.IAST_STACKTRACE_LEAK_SUPPRESS;
 import static datadog.trace.api.config.IastConfig.IAST_TELEMETRY_VERBOSITY;
 import static datadog.trace.api.config.IastConfig.IAST_TRUNCATION_MAX_VALUE_LENGTH;
@@ -751,7 +756,7 @@ public class Config {
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
-  private final UserEventTrackingMode appSecUserEventsTracking;
+  private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
   private final boolean appSecRaspEnabled;
   private final boolean appSecStackTraceEnabled;
@@ -776,6 +781,8 @@ public class Config {
   private final IastContext.Mode iastContextMode;
   private final boolean iastHardcodedSecretEnabled;
   private final boolean iastAnonymousClassesEnabled;
+  private final boolean iastSourceMappingEnabled;
+  private final int iastSourceMappingMaxSize;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -867,6 +874,7 @@ public class Config {
   private final int debuggerMaxExceptionPerSecond;
   private final boolean debuggerExceptionOnlyLocalRoot;
   private final int debuggerExceptionMaxCapturedFrames;
+  private final boolean debuggerSpanDebugEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -935,6 +943,7 @@ public class Config {
   private final int cwsTlsRefresh;
 
   private final boolean dataJobsEnabled;
+  private final String dataJobsCommandPattern;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -1685,10 +1694,10 @@ public class Config {
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, null);
     appSecHttpBlockedTemplateJson =
         configProvider.getString(APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, null);
-    appSecUserEventsTracking =
-        UserEventTrackingMode.fromString(
-            configProvider.getStringNotEmpty(
-                APPSEC_AUTOMATED_USER_EVENTS_TRACKING, SAFE.toString()));
+    appSecUserIdCollectionMode =
+        UserIdCollectionMode.fromString(
+            configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
+            configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
     appSecStandaloneEnabled = configProvider.getBoolean(APPSEC_STANDALONE_ENABLED, false);
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
@@ -1746,6 +1755,8 @@ public class Config {
     iastAnonymousClassesEnabled =
         configProvider.getBoolean(
             IAST_ANONYMOUS_CLASSES_ENABLED, DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED);
+    iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
+    iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
 
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
@@ -1961,6 +1972,8 @@ public class Config {
             DEBUGGER_EXCEPTION_ENABLED,
             DEFAULT_DEBUGGER_EXCEPTION_ENABLED,
             EXCEPTION_REPLAY_ENABLED);
+    debuggerSpanDebugEnabled =
+        configProvider.getBoolean(DEBUGGER_SPAN_DEBUG_ENABLED, DEFAULT_DEBUGGER_SPAN_DEBUG_ENABLED);
     debuggerMaxExceptionPerSecond =
         configProvider.getInteger(
             DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
@@ -2078,6 +2091,7 @@ public class Config {
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
 
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+    dataJobsCommandPattern = configProvider.getString(DATA_JOBS_COMMAND_PATTERN);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -2911,8 +2925,8 @@ public class Config {
     return appSecHttpBlockedTemplateJson;
   }
 
-  public UserEventTrackingMode getAppSecUserEventsTrackingMode() {
-    return appSecUserEventsTracking;
+  public UserIdCollectionMode getAppSecUserIdCollectionMode() {
+    return appSecUserIdCollectionMode;
   }
 
   public boolean isApiSecurityEnabled() {
@@ -2977,6 +2991,14 @@ public class Config {
 
   public boolean isIastHardcodedSecretEnabled() {
     return iastHardcodedSecretEnabled;
+  }
+
+  public boolean isIastSourceMappingEnabled() {
+    return iastSourceMappingEnabled;
+  }
+
+  public int getIastSourceMappingMaxSize() {
+    return iastSourceMappingMaxSize;
   }
 
   public IastDetectionMode getIastDetectionMode() {
@@ -3340,6 +3362,10 @@ public class Config {
     return debuggerExceptionMaxCapturedFrames;
   }
 
+  public boolean isDebuggerSpanDebugEnabled() {
+    return debuggerSpanDebugEnabled;
+  }
+
   public Set<String> getThirdPartyIncludes() {
     return debuggerThirdPartyIncludes;
   }
@@ -3601,6 +3627,10 @@ public class Config {
 
   public boolean isDataJobsEnabled() {
     return dataJobsEnabled;
+  }
+
+  public String getDataJobsCommandPattern() {
+    return dataJobsCommandPattern;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */
@@ -4757,6 +4787,8 @@ public class Config {
         + appSecRaspEnabled
         + ", dataJobsEnabled="
         + dataJobsEnabled
+        + ", dataJobsCommandPattern="
+        + dataJobsCommandPattern
         + ", appSecStandaloneEnabled="
         + appSecStandaloneEnabled
         + '}';
