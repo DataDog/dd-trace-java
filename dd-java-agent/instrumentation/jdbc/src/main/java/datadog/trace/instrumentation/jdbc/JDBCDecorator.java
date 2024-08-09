@@ -301,10 +301,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (instrumentationStatement != null) {
         try {
           instrumentationStatement.close();
-        } catch (Exception e) {
+        } catch (SQLException e) {
+        } finally {
+          instrumentationSpan.finish();
         }
       }
-      instrumentationSpan.finish();
     }
     return spanID;
   }
