@@ -8,7 +8,7 @@ public enum RequestType {
   APP_HEARTBEAT("app-heartbeat"),
   APP_EXTENDED_HEARTBEAT("app-extended-heartbeat"),
   APP_CLOSING("app-closing"),
-  APP_PRODUCT_CHANGE("app_product_change"),
+  APP_PRODUCT_CHANGE("app-product-change"),
   GENERATE_METRICS("generate-metrics"),
   LOGS("logs"),
   DISTRIBUTIONS("distributions"),

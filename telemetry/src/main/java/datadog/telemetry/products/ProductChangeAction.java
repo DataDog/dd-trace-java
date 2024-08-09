@@ -11,6 +11,8 @@ public class ProductChangeAction implements TelemetryRunnable.TelemetryPeriodicA
   @Override
   public void doIteration(TelemetryService service) {
     List<ProductChange> productChanges = ProductChangeCollector.get().drain();
-    productChanges.forEach(service::addProductChange);
+    for (ProductChange productChange : productChanges) {
+      service.addProductChange(productChange);
+    }
   }
 }
