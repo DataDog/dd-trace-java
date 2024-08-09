@@ -54,8 +54,7 @@ public final class ThreadedActionListenerInstrumentation extends InstrumenterMod
   public static final class Construct {
     @Advice.OnMethodExit
     public static void after(@Advice.This ThreadedActionListener listener) {
-      capture(
-          InstrumentationContext.get(ThreadedActionListener.class, State.class), listener, true);
+      capture(InstrumentationContext.get(ThreadedActionListener.class, State.class), listener);
     }
   }
 

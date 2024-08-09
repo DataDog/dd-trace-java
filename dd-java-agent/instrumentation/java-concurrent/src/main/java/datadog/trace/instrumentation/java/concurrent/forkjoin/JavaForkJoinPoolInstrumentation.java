@@ -58,7 +58,7 @@ public class JavaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
       if (!exclude(FORK_JOIN_TASK, task)) {
         ContextStore<ForkJoinTask, State> contextStore =
             InstrumentationContext.get(ForkJoinTask.class, State.class);
-        capture(contextStore, task, true);
+        capture(contextStore, task);
         QueueTimerHelper.startQueuingTimer(contextStore, pool.getClass(), task);
       }
     }
@@ -79,7 +79,7 @@ public class JavaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
       if (!exclude(FORK_JOIN_TASK, task)) {
         ContextStore<ForkJoinTask, State> contextStore =
             InstrumentationContext.get(ForkJoinTask.class, State.class);
-        capture(contextStore, task, true);
+        capture(contextStore, task);
         QueueTimerHelper.startQueuingTimer(contextStore, pool.getClass(), task);
       }
     }

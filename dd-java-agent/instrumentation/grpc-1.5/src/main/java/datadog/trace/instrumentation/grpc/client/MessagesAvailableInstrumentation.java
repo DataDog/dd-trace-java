@@ -60,7 +60,7 @@ public final class MessagesAvailableInstrumentation extends InstrumenterModule.T
   public static final class Capture {
     @Advice.OnMethodExit
     public static void capture(@Advice.This Runnable task) {
-      AdviceUtils.capture(InstrumentationContext.get(Runnable.class, State.class), task, true);
+      AdviceUtils.capture(InstrumentationContext.get(Runnable.class, State.class), task);
     }
   }
 
