@@ -12,21 +12,30 @@ public class MockPart implements Part {
   private final String name;
 
   private final Map<String, Collection<String>> headers;
+  private final InputStream inputStream;
 
   public MockPart(final String name, final Map<String, Collection<String>> headers) {
     this.name = name;
     this.headers = headers;
+    this.inputStream = null;
   }
 
   public MockPart(final String name, final String headerName, final String... headerValue) {
     this.name = name;
     this.headers = new HashMap<>();
     this.headers.put(headerName, Arrays.asList(headerValue));
+    this.inputStream = null;
+  }
+
+  public MockPart(final String name, final InputStream inputStream) {
+    this.name = name;
+    this.headers = new HashMap<>();
+    this.inputStream = inputStream;
   }
 
   @Override
   public InputStream getInputStream() throws IOException {
-    return null;
+    return inputStream;
   }
 
   @Override
