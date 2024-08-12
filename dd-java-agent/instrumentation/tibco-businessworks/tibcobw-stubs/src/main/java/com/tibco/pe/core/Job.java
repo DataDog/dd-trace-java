@@ -9,7 +9,7 @@ final class Job implements ProcessContext {
     return null;
   }
 
-  public Workflow getWorkflow() {
+  public Workflow getActualWorkflow() {
     // STUBBED
     return null;
   }
