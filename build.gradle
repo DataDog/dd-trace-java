@@ -1,3 +1,5 @@
+import java.nio.file.Paths
+
 buildscript {
   dependencies {
     classpath "pl.allegro.tech.build:axion-release-plugin:1.14.4"
@@ -164,18 +166,169 @@ allprojects { project ->
   }
 }
 
+Set<Task> getTaskDependenciesRecursive(Task baseTask, Set<Task> visited = []) {
+  if (visited.contains(baseTask)) {
+    return []
+  }
+  Set<Task> dependencies = [baseTask]
+  visited.add(baseTask)
+  for (td in baseTask.taskDependencies) {
+    for (t in td.getDependencies(baseTask)) {
+      dependencies.add(t)
+      dependencies.addAll(getTaskDependenciesRecursive(t, visited))
+    }
+  }
+  return dependencies
+}
+
+File relativeToGitRoot(File f) {
+  return rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
+}
+
+String isAffectedBy(Task baseTask, Map<Project, Set<String>> affectedProjects) {
+  for (Task t in getTaskDependenciesRecursive(baseTask)) {
+    if (!affectedProjects.containsKey(t.project)) {
+      continue
+    }
+    final Set<String> affectedTasks = affectedProjects.get(t.project)
+    if (affectedTasks.contains("all")) {
+      return "${t.project.path}:${t.name}"
+    }
+    if (affectedTasks.contains(t.name)) {
+      return "${t.project.path}:${t.name}"
+    }
+  }
+  return null
+}
+
+List<File> getChangedFiles(String baseRef, String newRef) {
+  final stdout = new StringBuilder()
+  final stderr = new StringBuilder()
+  final proc = "git diff --name-only ${baseRef}..${newRef}".execute()
+  proc.consumeProcessOutput(stdout, stderr)
+  proc.waitForOrKill(1000)
+  assert proc.exitValue() == 0, "git diff command failed, stderr: ${stderr}"
+  def out = stdout.toString().trim()
+  if (out.isEmpty()) {
+    return []
+  }
+  logger.debug("git diff output: ${out}")
+  return out.split("\n").collect {
+    new File(rootProject.projectDir, it.trim())
+  }
+}
+
+rootProject.ext {
+  useGitChanges = false
+}
+
+if (rootProject.hasProperty("gitBaseRef")) {
+  // -PgitBaseRef sets the base git reference to compare changes to. In CI, this should generally be set to the target
+  // branch, usually master.
+  final String baseRef = rootProject.property("gitBaseRef")
+  // -PgitNewRef sets the new git new reference to compare changes to. This is useful for testing the test selection method
+  // itself. Otherwise, comparing against current HEAD is what makes sense for CI.
+  final String newRef = rootProject.hasProperty("gitNewRef") ? rootProject.property("gitNewRef") : "HEAD"
+
+  rootProject.ext {
+    it.changedFiles = getChangedFiles(baseRef, newRef)
+    useGitChanges = true
+  }
+
+  // The ignoredFiles FileTree selects any file that should not trigger any tasks.
+  final ignoredFiles = fileTree(rootProject.projectDir) {
+    include '.gitingore', '.editorconfig'
+    include '*.md', '**/*.md'
+    include 'gradlew', 'gradlew.bat', 'mvnw', 'mvnw.cmd'
+    include 'NOTICE'
+    include 'static-analysis.datadog.yml'
+  }
+  rootProject.changedFiles.each { File f ->
+    if (ignoredFiles.contains(f)) {
+      logger.warn("Ignoring changed file: ${relativeToGitRoot(f)}")
+    }
+  }
+  rootProject.changedFiles = rootProject.changedFiles.findAll { !ignoredFiles.contains(it) }
+
+  // The globalEffectsFile FileTree selects any file that should trigger all tasks, regardless of gradle dependency
+  // tracking.
+  final globalEffectFiles = fileTree(rootProject.projectDir) {
+    include '.circleci/**'
+    include 'build.gradle'
+    include 'gradle/**'
+  }
+
+  for (File f in rootProject.changedFiles) {
+    if (globalEffectFiles.contains(f)) {
+      logger.warn("Global effect change: ${relativeToGitRoot(f)} (no tasks will be skipped)")
+      rootProject.useGitChanges = false
+      break
+    }
+  }
+
+  if (rootProject.useGitChanges) {
+    logger.warn("Git change tracking is enabled, base: ${baseRef}")
+
+    // Get all projects, sorted by descending path length.
+    final projects = subprojects.sort { a, b -> b.projectDir.path.length() <=> a.projectDir.path.length() }
+    for (File f in rootProject.changedFiles) {
+      Project p = projects.find { f.toString().startsWith(it.projectDir.path + "/") }
+      if (p == null) {
+        logger.warn("Changed file: ${relativeToGitRoot(f)} at root project (no tasks will be skipped)")
+        rootProject.useGitChanges = false
+        break
+      }
+      final relPath = Paths.get(p.projectDir.path).relativize(f.toPath())
+      final pathComponents = relPath.collect({ it.toString() }).toList()
+      Map<Project, Set<String>> _affectedProjects = [:]
+      if (pathComponents.size() < 3) {
+        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (all)")
+        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("all")
+      } else if (pathComponents[0] == "src" && pathComponents[1] == "testFixturesClasses") {
+        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (testFixturesClasses)")
+        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("testFixturesClasses")
+      } else if (pathComponents[0] == "src" && pathComponents[1] == "testClasses") {
+        // TODO: We could include other variants here such as latestTest, etc.
+        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (testClasses)")
+        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("testClasses")
+      } else if (pathComponents[0] == "src" && pathComponents[1] == "jmhCompileGeneratedClasses") {
+        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (jmhCompileGeneratedClasses)")
+        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("jmhCompileGeneratedClasses")
+      } else {
+        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (all)")
+        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("all")
+      }
+      rootProject.ext {
+        it.affectedProjects = _affectedProjects
+      }
+    }
+  }
+
+}
 
 def testAggregate(String baseTaskName, includePrefixes, excludePrefixes, boolean forceCoverage = false) {
-  def createRootTask = { rootTaskName, subProjTaskName ->
+  def createRootTask = { String rootTaskName, String subProjTaskName ->
     def coverage = forceCoverage || rootProject.hasProperty("checkCoverage")
     tasks.register(rootTaskName) { aggTest ->
       subprojects { subproject ->
         if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
-          def testTask = subproject.tasks.findByName(subProjTaskName)
+          Task testTask = subproject.tasks.findByName(subProjTaskName)
+          boolean isAffected = true
           if (testTask != null) {
-            aggTest.dependsOn(testTask)
+            if (rootProject.useGitChanges) {
+              final fileTrigger = isAffectedBy(testTask, rootProject.property("affectedProjects"))
+              if (fileTrigger != null) {
+                logger.warn("Selecting ${subproject.path}:${subProjTaskName} (triggered by ${fileTrigger})")
+              } else {
+                logger.warn("Skipping ${subproject.path}:${subProjTaskName} (not affected by changed files)")
+                isAffected = false
+              }
+            }
+            if (isAffected) {
+              aggTest.dependsOn(testTask)
+            }
           }
-          if (coverage) {
+          if (isAffected && coverage) {
             def coverageTask = subproject.tasks.findByName("jacocoTestReport")
             if (coverageTask != null) {
               aggTest.dependsOn(coverageTask)
