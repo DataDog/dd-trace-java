@@ -321,6 +321,8 @@ public class AgentTracer {
     <T> SpanBuilder withRequestContextData(RequestContextSlot slot, T data);
 
     SpanBuilder withLink(AgentSpanLink link);
+
+    SpanBuilder withSpanId(long spanId);
   }
 
   static class NoopTracerAPI implements TracerAPI {

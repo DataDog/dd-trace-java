@@ -48,8 +48,9 @@ ext.generalShadowJarConfig = {
 
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
-  // Prevents conflict with other JCTools instances
+  // Prevent conflicts with flat class-path when using GraalVM native-images
   relocate 'org.jctools', 'datadog.jctools'
+  relocate 'net.jpountz', 'datadog.jpountz'
   // rewrite dependencies calling Logger.getLogger
   relocate 'java.util.logging.Logger', 'datadog.trace.bootstrap.PatchLogger'
 

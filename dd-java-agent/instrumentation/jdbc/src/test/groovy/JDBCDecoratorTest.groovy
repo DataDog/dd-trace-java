@@ -21,7 +21,7 @@ abstract class JDBCDecoratorTest extends AgentTestRunner {
     where:
     dbType       | expectedByType
     "oracle"     | false
-    "sqlserver"  | false
+    "sqlserver"  | true
     "mysql"      | true
     "postgresql" | true
   }
