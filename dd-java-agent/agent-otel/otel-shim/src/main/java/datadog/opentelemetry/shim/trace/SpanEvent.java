@@ -33,11 +33,6 @@ public class SpanEvent {
     return TimeUnit.NANOSECONDS.convert(timestamp, unit);
   }
 
-  public String toString() {
-    // TODO if attributes exist, process those
-    return "{\"name\":\"" + this.name + "\",\"time_unix_nano\":" + this.timestamp + "}";
-  }
-
   @NotNull
   public static String toTag(List<SpanEvent> events) {
     StringBuilder builder = new StringBuilder("[");
