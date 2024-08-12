@@ -267,7 +267,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
-    PreparedStatement instrumentationStatement = null;
     try (AgentScope scope = activateSpan(instrumentationSpan)) {
       final byte samplingDecision =
           (byte) (instrumentationSpan.forceSamplingDecision() > 0 ? 1 : 0);
@@ -283,12 +282,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       byteBuffer.putLong(traceId.toHighOrderLong());
       byteBuffer.putLong(traceId.toLong());
       final byte[] contextInfo = byteBuffer.array();
-
       String instrumentationSql = "set context_info ?";
-      instrumentationStatement = connection.prepareStatement(instrumentationSql);
-      instrumentationStatement.setBytes(1, contextInfo);
-      DECORATE.onStatement(instrumentationSpan, instrumentationSql);
-      instrumentationStatement.execute();
+      try (PreparedStatement instrumentationStatement =
+          connection.prepareStatement(instrumentationSql)) {
+        instrumentationStatement.setBytes(1, contextInfo);
+        DECORATE.onStatement(instrumentationSpan, instrumentationSql);
+        instrumentationStatement.execute();
+      } catch (SQLException e) {
+        throw e;
+      }
     } catch (Exception e) {
       log.debug(
           "Failed to set extra DBM data in context info for trace {}. "
@@ -298,12 +300,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           e);
       DECORATE.onError(instrumentationSpan, e);
     } finally {
-      if (instrumentationStatement != null) {
-        try {
-          instrumentationStatement.close();
-        } catch (Throwable e) {
-        }
-      }
       instrumentationSpan.finish();
     }
     return spanID;
