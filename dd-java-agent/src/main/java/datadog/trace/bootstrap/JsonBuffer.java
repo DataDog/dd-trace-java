@@ -37,6 +37,8 @@ public final class JsonBuffer implements Flushable {
   }
 
   public JsonBuffer endObject() {
+    endsValue();
+
     return write('}');
   }
 
