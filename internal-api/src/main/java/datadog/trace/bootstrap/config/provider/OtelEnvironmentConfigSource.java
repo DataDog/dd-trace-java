@@ -342,14 +342,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     log.warn("OTEL_{}_EXPORTER={} is not supported", type, exporter.toUpperCase(Locale.ROOT));
-    if (type.equalsIgnoreCase("logs")) {
-      otelEnvMetricCollector.setUnsupportedOtelEnvVarMetric("otel_logs_exporter");
-    } else {
-      String ddEnvVar =
-          type.equalsIgnoreCase("metrics") ? "runtime_metrics_enabled" : "trace_enabled";
-      otelEnvMetricCollector.setInvalidOtelEnvVarMetric(
-          "otel_" + type.toLowerCase() + "_exporter", "dd_" + ddEnvVar);
-    }
+    otelEnvMetricCollector.setUnsupportedOtelEnvVarMetric("otel_" + type + "_exporter");
+
     return null;
   }
 

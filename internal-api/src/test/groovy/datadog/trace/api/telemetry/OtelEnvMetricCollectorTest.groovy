@@ -219,10 +219,9 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     invalidMetric.type == 'count'
     invalidMetric.value == 1
     invalidMetric.namespace == 'tracers'
-    invalidMetric.metricName == 'otel.env.invalid'
-    invalidMetric.tags.size() == 2
+    invalidMetric.metricName == 'otel.env.unsupported'
+    invalidMetric.tags.size() == 1
     invalidMetric.tags[0] == 'config_opentelemetry:otel_metrics_exporter'
-    invalidMetric.tags[1] == 'config_datadog:dd_runtime_metrics_enabled'
   }
 
   def "otel_logs_exporter - unsupported "() {
@@ -264,10 +263,9 @@ class OtelEnvMetricCollectorTest extends DDSpecification {
     invalidMetric.type == 'count'
     invalidMetric.value == 1
     invalidMetric.namespace == 'tracers'
-    invalidMetric.metricName == 'otel.env.invalid'
-    invalidMetric.tags.size() == 2
+    invalidMetric.metricName == 'otel.env.unsupported'
+    invalidMetric.tags.size() == 1
     invalidMetric.tags[0] == 'config_opentelemetry:otel_traces_exporter'
-    invalidMetric.tags[1] == 'config_datadog:dd_trace_enabled'
   }
 
   def "otel_resource_attributes - hiding"() {
