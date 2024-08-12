@@ -180,59 +180,19 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  def "test multiple span events"() {
-    setup:
-    def builder = tracer.spanBuilder("some-name")
-
-    when:
-    // Adding event is not supported
-    def result = builder.startSpan()
-    result.addEvent(name1, timestamp, TimeUnit.NANOSECONDS)
-    result.addEvent(name2, timestamp, TimeUnit.NANOSECONDS)
-    result.end()
-
-    then:
-    def expectedEventTag = """
-    [
-      { "name": "${name1}",
-        "time_unix_nano": ${timestamp}
-      },
-      { "name": "${name2}",
-        "time_unix_nano": ${timestamp}
-      }
-    ]"""
-    assertTraces(1) {
-      trace(1) {
-        span {
-          tags {
-            defaultTags()
-            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
-            tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
-          }
-        }
-      }
-    }
-    where:
-    name1 = "evt1"
-    name2 = "evt2"
-    timestamp = 1723220824705 * 1_000_000L
-  }
-
   def "test add single event"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
 
     when:
-    // Adding event is not supported
     def result = builder.startSpan()
     result.addEvent(name, timestamp, unit)
     result.end()
 
     then:
     long expectTime = timestamp
-    if (unit != TimeUnit.NANOSECONDS) {
-      // unit is milliseconds
-      expectTime = timestamp * 1_000_000L
+    if (unit == TimeUnit.MILLISECONDS) {
+      expectTime *= 1_000_000L
     }
 
     def expectedEventTag = """
@@ -253,13 +213,66 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
 
     where:
-    // NOTE: Don't know how to test where timestamp is null.
     name   | attributes | timestamp   | unit
-    //    null   | null       | null        | null
-    //    "evt1" | null       | null        | null
     "evt2" | null       | TIME_MILLIS | TimeUnit.MILLISECONDS
     "evt3" | null       | TIME_NANO   | TimeUnit.NANOSECONDS
   }
+
+  def "test multiple span events"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+
+    when:
+    def result = builder.startSpan()
+    result.addEvent(name, timestamp, TimeUnit.NANOSECONDS)
+    result.addEvent(name, timestamp, TimeUnit.NANOSECONDS)
+    result.end()
+
+    then:
+    def expectedEventTag = """
+    [
+      { "name": "${name}",
+        "time_unix_nano": ${timestamp}
+      },
+      { "name": "${name}",
+        "time_unix_nano": ${timestamp}
+      }
+    ]"""
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
+          }
+        }
+      }
+    }
+    where:
+    name   | timestamp | attributes
+    "evt1" | TIME_NANO | null
+    "evt2" | TIME_NANO | null
+  }
+
+  //  def "test add event no timestamp"() {
+  //    setup:
+  //    def builder = tracer.spanBuilder("some-name")
+  //
+  //    when:
+  //    def result = builder.startSpan()
+  //    result.addEvent("evt", null, null)
+  //    result.end()
+  //
+  //    then:
+  //    long endBlock = System.nanoTime();
+  //
+  //    // I'd like to grab the span's `time_unix_nano` field under `events` tag is not null, and is more than beforeBlock and less than afterBlock
+  //    // But I don't know how to access this without asserting the span tags look a specific way using assertTraces.
+  //
+  //    where:
+  //    long startBlock = System.nanoTime();
+  //  }
 
   def "test simple span links"() {
     setup:

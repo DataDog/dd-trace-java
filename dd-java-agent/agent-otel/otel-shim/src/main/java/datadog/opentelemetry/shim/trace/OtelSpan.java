@@ -29,7 +29,7 @@ public class OtelSpan implements Span {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
-  private List<OtelSpanEvent> events;
+  private List<SpanEvent> events;
 
   public OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
@@ -78,7 +78,7 @@ public class OtelSpan implements Span {
       if (this.events == null || this.events.isEmpty()) {
         this.events = new ArrayList<>();
       }
-      this.events.add(new OtelSpanEvent(name, attributes));
+      this.events.add(new SpanEvent(name, attributes));
     }
     return this;
   }
@@ -89,7 +89,7 @@ public class OtelSpan implements Span {
       if (this.events == null || this.events.isEmpty()) {
         this.events = new ArrayList<>();
       }
-      this.events.add(new OtelSpanEvent(name, attributes, timestamp, unit));
+      this.events.add(new SpanEvent(name, attributes, timestamp, unit));
     }
     return this;
   }
