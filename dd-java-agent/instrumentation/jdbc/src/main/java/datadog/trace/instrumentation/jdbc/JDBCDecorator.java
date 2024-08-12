@@ -301,7 +301,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (instrumentationStatement != null) {
         try {
           instrumentationStatement.close();
-        } catch (Exception e) {
+        } catch (Throwable e) {
         }
       }
       instrumentationSpan.finish();
