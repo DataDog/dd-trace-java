@@ -21,6 +21,7 @@ public class OpenlineageParentContext implements AgentSpan.Context {
 
   private final DDTraceId traceId;
   private final long spanId;
+  private final long childRootSpanId;
 
   private final String parentJobNamespace;
   private final String parentJobName;
@@ -57,24 +58,36 @@ public class OpenlineageParentContext implements AgentSpan.Context {
 
     if (digest != null && parentJobNamespace != null && parentRunId != null) {
       traceId = computeTraceId(digest, parentJobNamespace, parentJobName, parentRunId);
-      spanId = computeSpanId(digest, parentJobNamespace, parentRunId);
+      spanId = DDSpanId.ZERO;
+
+      childRootSpanId =
+          computeChildRootSpanId(digest, parentJobNamespace, parentJobName, parentRunId);
     } else {
       traceId = DDTraceId.ZERO;
       spanId = DDSpanId.ZERO;
+
+      childRootSpanId = DDSpanId.ZERO;
     }
 
     log.debug("Created OpenlineageParentContext with traceId: {}, spanId: {}", traceId, spanId);
   }
 
-  private long computeSpanId(MessageDigest digest, String parentJobNamespace, String parentRunId) {
-    byte[] hash = digest.digest(parentRunId.getBytes(StandardCharsets.UTF_8));
+  private long computeChildRootSpanId(
+      MessageDigest digest, String parentJobNamespace, String parentJobName, String parentRunId) {
+    byte[] inputBytes =
+        (parentJobNamespace + parentJobName + parentRunId).getBytes(StandardCharsets.UTF_8);
+    byte[] hash = digest.digest(inputBytes);
+
     return ByteBuffer.wrap(hash).getLong();
   }
 
   private DDTraceId computeTraceId(
       MessageDigest digest, String parentJobNamespace, String parentJobName, String parentRunId) {
-    // TODO: implement this
-    return DDTraceId.ZERO;
+    byte[] inputBytes =
+        (parentJobNamespace + parentJobName + parentRunId).getBytes(StandardCharsets.UTF_8);
+    byte[] hash = digest.digest(inputBytes);
+
+    return DDTraceId.from(ByteBuffer.wrap(hash).getLong());
   }
 
   @Override
@@ -87,6 +100,10 @@ public class OpenlineageParentContext implements AgentSpan.Context {
     return spanId;
   }
 
+  public long getChildRootSpanId() {
+    return childRootSpanId;
+  }
+
   @Override
   public AgentTraceCollector getTraceCollector() {
     return null;
@@ -94,7 +111,7 @@ public class OpenlineageParentContext implements AgentSpan.Context {
 
   @Override
   public int getSamplingPriority() {
-    return PrioritySampling.UNSET;
+    return PrioritySampling.USER_KEEP;
   }
 
   @Override

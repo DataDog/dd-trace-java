@@ -203,7 +203,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       OpenlineageParentContext context = openlineageParentContext.get();
       builder.asChildOf(context);
 
-      log.debug("Captured Openlineage context: {}", context);
+      builder.withSpanId(context.getChildRootSpanId());
+
+      log.debug(
+          "Captured Openlineage context: {}, with child trace_id: {}, child root span id: {}",
+          context,
+          context.getTraceId(),
+          context.getChildRootSpanId());
 
       builder.withTag("openlineage_parent_job_namespace", context.getParentJobNamespace());
       builder.withTag("openlineage_parent_job_name", context.getParentJobName());
