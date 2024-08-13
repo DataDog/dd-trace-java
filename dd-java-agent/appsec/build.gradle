@@ -15,7 +15,7 @@ dependencies {
   implementation project(':internal-api')
   implementation project(':communication')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '10.1.0'
+  implementation files('/home/malvarez/go/src/github.com/DataDog/libddwaf-java/build/libs/libsqreen-11.0.0-SNAPSHOT.jar')
   implementation libs.moshi
 
   testImplementation libs.bytebuddy

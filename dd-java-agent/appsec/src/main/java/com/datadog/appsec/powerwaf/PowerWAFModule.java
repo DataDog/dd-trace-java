@@ -87,6 +87,7 @@ public class PowerWAFModule implements AppSecModule {
   private static final Map<String, ActionInfo> DEFAULT_ACTIONS;
 
   private static final String EXPLOIT_DETECTED_MSG = "Exploit detected";
+  private static final String FINGERPRINT_PREFIX = "_dd.appsec.fp";
 
   private static class ActionInfo {
     final String type;
@@ -512,8 +513,8 @@ public class PowerWAFModule implements AppSecModule {
         }
       }
 
-      if (resultWithData != null && resultWithData.schemas != null) {
-        reqCtx.reportApiSchemas(resultWithData.schemas);
+      if (resultWithData.derivatives != null) {
+        reqCtx.reportDerivatives(resultWithData.derivatives);
       }
     }
 

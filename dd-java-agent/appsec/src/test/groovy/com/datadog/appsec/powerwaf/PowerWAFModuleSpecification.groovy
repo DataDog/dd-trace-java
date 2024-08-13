@@ -47,11 +47,13 @@ class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
   new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']))
 
+  protected AgentSpan root = Mock(AgentSpan)
+  protected AgentSpan span = Stub(AgentSpan) {
+    getSpanId() >> 777
+    getLocalRootSpan() >> root
+  }
   protected AgentTracer.TracerAPI tracer = Mock(AgentTracer.TracerAPI) {
-    activeSpan() >> Mock(AgentSpan) {
-      getSpanId() >> 777
-      getLocalRootSpan() >> Mock(AgentSpan)
-    }
+    activeSpan() >> span
     getSpanId() >> 777
   }
 
@@ -1484,6 +1486,30 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 402 && rba.blockingContentType == BlockingContentType.AUTO
     })
+  }
+
+  void 'fingerprint support'() {
+    given:
+    final flow = Mock(ChangeableFlow)
+    setupWithStubConfigService 'fingerprint_config.json'
+    dataListener = pwafModule.dataSubscriptions.first()
+    ctx.closeAdditive()
+    final bundle = MapDataBundle.ofDelegate([
+      (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
+      (KnownAddresses.REQUEST_METHOD): 'GET',
+      (KnownAddresses.REQUEST_URI_RAW): 'http://localhost:8080/test',
+      (KnownAddresses.REQUEST_BODY_OBJECT): [:],
+      (KnownAddresses.REQUEST_QUERY): [name: ['test']],
+      (KnownAddresses.HEADERS_NO_COOKIES): new CaseInsensitiveMap<List<String>>(['user-agent': ['Arachni/v1.5.1']])
+    ])
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeAdditive()
+
+    then:
+    1 * flow.setAction({ it.blocking })
+    ctx.derivativeKeys.contains('_dd.appsec.fp.http.endpoint')
   }
 
   private Map<String, Object> getDefaultConfig() {

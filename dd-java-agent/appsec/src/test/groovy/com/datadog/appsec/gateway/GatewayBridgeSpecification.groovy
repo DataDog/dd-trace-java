@@ -924,4 +924,32 @@ class GatewayBridgeSpecification extends DDSpecification {
     'appsec.events.users.login.failure.track' | true
     'appsec.another.unrelated.tag'            | false
   }
+
+  void 'derivatives are set in the span after a request'() {
+    given:
+    final mockAppSecCtx = Stub(AppSecRequestContext) {
+      transferCollectedEvents() >> []
+      getRequestHeaders() >> [
+        'host': ['localhost']
+      ]
+    }
+    final mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    final spanInfo = Stub(AgentSpan)
+    traceSegment.getTagTop(tag) >> true
+
+    when:
+    requestEndedCB.apply(mockCtx, spanInfo)
+
+    then:
+    (userTracking ? 1 : 0) * traceSegment.setTagTop('http.request.headers.host', 'localhost')
+
+    where:
+    tag                                       | userTracking
+    'appsec.events.users.login.success.track' | true
+    'appsec.events.users.login.failure.track' | true
+    'appsec.another.unrelated.tag'            | false
+  }
 }
