@@ -56,7 +56,8 @@ public class ElasticCorrelation {
         tls.putChar(TLS_MINOR_VERSION_OFFSET, (char) 1);
         tls.put(TLS_TRACE_PRESENT_OFFSET, (byte) 1);
         tls.put(TLS_TRACE_FLAGS_OFFSET, (byte) 0);
-        writeHexAsBinary((CharSequence) "0", 0, tls, TLS_TRACE_ID_OFFSET, 16);
+        writeHexAsBinary(
+            (CharSequence) "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 0, tls, TLS_TRACE_ID_OFFSET, 16);
         writeHexAsBinary((CharSequence) Long.toString(spanId), 0, tls, TLS_SPAN_ID_OFFSET, 8);
         writeHexAsBinary(
             (CharSequence) Long.toString(rootSpanId), 0, tls, TLS_LOCAL_ROOT_SPAN_ID_OFFSET, 8);
