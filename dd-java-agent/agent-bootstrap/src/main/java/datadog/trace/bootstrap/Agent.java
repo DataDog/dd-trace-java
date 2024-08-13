@@ -53,6 +53,7 @@ import java.security.CodeSource;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.PatternSyntaxException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1345,6 +1346,14 @@ public class Agent {
       return true;
     }
 
-    return javaCommand.matches(dataJobsCommandPattern);
+    try {
+      return javaCommand.matches(dataJobsCommandPattern);
+    } catch (PatternSyntaxException e) {
+      log.warn(
+          "Invalid data jobs command pattern {}. The value must be a valid regex",
+          dataJobsCommandPattern);
+    }
+
+    return true;
   }
 }

@@ -1,12 +1,15 @@
 import com.mchange.v2.c3p0.ComboPooledDataSource
+import com.microsoft.sqlserver.jdbc.SQLServerException
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.naming.v1.DatabaseNamingV1
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import org.testcontainers.containers.MSSQLServerContainer
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import spock.lang.Requires
@@ -29,49 +32,66 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 // workaround for SSLHandShakeException on J9 only with Hikari/MySQL
 @Requires({ !System.getProperty("java.vendor").contains("IBM") })
 abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
+  static final String POSTGRESQL = "postgresql"
+  static final String MYSQL = "mysql"
+  static final String SQLSERVER = "sqlserver"
+
   @Shared
-  def dbName = "jdbcUnitTest"
+  private Map<String, String> dbName = [
+    (POSTGRESQL): "jdbcUnitTest",
+    (MYSQL)     : "jdbcUnitTest",
+    (SQLSERVER) : "master"
+  ]
 
   @Shared
   private Map<String, String> jdbcUrls = [
-    "postgresql": "jdbc:postgresql://localhost:5432/$dbName",
-    "mysql"     : "jdbc:mysql://localhost:3306/$dbName"
+    "postgresql" : "jdbc:postgresql://localhost:5432/" + dbName.get("postgresql"),
+    "mysql"      : "jdbc:mysql://localhost:3306/" + dbName.get("mysql"),
+    "sqlserver"  : "jdbc:sqlserver://localhost:1433/" + dbName.get("sqlserver"),
   ]
 
   @Shared
   private Map<String, String> jdbcDriverClassNames = [
     "postgresql": "org.postgresql.Driver",
-    "mysql"     : "com.mysql.jdbc.Driver"
+    "mysql"     : "com.mysql.jdbc.Driver",
+    "sqlserver" : "com.microsoft.sqlserver.jdbc.SQLServerDriver",
   ]
 
   @Shared
   private Map<String, String> jdbcUserNames = [
     "postgresql": "sa",
-    "mysql"     : "sa"
+    "mysql"     : "sa",
+    "sqlserver"  : "sa",
   ]
 
   @Shared
   private Map<String, String> jdbcPasswords = [
     "mysql"     : "sa",
-    "postgresql": "sa"
+    "postgresql": "sa",
+    "sqlserver" : "Datad0g_",
   ]
 
   @Shared
   def postgres
   @Shared
   def mysql
-
   @Shared
-  private Properties peerConnectionProps = {
-    def props = new Properties()
-    props.setProperty("user", "sa")
-    props.setProperty("password", "sa")
-    return props
-  }()
+  def sqlserver
 
   // JDBC Connection pool name (i.e. HikariCP) -> Map<dbName, Datasource>
   @Shared
   private Map<String, Map<String, DataSource>> cpDatasources = new HashMap<>()
+
+  def peerConnectionProps(String db){
+    def props = new Properties()
+    props.setProperty("user", jdbcUserNames.get(db))
+    props.setProperty("password", jdbcPasswords.get(db))
+    return props
+  }
+
+  protected getDbType(String dbType){
+    return dbType
+  }
 
   def prepareConnectionPoolDatasources() {
     String[] connectionPoolNames = ["tomcat", "hikari", "c3p0",]
@@ -152,17 +172,21 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
   def setupSpec() {
     postgres = new PostgreSQLContainer("postgres:11.1")
-      .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
+      .withDatabaseName(dbName.get(POSTGRESQL)).withUsername(jdbcUserNames.get(POSTGRESQL)).withPassword(jdbcPasswords.get(POSTGRESQL))
     postgres.start()
     PortUtils.waitForPortToOpen(postgres.getHost(), postgres.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT), 5, TimeUnit.SECONDS)
-    jdbcUrls.put("postgresql", "${postgres.getJdbcUrl()}")
+    jdbcUrls.put(POSTGRESQL, "${postgres.getJdbcUrl()}")
     mysql = new MySQLContainer("mysql:8.0")
-      .withDatabaseName(dbName).withUsername("sa").withPassword("sa")
+      .withDatabaseName(dbName.get(MYSQL)).withUsername(jdbcUserNames.get(MYSQL)).withPassword(jdbcPasswords.get(MYSQL))
     // https://github.com/testcontainers/testcontainers-java/issues/914
     mysql.addParameter("TC_MY_CNF", null)
     mysql.start()
     PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
-    jdbcUrls.put("mysql", "${mysql.getJdbcUrl()}")
+    jdbcUrls.put(MYSQL, "${mysql.getJdbcUrl()}")
+    sqlserver = new MSSQLServerContainer().acceptLicense().withPassword(jdbcPasswords.get(SQLSERVER))
+    sqlserver.start()
+    PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
+    jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
 
     prepareConnectionPoolDatasources()
   }
@@ -177,6 +201,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     }
     postgres?.close()
     mysql?.close()
+    sqlserver?.close()
   }
 
   def "basic statement with #connection.getClass().getCanonicalName() on #driver generates spans"() {
@@ -194,33 +219,82 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          serviceName renameService ? dbName.toLowerCase() : service(driver)
-          operationName this.operation(driver)
-          resourceName obfuscatedQuery
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            "$Tags.PEER_HOSTNAME" String
-            // currently there is a bug in the instrumentation with
-            // postgresql and mysql if the connection event is missed
-            // since Connection.getClientInfo will not provide the username
-            "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-            "$Tags.DB_OPERATION" operation
-            if (addDbmTag) {
-              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+    if (driver == POSTGRESQL || driver == MYSQL || !addDbmTag) {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            serviceName renameService ? dbName.get(driver).toLowerCase() : service(driver)
+            operationName this.operation(this.getDbType(driver))
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
             }
-            peerServiceFrom(Tags.DB_INSTANCE)
-            defaultTags()
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            serviceName renameService ? dbName.get(driver).toLowerCase() : service(driver)
+            operationName this.operation(this.getDbType(driver))
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+          span {
+            serviceName renameService ? dbName.get(driver).toLowerCase() : service(driver)
+            operationName this.operation(this.getDbType(driver))
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
           }
         }
       }
@@ -231,15 +305,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver       | connection                                              | renameService | query                   | operation | obfuscatedQuery
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
+    driver     | connection                                              | renameService | query                   | operation | obfuscatedQuery
+    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
+    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
+    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
+    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
+    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
   }
 
   def "prepared statement execute on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -256,31 +334,80 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          operationName this.operation(driver)
-          serviceName service(driver)
-          resourceName obfuscatedQuery
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            // only set when there is an out of proc instance (postgresql, mysql)
-            "$Tags.PEER_HOSTNAME" String
-            // currently there is a bug in the instrumentation with
-            // postgresql and mysql if the connection event is missed
-            // since Connection.getClientInfo will not provide the username
-            "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-            "$Tags.DB_OPERATION" operation
-            peerServiceFrom(Tags.DB_INSTANCE)
-            defaultTags()
+    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(this.getDbType(driver))
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
           }
         }
       }
@@ -291,15 +418,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver       | connection                                              | query                   | operation | obfuscatedQuery
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    driver     | connection                                              | query                   | operation | obfuscatedQuery
+    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
   }
 
   def "prepared statement query on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -314,31 +445,84 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          operationName this.operation(driver)
-          serviceName service(driver)
-          resourceName obfuscatedQuery
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            // only set when there is an out of proc instance (postgresql, mysql)
-            "$Tags.PEER_HOSTNAME" String
-            // currently there is a bug in the instrumentation with
-            // postgresql and mysql if the connection event is missed
-            // since Connection.getClientInfo will not provide the username
-            "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-            "$Tags.DB_OPERATION" operation
-            peerServiceFrom(Tags.DB_INSTANCE)
-            defaultTags()
+    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(this.getDbType(driver))
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
           }
         }
       }
@@ -349,15 +533,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver       | connection                                              | query                   | operation | obfuscatedQuery
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    driver     | connection                                              | query                   | operation | obfuscatedQuery
+    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
   }
 
   def "prepared call on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -372,30 +560,78 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     resultSet.next()
     resultSet.getInt(1) == 3
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          operationName this.operation(driver)
-          serviceName service(driver)
-          resourceName obfuscatedQuery
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          measured true
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            // only set when there is an out of proc instance (postgresql, mysql)
-            "$Tags.PEER_HOSTNAME" String
-            // currently there is a bug in the instrumentation with
-            // postgresql and mysql if the connection event is missed
-            // since Connection.getClientInfo will not provide the username
-            "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-            "${Tags.DB_OPERATION}" operation
-            defaultTags()
+    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "${Tags.DB_OPERATION}" operation
+              defaultTags()
+            }
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName obfuscatedQuery
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-prepared_statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "${Tags.DB_OPERATION}" operation
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(this.getDbType(driver))
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
           }
         }
       }
@@ -406,15 +642,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver       | connection                                              | query                   | operation | obfuscatedQuery
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    driver     | connection                                              | query                   | operation | obfuscatedQuery
+    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
   }
 
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
@@ -431,33 +671,85 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     then:
     def addDbmTag = dbmTraceInjected()
     statement.updateCount == 0
-    assertTraces(1) {
-      trace(2) {
-        basicSpan(it, "parent")
-        span {
-          operationName this.operation(driver)
-          serviceName service(driver)
-          resourceName query
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            // only set when there is an out of proc instance (postgresql, mysql)
-            "$Tags.PEER_HOSTNAME" String
-            // currently there is a bug in the instrumentation with
-            // postgresql and mysql if the connection event is missed
-            // since Connection.getClientInfo will not provide the username
-            "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
-            "${Tags.DB_OPERATION}" operation
-            if (addDbmTag) {
-              "$InstrumentationTags.DBM_TRACE_INJECTED" true
+    if (driver == POSTGRESQL || driver == MYSQL || !dbmTraceInjected()) {
+      assertTraces(1) {
+        trace(2) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName query
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "${Tags.DB_OPERATION}" operation
+              if (addDbmTag) {
+                "$InstrumentationTags.DBM_TRACE_INJECTED" true
+              }
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
             }
-            peerServiceFrom(Tags.DB_INSTANCE)
-            defaultTags()
+          }
+        }
+      }
+    } else {
+      assertTraces(1) {
+        trace(3) {
+          basicSpan(it, "parent")
+          span {
+            operationName this.operation(this.getDbType(driver))
+            serviceName service(driver)
+            resourceName query
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              // only set when there is an out of proc instance (postgresql, mysql)
+              "$Tags.PEER_HOSTNAME" String
+              // currently there is a bug in the instrumentation with
+              // postgresql and mysql if the connection event is missed
+              // since Connection.getClientInfo will not provide the username
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "${Tags.DB_OPERATION}" operation
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
+          }
+          span {
+            serviceName service(driver)
+            operationName this.operation(this.getDbType(driver))
+            resourceName "set context_info ?"
+            spanType DDSpanTypes.SQL
+            childOf span(0)
+            errored false
+            measured true
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-statement"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "$Tags.DB_TYPE" this.getDbType(driver)
+              "$Tags.DB_INSTANCE" dbName.get(driver).toLowerCase()
+              "$Tags.PEER_HOSTNAME" String
+              "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
+              "$Tags.DB_OPERATION" "set"
+              "dd.instrumentation" true
+              peerServiceFrom(Tags.DB_INSTANCE)
+              defaultTags()
+            }
           }
         }
       }
@@ -469,15 +761,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver       | connection                                              | query                                                                            | operation
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "CREATE TEMPORARY TABLE s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"       | "CREATE"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | "CREATE TEMPORARY TABLE s_test (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    driver     | connection                                              | query                                                                            | operation
+    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "CREATE TEMPORARY TABLE s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"       | "CREATE"
+    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "CREATE TEMPORARY TABLE s_test (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
+    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "CREATE TABLE #s_test_ (id INTEGER not NULL, PRIMARY KEY ( id ))"                | "CREATE"
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TABLE #s_tomcat_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
+    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TEMPORARY TABLE s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TABLE #s_hikari_test (id INTEGER not NULL, PRIMARY KEY ( id ))"          | "CREATE"
+    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TEMPORARY TABLE s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE #s_c3p0_test (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
   }
 
 
@@ -501,15 +797,15 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver       | connection                                              | query
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | " { ? = call upper( ? ) }"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "{ ? = call upper( ? ) }"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | " { ? = call upper( ? ) }"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "    { ? = call upper( ? ) }"
+    driver     | connection                                              | query
+    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "{ ? = call upper( ? ) }"
+    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "{ ? = call upper( ? ) }"
+    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "{ ? = call upper( ? ) }"
+    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "{ ? = call upper( ? ) }"
   }
 
   def "prepared procedure call on #driver with #connection.getClass().getCanonicalName() does not hang"() {
@@ -533,6 +829,15 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
         SELECT 1;
     END
     """
+    } else if (driver == "sqlserver") {
+      createSql =
+        """
+    CREATE PROCEDURE dummy @res integer output
+    AS
+    BEGIN
+        SELECT 1;
+    END
+    """
     } else {
       assert false
     }
@@ -542,8 +847,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       return
     }
 
-
-    connection.prepareCall(createSql).execute()
+    // object already exists (no IF NOT EXISTS in SQL Server)
+    try {
+      connection.prepareCall(createSql).execute()
+    } catch (SQLServerException ex) {}
 
     injectSysConfig("dd.dbm.propagation.mode", "full")
     CallableStatement proc = connection.prepareCall(query)
@@ -565,15 +872,19 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     connection.close()
 
     where:
-    driver       | connection                                              | query
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "   CALL dummy(?)"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "  CALL dummy(?)"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | " CALL dummy(?)"
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "CALL dummy(?)"
+    driver       | connection                                            | query
+    POSTGRESQL | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
+    MYSQL      | cpDatasources.get("hikari").get(driver).getConnection() | "CALL dummy(?)"
+    SQLSERVER  | cpDatasources.get("hikari").get(driver).getConnection() | "{CALL dummy(?)}"
+    POSTGRESQL | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
+    MYSQL      | cpDatasources.get("tomcat").get(driver).getConnection() | "CALL dummy(?)"
+    SQLSERVER  | cpDatasources.get("tomcat").get(driver).getConnection() | "{CALL dummy(?)}"
+    POSTGRESQL | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"
+    MYSQL      | cpDatasources.get("c3p0").get(driver).getConnection()   | "CALL dummy(?)"
+    SQLSERVER  | cpDatasources.get("c3p0").get(driver).getConnection()   | "{CALL dummy(?)}"
+    POSTGRESQL | connectTo(driver, peerConnectionProps(driver))          | "CALL dummy(?)"
+    MYSQL      | connectTo(driver, peerConnectionProps(driver))          | "CALL dummy(?)"
+    SQLSERVER  | connectTo(driver, peerConnectionProps(driver))          | "{CALL dummy(?)}"
   }
 
 
@@ -656,6 +967,12 @@ class RemoteJDBCInstrumentationV1ForkedTest extends RemoteJDBCInstrumentationTes
   protected boolean dbmTraceInjected() {
     return false
   }
+
+  @Override
+  protected String getDbType(String dbType) {
+    final databaseNaming = new DatabaseNamingV1()
+    return databaseNaming.normalizedName(dbType)
+  }
 }
 
 class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
@@ -684,5 +1001,11 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
   @Override
   protected String operation(String dbType) {
     return "${dbType}.query"
+  }
+
+  @Override
+  protected String getDbType(String dbType) {
+    final databaseNaming = new DatabaseNamingV1()
+    return databaseNaming.normalizedName(dbType)
   }
 }

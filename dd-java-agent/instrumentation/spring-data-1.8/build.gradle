@@ -35,6 +35,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly(group: 'org.springframework.data', name: 'spring-data-commons', version: '1.8.0.RELEASE')
   compileOnly(group: 'org.springframework', name: 'spring-aop', version: '1.2')
+  implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
   testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
   testImplementation group: 'org.springframework', name: 'spring-test', version: '3.0.0.RELEASE'
