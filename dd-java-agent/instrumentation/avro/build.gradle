@@ -10,7 +10,9 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest','test')
-
+ext {
+  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
+}
 dependencies {
   compileOnly group: 'org.apache.avro', name: 'avro', version: '1.11.3'
   testImplementation group: 'org.apache.avro', name: 'avro', version: '1.11.3'
