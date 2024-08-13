@@ -54,6 +54,7 @@ include ':dd-java-agent:agent-profiling:profiling-controller-oracle'
 include ':dd-java-agent:agent-profiling:profiling-testing'
 include ':dd-java-agent:agent-profiling:profiling-uploader'
 include ':dd-java-agent:agent-profiling:profiling-utils'
+include ':dd-java-agent:agent-profiling:profiling-elastic-correlation'
 
 include ':dd-java-agent:agent-debugger:debugger-bootstrap'
 include ':dd-java-agent:agent-debugger:debugger-test-scala'

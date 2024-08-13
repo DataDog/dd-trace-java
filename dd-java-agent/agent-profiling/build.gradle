@@ -18,6 +18,7 @@ dependencies {
   api project(':internal-api')
 
   implementation project(path: ':dd-java-agent:agent-profiling:profiling-ddprof', configuration: 'shadow')
+  api project(path: ':dd-java-agent:agent-profiling:profiling-elastic-correlation')
   api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
