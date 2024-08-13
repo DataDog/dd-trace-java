@@ -3,7 +3,6 @@ package com.datadog.debugger.sink;
 import com.datadog.debugger.symbol.Scope;
 import com.datadog.debugger.symbol.ServiceVersion;
 import com.datadog.debugger.uploader.BatchUploader;
-import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
@@ -21,7 +20,7 @@ import org.slf4j.LoggerFactory;
 public class SymbolSink {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SymbolSink.class);
-  private static final int CAPACITY = 1024;
+  static final int CAPACITY = 1024;
   private static final JsonAdapter<ServiceVersion> SERVICE_VERSION_ADAPTER =
       MoshiHelper.createMoshiSymbol().adapter(ServiceVersion.class);
   private static final String EVENT_FORMAT =
@@ -59,10 +58,20 @@ public class SymbolSink {
     symbolUploader.shutdown();
   }
 
-  public boolean addScope(Scope jarScope) {
+  public void addScope(Scope jarScope) {
     ServiceVersion serviceVersion =
         new ServiceVersion(serviceName, env, version, "JAVA", Collections.singletonList(jarScope));
-    return scopes.offer(serviceVersion);
+    boolean added = scopes.offer(serviceVersion);
+    int retries = 10;
+    while (!added) {
+      // Q is full, flushing synchronously
+      flush();
+      added = scopes.offer(serviceVersion);
+      retries--;
+      if (retries < 0) {
+        throw new IllegalStateException("Scope cannot be enqueued after 10 retries" + jarScope);
+      }
+    }
   }
 
   public void flush() {
@@ -70,26 +79,30 @@ public class SymbolSink {
       return;
     }
     List<ServiceVersion> scopesToSerialize = new ArrayList<>();
+    // ArrayBlockingQueue makes drainTo atomic, so it is safe to call flush from different and
+    // concurrent threads
     scopes.drainTo(scopesToSerialize);
-    LOGGER.debug("Sending {} scopes", scopesToSerialize.size());
+    List<Scope> allScopes = new ArrayList<>();
     for (ServiceVersion serviceVersion : scopesToSerialize) {
-      try {
-        String json = SERVICE_VERSION_ADAPTER.toJson(serviceVersion);
-        LOGGER.debug(
-            "Sending scope: {}, size={}",
-            serviceVersion.getScopes().get(0).getName(),
-            json.length());
-        List<Scope> classScopes = serviceVersion.getScopes().get(0).getScopes();
-        int classScopeCount = classScopes != null ? classScopes.size() : 0;
-        stats.updateStats(classScopeCount, json.length());
-        symbolUploader.uploadAsMultipart(
-            "",
-            event,
-            new BatchUploader.MultiPartContent(
-                json.getBytes(StandardCharsets.UTF_8), "file", "file.json"));
-      } catch (Exception e) {
-        ExceptionHelper.logException(LOGGER, e, "Error during scope serialization:");
-      }
+      allScopes.addAll(serviceVersion.getScopes());
+    }
+    String json =
+        SERVICE_VERSION_ADAPTER.toJson(
+            new ServiceVersion(serviceName, env, version, "JAVA", allScopes));
+    LOGGER.debug("Sending {} jar scopes size={}", allScopes.size(), json.length());
+    updateStats(scopesToSerialize, json);
+    symbolUploader.uploadAsMultipart(
+        "",
+        event,
+        new BatchUploader.MultiPartContent(
+            json.getBytes(StandardCharsets.UTF_8), "file", "file.json"));
+  }
+
+  private void updateStats(List<ServiceVersion> scopesToSerialize, String json) {
+    for (ServiceVersion serviceVersion : scopesToSerialize) {
+      List<Scope> classScopes = serviceVersion.getScopes().get(0).getScopes();
+      int classScopeCount = classScopes != null ? classScopes.size() : 0;
+      stats.updateStats(classScopeCount, json.length());
     }
   }
 
