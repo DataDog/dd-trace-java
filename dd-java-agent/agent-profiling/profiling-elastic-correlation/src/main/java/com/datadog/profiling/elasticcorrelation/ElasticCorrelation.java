@@ -26,22 +26,26 @@ public class ElasticCorrelation {
 
   private ElasticCorrelation() {
     synchronized (ElasticCorrelation.class) {
+      System.out.println("Sanity check 1");
       String correlationSocketPath = openCorrelationSocket();
-      assert correlationSocketPath != null; // temporary check, different API in the long term
-      UniversalProfilingCorrelation.setProcessStorage(
-          generateProcessCorrelationStorage(correlationSocketPath));
+      System.out.println(correlationSocketPath);
+      // assert correlationSocketPath != null; // temporary check, different API in the long term
+      ByteBuffer buff = generateProcessCorrelationStorage(correlationSocketPath);
+      System.out.println(buff);
+      UniversalProfilingCorrelation.setProcessStorage(buff);
+      System.out.println("Sanity check 2");
     }
   }
 
   public static ElasticCorrelation getInstance() {
-    if (isEnabled()) {
+    if (!isEnabled()) {
       INSTANCE = new ElasticCorrelation();
     }
     return INSTANCE;
   }
 
   public static boolean isEnabled() {
-    return INSTANCE == null;
+    return INSTANCE != null;
   }
 
   // Heavily adapted from elastic-otel-java
@@ -56,11 +60,27 @@ public class ElasticCorrelation {
         tls.putChar(TLS_MINOR_VERSION_OFFSET, (char) 1);
         tls.put(TLS_TRACE_PRESENT_OFFSET, (byte) 1);
         tls.put(TLS_TRACE_FLAGS_OFFSET, (byte) 0);
-        writeHexAsBinary(
-            (CharSequence) "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 0, tls, TLS_TRACE_ID_OFFSET, 16);
-        writeHexAsBinary((CharSequence) Long.toString(spanId), 0, tls, TLS_SPAN_ID_OFFSET, 8);
-        writeHexAsBinary(
-            (CharSequence) Long.toString(rootSpanId), 0, tls, TLS_LOCAL_ROOT_SPAN_ID_OFFSET, 8);
+        // byte[] trace_id = new byte[16];
+        // Arrays.fill(trace_id, (byte) 1);
+        // System.out.println("Position sanity check: " + tls.position() + ", offset: " +
+        // TLS_TRACE_ID_OFFSET);
+        // tls.put(trace_id, 0, 16); //should really conform to the spec as far as consistency goes
+        tls.position(TLS_TRACE_ID_OFFSET);
+        for (int i = 0; i < 16; i++) {
+          tls.put((byte) 1); // trace id mocking
+          System.out.println("i: " + i + ", Position: " + tls.position());
+        }
+        tls.putLong(TLS_SPAN_ID_OFFSET, spanId);
+        tls.putLong(TLS_LOCAL_ROOT_SPAN_ID_OFFSET, rootSpanId);
+        // writeHexAsBinary(
+        //     new String("dead567812345678".getBytes(), StandardCharsets.UTF_8), 0, tls,
+        // TLS_TRACE_ID_OFFSET, 16);
+        // // System.out.println("where is the span info: " + spanId + " " + rootSpanId);
+        // writeHexAsBinary(new String(Long.toHexString(spanId).getBytes(),StandardCharsets.UTF_8),
+        // 0, tls, TLS_SPAN_ID_OFFSET, 8);
+        // writeHexAsBinary(new String(Long.toHexString(rootSpanId).getBytes(),
+        // StandardCharsets.UTF_8), 0, tls, TLS_LOCAL_ROOT_SPAN_ID_OFFSET, 8);
+
         memoryStoreStoreBarrier();
         tls.put(TLS_VALID_OFFSET, (byte) 1);
       }
@@ -70,7 +90,10 @@ public class ElasticCorrelation {
   // Copied from elastic-otel-java
   private static void writeHexAsBinary(
       CharSequence hex, int strOffset, ByteBuffer buffer, int bufferPos, int numBytes) {
+    // System.out.println("Data being written: " + hex);
+    // System.out.println("numBytes: " + numBytes);
     for (int i = 0; i < numBytes; i++) {
+      // System.out.println("currently on: " + i);
       long upper = hexCharToBinary(hex.charAt(strOffset + i * 2));
       long lower = hexCharToBinary(hex.charAt(strOffset + i * 2 + 1));
       byte byteVal = (byte) (upper << 4 | lower);
@@ -98,14 +121,17 @@ public class ElasticCorrelation {
 
   // Adapted from elastic-otel-java
   private ByteBuffer generateProcessCorrelationStorage(String correlationSocketPath) {
+
+    System.out.println("Starting process correlation storage");
     ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
     buffer.order(ByteOrder.nativeOrder());
     buffer.position(0);
 
     buffer.putChar((char) 1); // layout-minor-version
-    writeUtf8Str(buffer, "test service name");
-    writeUtf8Str(buffer, "test service environment");
+    writeUtf8Str(buffer, "test-svc");
+    writeUtf8Str(buffer, "test-env");
     writeUtf8Str(buffer, correlationSocketPath); // socket-file-path
+    System.out.println("Ending processs correlation storage");
     return buffer;
   }
 

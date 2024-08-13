@@ -147,6 +147,7 @@ public final class DatadogProfiler {
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
     if (!ElasticCorrelation.isEnabled()) {
+      log.debug("Kicking off elastic correlation");
       ElasticCorrelation.getInstance(); // "enable" it and set up the once-per-process resources
     }
   }
