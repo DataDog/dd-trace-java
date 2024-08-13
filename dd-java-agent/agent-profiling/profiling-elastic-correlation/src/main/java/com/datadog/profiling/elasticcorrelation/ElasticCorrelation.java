@@ -1,4 +1,4 @@
-package com.datadoghq;
+package com.datadog.profiling.elasticcorrelation;
 
 import co.elastic.otel.UniversalProfilingCorrelation;
 import java.io.IOException;
