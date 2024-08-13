@@ -8,7 +8,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.ToJson;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanAttributes;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
@@ -30,7 +30,7 @@ public class DDSpanLink extends SpanLink {
       long spanId,
       byte traceFlags,
       String traceState,
-      AgentSpanAttributes attributes) {
+      AgentSpan.Attributes attributes) {
     super(traceId, spanId, traceFlags, traceState, attributes);
   }
 
@@ -53,7 +53,7 @@ public class DDSpanLink extends SpanLink {
    * @param attributes The span link attributes.
    * @return A span link to the given context with custom attributes.
    */
-  public static SpanLink from(ExtractedContext context, AgentSpanAttributes attributes) {
+  public static SpanLink from(ExtractedContext context, AgentSpan.Attributes attributes) {
     byte traceFlags = context.getSamplingPriority() > 0 ? SAMPLED_FLAG : DEFAULT_FLAGS;
     String traceState =
         context.getPropagationTags() == null

@@ -15,10 +15,10 @@ import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.SpanKind;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -228,8 +228,7 @@ public final class OtelConventions {
     return (String) tag;
   }
 
-  public static AgentSpanAttributes convertAttributes(
-      io.opentelemetry.api.common.Attributes attributes) {
+  public static AgentSpan.Attributes convertAttributes(Attributes attributes) {
     if (attributes.isEmpty()) {
       return SpanAttributes.EMPTY;
     }

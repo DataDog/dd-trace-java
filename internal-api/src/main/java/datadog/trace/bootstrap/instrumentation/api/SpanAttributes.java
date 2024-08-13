@@ -8,9 +8,10 @@ import java.util.List;
 import java.util.Map;
 
 /** This class is a base implementation of {@link AgentSpanAttributes}. */
-public class SpanAttributes implements AgentSpanAttributes {
+// TODO: How to link to AgentSpan.Attributes?
+public class SpanAttributes implements AgentSpan.Attributes {
   /** Represent an empty attributes. */
-  public static final AgentSpanAttributes EMPTY = new SpanAttributes(Collections.emptyMap());
+  public static final AgentSpan.Attributes EMPTY = new SpanAttributes(Collections.emptyMap());
 
   private final Map<String, String> attributes;
 
@@ -114,7 +115,7 @@ public class SpanAttributes implements AgentSpanAttributes {
       return this;
     }
 
-    public AgentSpanAttributes build() {
+    public AgentSpan.Attributes build() {
       return new SpanAttributes(this.attributes);
     }
   }
