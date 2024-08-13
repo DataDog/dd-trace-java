@@ -3,7 +3,6 @@ package datadog.trace.agent
 import datadog.trace.bootstrap.BootstrapInitializationTelemetry
 import datadog.trace.bootstrap.JsonBuffer
 import spock.lang.Specification
-import groovy.util.Proxy
 
 class BootstrapInitializationTelemetryTest extends Specification {
   def initTelemetry, capture
@@ -18,7 +17,10 @@ class BootstrapInitializationTelemetryTest extends Specification {
     // happens it resolves the invocation against the bootstrap classloader.
 
     // To side step this problem, put a Groovy Proxy around the object under test
-    def initTelemetryProxy = new Proxy()
+    
+    // codeNarc was incorrectly flagging "import groovy.util.Proxy" as unused, 
+    // so I had to switch to specifying the package inline instead 
+    def initTelemetryProxy = new groovy.util.Proxy()
     initTelemetryProxy.setAdaptee(initTelemetry)
 
     this.initTelemetry = initTelemetryProxy
