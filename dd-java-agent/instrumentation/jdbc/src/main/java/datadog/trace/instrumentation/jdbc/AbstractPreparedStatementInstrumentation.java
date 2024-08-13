@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -16,6 +17,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
@@ -64,21 +66,31 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         return null;
       }
       try {
-        Connection connection = statement.getConnection();
-        DBQueryInfo queryInfo =
+        final Connection connection = statement.getConnection();
+        final DBQueryInfo queryInfo =
             InstrumentationContext.get(Statement.class, DBQueryInfo.class).get(statement);
         if (null == queryInfo) {
           logMissingQueryInfo(statement);
           return null;
         }
-
-        final AgentSpan span = startSpan(DATABASE_QUERY);
-        DECORATE.afterStart(span);
-        DBInfo dbInfo =
+        final AgentSpan span;
+        final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
                 connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+
+        if (INJECT_COMMENT && injectTraceContext && DECORATE.isSqlServer(dbInfo)) {
+          // The span ID is pre-determined so that we can reference it when setting the context
+          final long spanID = DECORATE.setContextInfo(connection, dbInfo);
+          // we then force that pre-determined span ID for the span covering the actual query
+          span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
+        } else {
+          span = startSpan(DATABASE_QUERY);
+        }
+        DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
+
         return activateSpan(span);
       } catch (SQLException e) {
         logSQLException(e);

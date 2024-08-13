@@ -2,5 +2,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
+  implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+
   testImplementation group: 'com.newrelic.agent.java', name: 'newrelic-api', version: '6.+'
 }

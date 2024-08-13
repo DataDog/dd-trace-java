@@ -8,6 +8,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_R
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
@@ -97,6 +98,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         CAPABILITY_ASM_DD_RULES
             | CAPABILITY_ASM_IP_BLOCKING
             | CAPABILITY_ASM_EXCLUSIONS
+            | CAPABILITY_ASM_EXCLUSION_DATA
             | CAPABILITY_ASM_REQUEST_BLOCKING
             | CAPABILITY_ASM_USER_BLOCKING
             | CAPABILITY_ASM_CUSTOM_RULES
@@ -335,6 +337,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_DD_RULES
             | CAPABILITY_ASM_IP_BLOCKING
             | CAPABILITY_ASM_EXCLUSIONS
+            | CAPABILITY_ASM_EXCLUSION_DATA
             | CAPABILITY_ASM_REQUEST_BLOCKING
             | CAPABILITY_ASM_USER_BLOCKING
             | CAPABILITY_ASM_CUSTOM_RULES
