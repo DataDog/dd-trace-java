@@ -22,6 +22,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL;
@@ -222,6 +224,13 @@ public class DatadogProfilerConfig {
         configProvider,
         PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE,
         PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT);
+  }
+
+  public static int getLiveHeapSamplePercent(ConfigProvider configProvider) {
+    return getInteger(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT);
   }
 
   public static long getMemleakInterval(ConfigProvider configProvider) {
