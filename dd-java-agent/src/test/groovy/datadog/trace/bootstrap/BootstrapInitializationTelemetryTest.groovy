@@ -17,9 +17,11 @@ class BootstrapInitializationTelemetryTest extends Specification {
     // happens it resolves the invocation against the bootstrap classloader.
 
     // To side step this problem, put a Groovy Proxy around the object under test
-    
-    // codeNarc was incorrectly flagging "import groovy.util.Proxy" as unused, 
-    // so I had to switch to specifying the package inline instead 
+
+    // codeNarc was incorrectly flagging "import groovy.util.Proxy" as unnecessary,
+    // since groovy.util is imported implicitly.  However, java.util is also
+    // implicitly imported and also contains a Proxy class, so need to use the
+    // full name inline to disambiguate and pass codeNarc.
     def initTelemetryProxy = new groovy.util.Proxy()
     initTelemetryProxy.setAdaptee(initTelemetry)
 
