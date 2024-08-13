@@ -113,6 +113,16 @@ public class OtelSpan implements Span {
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {
     if (this.recording) {
+      if (this.events == null || this.events.isEmpty()) {
+        this.events = new ArrayList<>();
+      }
+      // ref: https://docs.oracle.com/javase/8/docs/api/java/lang/Throwable.html
+      // create attribute exception.message from exception.getMessage();
+      // create attribute exception.type using reflection: exception.getClass().getName();
+      // create attribute exception.escaped ... Doesn't even look like Otel autp adds this field:
+      // https://github.com/open-telemetry/opentelemetry-java/blob/v1.41.0/sdk/trace/src/main/java/io/opentelemetry/sdk/trace/internal/data/ImmutableExceptionEventData.java#L22
+      // create attribute exception.stacktrace using exception.getStackTrace
+      this.events.add(new SpanEvent("exception", additionalAttributes));
       // Store exception as span tags as span events are not supported yet
       this.delegate.addThrowable(exception, ErrorPriorities.UNSET);
     }
