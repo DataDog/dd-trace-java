@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 /** Helper utils for Runnable/Callable instrumentation */
 public class AdviceUtils {
@@ -19,10 +18,10 @@ public class AdviceUtils {
    */
   public static <T> AgentScope startTaskScope(
       final ContextStore<T, State> contextStore, final T task) {
-    return startTaskScope(contextStore.get(task), false);
+    return startTaskScope(contextStore.get(task));
   }
 
-  public static AgentScope startTaskScope(State state, boolean migrated) {
+  public static AgentScope startTaskScope(State state) {
     if (state != null) {
       final AgentScope.Continuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
@@ -50,16 +49,7 @@ public class AdviceUtils {
     }
   }
 
-  public static <T> AgentSpan getCapturedSpan(ContextStore<T, State> contextStore, final T task) {
-    State state = contextStore.get(task);
-    if (null != state) {
-      return state.getSpan();
-    }
-    return null;
-  }
-
-  public static <T> void capture(
-      ContextStore<T, State> contextStore, T task, boolean startThreadMigration) {
+  public static <T> void capture(ContextStore<T, State> contextStore, T task) {
     AgentScope activeScope = activeScope();
     if (null != activeScope && activeScope.isAsyncPropagating()) {
       State state = contextStore.get(task);

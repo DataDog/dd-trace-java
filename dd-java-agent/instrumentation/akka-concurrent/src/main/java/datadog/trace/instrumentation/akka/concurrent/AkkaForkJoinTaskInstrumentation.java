@@ -103,7 +103,7 @@ public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.Tr
   public static final class Fork {
     @Advice.OnMethodEnter
     public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
-      capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
+      capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
   }
 
