@@ -2,40 +2,40 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static java.util.Objects.requireNonNull;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Attributes;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** This class is a base implementation of {@link AgentSpanLink.Attributes}. */
-public class SpanLinkAttributes implements AgentSpanLink.Attributes {
-  /** An empty span links attributes. */
-  public static final AgentSpanLink.Attributes EMPTY =
-      new SpanLinkAttributes(Collections.emptyMap());
+/** This class is a base implementation of {@link Attributes}. */
+public class SpanAttributes implements Attributes {
+  /** Represent an empty attributes. */
+  public static final Attributes EMPTY = new SpanAttributes(Collections.emptyMap());
 
   private final Map<String, String> attributes;
 
-  protected SpanLinkAttributes(Map<String, String> attributes) {
+  protected SpanAttributes(Map<String, String> attributes) {
     this.attributes = attributes;
   }
 
   /**
-   * Gets a builder to create span link attributes.
+   * Gets a builder to create attributes.
    *
-   * @return A builder to create span link attributes.
+   * @return A builder to create attributes.
    */
   public static Builder builder() {
     return new Builder();
   }
 
   /**
-   * Create span link attributes from its map representation.
+   * Create attributes from its map representation.
    *
-   * @param map A map representing the span link attributes.
-   * @return The related span link attributes.
+   * @param map A map representing the attributes.
+   * @return The related attributes.
    */
-  public static SpanLinkAttributes fromMap(Map<String, String> map) {
-    return new SpanLinkAttributes(new HashMap<>(map));
+  public static SpanAttributes fromMap(Map<String, String> map) {
+    return new SpanAttributes(new HashMap<>(map));
   }
 
   @Override
@@ -50,7 +50,7 @@ public class SpanLinkAttributes implements AgentSpanLink.Attributes {
 
   @Override
   public String toString() {
-    return "SpanLinkAttributes{" + this.attributes + '}';
+    return "SpanAttributes{" + this.attributes + '}';
   }
 
   public static class Builder {
@@ -115,8 +115,8 @@ public class SpanLinkAttributes implements AgentSpanLink.Attributes {
       return this;
     }
 
-    public AgentSpanLink.Attributes build() {
-      return new SpanLinkAttributes(this.attributes);
+    public Attributes build() {
+      return new SpanAttributes(this.attributes);
     }
   }
 }

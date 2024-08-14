@@ -184,7 +184,7 @@ public final class AgentBootstrap {
 
   private static boolean alreadyInitialized() {
     if (initialized) {
-      System.out.println(
+      System.err.println(
           "Warning: dd-java-agent is being initialized more than once. Please check that you are defining -javaagent:dd-java-agent.jar only once.");
       return true;
     }
@@ -194,7 +194,7 @@ public final class AgentBootstrap {
 
   private static boolean lessThanJava8() {
     try {
-      return lessThanJava8(System.getProperty("java.version"), System.out);
+      return lessThanJava8(System.getProperty("java.version"), System.err);
     } catch (SecurityException e) {
       // Hypothetically, we could version sniff the supported version level
       // For now, just skip the check and let the JVM handle things instead
@@ -305,7 +305,7 @@ public final class AgentBootstrap {
         agentFiles.append(agentFile.getAbsolutePath());
         agentFiles.append('"');
       }
-      System.out.println(
+      System.err.println(
           "Info: multiple JVM agents detected, found "
               + agentFiles
               + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
@@ -338,14 +338,14 @@ public final class AgentBootstrap {
       }
     }
 
-    System.out.println("Could not get bootstrap jar from code source, using -javaagent arg");
+    System.err.println("Could not get bootstrap jar from code source, using -javaagent arg");
     File javaagentFile = getAgentFileFromJavaagentArg(getAgentFilesFromVMArguments());
     if (javaagentFile != null) {
       URL ddJavaAgentJarURL = javaagentFile.toURI().toURL();
       return appendAgentToBootstrapClassLoaderSearch(inst, ddJavaAgentJarURL, javaagentFile);
     }
 
-    System.out.println(
+    System.err.println(
         "Could not get agent jar from -javaagent arg, using ClassLoader#getResource");
     javaagentFile = getAgentFileUsingClassLoaderLookup();
     if (!javaagentFile.isDirectory()) {
@@ -366,10 +366,10 @@ public final class AgentBootstrap {
 
   private static File getAgentFileFromJavaagentArg(List<File> agentFiles) {
     if (agentFiles.isEmpty()) {
-      System.out.println("Could not get bootstrap jar from -javaagent arg: no argument specified");
+      System.err.println("Could not get bootstrap jar from -javaagent arg: no argument specified");
       return null;
     } else if (agentFiles.size() > 1) {
-      System.out.println(
+      System.err.println(
           "Could not get bootstrap jar from -javaagent arg: multiple javaagents specified");
       return null;
     } else {
@@ -395,7 +395,7 @@ public final class AgentBootstrap {
           if (agentFile.exists() && agentFile.isFile()) {
             agentFiles.add(agentFile);
           } else {
-            System.out.println(
+            System.err.println(
                 "Could not get bootstrap jar from -javaagent arg: unable to find javaagent file: "
                     + agentFile);
           }
@@ -466,13 +466,13 @@ public final class AgentBootstrap {
 
     // Fallback to default
     try {
-      System.out.println(
+      System.err.println(
           "WARNING: Unable to get VM args through reflection. A custom java.util.logging.LogManager may not work correctly");
       return ManagementFactory.getRuntimeMXBean().getInputArguments();
     } catch (final Throwable t) {
       // Throws InvocationTargetException on modularized applications
       // with non-opened java.management module
-      System.out.println("WARNING: Unable to get VM args using managed beans");
+      System.err.println("WARNING: Unable to get VM args using managed beans");
     }
     return Collections.emptyList();
   }

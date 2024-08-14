@@ -1,26 +1,39 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.util.MethodHandles;
+import java.io.File;
 import java.lang.invoke.MethodHandle;
+import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import javax.annotation.Nullable;
 import org.apache.maven.BuildFailureException;
 import org.apache.maven.cli.CLIManager;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Plugin;
+import org.apache.maven.plugin.MavenPluginManager;
+import org.apache.maven.plugin.Mojo;
 import org.apache.maven.plugin.MojoExecution;
+import org.apache.maven.plugin.descriptor.MojoDescriptor;
+import org.apache.maven.plugin.descriptor.PluginDescriptor;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.PlexusContainer;
+import org.codehaus.plexus.classworlds.realm.ClassRealm;
 import org.codehaus.plexus.configuration.PlexusConfiguration;
 import org.codehaus.plexus.configuration.xml.XmlPlexusConfiguration;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.slf4j.LoggerFactory;
 
 public abstract class MavenUtils {
+
+  private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(MavenUtils.class);
 
   private static final String MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR = "MAVEN_CMD_LINE_ARGS";
 
@@ -308,5 +321,82 @@ public abstract class MavenUtils {
     } else {
       return new XmlPlexusConfiguration(configuration);
     }
+  }
+
+  @Nullable
+  public static Path getForkedJvmPath(
+      MavenSession session, MojoExecution mojoExecution, MavenPluginManager mavenPluginManager) {
+    if (!MavenUtils.isTestExecution(mojoExecution)) {
+      return null;
+    }
+    String forkedJvm = getEffectiveJvm(session, mojoExecution, mavenPluginManager);
+    return forkedJvm != null ? Paths.get(forkedJvm) : null;
+  }
+
+  private static String getEffectiveJvm(
+      MavenSession session, MojoExecution mojoExecution, MavenPluginManager mavenPluginManager) {
+    Mojo mojo;
+    try {
+      mojo = mavenPluginManager.getConfiguredMojo(Mojo.class, session, mojoExecution);
+    } catch (Exception e) {
+      LOGGER.debug("Error while getting effective JVM for mojoExecution {}", mojoExecution, e);
+      return null;
+    }
+
+    MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
+    PluginDescriptor pluginDescriptor = mojoDescriptor.getPluginDescriptor();
+    ClassRealm pluginRealm = pluginDescriptor.getClassRealm();
+    MethodHandles methodHandles = new MethodHandles(pluginRealm);
+
+    MethodHandle getEffectiveJvmMethod = findGetEffectiveJvmMethod(methodHandles, mojo.getClass());
+    if (getEffectiveJvmMethod == null) {
+      LOGGER.debug("Could not find getEffectiveJvm method in {} class", mojo.getClass().getName());
+      return null;
+    }
+    try {
+      // result type differs based on Maven version
+      Object effectiveJvm = methodHandles.invoke(getEffectiveJvmMethod, mojo);
+
+      if (effectiveJvm instanceof String) {
+        return (String) effectiveJvm;
+      } else if (effectiveJvm instanceof File) {
+        return ((File) effectiveJvm).getAbsolutePath();
+      }
+
+      Class<?> effectiveJvmClass = effectiveJvm.getClass();
+      Method getJvmExecutableMethod = effectiveJvmClass.getMethod("getJvmExecutable");
+      Object jvmExecutable = getJvmExecutableMethod.invoke(effectiveJvm);
+
+      if (jvmExecutable instanceof String) {
+        return (String) jvmExecutable;
+      } else if (jvmExecutable instanceof File) {
+        return ((File) jvmExecutable).getAbsolutePath();
+      } else if (jvmExecutable == null) {
+        LOGGER.debug("Configured JVM executable is null");
+        return null;
+      } else {
+        LOGGER.debug(
+            "Unexpected JVM executable type {}, returning null",
+            jvmExecutable.getClass().getName());
+        return null;
+      }
+
+    } catch (Exception e) {
+      LOGGER.debug("Error while getting effective JVM for mojo {}", mojo, e);
+      return null;
+    }
+  }
+
+  private static MethodHandle findGetEffectiveJvmMethod(
+      MethodHandles methodHandles, Class<?> mojoClass) {
+    do {
+      MethodHandle getEffectiveJvm = methodHandles.method(mojoClass, "getEffectiveJvm");
+      if (getEffectiveJvm != null) {
+        return getEffectiveJvm;
+      }
+      mojoClass = mojoClass.getSuperclass();
+    } while (mojoClass != null);
+    return methodHandles.method(
+        "org.apache.maven.plugin.surefire.AbstractSurefireMojo", "getEffectiveJvm");
   }
 }
