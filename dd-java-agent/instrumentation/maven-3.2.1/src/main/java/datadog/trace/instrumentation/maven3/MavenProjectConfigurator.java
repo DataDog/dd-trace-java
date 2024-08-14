@@ -17,6 +17,7 @@ import org.apache.maven.model.InputSource;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecution;
+import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.configuration.PlexusConfiguration;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
@@ -80,11 +81,6 @@ class MavenProjectConfigurator {
     File agentJar = config.getCiVisibilityAgentJarFile();
     addedArgLine.append("-javaagent:").append(agentJar.toPath());
 
-    Plugin plugin = mojoExecution.getPlugin();
-    Map<String, PluginExecution> pluginExecutions = plugin.getExecutionsAsMap();
-    PluginExecution pluginExecution = pluginExecutions.get(mojoExecution.getExecutionId());
-    Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
-
     PlexusConfiguration argLineConfiguration = pomConfiguration.getChild("argLine");
     String existingArgLine = argLineConfiguration.getValue();
     String updatedArgLine =
@@ -97,9 +93,10 @@ class MavenProjectConfigurator {
             // (namely Jacoco's)
             addedArgLine;
 
-    Xpp3Dom updatedExecutionConfiguration =
-        MavenUtils.setConfigurationValue(updatedArgLine, executionConfiguration, "argLine");
-    pluginExecution.setConfiguration(updatedExecutionConfiguration);
+    MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
+    PlexusConfiguration mojoConfiguration = mojoDescriptor.getMojoConfiguration();
+    PlexusConfiguration argLine = mojoConfiguration.getChild("argLine");
+    argLine.setValue(updatedArgLine);
   }
 
   void configureCompilerPlugin(MavenProject project, String compilerPluginVersion) {
