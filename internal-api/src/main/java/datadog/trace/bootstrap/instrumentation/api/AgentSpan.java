@@ -229,7 +229,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
     }
   }
 
-  public interface Attributes {
+  interface Attributes {
     /**
      * Gets the attributes as an immutable map.
      *
