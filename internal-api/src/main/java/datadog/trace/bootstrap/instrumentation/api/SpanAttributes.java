@@ -2,16 +2,16 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static java.util.Objects.requireNonNull;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Attributes;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** This class is a base implementation of {@link AgentSpanAttributes}. */
-// TODO: How to link to AgentSpan.Attributes?
-public class SpanAttributes implements AgentSpan.Attributes {
+/** This class is a base implementation of {@link Attributes}. */
+public class SpanAttributes implements Attributes {
   /** Represent an empty attributes. */
-  public static final AgentSpan.Attributes EMPTY = new SpanAttributes(Collections.emptyMap());
+  public static final Attributes EMPTY = new SpanAttributes(Collections.emptyMap());
 
   private final Map<String, String> attributes;
 
@@ -115,7 +115,7 @@ public class SpanAttributes implements AgentSpan.Attributes {
       return this;
     }
 
-    public AgentSpan.Attributes build() {
+    public Attributes build() {
       return new SpanAttributes(this.attributes);
     }
   }

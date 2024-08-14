@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Attributes;
 
 /**
  * This interface describes a link to another span. The linked span could be part of the same trace
@@ -49,5 +50,5 @@ public interface AgentSpanLink {
    *
    * @return The link attributes.
    */
-  AgentSpan.Attributes attributes();
+  Attributes attributes();
 }
