@@ -48,8 +48,9 @@ ext.generalShadowJarConfig = {
 
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
-  // Prevents conflict with other JCTools instances
+  // Prevent conflicts with flat class-path when using GraalVM native-images
   relocate 'org.jctools', 'datadog.jctools'
+  relocate 'net.jpountz', 'datadog.jpountz'
   // rewrite dependencies calling Logger.getLogger
   relocate 'java.util.logging.Logger', 'datadog.trace.bootstrap.PatchLogger'
 
@@ -116,9 +117,7 @@ includeSubprojShadowJar ':dd-java-agent:agent-iast', 'iast'
 includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
 includeSubprojShadowJar ':dd-java-agent:agent-ci-visibility', 'ci-visibility'
 includeSubprojShadowJar ':dd-java-agent:agent-logs-intake', 'logs-intake'
-if (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) {
-  includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'
-}
+includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   configurations = [project.configurations.sharedShadowInclude]
@@ -285,8 +284,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    def megs = (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) ? 30 : 29
-    assert shadowJar.archiveFile.get().getAsFile().length() <= megs * 1024 * 1024
+    assert shadowJar.archiveFile.get().getAsFile().length() <= 29 * 1024 * 1024
   }
 
   dependsOn "shadowJar"

@@ -4,6 +4,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getAllocationIn
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCStack;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttributes;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCpuInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLiveHeapSamplePercent;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLogLevel;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
@@ -281,6 +282,8 @@ public final class DatadogProfiler {
       }
       if (profilingModes.contains(MEMLEAK)) {
         cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
+        cmd.append(':')
+            .append(String.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
       }
     }
     String cmdString = cmd.toString();
