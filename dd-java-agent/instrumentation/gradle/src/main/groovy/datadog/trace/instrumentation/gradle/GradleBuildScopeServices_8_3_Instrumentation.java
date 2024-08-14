@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.gradle.v8_3;
+package datadog.trace.instrumentation.gradle;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -8,7 +8,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.instrumentation.gradle.CiVisibilityGradleListenerInjector;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -16,10 +15,10 @@ import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.internal.service.scopes.BuildScopeServices;
 
 @AutoService(InstrumenterModule.class)
-public class GradleBuildScopeServicesInstrumentation extends InstrumenterModule.CiVisibility
+public class GradleBuildScopeServices_8_3_Instrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
 
-  public GradleBuildScopeServicesInstrumentation() {
+  public GradleBuildScopeServices_8_3_Instrumentation() {
     super("gradle", "gradle-build-scope-services");
   }
 
@@ -38,7 +37,7 @@ public class GradleBuildScopeServicesInstrumentation extends InstrumenterModule.
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.gradle.CiVisibilityGradleListenerInjector",
+      packageName + ".CiVisibilityGradleListenerInjector",
     };
   }
 
