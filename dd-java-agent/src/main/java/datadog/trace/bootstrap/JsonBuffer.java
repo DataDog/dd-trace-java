@@ -143,11 +143,7 @@ public final class JsonBuffer implements Flushable {
       return cachedBytes;
     }
 
-    try {
-      writer.flush();
-    } catch (IOException e) {
-      // ignore
-    }
+    flush();
 
     cachedBytes = bytesOut.toByteArray();
     this.cachedBytes = cachedBytes;
