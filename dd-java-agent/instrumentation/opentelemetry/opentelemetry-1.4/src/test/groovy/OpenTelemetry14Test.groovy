@@ -15,7 +15,6 @@ import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Subject
 
 import java.security.InvalidParameterException
-import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.DDTags.ERROR_MSG
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
@@ -176,51 +175,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  def "test span events"() {
-    setup:
-    def builder = tracer.spanBuilder("some-name")
-    def anotherSpan = tracer.spanBuilder("another-name").startSpan()
-    anotherSpan.end()
-
-    //    def expectedEventsTag = """
-    //    [
-    //      { name: "evt1",
-    //        span_id: "${spanId}",
-    //        flags: 1,
-    //        tracestate: "string-key=string-value"}
-    //    ]"""
-
-    when:
-    // Adding event is not supported
-    def result = builder.startSpan()
-    result.addEvent("evt1")
-    result.end()
-
-    then:
-    assertTraces(2) {
-      trace(1) {
-        span {}
-      }
-      trace(1) {
-        span {}
-      }
-    }
-
-    where:
-    long TIMESTAMP_MILLIS = 1723147710000
-    long TIMESTAMP_NANO = TIMESTAMP_MILLIS * 1_000_000L
-
-    //    Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: "123456789", double-key: "1234.5678", boolean-key-true: "true", boolean-key-false: "false" }'
-
-    eventName | timestamp        | timeUnit              | attributes
-    "evt1"    | null             | null                  | null
-    "evt2"    | TIMESTAMP_MILLIS | TimeUnit.MILLISECONDS | null
-    "evt3"    | TIMESTAMP_NANO   | TimeUnit.NANOSECONDS  | null
-    null      | null             | null                  | null
-
-  }
-
-  // TODO: remove this
   def "test non-supported features do not crash"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
