@@ -97,6 +97,17 @@ class MavenProjectConfigurator {
     PlexusConfiguration mojoConfiguration = mojoDescriptor.getMojoConfiguration();
     PlexusConfiguration argLine = mojoConfiguration.getChild("argLine");
     argLine.setValue(updatedArgLine);
+
+    // needed for executions where argLine is configured in POM
+    Plugin plugin = mojoExecution.getPlugin();
+    Map<String, PluginExecution> pluginExecutions = plugin.getExecutionsAsMap();
+    PluginExecution pluginExecution = pluginExecutions.get(mojoExecution.getExecutionId());
+    if (pluginExecution != null) {
+      Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
+      Xpp3Dom updatedExecutionConfiguration =
+          MavenUtils.setConfigurationValue(updatedArgLine, executionConfiguration, "argLine");
+      pluginExecution.setConfiguration(updatedExecutionConfiguration);
+    }
   }
 
   void configureCompilerPlugin(MavenProject project, String compilerPluginVersion) {
