@@ -38,7 +38,7 @@ import java.nio.file.attribute.BasicFileAttributes
 
 class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
 
-  private static final String LATEST_GRADLE_VERSION = getLatestGradleVersion()
+  private static final String LATEST_GRADLE_VERSION = '8.9' // getLatestGradleVersion()
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
   private static final String TEST_ENVIRONMENT_NAME = "integration-test"
