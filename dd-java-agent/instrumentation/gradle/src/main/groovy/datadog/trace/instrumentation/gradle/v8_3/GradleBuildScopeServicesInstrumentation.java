@@ -1,12 +1,14 @@
-package datadog.trace.instrumentation.gradle;
+package datadog.trace.instrumentation.gradle.v8_3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.instrumentation.gradle.CiVisibilityGradleListenerInjector;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -23,8 +25,9 @@ public class GradleBuildScopeServicesInstrumentation extends InstrumenterModule.
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Only instrument Gradle 8.3+
-    return hasClassNamed("org.gradle.api.file.ConfigurableFilePermissions");
+    // Instrument Gradle [8.3 ... 8.10)
+    return hasClassNamed("org.gradle.api.file.ConfigurableFilePermissions")
+        .and(not(hasClassNamed("org.gradle.internal.classpath.transforms.AdhocInterceptors")));
   }
 
   @Override
@@ -35,7 +38,7 @@ public class GradleBuildScopeServicesInstrumentation extends InstrumenterModule.
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CiVisibilityGradleListenerInjector",
+      "datadog.trace.instrumentation.gradle.CiVisibilityGradleListenerInjector",
     };
   }
 
@@ -55,7 +58,8 @@ public class GradleBuildScopeServicesInstrumentation extends InstrumenterModule.
     public static void afterConstructor(
         @Advice.This final BuildScopeServices buildScopeServices,
         @Advice.Argument(0) final ServiceRegistry parentServices) {
-      CiVisibilityGradleListenerInjector.inject(parentServices, buildScopeServices);
+      CiVisibilityGradleListenerInjector.injectCiVisibilityGradleListenerLegacy(
+          buildScopeServices, parentServices);
     }
   }
 }
