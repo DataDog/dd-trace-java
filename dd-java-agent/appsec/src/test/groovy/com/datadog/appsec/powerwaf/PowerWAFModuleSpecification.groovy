@@ -47,13 +47,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
   new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']))
 
-  protected AgentSpan root = Mock(AgentSpan)
-  protected AgentSpan span = Stub(AgentSpan) {
-    getSpanId() >> 777
-    getLocalRootSpan() >> root
-  }
   protected AgentTracer.TracerAPI tracer = Mock(AgentTracer.TracerAPI) {
-    activeSpan() >> span
+    activeSpan() >> Mock(AgentSpan) {
+      getSpanId() >> 777
+      getLocalRootSpan() >> Mock(AgentSpan)
+    }
     getSpanId() >> 777
   }
 
