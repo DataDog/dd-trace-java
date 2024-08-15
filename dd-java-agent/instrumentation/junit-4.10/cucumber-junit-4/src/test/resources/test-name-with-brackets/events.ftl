@@ -55,7 +55,6 @@
     },
     "meta" : {
       "os.architecture" : ${content_meta_os_architecture},
-      "_dd.tracer_host" : "COMP-QG19F24WGY",
       "test.module" : "cucumber-junit-4",
       "test.status" : "pass",
       "language" : "jvm",
@@ -98,7 +97,6 @@
     "meta" : {
       "test.type" : "test",
       "os.architecture" : ${content_meta_os_architecture},
-      "_dd.tracer_host" : "COMP-QG19F24WGY",
       "test.status" : "pass",
       "language" : "jvm",
       "runtime.name" : ${content_meta_runtime_name},
