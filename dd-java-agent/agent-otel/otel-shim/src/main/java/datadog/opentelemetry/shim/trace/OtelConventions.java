@@ -20,8 +20,12 @@ import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.trace.SpanKind;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -237,7 +241,7 @@ public final class OtelConventions {
   }
 
   public static AgentSpan.Attributes convertAttributes(Attributes attributes) {
-    if (attributes.isEmpty()) {
+    if (attributes == null || attributes.isEmpty()) {
       return SpanAttributes.EMPTY;
     }
     SpanAttributes.Builder builder = SpanAttributes.builder();
@@ -276,5 +280,33 @@ public final class OtelConventions {
           }
         });
     return builder.build();
+  }
+
+  public static Attributes processExceptionAttributes(
+      Throwable exception, Attributes additionalAttributes) {
+    // "exception.escaped" should be true if exception will "escape" the scope of the span. I'm not
+    // sure how to check that from within here. And it doesn't even look like Otel dynamically sets
+    // this field:
+    // https://github.com/open-telemetry/opentelemetry-java/blob/v1.41.0/sdk/trace/src/main/java/io/opentelemetry/sdk/trace/internal/data/ImmutableExceptionEventData.java#L22
+    boolean escaped = false;
+    Map<String, String> defaultAttributes =
+        new HashMap<String, String>() {
+          {
+            put("exception.message", exception.getMessage());
+            put("exception.type", exception.getClass().getName());
+            put("exception.escaped", String.valueOf(escaped));
+            put("exception.stacktrace", Arrays.toString(exception.getStackTrace()));
+          }
+        };
+    // Create an AttributesBuilder with the additionalAttributes
+    AttributesBuilder attrsBuilder = additionalAttributes.toBuilder();
+    for (String key : defaultAttributes.keySet()) {
+      // Add defaultAttributes onto the builder iff an equivalent key was not provided in
+      // additionalAttributes
+      if (additionalAttributes.get(AttributeKey.stringKey(key)) == null) {
+        attrsBuilder.put(key, defaultAttributes.get(key));
+      }
+    }
+    return attrsBuilder.build();
   }
 }

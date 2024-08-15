@@ -19,6 +19,7 @@ import java.sql.Time
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.DDTags.ERROR_MSG
+import static datadog.trace.api.DDTags.SPAN_EVENTS
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER
@@ -33,6 +34,9 @@ import static io.opentelemetry.api.trace.SpanKind.SERVER
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
+
+class TestHelpers {
+}
 
 class OpenTelemetry14Test extends AgentTestRunner {
   static final TIME_MILLIS = 1723220824705
@@ -186,7 +190,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def result = builder.startSpan()
-    result.addEvent(name, timestamp, unit)
+    result.addEvent(name, attributes, timestamp, unit)
     result.end()
 
     then:
@@ -197,8 +201,10 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     def expectedEventTag = """
     [
-      { "name": "${name}",
-        "time_unix_nano": ${expectTime}}
+      { "time_unix_nano": ${expectTime},
+        "name": "${name}"
+        ${ expectedAttributes == null ? "" : ", attributes: " + expectedAttributes }
+      }
     ]"""
     assertTraces(1) {
       trace(1) {
@@ -213,9 +219,10 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
 
     where:
-    name   | attributes | timestamp   | unit
-    "evt2" | null       | TIME_MILLIS | TimeUnit.MILLISECONDS
-    "evt3" | null       | TIME_NANO   | TimeUnit.NANOSECONDS
+    name   | timestamp   | unit                  | attributes         | expectedAttributes
+    "evt1" | TIME_MILLIS | TimeUnit.MILLISECONDS | Attributes.empty() | null
+    "evt2" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: "123456789", double-key: "1234.5678", boolean-key-true: "true", boolean-key-false: "false" }'
+    "evt3" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array.0: "string-value1", string-key-array.1: "string-value2", string-key-array.2: "string-value3", long-key-array.0: "123456", long-key-array.1: "1234567", long-key-array.2: "12345678", double-key-array.0: "1234.5", double-key-array.1: "1234.56", double-key-array.2: "1234.567", boolean-key-array.0: "true", boolean-key-array.1: "false", boolean-key-array.2: "true" }'
   }
 
   def "test multiple span events"() {
@@ -224,18 +231,20 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def result = builder.startSpan()
-    result.addEvent(name, timestamp, TimeUnit.NANOSECONDS)
-    result.addEvent(name, timestamp, TimeUnit.NANOSECONDS)
+    result.addEvent("evt1", null, TIME_NANO, TimeUnit.NANOSECONDS)
+    result.addEvent("evt2", Attributes.builder().put("string-key", "string-value").build(), TIME_NANO, TimeUnit.NANOSECONDS)
     result.end()
 
     then:
+    def expectedAttributes = '{"string-key": "string-value"}'
     def expectedEventTag = """
     [
-      { "name": "${name}",
-        "time_unix_nano": ${timestamp}
+      { "time_unix_nano": ${TIME_NANO},
+        "name": "evt1"
       },
-      { "name": "${name}",
-        "time_unix_nano": ${timestamp}
+      { "time_unix_nano": ${TIME_NANO},
+        "name": "evt2",
+        ${"attributes: " + expectedAttributes}
       }
     ]"""
     assertTraces(1) {
@@ -249,30 +258,26 @@ class OpenTelemetry14Test extends AgentTestRunner {
         }
       }
     }
-    where:
-    name   | timestamp | attributes
-    "evt1" | TIME_NANO | null
-    "evt2" | TIME_NANO | null
   }
 
-  //  def "test add event no timestamp"() {
-  //    setup:
-  //    def builder = tracer.spanBuilder("some-name")
+  //    def "test add event no timestamp"() {
+  //      setup:
+  //      def builder = tracer.spanBuilder("some-name")
   //
-  //    when:
-  //    def result = builder.startSpan()
-  //    result.addEvent("evt", null, null)
-  //    result.end()
+  //      when:
+  //      def result = builder.startSpan()
+  //      result.addEvent("evt", null, null)
+  //      result.end()
   //
-  //    then:
-  //    long endBlock = System.nanoTime();
+  //      then:
+  //      long endBlock = System.nanoTime();
   //
-  //    // I'd like to grab the span's `time_unix_nano` field under `events` tag is not null, and is more than beforeBlock and less than afterBlock
-  //    // But I don't know how to access this without asserting the span tags look a specific way using assertTraces.
+  //      // I'd like to grab the span's `time_unix_nano` field under `events` tag is not null, and is more than beforeBlock and less than afterBlock
+  //      // But I don't know how to access this without asserting the span tags look a specific way using assertTraces.
   //
-  //    where:
-  //    long startBlock = System.nanoTime();
-  //  }
+  //      where:
+  //      long startBlock = System.nanoTime();
+  //    }
 
   def "test simple span links"() {
     setup:
@@ -642,8 +647,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
   def "test span record exception"() {
     setup:
     def result = tracer.spanBuilder("some-name").startSpan()
-    def message = "input can't be null"
-    def exception = new InvalidParameterException(message)
 
     expect:
     result.delegate.getTag(ERROR_MSG) == null
@@ -652,11 +655,11 @@ class OpenTelemetry14Test extends AgentTestRunner {
     !result.delegate.isError()
 
     when:
-    result.recordException(exception)
+    result.recordException(exception, attributes)
 
     then:
-    result.delegate.getTag(ERROR_MSG) == message
-    result.delegate.getTag(DDTags.ERROR_TYPE) == InvalidParameterException.name
+    result.delegate.getTag(ERROR_MSG) == exception.getMessage()
+    result.delegate.getTag(DDTags.ERROR_TYPE) == exception.getClass().getName()
     result.delegate.getTag(DDTags.ERROR_STACK) != null
     !result.delegate.isError()
 
@@ -664,6 +667,15 @@ class OpenTelemetry14Test extends AgentTestRunner {
     result.end()
 
     then:
+    // TODO: Same issue with time_unix_nano here -- I can't control what it is and don't know how to check the name and attributes without it
+    // Need some way to access sub-tags of `"events"` as you would a map.
+    def expectedEventTag = """
+    [
+      { "time_unix_nano": ${TIME_NANO},
+        "name": "exception",
+        "attributes": ${expectedAttributes}
+      }
+    ]"""
     assertTraces(1) {
       trace(1) {
         span {
@@ -675,10 +687,17 @@ class OpenTelemetry14Test extends AgentTestRunner {
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
             errorTags(exception)
+            tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
           }
         }
       }
     }
+
+    where:
+    exception                                            | attributes                                                              | expectedAttributes
+    //    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.escaped: "false", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
+    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | """{exception.message: "something-else", exception.type: "${exception.getClass().getName()}", exception.escaped: "false", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
+    //    new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build() | """{"key": "value","exception.message": "${exception.getMessage()}"}"""
   }
 
   def "test span name update"() {

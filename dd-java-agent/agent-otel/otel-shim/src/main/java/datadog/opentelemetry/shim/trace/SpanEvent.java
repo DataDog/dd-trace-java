@@ -1,5 +1,7 @@
 package datadog.opentelemetry.shim.trace;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.opentelemetry.api.common.Attributes;
 import java.util.List;
@@ -9,15 +11,17 @@ public class SpanEvent {
 
   private final long timestamp;
   private final String name;
-  // attributes
+  private final AgentSpan.Attributes attributes;
 
   public SpanEvent(String name, Attributes attributes) {
     this.name = name;
+    this.attributes = OtelConventions.convertAttributes(attributes);
     this.timestamp = timeNano();
   }
 
   public SpanEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     this.name = name;
+    this.attributes = OtelConventions.convertAttributes(attributes);
     this.timestamp = timeNano(timestamp, unit);
   }
 
@@ -30,8 +34,13 @@ public class SpanEvent {
   }
 
   public String toString() {
-    // TODO if attributes exist, process those
-    return "{\"name\":\"" + this.name + "\",\"time_unix_nano\":" + this.timestamp + "}";
+    StringBuilder builder =
+        new StringBuilder(
+            "{\"time_unix_nano\":" + this.timestamp + ",\"name\":\"" + this.name + "\"");
+    if (!this.attributes.isEmpty()) {
+      builder.append(",\"attributes\":").append(SpanAttributes.toJson(this.attributes.asMap()));
+    }
+    return builder.append("}").toString();
   }
 
   @NonNull
