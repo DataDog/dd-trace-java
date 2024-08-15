@@ -264,7 +264,7 @@ public class HttpCodec {
     }
 
     /**
-     * Applies W3C trace context over any other valid context previously found.
+     * Applies span ID from W3C trace context over any other valid context previously found.
      *
      * @param firstContext The first valid context found.
      * @param traceContext The trace context to apply.
