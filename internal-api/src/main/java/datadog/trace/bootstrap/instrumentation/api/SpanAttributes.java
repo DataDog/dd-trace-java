@@ -50,7 +50,7 @@ public class SpanAttributes implements Attributes {
 
   @Override
   public String toString() {
-    return "SpanAttributes:{" + this.attributes + "}";
+    return "SpanAttributes{" + this.attributes + '}';
   }
 
   // Helper class for turning the Map<String,String> that holds the attributes into a JSON string

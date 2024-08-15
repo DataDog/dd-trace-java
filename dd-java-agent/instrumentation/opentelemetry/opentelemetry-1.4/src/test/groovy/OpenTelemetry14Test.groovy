@@ -36,9 +36,6 @@ import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
 
-class TestHelpers {
-}
-
 class OpenTelemetry14Test extends AgentTestRunner {
   static final TIME_MILLIS = 1723220824705
   static final TIME_NANO = TIME_MILLIS * 1_000_000L
