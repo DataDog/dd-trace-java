@@ -70,4 +70,9 @@ public class GradleBuildScopeServices_8_10_Instrumentation extends InstrumenterM
       }
     }
   }
+
+  @Override
+  public String muzzleDirective() {
+    return "skipMuzzle";
+  }
 }
