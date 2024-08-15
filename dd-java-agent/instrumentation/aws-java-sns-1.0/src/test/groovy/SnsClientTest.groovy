@@ -211,7 +211,14 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     traceContextInJson['x-datadog-parent-id'] == sendSpan.spanId.toString()
     traceContextInJson['x-datadog-sampling-priority'] == "1"
     !traceContextInJson['dd-pathway-ctx-base64'].toString().isBlank()
+  }
 
+  def "SNS message to phone number doesn't leak exception"() {
+    when:
+    snsClient.publish(new PublishRequest().withPhoneNumber("+19995550123").withMessage('sometext'))
+
+    then:
+    noExceptionThrown()
   }
 }
 
