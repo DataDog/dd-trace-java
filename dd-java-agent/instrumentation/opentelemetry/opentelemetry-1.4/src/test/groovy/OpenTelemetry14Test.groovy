@@ -1,3 +1,4 @@
+import datadog.opentelemetry.shim.trace.SpanEvent
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
@@ -187,6 +188,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
   def "test add single event"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
+    SpanEvent.changeThis()
 
     when:
     def result = builder.startSpan()

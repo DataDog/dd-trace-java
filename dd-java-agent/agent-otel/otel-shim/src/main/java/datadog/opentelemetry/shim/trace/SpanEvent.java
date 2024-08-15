@@ -55,4 +55,6 @@ public class SpanEvent {
     }
     return builder.append("]").toString();
   }
+
+  protected void changeThis() {}
 }
