@@ -59,7 +59,14 @@ public class SnsInterceptor implements ExecutionInterceptor {
       // the limit still applies here
       if (request.messageAttributes().size() < 10) {
         // Get topic name for DSM
-        String snsTopicArn = request.topicArn() == null ? request.targetArn() : request.topicArn();
+        String snsTopicArn = request.topicArn();
+        if (null == snsTopicArn) {
+          snsTopicArn = request.targetArn();
+          if (null == snsTopicArn) {
+            return request; // request is to phone number, ignore for DSM
+          }
+        }
+
         String snsTopicName = snsTopicArn.substring(snsTopicArn.lastIndexOf(':') + 1);
         Map<String, MessageAttributeValue> modifiedMessageAttributes =
             new HashMap<>(request.messageAttributes());
