@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.xxl_job_2_3x;
 
-import com.xxl.job.core.context.XxlJobContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -47,10 +46,10 @@ public class JobDecorator extends BaseDecorator {
   }
 
   public AgentScope error(AgentScope scope, Throwable throwable) {
-    scope.span().setTag(JOB_CODE,XxlJobContext.getXxlJobContext().getHandleCode());
-    if (XxlJobContext.getXxlJobContext().getHandleCode() > XxlJobContext.HANDLE_COCE_SUCCESS) {
-      throwable = new Throwable(XxlJobContext.getXxlJobContext().getHandleMsg());
-    }
+//    scope.span().setTag(JOB_CODE,XxlJobContext.getXxlJobContext().getHandleCode());
+//    if (XxlJobContext.getXxlJobContext().getHandleCode() > XxlJobContext.HANDLE_COCE_SUCCESS) {
+//      throwable = new Throwable(XxlJobContext.getXxlJobContext().getHandleMsg());
+//    }
     return super.onError(scope,throwable);
   }
 }

@@ -4,10 +4,7 @@ import com.xxl.job.core.glue.GlueTypeEnum;
 import com.xxl.job.core.handler.IJobHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import io.netty.util.internal.StringUtil;
 import net.bytebuddy.asm.Advice;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.xxl_job_2_3x.JobConstants.*;
@@ -24,10 +21,10 @@ public class ScriptJobAdvice {
     span.setTag(CMD, glueType.getCmd());
     span.setTag(JOB_TYPE, JobConstants.JobType.SCRIPT_JOB);
     span.setTag(JOB_ID, jobId);
-    String jobParam = com.xxl.job.core.context.XxlJobHelper.getJobParam();
-    if (!StringUtil.isNullOrEmpty(jobParam)) {
-      span.setTag(JOB_PARAM, jobParam);
-    }
+//    String jobParam = com.xxl.job.core.context.XxlJobHelper.getJobParam();
+//    if (!StringUtil.isNullOrEmpty(jobParam)) {
+//      span.setTag(JOB_PARAM, jobParam);
+//    }
     AgentScope agentScope = activateSpan(span);
     return agentScope;
 //    return activateSpan(noopSpan());

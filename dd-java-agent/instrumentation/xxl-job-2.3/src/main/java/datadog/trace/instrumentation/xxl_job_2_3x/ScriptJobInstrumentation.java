@@ -34,9 +34,19 @@ public class ScriptJobInstrumentation extends InstrumenterModule.Tracing
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(nameStartsWith("execute"))
-            .and(takesArguments(0)),
+            .and(nameStartsWith("execute")),
         packageName + ".ScriptJobAdvice");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[]{
+        packageName + ".JobDecorator",
+        packageName + ".JobConstants",
+        packageName + ".ScriptJobAdvice",
+        packageName + ".JobConstants$JobType",
+        packageName + ".JobConstants$HandleClassName"
+    };
   }
 
 }

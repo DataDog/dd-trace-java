@@ -473,7 +473,6 @@ include ':dd-java-agent:instrumentation:redisson-2.0.0'
 include ':dd-java-agent:instrumentation:zio'
 include ':dd-java-agent:instrumentation:zio:zio-2.0'
 include ':dd-java-agent:instrumentation:xxl-job-2.3'
-
 // benchmark
 include ':dd-java-agent:benchmark'
 include ':dd-java-agent:benchmark-integration'

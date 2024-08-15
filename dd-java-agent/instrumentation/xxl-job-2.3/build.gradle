@@ -3,7 +3,7 @@ muzzle {
     group = "com.xuxueli"
     module = "xxl-job-core"
     versions = "[2.2.0,)"
-//    assertInverse = true
+    assertInverse = true
   }
 }
 

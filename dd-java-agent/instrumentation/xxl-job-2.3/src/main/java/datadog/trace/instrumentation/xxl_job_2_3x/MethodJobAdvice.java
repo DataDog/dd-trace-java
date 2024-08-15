@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.xxl_job_2_3x;
 import com.xxl.job.core.handler.IJobHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import io.netty.util.internal.StringUtil;
 import net.bytebuddy.asm.Advice;
 
 import java.lang.reflect.Method;
@@ -20,11 +19,11 @@ public class MethodJobAdvice {
     AgentSpan span = DECORATOR.createSpan(methodName);
     span.setTag(JOB_METHOD,methodName);
     span.setTag(JOB_TYPE,JobType.METHOD_JOB);
-    String jobParam = com.xxl.job.core.context.XxlJobHelper.getJobParam();
-    if (!StringUtil.isNullOrEmpty(jobParam)){
-      span.setTag(JOB_PARAM, jobParam);
-    }
-    span.setTag(JOB_ID, com.xxl.job.core.context.XxlJobHelper.getJobId());
+//    String jobParam = com.xxl.job.core.context.XxlJobHelper.getJobParam();
+//    if (!StringUtil.isNullOrEmpty(jobParam)){
+//      span.setTag(JOB_PARAM, jobParam);
+//    }
+//    span.setTag(JOB_ID, com.xxl.job.core.context.XxlJobHelper.getJobId());
     AgentScope agentScope = activateSpan(span);
     return agentScope;
 //    return activateSpan(noopSpan());

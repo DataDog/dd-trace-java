@@ -41,8 +41,17 @@ public class SimpleJobInstrumentation extends InstrumenterModule.Tracing
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(nameStartsWith("execute"))
-            .and(takesArguments(0)),
+            .and(nameStartsWith("execute")),
         packageName + ".SimpleJobAdvice");
+  }
+  @Override
+  public String[] helperClassNames() {
+    return new String[]{
+        packageName + ".JobDecorator",
+        packageName + ".JobConstants",
+        packageName + ".SimpleJobAdvice",
+        packageName + ".JobConstants$JobType",
+        packageName + ".JobConstants$HandleClassName"
+    };
   }
 }

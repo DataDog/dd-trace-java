@@ -34,8 +34,7 @@ public class MethodJobInstrumentation extends InstrumenterModule.Tracing
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(nameStartsWith("execute"))
-            .and(takesArguments(0)),
+            .and(nameStartsWith("execute")),
         packageName + ".MethodJobAdvice");
   }
 
@@ -44,7 +43,7 @@ public class MethodJobInstrumentation extends InstrumenterModule.Tracing
     return new String[]{
         packageName + ".JobDecorator",
         packageName + ".JobConstants",
-        packageName + ".ScriptJobAdvice",
+        packageName + ".MethodJobAdvice",
         packageName + ".JobConstants$JobType",
         packageName + ".JobConstants$HandleClassName"
     };
