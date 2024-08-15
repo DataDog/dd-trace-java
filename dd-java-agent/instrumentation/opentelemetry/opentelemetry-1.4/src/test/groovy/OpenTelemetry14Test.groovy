@@ -15,12 +15,9 @@ import opentelemetry14.context.propagation.TextMap
 import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Subject
 
-import java.security.InvalidParameterException
-import java.sql.Time
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.DDTags.ERROR_MSG
-import static datadog.trace.api.DDTags.SPAN_EVENTS
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER
