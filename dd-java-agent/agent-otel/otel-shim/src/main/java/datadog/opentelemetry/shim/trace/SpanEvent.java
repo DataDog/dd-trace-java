@@ -38,7 +38,9 @@ public class SpanEvent {
         new StringBuilder(
             "{\"time_unix_nano\":" + this.timestamp + ",\"name\":\"" + this.name + "\"");
     if (!this.attributes.isEmpty()) {
-      builder.append(",\"attributes\":").append(SpanAttributes.toJson(this.attributes.asMap()));
+      builder
+          .append(",\"attributes\":")
+          .append(SpanAttributes.JSONParser.toJson(this.attributes.asMap()));
     }
     return builder.append("}").toString();
   }
@@ -55,6 +57,4 @@ public class SpanEvent {
     }
     return builder.append("]").toString();
   }
-
-  protected void changeThis() {}
 }

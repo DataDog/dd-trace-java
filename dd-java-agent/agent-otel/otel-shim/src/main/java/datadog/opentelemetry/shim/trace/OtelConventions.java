@@ -282,6 +282,17 @@ public final class OtelConventions {
     return builder.build();
   }
 
+  /**
+   * Generate Attributes about the exception using a default list + the additionalAttributes
+   * provided by the user
+   *
+   * <p>If the same key exists in defaultAttributes and additionalAttributes, the latter always
+   * wins.
+   *
+   * @param exception The Throwable from which to build default attributes
+   * @param additionalAttributes Attributes provided by the user
+   * @return Attributes collection that combines defaultAttributes and additionalAttributes
+   */
   public static Attributes processExceptionAttributes(
       Throwable exception, Attributes additionalAttributes) {
     // "exception.escaped" should be true if exception will "escape" the scope of the span. I'm not
@@ -298,7 +309,7 @@ public final class OtelConventions {
             put("exception.stacktrace", Arrays.toString(exception.getStackTrace()));
           }
         };
-    // Create an AttributesBuilder with the additionalAttributes
+    // Create an AttributesBuilder with the additionalAttributes provided
     AttributesBuilder attrsBuilder = additionalAttributes.toBuilder();
     for (String key : defaultAttributes.keySet()) {
       // Add defaultAttributes onto the builder iff an equivalent key was not provided in

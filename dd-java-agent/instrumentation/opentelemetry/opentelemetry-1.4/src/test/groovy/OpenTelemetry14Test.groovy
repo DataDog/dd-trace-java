@@ -188,7 +188,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
   def "test add single event"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
-    SpanEvent.changeThis()
 
     when:
     def result = builder.startSpan()
@@ -646,6 +645,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
+  // This is failing because of the time_unix_nano issue described on the "test add event no timestamp" scenario
   def "test span record exception"() {
     setup:
     def result = tracer.spanBuilder("some-name").startSpan()
@@ -670,7 +670,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     then:
     // TODO: Same issue with time_unix_nano here -- I can't control what it is and don't know how to check the name and attributes without it
-    // Need some way to access sub-tags of `"events"` as you would a map.
     def expectedEventTag = """
     [
       { "time_unix_nano": ${TIME_NANO},
@@ -697,9 +696,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     where:
     exception                                            | attributes                                                              | expectedAttributes
-    //    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.escaped: "false", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
+    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.escaped: "false", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
     new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | """{exception.message: "something-else", exception.type: "${exception.getClass().getName()}", exception.escaped: "false", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
-    //    new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build() | """{"key": "value","exception.message": "${exception.getMessage()}"}"""
+    new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | """{"key": "value","exception.message": "${exception.getMessage()}"}"""
   }
 
   def "test span name update"() {

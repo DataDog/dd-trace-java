@@ -53,43 +53,46 @@ public class SpanAttributes implements Attributes {
     return "SpanAttributes:{" + this.attributes + "}";
   }
 
-  public static String toJson(Map<String, String> map) {
-    StringBuilder jsonBuilder = new StringBuilder();
-    jsonBuilder.append("{");
+  // Helper class for turning the Map<String,String> that holds the attributes into a JSON string
+  public static class JSONParser {
+    public static String toJson(Map<String, String> map) {
+      StringBuilder jsonBuilder = new StringBuilder();
+      jsonBuilder.append("{");
 
-    boolean first = true;
-    for (Map.Entry<String, String> entry : map.entrySet()) {
-      if (!first) {
-        jsonBuilder.append(",");
+      boolean first = true;
+      for (Map.Entry<String, String> entry : map.entrySet()) {
+        if (!first) {
+          jsonBuilder.append(",");
+        }
+        first = false;
+
+        // Append the key and value
+        appendJsonString(jsonBuilder, entry.getKey(), entry.getValue());
       }
-      first = false;
 
-      // Append the key and value
-      appendJsonString(jsonBuilder, entry.getKey(), entry.getValue());
+      jsonBuilder.append("}");
+      return jsonBuilder.toString();
     }
 
-    jsonBuilder.append("}");
-    return jsonBuilder.toString();
-  }
+    private static void appendJsonString(StringBuilder jsonBuilder, String key, String value) {
+      // Append the key (enclosed in double quotes)
+      jsonBuilder.append("\"").append(escapeJson(key)).append("\":");
 
-  private static void appendJsonString(StringBuilder jsonBuilder, String key, String value) {
-    // Append the key (enclosed in double quotes)
-    jsonBuilder.append("\"").append(escapeJson(key)).append("\":");
+      // Append the value (enclosed in double quotes)
+      jsonBuilder.append("\"").append(escapeJson(value)).append("\"");
+    }
 
-    // Append the value (enclosed in double quotes)
-    jsonBuilder.append("\"").append(escapeJson(value)).append("\"");
-  }
-
-  private static String escapeJson(String value) {
-    // Replace special characters with their escaped counterparts
-    return value
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\b", "\\b")
-        .replace("\f", "\\f")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t");
+    private static String escapeJson(String value) {
+      // Replace special characters with their escaped counterparts
+      return value
+          .replace("\\", "\\\\")
+          .replace("\"", "\\\"")
+          .replace("\b", "\\b")
+          .replace("\f", "\\f")
+          .replace("\n", "\\n")
+          .replace("\r", "\\r")
+          .replace("\t", "\\t");
+    }
   }
 
   public static class Builder {
