@@ -17,7 +17,7 @@ public final class SqlStatementSanitizer {
 
   public SqlStatementInfo sanitize(String statement) {
     if (sanitizationEnabled) {
-      DBQueryInfo dbQueryInfo = DBQueryInfo.ofStatement(statement);
+      DBQueryInfo dbQueryInfo = DBQueryInfo.ofPreparedStatement(statement);
       return SqlStatementInfo.create(
           dbQueryInfo.getSql().toString(), dbQueryInfo.getOperation().toString(), null);
     } else {
