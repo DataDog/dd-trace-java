@@ -19,6 +19,6 @@ public class OtelSpanLink extends SpanLink {
         DDSpanId.fromHex(spanContext.getSpanId()),
         spanContext.isSampled() ? SAMPLED_FLAG : DEFAULT_FLAGS,
         TraceStateHelper.encodeHeader(spanContext.getTraceState()),
-        convertAttributes(attributes));
+        convertAttributes(attributes, true));
   }
 }

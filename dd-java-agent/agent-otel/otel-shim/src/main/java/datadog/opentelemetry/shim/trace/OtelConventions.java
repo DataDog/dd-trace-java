@@ -240,11 +240,11 @@ public final class OtelConventions {
     return (String) tag;
   }
 
-  public static AgentSpan.Attributes convertAttributes(Attributes attributes) {
+  public static AgentSpan.Attributes convertAttributes(Attributes attributes, boolean stringify) {
     if (attributes == null || attributes.isEmpty()) {
       return SpanAttributes.EMPTY;
     }
-    SpanAttributes.Builder builder = SpanAttributes.builder();
+    SpanAttributes.Builder builder = SpanAttributes.builder(stringify);
     attributes.forEach(
         (attributeKey, value) -> {
           String key = attributeKey.getKey();
@@ -300,12 +300,12 @@ public final class OtelConventions {
     // this field:
     // https://github.com/open-telemetry/opentelemetry-java/blob/v1.41.0/sdk/trace/src/main/java/io/opentelemetry/sdk/trace/internal/data/ImmutableExceptionEventData.java#L22
     boolean escaped = false;
-    Map<String, String> defaultAttributes =
-        new HashMap<String, String>() {
+    Map<String, Object> defaultAttributes =
+        new HashMap<String, Object>() {
           {
             put("exception.message", exception.getMessage());
             put("exception.type", exception.getClass().getName());
-            put("exception.escaped", String.valueOf(escaped));
+            put("exception.escaped", escaped);
             put("exception.stacktrace", Arrays.toString(exception.getStackTrace()));
           }
         };
@@ -315,7 +315,13 @@ public final class OtelConventions {
       // Add defaultAttributes onto the builder iff an equivalent key was not provided in
       // additionalAttributes
       if (additionalAttributes.get(AttributeKey.stringKey(key)) == null) {
-        attrsBuilder.put(key, defaultAttributes.get(key));
+        // naive implementation, as the default attributes values re only strings and booleans
+        Object value = defaultAttributes.get(key);
+        if (value instanceof String) {
+          attrsBuilder.put(key, (String) defaultAttributes.get(key));
+        } else if (value instanceof Boolean) {
+          attrsBuilder.put(key, (Boolean) defaultAttributes.get(key));
+        }
       }
     }
     return attrsBuilder.build();

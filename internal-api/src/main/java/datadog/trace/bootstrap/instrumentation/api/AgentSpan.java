@@ -235,7 +235,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
      *
      * @return The attributes as an immutable map.
      */
-    Map<String, String> asMap();
+    Map<String, Object> asMap();
 
     /**
      * Checks whether the attributes are empty.

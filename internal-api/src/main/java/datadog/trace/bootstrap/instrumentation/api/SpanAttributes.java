@@ -7,15 +7,16 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** This class is a base implementation of {@link Attributes}. */
 public class SpanAttributes implements Attributes {
   /** Represent an empty attributes. */
   public static final Attributes EMPTY = new SpanAttributes(Collections.emptyMap());
 
-  private final Map<String, String> attributes;
+  private final Map<String, Object> attributes;
 
-  protected SpanAttributes(Map<String, String> attributes) {
+  protected SpanAttributes(Map<String, Object> attributes) {
     this.attributes = attributes;
   }
 
@@ -24,8 +25,8 @@ public class SpanAttributes implements Attributes {
    *
    * @return A builder to create attributes.
    */
-  public static Builder builder() {
-    return new Builder();
+  public static Builder builder(boolean stringify) {
+    return new Builder(stringify);
   }
 
   /**
@@ -34,12 +35,12 @@ public class SpanAttributes implements Attributes {
    * @param map A map representing the attributes.
    * @return The related attributes.
    */
-  public static SpanAttributes fromMap(Map<String, String> map) {
+  public static SpanAttributes fromMap(Map<String, Object> map) {
     return new SpanAttributes(new HashMap<>(map));
   }
 
   @Override
-  public Map<String, String> asMap() {
+  public Map<String, Object> asMap() {
     return this.attributes;
   }
 
@@ -55,35 +56,45 @@ public class SpanAttributes implements Attributes {
 
   // Helper class for turning the Map<String,String> that holds the attributes into a JSON string
   public static class JSONParser {
-    public static String toJson(Map<String, String> map) {
+    public static String toJson(Map<String, Object> map) {
       StringBuilder jsonBuilder = new StringBuilder();
       jsonBuilder.append("{");
 
-      boolean first = true;
-      for (Map.Entry<String, String> entry : map.entrySet()) {
-        if (!first) {
+      Set<Map.Entry<String, Object>> entrySet = map.entrySet();
+      int entryCount = 0;
+      int totalEntries = entrySet.size();
+
+      for (Map.Entry<String, Object> entry : entrySet) {
+        if (entryCount > 0) {
           jsonBuilder.append(",");
         }
-        first = false;
 
-        // Append the key and value
-        appendJsonString(jsonBuilder, entry.getKey(), entry.getValue());
+        String key = entry.getKey();
+        Object value = entry.getValue();
+
+        // Escape key and append it
+        jsonBuilder.append("\"").append(escapeJson(key)).append("\":");
+
+        // Append value based on its type
+        if (value instanceof String) {
+          jsonBuilder.append("\"").append(escapeJson((String) value)).append("\"");
+        } else if (value instanceof Number) {
+          jsonBuilder.append(value.toString());
+        } else if (value instanceof Boolean) {
+          jsonBuilder.append(value.toString());
+        } else {
+          jsonBuilder.append("null"); // For unsupported types, use null
+        }
+
+        entryCount++;
       }
 
       jsonBuilder.append("}");
+
       return jsonBuilder.toString();
     }
 
-    private static void appendJsonString(StringBuilder jsonBuilder, String key, String value) {
-      // Append the key (enclosed in double quotes)
-      jsonBuilder.append("\"").append(escapeJson(key)).append("\":");
-
-      // Append the value (enclosed in double quotes)
-      jsonBuilder.append("\"").append(escapeJson(value)).append("\"");
-    }
-
     private static String escapeJson(String value) {
-      // Replace special characters with their escaped counterparts
       return value
           .replace("\\", "\\\\")
           .replace("\"", "\\\"")
@@ -96,10 +107,12 @@ public class SpanAttributes implements Attributes {
   }
 
   public static class Builder {
-    private final Map<String, String> attributes;
+    private final Map<String, Object> attributes;
+    private final boolean stringify;
 
-    protected Builder() {
+    protected Builder(boolean stringify) {
       this.attributes = new HashMap<>();
+      this.stringify = stringify;
     }
 
     public Builder put(String key, String value) {
@@ -112,19 +125,31 @@ public class SpanAttributes implements Attributes {
 
     public Builder put(String key, boolean value) {
       requireNonNull(key, "key must not be null");
-      this.attributes.put(key, Boolean.toString(value));
+      if (this.stringify) {
+        this.attributes.put(key, Boolean.toString(value));
+      } else {
+        this.attributes.put(key, value);
+      }
       return this;
     }
 
     public Builder put(String key, long value) {
       requireNonNull(key, "key must not be null");
-      this.attributes.put(key, Long.toString(value));
+      if (this.stringify) {
+        this.attributes.put(key, Long.toString(value));
+      } else {
+        this.attributes.put(key, value);
+      }
       return this;
     }
 
     public Builder put(String key, double value) {
       requireNonNull(key, "key must not be null");
-      this.attributes.put(key, Double.toString(value));
+      if (this.stringify) {
+        this.attributes.put(key, Double.toString(value));
+      } else {
+        this.attributes.put(key, value);
+      }
       return this;
     }
 
@@ -150,7 +175,11 @@ public class SpanAttributes implements Attributes {
         for (int index = 0; index < array.size(); index++) {
           Object value = array.get(index);
           if (value != null) {
-            this.attributes.put(key + "." + index, value.toString());
+            if (this.stringify) {
+              this.attributes.put(key + "." + index, value.toString());
+            } else {
+              this.attributes.put(key + "." + index, value);
+            }
           }
         }
       }

@@ -15,13 +15,13 @@ public class SpanEvent {
 
   public SpanEvent(String name, Attributes attributes) {
     this.name = name;
-    this.attributes = OtelConventions.convertAttributes(attributes);
+    this.attributes = OtelConventions.convertAttributes(attributes, false);
     this.timestamp = timeNano();
   }
 
   public SpanEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     this.name = name;
-    this.attributes = OtelConventions.convertAttributes(attributes);
+    this.attributes = OtelConventions.convertAttributes(attributes, false);
     this.timestamp = timeNano(timestamp, unit);
   }
 

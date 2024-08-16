@@ -216,8 +216,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
     where:
     name   | timestamp   | unit                  | attributes         | expectedAttributes
     "evt1" | TIME_MILLIS | TimeUnit.MILLISECONDS | Attributes.empty() | null
-    "evt2" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: "123456789", double-key: "1234.5678", boolean-key-true: "true", boolean-key-false: "false" }'
-    "evt3" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array.0: "string-value1", string-key-array.1: "string-value2", string-key-array.2: "string-value3", long-key-array.0: "123456", long-key-array.1: "1234567", long-key-array.2: "12345678", double-key-array.0: "1234.5", double-key-array.1: "1234.56", double-key-array.2: "1234.567", boolean-key-array.0: "true", boolean-key-array.1: "false", boolean-key-array.2: "true" }'
+    "evt2" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: 123456789, double-key: 1234.5678, boolean-key-true: true, boolean-key-false: false }'
+    "evt3" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array.0: "string-value1", string-key-array.1: "string-value2", string-key-array.2: "string-value3", long-key-array.0: 123456, long-key-array.1: 1234567, long-key-array.2: 12345678, double-key-array.0: 1234.5, double-key-array.1: 1234.56, double-key-array.2: 1234.567, boolean-key-array.0: true, boolean-key-array.1: false, boolean-key-array.2: true }'
   }
 
   def "test multiple span events"() {
@@ -690,8 +690,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     where:
     exception                                            | attributes                                                              | expectedAttributes
-    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.escaped: "false", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
-    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | """{exception.message: "something-else", exception.type: "${exception.getClass().getName()}", exception.escaped: "false", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
+    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.escaped: false, exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
+    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | """{exception.message: "something-else", exception.type: "${exception.getClass().getName()}", exception.escaped: false, exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
     new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | """{"key": "value","exception.message": "${exception.getMessage()}"}"""
   }
 
