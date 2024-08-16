@@ -180,6 +180,14 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     traceContextInJson['x-datadog-sampling-priority'] == "1"
     !traceContextInJson['dd-pathway-ctx-base64'].toString().isBlank()
   }
+
+  def "SNS message to phone number doesn't leak exception"() {
+    when:
+    snsClient.publish { it.message("sometext").phoneNumber("+19995550123") }
+
+    then:
+    noExceptionThrown()
+  }
 }
 
 class SnsClientV0Test extends SnsClientTest {
