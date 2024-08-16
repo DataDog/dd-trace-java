@@ -5,10 +5,15 @@ import static com.datadog.iast.taint.TaintedMap.POSITIVE_MASK;
 import com.datadog.iast.model.Range;
 import datadog.trace.api.Config;
 import java.lang.ref.WeakReference;
+import java.util.Arrays;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TaintedObject extends WeakReference<Object> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(TaintedObject.class);
 
   public static final int MAX_RANGE_COUNT = Config.get().getIastMaxRangeCount();
 
@@ -21,6 +26,7 @@ public class TaintedObject extends WeakReference<Object> {
 
   public TaintedObject(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
     super(obj);
+    validateRanges(ranges);
     this.positiveHashCode = System.identityHashCode(obj) & POSITIVE_MASK;
     // ensure ranges never go over the limit
     if (ranges.length > MAX_RANGE_COUNT) {
@@ -41,7 +47,12 @@ public class TaintedObject extends WeakReference<Object> {
   }
 
   public void setRanges(@Nonnull final Range[] ranges) {
-    this.ranges = ranges;
+    try {
+      validateRanges(ranges);
+      this.ranges = ranges;
+    } catch (Throwable e) {
+      LOGGER.debug("Error tainting object with custom ranges, ranges won't be updated", e);
+    }
   }
 
   @Override
@@ -56,5 +67,19 @@ public class TaintedObject extends WeakReference<Object> {
         + " ("
         + (ranges == null ? 0 : ranges.length)
         + " ranges)";
+  }
+
+  private void validateRanges(final Range[] ranges) {
+    if (ranges == null) {
+      throw new IllegalArgumentException("ranges cannot be null");
+    }
+    if (ranges.length == 0) {
+      throw new IllegalArgumentException("ranges cannot be empty");
+    }
+    for (Range range : ranges) {
+      if (range == null) {
+        throw new IllegalArgumentException("found null range in " + Arrays.toString(ranges));
+      }
+    }
   }
 }
