@@ -8,7 +8,7 @@ public final class SqlStatementInfo {
   private final String table;
 
   public static SqlStatementInfo create(String statement, String operation, String table) {
-    return null;
+    return new SqlStatementInfo(statement, operation, table);
   }
 
   private SqlStatementInfo(String statement, String operation, String table) {
