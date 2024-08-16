@@ -79,7 +79,53 @@ public abstract class CucumberUtils {
 
   public static String getTestSuiteNameForScenario(Description scenarioDescription) {
     URI featureUri = getFeatureUri(scenarioDescription);
-    return (featureUri != null ? featureUri + ":" : "") + scenarioDescription.getClassName();
+    return (featureUri != null ? featureUri + ":" : "")
+        + getFeatureNameForScenario(scenarioDescription);
+  }
+
+  private static String getFeatureNameForScenario(Description scenarioDescription) {
+    String scenarioDescriptionString = scenarioDescription.toString();
+    int featureNameStart = getFeatureNameStartIdx(scenarioDescriptionString);
+    if (featureNameStart >= 0) {
+      int descriptionLength = scenarioDescriptionString.length();
+      // feature name is wrapped in brackets, hence the +1/-1
+      return scenarioDescriptionString.substring(featureNameStart + 1, descriptionLength - 1);
+    } else {
+      // fallback to default method
+      return scenarioDescription.getClassName();
+    }
+  }
+
+  public static String getTestNameForScenario(Description scenarioDescription) {
+    String scenarioDescriptionString = scenarioDescription.toString();
+    int featureNameStart = getFeatureNameStartIdx(scenarioDescriptionString);
+    if (featureNameStart >= 0) {
+      return scenarioDescriptionString.substring(0, featureNameStart);
+    } else {
+      // fallback to default method
+      return scenarioDescription.getMethodName();
+    }
+  }
+
+  /**
+   * JUnit 4 expects description string to have the form {@code "Scenario Name(Feature Name)"} The
+   * standard {@link Description#getClassName()} and {@link Description#getMethodName()} methods use
+   * a regex to split the name parts. This does not work correctly when feature or scenario names
+   * have bracket characters in them.
+   */
+  private static int getFeatureNameStartIdx(String scenarioDescriptionString) {
+    int openBrackets = 0;
+    for (int i = scenarioDescriptionString.length() - 1; i >= 0; i--) {
+      char c = scenarioDescriptionString.charAt(i);
+      if (c == ')') {
+        openBrackets++;
+      } else if (c == '(') {
+        if (--openBrackets == 0) {
+          return i;
+        }
+      }
+    }
+    return -1;
   }
 
   private static URI getFeatureUri(Description scenarioDescription) {
@@ -100,13 +146,13 @@ public abstract class CucumberUtils {
 
   public static TestIdentifier toTestIdentifier(Description description) {
     String suite = getTestSuiteNameForScenario(description);
-    String name = description.getMethodName();
+    String name = getTestNameForScenario(description);
     return new TestIdentifier(suite, name, null, null);
   }
 
   public static TestDescriptor toTestDescriptor(Description description) {
     String suite = getTestSuiteNameForScenario(description);
-    String name = description.getMethodName();
+    String name = getTestNameForScenario(description);
     return new TestDescriptor(suite, null, name, null, null);
   }
 

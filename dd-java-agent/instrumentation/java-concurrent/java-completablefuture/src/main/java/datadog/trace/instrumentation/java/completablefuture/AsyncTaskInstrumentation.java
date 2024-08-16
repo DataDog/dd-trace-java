@@ -72,7 +72,7 @@ public final class AsyncTaskInstrumentation extends InstrumenterModule.Tracing
   public static class Construct {
     @Advice.OnMethodExit
     public static void construct(@Advice.This ForkJoinTask<?> task) {
-      capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
+      capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
   }
 

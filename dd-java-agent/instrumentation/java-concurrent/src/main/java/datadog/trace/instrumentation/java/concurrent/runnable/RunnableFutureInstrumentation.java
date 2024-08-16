@@ -137,7 +137,7 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Trac
 
     @Advice.OnMethodExit
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
-      capture(InstrumentationContext.get(RunnableFuture.class, State.class), task, true);
+      capture(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }
   }
 

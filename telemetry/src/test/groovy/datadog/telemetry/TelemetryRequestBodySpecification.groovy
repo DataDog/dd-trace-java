@@ -3,9 +3,14 @@ package datadog.telemetry
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigOrigin
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.telemetry.ProductChange
 import okio.Buffer
 import okhttp3.RequestBody
 import spock.lang.Specification
+
+import static datadog.trace.api.telemetry.ProductChange.ProductType.APPSEC
+import static datadog.trace.api.telemetry.ProductChange.ProductType.DYNAMIC_INSTRUMENTATION
+import static datadog.trace.api.telemetry.ProductChange.ProductType.PROFILER
 
 /**
  * This test only verifies non-functional specifics that are not covered in TelemetryServiceSpecification
@@ -105,6 +110,41 @@ class TelemetryRequestBodySpecification extends Specification {
 
     then:
     drainToString(req).contains("\"debug\":true")
+  }
+
+  void 'test writeProducts'(){
+    setup:
+    TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_PRODUCT_CHANGE)
+    final products = new HashMap<ProductChange.ProductType, Boolean>()
+    if(appsecChange) {
+      products.put(APPSEC, appsecEnabled)
+    }
+    if(profilerChange) {
+      products.put(PROFILER, profilerEnabled)
+    }
+    if(dynamicInstrumentationChange) {
+      products.put(DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled)
+    }
+
+    when:
+    req.beginRequest(false)
+    req.writeProducts(products)
+    req.endRequest()
+
+    then:
+    final result = drainToString(req)
+    result.contains("\"appsec\":{\"enabled\":${appsecEnabled}}") == appsecChange
+    result.contains("\"profiler\":{\"enabled\":${profilerEnabled}}") == profilerChange
+    result.contains("\"dynamic_instrumentation\":{\"enabled\":${dynamicInstrumentationEnabled}}") == dynamicInstrumentationChange
+
+    where:
+    appsecChange | profilerChange | dynamicInstrumentationChange | appsecEnabled | profilerEnabled | dynamicInstrumentationEnabled
+    true         | true           | true                         | true          | true            | true
+    true         | true           | true                         | false         | false           | false
+    false        | false          | false                        | true          | true            | true
+    false        | true           | true                         | true          | true            | true
+    true         | false          | true                         | true          | true            | true
+    true         | true           | false                        | true          | true            | true
   }
 
   String drainToString(RequestBody body) {

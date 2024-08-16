@@ -22,6 +22,7 @@ import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 
 import javax.inject.Inject
+import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Matcher
 
 /**
@@ -177,33 +178,31 @@ interface InstrumentWorkParameters extends WorkParameters {
 
 abstract class InstrumentAction implements WorkAction<InstrumentWorkParameters> {
   private static final Object lock = new Object()
-  private static ClassLoader pluginCL
-  private static String cachedPluginPath
-  private static volatile long cachedBuildStamp
+  private static final Map<String, ClassLoader> classLoaderCache = new ConcurrentHashMap<>()
+  private static volatile long lastBuildStamp
 
   @Override
   void execute() {
+    String[] plugins = parameters.getPlugins().get() as String[]
+    String classLoaderKey = plugins.join(':')
+
     // reset shared class-loaders each time a new build starts
     long buildStamp = parameters.buildStartedTime.get()
-    String pluginPath = parameters.pluginClassPath.join(':')
-    if (rebuildSharedClassLoader(buildStamp, pluginPath)) {
+    ClassLoader pluginCL = classLoaderCache.get(classLoaderKey)
+    if (lastBuildStamp < buildStamp || !pluginCL) {
       synchronized (lock) {
-        if (rebuildSharedClassLoader(buildStamp, pluginPath)) {
+        pluginCL = classLoaderCache.get(classLoaderKey)
+        if (lastBuildStamp < buildStamp || !pluginCL) {
           pluginCL = createClassLoader(parameters.pluginClassPath)
-          cachedPluginPath = pluginPath
-          cachedBuildStamp = buildStamp
+          classLoaderCache.put(classLoaderKey, pluginCL)
+          lastBuildStamp = buildStamp
         }
       }
     }
-    String[] plugins = parameters.getPlugins().get() as String[]
     File sourceDirectory = parameters.getSourceDirectory().get().asFile
     File targetDirectory = parameters.getTargetDirectory().get().asFile
     ClassLoader instrumentingCL = createClassLoader(parameters.instrumentingClassPath, pluginCL)
     InstrumentingPlugin.instrumentClasses(plugins, instrumentingCL, sourceDirectory, targetDirectory)
-  }
-
-  static boolean rebuildSharedClassLoader(long buildStamp, String pluginPath) {
-    return cachedBuildStamp < buildStamp || cachedPluginPath != pluginPath
   }
 
   static ClassLoader createClassLoader(cp, parent = InstrumentAction.classLoader) {

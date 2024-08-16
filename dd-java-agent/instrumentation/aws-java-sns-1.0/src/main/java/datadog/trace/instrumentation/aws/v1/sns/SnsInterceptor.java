@@ -58,8 +58,14 @@ public class SnsInterceptor extends RequestHandler2 {
       // the limit still applies here
       if (messageAttributes.size() < 10) {
         // Extract the topic name from the ARN for DSM
-        String topicName =
-            pRequest.getTopicArn() == null ? pRequest.getTargetArn() : pRequest.getTopicArn();
+        String topicName = pRequest.getTopicArn();
+        if (null == topicName) {
+          topicName = pRequest.getTargetArn();
+          if (null == topicName) {
+            return request; // request is to phone number, ignore for DSM
+          }
+        }
+
         topicName = topicName.substring(topicName.lastIndexOf(':') + 1);
 
         HashMap<String, MessageAttributeValue> modifiedMessageAttributes =
