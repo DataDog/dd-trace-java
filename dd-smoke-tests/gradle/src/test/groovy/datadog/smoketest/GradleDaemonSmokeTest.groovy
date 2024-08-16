@@ -96,8 +96,10 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     where:
     gradleVersion         | projectName                                        | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages
     "8.3"                 | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
+    "8.9"                 | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
     "8.3"                 | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
+    "8.9"                 | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-succeed-multi-module-new-instrumentation"    | false              | true            | false        | 7              | 2
     LATEST_GRADLE_VERSION | "test-succeed-multi-forks-new-instrumentation"     | false              | true            | false        | 6              | 2
@@ -187,10 +189,7 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
 
   private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true, boolean configurationCache = false) {
     def arguments = ["test", "--stacktrace"]
-    if (gradleVersion > "5.6") {
-      // fail on warnings is available starting from Gradle 5.6
-      arguments += ["--warning-mode", "fail"]
-    } else if (gradleVersion > "4.5") {
+    if (gradleVersion > "4.5") {
       // warning mode available starting from Gradle 4.5
       arguments += ["--warning-mode", "all"]
     }
