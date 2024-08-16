@@ -21,12 +21,12 @@ public class SpanAttributes implements Attributes {
   }
 
   /**
-   * Gets a builder to create attributes.
+   * Gets a builder of the specified format to create attributes.
    *
    * @return A builder to create attributes.
    */
-  public static Builder builder(boolean stringify) {
-    return new Builder(stringify);
+  public static Builder builder(Builder.Format format) {
+    return new Builder(format);
   }
 
   /**
@@ -78,14 +78,11 @@ public class SpanAttributes implements Attributes {
         // Append value based on its type
         if (value instanceof String) {
           jsonBuilder.append("\"").append(escapeJson((String) value)).append("\"");
-        } else if (value instanceof Number) {
-          jsonBuilder.append(value.toString());
-        } else if (value instanceof Boolean) {
-          jsonBuilder.append(value.toString());
+        } else if (value instanceof Number || value instanceof Boolean || value instanceof List) {
+          jsonBuilder.append(value);
         } else {
           jsonBuilder.append("null"); // For unsupported types, use null
         }
-
         entryCount++;
       }
 
@@ -107,12 +104,17 @@ public class SpanAttributes implements Attributes {
   }
 
   public static class Builder {
-    private final Map<String, Object> attributes;
-    private final boolean stringify;
+    public enum Format {
+      LINKS,
+      EVENTS
+    }
 
-    protected Builder(boolean stringify) {
+    private final Map<String, Object> attributes;
+    private final Format format;
+
+    protected Builder(Format format) {
       this.attributes = new HashMap<>();
-      this.stringify = stringify;
+      this.format = format;
     }
 
     public Builder put(String key, String value) {
@@ -125,9 +127,9 @@ public class SpanAttributes implements Attributes {
 
     public Builder put(String key, boolean value) {
       requireNonNull(key, "key must not be null");
-      if (this.stringify) {
+      if (this.format == Format.LINKS) {
         this.attributes.put(key, Boolean.toString(value));
-      } else {
+      } else if (this.format == Format.EVENTS) {
         this.attributes.put(key, value);
       }
       return this;
@@ -135,9 +137,9 @@ public class SpanAttributes implements Attributes {
 
     public Builder put(String key, long value) {
       requireNonNull(key, "key must not be null");
-      if (this.stringify) {
+      if (this.format == Format.LINKS) {
         this.attributes.put(key, Long.toString(value));
-      } else {
+      } else if (this.format == Format.EVENTS) {
         this.attributes.put(key, value);
       }
       return this;
@@ -145,9 +147,9 @@ public class SpanAttributes implements Attributes {
 
     public Builder put(String key, double value) {
       requireNonNull(key, "key must not be null");
-      if (this.stringify) {
+      if (this.format == Format.LINKS) {
         this.attributes.put(key, Double.toString(value));
-      } else {
+      } else if (this.format == Format.EVENTS) {
         this.attributes.put(key, value);
       }
       return this;
@@ -172,15 +174,15 @@ public class SpanAttributes implements Attributes {
     protected <T> Builder putArray(String key, List<T> array) {
       requireNonNull(key, "key must not be null");
       if (array != null) {
-        for (int index = 0; index < array.size(); index++) {
-          Object value = array.get(index);
-          if (value != null) {
-            if (this.stringify) {
+        if (this.format == Format.LINKS) {
+          for (int index = 0; index < array.size(); index++) {
+            Object value = array.get(index);
+            if (value != null) {
               this.attributes.put(key + "." + index, value.toString());
-            } else {
-              this.attributes.put(key + "." + index, value);
             }
           }
+        } else if (this.format == Format.EVENTS) {
+          this.attributes.put(key, array);
         }
       }
       return this;

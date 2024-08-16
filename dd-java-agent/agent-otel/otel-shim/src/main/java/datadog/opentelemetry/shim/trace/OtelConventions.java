@@ -240,11 +240,12 @@ public final class OtelConventions {
     return (String) tag;
   }
 
-  public static AgentSpan.Attributes convertAttributes(Attributes attributes, boolean stringify) {
+  public static AgentSpan.Attributes convertAttributes(
+      Attributes attributes, SpanAttributes.Builder.Format format) {
     if (attributes == null || attributes.isEmpty()) {
       return SpanAttributes.EMPTY;
     }
-    SpanAttributes.Builder builder = SpanAttributes.builder(stringify);
+    SpanAttributes.Builder builder = SpanAttributes.builder(format);
     attributes.forEach(
         (attributeKey, value) -> {
           String key = attributeKey.getKey();

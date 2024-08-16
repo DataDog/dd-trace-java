@@ -5,6 +5,7 @@ import static datadog.opentelemetry.shim.trace.OtelConventions.convertAttributes
 import datadog.opentelemetry.shim.context.propagation.TraceStateHelper;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes.Builder.Format;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import io.opentelemetry.api.trace.SpanContext;
 
@@ -19,6 +20,6 @@ public class OtelSpanLink extends SpanLink {
         DDSpanId.fromHex(spanContext.getSpanId()),
         spanContext.isSampled() ? SAMPLED_FLAG : DEFAULT_FLAGS,
         TraceStateHelper.encodeHeader(spanContext.getTraceState()),
-        convertAttributes(attributes, true));
+        convertAttributes(attributes, Format.LINKS));
   }
 }
