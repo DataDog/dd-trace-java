@@ -15,7 +15,7 @@ repositories {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Kafka Smoke Tests.'
 
-jar {
+tasks.named("jar", Jar).configure {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.datastreams.kafkaschemaregistry.KafkaProducerWithSchemaRegistry')
   }
@@ -38,7 +38,7 @@ tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.datastreams.kafkaschemaregistry.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
-task testRuntimeActivation(type: Test) {
+tasks.register('testRuntimeActivation', Test) {
   jvmArgs "-Ddatadog.smoketest.datastreams.kafkaschemaregistry.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
-tasks['check'].dependsOn(testRuntimeActivation)
+tasks.named('check').configure { dependsOn 'testRuntimeActivation' }

@@ -2,6 +2,9 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
 muzzle {
   pass {
     group = "org.graalvm.nativeimage"
@@ -10,20 +13,19 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: "idea"
-
-[compileMain_java11Java, compileTestJava].each {
-  it.sourceCompatibility = JavaVersion.VERSION_11
-  it.targetCompatibility = JavaVersion.VERSION_11
-  setJavaVersion(it, 11)
-  it.options.compilerArgs.addAll([
-    '-Xlint:all,-processing,-options,-path',
-    '--add-modules',
-    'jdk.internal.vm.ci',
-    '--add-exports',
-    'jdk.internal.vm.ci/jdk.vm.ci.meta=ALL-UNNAMED'
-  ])
+for (final taskName in ["compileMain_java11Java", "compileTestJava"]) {
+  tasks.named(taskName, JavaCompile).configure {
+    it.sourceCompatibility = JavaVersion.VERSION_11
+    it.targetCompatibility = JavaVersion.VERSION_11
+    setJavaVersion(it, 11)
+    it.options.compilerArgs.addAll([
+      '-Xlint:all,-processing,-options,-path',
+      '--add-modules',
+      'jdk.internal.vm.ci',
+      '--add-exports',
+      'jdk.internal.vm.ci/jdk.vm.ci.meta=ALL-UNNAMED'
+    ])
+  }
 }
 
 dependencies {
@@ -32,7 +34,7 @@ dependencies {
   main_java11CompileOnly group: 'org.graalvm.nativeimage', name: 'svm', version: '20.0.0'
 }
 
-forbiddenApisMain_java11 {
+tasks.named("forbiddenApisMain_java11").configure {
   failOnMissingClasses = false
 }
 

@@ -1,3 +1,8 @@
+ext {
+  skipSettingCompilerRelease = true
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
 
 muzzle {
   pass {
@@ -5,12 +10,7 @@ muzzle {
   }
 }
 
-ext {
-  skipSettingCompilerRelease = true
-}
-apply from: "${rootDir}/gradle/java.gradle"
-
-compileJava {
+tasks.named("compileJava", JavaCompile).configure {
   javaCompiler = javaToolchains.compilerFor {
     languageVersion = JavaLanguageVersion.of(8)
   }

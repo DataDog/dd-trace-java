@@ -22,11 +22,11 @@ publishing {
   publications {
     maven(MavenPublication) { MavenPublication publication ->
       if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
-        publication.artifact(project.tasks.shadowJar)
+        // DEBUG: publication.artifact(project.tasks.shadowJar)
 
         // Required by Maven Central:
-        publication.artifact sourcesJar
-        publication.artifact javadocJar
+        // DEBUG: publication.artifact sourcesJar
+        // DEBUG: publication.artifact javadocJar
 
         afterEvaluate {
           /**
@@ -113,6 +113,6 @@ configurations {
 
 tasks.withType(AbstractPublishToMaven).configureEach {
   rootProject.subprojects {
-    mustRunAfter tasks.matching { it instanceof VerificationTask }
+    mustRunAfter tasks.withType(VerificationTask)
   }
 }

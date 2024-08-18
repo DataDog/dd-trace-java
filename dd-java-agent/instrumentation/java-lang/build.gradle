@@ -1,11 +1,11 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
 muzzle {
   pass {
     coreJdk()
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
 
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -13,7 +13,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 
-tasks.compileTestJava.configure {
+tasks.named("compileTestJava", JavaCompile).configure {
   setJavaVersion(it, 8)
 }
 

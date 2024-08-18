@@ -9,13 +9,13 @@ description = 'Spring Boot 2.6 Webflux Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
-jar {
+tasks.named("jar", Jar).configure {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
   }
 }
 
-shadowJar {
+tasks.named("shadowJar").configure {
   configurations = [project.configurations.runtimeClasspath]
   mergeServiceFiles()
   append 'META-INF/spring.handlers'
@@ -24,7 +24,8 @@ shadowJar {
   transform(PropertiesFileTransformer) {
     paths = ['META-INF/spring.factories']
     mergeStrategy = "append"
-  }}
+  }
+}
 
 dependencies {
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.6.0+'

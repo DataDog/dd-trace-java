@@ -1,12 +1,11 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
 
 muzzle {
   pass {
     coreJdk()
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
 
 addTestSuiteForDir('latestDepTest', 'test')
 

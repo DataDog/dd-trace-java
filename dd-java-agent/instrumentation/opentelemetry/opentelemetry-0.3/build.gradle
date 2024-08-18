@@ -1,6 +1,8 @@
 // Made this a variable so we can easily update to latest releases.
 def otelVersion = '0.3.0'
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     module = 'opentelemetry-api'
@@ -10,8 +12,6 @@ muzzle {
     skipVersions = ['0.2.2', '0.2.3', '0.9.0', '0.13.0']
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

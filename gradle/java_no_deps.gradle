@@ -10,16 +10,19 @@ apply from: "$rootDir/gradle/repositories.gradle"
 apply from: "$rootDir/gradle/pitest.gradle"
 apply from: "$rootDir/gradle/test-suites.gradle"
 
+logger.debug("Will apply java_no_deps.gradle stage 1 for ${project.path}")
+
 // Only run one testcontainers test at a time
 ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", BuildService) {
   maxParallelUsages = 1
 }
 
+logger.debug("Will apply java_no_deps.gradle stage 2 for ${project.path}")
+
 // Task for tests that want to run forked in their own separate JVM
-if (tasks.matching({it.name == 'forkedTest'}).empty) {
-  tasks.register('forkedTest', Test).configure {
-    useJUnitPlatform()
-  }
+// XXX: tasks.matching here realizes all tasks!
+tasks.register('forkedTest', Test).configure {
+  useJUnitPlatform()
 }
 
 def applyCodeCoverage = !(
@@ -37,13 +40,19 @@ if (applyCodeCoverage) {
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
+logger.debug("Will apply java_no_deps.gradle stage 3 for ${project.path}")
+
 // when building with Java 9+, lazily set compiler --release flag to match target
 def skipSettingCompilerRelease = project.findProperty('skipSettingCompilerRelease')
 if (!skipSettingCompilerRelease && JavaVersion.current().isJava9Compatible()) {
-  compileJava.options.release = project.provider {
-    JavaVersion.toVersion(targetCompatibility).majorVersion as Integer
+  tasks.named('compileJava', JavaCompile).configure { task ->
+    task.options.release = project.provider {
+      JavaVersion.toVersion(JavaVersion.VERSION_1_8).majorVersion as Integer
+    }
   }
 }
+
+logger.debug("Will apply java_no_deps.gradle stage 4 for ${project.path}")
 
 if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
   def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
@@ -54,7 +63,7 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
     }
   }
 
-  "compileMain_${name}Java" {
+  tasks.named("compileMain_${name}Java").configure {
     sourceCompatibility = version
     targetCompatibility = version
   }
@@ -64,8 +73,9 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
     implementation files(project.sourceSets."main_$name".output)
   }
 
-  jar {
-    from sourceSets."main_$name".output
+  final taskName = name
+  tasks.named("jar", Jar).configure {
+    from sourceSets."main_$taskName".output
   }
 
   // In some cases we would like to avoid setting java version to `minJavaVersionForTests`.
@@ -81,6 +91,8 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   }
 }
 
+logger.debug("Will apply java_no_deps.gradle stage 5 for ${project.path}")
+
 java {
   // See https://docs.gradle.org/current/userguide/upgrading_version_5.html, Automatic target JVM version
   disableAutoTargetJvm()
@@ -88,7 +100,9 @@ java {
   withSourcesJar()
 }
 
-jar {
+
+logger.debug("Will apply java_no_deps.gradle stage 6 for ${project.path}")
+tasks.named("jar", Jar).configure {
   /**
    Make Jar build fail on duplicate files
    By default Gradle Jar task can put multiple files with the same name
@@ -100,7 +114,7 @@ jar {
    confusing failures.
    Instead we should 'fail early' and avoid building such Jars.
    */
-  duplicatesStrategy = 'fail'
+  duplicatesStrategy = DuplicatesStrategy.FAIL
 
   manifest {
     attributes(
@@ -112,10 +126,21 @@ jar {
   }
 }
 
+logger.debug("Will apply java_no_deps.gradle stage 6b for ${project.path}")
+
 tasks.withType(Javadoc).configureEach {
-  options.encoding = "utf-8"
-  options.docEncoding = "utf-8"
-  options.charSet = "utf-8"
+  source = sourceSets.main.java.srcDirs
+  classpath = configurations.compileClasspath
+
+  options {
+    encoding = "utf-8"
+    docEncoding = "utf-8"
+    charSet = "utf-8"
+    memberLevel = JavadocMemberLevel.PUBLIC
+    author = true
+    links = ['https://docs.oracle.com/javase/8/docs/api/']
+    source = 8
+  }
 
   options.addStringOption('Xdoclint:none', '-quiet')
 
@@ -126,20 +151,9 @@ tasks.withType(Javadoc).configureEach {
   }
 }
 
-javadoc {
-  source = sourceSets.main.java.srcDirs
-  classpath = configurations.compileClasspath
-
-  options {
-    setMemberLevel JavadocMemberLevel.PUBLIC
-    setAuthor true
-
-    links "https://docs.oracle.com/javase/8/docs/api/"
-    source = 8
-  }
-}
-
 def currentJavaHomePath = getJavaHomePath(System.getProperty("java.home"))
+
+logger.debug("Will apply java_no_deps.gradle stage 9 for ${project.path}")
 
 project.afterEvaluate {
   def testJvm = gradle.startParameter.projectProperties["testJvm"]
@@ -237,18 +251,20 @@ project.afterEvaluate {
 }
 
 if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
-  // Remove the no-deps jar from the archives to prevent publication
-  configurations.archives.with {
-    artifacts.remove artifacts.find {
-      if (it.hasProperty("delegate")) {
-        it.delegate.archiveTask.is jar
-      } else {
-        it.archiveTask.is jar
+  tasks.named("shadowJar").configure {
+    // Remove the no-deps jar from the archives to prevent publication
+    project.configurations.archives.with {
+      artifacts.remove artifacts.find {
+        if (it.hasProperty("delegate")) {
+          (it.delegate.archiveTask instanceof Jar) && it.delegate.archiveTask.is(jar)
+        } else {
+          (it.archiveTask.class.isInstance instanceof Jar) && it.archiveTask.is(jar)
+        }
       }
     }
-  }
-  artifacts {
-    archives shadowJar
+    project.artifacts {
+      archives shadowJar
+    }
   }
 }
 
@@ -328,4 +344,12 @@ tasks.register('testJar', Jar) {
   archiveClassifier = 'test'
 }
 
+logger.debug("Will apply configure_tests.gradle to ${project.path}")
 apply from: "$rootDir/gradle/configure_tests.gradle"
+
+if (project.path.startsWith(":dd-java-agent:instrumentation:")) {
+  if (!project.hasProperty("instrumentationModuleInitialized")) {
+    apply from: "$rootDir/gradle/instrumentation-module-init.gradle"
+    project.ext.instrumentationModuleInitialized = true
+  }
+}

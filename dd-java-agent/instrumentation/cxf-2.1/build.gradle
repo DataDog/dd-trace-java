@@ -1,6 +1,9 @@
 ext {
   minVersionForTests = JavaVersion.VERSION_11
 }
+
+apply from: "${rootDir}/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.apache.cxf"
@@ -17,21 +20,23 @@ muzzle {
   }
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
-
 addTestSuite('latestDepTest')
 addTestSuiteForDir('cxf3LatestDepTest', 'test')
 
-[compileLatestDepTestJava, compileCxf3LatestDepTestJava].each {
-  it.configure {
-    setJavaVersion(it, 11)
+for (final taskName in ['compileLatestDepTestJava', 'compileCxf3LatestDepTestJava']) {
+  tasks.named(taskName, JavaCompile).configure {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
 
-[compileLatestDepTestGroovy, latestDepTest, compileCxf3LatestDepTestGroovy, cxf3LatestDepTest].each {
-  it.configure {
+for (final taskName in [
+    'compileLatestDepTestGroovy',
+    'latestDepTest',
+    'compileCxf3LatestDepTestGroovy',
+    'cxf3LatestDepTest'
+  ]) {
+  tasks.named(taskName).configure {
     javaLauncher = getJavaLauncherFor(11)
   }
 }

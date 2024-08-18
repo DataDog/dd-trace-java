@@ -20,7 +20,7 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
-latestDepTest {
+tasks.named("latestDepTest").configure {
   finalizedBy 'latestDepForkedTest'
 }
 
@@ -30,7 +30,7 @@ configurations {
 
 // Create test artifacts so vertx-rx can reuse the server test instrumentation and base class
 artifacts {
-  testArtifacts testJar
+  testArtifacts tasks.named("testJar", Jar)
 }
 
 dependencies {

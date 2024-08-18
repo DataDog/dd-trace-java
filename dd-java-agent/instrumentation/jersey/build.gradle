@@ -4,6 +4,8 @@ if (project.hasProperty('testJvm')) {
   }
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.glassfish.jersey.core'
@@ -13,25 +15,23 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 // there are tests with jersey2 and grizzly on the grizzly-http-2.3.20 module
 addTestSuiteForDir('jersey2JettyTest', 'jersey2JettyTest')
 addTestSuiteForDir('jersey3JettyTest', 'jersey3JettyTest')
 
-compileJersey3JettyTestGroovy {
+tasks.named("compileJersey3JettyTestGroovy", GroovyCompile).configure {
   javaLauncher = getJavaLauncherFor(11)
 }
-compileTestJava.configure {
+tasks.named("compileTestJava", JavaCompile).configure {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
 }
 
-jersey3JettyTest {
+tasks.named("jersey3JettyTest").configure {
   javaLauncher = getJavaLauncherFor(11)
 }
-test {
+tasks.named("test").configure {
   javaLauncher = getJavaLauncherFor(11)
 }
 

@@ -2,6 +2,9 @@ plugins {
   id 'java-test-fixtures'
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
 muzzle {
   pass {
     name = 'servlet-3.x'
@@ -23,9 +26,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')

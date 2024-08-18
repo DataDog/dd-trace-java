@@ -1,10 +1,10 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     coreJdk()
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   testImplementation group: 'org.springframework', name: 'spring-web', version: '4.3.7.RELEASE'

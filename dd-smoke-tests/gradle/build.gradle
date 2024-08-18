@@ -10,7 +10,7 @@ dependencies {
   testImplementation project(':dd-smoke-tests:backend-mock')
 }
 
-test {
+tasks.named("test", Test).configure {
   testLogging {
     events "passed", "skipped", "failed", "standardOut", "standardError"
   }

@@ -1,3 +1,4 @@
+apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   fail {
@@ -11,8 +12,6 @@ muzzle {
     versions = "[,]"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('resteasy31Test', 'test')

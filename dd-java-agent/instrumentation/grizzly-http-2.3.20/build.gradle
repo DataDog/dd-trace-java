@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.glassfish.grizzly"
@@ -10,8 +12,6 @@ muzzle {
     assertInverse = false
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -34,6 +34,6 @@ dependencies {
   latestDepTestImplementation group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.+'
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.integration.grizzly-filterchain.enabled=true']
 }

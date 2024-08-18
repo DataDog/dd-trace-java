@@ -69,26 +69,22 @@ val copyCallSiteSources = tasks.register<Copy>("copyCallSiteSources") {
   group = "build"
 }
 
-tasks {
-  withType<AbstractCompile>() {
+tasks.withType<AbstractCompile>().configureEach {
     dependsOn(copyCallSiteSources)
+}
+
+tasks.named<ShadowJar>("shadowJar").configure {
+  mergeServiceFiles()
+  manifest {
+    attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
   }
 }
 
-tasks {
-  named<ShadowJar>("shadowJar") {
-    mergeServiceFiles()
-    manifest {
-      attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
-    }
-  }
-}
-
-tasks.build {
+tasks.named("build").configure {
   dependsOn(tasks.shadowJar)
 }
 
-tasks.test {
+tasks.named<Test>("test").configure {
   useJUnitPlatform()
   enabled = project.hasProperty("runBuildSrcTests")
 }

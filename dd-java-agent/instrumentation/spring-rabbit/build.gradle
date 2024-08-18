@@ -1,3 +1,4 @@
+apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
@@ -7,8 +8,6 @@ muzzle {
     extraDependency 'com.rabbitmq:amqp-client:2.7.0'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

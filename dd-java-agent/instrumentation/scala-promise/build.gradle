@@ -2,6 +2,9 @@
  * Classes that are common to all versions of the Scala promise instrumentation.
  */
 
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+
 muzzle {
   pass {
     group = 'org.scala-lang'
@@ -9,9 +12,6 @@ muzzle {
     versions = "[2.10.2,]"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
 
 tasks.named("compileTestGroovy").configure {
   classpath += files(sourceSets.test.scala.classesDirectory)

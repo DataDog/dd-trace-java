@@ -53,9 +53,7 @@ if (version >= 17) {
     .withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(project(':dd-trace-api').tasks.jar.archiveFile.get()).withPropertyName('apiJar')
     inputs.file(project(':dd-java-agent').tasks.shadowJar.archiveFile.get()).withPropertyName('agentJar')
-  }
 
-  quarkusNativeBuild {
     dependsOn project(':dd-trace-api').tasks.named("jar") // Use dev @Trace annotation
     dependsOn project(':dd-java-agent').tasks.named('shadowJar') // Use dev agent
   }

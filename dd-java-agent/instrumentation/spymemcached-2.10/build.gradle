@@ -1,3 +1,6 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
 muzzle {
   pass {
     group = "net.spy"
@@ -7,14 +10,10 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
-
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
-latestDepTest {
+tasks.named("latestDepTest").configure {
   finalizedBy 'latestDepForkedTest'
 }
 dependencies {

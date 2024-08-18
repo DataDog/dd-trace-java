@@ -2,6 +2,9 @@ ext {
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
   latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
 }
+
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "io.undertow"
@@ -17,8 +20,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')

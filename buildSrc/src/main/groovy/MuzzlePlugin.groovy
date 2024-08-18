@@ -1,3 +1,6 @@
+import org.gradle.api.tasks.compile.AbstractCompile
+import org.gradle.api.tasks.compile.JavaCompile
+
 import static MuzzleAction.createClassLoader
 
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils
@@ -105,49 +108,44 @@ class MuzzlePlugin implements Plugin<Project> {
 
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
-    def compileMuzzle = project.task('compileMuzzle')
-    compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
-    project.afterEvaluate {
-      project.tasks.matching {
-        it.name =~ /\Ainstrument(Main)?(_.+)?(Java|Scala|Kotlin)/
-      }.all {
-        compileMuzzle.dependsOn(it)
-      }
+    def compileMuzzle = project.tasks.register('compileMuzzle') {
+      it.dependsOn(toolingProject.tasks.named("compileJava"))
+      it.dependsOn(project.tasks.withType(InstrumentTask))
+      it.dependsOn bootstrapProject.tasks.named("compileJava")
+      it.dependsOn bootstrapProject.tasks.named("compileMain_java11Java")
+      it.dependsOn toolingProject.tasks.named("compileJava")
     }
-    compileMuzzle.dependsOn bootstrapProject.tasks.compileJava
-    compileMuzzle.dependsOn bootstrapProject.tasks.compileMain_java11Java
-    compileMuzzle.dependsOn toolingProject.tasks.compileJava
 
-    project.task(['type': MuzzleTask], 'muzzle') {
-      description = "Run instrumentation muzzle on compile time dependencies"
-      doLast {
+    project.tasks.register('muzzle', MuzzleTask) {
+      it.description = "Run instrumentation muzzle on compile time dependencies"
+      it.doLast {
         if (!project.muzzle.directives.any { it.assertPass }) {
           project.getLogger().info('No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies')
           assertMuzzle(muzzleBootstrap, muzzleTooling, project)
         }
       }
-      dependsOn compileMuzzle
+      it.dependsOn compileMuzzle
     }
 
-    project.task(['type': MuzzleTask], 'printReferences') {
-      description = "Print references created by instrumentation muzzle"
-      doLast {
+    project.tasks.register('printReferences', MuzzleTask) {
+      it.description = "Print references created by instrumentation muzzle"
+      it.doLast {
         printMuzzle(project)
       }
-      dependsOn compileMuzzle
+      it.dependsOn compileMuzzle
     }
-    project.task(['type': MuzzleTask], 'generateMuzzleReport') {
-      description = "Print instrumentation version report"
-      doLast {
+    project.tasks.register('generateMuzzleReport', MuzzleTask) {
+      it.description = "Print instrumentation version report"
+      it.doLast {
         dumpVersionRanges(project)
       }
-      dependsOn compileMuzzle
+      it.dependsOn compileMuzzle
     }
 
 
-    project.task(['type': MuzzleTask], 'mergeMuzzleReports') {
-      description = "Merge generated version reports in one unique csv"
-      doLast {
+    project.tasks.register('mergeMuzzleReports', MuzzleTask) {
+      it.description = "Merge generated version reports in one unique csv"
+      it.doLast {
         mergeReports(project)
       }
     }

@@ -1,3 +1,4 @@
+apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   fail {
@@ -12,8 +13,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 

@@ -4,7 +4,7 @@ plugins {
   id 'com.github.johnrengelman.shadow'
   id 'me.champeau.jmh'
   id 'java-test-fixtures'
-  id 'com.google.protobuf' version '0.8.18'
+  id 'com.google.protobuf' version '0.9.4'
   id 'net.ltgt.errorprone' version '3.1.0'
 }
 
@@ -37,7 +37,9 @@ protobuf {
     grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
   }
   generateProtoTasks {
-    all()*.plugins { grpc {} }
+    ofSourceSet("test").configureEach {
+      plugins { grpc {} }
+    }
   }
 }
 
@@ -71,11 +73,11 @@ dependencies {
   errorprone('com.google.errorprone:error_prone_core:2.23.0')
 }
 
-shadowJar {
+tasks.named("shadowJar").configure {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar).configure {
   archiveClassifier = 'unbundled'
 }
 

@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'com.amazonaws'
@@ -6,20 +8,12 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 
-test {
-  environment "_HANDLER", "Handler"
-}
-
-forkedTest {
-  environment "_HANDLER", "Handler"
-}
-
-latestDepTest {
-  environment "_HANDLER", "Handler"
+for (final taskName in ['test', 'forkedTest', 'latestDepTest']) {
+  tasks.named(taskName).configure {
+    environment "_HANDLER", "Handler"
+  }
 }
 
 dependencies {

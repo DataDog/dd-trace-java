@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   fail {
     group = "redis.clients"
@@ -12,8 +14,6 @@ muzzle {
     versions = "[3.0.0,4.0.0)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

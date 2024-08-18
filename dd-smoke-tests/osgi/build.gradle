@@ -42,7 +42,7 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-jar {
+tasks.named("jar", Jar).configure {
   include 'datadog/smoketest/osgi/app/**'
 }
 

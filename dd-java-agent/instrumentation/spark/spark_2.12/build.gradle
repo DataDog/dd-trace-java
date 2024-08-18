@@ -5,6 +5,11 @@ plugins {
 def sparkVersion = '2.4.0'
 def scalaVersion = '2.12'
 
+configurations.all {
+  resolutionStrategy.deactivateDependencyLocking()
+}
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.apache.spark"
@@ -13,10 +18,6 @@ muzzle {
     assertInverse = true
   }
 }
-configurations.all {
-  resolutionStrategy.deactivateDependencyLocking()
-}
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuite('test_spark24')

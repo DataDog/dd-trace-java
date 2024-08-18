@@ -2,6 +2,9 @@ ext {
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_21
   latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_21
 }
+
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'com.aerospike'
@@ -10,9 +13,6 @@ muzzle {
     skipVersions += "4.4.19" // bad release
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-
 
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteForDir("latest7DepTest", "test")

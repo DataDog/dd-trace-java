@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.springframework'
@@ -35,8 +37,6 @@ muzzle {
     extraDependency "org.springframework:spring-webmvc:3.1.0.RELEASE"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-webmvc', version: '3.1.0.RELEASE'

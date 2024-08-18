@@ -2,6 +2,10 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
 
+apply plugin: 'java-test-fixtures'
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
 muzzle {
   pass {
     group = "org.eclipse.jetty"
@@ -9,10 +13,6 @@ muzzle {
     versions = "[11,12)"
   }
 }
-
-apply plugin: 'java-test-fixtures'
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: "idea"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
@@ -22,10 +22,10 @@ tasks.withType(JavaCompile).configureEach {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
-tasks.withType(GroovyCompile) {
+tasks.withType(GroovyCompile).configureEach {
   javaLauncher = getJavaLauncherFor(11)
 }
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
   javaLauncher = getJavaLauncherFor(11)
 }
 

@@ -1,10 +1,10 @@
+apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
     coreJdk()
   }
 }
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

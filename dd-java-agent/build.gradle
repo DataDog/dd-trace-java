@@ -74,7 +74,7 @@ ext.generalShadowJarConfig = {
 
 def includeShadowJar(TaskProvider<ShadowJar> shadowJarTask, String jarname) {
   def opentracingFound = new AtomicBoolean()
-  project.processResources {
+  project.tasks.named('processResources').configure {
     doFirst {
       eachFile {
         // We seem unlikely to use this name somewhere else.
@@ -108,6 +108,8 @@ def includeSubprojShadowJar(String projName, String jarname) {
   def proj = project(projName)
   includeShadowJar proj.tasks.named("shadowJar"), jarname
 }
+
+logger.debug("Will apply build.gradle stage includeSubprojShadowJar for :dd-java-agent")
 
 includeSubprojShadowJar ':dd-java-agent:instrumentation', 'inst'
 includeSubprojShadowJar ':dd-java-agent:agent-jmxfetch', 'metrics'
@@ -145,21 +147,24 @@ def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
   archiveClassifier = 'trace'
   it.dependencies deps.excludeShared
 }
+
 includeShadowJar(traceShadowJar, 'trace')
 
-shadowJar generalShadowJarConfig >> {
-  configurations = [project.configurations.shadowInclude]
+tasks.named("shadowJar", ShadowJar).configure {
+  generalShadowJarConfig >> {
+    configurations = [project.configurations.shadowInclude]
 
-  archiveClassifier = ''
+    archiveClassifier = ''
 
-  manifest {
-    attributes(
-      "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Can-Redefine-Classes": true,
-      "Can-Retransform-Classes": true,
-      )
+    manifest {
+      attributes(
+        "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
+        "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
+        "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
+        "Can-Redefine-Classes": true,
+        "Can-Retransform-Classes": true,
+        )
+    }
   }
 }
 
@@ -180,7 +185,7 @@ tasks.register('generateAgentJarIndex', JavaExec) {
   dependsOn 'writeVersionNumberFile'
 }
 
-compileJava.dependsOn 'generateAgentJarIndex'
+tasks.named('compileJava').configure { dependsOn 'generateAgentJarIndex' }
 
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
@@ -293,3 +298,5 @@ tasks.register('checkAgentJarSize').configure {
 tasks.named('check').configure {
   dependsOn 'checkAgentJarSize'
 }
+
+logger.debug("Will apply build.gradle for :dd-java-agent (done)")

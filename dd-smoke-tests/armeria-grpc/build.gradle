@@ -33,8 +33,10 @@ protobuf {
     }
   }
   generateProtoTasks {
-    ofSourceSet('main')*.plugins {
-      grpc {}
+    ofSourceSet('main').configureEach {
+      plugins {
+        grpc {}
+      }
     }
   }
 }
@@ -72,12 +74,11 @@ tasks.register('armeriaBuild', Exec) {
   })
   .withPropertyName("application")
   .withPathSensitivity(PathSensitivity.RELATIVE)
+
+  dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
 evaluationDependsOn ':dd-trace-api'
-armeriaBuild {
-  dependsOn project(':dd-trace-api').tasks.named("jar")
-}
 
 tasks.named("compileTestGroovy").configure {
   dependsOn 'armeriaBuild'

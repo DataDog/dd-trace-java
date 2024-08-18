@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 // compiling against 1.11.0, but instrumentation should work against 1.10.33 with varying effects,
 // depending on the version's implementation. (i.e. DeleteOptionGroup may have less handlerCounts than
 // expected in 1.11.84. Testing against 1.11.0 instead of 1.10.33 because the RequestHandler class
@@ -13,8 +15,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 // Features used in test_1_11_106 (builder) is available since 1.11.84, but
 // using 1.11.106 because of previous concerns with byte code differences

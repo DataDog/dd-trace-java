@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'java-test-fixtures'
   id 'com.github.johnrengelman.shadow'
@@ -26,33 +28,56 @@ dependencies {
   testLogging libs.bundles.test.logging
 
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
-  compileOnly files({ tasks.installOpenLibertyDeps.extractedJars })
-  testImplementation files({ tasks.installOpenLibertyDeps.extractedJars })
+  compileOnly files({
+    tasks.named("installOpenLibertyDeps").map {
+      it.extractedJars
+    }
+  })
+  testImplementation files({
+    tasks.named("installOpenLibertyDeps").map {
+      it.extractedJars
+    }
+  })
 
   implementation project(':dd-java-agent:instrumentation:servlet:request-5')
-  testImplementation files({ tasks.installOpenLibertyDeps.wsServerJar })
+  testImplementation files({
+    tasks.named("installOpenLibertyDeps").map {
+      it.wsServerJar
+    }
+  })
   testImplementation testFixtures(project(':dd-java-agent:appsec'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
-  testRuntimeOnly files({ tasks.filterLogbackClassic.filteredLogbackDir })
+  testRuntimeOnly files({
+    tasks.named("filterLogbackClassic").map {
+      it.filteredLogbackDir
+    }
+  })
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
-  testRuntimeOnly files({ tasks.shadowJar.archiveFile })
+  testRuntimeOnly files({
+    tasks.named("shadowJar").map {
+      it.archiveFile
+    }
+  })
 
   webappCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
-  webappCompileOnly project(':dd-java-agent:instrumentation:servlet:request-5')
-    .tasks['compileTestFixturesJava'].classpath
+  webappCompileOnly project(':dd-java-agent:instrumentation:servlet:request-5').tasks.named("compileTestFixturesJava", JavaCompile).map { it.classpath }
   // only the testFixtures jar (not its dependencies) and groovy should be included in the webapp
   webappImplementation files(
-    project(':dd-java-agent:instrumentation:servlet:request-5')
-    .getTasksByName('testFixturesJar', false).archiveFile
+    project(':dd-java-agent:instrumentation:servlet:request-5').tasks.named("testFixturesJar", Jar).map {
+      it.archiveFile
+    }
     )
   // use the above instead of:
   //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
   // because using testFixtures() causes some early evaluation of dependencies
   webappRuntimeOnly libs.groovy
 }
-compileWebappJava.dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
+
+tasks.named('compileWebappJava').configure {
+  dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
+}
 
 configurations.testRuntimeOnly {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
@@ -96,9 +121,9 @@ tasks.register('installOpenLibertyDeps', Copy) {
   into extractDir
   outputs.file ext.serverXmlFile
 }
-[test, forkedTest]*.dependsOn webappClasses, installOpenLibertyDeps
-[test, forkedTest].each {
-  it.configure {
+for (final taskName in ["test", "forkedTest"]) {
+  tasks.named(taskName).configure {
+    dependsOn webappClasses, installOpenLibertyDeps
     jvmArgs += ["-Dserver.xml=${installOpenLibertyDeps.serverXmlFile.absoluteFile}"]
   }
 }
@@ -108,7 +133,11 @@ tasks.register('webappCopyJars', Sync) {
   into project.layout.buildDirectory.dir("$relAppDir/WEB-INF/lib")
   dependsOn ':dd-java-agent:instrumentation:servlet:request-5:testFixturesJar'
 }
-[test, forkedTest]*.dependsOn webappCopyJars
+for (final taskName in ["test", "forkedTest"]) {
+  tasks.named(taskName).configure {
+    dependsOn webappCopyJars
+  }
+}
 
 tasks.register('filterLogbackClassic', Sync) {
   ext.filteredLogbackDir = project.layout.buildDirectory.dir('filteredLogback')
@@ -118,9 +147,13 @@ tasks.register('filterLogbackClassic', Sync) {
   exclude 'META-INF/**'
   into ext.filteredLogbackDir
 }
-[test, forkedTest]*.dependsOn filterLogbackClassic
+for (final taskName in ["test", "forkedTest"]) {
+  tasks.named(taskName).configure {
+    dependsOn filterLogbackClassic
+  }
+}
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar).configure {
   configurations = [project.configurations.shadow]
   zip64 true
 
@@ -146,4 +179,8 @@ shadowJar {
     include "wlp/dev/*.jar"
   }
 }
-[test, forkedTest]*.dependsOn shadowJar
+for (final taskName in ["test", "forkedTest"]) {
+  tasks.named(taskName).configure {
+    dependsOn shadowJar
+  }
+}

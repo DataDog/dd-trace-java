@@ -4,6 +4,10 @@ plugins {
   id 'java-test-fixtures'
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
+
 muzzle {
   pass {
     group = "jakarta.servlet"
@@ -12,14 +16,11 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
-
 // jakarta.servlet-api dependencies are compiled with Java 11 and
 // the gradle muzzle tasks uses the JVM gradle is running with
 if (!JavaVersion.current().java11Compatible) {
   project.afterEvaluate {
-    tasks.findAll {it.group == 'Muzzle' }.each {
+    tasks.withType(MuzzleTask).configureEach {
       logger.info("Disabling task $it.path (requires Java 11)")
       it.enabled = false
     }
@@ -30,7 +31,7 @@ configurations {
   javaxClassesToRelocate
 }
 
-task relocatedJavaxJar(type: ShadowJar) {
+tasks.register("relocatedJavaxJar", ShadowJar) {
   relocate 'javax.servlet', 'jakarta.servlet'
   relocate 'datadog.trace.instrumentation.servlet3', 'datadog.trace.instrumentation.servlet5'
   relocate 'datadog.trace.instrumentation.servlet', 'datadog.trace.instrumentation.servlet5'
@@ -51,7 +52,7 @@ task relocatedJavaxJar(type: ShadowJar) {
 }
 
 dependencies {
-  implementation files(relocatedJavaxJar.outputs.files)
+  implementation files(tasks.named("relocatedJavaxJar", ShadowJar).map { it.outputs.files })
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet.jsp', name: 'jakarta.servlet.jsp-api', version: '3.0.0'
@@ -72,6 +73,6 @@ dependencies {
   // tested on tomcat-5.5:latestDepTest
 }
 
-jar {
+tasks.named("jar", Jar).configure {
   from zipTree(relocatedJavaxJar.outputs.files.asPath)
 }

@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.apache.kafka"
@@ -6,8 +8,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 addTestSuite('iastLatestDepTest3')
@@ -59,7 +59,7 @@ configurations.testRuntimeClasspath {
   resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }
 
-iastLatestDepTest3.configure {
+tasks.named("iastLatestDepTest3").configure {
   javaLauncher = getJavaLauncherFor(17)
   jvmArgs = ['--add-opens', 'java.base/java.util=ALL-UNNAMED']
 }

@@ -29,9 +29,7 @@ tasks.register('webfluxBuild', Exec) {
   })
   .withPropertyName("application")
   .withPathSensitivity(PathSensitivity.RELATIVE)
-}
 
-webfluxBuild {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 

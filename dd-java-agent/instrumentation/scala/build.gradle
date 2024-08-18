@@ -1,3 +1,7 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+apply plugin: 'call-site-instrumentation'
+
 muzzle {
   pass {
     group = 'org.scala-lang'
@@ -6,10 +10,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
-apply plugin: 'call-site-instrumentation'
 
 dependencies {
   // First 2.10 version that accepts target 1.8

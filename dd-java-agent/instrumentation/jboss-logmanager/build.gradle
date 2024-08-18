@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.jboss.logmanager'
@@ -11,8 +13,6 @@ muzzle {
     versions = '[1.0.0,]'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.jboss.logmanager', name: 'jboss-logmanager', version: '1.1.0.GA'

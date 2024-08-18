@@ -46,11 +46,11 @@ dependencies {
   testImplementation("org.codehaus.groovy", "groovy-all", "3.0.17")
 }
 
-tasks.compileKotlin {
+tasks.named("compileKotlin").configure {
   dependsOn(":call-site-instrumentation-plugin:build")
 }
 
-tasks.test {
+tasks.named("test", Test::class.java).configure {
   useJUnitPlatform()
   enabled = project.hasProperty("runBuildSrcTests")
 }

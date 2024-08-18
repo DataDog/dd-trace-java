@@ -5,6 +5,8 @@ ext {
 
 // This file includes software developed at SignalFx
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   // We have two independent covariants, so we have to test them independently.
   pass {
@@ -24,8 +26,6 @@ muzzle {
     skipFromReport = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

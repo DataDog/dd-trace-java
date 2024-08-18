@@ -1,6 +1,9 @@
 ext {
   latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
 }
+
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.apache.avro'
@@ -9,8 +12,6 @@ muzzle {
     extraDependency 'org.apache.avro:avro-mapred:1.11.3'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest','test')
 addTestSuiteForDir('latestDepTest8','test')

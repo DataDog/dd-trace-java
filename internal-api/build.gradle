@@ -8,7 +8,7 @@ ext {
 }
 
 // sun.misc.SharedSecrets is gone in later versions
-compileJava {
+tasks.named("compileJava", JavaCompile).configure {
   javaCompiler = javaToolchains.compilerFor {
     languageVersion = JavaLanguageVersion.of(8)
   }
@@ -17,7 +17,7 @@ compileJava {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
-tasks.compileTestJava.configure {
+tasks.named("compileTestJava", JavaCompile).configure {
   setJavaVersion(it, 8)
 }
 
@@ -185,7 +185,9 @@ excludedClassesBranchCoverage = [
 ]
 excludedClassesInstructionCoverage = ['datadog.trace.util.stacktrace.StackWalkerFactory']
 
-compileTestJava.dependsOn 'generateTestClassNameTries'
+tasks.named('compileTestJava', JavaCompile).configure {
+  dependsOn 'generateTestClassNameTries'
+}
 
 dependencies {
   // references TraceScope and Continuation from public api

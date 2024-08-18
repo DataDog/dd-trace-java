@@ -1,11 +1,11 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
 muzzle {
   pass {
     coreJdk()
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
 
 repositories {
   maven {

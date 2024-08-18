@@ -1,6 +1,7 @@
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.stream.Collectors
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import static java.nio.file.StandardOpenOption.CREATE
@@ -23,7 +24,7 @@ dependencies {
   api project(':dd-java-agent:agent-bootstrap')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar).configure {
   dependencies deps.excludeShared
 }
 
@@ -100,7 +101,7 @@ tasks.register('copyMetricConfigs', CopyMetricConfigsTask) {
   dependsOn 'submodulesUpdate'
 }
 
-processResources {
+tasks.named("processResources").configure {
   dependsOn 'copyMetricConfigs'
   from("$buildDir/integrations-core-resources")
 }

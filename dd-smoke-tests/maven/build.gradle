@@ -11,7 +11,7 @@ dependencies {
   testImplementation project(':dd-smoke-tests:backend-mock')
 }
 
-jar {
+tasks.named("jar", Jar).configure {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.maven.MavenRunner')
   }

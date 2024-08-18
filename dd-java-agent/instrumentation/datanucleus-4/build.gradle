@@ -12,6 +12,8 @@ buildscript {
   }
 }
 
+apply from: "${rootDir}/gradle/java.gradle"
+
 muzzle {
   // 2 libraries are instrumented.
   // Muzzle is tested by keeping one version fixed and modifying the other
@@ -32,8 +34,6 @@ muzzle {
     extraDependency "org.datanucleus:javax.jdo:3.2.0-m1"
   }
 }
-
-apply from: "${rootDir}/gradle/java.gradle"
 
 def datanucleusVersion = '4.0.5'
 

@@ -22,20 +22,21 @@ idea {
  */
 addTestSuite('previewTest')
 // Configure groovy test file compilation
-compilePreviewTestGroovy.configure {
+tasks.named("compilePreviewTestGroovy", GroovyCompile).configure {
   javaLauncher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(21)
   }
   options.compilerArgs.add("--enable-preview")
 }
 // Configure Java test files compilation
-compilePreviewTestJava.configure {
+tasks.named("compilePreviewTestJava", JavaCompile).configure {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure tests execution
-previewTest.configure {
+tasks.named("previewTest", Test).configure {
   jvmArgs = ['--enable-preview']
 }
+
 // Require the preview test suite to run as part of module check
 tasks.named("check").configure {
   dependsOn "previewTest"
@@ -49,7 +50,7 @@ dependencies {
 project.tasks.withType(AbstractCompile).configureEach {
   setJavaVersion(it, 21)
 }
-compileJava.configure {
+tasks.named("compileJava", JavaCompile).configure {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }

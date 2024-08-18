@@ -1,5 +1,6 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id "com.github.johnrengelman.shadow"
@@ -31,16 +32,16 @@ configurations.testFixturesApi {
   exclude group: 'org.eclipse.jetty', module: 'jetty-server'
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar).configure {
   exclude '**/*-dbgsym.zip'
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar).configure {
   archiveClassifier = 'unbundled'
 }
 
-processResources {
+tasks.named("processResources").configure {
   doLast {
     fileTree(dir: outputs.files.asPath, includes: ['**/*.json']).each {
       it.text = JsonOutput.toJson(new JsonSlurper().parse(it))
@@ -58,12 +59,13 @@ jmh {
     includes = [project.jmhIncludes]
   }
 }
-jmhJar {
+tasks.named("jmhJar", Jar).configure {
   exclude 'org/slf4j/impl/**/*'
 }
 
 
-task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
+tasks.register("runSampleApp", GradleBuild) {
+  dependsOn ':dd-java-agent:shadowJar'
   description = "Run AppSec sample app with instrumentation"
   group = 'application'
 
@@ -122,7 +124,7 @@ ext {
 tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.appsec.enabled=true']
 }
-def rootDir = project.rootDir
+
 spotless {
   java {
     target 'src/**/*.java'

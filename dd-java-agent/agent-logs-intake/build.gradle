@@ -15,10 +15,10 @@ dependencies {
   implementation project(':communication')
 }
 
-shadowJar {
+tasks.named("shadowJar").configure {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar).configure {
   archiveClassifier = 'unbundled'
 }

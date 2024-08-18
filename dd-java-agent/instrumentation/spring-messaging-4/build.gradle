@@ -1,3 +1,8 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
@@ -8,16 +13,12 @@ muzzle {
   }
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 
-[compileTestGroovy, compileLatestDepTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(17)
+for (final taskName in ["compileTestGroovy", "compileLatestDepTestGroovy"]) {
+  tasks.named(taskName, GroovyCompile).configure {
+    it.javaLauncher = getJavaLauncherFor(17)
+  }
 }
 
 dependencies {

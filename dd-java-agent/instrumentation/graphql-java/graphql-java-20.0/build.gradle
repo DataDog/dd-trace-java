@@ -4,6 +4,9 @@ ext {
   graphql21LatestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
   graphql21LatestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
 }
+
+apply from: "$rootDir/gradle/java.gradle"
+
 // there are a lot of invalid version using dates (i.e. com.graphql-java-graphql-java-2018-06-04T04-23-07)
 // so we limit by chunks
 muzzle {
@@ -30,8 +33,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('graphql20LatestDepTest', 'test')
@@ -51,19 +52,10 @@ dependencies {
   graphql20LatestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '20.+'
   graphql21LatestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '21.+'
   latestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '22.+'
+}
 
-  [
-    compileLatestDepTestJava,
-    compileLatestDepTestGroovy,
-    compileLatestDepForkedTestJava,
-    compileLatestDepForkedTestGroovy,
-    compileGraphql21LatestDepTestJava,
-    compileGraphql21LatestDepTestGroovy,
-    compileGraphql21LatestDepForkedTestJava,
-    compileGraphql21LatestDepForkedTestGroovy
-  ].each {
-    it.configure {
-      setJavaVersion(it, 11)
-    }
+tasks.withType(AbstractCompile).configureEach {
+  if (it.name.toLowerCase(Locale.ROOT).contains('latestdep')) {
+    setJavaVersion(it, 11)
   }
 }

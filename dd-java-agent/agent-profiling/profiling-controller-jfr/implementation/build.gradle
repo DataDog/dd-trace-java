@@ -16,7 +16,7 @@ sourceSets {
   }
 }
 
-compileMain_java11Java.configure {
+tasks.named("compileMain_java11Java", JavaCompile).configure {
   setJavaVersion(it, 11)
   sourceCompatibility = JavaVersion.VERSION_1_9
   targetCompatibility = JavaVersion.VERSION_1_9
@@ -39,11 +39,11 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.jfr.SimpleJFRAccess*'
 ]
 
-jar {
+tasks.named("jar", Jar).configure {
   from sourceSets.main_java11.output
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain").configure {
   failOnMissingClasses = false
 }
 

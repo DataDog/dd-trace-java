@@ -6,6 +6,8 @@ plugins {
 def sparkVersion = '3.2.0'
 def scalaVersion = '2.13'
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.apache.spark"
@@ -14,8 +16,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuite('test_spark32')

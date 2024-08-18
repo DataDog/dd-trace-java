@@ -1,6 +1,9 @@
 plugins {
-  id 'com.google.protobuf' version '0.8.18'
+  id 'com.google.protobuf' version '0.9.4'
 }
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
 
 muzzle {
   pass {
@@ -9,9 +12,6 @@ muzzle {
     versions = "[1.5.0,)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
 
 // First version with Mac M1 support
 def grpcVersion = '1.42.2'
@@ -26,7 +26,9 @@ protobuf {
     grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
   }
   generateProtoTasks {
-    all()*.plugins { grpc {} }
+    all().configureEach {
+      plugins { grpc {} }
+    }
   }
 }
 

@@ -61,7 +61,7 @@ ext.addTestSuiteExtendingForDir = (String testSuiteName, String parentSuiteName,
   }
 
   tasks.register("${testSuiteName}Jar", Jar) {
-    dependsOn(tasks.named("${testSuiteName}Classes").get())
+    dependsOn "${testSuiteName}Classes"
     from(sourceSets.named(testSuiteName).get().output)
     archiveClassifier = testSuiteName
   }

@@ -1,5 +1,8 @@
 def pekkoVersion = '1.0.0'
 
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-scala.gradle"
+
 muzzle {
   pass {
     group = 'org.apache.pekko'
@@ -17,9 +20,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
