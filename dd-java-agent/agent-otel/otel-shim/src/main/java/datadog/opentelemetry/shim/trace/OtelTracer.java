@@ -9,7 +9,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 class OtelTracer implements Tracer {
-  private static final String INSTRUMENTATION_NAME = "otel";
+  private static final String INSTRUMENTATION_NAME = otelInstrumentationName();
   private final AgentTracer.TracerAPI tracer;
   private final String instrumentationScopeName;
 
@@ -23,5 +23,13 @@ class OtelTracer implements Tracer {
     AgentTracer.SpanBuilder delegate =
         this.tracer.buildSpan(INSTRUMENTATION_NAME, SPAN_KIND_INTERNAL).withResourceName(spanName);
     return new OtelSpanBuilder(delegate);
+  }
+
+  @SuppressWarnings("ConstantConditions")
+  private static String otelInstrumentationName() {
+    // is this the bootstrap shim for drop-in support, or the shim for manual instrumentation?
+    return OtelTracer.class.getName().startsWith("datadog.trace.bootstrap")
+        ? "otel.library"
+        : "otel";
   }
 }
