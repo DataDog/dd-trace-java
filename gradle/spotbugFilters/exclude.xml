@@ -2,6 +2,14 @@
 <FindBugsFilter>
   <Match>
     <Or>
+      <!-- New in spotbugs 4.8.0: does not pass -->
+      <Bug pattern="CT_CONSTRUCTOR_THROW" />
+      <!-- New in spotbugs 4.8.0: does not pass -->
+      <Bug pattern="SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR" />
+      <!-- New in spotbugs 4.8.0: does not pass -->
+      <Bug pattern="PA_PUBLIC_PRIMITIVE_ATTRIBUTE" />
+      <!-- New in spotbugs 4.8.6: does not pass -->
+      <Bug pattern="SING_SINGLETON_GETTER_NOT_SYNCHRONIZED" />
       <Class name="~com.datadog.debugger.util.WeakIdentityHashMap.*" />
       <Package name="io.sqreen.testapp.sampleapp" />
       <Package name="datadog.trace.bootstrap.instrumentation.decorator.http.utils" />

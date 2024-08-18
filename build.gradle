@@ -16,7 +16,7 @@ plugins {
   id "datadog.dependency-locking"
 
   id "com.diffplug.spotless" version "6.13.0"
-  id 'com.github.spotbugs' version '5.0.14'
+  id 'com.github.spotbugs' version '6.0.20' apply false
   id "de.thetaphi.forbiddenapis" version "3.5.1"
 
   id 'pl.allegro.tech.build.axion-release' version '1.14.4'
