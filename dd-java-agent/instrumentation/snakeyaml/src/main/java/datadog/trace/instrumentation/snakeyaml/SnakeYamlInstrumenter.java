@@ -72,15 +72,17 @@ public class SnakeYamlInstrumenter extends InstrumenterModule.Iast
     @Sink(VulnerabilityTypes.UNTRUSTED_DESERIALIZATION)
     public static void onEnter(
         @Advice.Argument(0) final Object data, @Advice.This final Yaml self) {
-      if (data != null) {
-        final UntrustedDeserializationModule untrustedDeserialization =
-            InstrumentationBridge.UNTRUSTED_DESERIALIZATION;
-        if (untrustedDeserialization != null) {
-          final BaseConstructor constructor = SnakeYamlHelper.fetchConstructor(self);
-          if (constructor instanceof Constructor || constructor == null) {
-            untrustedDeserialization.onObject(data);
-          }
-        }
+      if (data == null) {
+        return;
+      }
+      final UntrustedDeserializationModule untrustedDeserialization =
+          InstrumentationBridge.UNTRUSTED_DESERIALIZATION;
+      if (untrustedDeserialization == null) {
+        return;
+      }
+      final BaseConstructor constructor = SnakeYamlHelper.fetchConstructor(self);
+      if (constructor instanceof Constructor || constructor == null) {
+        untrustedDeserialization.onObject(data);
       }
     }
   }
