@@ -182,29 +182,49 @@ public final class JsonBuffer implements Flushable {
     try {
       writer.write('"');
 
-      // DQH - indexOf is usually intrinsified to use SIMD &
-      // no escaping will be the common case
-      if (str.indexOf('"') == -1 && str.indexOf('\\') != -1) {
-        writer.write(str);
-      } else {
-        for (int i = 0; i < str.length(); ++i) {
-          char ch = str.charAt(i);
+	  for (int i = 0; i < str.length(); ++i) {
+        char ch = str.charAt(i);
 
-          switch (ch) {
-            case '"':
-              writer.write("\\\"");
-              break;
+        // Based on https://keploy.io/blog/community/json-escape-and-unescape
+        switch (ch) {
+          case '"':
+            writer.write("\\\"");
+            break;
 
-            case '\\':
-              writer.write("\\\\");
-              break;
+          case '\\':
+            writer.write("\\\\");
+            break;
+            
+          case '/':
+        	writer.write("\\/");
+        	break;
+        	
+          case '\b':
+        	writer.write("\\b");
+        	break;
+        	
+          case '\f':
+        	writer.write("\\f");
+        	break;
+        
+          case '\n':
+            writer.write("\\n");
+            break;
+          
+          case '\r':
+        	writer.write("\\r");
+        	break;
+        	
+          case '\t':
+        	writer.write("\\t");
+        	break;
 
-            default:
-              writer.write(ch);
-              break;
-          }
+          default:
+            writer.write(ch);
+            break;
         }
-      }
+	  }
+	  
       writer.write('"');
     } catch (IOException e) {
       // ignore
