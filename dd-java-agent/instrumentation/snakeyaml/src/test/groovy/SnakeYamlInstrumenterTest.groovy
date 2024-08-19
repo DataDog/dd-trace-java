@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.UntrustedDeserializationModule
-import foo.bar.TestSnakeYamlSuite
+import org.yaml.snakeyaml.Yaml
 
 class SnakeYamlInstrumenterTest extends AgentTestRunner {
 
@@ -18,7 +18,7 @@ class SnakeYamlInstrumenterTest extends AgentTestRunner {
     final InputStream inputStream = new ByteArrayInputStream("test".getBytes())
 
     when:
-    TestSnakeYamlSuite.init(inputStream)
+    new Yaml().load(inputStream)
 
     then:
     1 * module.onObject(_)
@@ -32,7 +32,7 @@ class SnakeYamlInstrumenterTest extends AgentTestRunner {
     final Reader reader = new StringReader("test")
 
     when:
-    TestSnakeYamlSuite.init(reader)
+    new Yaml().load(reader)
 
     then:
     1 * module.onObject(_)
@@ -46,7 +46,7 @@ class SnakeYamlInstrumenterTest extends AgentTestRunner {
     final String string = "test"
 
     when:
-    TestSnakeYamlSuite.init(string)
+    new Yaml().load(string)
 
     then:
     1 * module.onObject(_)
