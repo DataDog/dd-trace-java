@@ -1057,7 +1057,7 @@ build_test_jobs: &build_test_jobs
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
       gradleTarget: ":baseTest"
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
+      gradleParameters: "-PskipFlakyTests"
       stage: core
       cacheType: base
       parallelism: 4
@@ -1070,8 +1070,8 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_8_base
       triggeredBy: *core_modules
-      gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
+      gradleTarget: :baseTest
+      gradleParameters: "-PskipFlakyTests -PcheckCoverage"
       stage: core
       cacheType: base
       parallelism: 4
