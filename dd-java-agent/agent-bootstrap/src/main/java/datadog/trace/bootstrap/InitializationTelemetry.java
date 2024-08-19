@@ -15,9 +15,9 @@ public abstract class InitializationTelemetry {
   /** Returns a proxy around a BoostrapInitializationTelemetry object */
   public static final InitializationTelemetry proxy(Object bootstrapInitTelemetry) {
     if (bootstrapInitTelemetry == null) {
-      return new BootstrapProxy(bootstrapInitTelemetry);
-    } else {
       return InitializationTelemetry.noneInstance();
+    } else {
+      return new BootstrapProxy(bootstrapInitTelemetry);
     }
   }
 
