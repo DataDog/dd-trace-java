@@ -29,6 +29,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
       "org/example/cucumber/calculator/basic_arithmetic_failed.feature"
     ]                                                                                                                  | 3
     "test-name-with-brackets"             | ["org/example/cucumber/calculator/name_with_brackets.feature"]             | 2
+    "test-empty-name-${version()}"        | ["org/example/cucumber/calculator/empty_scenario_name.feature"]            | 2
   }
 
   def "test ITR #testcaseName"() {
