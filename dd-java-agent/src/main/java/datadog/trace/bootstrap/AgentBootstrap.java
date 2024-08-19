@@ -121,8 +121,7 @@ public final class AgentBootstrap {
       final BootstrapInitializationTelemetry initTelemetry,
       final String agentArgs,
       final Instrumentation inst)
-      throws IOException, URISyntaxException, ClassNotFoundException, NoSuchMethodException,
-          IllegalAccessException, InvocationTargetException {
+      throws IOException, URISyntaxException, ReflectiveOperationException {
     if (alreadyInitialized()) {
       initTelemetry.onError("already_initialized");
       // since tracer is presumably initialized elsewhere, still considering this complete
