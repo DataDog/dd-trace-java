@@ -1209,6 +1209,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
             // for debug only, will be removed
             span.setTag("dsm." + topic + "." + partition, value);
+            span.setTag("dsm.app_name", appName);
           }
         }
       } catch (Exception e) {
