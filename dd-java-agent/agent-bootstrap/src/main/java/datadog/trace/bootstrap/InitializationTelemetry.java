@@ -5,7 +5,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 
 /**
- * Wrapper around BootstrapInitializationTelemetry used inside the Datadog ClassLoader.
+ * Thread safe wrapper around BootstrapInitializationTelemetry used inside the Datadog ClassLoader.
  *
  * <p>Right now, this is needed because of the build separation between the two portions of the
  * bootstrap. We should consider adjusting the build to allow Agent et al to reference

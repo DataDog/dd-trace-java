@@ -3,7 +3,7 @@ package datadog.trace.bootstrap;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-/** Telemetry class used to relay information about tracer activation. */
+/** Thread safe telemetry class used to relay information about tracer activation. */
 public abstract class BootstrapInitializationTelemetry {
   /** Returns a singleton no op instance of initialization telemetry */
   public static final BootstrapInitializationTelemetry noOpInstance() {
