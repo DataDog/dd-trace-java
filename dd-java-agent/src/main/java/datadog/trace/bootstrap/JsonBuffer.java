@@ -182,7 +182,7 @@ public final class JsonBuffer implements Flushable {
     try {
       writer.write('"');
 
-	  for (int i = 0; i < str.length(); ++i) {
+      for (int i = 0; i < str.length(); ++i) {
         char ch = str.charAt(i);
 
         // Based on https://keploy.io/blog/community/json-escape-and-unescape
@@ -194,37 +194,37 @@ public final class JsonBuffer implements Flushable {
           case '\\':
             writer.write("\\\\");
             break;
-            
+
           case '/':
-        	writer.write("\\/");
-        	break;
-        	
+            writer.write("\\/");
+            break;
+
           case '\b':
-        	writer.write("\\b");
-        	break;
-        	
+            writer.write("\\b");
+            break;
+
           case '\f':
-        	writer.write("\\f");
-        	break;
-        
+            writer.write("\\f");
+            break;
+
           case '\n':
             writer.write("\\n");
             break;
-          
+
           case '\r':
-        	writer.write("\\r");
-        	break;
-        	
+            writer.write("\\r");
+            break;
+
           case '\t':
-        	writer.write("\\t");
-        	break;
+            writer.write("\\t");
+            break;
 
           default:
             writer.write(ch);
             break;
         }
-	  }
-	  
+      }
+
       writer.write('"');
     } catch (IOException e) {
       // ignore
