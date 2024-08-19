@@ -21,7 +21,7 @@ class SnakeYamlInstrumenterTest extends AgentTestRunner {
     TestSnakeYamlSuite.init(inputStream)
 
     then:
-    1 * module.onInputStream(_)
+    1 * module.onObject(_)
   }
 
   void 'test snakeyaml load with a reader'() {
@@ -35,7 +35,7 @@ class SnakeYamlInstrumenterTest extends AgentTestRunner {
     TestSnakeYamlSuite.init(reader)
 
     then:
-    1 * module.onReader(_)
+    1 * module.onObject(_)
   }
 
   void 'test snakeyaml load with a string'() {
@@ -49,6 +49,6 @@ class SnakeYamlInstrumenterTest extends AgentTestRunner {
     TestSnakeYamlSuite.init(string)
 
     then:
-    1 * module.onString(_)
+    1 * module.onObject(_)
   }
 }

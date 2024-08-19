@@ -78,13 +78,7 @@ public class SnakeYamlInstrumenter extends InstrumenterModule.Iast
         if (untrustedDeserialization != null) {
           final BaseConstructor constructor = SnakeYamlHelper.fetchConstructor(self);
           if (constructor instanceof Constructor || constructor == null) {
-            if (data instanceof InputStream) {
-              untrustedDeserialization.onInputStream((InputStream) data);
-            } else if (data instanceof Reader) {
-              untrustedDeserialization.onReader((Reader) data);
-            } else if (data instanceof String) {
-              untrustedDeserialization.onString((String) data);
-            }
+            untrustedDeserialization.onObject(data);
           }
         }
       }

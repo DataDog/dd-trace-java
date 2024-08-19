@@ -3,8 +3,6 @@ package com.datadog.iast.sink;
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.iast.sink.UntrustedDeserializationModule;
-import java.io.InputStream;
-import java.io.Reader;
 import javax.annotation.Nullable;
 
 public class UntrustedDeserializationModuleImpl extends SinkModuleBase
@@ -15,26 +13,10 @@ public class UntrustedDeserializationModuleImpl extends SinkModuleBase
   }
 
   @Override
-  public void onInputStream(@Nullable InputStream is) {
-    if (is == null) {
+  public void onObject(@Nullable Object object) {
+    if (object == null) {
       return;
     }
-    checkInjection(VulnerabilityType.UNTRUSTED_DESERIALIZATION, is);
-  }
-
-  @Override
-  public void onReader(@Nullable Reader reader) {
-    if (reader == null) {
-      return;
-    }
-    checkInjection(VulnerabilityType.UNTRUSTED_DESERIALIZATION, reader);
-  }
-
-  @Override
-  public void onString(@Nullable String string) {
-    if (string == null) {
-      return;
-    }
-    checkInjection(VulnerabilityType.UNTRUSTED_DESERIALIZATION, string);
+    checkInjection(VulnerabilityType.UNTRUSTED_DESERIALIZATION, object);
   }
 }
