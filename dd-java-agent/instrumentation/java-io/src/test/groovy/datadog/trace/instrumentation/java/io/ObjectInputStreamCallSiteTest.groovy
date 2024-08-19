@@ -23,6 +23,6 @@ class ObjectInputStreamCallSiteTest extends AgentTestRunner {
     TestObjectInputStreamSuite.init(inputStream)
 
     then:
-    1 * module.onInputStream(_)
+    1 * module.onObject(_)
   }
 }

@@ -30,21 +30,21 @@ class UntrustedDeserializationModuleTest extends IastModuleImplTestBase {
     0 * _
   }
 
-  void 'test untrusted deserialization detection with input stream' () {
+  void 'test untrusted deserialization detection' () {
     setup:
-    def inputStream = Mock(InputStream)
+    def object = Mock(Object)
 
     when:
-    module.onObject(inputStream)
+    module.onObject(object)
 
-    then: 'without tainted input stream'
+    then: 'without tainted object'
     0 * reporter.report(_, _)
 
     when:
-    taint(inputStream)
-    module.onObject(inputStream)
+    taint(object)
+    module.onObject(object)
 
-    then: 'with tainted input stream'
+    then: 'with tainted object'
     1 * reporter.report(_, { Vulnerability vul -> vul.type == VulnerabilityType.UNTRUSTED_DESERIALIZATION})
   }
 
