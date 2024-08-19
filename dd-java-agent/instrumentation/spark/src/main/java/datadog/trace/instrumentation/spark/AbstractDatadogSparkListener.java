@@ -1201,12 +1201,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
           while (allPartitions.hasNext()) {
             String partition = allPartitions.next();
-            String value = topicNode.get(partition).textValue();
+            Long value = topicNode.get(partition).asLong();
             sortedTags.put(PARTITION_TAG, partition);
-            System.out.println("==== found partition '" + partition + "' ====");
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .trackBacklog(sortedTags, Long.parseLong(value));
+            System.out.println(
+                "==== found partition '" + partition + "', value '" + value.toString() + "' ====");
+            AgentTracer.get().getDataStreamsMonitoring().trackBacklog(sortedTags, value);
 
             // for debug only, will be removed
             span.setTag("dsm." + topic + "." + partition, value);
