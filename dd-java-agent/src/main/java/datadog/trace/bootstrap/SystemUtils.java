@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-public final class SystemUtils {
+public class SystemUtils {
   private SystemUtils() {}
 
   public static final String tryGetEnv(String envVar) {
