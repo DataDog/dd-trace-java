@@ -1201,6 +1201,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .trackBacklog(sortedTags, Long.parseLong(value));
+
+            // for debug only, will be removed
+            span.setTag("dsm." + partition, value);
           }
         }
       } catch (Exception e) {
