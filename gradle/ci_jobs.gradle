@@ -136,14 +136,13 @@ if (rootProject.hasProperty("gitBaseRef")) {
       if (pathComponents.size() < 3) {
         logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (all)")
         _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("all")
-      } else if (pathComponents[0] == "src" && pathComponents[1] == "testFixturesClasses") {
+      } else if (pathComponents[0] == "src" && pathComponents[1] == "testFixtures") {
         logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (testFixturesClasses)")
         _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("testFixturesClasses")
-      } else if (pathComponents[0] == "src" && pathComponents[1] == "testClasses") {
-        // TODO: We could include other variants here such as latestTest, etc.
+      } else if (pathComponents[0] == "src" && pathComponents[1] == "test") {
         logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (testClasses)")
         _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("testClasses")
-      } else if (pathComponents[0] == "src" && pathComponents[1] == "jmhCompileGeneratedClasses") {
+      } else if (pathComponents[0] == "src" && pathComponents[1] == "jmh") {
         logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (jmhCompileGeneratedClasses)")
         _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("jmhCompileGeneratedClasses")
       } else {
