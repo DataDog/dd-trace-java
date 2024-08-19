@@ -1167,11 +1167,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private static void reportKafkaOffsets(
       final String appName, final AgentSpan span, final SourceProgress progress) {
+    System.out.println("==== reporting kafka offsets ====");
     if (!span.traceConfig().isDataStreamsEnabled() || progress == null) {
+      System.out.println("==== progress is null ====");
       return;
     }
 
     // check if this is a kafka source
+    System.out.println(
+        "==== processing source '" + progress.description().toLowerCase() + "' ====");
     if (progress.description().toLowerCase().startsWith("kafka")) {
       try {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -1182,6 +1186,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         // report offsets for all topics / partitions
         while (topics.hasNext()) {
           String topic = topics.next();
+          System.out.println("==== found topic '" + topic + "' ====");
           JsonNode topicNode = jsonNode.get(topic);
           // iterate thought reported partitions
           Iterator<String> allPartitions = topicNode.get(topic).fieldNames();
@@ -1197,17 +1202,17 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             String partition = allPartitions.next();
             String value = topicNode.get(partition).textValue();
             sortedTags.put(PARTITION_TAG, partition);
-
+            System.out.println("==== found partition '" + partition + "' ====");
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .trackBacklog(sortedTags, Long.parseLong(value));
 
             // for debug only, will be removed
-            span.setTag("dsm." + partition, value);
+            span.setTag("dsm." + topic + "." + partition, value);
           }
         }
       } catch (Exception e) {
-        log.debug("Failed to parse kafka offsets", e);
+        System.out.println("==== Failed to parse kafka offsets ====\n" + e.toString());
       }
     }
   }
