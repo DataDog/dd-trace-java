@@ -49,4 +49,78 @@ class JsonBufferTest extends Specification {
     then:
     jsonBuffer.toString() == '["\\"","\\\\","\\/","\\b","\\f","\\n","\\r","\\t"]'
   }
+
+  def "nesting array in object"() {
+    when:
+    def jsonBuffer = new JsonBuffer()
+    jsonBuffer.beginObject()
+    jsonBuffer.name("array")
+    jsonBuffer.beginArray()
+    jsonBuffer.value("true")
+    jsonBuffer.value("false")
+    jsonBuffer.endArray()
+    jsonBuffer.endObject()
+
+    then:
+    jsonBuffer.toString() == '{"array":["true","false"]}'
+  }
+
+  def "nesting object in array"() {
+    when:
+    def jsonBuffer = new JsonBuffer()
+    jsonBuffer.beginArray()
+    jsonBuffer.beginObject()
+    jsonBuffer.name("true").value(true)
+    jsonBuffer.endObject()
+    jsonBuffer.beginObject()
+    jsonBuffer.name("false").value(false)
+    jsonBuffer.endObject()
+    jsonBuffer.endArray()
+
+    then:
+    jsonBuffer.toString() == '[{"true":true},{"false":false}]'
+  }
+
+  def "partial object buffer"() {
+    when:
+    def partialJsonBuffer = new JsonBuffer()
+    partialJsonBuffer.name("foo").value("bar")
+    partialJsonBuffer.name("quux").value("baz")
+
+    def jsonBuffer = new JsonBuffer()
+    jsonBuffer.beginObject()
+    jsonBuffer.name("partial").object(partialJsonBuffer)
+    jsonBuffer.endObject()
+
+    then:
+    jsonBuffer.toString() == '{"partial":{"foo":"bar","quux":"baz"}}'
+  }
+
+  def "partial array buffer"() {
+    when:
+    def partialJsonBuffer = new JsonBuffer()
+    partialJsonBuffer.value("foo")
+    partialJsonBuffer.value("bar")
+
+    def jsonBuffer = new JsonBuffer()
+    jsonBuffer.beginObject()
+    jsonBuffer.name("partial").array(partialJsonBuffer)
+    jsonBuffer.endObject()
+
+    then:
+    jsonBuffer.toString() == '{"partial":["foo","bar"]}'
+  }
+
+  def "reset"() {
+    when:
+    def jsonBuffer = new JsonBuffer()
+    jsonBuffer.name("foo").value("quux")
+
+    jsonBuffer.reset()
+
+    jsonBuffer.array("bar", "baz")
+
+    then:
+    jsonBuffer.toString() == '["bar","baz"]'
+  }
 }
