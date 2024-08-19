@@ -11,7 +11,6 @@ import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -67,7 +66,7 @@ public final class AgentBootstrap {
     try {
       initTelemetry = createInitializationTelemetry();
     } catch (Throwable t) {
-      initTelemetry = BootstrapInitializationTelemetry.noneInstance();
+      initTelemetry = BootstrapInitializationTelemetry.noOpInstance();
     }
     try {
       agentmainImpl(initTelemetry, agentArgs, inst);
@@ -93,7 +92,7 @@ public final class AgentBootstrap {
   private static BootstrapInitializationTelemetry createInitializationTelemetry() {
     String forwarderPath = SystemUtils.tryGetEnv("DD_TELEMETRY_FORWARDER_PATH");
     if (forwarderPath == null) {
-      return BootstrapInitializationTelemetry.noneInstance();
+      return BootstrapInitializationTelemetry.noOpInstance();
     }
 
     BootstrapInitializationTelemetry initTelemetry =

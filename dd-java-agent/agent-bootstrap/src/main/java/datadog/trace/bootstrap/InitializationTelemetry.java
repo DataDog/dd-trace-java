@@ -15,15 +15,15 @@ public abstract class InitializationTelemetry {
   /** Returns a proxy around a BoostrapInitializationTelemetry object */
   public static final InitializationTelemetry proxy(Object bootstrapInitTelemetry) {
     if (bootstrapInitTelemetry == null) {
-      return InitializationTelemetry.noneInstance();
+      return InitializationTelemetry.noOpInstance();
     } else {
       return new BootstrapProxy(bootstrapInitTelemetry);
     }
   }
 
-  /** Returns a singleton of the none InitializationTelemetry */
-  public static final InitializationTelemetry noneInstance() {
-    return None.INSTANCE;
+  /** Returns a singleton of the no op InitializationTelemetry */
+  public static final InitializationTelemetry noOpInstance() {
+    return NoOp.INSTANCE;
   }
 
   /**
@@ -64,10 +64,10 @@ public abstract class InitializationTelemetry {
   public abstract void markIncomplete();
 
   /** No telemetry - used for delayed initialization outside bootstrap invocation */
-  static final class None extends InitializationTelemetry {
-    static final None INSTANCE = new None();
+  static final class NoOp extends InitializationTelemetry {
+    static final NoOp INSTANCE = new NoOp();
 
-    None() {}
+    NoOp() {}
 
     @Override
     public void onAbort(String reasonCode) {}

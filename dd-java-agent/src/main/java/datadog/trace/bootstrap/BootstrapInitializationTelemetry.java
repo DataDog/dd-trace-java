@@ -5,10 +5,17 @@ import java.util.concurrent.TimeUnit;
 
 /** Telemetry class used to relay information about tracer activation. */
 public abstract class BootstrapInitializationTelemetry {
-  public static final BootstrapInitializationTelemetry noneInstance() {
-    return None.INSTANCE;
+  /** Returns a singleton no op instance of initialization telemetry */
+  public static final BootstrapInitializationTelemetry noOpInstance() {
+    return NoOp.INSTANCE;
   }
 
+  /**
+   * Constructs a JSON-based instrumentation telemetry that forwards through a helper executable -
+   * indicated by forwarderPath
+   *
+   * @param forwarderPath - a String - path to forwarding executable
+   */
   public static final BootstrapInitializationTelemetry createFromForwarderPath(
       String forwarderPath) {
     return new JsonBased(new ForwarderJsonSender(forwarderPath));
@@ -47,10 +54,10 @@ public abstract class BootstrapInitializationTelemetry {
 
   public abstract void finish();
 
-  public static final class None extends BootstrapInitializationTelemetry {
-    static final None INSTANCE = new None();
+  public static final class NoOp extends BootstrapInitializationTelemetry {
+    static final NoOp INSTANCE = new NoOp();
 
-    private None() {}
+    private NoOp() {}
 
     @Override
     public void initMetaInfo(String attr, String value) {}
