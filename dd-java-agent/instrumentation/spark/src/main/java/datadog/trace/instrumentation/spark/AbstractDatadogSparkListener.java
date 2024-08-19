@@ -1176,6 +1176,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     // check if this is a kafka source
     System.out.println(
         "==== processing source '" + progress.description().toLowerCase() + "' ====");
+    System.out.println("==== raw data '" + progress.endOffset() + "' ====");
     if (progress.description().toLowerCase().startsWith("kafka")) {
       try {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -1189,7 +1190,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           System.out.println("==== found topic '" + topic + "' ====");
           JsonNode topicNode = jsonNode.get(topic);
           // iterate thought reported partitions
-          Iterator<String> allPartitions = topicNode.get(topic).fieldNames();
+          Iterator<String> allPartitions = topicNode.fieldNames();
           // dsm tags
           LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
           sortedTags.put(CONSUMER_GROUP_TAG, appName);
