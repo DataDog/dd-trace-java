@@ -19,8 +19,6 @@ subprojects { Project subProj ->
   subProj.tasks.withType(Test).configureEach { subTask ->
     dependsOn project(':dd-java-agent').tasks.named("shadowJar")
 
-    onlyIf { !project.rootProject.hasProperty("skipSmokeTests") }
-
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
     jvmArgs "-Ddatadog.smoketest.agent.shadowJar.path=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}"
