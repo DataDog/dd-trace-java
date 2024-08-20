@@ -89,7 +89,7 @@ if (rootProject.hasProperty("gitBaseRef")) {
 
   // The ignoredFiles FileTree selects any file that should not trigger any tasks.
   final ignoredFiles = fileTree(rootProject.projectDir) {
-    include '.gitingore', '.editorconfig'
+    include '.gitignore', '.editorconfig'
     include '*.md', '**/*.md'
     include 'gradlew', 'gradlew.bat', 'mvnw', 'mvnw.cmd'
     include 'NOTICE'
@@ -124,31 +124,23 @@ if (rootProject.hasProperty("gitBaseRef")) {
     // Get all projects, sorted by descending path length.
     final projects = subprojects.sort { a, b -> b.projectDir.path.length() <=> a.projectDir.path.length() }
     Map<Project, Set<String>> _affectedProjects = [:]
+    final List<Map<String, String>> matchers = [
+      [prefix: 'src/testFixtures/', task: 'testFixturesClasses'],
+      [prefix: 'src/test/', task: 'testClasses'],
+      [prefix: 'src/jmh/', task: 'jmhCompileGeneratedClasses']
+    ]
     for (File f in rootProject.changedFiles) {
       Project p = projects.find { f.toString().startsWith(it.projectDir.path + "/") }
       if (p == null) {
-        logger.warn("Changed file: ${relativeToGitRoot(f)} at root project (no tasks will be skipped)")
+        logger.warn("Changed file: ${relativeToGitRoot(f)} at root project (no task will be skipped)")
         rootProject.useGitChanges = false
         break
       }
-      final relPath = Paths.get(p.projectDir.path).relativize(f.toPath())
-      final pathComponents = relPath.collect({ it.toString() }).toList()
-      if (pathComponents.size() < 3) {
-        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (all)")
-        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("all")
-      } else if (pathComponents[0] == "src" && pathComponents[1] == "testFixtures") {
-        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (testFixturesClasses)")
-        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("testFixturesClasses")
-      } else if (pathComponents[0] == "src" && pathComponents[1] == "test") {
-        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (testClasses)")
-        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("testClasses")
-      } else if (pathComponents[0] == "src" && pathComponents[1] == "jmh") {
-        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (jmhCompileGeneratedClasses)")
-        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("jmhCompileGeneratedClasses")
-      } else {
-        logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (all)")
-        _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add("all")
-      }
+      // Make sure path separator is /
+      final relPath = Paths.get(p.projectDir.path).relativize(f.toPath()).collect { it.toString() }.join('/')
+      final String task = matchers.find { relPath.startsWith(it.prefix) }?.task ?: "all"
+      logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} (${task})")
+      _affectedProjects.computeIfAbsent(p, { new HashSet<String>() }).add(task)
     }
     rootProject.ext {
       it.affectedProjects = _affectedProjects
