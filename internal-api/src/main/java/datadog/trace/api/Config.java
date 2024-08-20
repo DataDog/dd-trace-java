@@ -540,6 +540,7 @@ import java.util.SortedSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -585,6 +586,10 @@ public class Config {
 
   static class HostNameHolder {
     static final String hostName = initHostName();
+
+    public static String getHostName() {
+      return hostName;
+    }
   }
 
   private final boolean runtimeIdEnabled;
@@ -2270,6 +2275,10 @@ public class Config {
 
   public String getHostName() {
     return HostNameHolder.hostName;
+  }
+
+  public Supplier<String> getHostNameSupplier() {
+    return HostNameHolder::getHostName;
   }
 
   public String getServiceName() {
