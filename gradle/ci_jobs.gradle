@@ -110,6 +110,8 @@ if (rootProject.hasProperty("gitBaseRef")) {
 
     final projects = subprojects.sort { a, b -> b.projectDir.path.length() <=> a.projectDir.path.length() }
     Map<Project, Set<String>> _affectedProjects = [:]
+    // Path prefixes mapped to affected task names. A file not matching any of these prefixes will affect all tasks in
+    // the project ("all" can be used a task name to explicitly state the same). Only the first matching prefix is used.
     final List<Map<String, String>> matchers = [
       [prefix: 'src/testFixtures/', task: 'testFixturesClasses'],
       [prefix: 'src/test/', task: 'testClasses'],
