@@ -871,7 +871,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         batchSpan.setTag(prefix + "input_rows_per_second", source.inputRowsPerSecond());
         batchSpan.setTag(prefix + "processed_rows_per_second", source.processedRowsPerSecond());
 
-        reportKafkaOffsets(progress.name(), batchSpan, source);
+        reportKafkaOffsets(batchSpan.getServiceName(), batchSpan, source);
       }
 
       for (int i = 0; i < progress.stateOperators().length; i++) {
@@ -1167,27 +1167,21 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private static void reportKafkaOffsets(
       final String appName, final AgentSpan span, final SourceProgress progress) {
-    System.out.println("==== reporting kafka offsets ====");
     if (!span.traceConfig().isDataStreamsEnabled() || progress == null) {
-      System.out.println("==== progress is null ====");
       return;
     }
 
     // check if this is a kafka source
-    System.out.println(
-        "==== processing source '" + progress.description().toLowerCase() + "' ====");
-    System.out.println("==== raw data '" + progress.endOffset() + "' ====");
     if (progress.description().toLowerCase().startsWith("kafka")) {
       try {
         ObjectMapper objectMapper = new ObjectMapper();
         // parse offsets from endOffsets json, reported in a format:
-        // "topic" -> ["partition":"value"]
+        // "topic" -> ["partition":value]
         JsonNode jsonNode = objectMapper.readTree(progress.endOffset());
         Iterator<String> topics = jsonNode.fieldNames();
         // report offsets for all topics / partitions
         while (topics.hasNext()) {
           String topic = topics.next();
-          System.out.println("==== found topic '" + topic + "' ====");
           JsonNode topicNode = jsonNode.get(topic);
           // iterate thought reported partitions
           Iterator<String> allPartitions = topicNode.fieldNames();
@@ -1201,19 +1195,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
           while (allPartitions.hasNext()) {
             String partition = allPartitions.next();
-            Long value = topicNode.get(partition).asLong();
             sortedTags.put(PARTITION_TAG, partition);
-            System.out.println(
-                "==== found partition '" + partition + "', value '" + value.toString() + "' ====");
-            AgentTracer.get().getDataStreamsMonitoring().trackBacklog(sortedTags, value);
-
-            // for debug only, will be removed
-            span.setTag("dsm." + topic + "." + partition, value);
-            span.setTag("dsm.app_name", appName);
+            AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .trackBacklog(sortedTags, topicNode.get(partition).asLong());
           }
         }
       } catch (Exception e) {
-        System.out.println("==== Failed to parse kafka offsets ====\n" + e.toString());
+        log.debug("Failed to parse kafka offsets", e);
       }
     }
   }
