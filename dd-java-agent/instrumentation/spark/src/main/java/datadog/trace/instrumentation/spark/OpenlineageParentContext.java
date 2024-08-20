@@ -27,15 +27,27 @@ public class OpenlineageParentContext implements AgentSpan.Context {
   private final String parentJobName;
   private final String parentRunId;
 
+  public static final String OPENLINEAGE_PARENT_JOB_NAMESPACE =
+      "spark.openlineage.parentJobNamespace";
+  public static final String OPENLINEAGE_PARENT_JOB_NAME = "spark.openlineage.parentJobName";
+  public static final String OPENLINEAGE_PARENT_RUN_ID = "spark.openlineage.parentRunId";
+
   public static Optional<OpenlineageParentContext> from(SparkConf sparkConf) {
-    if (!sparkConf.contains("spark.openlineage.parentRunId")) {
+    if (!sparkConf.contains(OPENLINEAGE_PARENT_JOB_NAMESPACE)
+        || !sparkConf.contains(OPENLINEAGE_PARENT_JOB_NAME)
+        || !sparkConf.contains(OPENLINEAGE_PARENT_RUN_ID)) {
       return Optional.empty();
     }
+
+    if (sparkConf.get(OPENLINEAGE_PARENT_RUN_ID).trim().isEmpty()) {
+      return Optional.empty();
+    }
+
     return Optional.of(
         new OpenlineageParentContext(
-            sparkConf.get("spark.openlineage.parentJobNamespace"),
-            sparkConf.get("spark.openlineage.parentJobName"),
-            sparkConf.get("spark.openlineage.parentRunId")));
+            sparkConf.get(OPENLINEAGE_PARENT_JOB_NAMESPACE),
+            sparkConf.get(OPENLINEAGE_PARENT_JOB_NAME),
+            sparkConf.get(OPENLINEAGE_PARENT_RUN_ID)));
   }
 
   OpenlineageParentContext(String parentJobNamespace, String parentJobName, String parentRunId) {
