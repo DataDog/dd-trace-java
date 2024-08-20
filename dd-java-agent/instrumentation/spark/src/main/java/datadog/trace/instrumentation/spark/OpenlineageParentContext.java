@@ -63,9 +63,9 @@ public class OpenlineageParentContext implements AgentSpan.Context {
 
     MessageDigest digest = null;
     try {
-      digest = MessageDigest.getInstance("SHA-1");
+      digest = MessageDigest.getInstance("SHA-256");
     } catch (NoSuchAlgorithmException e) {
-      log.debug("Unable to find SHA-1 algorithm", e);
+      log.debug("Unable to find SHA-256 algorithm", e);
     }
 
     if (digest != null && parentJobNamespace != null && parentRunId != null) {
