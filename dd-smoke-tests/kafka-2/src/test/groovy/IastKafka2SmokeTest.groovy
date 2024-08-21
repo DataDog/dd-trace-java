@@ -82,7 +82,7 @@ class IastKafka2SmokeTest extends AbstractIastServerSmokeTest {
     endpoint << ['json', 'string', 'byteArray', 'byteBuffer']
   }
 
-  void 'test kafka #endpoint value source'() {
+  void 'test xxx kafka #endpoint value source'() {
     setup:
     final type = "${endpoint}_source_value"
     final url = "http://localhost:${httpPort}/iast/kafka/$endpoint?type=${type}"
