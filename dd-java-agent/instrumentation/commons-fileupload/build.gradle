@@ -13,4 +13,5 @@ dependencies {
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   latestDepTestImplementation group: 'org.apache.commons', name: 'commons-fileupload2', version: '+'
+  latestDepTestImplementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.+'
 }
