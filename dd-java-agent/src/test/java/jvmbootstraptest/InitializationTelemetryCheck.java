@@ -61,24 +61,26 @@ public class InitializationTelemetryCheck {
     }
   }
 
-  public static final int runTestJvm(Class<? extends TestSecurityManager> securityManagerClass)
+  public static final Result runTestJvm(Class<? extends TestSecurityManager> securityManagerClass)
       throws Exception {
     return runTestJvm(securityManagerClass, false);
   }
 
-  public static final int runTestJvm(
+  public static final Result runTestJvm(
       Class<? extends TestSecurityManager> securityManagerClass, boolean printStreams)
       throws Exception {
     File jarFile =
         IntegrationTestUtils.createJarFileWithClasses(requiredClasses(securityManagerClass));
     try {
-      return IntegrationTestUtils.runOnSeparateJvm(
+      int exitCode = IntegrationTestUtils.runOnSeparateJvm(
           InitializationTelemetryCheck.class.getName(),
           InitializationTelemetryCheck.jvmArgs(securityManagerClass),
           InitializationTelemetryCheck.mainArgs(),
           InitializationTelemetryCheck.envVars(),
           jarFile,
           printStreams);
+      
+      return new Result(exitCode);
     } finally {
       jarFile.delete();
     }
@@ -88,10 +90,13 @@ public class InitializationTelemetryCheck {
       Class<? extends TestSecurityManager> securityManagerClass) {
 
     if (securityManagerClass == null) {
-      return new Class<?>[] {InitializationTelemetryCheck.class};
+      return new Class<?>[] {
+    	InitializationTelemetryCheck.class,
+    	InitializationTelemetryCheck.Result.class};
     } else {
       return new Class<?>[] {
         InitializationTelemetryCheck.class,
+        InitializationTelemetryCheck.Result.class,
         securityManagerClass,
         TestSecurityManager.class,
         CustomSecurityManager.class
@@ -115,5 +120,13 @@ public class InitializationTelemetryCheck {
     Map<String, String> envVars = new HashMap<>();
     envVars.put("DD_TELEMETRY_FORWARDER_PATH", "/dummy/path");
     return envVars;
+  }
+  
+  public static final class Result {
+	public final int exitCode;
+	
+	public Result(int exitCode) {
+	  this.exitCode = exitCode;
+	}
   }
 }
