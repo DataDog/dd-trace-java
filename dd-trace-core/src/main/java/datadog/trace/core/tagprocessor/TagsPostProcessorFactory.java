@@ -17,7 +17,7 @@ public final class TagsPostProcessorFactory {
       }
       processors.add(new QueryObfuscator(Config.get().getObfuscationQueryRegexp()));
       if (addRemoteHostname) {
-        processors.add(new RemoteHostnameAdder(Config.get()));
+        processors.add(new RemoteHostnameAdder(Config.get().getHostNameSupplier()));
       }
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));
