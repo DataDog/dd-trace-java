@@ -44,7 +44,7 @@ You can run the whole project test suite using `./gradlew test` but expect it to
 Instead, you can run test for a specific module (ex. `:dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4`) using the test command for this module only: `./gradlew :dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4:test`.
 
 > [!TIP]
-> Flaky tests can be disabled by setting the Gradle property `skipInstTests` (ex. `./gradlew -PskipFlakyTests <task>`).
+> Flaky tests can be disabled by setting the Gradle property `skipFlakyTests` (ex. `./gradlew -PskipFlakyTests <task>`).
 
 ### Running tests on another JVM
 

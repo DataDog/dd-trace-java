@@ -12,7 +12,10 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
+import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import okhttp3.MediaType;
@@ -264,28 +267,40 @@ public class TelemetryRequestBody extends RequestBody {
     endMessageIfBatch(RequestType.APP_DEPENDENCIES_LOADED);
   }
 
-  public void writeProducts(
-      boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
-      throws IOException {
+  public void beginProducts() throws IOException {
+    beginMessageIfBatch(RequestType.APP_PRODUCT_CHANGE);
+  }
+
+  public void writeProducts(final Map<ProductType, Boolean> products) throws IOException {
+
+    if (products == null || products.isEmpty()) {
+      return;
+    }
     bodyWriter.name("products");
     bodyWriter.beginObject();
 
-    bodyWriter.name("appsec");
-    bodyWriter.beginObject();
-    bodyWriter.name("enabled").value(appsecEnabled);
-    bodyWriter.endObject();
-
-    bodyWriter.name("profiler");
-    bodyWriter.beginObject();
-    bodyWriter.name("enabled").value(profilerEnabled);
-    bodyWriter.endObject();
-
-    bodyWriter.name("dynamic_instrumentation");
-    bodyWriter.beginObject();
-    bodyWriter.name("enabled").value(dynamicInstrumentationEnabled);
-    bodyWriter.endObject();
+    for (Map.Entry<ProductType, Boolean> entry : products.entrySet()) {
+      bodyWriter.name(entry.getKey().getName());
+      bodyWriter.beginObject();
+      bodyWriter.name("enabled").value(entry.getValue());
+      bodyWriter.endObject();
+    }
 
     bodyWriter.endObject();
+  }
+
+  public void writeProducts(
+      boolean appsecEnabled, boolean profilerEnabled, boolean dynamicInstrumentationEnabled)
+      throws IOException {
+    Map<ProductType, Boolean> products = new EnumMap<>(ProductType.class);
+    products.put(ProductType.APPSEC, appsecEnabled);
+    products.put(ProductType.PROFILER, profilerEnabled);
+    products.put(ProductType.DYNAMIC_INSTRUMENTATION, dynamicInstrumentationEnabled);
+    writeProducts(products);
+  }
+
+  public void endProducts() throws IOException {
+    endMessageIfBatch(RequestType.APP_PRODUCT_CHANGE);
   }
 
   public void writeInstallSignature(String installId, String installType, String installTime)

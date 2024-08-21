@@ -249,21 +249,23 @@ public final class ScriptInitializer {
   private static void writeScript(
       InputStream template, Path scriptPath, String execClass, String crashFile)
       throws IOException {
-    try (BufferedReader br = new BufferedReader(new InputStreamReader(template))) {
-      try (BufferedWriter bw = Files.newBufferedWriter(scriptPath)) {
-        br.lines()
-            .map(
-                line -> {
-                  line = Strings.replace(line, "!AGENT_JAR!", execClass);
-                  if (crashFile != null) {
-                    line = Strings.replace(line, "!JAVA_ERROR_FILE!", crashFile);
-                  }
-                  return line;
-                })
-            .forEach(line -> writeLine(bw, line));
+    if (!Files.exists(scriptPath)) {
+      try (BufferedReader br = new BufferedReader(new InputStreamReader(template))) {
+        try (BufferedWriter bw = Files.newBufferedWriter(scriptPath)) {
+          br.lines()
+              .map(
+                  line -> {
+                    line = Strings.replace(line, "!AGENT_JAR!", execClass);
+                    if (crashFile != null) {
+                      line = Strings.replace(line, "!JAVA_ERROR_FILE!", crashFile);
+                    }
+                    return line;
+                  })
+              .forEach(line -> writeLine(bw, line));
+        }
       }
+      Files.setPosixFilePermissions(scriptPath, PosixFilePermissions.fromString("r-xr-xr-x"));
     }
-    Files.setPosixFilePermissions(scriptPath, PosixFilePermissions.fromString("r-xr-xr-x"));
   }
 
   private static void writeLine(BufferedWriter bw, String line) {

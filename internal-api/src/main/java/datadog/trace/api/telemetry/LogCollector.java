@@ -15,7 +15,7 @@ import org.slf4j.MarkerFactory;
 public class LogCollector {
   public static final Marker SEND_TELEMETRY = MarkerFactory.getMarker("SEND_TELEMETRY");
   public static final Marker EXCLUDE_TELEMETRY = MarkerFactory.getMarker("EXCLUDE_TELEMETRY");
-  private static final int DEFAULT_MAX_CAPACITY = 1024;
+  private static final int DEFAULT_MAX_CAPACITY = 10;
   private static final LogCollector INSTANCE = new LogCollector();
   private final Map<RawLogMessage, AtomicInteger> rawLogMessages;
   private final int maxCapacity;
