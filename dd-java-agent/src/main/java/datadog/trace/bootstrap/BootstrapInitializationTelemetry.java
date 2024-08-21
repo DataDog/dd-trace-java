@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;
 
 /** Thread safe telemetry class used to relay information about tracer activation. */
@@ -204,8 +205,10 @@ public abstract class BootstrapInitializationTelemetry {
       ProcessBuilder builder = new ProcessBuilder(forwarderPath);
 
       Process process = builder.start();
-      process.getOutputStream().write(buffer.toByteArray());
-
+      try ( OutputStream out = process.getOutputStream() ) {
+    	out.write(buffer.toByteArray());
+      }
+      
       try {
         process.waitFor(1, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
