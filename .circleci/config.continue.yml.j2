@@ -205,7 +205,7 @@ commands:
             # New branches fall back on main build caches
             - dd-trace-java-dep<< parameters.cacheType >>-v5-master-{{ .Environment.CIRCLE_NODE_INDEX }}-{{ checksum "_circle_ci_cache_base_id" }}-
             # Fallback to the previous cache during transition
-            - dd-trace-java-dep<< parameters.cacheType >>-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            # TODO: - dd-trace-java-dep<< parameters.cacheType >>-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
 
   save_dependency_cache:
     parameters:
