@@ -12,7 +12,7 @@ class ObjectInputStreamCallSiteTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  void 'test onInputStream'() {
+  void 'test onObject'() {
     setup:
     final module = Mock(UntrustedDeserializationModule)
     InstrumentationBridge.registerIastModule(module)
