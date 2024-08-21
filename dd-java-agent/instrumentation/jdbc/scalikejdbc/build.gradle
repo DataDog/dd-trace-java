@@ -37,7 +37,7 @@ dependencies {
   testImplementation group: 'com.zaxxer', name: 'HikariCP', version: '2.4.0'
   testImplementation group: 'com.mchange', name: 'c3p0', version: '0.9.5'
 
-  latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
+  latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '2.2.+' // 2.3+ requires Java 11
   latestDepTestImplementation group: 'org.apache.derby', name: 'derby', version: '10.14.+'
   latestDepTestImplementation group: 'org.hsqldb', name: 'hsqldb', version: '2.5+'
   // Tomcat 10.1.+ seems to require Java 11. Limit to fix build.

@@ -26,7 +26,7 @@ jobs:
           MAX_TRIES=60 # Wait up to 30 minutes
           DELAY=30
           while [ $TRY -lt $MAX_TRIES ]; do
-            if curl -s -I ${{ steps.get-release-url.outputs.URL }} | grep -q "200 OK"; then
+            if curl -s -I ${{ steps.get-release-url.outputs.URL }} | grep -q "^HTTP/.* 200"; then
               break
             fi
             echo "Waiting for the release to be available..."

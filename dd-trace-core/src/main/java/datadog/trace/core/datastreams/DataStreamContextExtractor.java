@@ -1,7 +1,6 @@
 package datadog.trace.core.datastreams;
 
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -12,17 +11,17 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
   private final HttpCodec.Extractor delegate;
   private final TimeSource timeSource;
   private final Supplier<TraceConfig> traceConfigSupplier;
-  private final WellKnownTags wellKnownTags;
+  private final long hashOfKnownTags;
 
   public DataStreamContextExtractor(
       HttpCodec.Extractor delegate,
       TimeSource timeSource,
       Supplier<TraceConfig> traceConfigSupplier,
-      WellKnownTags wellKnownTags) {
+      long hashOfKnownTags) {
     this.delegate = delegate;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
-    this.wellKnownTags = wellKnownTags;
+    this.hashOfKnownTags = hashOfKnownTags;
   }
 
   @Override
@@ -38,7 +37,7 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
 
       if (shouldExtractPathwayContext) {
         DefaultPathwayContext pathwayContext =
-            DefaultPathwayContext.extract(carrier, getter, this.timeSource, this.wellKnownTags);
+            DefaultPathwayContext.extract(carrier, getter, this.timeSource, this.hashOfKnownTags);
 
         extracted.withPathwayContext(pathwayContext);
       }
@@ -46,7 +45,7 @@ public class DataStreamContextExtractor implements HttpCodec.Extractor {
       return extracted;
     } else if (traceConfigSupplier.get().isDataStreamsEnabled()) {
       DefaultPathwayContext pathwayContext =
-          DefaultPathwayContext.extract(carrier, getter, this.timeSource, this.wellKnownTags);
+          DefaultPathwayContext.extract(carrier, getter, this.timeSource, this.hashOfKnownTags);
 
       if (pathwayContext != null) {
         extracted = new TagContext();

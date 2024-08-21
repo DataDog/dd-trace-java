@@ -168,6 +168,9 @@ public class SymbolExtractor {
         case Opcodes.ACC_ENUM:
           results.add("enum");
           break;
+        case Opcodes.ACC_MODULE:
+          results.add("module");
+          break;
         case Opcodes.ACC_RECORD:
           results.add("record");
           break;
@@ -223,6 +226,9 @@ public class SymbolExtractor {
         case Opcodes.ACC_SYNTHETIC:
           results.add("synthetic");
           break;
+        case Opcodes.ACC_MANDATED:
+          results.add("mandated");
+          break;
         case Opcodes.ACC_DEPRECATED:
           results.add("deprecated");
           break;
@@ -269,6 +275,9 @@ public class SymbolExtractor {
           break;
         case Opcodes.ACC_ENUM:
           results.add("enum");
+          break;
+        case Opcodes.ACC_MANDATED:
+          results.add("mandated");
           break;
         case Opcodes.ACC_DEPRECATED:
           results.add("deprecated");

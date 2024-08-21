@@ -387,8 +387,6 @@ public class PowerWAFModule implements AppSecModule {
       Address<?> address = KnownAddresses.forName(addrKey);
       if (address != null) {
         addressList.add(address);
-      } else {
-        log.warn("WAF has rule against unknown address {}", addrKey);
       }
     }
 

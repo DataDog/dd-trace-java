@@ -39,7 +39,7 @@ class AppSecDataDeserializerSpecification extends Specification {
 
     then:
     result != null
-    result == [
+    result.rules == [
       [
         data: [
           [
@@ -55,8 +55,43 @@ class AppSecDataDeserializerSpecification extends Specification {
             value     : "3.3.3.3"
           ]
         ],
-        id: "blocked_ips",
+        id  : "blocked_ips",
         type: "ip_with_expiration"
+      ]
+    ]
+  }
+
+  void 'deserialize exclusions data'() {
+    final deser = AppSecDataDeserializer.INSTANCE
+    final input = """
+{
+  "exclusion_data": [
+    {
+      "id": "suspicious_ips_data_id",
+      "type": "ip_with_expiration",
+      "data": [
+        {
+          "value": "34.65.27.85"
+        }
+      ]
+    }
+  ]
+}
+    """
+
+    when:
+    def result = deser.deserialize(input.getBytes(StandardCharsets.UTF_8))
+
+    then:
+    result != null
+    result.exclusion == [
+      [
+        id  : "suspicious_ips_data_id",
+        type: "ip_with_expiration",
+        data: [[
+            value: "34.65.27.85"
+          ]],
+
       ]
     ]
   }
