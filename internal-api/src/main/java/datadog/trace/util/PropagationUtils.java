@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 
 public class PropagationUtils {
-  private static final Collection<String> ALL_HEADERS =
+  private static final Collection<String> KNOWN_PROPAGATION_HEADERS =
       Collections.unmodifiableCollection(
           new LinkedHashSet<>(
               Arrays.asList(
