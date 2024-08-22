@@ -14,10 +14,10 @@ public final class SnakeYamlHelper {
     Field constructor = null;
     try {
       constructor = Yaml.class.getDeclaredField("constructor");
-    } catch (NoSuchFieldException e) {
+      constructor.setAccessible(true);
+    } catch (Throwable e) {
       return null;
     }
-    constructor.setAccessible(true);
     return constructor;
   }
 
