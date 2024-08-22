@@ -10,6 +10,7 @@ public class PropagationUtils {
     // avoid constructing instances of this class.
   }
 
+  /** The list of the known propagation headers. They must be lowercased. */
   public static final Collection<String> KNOWN_PROPAGATION_HEADERS =
       Collections.unmodifiableCollection(
           new LinkedHashSet<>(
