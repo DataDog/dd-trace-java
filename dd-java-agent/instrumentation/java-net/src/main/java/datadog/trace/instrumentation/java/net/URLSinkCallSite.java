@@ -10,13 +10,9 @@ import datadog.trace.api.iast.sink.SsrfModule;
 import datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule;
 import java.net.URL;
 import javax.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @CallSite(spi = {IastCallSites.class, RaspCallSites.class})
 public class URLSinkCallSite {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(URLSinkCallSite.class);
 
   @Sink(VulnerabilityTypes.SSRF)
   @CallSite.Before("java.net.URLConnection java.net.URL.openConnection()")
