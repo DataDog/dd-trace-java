@@ -72,13 +72,16 @@ public class ApacheHttpClientRedirectInstrumentation extends InstrumenterModule.
       // will be empty. So in case if not-instrumented redirect had no headers,
       // we just copy all not set headers from original to redirect (doing same
       // thing as apache httpclient does).
-      if (!redirect.headerIterator().hasNext() && original instanceof HttpRequestWrapper) {
+      if (!redirect.headerIterator().hasNext()) {
         // redirect didn't have other headers besides tracing, so we need to do copy
         // (same work as Apache HttpClient 4.0.1+ does w/o instrumentation)
-        // We should use the initial request because the wrapped one might contain more headers
-        // (i.e.
-        // Host) we do not want to copy
-        redirect.setHeaders(((HttpRequestWrapper) original).getOriginal().getAllHeaders());
+        if (original instanceof HttpRequestWrapper) {
+          // We should use the initial request because the wrapped one might contain more headers
+          // (i.e. Host) we do not want to copy
+          // if we cannot access the original request we cannot safely copy.
+          // At this point we break the propagation not to corrupt the customer request
+          redirect.setHeaders(((HttpRequestWrapper) original).getOriginal().getAllHeaders());
+        }
       } else {
         final Collection<String> ddHeaders = PropagationUtils.getAllHeaders();
         for (final Header header : original.getAllHeaders()) {
