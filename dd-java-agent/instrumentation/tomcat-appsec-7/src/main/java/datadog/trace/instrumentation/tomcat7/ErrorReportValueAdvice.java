@@ -15,8 +15,8 @@ import org.apache.catalina.connector.Response;
 
 public class ErrorReportValueAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-  public static boolean onEnter(
+  @Advice.OnMethodEnter(suppress = Throwable.class)
+  public static void onEnter(
       @Advice.Argument(value = 1) Response response,
       @Advice.Argument(value = 2) Throwable throwable,
       @Advice.Origin("#t") String className,
@@ -27,7 +27,7 @@ public class ErrorReportValueAdvice {
     // Do nothing if the response hasn't been explicitly marked as in error
     //    and that error has not been reported.
     if (statusCode < 400 || statusCode == 404 || !response.isError()) {
-      return true; // skip original method
+      return;
     }
     if (throwable != null) {
       // Report IAST
@@ -45,12 +45,12 @@ public class ErrorReportValueAdvice {
     final Config config = Config.get();
     if (config.getIastActivation() != ProductActivation.FULLY_ENABLED
         || !config.isIastStacktraceLeakSuppress()) {
-      return false;
+      return;
     }
 
     byte[] template = BlockingActionHelper.getTemplate(HTML);
     if (template == null) {
-      return false;
+      return;
     }
 
     try {
@@ -71,7 +71,5 @@ public class ErrorReportValueAdvice {
     } catch (IOException | IllegalStateException e) {
       // Ignore
     }
-
-    return false;
   }
 }
