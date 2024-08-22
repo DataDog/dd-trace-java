@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.Principal;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -24,6 +25,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 import javax.websocket.server.PathParam;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -396,9 +398,27 @@ public class IastWebController {
     return "Ok";
   }
 
-  @GetMapping("/untrusted_deserialization")
+  @PostMapping("/untrusted_deserialization")
   public String untrustedDeserialization(HttpServletRequest request) throws IOException {
-    ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
+    final ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
+    ois.close();
+    return "OK";
+  }
+
+  @PostMapping("/untrusted_deserialization/multipart")
+  public String untrustedDeserializationMultipart(@RequestParam("file") MultipartFile file)
+      throws IOException {
+    final ObjectInputStream ois = new ObjectInputStream(file.getInputStream());
+    ois.close();
+    return "OK";
+  }
+
+  @PostMapping("/untrusted_deserialization/part")
+  public String untrustedDeserializationParts(HttpServletRequest request)
+      throws IOException, ServletException {
+    List<Part> parts = (List<Part>) request.getParts();
+    final ObjectInputStream ois = new ObjectInputStream(parts.get(0).getInputStream());
+    ois.close();
     return "OK";
   }
 

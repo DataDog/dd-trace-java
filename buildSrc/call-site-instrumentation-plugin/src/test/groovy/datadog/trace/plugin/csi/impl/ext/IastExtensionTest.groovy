@@ -151,6 +151,7 @@ class IastExtensionTest extends BaseCsiPluginTest {
 
     IastExtensionCallSiteAssert(CallSiteAssert base) {
       interfaces = base.interfaces
+      spi = base.spi
       helpers = base.helpers
       advices = base.advices
       enabled = base.enabled
