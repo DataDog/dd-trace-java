@@ -145,4 +145,26 @@ public class TestURLCallSiteSuite {
       throw new RuntimeException(e);
     }
   }
+
+  public static Object getContent(final URL url) {
+    try {
+      LOGGER.debug("Before getContent {}", url);
+      final Object result = url.getContent();
+      LOGGER.debug("After getContent {}", result);
+      return result;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Object getContent(final URL url, final Class<?>... classes) {
+    try {
+      LOGGER.debug("Before getContent {} {}", url, classes);
+      final Object result = url.getContent(classes);
+      LOGGER.debug("After getContent {}", result);
+      return result;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
 }

@@ -1,5 +1,6 @@
 package datadog.smoketest.appsec.springboot.controller;
 
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,6 +44,16 @@ public class WebController {
   public String sqliHeader(@RequestHeader("x-custom-header") String id) throws Exception {
     Connection conn = DriverManager.getConnection("jdbc:h2:mem:testdb", "sa", "");
     conn.createStatement().execute("SELECT 1 FROM DUAL WHERE '1' = '" + id + "'");
+    return "EXECUTED";
+  }
+
+  @GetMapping("/ssrf/query")
+  public String ssrfQuery(@RequestParam("domain") String domain) {
+    try {
+      new URL("http://" + domain).openStream().close();
+    } catch (Throwable e) {
+      // ignore errors opening connection
+    }
     return "EXECUTED";
   }
 }

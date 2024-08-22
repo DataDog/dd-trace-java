@@ -31,6 +31,7 @@ class AssertBuilder<C extends CallSiteAssert> {
     def (enabled, enabledArgs) = getEnabledDeclaration(targetType, interfaces)
     return (C) new CallSiteAssert([
       interfaces : getInterfaces(targetType),
+      spi        : getSpi(targetType),
       helpers    : getHelpers(targetType),
       advices    : getAdvices(targetType),
       enabled    : enabled,
@@ -38,14 +39,22 @@ class AssertBuilder<C extends CallSiteAssert> {
     ])
   }
 
-  protected List<Class<?>> getInterfaces(final ClassOrInterfaceDeclaration type) {
+  protected Set<Class<?>> getSpi(final ClassOrInterfaceDeclaration type) {
+    return type.getAnnotationByName('AutoService').get().asNormalAnnotationExpr()
+      .collect { it.pairs.find { it.name.toString() == 'value' }.value.asArrayInitializerExpr() }
+      .collectMany { it.getValues() }
+      .collect { it.asClassExpr().getType().resolve().typeDeclaration.get().clazz }
+      .toSet()
+  }
+
+  protected Set<Class<?>> getInterfaces(final ClassOrInterfaceDeclaration type) {
     return type.asClassOrInterfaceDeclaration().implementedTypes.collect {
       final resolved = it.asClassOrInterfaceType().resolve()
       return resolved.typeDeclaration.get().clazz
-    }
+    }.toSet()
   }
 
-  protected def getEnabledDeclaration(final ClassOrInterfaceDeclaration type, final List<Class<?>> interfaces) {
+  protected def getEnabledDeclaration(final ClassOrInterfaceDeclaration type, final Set<Class<?>> interfaces) {
     if (!interfaces.contains(CallSites.HasEnabledProperty)) {
       return [null, null]
     }
@@ -53,11 +62,11 @@ class AssertBuilder<C extends CallSiteAssert> {
     final returnStatement = isEnabled.body.get().statements.first.get().asReturnStmt()
     final enabledMethodCall = returnStatement.expression.get().asMethodCallExpr()
     final enabled = resolveMethod(enabledMethodCall)
-    final enabledArgs = enabledMethodCall.getArguments().collect { it.asStringLiteralExpr().asString() }
+    final enabledArgs = enabledMethodCall.getArguments().collect { it.asStringLiteralExpr().asString() }.toSet()
     return [enabled, enabledArgs]
   }
 
-  protected List<Class<?>> getHelpers(final ClassOrInterfaceDeclaration type) {
+  protected Set<Class<?>> getHelpers(final ClassOrInterfaceDeclaration type) {
     final acceptMethod = type.getMethodsByName('accept').first()
     final methodCalls = getMethodCalls(acceptMethod)
     return methodCalls.findAll {
@@ -66,7 +75,7 @@ class AssertBuilder<C extends CallSiteAssert> {
       it.arguments
     }.collect {
       typeResolver().resolveType(classNameToType(it.asStringLiteralExpr().asString()))
-    }
+    }.toSet()
   }
 
   protected List<AdviceAssert> getAdvices(final ClassOrInterfaceDeclaration type) {
@@ -74,7 +83,7 @@ class AssertBuilder<C extends CallSiteAssert> {
     return getMethodCalls(acceptMethod).findAll {
       it.nameAsString == 'addAdvice'
     }.collect {
-      def (owner, method, descriptor) =  it.arguments.subList(0, 3)*.asStringLiteralExpr()*.asString()
+      def (owner, method, descriptor) = it.arguments.subList(0, 3)*.asStringLiteralExpr()*.asString()
       final handlerLambda = it.arguments[3].asLambdaExpr()
       final advice = handlerLambda.body.asBlockStmt().statements*.toString()
       return new AdviceAssert([
