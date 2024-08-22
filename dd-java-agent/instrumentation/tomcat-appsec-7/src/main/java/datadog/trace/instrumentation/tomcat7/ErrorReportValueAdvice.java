@@ -15,7 +15,7 @@ import org.apache.catalina.connector.Response;
 
 public class ErrorReportValueAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+  @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
   public static boolean onEnter(
       @Advice.Argument(value = 1) Response response,
       @Advice.Argument(value = 2) Throwable throwable,
