@@ -1,13 +1,13 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.IastContext
 import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.SourceTypes
 import datadog.trace.api.iast.propagation.PropagationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
+import foo.bar.smoketest.MockFileItemIterator
+import foo.bar.smoketest.MockFileItemStream
 
-
-class MultipartInstrumentationTest extends AgentTestRunner {
+class FileItemIteratorInstrumenterTest extends AgentTestRunner {
 
   private Object iastCtx
 
@@ -26,29 +26,19 @@ class MultipartInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.clearIastModules()
   }
 
-  void 'test commons fileupload ParameterParser.parse'() {
+  void 'test commons fileupload FileItemIterator next'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)
-    final content = "Content-Disposition: form-data; name=\"file\"; filename=\"=?ISO-8859-1?B?SWYgeW91IGNhbiByZWFkIHRoaXMgeW8=?= =?ISO-8859-2?B?dSB1bmRlcnN0YW5kIHRoZSBleGFtcGxlLg==?=\"\r\n"
-    final parser = clazz.newInstance()
+    final fileItemStreams = new MockFileItemStream('fileItemStream1', null)
+    final fileItemIterator = new MockFileItemIterator(fileItemStreams)
 
     when:
-    runUnderIastTrace {
-      parser.parse(content, new char[]{
-        ',', ';'
-      })
-    }
+    runUnderIastTrace { fileItemIterator.next() }
 
     then:
-    1 * module.taintString(iastCtx, 'file', SourceTypes.REQUEST_MULTIPART_PARAMETER, 'name')
-    1 * module.taintString(iastCtx, _, SourceTypes.REQUEST_MULTIPART_PARAMETER, 'filename')
+    1 * module.taintObjectIfTainted(iastCtx, fileItemStreams, fileItemIterator)
     0 * _
-
-    where:
-    clazz | _
-    org.apache.commons.fileupload.ParameterParser | _
-    org.apache.tomcat.util.http.fileupload.ParameterParser | _
   }
 
   protected <E> E runUnderIastTrace(Closure<E> cl) {
