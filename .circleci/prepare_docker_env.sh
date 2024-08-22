@@ -2,9 +2,9 @@
 set -eux
 
 {
-  echo "export FORWARDED_DOCKER_HOST=${DOCKER_HOST}"
-  echo "export DOCKER_HOST=tcp://localhost:60906"
-  echo "export TESTCONTAINERS_HOST_OVERRIDE=localhost"
+  # echo "export FORWARDED_DOCKER_HOST=${DOCKER_HOST}"
+  # echo "export DOCKER_HOST=tcp://localhost:60906"
+  # echo "export TESTCONTAINERS_HOST_OVERRIDE=localhost"
   echo "export TESTCONTAINERS_RYUK_DISABLED=true"
 
   # DOCKER_CERT_PATH is provided only if DLC is enabled.

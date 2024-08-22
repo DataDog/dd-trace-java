@@ -127,10 +127,10 @@ commands:
           name: Prepare testcontainers environment
           command: .circleci/prepare_docker_env.sh
 
-      - run:
-          name: Testcontainers tunnels
-          background: true
-          command: .circleci/start_docker_autoforward.sh
+      # - run:
+      #     name: Testcontainers tunnels
+      #     background: true
+      #     command: .circleci/start_docker_autoforward.sh
 
       - run:
           name: Prefetch Docker images
