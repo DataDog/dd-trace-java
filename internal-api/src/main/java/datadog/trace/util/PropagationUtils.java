@@ -6,7 +6,11 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 
 public class PropagationUtils {
-  private static final Collection<String> KNOWN_PROPAGATION_HEADERS =
+  private PropagationUtils() {
+    // avoid constructing instances of this class.
+  }
+
+  public static final Collection<String> KNOWN_PROPAGATION_HEADERS =
       Collections.unmodifiableCollection(
           new LinkedHashSet<>(
               Arrays.asList(
@@ -20,13 +24,9 @@ public class PropagationUtils {
                   "x-datadog-origin",
                   "x-datadog-tags",
                   // B3 single headers
-                  "X-B3-TraceId",
-                  "X-B3-SpanId",
-                  "X-B3-Sampled",
+                  "x-b3-traceid",
+                  "x-b3-spanid",
+                  "x-b3-sampled",
                   // B3 multi header
                   "b3")));
-
-  public static Collection<String> getAllHeaders() {
-    return ALL_HEADERS;
-  }
 }

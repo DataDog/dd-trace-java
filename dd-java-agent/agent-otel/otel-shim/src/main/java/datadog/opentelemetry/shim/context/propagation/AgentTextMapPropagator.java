@@ -25,16 +25,10 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class AgentTextMapPropagator implements TextMapPropagator {
-  private final Collection<String> fields;
-
-  public AgentTextMapPropagator() {
-    // Cannot suppose the current injector from AgentTracer so declare them all
-    this.fields = PropagationUtils.getAllHeaders();
-  }
 
   @Override
   public Collection<String> fields() {
-    return this.fields;
+    return PropagationUtils.KNOWN_PROPAGATION_HEADERS;
   }
 
   @Override

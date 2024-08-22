@@ -9,7 +9,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.util.PropagationUtils;
-import java.util.Collection;
 import java.util.Locale;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -83,9 +82,9 @@ public class ApacheHttpClientRedirectInstrumentation extends InstrumenterModule.
           redirect.setHeaders(((HttpRequestWrapper) original).getOriginal().getAllHeaders());
         }
       } else {
-        final Collection<String> ddHeaders = PropagationUtils.getAllHeaders();
         for (final Header header : original.getAllHeaders()) {
-          if (ddHeaders.contains(header.getName().toLowerCase(Locale.ROOT))) {
+          if (PropagationUtils.KNOWN_PROPAGATION_HEADERS.contains(
+              header.getName().toLowerCase(Locale.ROOT))) {
             if (!redirect.containsHeader(header.getName())) {
               redirect.setHeader(header.getName(), header.getValue());
             }
