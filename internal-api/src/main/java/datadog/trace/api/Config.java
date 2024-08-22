@@ -540,6 +540,7 @@ import java.util.SortedSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -585,6 +586,10 @@ public class Config {
 
   static class HostNameHolder {
     static final String hostName = initHostName();
+
+    public static String getHostName() {
+      return hostName;
+    }
   }
 
   private final boolean runtimeIdEnabled;
@@ -1988,13 +1993,17 @@ public class Config {
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
 
     // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
-    // users. This should be removed once we default to true, and then it can also be moved up
-    // together with the rest of telemetry ocnfig.
+    // users.
+    // FIXME: For progressive rollout, we include by default Java < 11 hosts as product independent
+    // sample users.
+    // FIXME:This should be removed once we default to true, and then it can also be moved up
+    // together with the rest of telemetry config.
     final boolean telemetryLogCollectionEnabledDefault =
         instrumenterConfig.isTelemetryEnabled()
                 && (instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
                     || instrumenterConfig.isCiVisibilityEnabled()
-                    || debuggerEnabled)
+                    || debuggerEnabled
+                    || !Platform.isJavaVersionAtLeast(11))
             || DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
     isTelemetryLogCollectionEnabled =
         configProvider.getBoolean(
@@ -2270,6 +2279,10 @@ public class Config {
 
   public String getHostName() {
     return HostNameHolder.hostName;
+  }
+
+  public Supplier<String> getHostNameSupplier() {
+    return HostNameHolder::getHostName;
   }
 
   public String getServiceName() {
