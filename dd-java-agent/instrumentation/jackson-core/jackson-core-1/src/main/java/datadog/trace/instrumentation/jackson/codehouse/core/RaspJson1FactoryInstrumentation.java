@@ -52,10 +52,9 @@ public class RaspJson1FactoryInstrumentation extends InstrumenterModule.AppSec
 
     @Advice.OnMethodExit()
     public static void onExit(@Advice.Argument(0) final Object input) {
-      if (!(input instanceof URL)) {
-        return;
+      if (input instanceof URL) {
+        NetworkConnectionModule.INSTANCE.onNetworkConnection(input.toString());
       }
-      NetworkConnectionModule.INSTANCE.onNetworkConnection(input.toString());
     }
   }
 }
