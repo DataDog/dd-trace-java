@@ -205,10 +205,10 @@ public abstract class BootstrapInitializationTelemetry {
       ProcessBuilder builder = new ProcessBuilder(forwarderPath);
 
       Process process = builder.start();
-      try ( OutputStream out = process.getOutputStream() ) {
-    	out.write(buffer.toByteArray());
+      try (OutputStream out = process.getOutputStream()) {
+        out.write(buffer.toByteArray());
       }
-      
+
       try {
         process.waitFor(1, TimeUnit.SECONDS);
       } catch (InterruptedException e) {

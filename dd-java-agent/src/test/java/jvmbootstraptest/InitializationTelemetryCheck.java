@@ -1,5 +1,6 @@
 package jvmbootstraptest;
 
+import datadog.trace.agent.test.IntegrationTestUtils;
 import java.io.File;
 import java.io.FilePermission;
 import java.io.IOException;
@@ -12,8 +13,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import datadog.trace.agent.test.IntegrationTestUtils;
 
 /**
  * Basic sanity check that InitializationTelemetry is functioning
@@ -78,55 +77,63 @@ public class InitializationTelemetryCheck {
   public static final Result runTestJvm(
       Class<? extends TestSecurityManager> securityManagerClass, boolean printStreams)
       throws Exception {
-    
-	File jarFile =
+
+    File jarFile =
         IntegrationTestUtils.createJarFileWithClasses(requiredClasses(securityManagerClass));
-    
-	File forwarderFile = createTempFile("forwarder", "sh", PosixFilePermissions.fromString("rwxr--r--"));
-	File outputFile = new File(forwarderFile.getAbsoluteFile() + ".out");
-	
-    write(forwarderFile,
-      "#!/usr/bin/env bash\n",
-      "echo \"$1	$(cat -)\" >> " + outputFile.getAbsolutePath() + "\n");
-    
+
+    File forwarderFile =
+        createTempFile("forwarder", "sh", PosixFilePermissions.fromString("rwxr--r--"));
+    File outputFile = new File(forwarderFile.getAbsoluteFile() + ".out");
+
+    write(
+        forwarderFile,
+        "#!/usr/bin/env bash\n",
+        "echo \"$1	$(cat -)\" >> " + outputFile.getAbsolutePath() + "\n");
+
     try {
-      int exitCode = IntegrationTestUtils.runOnSeparateJvm(
-          InitializationTelemetryCheck.class.getName(),
-          InitializationTelemetryCheck.jvmArgs(securityManagerClass),
-          InitializationTelemetryCheck.mainArgs(),
-          InitializationTelemetryCheck.envVars(forwarderFile),
-          jarFile,
-          printStreams);
-      
+      int exitCode =
+          IntegrationTestUtils.runOnSeparateJvm(
+              InitializationTelemetryCheck.class.getName(),
+              InitializationTelemetryCheck.jvmArgs(securityManagerClass),
+              InitializationTelemetryCheck.mainArgs(),
+              InitializationTelemetryCheck.envVars(forwarderFile),
+              jarFile,
+              printStreams);
+
       return new Result(exitCode, read(outputFile));
     } finally {
       delete(jarFile, forwarderFile, outputFile);
     }
   }
-  
-  static final File createTempFile(String baseName, String extension, Set<PosixFilePermission> perms) throws IOException {
-    Path path = Files.createTempFile(baseName + "-integration-telemetry-check", "." + extension, PosixFilePermissions.asFileAttribute(perms));
+
+  static final File createTempFile(
+      String baseName, String extension, Set<PosixFilePermission> perms) throws IOException {
+    Path path =
+        Files.createTempFile(
+            baseName + "-integration-telemetry-check",
+            "." + extension,
+            PosixFilePermissions.asFileAttribute(perms));
     File file = path.toFile();
     file.deleteOnExit();
     return file;
   }
-  
+
   static final void write(File file, String... lines) throws IOException {
-	Files.write(file.toPath(), Arrays.asList(lines));
+    Files.write(file.toPath(), Arrays.asList(lines));
   }
-  
+
   static final String read(File file) throws IOException {
-	try {
-	  return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-	} catch ( IOException e ) {
-	  return null;
-	}
+    try {
+      return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      return null;
+    }
   }
-  
+
   static final void delete(File... tempFiles) {
-	for ( File file: tempFiles ) {
-	  file.delete();
-	}
+    for (File file : tempFiles) {
+      file.delete();
+    }
   }
 
   public static final Class<?>[] requiredClasses(
@@ -134,8 +141,8 @@ public class InitializationTelemetryCheck {
 
     if (securityManagerClass == null) {
       return new Class<?>[] {
-    	InitializationTelemetryCheck.class,
-    	InitializationTelemetryCheck.Result.class};
+        InitializationTelemetryCheck.class, InitializationTelemetryCheck.Result.class
+      };
     } else {
       return new Class<?>[] {
         InitializationTelemetryCheck.class,
@@ -164,14 +171,14 @@ public class InitializationTelemetryCheck {
     envVars.put("DD_TELEMETRY_FORWARDER_PATH", forwarderFile.getAbsolutePath());
     return envVars;
   }
-  
+
   public static final class Result {
-	public final int exitCode;
-	public final String telemetryJson;
-	
-	public Result(int exitCode, String telemetryJson) {
-	  this.exitCode = exitCode;
-	  this.telemetryJson = telemetryJson;
-	}
+    public final int exitCode;
+    public final String telemetryJson;
+
+    public Result(int exitCode, String telemetryJson) {
+      this.exitCode = exitCode;
+      this.telemetryJson = telemetryJson;
+    }
   }
 }

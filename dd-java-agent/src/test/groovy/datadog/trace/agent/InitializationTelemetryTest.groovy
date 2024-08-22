@@ -12,7 +12,7 @@ class InitializationTelemetryTest extends Specification {
     // so the JVM is expected to terminate with an error
     when:
     def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockAgentLoading)
-    
+
     then:
     result.exitCode != 0
     // JVM fails before premain, so no telemetry output
@@ -22,7 +22,7 @@ class InitializationTelemetryTest extends Specification {
   def "normal start-up"() {
     when:
     def result = InitializationTelemetryCheck.runTestJvm(null)
-    
+
     then:
     result.exitCode == 0
     result.telemetryJson.contains('library_entrypoint.complete')
@@ -34,7 +34,7 @@ class InitializationTelemetryTest extends Specification {
     // to run normally.
     when:
     def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockByteBuddy)
-    
+
     then:
     result.exitCode == 0
     !result.telemetryJson.contains('library_entrypoint.complete')
@@ -46,7 +46,7 @@ class InitializationTelemetryTest extends Specification {
     // so the tracer is unable to report initialization telemetry
     when:
     def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockForwarderEnvVar, true)
-    
+
     then:
     result.exitCode == 0
     // forwarder env var unreadable, so no telemetry output
@@ -58,7 +58,7 @@ class InitializationTelemetryTest extends Specification {
     // unable to invoke the forwarder executable
     when:
     def result = InitializationTelemetryCheck.runTestJvm(InitializationTelemetryCheck.BlockForwarderExecution, true)
-    
+
     then:
     result.exitCode == 0
     // forwarder execution is blocked, so no telemetry output
