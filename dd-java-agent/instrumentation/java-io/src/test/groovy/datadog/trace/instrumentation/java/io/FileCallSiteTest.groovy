@@ -1,12 +1,18 @@
 package datadog.trace.instrumentation.java.io
 
+import datadog.trace.api.gateway.CallbackProvider
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.PathTraversalModule
 import foo.bar.TestFileSuite
 
-class FileCallSiteTest extends BaseIoCallSiteTest {
+import java.util.function.BiFunction
 
-  def 'test new file with path'() {
+import static datadog.trace.api.gateway.Events.EVENTS
+
+class FileCallSiteTest extends BaseIoRaspCallSiteTest {
+
+  void 'test  IAST new file with path'() {
     setup:
     PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -17,10 +23,9 @@ class FileCallSiteTest extends BaseIoCallSiteTest {
 
     then:
     1 * iastModule.onPathTraversal(path)
-    0 * _
   }
 
-  def 'test new file with parent and child'() {
+  void 'test IAST new file with parent and child'() {
     setup:
     PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -32,10 +37,9 @@ class FileCallSiteTest extends BaseIoCallSiteTest {
 
     then:
     1 * iastModule.onPathTraversal(parent, child)
-    0 * _
   }
 
-  def 'test new file with parent file and child'() {
+  void 'test IAST new file with parent file and child'() {
     setup:
     PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -47,10 +51,9 @@ class FileCallSiteTest extends BaseIoCallSiteTest {
 
     then:
     1 * iastModule.onPathTraversal(parent, child)
-    0 * _
   }
 
-  def 'test new file with uri'() {
+  void 'test IAST new file with uri'() {
     setup:
     PathTraversalModule iastModule = Mock(PathTraversalModule)
     InstrumentationBridge.registerIastModule(iastModule)
@@ -61,6 +64,67 @@ class FileCallSiteTest extends BaseIoCallSiteTest {
 
     then:
     1 * iastModule.onPathTraversal(file)
-    0 * _
+  }
+
+  void 'test  RASP new file with path'() {
+    setup:
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final path = 'test.txt'
+
+    when:
+    TestFileSuite.newFile(path)
+
+    then:
+    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
+    1 * listener.apply(reqCtx, path)
+  }
+
+  void 'test RASP new file with parent and child'() {
+    setup:
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final parent = '/home/test'
+    final child = 'test.txt'
+
+    when:
+    TestFileSuite.newFile(parent, child)
+
+    then:
+    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
+    1 * listener.apply(reqCtx, '/home/test/test.txt')
+  }
+
+  void 'test RASP new file with parent file and child'() {
+    setup:
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final parent = new File('/home/test')
+    final child = 'test.txt'
+
+    when:
+    TestFileSuite.newFile(parent, child)
+
+    then:
+    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
+    1 * listener.apply(reqCtx, '/home/test/test.txt')
+  }
+
+  void 'test RASP new file with uri'() {
+    setup:
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final file = new URI('file:/test.txt')
+
+    when:
+    TestFileSuite.newFile(file)
+
+    then:
+    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
+    1 * listener.apply(reqCtx, file.toString())
   }
 }

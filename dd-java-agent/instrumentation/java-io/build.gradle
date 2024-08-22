@@ -10,6 +10,7 @@ apply plugin: 'call-site-instrumentation'
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  implementation project(':dd-java-agent:instrumentation:appsec-utils')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testImplementation group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '9.0.56'
 }

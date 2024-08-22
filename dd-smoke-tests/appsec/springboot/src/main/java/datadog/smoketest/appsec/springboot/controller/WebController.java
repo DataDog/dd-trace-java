@@ -1,5 +1,6 @@
 package datadog.smoketest.appsec.springboot.controller;
 
+import java.io.File;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -53,6 +54,16 @@ public class WebController {
       new URL("http://" + domain).openStream().close();
     } catch (Throwable e) {
       // ignore errors opening connection
+    }
+    return "EXECUTED";
+  }
+
+  @GetMapping("/lfi")
+  public String lfi(@RequestParam("path") String path) {
+    try {
+      new File(path);
+    } catch (Throwable e) {
+      // ignore errors loading files
     }
     return "EXECUTED";
   }
