@@ -5,19 +5,25 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.PathwayContext;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import org.apache.spark.SparkConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class OpenlineageParentContext implements AgentSpan.Context {
   private static final Logger log = LoggerFactory.getLogger(OpenlineageParentContext.class);
+  private static final Pattern UUID =
+      Pattern.compile(
+          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
 
   private final DDTraceId traceId;
   private final long spanId;
@@ -39,15 +45,16 @@ public class OpenlineageParentContext implements AgentSpan.Context {
       return Optional.empty();
     }
 
-    if (sparkConf.get(OPENLINEAGE_PARENT_RUN_ID).trim().isEmpty()) {
+    String parentJobNamespace = sparkConf.get(OPENLINEAGE_PARENT_JOB_NAMESPACE);
+    String parentJobName = sparkConf.get(OPENLINEAGE_PARENT_JOB_NAME);
+    String parentRunId = sparkConf.get(OPENLINEAGE_PARENT_RUN_ID);
+
+    if (!UUID.matcher(parentRunId).matches()) {
       return Optional.empty();
     }
 
     return Optional.of(
-        new OpenlineageParentContext(
-            sparkConf.get(OPENLINEAGE_PARENT_JOB_NAMESPACE),
-            sparkConf.get(OPENLINEAGE_PARENT_JOB_NAME),
-            sparkConf.get(OPENLINEAGE_PARENT_RUN_ID)));
+        new OpenlineageParentContext(parentJobNamespace, parentJobName, parentRunId));
   }
 
   OpenlineageParentContext(String parentJobNamespace, String parentJobName, String parentRunId) {
@@ -118,7 +125,7 @@ public class OpenlineageParentContext implements AgentSpan.Context {
 
   @Override
   public AgentTraceCollector getTraceCollector() {
-    return null;
+    return AgentTracer.NoopAgentTraceCollector.INSTANCE;
   }
 
   @Override
@@ -128,7 +135,7 @@ public class OpenlineageParentContext implements AgentSpan.Context {
 
   @Override
   public Iterable<Map.Entry<String, String>> baggageItems() {
-    return null;
+    return Collections.<String, String>emptyMap().entrySet();
   }
 
   @Override
