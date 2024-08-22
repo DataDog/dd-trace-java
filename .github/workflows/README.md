@@ -98,7 +98,7 @@ _Action:_ Run GitHub CodeQL action, upload result to GitHub security tab and Dat
 
 _Trigger:_ Every week or manually.
 
-_Action:_ Update the Grade dependencies and their locking files.
+_Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
 

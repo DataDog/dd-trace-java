@@ -26,7 +26,7 @@ class MultipartInstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.clearIastModules()
   }
 
-  void 'test commons fileupload2 ParameterParser.parse'() {
+  void 'test commons fileupload ParameterParser.parse'() {
     given:
     final module = Mock(PropagationModule)
     InstrumentationBridge.registerIastModule(module)

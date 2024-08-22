@@ -6,6 +6,8 @@ import datadog.trace.agent.tooling.csi.CallSites
 import datadog.trace.plugin.csi.AdviceGenerator
 import datadog.trace.plugin.csi.impl.assertion.AssertBuilder
 import datadog.trace.plugin.csi.impl.assertion.CallSiteAssert
+import datadog.trace.plugin.csi.impl.ext.tests.IastCallSites
+import datadog.trace.plugin.csi.impl.ext.tests.RaspCallSites
 import groovy.transform.CompileDynamic
 import spock.lang.Requires
 import spock.lang.TempDir
@@ -445,6 +447,29 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'handler.instruction(Opcodes.CHECKCAST, "java/lang/StringBuilder");'
         )
       }
+    }
+  }
+
+  @CallSite(spi = [IastCallSites, RaspCallSites])
+  class MultipleSpiClassesAdvice {
+    @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.String)")
+    static Object after(@CallSite.AllArguments Object[] args, @CallSite.Return Object result) {
+      return result
+    }
+  }
+
+  void 'test multiple spi classes'() {
+    setup:
+    final spec = buildClassSpecification(MultipleSpiClassesAdvice)
+    final generator = buildAdviceGenerator(buildDir)
+
+    when:
+    final result = generator.generate(spec)
+
+    then:
+    assertNoErrors result
+    assertCallSites(result.file) {
+      spi(IastCallSites, RaspCallSites)
     }
   }
 
