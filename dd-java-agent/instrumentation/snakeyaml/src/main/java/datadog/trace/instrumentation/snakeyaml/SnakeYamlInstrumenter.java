@@ -81,6 +81,7 @@ public class SnakeYamlInstrumenter extends InstrumenterModule.Iast
         return;
       }
       final BaseConstructor constructor = SnakeYamlHelper.fetchConstructor(self);
+      // For versions prior to 1.7 (not included), the constructor field is null
       if (constructor instanceof Constructor || constructor == null) {
         untrustedDeserialization.onObject(data);
       }
