@@ -10,7 +10,6 @@ apply plugin: 'call-site-instrumentation'
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:appsec-utils')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 
