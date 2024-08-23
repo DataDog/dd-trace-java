@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.gradle.legacy
 
 import datadog.trace.api.civisibility.domain.BuildModuleLayout
-import datadog.trace.api.civisibility.domain.Language
 import datadog.trace.api.civisibility.domain.SourceSet
 import org.gradle.StartParameter
 import org.gradle.api.Project
