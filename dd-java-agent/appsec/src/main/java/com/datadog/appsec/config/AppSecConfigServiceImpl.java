@@ -24,6 +24,7 @@ import com.datadog.appsec.util.StandardizedLogging;
 import datadog.remoteconfig.ConfigurationEndListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
+import datadog.trace.api.AttackMode;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
@@ -360,6 +361,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     setAppSecActivation(features.asm);
     setApiSecuritySampling(features.apiSecurity);
     setUserIdCollectionMode(features.autoUserInstrum);
+    setAttackMode(features.attackMode);
 
     if (!AppSecSystem.isActive() || !currentAppSecConfig.dirtyStatus.isAnyDirty()) {
       return;
@@ -417,6 +419,20 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
     if (newMode != current) {
       log.info("User ID collection mode changed via remote-config: {} -> {}", current, newMode);
+    }
+  }
+
+  private void setAttackMode(final AppSecFeatures.AttackMode attackMode) {
+    final boolean current = AttackMode.isEnabled();
+    final boolean newState;
+    if (attackMode == null) {
+      newState = tracerConfig.isAppSecAttackModeEnabled();
+    } else {
+      newState = attackMode.isAttackModeEnabled;
+    }
+    if (current != newState) {
+      log.info("Attack Mode changes via remote-config: {} -> {}", current, newState);
+      AttackMode.setEnabled(newState);
     }
   }
 }

@@ -33,6 +33,7 @@ public final class AppSecConfig {
   public static final String APPSEC_STACK_TRACE_ENABLED = "appsec.stacktrace.enabled";
   public static final String APPSEC_MAX_STACK_TRACES = "appsec.max.stacktraces";
   public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stacktrace.depth";
+  public static final String APPSEC_ATTACK_MODE_ENABLED = "appsec.attack.mode.enabled";
 
   public static final String APPSEC_STANDALONE_ENABLED = "experimental.appsec.standalone.enabled";
 

@@ -25,6 +25,7 @@ public class BlockingActionHelper {
 
   private static volatile byte[] TEMPLATE_HTML;
   private static volatile byte[] TEMPLATE_JSON;
+  private static volatile byte[] TEMPLATE_CAPTCHA;
 
   public static final String CONTENT_TYPE_HTML = "text/html;charset=utf-8";
   public static final String CONTENT_TYPE_JSON = "application/json";
@@ -35,7 +36,8 @@ public class BlockingActionHelper {
 
   public enum TemplateType {
     JSON,
-    HTML;
+    HTML,
+    CAPTCHA;
   }
 
   public static int getHttpCode(int actionHttpCode) {
@@ -63,6 +65,9 @@ public class BlockingActionHelper {
     }
     if (blockingContentType == BlockingContentType.JSON) {
       return TemplateType.JSON;
+    }
+    if (blockingContentType == BlockingContentType.CAPTCHA) {
+      return TemplateType.CAPTCHA;
     }
     if (blockingContentType == BlockingContentType.NONE) {
       throw new IllegalArgumentException("Does not accept BlockingContentType.NONE");
@@ -122,6 +127,8 @@ public class BlockingActionHelper {
       return TEMPLATE_JSON;
     } else if (type == TemplateType.HTML) {
       return TEMPLATE_HTML;
+    } else if (type == TemplateType.CAPTCHA) {
+      return TEMPLATE_CAPTCHA;
     }
     return null;
   }
@@ -129,7 +136,7 @@ public class BlockingActionHelper {
   public static String getContentType(TemplateType type) {
     if (type == TemplateType.JSON) {
       return CONTENT_TYPE_JSON;
-    } else if (type == TemplateType.HTML) {
+    } else if (type == TemplateType.HTML || type == TemplateType.CAPTCHA) {
       return CONTENT_TYPE_HTML;
     }
     return null;
@@ -176,6 +183,7 @@ public class BlockingActionHelper {
   public static void reset(Config config) {
     TEMPLATE_HTML = null;
     TEMPLATE_JSON = null;
+    TEMPLATE_CAPTCHA = null;
 
     String appSecHttpBlockedTemplateHtml = config.getAppSecHttpBlockedTemplateHtml();
     if (appSecHttpBlockedTemplateHtml != null) {
@@ -207,6 +215,11 @@ public class BlockingActionHelper {
     }
     if (TEMPLATE_JSON == null) {
       TEMPLATE_JSON = readDefaultTemplate("json");
+    }
+
+    // TODO: Add support for CAPTCHA template via config
+    if (TEMPLATE_CAPTCHA == null) {
+      TEMPLATE_CAPTCHA = readDefaultTemplate("captcha.html");
     }
   }
 

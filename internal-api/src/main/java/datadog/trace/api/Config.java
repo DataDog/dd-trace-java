@@ -6,6 +6,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ATTACK_MODE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
@@ -145,6 +146,7 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIMENTAL;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_REQUEST_SAMPLE_RATE;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_ATTACK_MODE_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
@@ -765,6 +767,7 @@ public class Config {
   private final boolean appSecStandaloneEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
+  private final boolean appSecAttackModeEnabled;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -1714,6 +1717,8 @@ public class Config {
     apiSecurityRequestSampleRate =
         configProvider.getFloat(
             API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
+    appSecAttackModeEnabled =
+        configProvider.getBoolean(APPSEC_ATTACK_MODE_ENABLED, DEFAULT_APPSEC_ATTACK_MODE_ENABLED);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -2935,6 +2940,10 @@ public class Config {
 
   public float getApiSecurityRequestSampleRate() {
     return apiSecurityRequestSampleRate;
+  }
+
+  public boolean isAppSecAttackModeEnabled() {
+    return appSecAttackModeEnabled;
   }
 
   public ProductActivation getIastActivation() {
@@ -4737,6 +4746,8 @@ public class Config {
         + apiSecurityEnabled
         + ", apiSecurityRequestSampleRate="
         + apiSecurityRequestSampleRate
+        + ", appSecAttackModeEnabled"
+        + appSecAttackModeEnabled
         + ", cwsEnabled="
         + cwsEnabled
         + ", cwsTlsRefresh="

@@ -25,6 +25,7 @@ import com.squareup.moshi.Types;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.communication.monitor.Counter;
 import datadog.communication.monitor.Monitoring;
+import datadog.trace.api.AttackMode;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.Flow;
@@ -513,9 +514,67 @@ public class PowerWAFModule implements AppSecModule {
         }
       }
 
+      if (AttackMode.isEnabled() && isRootRequest(reqCtx)) {
+
+        boolean isTokenValid = false;
+        // Collection<String> ddTokenCookie = reqCtx.getCookies().get("DDTOKEN");
+        Collection<String> ddTokenCookie = reqCtx.getCookies().get("dd-challenge-token");
+        if (ddTokenCookie != null && !ddTokenCookie.isEmpty()) {
+          String token = ddTokenCookie.iterator().next();
+          // Validate token
+          isTokenValid =
+              "dummy-valid-token".compareTo(token) == 0
+                  || "dummy-exchanged-token".compareTo(token) == 0;
+        }
+
+        if (!isTokenValid) {
+          Flow.Action.RequestBlockingAction rba = createCaptchaRequestAction();
+          flow.setAction(rba);
+        }
+      }
+
       if (resultWithData != null && resultWithData.schemas != null) {
         reqCtx.reportApiSchemas(resultWithData.schemas);
       }
+    }
+
+    boolean isRootRequest(AppSecRequestContext reqCtx) {
+      Map<String, List<String>> headers = reqCtx.getRequestHeaders();
+
+      // Check the request method: POST requests are not considered root
+      //      if (reqCtx.getMethod().equalsIgnoreCase("POST")) {
+      //        return false;
+      //      }
+
+      // Check the Sec-Fetch-Dest header to exclude requests for images, scripts, etc.
+      List<String> fetchDestHeaders = headers.get("sec-fetch-dest");
+      if (fetchDestHeaders != null && !fetchDestHeaders.isEmpty()) {
+        String fetchDest = fetchDestHeaders.get(0);
+        if (!fetchDest.equals("document") && !fetchDest.equals("iframe")) {
+          return false;
+        }
+      }
+
+      // Check for the absence of Referer and Origin headers
+      if (!headers.containsKey("referer") && !headers.containsKey("origin")) {
+        return true;
+      }
+
+      List<String> hostHeaders = headers.get("host");
+      if (hostHeaders != null && !hostHeaders.isEmpty()) {
+        String host = hostHeaders.get(0);
+
+        // Check the Referer header
+        List<String> refererHeaders = headers.get("referer");
+        if (refererHeaders != null && !refererHeaders.isEmpty()) {
+          String referer = refererHeaders.get(0);
+
+          // Check that Referer contains the value of Host
+          return referer.contains(host);
+        }
+      }
+
+      return false;
     }
 
     private Flow.Action.RequestBlockingAction createBlockRequestAction(ActionInfo actionInfo) {
@@ -566,6 +625,10 @@ public class PowerWAFModule implements AppSecModule {
         log.warn("Invalid blocking action data", cce);
         return null;
       }
+    }
+
+    private Flow.Action.RequestBlockingAction createCaptchaRequestAction() {
+      return new Flow.Action.RequestBlockingAction(403, BlockingContentType.CAPTCHA);
     }
 
     private StackTraceEvent createExploitStackTraceEvent(String stackId) {

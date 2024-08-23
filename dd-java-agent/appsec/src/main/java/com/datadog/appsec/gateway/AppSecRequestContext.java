@@ -244,7 +244,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.scheme = scheme;
   }
 
-  String getMethod() {
+  public String getMethod() {
     return method;
   }
 
@@ -252,7 +252,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.method = method;
   }
 
-  String getSavedRawURI() {
+  public String getSavedRawURI() {
     return savedRawURI;
   }
 
@@ -286,7 +286,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return finishedRequestHeaders;
   }
 
-  Map<String, List<String>> getRequestHeaders() {
+  public Map<String, List<String>> getRequestHeaders() {
     return requestHeaders;
   }
 
@@ -327,7 +327,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  Map<String, ? extends Collection<String>> getCookies() {
+  public Map<String, ? extends Collection<String>> getCookies() {
     return collectedCookies != null ? collectedCookies : Collections.emptyMap();
   }
 
