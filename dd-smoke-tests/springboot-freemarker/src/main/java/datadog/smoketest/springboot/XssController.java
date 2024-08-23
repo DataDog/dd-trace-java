@@ -4,7 +4,6 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,10 +27,10 @@ public class XssController {
     Template template = cfg.getTemplate("freemarker.ftlh");
     Map<String, String> root = new HashMap<>();
     root.put("name", name);
-    template.process(
-        root,
-        new FileWriter(
-            "dd-smoke-tests/springboot-freemarker/src/main/resources/templates/output.txt"));
+    //    template.process(
+    //        root,
+    //        new FileWriter(
+    //            "dd-smoke-tests/springboot-freemarker/src/main/resources/templates/output.txt"));
     template.process(root, response.getWriter());
   }
 }
