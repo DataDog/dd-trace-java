@@ -2,12 +2,12 @@ package datadog.trace.civisibility.domain.buildsystem
 
 import datadog.trace.api.Config
 import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
-import datadog.trace.api.civisibility.coverage.CoverageDataSupplier
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.civisibility.codeowners.Codeowners
+import datadog.trace.civisibility.config.ExecutionSettings
+import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.ipc.SignalClient
 import datadog.trace.civisibility.source.MethodLinesResolver
@@ -17,10 +17,10 @@ import datadog.trace.test.util.DDSpecification
 class ProxyTestModuleTest extends DDSpecification {
 
   def "test total retries limit is applied across test cases"() {
-    def moduleExecutionSettings = Stub(ModuleExecutionSettings)
-    moduleExecutionSettings.getEarlyFlakeDetectionSettings() >> EarlyFlakeDetectionSettings.DEFAULT
-    moduleExecutionSettings.isFlakyTestRetriesEnabled() >> true
-    moduleExecutionSettings.getFlakyTests(_) >> null
+    def executionSettings = Stub(ExecutionSettings)
+    executionSettings.getEarlyFlakeDetectionSettings() >> EarlyFlakeDetectionSettings.DEFAULT
+    executionSettings.isFlakyTestRetriesEnabled() >> true
+    executionSettings.getFlakyTests(_) >> null
 
     def config = Stub(Config)
     config.getCiVisibilityFlakyRetryCount() >> 2 // this counts all executions of a test case (first attempt is counted too)
@@ -31,7 +31,7 @@ class ProxyTestModuleTest extends DDSpecification {
       1L,
       1L,
       "test-module",
-      moduleExecutionSettings,
+      executionSettings,
       config,
       Stub(CiVisibilityMetricCollector),
       Stub(TestDecorator),
@@ -39,7 +39,7 @@ class ProxyTestModuleTest extends DDSpecification {
       Stub(Codeowners),
       Stub(MethodLinesResolver),
       Stub(CoverageStore.Factory),
-      Stub(CoverageDataSupplier),
+      Stub(ChildProcessCoverageReporter),
       GroovyMock(SignalClient.Factory)
       )
 
