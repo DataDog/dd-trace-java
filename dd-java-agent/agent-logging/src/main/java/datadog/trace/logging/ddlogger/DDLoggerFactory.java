@@ -92,12 +92,15 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
   // So to get property/env we use this custom function
   private static boolean isLogCollectionEnabled() {
     // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
-    // users. This should be removed once we default to true.
+    // FIXME: For progressive rollout, we include by default Java < 11 hosts as product independent
+    // FIXME: sample users.
+    // FIXME: This should be removed once we default to true.
     final boolean defaultValue =
         isFlagEnabled("dd.iast.enabled", "DD_IAST_ENABLED", false)
             || isFlagEnabled("dd.civisibility.enabled", "DD_CIVISIBILITY_ENABLED", false)
             || isFlagEnabled(
-                "dd.dynamic.instrumentation.enabled", "DD_DYNAMIC_INSTRUMENTATION_ENABLED", false);
+                "dd.dynamic.instrumentation.enabled", "DD_DYNAMIC_INSTRUMENTATION_ENABLED", false)
+            || !Platform.isJavaVersionAtLeast(11);
     return isFlagEnabled(
         "dd.telemetry.log-collection.enabled", "DD_TELEMETRY_LOG_COLLECTION_ENABLED", defaultValue);
   }
