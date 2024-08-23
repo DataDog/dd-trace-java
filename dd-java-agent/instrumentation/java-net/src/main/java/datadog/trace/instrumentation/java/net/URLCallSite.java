@@ -6,12 +6,8 @@ import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
-import datadog.trace.api.iast.Sink;
-import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.sink.SsrfModule;
-import java.net.Proxy;
 import java.net.URI;
 import java.net.URL;
 import javax.annotation.Nonnull;
@@ -95,45 +91,5 @@ public class URLCallSite {
       }
     }
     return result;
-  }
-
-  @Sink(VulnerabilityTypes.SSRF)
-  @CallSite.Before("java.net.URLConnection java.net.URL.openConnection()")
-  public static void beforeOpenConnection(@CallSite.This final URL url) {
-    final SsrfModule module = InstrumentationBridge.SSRF;
-    if (module != null) {
-      try {
-        module.onURLConnection(url);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("After open connection threw", e);
-      }
-    }
-  }
-
-  @Sink(VulnerabilityTypes.SSRF)
-  @CallSite.Before("java.net.URLConnection java.net.URL.openConnection(java.net.Proxy)")
-  public static void beforeOpenConnection(
-      @CallSite.This final URL url, @CallSite.Argument final Proxy proxy) {
-    final SsrfModule module = InstrumentationBridge.SSRF;
-    if (module != null) {
-      try {
-        module.onURLConnection(url);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("After open connection threw", e);
-      }
-    }
-  }
-
-  @Sink(VulnerabilityTypes.SSRF)
-  @CallSite.Before("java.io.InputStream java.net.URL.openStream()")
-  public static void beforeOpenStream(@CallSite.This final URL url) {
-    final SsrfModule module = InstrumentationBridge.SSRF;
-    if (module != null) {
-      try {
-        module.onURLConnection(url);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("After open connection threw", e);
-      }
-    }
   }
 }

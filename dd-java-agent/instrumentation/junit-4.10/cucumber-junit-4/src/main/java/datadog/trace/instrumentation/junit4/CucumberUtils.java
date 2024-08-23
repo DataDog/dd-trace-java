@@ -50,6 +50,8 @@ public abstract class CucumberUtils {
       REFLECTION.constructor("io.cucumber.junit.PickleRunners$PickleId", Pickle.class);
   private static final MethodHandle PICKLE_ID_URI_GETTER =
       REFLECTION.privateFieldGetter("io.cucumber.junit.PickleRunners$PickleId", "uri");
+  private static final MethodHandle PICKLE_ID_LINE_GETTER =
+      REFLECTION.privateFieldGetter("io.cucumber.junit.PickleRunners$PickleId", "pickleLine");
   private static final MethodHandle PICKLE_RUNNER_GET_DESCRIPTION =
       REFLECTION.method("io.cucumber.junit.PickleRunners$PickleRunner", "getDescription");
 
@@ -70,6 +72,11 @@ public abstract class CucumberUtils {
   public static URI getPickleUri(Description scenarioDescription) {
     Object pickleId = JUnit4Utils.getUniqueId(scenarioDescription);
     return REFLECTION.invoke(PICKLE_ID_URI_GETTER, pickleId);
+  }
+
+  public static Integer getPickleLine(Description scenarioDescription) {
+    Object pickleId = JUnit4Utils.getUniqueId(scenarioDescription);
+    return REFLECTION.invoke(PICKLE_ID_LINE_GETTER, pickleId);
   }
 
   public static String getTestSuiteNameForFeature(Description featureDescription) {
@@ -99,12 +106,22 @@ public abstract class CucumberUtils {
   public static String getTestNameForScenario(Description scenarioDescription) {
     String scenarioDescriptionString = scenarioDescription.toString();
     int featureNameStart = getFeatureNameStartIdx(scenarioDescriptionString);
-    if (featureNameStart >= 0) {
+    if (featureNameStart > 0) { // if featureNameStart == 0, then test name is empty and of no use
       return scenarioDescriptionString.substring(0, featureNameStart);
-    } else {
-      // fallback to default method
-      return scenarioDescription.getMethodName();
     }
+
+    // fallback to default method
+    String methodName = scenarioDescription.getMethodName();
+    if (Strings.isNotBlank(methodName)) {
+      return methodName;
+    }
+
+    Integer pickleLine = getPickleLine(scenarioDescription);
+    if (pickleLine != null) {
+      return "LINE:" + pickleLine + "";
+    }
+
+    return "EMPTY_NAME";
   }
 
   /**

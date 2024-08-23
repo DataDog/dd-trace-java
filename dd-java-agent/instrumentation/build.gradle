@@ -97,8 +97,6 @@ subprojects { Project subProj ->
         useJUnit()
       }
 
-      onlyIf { !project.rootProject.hasProperty("skipInstTests") }
-
       if (subTask.name in ['latestDepTest', 'latestDepForkedTest']) {
         subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
       }

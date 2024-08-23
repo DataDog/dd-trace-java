@@ -60,6 +60,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT =
       "civisibility.early.flake.detection.lower.limit";
   public static final String CIVISIBILITY_FLAKY_RETRY_COUNT = "civisibility.flaky.retry.count";
+  public static final String CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT =
+      "civisibility.total.flaky.retry.count";
   public static final String CIVISIBILITY_MODULE_NAME = "civisibility.module.name";
   public static final String CIVISIBILITY_TELEMETRY_ENABLED = "civisibility.telemetry.enabled";
   public static final String CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS =

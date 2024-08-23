@@ -73,15 +73,6 @@ jar {
   from sourceSets.main.output
 }
 
-tasks.withType(Test).configureEach {
-  onlyIf { !project.rootProject.hasProperty("skipDebuggerTests") }
-}
-
 // we want to test with no special reflective access (no --add-opens)
 ext.allowReflectiveAccessToJdk = false
 
-subprojects { Project subProj ->
-  subProj.tasks.withType(Test).configureEach { subTask ->
-    onlyIf { !project.rootProject.hasProperty("skipDebuggerTests") }
-  }
-}
