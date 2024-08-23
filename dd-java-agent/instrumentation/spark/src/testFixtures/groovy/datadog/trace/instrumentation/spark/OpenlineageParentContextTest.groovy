@@ -30,9 +30,9 @@ class OpenlineageParentContextTest extends Specification {
     parentContext.get().childRootSpanId == expectedRootSpanId
 
     where:
-    parentRunId                            || expectedParentRunId                    | expectedTraceId      | expectedRootSpanId
-    "ad3b6baa-8d88-3b38-8dbe-f06232249a84" || "ad3b6baa-8d88-3b38-8dbe-f06232249a84" | 0xa475569dbce5e6cfL  | 0xa475569dbce5e6cfL
-    "ad3b6baa-8d88-3b38-8dbe-f06232249a85" || "ad3b6baa-8d88-3b38-8dbe-f06232249a85" | 0x31da6680bd14991bL  | 0x31da6680bd14991bL
+    parentRunId                            | expectedParentRunId                    | expectedTraceId      | expectedRootSpanId
+    "ad3b6baa-8d88-3b38-8dbe-f06232249a84" | "ad3b6baa-8d88-3b38-8dbe-f06232249a84" | 0xa475569dbce5e6cfL  | 0xa475569dbce5e6cfL
+    "ad3b6baa-8d88-3b38-8dbe-f06232249a85" | "ad3b6baa-8d88-3b38-8dbe-f06232249a85" | 0x31da6680bd14991bL  | 0x31da6680bd14991bL
   }
 
   def "should create empty OpenLineageParentContext if any required field is missing" () {
@@ -49,14 +49,14 @@ class OpenlineageParentContextTest extends Specification {
     parentContext.isPresent() == expected
 
     where:
-    jobNamespacePresent | jobNamePresent | runIdPresent || expected
-    true                | true           | false        || false
-    true                | false          | true         || false
-    false               | true           | true         || false
-    true                | false          | false        || false
-    false               | true           | false        || false
-    false               | false          | true         || false
-    false               | false          | false        || false
+    jobNamespacePresent | jobNamePresent | runIdPresent | expected
+    true                | true           | false        | false
+    true                | false          | true         | false
+    false               | true           | true         | false
+    true                | false          | false        | false
+    false               | true           | false        | false
+    false               | false          | true         | false
+    false               | false          | false        | false
   }
 
   def "should only generate a non-empty OpenlineageParentContext if parentRunId is a valid UUID" () {
@@ -76,12 +76,12 @@ class OpenlineageParentContextTest extends Specification {
     parentContext.isPresent() == expected
 
     where:
-    runId                                  || expected
-    "6afeb6ee-729d-37f7-ad73-b8e6f47ca694" || true
-    "  "                                   || false
-    "invalid-uuid"                         || false
-    "6afeb6ee-729d-37f7-b8e6f47ca694"      || false
-    "6AFEB6EE-729D-37F7-AD73-B8E6F47CA694" || true
+    runId                                  | expected
+    "6afeb6ee-729d-37f7-ad73-b8e6f47ca694" | true
+    "  "                                   | false
+    "invalid-uuid"                         | false
+    "6afeb6ee-729d-37f7-b8e6f47ca694"      | false
+    "6AFEB6EE-729D-37F7-AD73-B8E6F47CA694" | true
   }
 }
 
