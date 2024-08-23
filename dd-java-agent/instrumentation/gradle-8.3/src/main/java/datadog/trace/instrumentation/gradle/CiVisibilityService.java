@@ -2,14 +2,13 @@ package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import datadog.trace.api.civisibility.domain.BuildModuleSettings;
+import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
-import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,19 +55,18 @@ public abstract class CiVisibilityService
     return config.getCiVisibilityJacocoGradleSourceSets();
   }
 
-  public List<String> getCoverageEnabledPackages(Path jvmExecutable) {
-    ModuleExecutionSettings moduleExecutionSettings =
-        buildEventsHandler.getModuleExecutionSettings(SESSION_KEY, jvmExecutable);
-    return moduleExecutionSettings.getCoverageEnabledPackages();
+  public List<String> getCoverageEnabledPackages() {
+    BuildSessionSettings sessionSettings = buildEventsHandler.getSessionSettings(SESSION_KEY);
+    return sessionSettings.getCoverageEnabledPackages();
   }
 
   @SuppressForbidden
-  public Collection<String> getTracerJvmArgs(String taskPath, Path jvmExecutable) {
+  public Collection<String> getTracerJvmArgs(String taskPath) {
     List<String> jvmArgs = new ArrayList<>();
 
-    ModuleExecutionSettings moduleExecutionSettings =
-        buildEventsHandler.getModuleExecutionSettings(SESSION_KEY, jvmExecutable);
-    Map<String, String> propagatedSystemProperties = moduleExecutionSettings.getSystemProperties();
+    BuildModuleSettings moduleSettings =
+        buildEventsHandler.getModuleSettings(SESSION_KEY, taskPath);
+    Map<String, String> propagatedSystemProperties = moduleSettings.getSystemProperties();
     // propagate to child process all "dd." system properties available in current process
     for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
       jvmArgs.add("-D" + e.getKey() + '=' + e.getValue());
@@ -86,23 +84,9 @@ public abstract class CiVisibilityService
       jvmArgs.addAll(splitArgs);
     }
 
-    jvmArgs.add(arg(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME, taskPath));
-
     jvmArgs.add("-javaagent:" + config.getCiVisibilityAgentJarFile().toPath());
 
-    BuildEventsHandler.ModuleInfo moduleInfo =
-        buildEventsHandler.getModuleInfo(SESSION_KEY, taskPath);
-    jvmArgs.add(arg(CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleInfo.sessionId));
-    jvmArgs.add(arg(CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleInfo.moduleId));
-    jvmArgs.add(
-        arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST, moduleInfo.signalServerHost));
-    jvmArgs.add(
-        arg(CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT, moduleInfo.signalServerPort));
     return jvmArgs;
-  }
-
-  private String arg(String propertyName, Object value) {
-    return "-D" + Strings.propertyNameToSystemPropertyName(propertyName) + "=" + value;
   }
 
   public void onBuildStart(
@@ -119,8 +103,8 @@ public abstract class CiVisibilityService
         SESSION_KEY, buildPath, projectRoot, startCommand, "gradle", gradleVersion, additionalTags);
   }
 
-  public void onModuleStart(String taskPath, Collection<File> compiledClassFolders) {
-    buildEventsHandler.onTestModuleStart(SESSION_KEY, taskPath, compiledClassFolders, null);
+  public void onModuleStart(String taskPath, BuildModuleLayout moduleLayout, Path jvmExecutable) {
+    buildEventsHandler.onTestModuleStart(SESSION_KEY, taskPath, moduleLayout, jvmExecutable, null);
   }
 
   public void onModuleFinish(

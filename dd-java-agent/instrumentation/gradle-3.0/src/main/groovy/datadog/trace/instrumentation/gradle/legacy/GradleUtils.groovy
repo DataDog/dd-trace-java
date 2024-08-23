@@ -1,11 +1,22 @@
 package datadog.trace.instrumentation.gradle.legacy
 
+import datadog.trace.api.civisibility.domain.BuildModuleLayout
+import datadog.trace.api.civisibility.domain.Language
+import datadog.trace.api.civisibility.domain.SourceSet
 import org.gradle.StartParameter
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.internal.jvm.Jvm
 import org.gradle.process.JavaForkOptions
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
+import java.nio.file.Path
+import java.nio.file.Paths
 
 abstract class GradleUtils {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(GradleUtils)
 
   private static final String TEST_TASK_CLASS_NAME = "org.gradle.api.tasks.testing.Test"
 
@@ -52,24 +63,34 @@ abstract class GradleUtils {
     return command.toString()
   }
 
-  /**
-   * Returns folders where compiled classes are stored
-   */
-  static Collection<File> getOutputClassesDirs(Project project, List<String> sourceSetNames) {
-    def sourceSets = project.sourceSets
-    Collection<File> allOutputClassesDirs = new HashSet<>()
+  static BuildModuleLayout getModuleLayout(Project project, List<String> sourceSetNames) {
+    Collection<SourceSet> sourceSets = new ArrayList<>()
     for (String sourceSetName : sourceSetNames) {
-      def sourceSet = sourceSets.findByName(sourceSetName)
+      def sourceSet = project.sourceSets.findByName(sourceSetName)
       if (sourceSet == null) {
         continue
       }
 
-      def sourceSetOutput = sourceSet.output
-      if (sourceSetOutput.hasProperty('classesDirs')) {
-        def outputClassesDirs = sourceSetOutput.classesDirs
-        allOutputClassesDirs.addAll(outputClassesDirs.files)
+      def srcDirs = sourceSet.allSource.srcDirs
+      def destinationDirs = sourceSet.output.files
+
+      SourceSet.Type type = sourceSet.name.toLowerCase().contains("test") ? SourceSet.Type.TEST : SourceSet.Type.CODE
+      sourceSets.add(new SourceSet(type, srcDirs, destinationDirs))
+    }
+    return new BuildModuleLayout(sourceSets)
+  }
+
+  static Path getEffectiveExecutable(Task task) {
+    if (task.hasProperty('javaLauncher') && task.javaLauncher.isPresent()) {
+      try {
+        return Paths.get(task.javaLauncher.get().getExecutablePath().toString())
+      } catch (Exception e) {
+        LOGGER.error("Could not get Java launcher for test task", e)
       }
     }
-    return allOutputClassesDirs
+    def stringPath = task.hasProperty('executable') && task.executable != null
+      ? task.executable
+      : Jvm.current().getJavaExecutable().getAbsolutePath()
+    return stringPath != null ? Paths.get(stringPath) : null
   }
 }

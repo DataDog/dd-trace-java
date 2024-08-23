@@ -14,7 +14,7 @@
       "test.itr.tests_skipping.count" : 0,
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "test.code_coverage.lines_pct" : 57
+      "test.code_coverage.lines_pct" : 50
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
@@ -59,7 +59,7 @@
     "error" : 1,
     "metrics" : {
       "test.itr.tests_skipping.count" : 0,
-      "test.code_coverage.lines_pct" : 57
+      "test.code_coverage.lines_pct" : 50
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},

@@ -20,9 +20,12 @@ import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Plugin;
+import org.apache.maven.plugin.BuildPluginManager;
 import org.apache.maven.plugin.MavenPluginManager;
 import org.apache.maven.plugin.Mojo;
 import org.apache.maven.plugin.MojoExecution;
+import org.apache.maven.plugin.PluginManagerException;
+import org.apache.maven.plugin.PluginResolutionException;
 import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
@@ -31,6 +34,7 @@ import org.apache.maven.toolchain.Toolchain;
 import org.apache.maven.toolchain.ToolchainManager;
 import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.classworlds.realm.ClassRealm;
+import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.component.configurator.expression.ExpressionEvaluator;
 import org.codehaus.plexus.configuration.PlexusConfiguration;
 import org.codehaus.plexus.configuration.xml.XmlPlexusConfiguration;
@@ -331,25 +335,45 @@ public abstract class MavenUtils {
   }
 
   @Nullable
-  public static Path getForkedJvmPath(
-      MavenSession session, MojoExecution mojoExecution, MavenPluginManager mavenPluginManager) {
+  public static Path getForkedJvmPath(MavenSession session, MojoExecution mojoExecution) {
     if (!MavenUtils.isTestExecution(mojoExecution)) {
       return null;
     }
-    String forkedJvm = getEffectiveJvm(session, mojoExecution, mavenPluginManager);
-    if (forkedJvm == null) {
-      forkedJvm = getEffectiveJvmFallback(session, mojoExecution);
-    }
-    return forkedJvm != null ? Paths.get(forkedJvm) : null;
-  }
-
-  private static String getEffectiveJvm(
-      MavenSession session, MojoExecution mojoExecution, MavenPluginManager mavenPluginManager) {
-    Mojo mojo;
     try {
-      mojo = mavenPluginManager.getConfiguredMojo(Mojo.class, session, mojoExecution);
+      Mojo mojo = getConfiguredMojo(session, mojoExecution);
+      String forkedJvm = getEffectiveJvm(mojoExecution, mojo);
+      if (forkedJvm == null) {
+        forkedJvm = getEffectiveJvmFallback(session, mojoExecution);
+      }
+      return forkedJvm != null ? Paths.get(forkedJvm) : null;
+
     } catch (Exception e) {
       LOGGER.debug("Error while getting effective JVM for mojoExecution {}", mojoExecution, e);
+      return null;
+    }
+  }
+
+  private static Mojo getConfiguredMojo(MavenSession session, MojoExecution mojoExecution)
+      throws ComponentLookupException, PluginResolutionException, PluginManagerException {
+    PlexusContainer container = getContainer(session);
+
+    BuildPluginManager buildPluginManager = container.lookup(BuildPluginManager.class);
+    MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
+    PluginDescriptor pluginDescriptor = mojoDescriptor.getPluginDescriptor();
+    // ensure plugin realm is loaded in container
+    buildPluginManager.getPluginRealm(session, pluginDescriptor);
+
+    MavenPluginManager mavenPluginManager = container.lookup(MavenPluginManager.class);
+    try {
+      return mavenPluginManager.getConfiguredMojo(Mojo.class, session, mojoExecution);
+    } catch (Exception e) {
+      LOGGER.debug("Error while getting effective JVM for mojoExecution {}", mojoExecution, e);
+      return null;
+    }
+  }
+
+  private static String getEffectiveJvm(MojoExecution mojoExecution, Mojo mojo) {
+    if (mojo == null) {
       return null;
     }
 
@@ -364,7 +388,7 @@ public abstract class MavenUtils {
       return null;
     }
     try {
-      // result type differs based on Maven version
+      // result type differs based on Surefire plugin version
       Object effectiveJvm = methodHandles.invoke(getEffectiveJvmMethod, mojo);
 
       if (effectiveJvm instanceof String) {

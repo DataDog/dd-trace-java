@@ -1,12 +1,12 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
@@ -31,9 +31,9 @@ public class ProxyTestSession implements TestFrameworkSession {
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
-  private final CoverageDataSupplier coverageDataSupplier;
+  private final ChildProcessCoverageReporter childProcessCoverageReporter;
   private final SignalClient.Factory signalClientFactory;
-  private final ModuleExecutionSettings moduleExecutionSettings;
+  private final ExecutionSettings executionSettings;
 
   public ProxyTestSession(
       long parentProcessSessionId,
@@ -45,9 +45,9 @@ public class ProxyTestSession implements TestFrameworkSession {
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageStore.Factory coverageStoreFactory,
-      CoverageDataSupplier coverageDataSupplier,
+      ChildProcessCoverageReporter childProcessCoverageReporter,
       SignalClient.Factory signalClientFactory,
-      ModuleExecutionSettings moduleExecutionSettings) {
+      ExecutionSettings executionSettings) {
     this.parentProcessSessionId = parentProcessSessionId;
     this.parentProcessModuleId = parentProcessModuleId;
     this.config = config;
@@ -57,9 +57,9 @@ public class ProxyTestSession implements TestFrameworkSession {
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
-    this.coverageDataSupplier = coverageDataSupplier;
+    this.childProcessCoverageReporter = childProcessCoverageReporter;
     this.signalClientFactory = signalClientFactory;
-    this.moduleExecutionSettings = moduleExecutionSettings;
+    this.executionSettings = executionSettings;
   }
 
   @Override
@@ -76,7 +76,7 @@ public class ProxyTestSession implements TestFrameworkSession {
         parentProcessSessionId,
         parentProcessModuleId,
         moduleName,
-        moduleExecutionSettings,
+        executionSettings,
         config,
         metricCollector,
         testDecorator,
@@ -84,7 +84,7 @@ public class ProxyTestSession implements TestFrameworkSession {
         codeowners,
         methodLinesResolver,
         coverageStoreFactory,
-        coverageDataSupplier,
+        childProcessCoverageReporter,
         signalClientFactory);
   }
 }

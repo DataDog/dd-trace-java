@@ -1,25 +1,31 @@
 package datadog.trace.instrumentation.maven3;
 
+import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import datadog.trace.api.civisibility.domain.BuildModuleSettings;
+import datadog.trace.api.civisibility.domain.SourceSet;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
-import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.util.Strings;
 import java.io.File;
-import java.util.Collection;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.maven.execution.AbstractExecutionListener;
 import org.apache.maven.execution.ExecutionEvent;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.Build;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.codehaus.plexus.configuration.PlexusConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MavenExecutionListener extends AbstractExecutionListener {
 
-  private static final String FORK_COUNT_CONFIG = "forkCount";
+  private static final Logger log = LoggerFactory.getLogger(MavenExecutionListener.class);
 
   private final BuildEventsHandler<MavenExecutionRequest> buildEventsHandler;
 
@@ -59,75 +65,57 @@ public class MavenExecutionListener extends AbstractExecutionListener {
   @Override
   public void mojoStarted(ExecutionEvent event) {
     MojoExecution mojoExecution = event.getMojoExecution();
-    if (MavenUtils.isTestExecution(mojoExecution)) {
-      MavenSession session = event.getSession();
-      MavenExecutionRequest request = session.getRequest();
-      MavenProject project = event.getProject();
-      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
-
-      String outputClassesDir = project.getBuild().getOutputDirectory();
-      Collection<File> outputClassesDirs =
-          outputClassesDir != null
-              ? Collections.singleton(new File(outputClassesDir))
-              : Collections.emptyList();
-
-      String executionId =
-          mojoExecution.getPlugin().getArtifactId()
-              + ":"
-              + mojoExecution.getGoal()
-              + ":"
-              + mojoExecution.getExecutionId();
-      Map<String, Object> additionalTags =
-          Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
-
-      BuildEventsHandler.ModuleInfo moduleInfo =
-          buildEventsHandler.onTestModuleStart(
-              request, moduleName, outputClassesDirs, additionalTags);
-
-      Xpp3Dom configuration = mojoExecution.getConfiguration();
-      boolean forkTestVm =
-          !"0".equals(MavenUtils.getConfigurationValue(configuration, FORK_COUNT_CONFIG));
-      if (forkTestVm) {
-        configuration =
-            setForkedVmSystemProperty(
-                configuration, CiVisibilityConfig.CIVISIBILITY_SESSION_ID, moduleInfo.sessionId);
-        configuration =
-            setForkedVmSystemProperty(
-                configuration, CiVisibilityConfig.CIVISIBILITY_MODULE_ID, moduleInfo.moduleId);
-        configuration =
-            setForkedVmSystemProperty(
-                configuration,
-                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST,
-                moduleInfo.signalServerHost);
-        configuration =
-            setForkedVmSystemProperty(
-                configuration,
-                CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT,
-                moduleInfo.signalServerPort);
-
-        mojoExecution.setConfiguration(configuration);
-      } else {
-        // set session/module ID props to let tests instrumentation code know
-        // that it shouldn't create its own module event
-        System.setProperty(
-            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID),
-            String.valueOf(moduleInfo.sessionId));
-        System.setProperty(
-            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID),
-            String.valueOf(moduleInfo.moduleId));
-      }
+    if (!MavenUtils.isTestExecution(mojoExecution)) {
+      return;
     }
+
+    String executionId =
+        mojoExecution.getPlugin().getArtifactId()
+            + ":"
+            + mojoExecution.getGoal()
+            + ":"
+            + mojoExecution.getExecutionId();
+
+    MavenSession session = event.getSession();
+    MavenExecutionRequest request = session.getRequest();
+    MavenProject project = event.getProject();
+    String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
+
+    Build build = project.getBuild();
+    SourceSet classes =
+        getSourceSet(SourceSet.Type.CODE, build.getSourceDirectory(), build.getOutputDirectory());
+    SourceSet tests =
+        getSourceSet(
+            SourceSet.Type.TEST, build.getTestSourceDirectory(), build.getTestOutputDirectory());
+    BuildModuleLayout moduleLayout = new BuildModuleLayout(Arrays.asList(classes, tests));
+
+    Path forkedJvmPath = MavenUtils.getForkedJvmPath(session, mojoExecution);
+    Map<String, Object> additionalTags = Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
+
+    BuildModuleSettings moduleSettings =
+        buildEventsHandler.onTestModuleStart(
+            request, moduleName, moduleLayout, forkedJvmPath, additionalTags);
+
+    PlexusConfiguration pomConfiguration = MavenUtils.getPomConfiguration(mojoExecution);
+    PlexusConfiguration forkCount = pomConfiguration.getChild("forkCount");
+    if (forkCount != null && "0".equals(forkCount.getValue())) {
+      log.warn(
+          "Tests execution {} does not run in a forked JVM, this configuration is not supported",
+          executionId);
+      return;
+    }
+
+    Map<String, String> systemProperties = moduleSettings.getSystemProperties();
+    MavenProjectConfigurator.INSTANCE.configureTracer(mojoExecution, systemProperties);
   }
 
-  private static Xpp3Dom setForkedVmSystemProperty(
-      Xpp3Dom configuration, String propertyName, Object propertyValue) {
-    String argLine =
-        MavenUtils.getConfigurationValue(configuration, "argLine")
-            + " -D"
-            + Strings.propertyNameToSystemPropertyName(propertyName)
-            + '='
-            + propertyValue;
-    return MavenUtils.setConfigurationValue(argLine, configuration, "argLine");
+  @Nullable
+  private SourceSet getSourceSet(SourceSet.Type type, String source, String output) {
+    if (source == null || output == null) {
+      return null;
+    }
+    return new SourceSet(
+        type, Collections.singleton(new File(source)), Collections.singleton(new File(output)));
   }
 
   @Override
@@ -139,11 +127,6 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       MavenProject project = event.getProject();
       String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
-
-      System.clearProperty(
-          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
-      System.clearProperty(
-          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
     }
   }
 
@@ -158,11 +141,6 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       Exception exception = event.getException();
       buildEventsHandler.onTestModuleFail(request, moduleName, exception);
       buildEventsHandler.onTestModuleFinish(request, moduleName);
-
-      System.clearProperty(
-          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID));
-      System.clearProperty(
-          Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID));
     }
   }
 }

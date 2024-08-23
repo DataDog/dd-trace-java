@@ -169,7 +169,12 @@ class ConfigurationApiImplTest extends Specification {
     }
   ],
   "meta": {
-    "correlation_id": "11223344"
+    "correlation_id": "11223344",
+    "coverage": {
+        "src/main/java/Calculator.java": "/8AA/w==",
+        "src/main/java/utils/Math.java": "AAAAf+AA/A==",
+        "src/test/java/CalculatorTest.java": "//AAeAAA/A=="
+    }
   }
 }
 """.bytes
@@ -322,12 +327,25 @@ class ConfigurationApiImplTest extends Specification {
 
     skippableTests.correlationId == "11223344"
 
+    skippableTests.coveredLinesByRelativeSourcePath.size() == 3
+    skippableTests.coveredLinesByRelativeSourcePath["src/main/java/Calculator.java"] == bits(0, 1, 2, 3, 4, 5, 6, 7, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31)
+    skippableTests.coveredLinesByRelativeSourcePath["src/test/java/CalculatorTest.java"] == bits(0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 27, 28, 29, 30, 50, 51, 52, 53, 54, 55)
+    skippableTests.coveredLinesByRelativeSourcePath["src/main/java/utils/Math.java"] == bits(24, 25, 26, 27, 28, 29, 30, 37, 38, 39, 50, 51, 52, 53, 54, 55)
+
     where:
     api                   | displayName
     givenEvpProxy(false)  | "EVP proxy, compression disabled"
     givenEvpProxy(true)   | "EVP proxy, compression enabled"
     givenIntakeApi(false) | "intake, compression disabled"
     givenIntakeApi(true)  | "intake, compression enabled"
+  }
+
+  private BitSet bits(int... bits) {
+    BitSet bitSet = new BitSet()
+    for (int bit : bits) {
+      bitSet.set(bit)
+    }
+    return bitSet
   }
 
   def "test known tests request: #displayName"() {

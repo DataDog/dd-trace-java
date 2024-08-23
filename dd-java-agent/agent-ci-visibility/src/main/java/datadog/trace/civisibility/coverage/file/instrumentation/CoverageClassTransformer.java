@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.coverage.instrumentation;
+package datadog.trace.civisibility.coverage.file.instrumentation;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
