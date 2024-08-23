@@ -1816,7 +1816,6 @@ public class Config {
     ciVisibilityCodeCoverageEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
     // FIXME nikita: should be set to true in ExecutionSettings if Jacoco detected?
-    // FIXME nikita: see if test environment needs updating after changing config property name
     ciVisibilityCoverageLinesEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED, false);
     ciVisibilityCodeCoverageReportDumpDir =
