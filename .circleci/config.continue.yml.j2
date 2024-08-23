@@ -660,7 +660,8 @@ jobs:
           - DD_POOL_TRACE_CHECK_FAILURES=true
           - DD_DISABLE_ERROR_RESPONSES=true
           - ENABLED_CHECKS=trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service
-    resource_class: xlarge
+    # TODO: merge xlarge_tests and tests? or rename this?
+    resource_class: large
 
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
@@ -1099,8 +1100,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 8
+      maxWorkers: 2
       matrix:
         <<: *test_matrix
 
@@ -1113,8 +1114,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 8
+      maxWorkers: 2
       testJvm: "8"
 
   - xlarge_tests:
@@ -1127,8 +1128,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 8
+      maxWorkers: 2
       testJvm: "8"
 
   - xlarge_tests:
@@ -1141,8 +1142,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 8
+      maxWorkers: 2
       testJvm: "17"
 
   - xlarge_tests:
@@ -1155,8 +1156,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 4
-      maxWorkers: 4
+      parallelism: 8
+      maxWorkers: 2
       testJvm: "21"
 
 {% if flaky %}
@@ -1184,8 +1185,8 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 2
-      maxWorkers: 4
+      parallelism: 4
+      maxWorkers: 2
       testJvm: "8"
 
   - tests:
