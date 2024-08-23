@@ -3,24 +3,21 @@ package datadog.trace.civisibility.config;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-public class CachingModuleExecutionSettingsFactory implements ModuleExecutionSettingsFactory {
+public class CachingExecutionSettingsFactory implements ExecutionSettingsFactory {
 
-  private final DDCache<Key, ModuleExecutionSettings> cache;
-  private final ModuleExecutionSettingsFactory delegate;
+  private final DDCache<Key, ExecutionSettings> cache;
+  private final ExecutionSettingsFactory delegate;
 
-  public CachingModuleExecutionSettingsFactory(
-      Config config, ModuleExecutionSettingsFactory delegate) {
+  public CachingExecutionSettingsFactory(Config config, ExecutionSettingsFactory delegate) {
     this.delegate = delegate;
-    this.cache =
-        DDCaches.newFixedSizeCache(config.getCiVisibilityModuleExecutionSettingsCacheSize());
+    this.cache = DDCaches.newFixedSizeCache(config.getCiVisibilityExecutionSettingsCacheSize());
   }
 
   @Override
-  public ModuleExecutionSettings create(JvmInfo jvmInfo, @Nullable String moduleName) {
+  public ExecutionSettings create(JvmInfo jvmInfo, @Nullable String moduleName) {
     return cache.computeIfAbsent(
         new Key(jvmInfo, moduleName), k -> delegate.create(k.jvmInfo, k.moduleName));
   }

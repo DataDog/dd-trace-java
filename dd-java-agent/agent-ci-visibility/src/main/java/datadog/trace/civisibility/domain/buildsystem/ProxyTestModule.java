@@ -2,9 +2,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -13,11 +11,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
+import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import datadog.trace.civisibility.ipc.ModuleSignal;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.TestFramework;
 import datadog.trace.civisibility.retry.NeverRetry;
@@ -50,7 +50,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final String moduleName;
   private final String itrCorrelationId;
   private final SignalClient.Factory signalClientFactory;
-  private final CoverageDataSupplier coverageDataSupplier;
+  private final ChildProcessCoverageReporter childProcessCoverageReporter;
   private final Config config;
   private final CiVisibilityMetricCollector metricCollector;
   private final TestDecorator testDecorator;
@@ -73,7 +73,7 @@ public class ProxyTestModule implements TestFrameworkModule {
       long parentProcessSessionId,
       long parentProcessModuleId,
       String moduleName,
-      ModuleExecutionSettings executionSettings,
+      ExecutionSettings executionSettings,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -81,13 +81,13 @@ public class ProxyTestModule implements TestFrameworkModule {
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageStore.Factory coverageStoreFactory,
-      CoverageDataSupplier coverageDataSupplier,
+      ChildProcessCoverageReporter childProcessCoverageReporter,
       SignalClient.Factory signalClientFactory) {
     this.parentProcessSessionId = parentProcessSessionId;
     this.parentProcessModuleId = parentProcessModuleId;
     this.moduleName = moduleName;
     this.signalClientFactory = signalClientFactory;
-    this.coverageDataSupplier = coverageDataSupplier;
+    this.childProcessCoverageReporter = childProcessCoverageReporter;
     this.config = config;
     this.metricCollector = metricCollector;
     this.testDecorator = testDecorator;
@@ -97,11 +97,8 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.itrCorrelationId = executionSettings.getItrCorrelationId();
 
     this.testSkippingEnabled = executionSettings.isTestSkippingEnabled();
-    this.skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
-    this.coverageStoreFactory =
-        executionSettings.isItrEnabled()
-            ? new SkippableAwareCoverageStoreFactory(skippableTests, coverageStoreFactory)
-            : coverageStoreFactory;
+    this.skippableTests = executionSettings.getSkippableTests(moduleName);
+    this.coverageStoreFactory = coverageStoreFactory;
 
     this.flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
     Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
@@ -168,29 +165,33 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   private void sendModuleExecutionResult() {
-    boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
-    boolean testSkippingEnabled = config.isCiVisibilityTestSkippingEnabled();
-    boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
-    boolean earlyFlakeDetectionFaulty =
-        earlyFlakeDetectionEnabled
-            && earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.get());
-    long testsSkippedTotal = testsSkipped.sum();
-    byte[] coverageData = coverageDataSupplier.get();
-
-    ModuleExecutionResult moduleExecutionResult =
-        new ModuleExecutionResult(
-            parentProcessSessionId,
-            parentProcessModuleId,
-            coverageEnabled,
-            testSkippingEnabled,
-            earlyFlakeDetectionEnabled,
-            earlyFlakeDetectionFaulty,
-            testsSkippedTotal,
-            new TreeSet<>(testFrameworks),
-            coverageData);
-
     try (SignalClient signalClient = signalClientFactory.create()) {
-      signalClient.send(moduleExecutionResult);
+      ModuleSignal coverageSignal =
+          childProcessCoverageReporter.createCoverageSignal(
+              parentProcessSessionId, parentProcessModuleId);
+      if (coverageSignal != null) {
+        signalClient.send(coverageSignal);
+      }
+
+      boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
+      boolean testSkippingEnabled = config.isCiVisibilityTestSkippingEnabled();
+      boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
+      boolean earlyFlakeDetectionFaulty =
+          earlyFlakeDetectionEnabled
+              && earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.get());
+      long testsSkippedTotal = testsSkipped.sum();
+
+      signalClient.send(
+          new ModuleExecutionResult(
+              parentProcessSessionId,
+              parentProcessModuleId,
+              coverageEnabled,
+              testSkippingEnabled,
+              earlyFlakeDetectionEnabled,
+              earlyFlakeDetectionFaulty,
+              testsSkippedTotal,
+              new TreeSet<>(testFrameworks)));
+
     } catch (Exception e) {
       log.error("Error while reporting module execution result", e);
     }

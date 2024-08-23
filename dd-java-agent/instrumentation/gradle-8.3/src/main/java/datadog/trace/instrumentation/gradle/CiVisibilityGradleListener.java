@@ -1,12 +1,11 @@
 package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -14,7 +13,6 @@ import org.gradle.BuildAdapter;
 import org.gradle.BuildResult;
 import org.gradle.StartParameter;
 import org.gradle.api.Project;
-import org.gradle.api.Task;
 import org.gradle.api.internal.BuildDefinition;
 import org.gradle.api.internal.StartParameterInternal;
 import org.gradle.api.internal.project.taskfactory.TaskIdentity;
@@ -179,14 +177,16 @@ public class CiVisibilityGradleListener extends BuildAdapter
     String taskPath = taskIdentity.getTaskPath();
 
     Project project = gradle.getRootProject().project(projectPath);
-    Task task = project.getTasks().getByName(taskIdentity.name);
+    Test task = (Test) project.getTasks().getByName(taskIdentity.name);
 
-    Collection<File> compiledClassFolders =
-        (Collection<File>)
+    BuildModuleLayout moduleLayout =
+        (BuildModuleLayout)
             task.getInputs()
                 .getProperties()
-                .get(CiVisibilityPluginExtension.COMPILED_CLASS_FOLDERS_PROPERTY);
-    ciVisibilityService.onModuleStart(taskPath, compiledClassFolders);
+                .get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
+
+    Path jvmExecutable = CiVisibilityPluginExtension.getEffectiveExecutable(task);
+    ciVisibilityService.onModuleStart(taskPath, moduleLayout, jvmExecutable);
   }
 
   @Override

@@ -1,10 +1,9 @@
 package datadog.trace.civisibility.domain;
 
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
+import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.civisibility.config.JvmInfo;
-import java.io.File;
 import java.nio.file.Path;
-import java.util.Collection;
 import javax.annotation.Nullable;
 
 /** Test session abstraction that is used by build system instrumentations (e.g. Maven, Gradle) */
@@ -17,9 +16,9 @@ public interface BuildSystemSession {
   void end(@Nullable Long endTime);
 
   BuildSystemModule testModuleStart(
-      String moduleName, @Nullable Long startTime, Collection<File> outputClassesDirs);
+      String moduleName, @Nullable Long startTime, BuildModuleLayout moduleLayout, JvmInfo jvmInfo);
 
-  ModuleExecutionSettings getModuleExecutionSettings(JvmInfo jvmInfo);
+  BuildSessionSettings getSettings();
 
   interface Factory {
     BuildSystemSession startSession(

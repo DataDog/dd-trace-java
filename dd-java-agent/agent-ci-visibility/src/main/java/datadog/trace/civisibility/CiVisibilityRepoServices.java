@@ -2,9 +2,6 @@ package datadog.trace.civisibility;
 
 import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.civisibility.coverage.CoverageStore;
-import datadog.trace.api.civisibility.coverage.NoOpCoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfoProvider;
@@ -14,20 +11,19 @@ import datadog.trace.civisibility.ci.CITagsProvider;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.codeowners.NoCodeowners;
-import datadog.trace.civisibility.config.CachingModuleExecutionSettingsFactory;
+import datadog.trace.civisibility.config.CachingExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ConfigurationApi;
 import datadog.trace.civisibility.config.ConfigurationApiImpl;
+import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.config.ExecutionSettingsFactory;
+import datadog.trace.civisibility.config.ExecutionSettingsFactoryImpl;
 import datadog.trace.civisibility.config.JvmInfo;
-import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory;
-import datadog.trace.civisibility.config.ModuleExecutionSettingsFactoryImpl;
-import datadog.trace.civisibility.coverage.file.FileCoverageStore;
-import datadog.trace.civisibility.coverage.line.LineCoverageStore;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataApi;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
 import datadog.trace.civisibility.git.tree.GitDataUploaderImpl;
-import datadog.trace.civisibility.ipc.ModuleSettingsRequest;
-import datadog.trace.civisibility.ipc.ModuleSettingsResponse;
+import datadog.trace.civisibility.ipc.ExecutionSettingsRequest;
+import datadog.trace.civisibility.ipc.ExecutionSettingsResponse;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.source.BestEffortSourcePathResolver;
 import datadog.trace.civisibility.source.CompilerAidedSourcePathResolver;
@@ -43,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Services that need repository root location to be instantiated */
+/** Services that need repository root location to be instantiated. The scope is session. */
 public class CiVisibilityRepoServices {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityRepoServices.class);
@@ -57,15 +53,14 @@ public class CiVisibilityRepoServices {
   final RepoIndexProvider repoIndexProvider;
   final Codeowners codeowners;
   final SourcePathResolver sourcePathResolver;
-  final CoverageStore.Factory coverageStoreFactory;
-  final ModuleExecutionSettingsFactory moduleExecutionSettingsFactory;
+  final ExecutionSettingsFactory executionSettingsFactory;
 
   CiVisibilityRepoServices(CiVisibilityServices services, Path path) {
     CIProviderInfo ciProviderInfo = services.ciProviderInfoFactory.createCIProviderInfo(path);
     ciProvider = ciProviderInfo.getProvider();
 
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
-    repoRoot = ciInfo.getCiWorkspace();
+    repoRoot = ciInfo.getNormalizedCiWorkspace();
     moduleName = getModuleName(services.config, path, ciInfo);
     ciTags = new CITagsProvider().getCiTags(ciInfo);
 
@@ -80,20 +75,16 @@ public class CiVisibilityRepoServices {
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
     codeowners = buildCodeowners(repoRoot);
     sourcePathResolver = buildSourcePathResolver(repoRoot, repoIndexProvider);
-    coverageStoreFactory =
-        buildCoverageStoreFactory(services.config, services.metricCollector, sourcePathResolver);
 
     if (ProcessHierarchyUtils.isChild()) {
-      moduleExecutionSettingsFactory =
-          buildModuleExecutionSettingsFetcher(services.signalClientFactory);
+      executionSettingsFactory = buildExecutionSettingsFetcher(services.signalClientFactory);
     } else {
-      moduleExecutionSettingsFactory =
-          buildModuleExecutionSettingsFactory(
+      executionSettingsFactory =
+          buildExecutionSettingsFactory(
               services.config,
               services.metricCollector,
               services.backendApi,
               gitDataUploader,
-              repoIndexProvider,
               repoRoot);
     }
   }
@@ -104,7 +95,7 @@ public class CiVisibilityRepoServices {
     if (parentModuleName != null) {
       return parentModuleName;
     }
-    String repoRoot = ciInfo.getCiWorkspace();
+    String repoRoot = ciInfo.getNormalizedCiWorkspace();
     if (repoRoot != null
         && path.startsWith(repoRoot)
         // module name cannot be empty
@@ -114,38 +105,27 @@ public class CiVisibilityRepoServices {
     return config.getServiceName();
   }
 
-  private static CoverageStore.Factory buildCoverageStoreFactory(
-      Config config, CiVisibilityMetricCollector metrics, SourcePathResolver sourcePathResolver) {
-    if (!config.isCiVisibilityCodeCoverageEnabled()) {
-      return new NoOpCoverageStore.Factory();
-    }
-    if (!config.isCiVisibilityCoverageSegmentsEnabled()) {
-      return new FileCoverageStore.Factory(metrics, sourcePathResolver);
-    }
-    return new LineCoverageStore.Factory(metrics, sourcePathResolver);
-  }
-
-  private static ModuleExecutionSettingsFactory buildModuleExecutionSettingsFetcher(
+  private static ExecutionSettingsFactory buildExecutionSettingsFetcher(
       SignalClient.Factory signalClientFactory) {
     return (JvmInfo jvmInfo, String moduleName) -> {
       try (SignalClient signalClient = signalClientFactory.create()) {
-        ModuleSettingsRequest request = new ModuleSettingsRequest(moduleName, JvmInfo.CURRENT_JVM);
-        ModuleSettingsResponse response = (ModuleSettingsResponse) signalClient.send(request);
+        ExecutionSettingsRequest request =
+            new ExecutionSettingsRequest(moduleName, JvmInfo.CURRENT_JVM);
+        ExecutionSettingsResponse response = (ExecutionSettingsResponse) signalClient.send(request);
         return response.getSettings();
 
       } catch (Exception e) {
         LOGGER.error("Could not get module execution settings from parent process", e);
-        return ModuleExecutionSettings.EMPTY;
+        return ExecutionSettings.EMPTY;
       }
     };
   }
 
-  private static ModuleExecutionSettingsFactory buildModuleExecutionSettingsFactory(
+  private static ExecutionSettingsFactory buildExecutionSettingsFactory(
       Config config,
       CiVisibilityMetricCollector metricCollector,
       BackendApi backendApi,
       GitDataUploader gitDataUploader,
-      RepoIndexProvider repoIndexProvider,
       String repoRoot) {
     ConfigurationApi configurationApi;
     if (backendApi == null) {
@@ -155,10 +135,9 @@ public class CiVisibilityRepoServices {
     } else {
       configurationApi = new ConfigurationApiImpl(backendApi, metricCollector);
     }
-    return new CachingModuleExecutionSettingsFactory(
+    return new CachingExecutionSettingsFactory(
         config,
-        new ModuleExecutionSettingsFactoryImpl(
-            config, configurationApi, gitDataUploader, repoIndexProvider, repoRoot));
+        new ExecutionSettingsFactoryImpl(config, configurationApi, gitDataUploader, repoRoot));
   }
 
   private static GitDataUploader buildGitDataUploader(

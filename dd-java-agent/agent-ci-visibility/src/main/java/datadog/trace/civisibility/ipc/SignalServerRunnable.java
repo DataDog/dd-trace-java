@@ -23,8 +23,11 @@ class SignalServerRunnable implements Runnable {
 
   static {
     DESERIALIZERS.put(SignalType.MODULE_EXECUTION_RESULT, ModuleExecutionResult::deserialize);
+    DESERIALIZERS.put(
+        SignalType.MODULE_COVERAGE_DATA_JACOCO, ModuleCoverageDataJacoco::deserialize);
+    DESERIALIZERS.put(SignalType.MODULE_COVERAGE_DATA_ITR, ModuleCoverageDataItr::deserialize);
     DESERIALIZERS.put(SignalType.REPO_INDEX_REQUEST, b -> RepoIndexRequest.INSTANCE);
-    DESERIALIZERS.put(SignalType.MODULE_SETTINGS_REQUEST, ModuleSettingsRequest::deserialize);
+    DESERIALIZERS.put(SignalType.EXECUTION_SETTINGS_REQUEST, ExecutionSettingsRequest::deserialize);
   }
 
   private final Selector selector;
@@ -112,7 +115,7 @@ class SignalServerRunnable implements Runnable {
     if (handler == null) {
       LOGGER.warn(
           "No handler registered for signal type {}, skipping signal {}", signalType, signal);
-      return serialize(new ErrorResponse("Deserializer not found for " + signalType));
+      return serialize(new ErrorResponse("No handler registered for " + signalType));
     }
 
     SignalResponse response = handler.apply(signal);

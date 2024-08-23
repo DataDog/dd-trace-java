@@ -61,7 +61,7 @@ public class TestDecoratorImpl implements TestDecorator {
   public AgentSpan afterStart(final AgentSpan span) {
     /*
      * IMPORTANT: JVM and OS tags should match properties
-     * set in datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
+     * set in datadog.trace.civisibility.config.ExecutionSettingsFactory
      *
      * Moreover, logic that populates these tags cannot be changed,
      * as they are used to establish correspondence between

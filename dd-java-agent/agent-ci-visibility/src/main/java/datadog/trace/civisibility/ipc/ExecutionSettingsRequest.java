@@ -4,19 +4,19 @@ import datadog.trace.civisibility.config.JvmInfo;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-public class ModuleSettingsRequest implements Signal {
+public class ExecutionSettingsRequest implements Signal {
 
   private final String moduleName;
   private final JvmInfo jvmInfo;
 
-  public ModuleSettingsRequest(String moduleName, JvmInfo jvmInfo) {
+  public ExecutionSettingsRequest(String moduleName, JvmInfo jvmInfo) {
     this.moduleName = moduleName;
     this.jvmInfo = jvmInfo;
   }
 
   @Override
   public SignalType getType() {
-    return SignalType.MODULE_SETTINGS_REQUEST;
+    return SignalType.EXECUTION_SETTINGS_REQUEST;
   }
 
   public String getModuleName() {
@@ -29,7 +29,7 @@ public class ModuleSettingsRequest implements Signal {
 
   @Override
   public String toString() {
-    return "ModuleSettingsRequest{" + "moduleName=" + moduleName + ", jvmInfo=" + jvmInfo + '}';
+    return "ExecutionSettingsRequest{" + "moduleName=" + moduleName + ", jvmInfo=" + jvmInfo + '}';
   }
 
   @Override
@@ -40,7 +40,7 @@ public class ModuleSettingsRequest implements Signal {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ModuleSettingsRequest that = (ModuleSettingsRequest) o;
+    ExecutionSettingsRequest that = (ExecutionSettingsRequest) o;
     return Objects.equals(moduleName, that.moduleName) && Objects.equals(jvmInfo, that.jvmInfo);
   }
 
@@ -57,9 +57,9 @@ public class ModuleSettingsRequest implements Signal {
     return s.flush();
   }
 
-  public static ModuleSettingsRequest deserialize(ByteBuffer buffer) {
+  public static ExecutionSettingsRequest deserialize(ByteBuffer buffer) {
     String moduleName = Serializer.readString(buffer);
     JvmInfo jvmInfo = JvmInfo.deserialize(buffer);
-    return new ModuleSettingsRequest(moduleName, jvmInfo);
+    return new ExecutionSettingsRequest(moduleName, jvmInfo);
   }
 }

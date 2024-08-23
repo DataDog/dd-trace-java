@@ -1,67 +1,70 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
+import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.events.BuildEventsHandler;
+import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import datadog.trace.api.civisibility.domain.BuildModuleSettings;
+import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageUtils;
+import datadog.trace.civisibility.config.ExecutionSettings;
+import datadog.trace.civisibility.coverage.percentage.CoverageCalculator;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.BuildSystemModule;
+import datadog.trace.civisibility.ipc.AckResponse;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
+import datadog.trace.civisibility.ipc.SignalResponse;
+import datadog.trace.civisibility.ipc.SignalType;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.utils.SpanUtils;
-import java.io.File;
+import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
-import java.nio.file.Paths;
-import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
-import org.jacoco.core.analysis.IBundleCoverage;
-import org.jacoco.core.analysis.ICounter;
-import org.jacoco.core.data.ExecutionDataStore;
 
 public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSystemModule {
 
-  private final String repoRoot;
-  private final InetSocketAddress signalServerAddress;
-  private final Collection<File> outputClassesDirs;
-  private final RepoIndexProvider repoIndexProvider;
-  private final TestModuleRegistry testModuleRegistry;
+  private final CoverageCalculator coverageCalculator;
+  private final ModuleSignalRouter moduleSignalRouter;
+  private final BuildModuleSettings settings;
+
   private final LongAdder testsSkipped = new LongAdder();
+
   private volatile boolean codeCoverageEnabled;
   private volatile boolean testSkippingEnabled;
-  private final Object coverageDataLock = new Object();
 
-  @GuardedBy("coverageDataLock")
-  private ExecutionDataStore coverageData;
-
-  public BuildSystemModuleImpl(
+  public <T extends CoverageCalculator> BuildSystemModuleImpl(
       AgentSpan.Context sessionSpanContext,
       long sessionId,
       String moduleName,
-      String repoRoot,
       String startCommand,
       @Nullable Long startTime,
       InetSocketAddress signalServerAddress,
-      Collection<File> outputClassesDirs,
+      BuildModuleLayout moduleLayout,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      RepoIndexProvider repoIndexProvider,
-      TestModuleRegistry testModuleRegistry,
+      ModuleSignalRouter moduleSignalRouter,
+      CoverageCalculator.Factory<T> coverageCalculatorFactory,
+      T sessionCoverageCalculator,
+      ExecutionSettings executionSettings,
+      BuildSessionSettings sessionSettings,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -76,13 +79,103 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         codeowners,
         methodLinesResolver,
         onSpanFinish);
-    this.repoRoot = repoRoot;
-    this.signalServerAddress = signalServerAddress;
-    this.outputClassesDirs = outputClassesDirs;
-    this.repoIndexProvider = repoIndexProvider;
-    this.testModuleRegistry = testModuleRegistry;
+    this.coverageCalculator =
+        coverageCalculatorFactory.moduleCoverage(
+            span.getSpanId(), moduleLayout, executionSettings, sessionCoverageCalculator);
+    this.moduleSignalRouter = moduleSignalRouter;
+
+    moduleSignalRouter.registerModuleHandler(
+        span.getSpanId(),
+        SignalType.MODULE_EXECUTION_RESULT,
+        this::onModuleExecutionResultReceived);
+
+    settings =
+        new BuildModuleSettings(
+            getPropertiesPropagatedToChildProcess(
+                moduleName, signalServerAddress, executionSettings, sessionSettings));
 
     setTag(Tags.TEST_COMMAND, startCommand);
+  }
+
+  private Map<String, String> getPropertiesPropagatedToChildProcess(
+      String moduleName,
+      InetSocketAddress signalServerAddress,
+      ExecutionSettings executionSettings,
+      BuildSessionSettings sessionSettings) {
+    Map<String, String> propagatedSystemProperties = new HashMap<>();
+    Properties systemProperties = System.getProperties();
+    for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
+      String propertyName = (String) e.getKey();
+      Object propertyValue = e.getValue();
+      if ((propertyName.startsWith(Config.PREFIX)
+              || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
+          && propertyValue != null) {
+        propagatedSystemProperties.put(propertyName, propertyValue.toString());
+      }
+    }
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED),
+        Boolean.toString(executionSettings.isItrEnabled()));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED),
+        Boolean.toString(executionSettings.isCodeCoverageEnabled()));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED),
+        Boolean.toString(executionSettings.isTestSkippingEnabled()));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED),
+        Boolean.toString(executionSettings.isFlakyTestRetriesEnabled()));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED),
+        Boolean.toString(executionSettings.getEarlyFlakeDetectionSettings().isEnabled()));
+
+    // explicitly disable build instrumentation in child processes,
+    // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
+    // and we don't want to show those as if they were regular build executions
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED),
+        Boolean.toString(false));
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION),
+        TracerVersion.TRACER_VERSION);
+
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_SESSION_ID),
+        String.valueOf(sessionId));
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_ID),
+        String.valueOf(span.getSpanId()));
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME),
+        moduleName);
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST),
+        signalServerAddress != null ? signalServerAddress.getHostName() : null);
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT),
+        String.valueOf(signalServerAddress != null ? signalServerAddress.getPort() : 0));
+
+    List<String> coverageEnabledPackages = sessionSettings.getCoverageEnabledPackages();
+    propagatedSystemProperties.put(
+        Strings.propertyNameToSystemPropertyName(
+            CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES),
+        String.join(":", coverageEnabledPackages));
+
+    return propagatedSystemProperties;
   }
 
   @Override
@@ -91,13 +184,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
   }
 
   @Override
-  public BuildEventsHandler.ModuleInfo getModuleInfo() {
-    long moduleId = span.getSpanId();
-    String signalServerHost =
-        signalServerAddress != null ? signalServerAddress.getHostName() : null;
-    int signalServerPort = signalServerAddress != null ? signalServerAddress.getPort() : 0;
-    return new BuildEventsHandler.ModuleInfo(
-        moduleId, sessionId, signalServerHost, signalServerPort);
+  public BuildModuleSettings getSettings() {
+    return settings;
   }
 
   /**
@@ -116,8 +204,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
    *
    * @param result Module execution results received from a forked JVM.
    */
-  @Override
-  public void onModuleExecutionResultReceived(ModuleExecutionResult result) {
+  private SignalResponse onModuleExecutionResultReceived(ModuleExecutionResult result) {
     if (result.isCoverageEnabled()) {
       codeCoverageEnabled = true;
     }
@@ -133,25 +220,9 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     testsSkipped.add(result.getTestsSkippedTotal());
 
-    // it is important that modules parse their own instances of ExecutionDataStore
-    // and not share them with the session:
-    // ExecutionData instances that reside inside the store are mutable,
-    // and modifying an ExecutionData in one module is going
-    // to be visible in another module
-    // (see internal implementation of org.jacoco.core.data.ExecutionDataStore.accept)
-    ExecutionDataStore coverageData = CoverageUtils.parse(result.getCoverageData());
-    if (coverageData != null) {
-      synchronized (coverageDataLock) {
-        if (this.coverageData == null) {
-          this.coverageData = coverageData;
-        } else {
-          // merge module coverage data from multiple VMs
-          coverageData.accept(this.coverageData);
-        }
-      }
-    }
-
     SpanUtils.mergeTestFrameworks(span, result.getTestFrameworks());
+
+    return AckResponse.INSTANCE;
   }
 
   @Override
@@ -171,52 +242,13 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       }
     }
 
-    synchronized (coverageDataLock) {
-      if (coverageData != null && !coverageData.getContents().isEmpty()) {
-        processCoverageData(coverageData);
-      }
+    Long coveragePercentage = coverageCalculator.calculateCoveragePercentage();
+    if (coveragePercentage != null) {
+      setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
     }
 
-    testModuleRegistry.removeModule(this);
+    moduleSignalRouter.removeModuleHandlers(span.getSpanId());
 
     super.end(endTime);
-  }
-
-  private void processCoverageData(ExecutionDataStore coverageData) {
-    if (coverageData == null) {
-      return;
-    }
-    IBundleCoverage coverageBundle =
-        CoverageUtils.createCoverageBundle(coverageData, outputClassesDirs);
-    if (coverageBundle == null) {
-      return;
-    }
-
-    long coveragePercentage = getCoveragePercentage(coverageBundle);
-    setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
-
-    File coverageReportFolder = getCoverageReportFolder();
-    if (coverageReportFolder != null) {
-      CoverageUtils.dumpCoverageReport(
-          coverageBundle, repoIndexProvider.getIndex(), repoRoot, coverageReportFolder);
-    }
-  }
-
-  private static long getCoveragePercentage(IBundleCoverage coverageBundle) {
-    ICounter instructionCounter = coverageBundle.getInstructionCounter();
-    int totalInstructionsCount = instructionCounter.getTotalCount();
-    int coveredInstructionsCount = instructionCounter.getCoveredCount();
-    return Math.round((100d * coveredInstructionsCount) / totalInstructionsCount);
-  }
-
-  private File getCoverageReportFolder() {
-    String coverageReportDumpDir = config.getCiVisibilityCodeCoverageReportDumpDir();
-    if (coverageReportDumpDir != null) {
-      return Paths.get(coverageReportDumpDir, "session-" + sessionId, moduleName)
-          .toAbsolutePath()
-          .toFile();
-    } else {
-      return null;
-    }
   }
 }

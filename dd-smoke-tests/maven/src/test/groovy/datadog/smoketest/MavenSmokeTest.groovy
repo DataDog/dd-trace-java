@@ -30,6 +30,7 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
+// FIXME nikita: add a smoke test for ITR code coverage
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class)
@@ -245,7 +246,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       // to cover flaky test retrieval logic
 
       if (injectJacoco) {
-        agentArgument += "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED)}=true," +
+        agentArgument += "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED)}=true," + // FIXME nikita: remove when automated?
           "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=${JACOCO_PLUGIN_VERSION},"
       }
 

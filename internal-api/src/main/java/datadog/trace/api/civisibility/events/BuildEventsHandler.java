@@ -1,15 +1,15 @@
 package datadog.trace.api.civisibility.events;
 
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import java.io.File;
+import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import datadog.trace.api.civisibility.domain.BuildModuleSettings;
+import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-public interface BuildEventsHandler<T> {
+public interface BuildEventsHandler<SessionKey> {
   void onTestSessionStart(
-      T sessionKey,
+      SessionKey sessionKey,
       String projectName,
       Path projectRoot,
       String startCommand,
@@ -17,42 +17,28 @@ public interface BuildEventsHandler<T> {
       String buildSystemVersion,
       Map<String, Object> additionalTags);
 
-  void onTestSessionFail(T sessionKey, Throwable throwable);
+  void onTestSessionFail(SessionKey sessionKey, Throwable throwable);
 
-  void onTestSessionFinish(T sessionKey);
+  void onTestSessionFinish(SessionKey sessionKey);
 
-  ModuleInfo onTestModuleStart(
-      T sessionKey,
+  BuildModuleSettings onTestModuleStart(
+      SessionKey sessionKey,
       String moduleName,
-      Collection<File> outputClassesDirs,
+      BuildModuleLayout moduleLayout,
+      @Nullable Path jvmExecutable,
       @Nullable Map<String, Object> additionalTags);
 
-  void onTestModuleSkip(T sessionKey, String moduleName, String reason);
+  void onTestModuleSkip(SessionKey sessionKey, String moduleName, String reason);
 
-  void onTestModuleFail(T sessionKey, String moduleName, Throwable throwable);
+  void onTestModuleFail(SessionKey sessionKey, String moduleName, Throwable throwable);
 
-  void onTestModuleFinish(T sessionKey, String moduleName);
+  void onTestModuleFinish(SessionKey sessionKey, String moduleName);
 
-  ModuleExecutionSettings getModuleExecutionSettings(T sessionKey, Path jvmExecutablePath);
+  BuildSessionSettings getSessionSettings(SessionKey sessionKey);
 
-  ModuleInfo getModuleInfo(T sessionKey, String moduleName);
+  BuildModuleSettings getModuleSettings(SessionKey sessionKey, String moduleName);
 
   interface Factory {
     <U> BuildEventsHandler<U> create();
-  }
-
-  final class ModuleInfo {
-    public final long moduleId;
-    public final long sessionId;
-    public final String signalServerHost;
-    public final int signalServerPort;
-
-    public ModuleInfo(
-        long moduleId, long sessionId, String signalServerHost, int signalServerPort) {
-      this.moduleId = moduleId;
-      this.sessionId = sessionId;
-      this.signalServerHost = signalServerHost;
-      this.signalServerPort = signalServerPort;
-    }
   }
 }

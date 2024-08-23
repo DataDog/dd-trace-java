@@ -5,11 +5,16 @@ import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SuppressForbidden
 public abstract class FileUtils {
+
+  private static final Logger log = LoggerFactory.getLogger(FileUtils.class);
 
   private FileUtils() {}
 
@@ -73,5 +78,17 @@ public abstract class FileUtils {
     }
 
     return path.replaceFirst("^~", System.getProperty("user.home"));
+  }
+
+  public static String toRealPath(String path) {
+    if (path == null) {
+      return null;
+    }
+    try {
+      return Paths.get(path).toRealPath().toString();
+    } catch (Exception e) {
+      log.debug("Could not determine real path for {}", path, e);
+      return path;
+    }
   }
 }

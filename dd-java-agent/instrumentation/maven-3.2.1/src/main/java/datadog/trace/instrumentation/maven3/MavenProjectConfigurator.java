@@ -1,15 +1,20 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
-import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.util.Strings;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.apache.maven.execution.MavenSession;
+import org.apache.maven.lifecycle.MavenExecutionPlan;
+import org.apache.maven.lifecycle.internal.GoalTask;
+import org.apache.maven.lifecycle.internal.LifecycleExecutionPlanCalculator;
+import org.apache.maven.lifecycle.internal.LifecycleTask;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.InputLocation;
@@ -19,10 +24,15 @@ import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.configuration.PlexusConfiguration;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class MavenProjectConfigurator {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenProjectConfigurator.class);
 
   static final MavenProjectConfigurator INSTANCE = new MavenProjectConfigurator();
 
@@ -37,24 +47,22 @@ class MavenProjectConfigurator {
 
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
-  public void configureTracer(
-      MavenTestExecution mavenTestExecution, Map<String, String> propagatedSystemProperties) {
-    MojoExecution mojoExecution = mavenTestExecution.getExecution();
-    PlexusConfiguration pomConfiguration = MavenUtils.getPomConfiguration(mojoExecution);
-
-    PlexusConfiguration forkCount = pomConfiguration.getChild("forkCount");
-    if (forkCount != null && "0".equals(forkCount.getValue())) {
-      // tests will be executed inside this JVM, no need for additional configuration
+  public void configureTracer(MojoExecution mojoExecution, Map<String, String> systemProperties) {
+    Config config = Config.get();
+    if (!config.isCiVisibilityAutoConfigurationEnabled()) {
       return;
     }
 
     StringBuilder addedArgLine = new StringBuilder();
-    // propagate to child process all "dd." system properties available in current process
-    for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
-      addedArgLine.append("-D").append(e.getKey()).append('=').append(e.getValue()).append(" ");
+    for (Map.Entry<String, String> e : systemProperties.entrySet()) {
+      addedArgLine
+          .append("-D")
+          .append(e.getKey())
+          .append("=")
+          .append(escapeForCommandLine(e.getValue()))
+          .append(" ");
     }
 
-    Config config = Config.get();
     Integer ciVisibilityDebugPort = config.getCiVisibilityDebugPort();
     if (ciVisibilityDebugPort != null) {
       addedArgLine
@@ -68,19 +76,12 @@ class MavenProjectConfigurator {
       addedArgLine.append(additionalArgs).append(" ");
     }
 
-    MavenProject project = mavenTestExecution.getProject();
-    String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
-    addedArgLine
-        .append("-D")
-        .append(
-            Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME))
-        .append("='")
-        .append(moduleName)
-        .append("' ");
-
     File agentJar = config.getCiVisibilityAgentJarFile();
-    addedArgLine.append("-javaagent:").append(agentJar.toPath());
+    addedArgLine
+        .append("-javaagent:")
+        .append(escapeForCommandLine(String.valueOf(agentJar.toPath())));
 
+    PlexusConfiguration pomConfiguration = MavenUtils.getPomConfiguration(mojoExecution);
     PlexusConfiguration argLineConfiguration = pomConfiguration.getChild("argLine");
     String existingArgLine = argLineConfiguration.getValue();
     String updatedArgLine =
@@ -93,6 +94,11 @@ class MavenProjectConfigurator {
             // (namely Jacoco's)
             addedArgLine;
 
+    Xpp3Dom configuration = mojoExecution.getConfiguration();
+    mojoExecution.setConfiguration(
+        MavenUtils.setConfigurationValue(updatedArgLine, configuration, "argLine"));
+
+    // needed for goal executions (e.g. "surefire:test")
     MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
     PlexusConfiguration mojoConfiguration = mojoDescriptor.getMojoConfiguration();
     PlexusConfiguration argLine = mojoConfiguration.getChild("argLine");
@@ -110,9 +116,23 @@ class MavenProjectConfigurator {
     }
   }
 
-  void configureCompilerPlugin(MavenProject project, String compilerPluginVersion) {
+  private String escapeForCommandLine(String value) {
+    return "'" + value.replace("'", "'\\''") + "'";
+  }
+
+  void configureCompilerPlugin(MavenProject project) {
+    Config config = Config.get();
+    if (!config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
+      return;
+    }
+
     Plugin compilerPlugin = project.getPlugin(MAVEN_COMPILER_PLUGIN_KEY);
-    if (compilerPlugin == null || compilerPluginVersion == null) {
+    if (compilerPlugin == null) {
+      return;
+    }
+
+    String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion();
+    if (compilerPluginVersion == null) {
       return;
     }
 
@@ -239,17 +259,47 @@ class MavenProjectConfigurator {
   }
 
   void configureJacoco(
-      MavenTestExecution testExecution, ModuleExecutionSettings moduleExecutionSettings) {
-    MavenProject project = testExecution.getProject();
+      MavenSession session, MavenProject project, BuildSessionSettings sessionSettings) {
     excludeDatadogClassLoaderFromJacocoInstrumentation(project);
 
-    if (!Config.get().isCiVisibilityCoverageSegmentsEnabled()
+    if (!Config.get().isCiVisibilityCoverageLinesEnabled()
             && !Config.get().isCiVisibilityJacocoPluginVersionProvided()
-        || testExecution.isRunsWithJacoco()) {
+        || runsWithJacoco(session, project)) {
       return;
     }
 
-    configureJacocoPlugin(project, moduleExecutionSettings);
+    configureJacocoPlugin(project, sessionSettings);
+  }
+
+  private boolean runsWithJacoco(MavenSession session, MavenProject project) {
+    try {
+      List<String> goals = session.getGoals();
+      List<Object> tasks = new ArrayList<>(goals.size());
+      for (String goal : goals) {
+        if (goal.indexOf(':') >= 0) {
+          // a plugin goal, e.g. "surefire:test"
+          tasks.add(new GoalTask(goal));
+        } else {
+          // a lifecycle phase, e.g. "clean"
+          tasks.add(new LifecycleTask(goal));
+        }
+      }
+      PlexusContainer container = MavenUtils.getContainer(session);
+      LifecycleExecutionPlanCalculator planCalculator =
+          container.lookup(LifecycleExecutionPlanCalculator.class);
+      MavenExecutionPlan executionPlan =
+          planCalculator.calculateExecutionPlan(session, project, tasks);
+      for (MojoExecution mojoExecution : executionPlan.getMojoExecutions()) {
+        if (MavenUtils.isJacocoInstrumentationExecution(mojoExecution)) {
+          return true;
+        }
+      }
+      return false;
+
+    } catch (Exception e) {
+      LOGGER.warn("Error while calculation execution plan for project {}", project.getName(), e);
+      return false;
+    }
   }
 
   private static void excludeDatadogClassLoaderFromJacocoInstrumentation(MavenProject project) {
@@ -268,7 +318,7 @@ class MavenProjectConfigurator {
   }
 
   private static void configureJacocoPlugin(
-      MavenProject project, ModuleExecutionSettings moduleExecutionSettings) {
+      MavenProject project, BuildSessionSettings sessionSettings) {
     Plugin jacocoPlugin = getJacocoPlugin(project);
     for (PluginExecution execution : jacocoPlugin.getExecutions()) {
       if (execution.getGoals().contains("prepare-agent")) {
@@ -282,7 +332,7 @@ class MavenProjectConfigurator {
     jacocoPlugin.addExecution(prepareAgentExecution);
 
     configureJacocoInstrumentedPackages(
-        prepareAgentExecution, moduleExecutionSettings.getCoverageEnabledPackages());
+        prepareAgentExecution, sessionSettings.getCoverageEnabledPackages());
   }
 
   private static Plugin getJacocoPlugin(MavenProject project) {

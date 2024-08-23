@@ -1,61 +1,47 @@
 package datadog.trace.civisibility.config;
 
-import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
-import datadog.trace.civisibility.source.index.RepoIndex;
-import datadog.trace.civisibility.source.index.RepoIndexProvider;
-import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettingsFactory {
+public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(ModuleExecutionSettingsFactoryImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionSettingsFactoryImpl.class);
   private static final String TEST_CONFIGURATION_TAG_PREFIX = "test.configuration.";
 
   private final Config config;
   private final ConfigurationApi configurationApi;
   private final GitDataUploader gitDataUploader;
-  private final RepoIndexProvider repoIndexProvider;
   private final String repositoryRoot;
 
-  public ModuleExecutionSettingsFactoryImpl(
+  public ExecutionSettingsFactoryImpl(
       Config config,
       ConfigurationApi configurationApi,
       GitDataUploader gitDataUploader,
-      RepoIndexProvider repoIndexProvider,
       String repositoryRoot) {
     this.config = config;
     this.configurationApi = configurationApi;
     this.gitDataUploader = gitDataUploader;
-    this.repoIndexProvider = repoIndexProvider;
     this.repositoryRoot = repositoryRoot;
   }
 
   @Override
-  public ModuleExecutionSettings create(JvmInfo jvmInfo, @Nullable String moduleName) {
+  public ExecutionSettings create(JvmInfo jvmInfo, @Nullable String moduleName) {
     TracerEnvironment tracerEnvironment =
         buildTracerEnvironment(repositoryRoot, jvmInfo, moduleName);
     CiVisibilitySettings ciVisibilitySettings = getCiVisibilitySettings(tracerEnvironment);
@@ -65,13 +51,6 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     boolean testSkippingEnabled = isTestSkippingEnabled(ciVisibilitySettings);
     boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
     boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
-    Map<String, String> systemProperties =
-        getPropertiesPropagatedToChildProcess(
-            itrEnabled,
-            codeCoverageEnabled,
-            testSkippingEnabled,
-            flakyTestRetriesEnabled,
-            earlyFlakeDetectionEnabled);
 
     LOGGER.info(
         "CI Visibility settings ({}, {}):\n"
@@ -90,6 +69,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
 
     String itrCorrelationId = null;
     Map<String, Collection<TestIdentifier>> skippableTestsByModuleName = Collections.emptyMap();
+    Map<String, BitSet> skippableTestsCoverage = null;
     if (itrEnabled && repositoryRoot != null) {
       SkippableTests skippableTests =
           getSkippableTests(Paths.get(repositoryRoot), tracerEnvironment);
@@ -98,6 +78,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         skippableTestsByModuleName =
             (Map<String, Collection<TestIdentifier>>)
                 groupTestsByModule(tracerEnvironment, skippableTests.getIdentifiers());
+        skippableTestsCoverage = skippableTests.getCoveredLinesByRelativeSourcePath();
       }
     }
 
@@ -109,8 +90,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
     Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
         earlyFlakeDetectionEnabled ? getKnownTests(tracerEnvironment) : null;
 
-    List<String> coverageEnabledPackages = getCoverageEnabledPackages(codeCoverageEnabled);
-    return new ModuleExecutionSettings(
+    return new ExecutionSettings(
         itrEnabled,
         codeCoverageEnabled,
         testSkippingEnabled,
@@ -122,12 +102,11 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         knownTestsByModuleName != null
             ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
             : EarlyFlakeDetectionSettings.DEFAULT,
-        systemProperties,
         itrCorrelationId,
         skippableTestsByModuleName,
+        skippableTestsCoverage,
         flakyTests,
-        knownTestsByModuleName,
-        coverageEnabledPackages);
+        knownTestsByModuleName);
   }
 
   private TracerEnvironment buildTracerEnvironment(
@@ -146,7 +125,7 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
 
     /*
      * IMPORTANT: JVM and OS properties should match tags
-     * set in datadog.trace.civisibility.decorator.TestDecorator
+     * set in datadog.trace.civisibility.decorator.TestDecoratorImpl
      */
     return builder
         .service(config.getServiceName())
@@ -208,64 +187,6 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
         && config.isCiVisibilityEarlyFlakeDetectionEnabled();
   }
 
-  private Map<String, String> getPropertiesPropagatedToChildProcess(
-      boolean itrEnabled,
-      boolean codeCoverageEnabled,
-      boolean testSkippingEnabled,
-      boolean flakyTestRetriesEnabled,
-      boolean earlyFlakeDetectionEnabled) {
-    Map<String, String> propagatedSystemProperties = new HashMap<>();
-    Properties systemProperties = System.getProperties();
-    for (Map.Entry<Object, Object> e : systemProperties.entrySet()) {
-      String propertyName = (String) e.getKey();
-      Object propertyValue = e.getValue();
-      if ((propertyName.startsWith(Config.PREFIX)
-              || propertyName.startsWith("datadog.slf4j.simpleLogger.defaultLogLevel"))
-          && propertyValue != null) {
-        propagatedSystemProperties.put(propertyName, propertyValue.toString());
-      }
-    }
-
-    propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED),
-        Boolean.toString(itrEnabled));
-
-    propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED),
-        Boolean.toString(codeCoverageEnabled));
-
-    propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED),
-        Boolean.toString(testSkippingEnabled));
-
-    propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED),
-        Boolean.toString(flakyTestRetriesEnabled));
-
-    propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED),
-        Boolean.toString(earlyFlakeDetectionEnabled));
-
-    // explicitly disable build instrumentation in child processes,
-    // because some projects run "embedded" Maven/Gradle builds as part of their integration tests,
-    // and we don't want to show those as if they were regular build executions
-    propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED),
-        Boolean.toString(false));
-
-    propagatedSystemProperties.put(
-        Strings.propertyNameToSystemPropertyName(
-            CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION),
-        TracerVersion.TRACER_VERSION);
-
-    return propagatedSystemProperties;
-  }
-
   @Nullable
   private SkippableTests getSkippableTests(
       Path repositoryRoot, TracerEnvironment tracerEnvironment) {
@@ -305,7 +226,8 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
                 t ->
                     t.getConfigurations() != null && t.getConfigurations().getTestBundle() != null
                         ? t.getConfigurations().getTestBundle()
-                        : defaultBundle));
+                        : defaultBundle,
+                Collectors.toSet()));
   }
 
   private Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {
@@ -338,47 +260,5 @@ public class ModuleExecutionSettingsFactoryImpl implements ModuleExecutionSettin
           e);
       return null;
     }
-  }
-
-  private List<String> getCoverageEnabledPackages(boolean codeCoverageEnabled) {
-    if (!codeCoverageEnabled) {
-      return Collections.emptyList();
-    }
-
-    List<String> includedPackages = config.getCiVisibilityCodeCoverageIncludes();
-    if (includedPackages != null && !includedPackages.isEmpty()) {
-      return includedPackages;
-    }
-
-    RepoIndex repoIndex = repoIndexProvider.getIndex();
-    List<String> packages = new ArrayList<>(repoIndex.getRootPackages());
-    List<String> excludedPackages = config.getCiVisibilityCodeCoverageExcludes();
-    if (excludedPackages != null && !excludedPackages.isEmpty()) {
-      removeMatchingPackages(packages, excludedPackages);
-    }
-    return packages;
-  }
-
-  private static void removeMatchingPackages(List<String> packages, List<String> excludedPackages) {
-    List<String> excludedPrefixes =
-        excludedPackages.stream()
-            .map(ModuleExecutionSettingsFactoryImpl::trimTrailingAsterisk)
-            .collect(Collectors.toList());
-
-    Iterator<String> packagesIterator = packages.iterator();
-    while (packagesIterator.hasNext()) {
-      String p = packagesIterator.next();
-
-      for (String excludedPrefix : excludedPrefixes) {
-        if (p.startsWith(excludedPrefix)) {
-          packagesIterator.remove();
-          break;
-        }
-      }
-    }
-  }
-
-  private static String trimTrailingAsterisk(String s) {
-    return s.endsWith("*") ? s.substring(0, s.length() - 1) : s;
   }
 }

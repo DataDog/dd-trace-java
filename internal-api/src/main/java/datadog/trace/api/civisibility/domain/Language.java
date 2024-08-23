@@ -1,8 +1,8 @@
-package datadog.trace.civisibility.source.index;
+package datadog.trace.api.civisibility.domain;
 
 import javax.annotation.Nullable;
 
-enum Language {
+public enum Language {
   JAVA(".java", false),
   GROOVY(".groovy", false),
   KOTLIN(".kt", false),
@@ -28,7 +28,7 @@ enum Language {
   }
 
   @Nullable
-  static Language getByFileName(String fileName) {
+  public static Language getByFileName(String fileName) {
     for (Language language : UNIVERSE) {
       if (fileName.endsWith(language.extension)) {
         return language;
@@ -37,7 +37,7 @@ enum Language {
     return null;
   }
 
-  static Language getByOrdinal(int ordinal) {
+  public static Language getByOrdinal(int ordinal) {
     return UNIVERSE[ordinal];
   }
 }
