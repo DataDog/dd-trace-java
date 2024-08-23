@@ -147,6 +147,11 @@ public class TelemetryRequestBody extends RequestBody {
     endMessageIfBatch(RequestType.APP_HEARTBEAT);
   }
 
+  public void writeAppClosingEvent() {
+    beginMessageIfBatch(RequestType.APP_CLOSING);
+    endMessageIfBatch(RequestType.APP_CLOSING);
+  }
+
   public void beginMetrics() throws IOException {
     beginMessageIfBatch(RequestType.GENERATE_METRICS);
     bodyWriter.name("namespace").value(TELEMETRY_NAMESPACE_TAG_TRACER);
@@ -338,7 +343,7 @@ public class TelemetryRequestBody extends RequestBody {
     try {
       bodyWriter.beginObject();
       bodyWriter.name("request_type").value(String.valueOf(messageType));
-      if (messageType != RequestType.APP_HEARTBEAT) {
+      if (messageType != RequestType.APP_HEARTBEAT && messageType != RequestType.APP_CLOSING) {
         bodyWriter.name("payload");
         bodyWriter.beginObject();
       }
@@ -352,7 +357,7 @@ public class TelemetryRequestBody extends RequestBody {
       return;
     }
     try {
-      if (messageType != RequestType.APP_HEARTBEAT) {
+      if (messageType != RequestType.APP_HEARTBEAT && messageType != RequestType.APP_CLOSING) {
         bodyWriter.endObject(); // payload
       }
       bodyWriter.endObject(); // message

@@ -41,7 +41,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when: 'second iteration'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then: 'app-heartbeat only'
     testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
@@ -49,7 +49,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when: 'third iteration'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then: 'app-heartbeat only'
     testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT)
@@ -81,7 +81,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when:
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
@@ -99,7 +99,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when: 'second iteration heartbeat only'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then:
     testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).assertNoPayload()
@@ -108,7 +108,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     when: 'third iteration metrics data'
     telemetryService.addMetric(metric)
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
@@ -143,7 +143,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     and: 'send messages'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
@@ -229,7 +229,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when: 'successful batch attempt'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then: 'attempt batch with SUCCESS'
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
@@ -247,7 +247,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when: 'attempt with NOT_FOUND error'
     testHttpClient.expectRequest(TelemetryClient.Result.NOT_FOUND)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then: 'message-batch attempted with heartbeat'
     testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).assertNoPayload()
@@ -261,10 +261,12 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when:
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendAppClosingEvent()
+    telemetryService.sendTelemetryEvents(true)
 
     then:
-    testHttpClient.assertRequestBody(RequestType.APP_CLOSING)
+    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
+      .assertBatch(1)
+      .assertFirstMessage(RequestType.APP_CLOSING).hasNoPayload()
     testHttpClient.assertNoMoreRequests()
   }
 
@@ -302,7 +304,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when: 'send a heartbeat request without telemetry data to measure body size to set stable request size limit'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then: 'get body size'
     def bodySize = testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).bodySize()
@@ -320,7 +322,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     telemetryService.addProductChange(productChange)
 
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then: 'attempt with SUCCESS'
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
@@ -335,7 +337,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when: 'sending second part of data'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)
-    !telemetryService.sendTelemetryEvents()
+    !telemetryService.sendTelemetryEvents(false)
 
     then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
@@ -397,7 +399,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     when:
     testHttpClient.expectRequest(resultCode)
-    telemetryService.sendTelemetryEvents()
+    telemetryService.sendTelemetryEvents(false)
 
     then:
     testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH)
