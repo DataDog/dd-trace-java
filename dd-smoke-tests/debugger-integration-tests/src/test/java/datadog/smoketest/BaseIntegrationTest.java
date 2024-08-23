@@ -145,8 +145,8 @@ public abstract class BaseIntegrationTest {
         Arrays.asList(
             "-Ddd.service.name=" + getAppId(),
             "-Ddd.profiling.enabled=false",
-            "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
-            "-Dorg.slf4j.simpleLogger.defaultLogLevel=info",
+            // "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
+            "-Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug",
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
             "-Ddd.dynamic.instrumentation.enabled=true",
@@ -305,6 +305,10 @@ public abstract class BaseIntegrationTest {
 
   protected void registerTraceListener(Consumer<DecodedTrace> listener) {
     traceListeners.add(listener);
+  }
+
+  protected void resetTraceListener() {
+    traceListeners.clear();
   }
 
   protected void registerProbeStatusListener(Consumer<ProbeStatus> listener) {
