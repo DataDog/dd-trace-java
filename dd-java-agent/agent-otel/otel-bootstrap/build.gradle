@@ -83,7 +83,6 @@ shadowJar {
   exclude 'io/opentelemetry/instrumentation/api/incubator/log/**'
   exclude 'io/opentelemetry/instrumentation/api/incubator/semconv/db/*Sanitizer*'
   exclude 'io/opentelemetry/instrumentation/api/incubator/semconv/messaging/**'
-  exclude 'io/opentelemetry/instrumentation/api/incubator/semconv/rpc/**'
   exclude 'io/opentelemetry/instrumentation/api/internal/cache/**'
   exclude 'io/opentelemetry/instrumentation/api/internal/RuntimeVirtualFieldSupplier*'
   exclude 'io/opentelemetry/instrumentation/api/util/VirtualField*'
