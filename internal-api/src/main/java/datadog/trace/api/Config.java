@@ -1993,13 +1993,17 @@ public class Config {
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
 
     // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
-    // users. This should be removed once we default to true, and then it can also be moved up
-    // together with the rest of telemetry ocnfig.
+    // users.
+    // FIXME: For progressive rollout, we include by default Java < 11 hosts as product independent
+    // sample users.
+    // FIXME:This should be removed once we default to true, and then it can also be moved up
+    // together with the rest of telemetry config.
     final boolean telemetryLogCollectionEnabledDefault =
         instrumenterConfig.isTelemetryEnabled()
                 && (instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
                     || instrumenterConfig.isCiVisibilityEnabled()
-                    || debuggerEnabled)
+                    || debuggerEnabled
+                    || !Platform.isJavaVersionAtLeast(11))
             || DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
     isTelemetryLogCollectionEnabled =
         configProvider.getBoolean(

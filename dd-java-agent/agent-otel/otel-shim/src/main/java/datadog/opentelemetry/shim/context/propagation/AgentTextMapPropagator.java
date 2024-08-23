@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context.Extracted;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.util.PropagationUtils;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceState;
@@ -18,39 +19,16 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.opentelemetry.context.propagation.TextMapSetter;
-import java.util.Arrays;
 import java.util.Collection;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class AgentTextMapPropagator implements TextMapPropagator {
-  private final Collection<String> fields;
-
-  public AgentTextMapPropagator() {
-    // Cannot suppose the current injector from AgentTracer so declare them all
-    this.fields =
-        Arrays.asList(
-            // W3C headers
-            "traceparent",
-            "tracestate",
-            // DD headers
-            "x-datadog-trace-id",
-            "x-datadog-parent-id",
-            "x-datadog-sampling-priority",
-            "x-datadog-origin",
-            "x-datadog-tags",
-            // B3 single headers
-            "X-B3-TraceId",
-            "X-B3-SpanId",
-            "X-B3-Sampled",
-            // B3 multi header
-            "b3");
-  }
 
   @Override
   public Collection<String> fields() {
-    return this.fields;
+    return PropagationUtils.KNOWN_PROPAGATION_HEADERS;
   }
 
   @Override
