@@ -200,7 +200,7 @@ public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
           if (forkedJvmPath == null) {
             Plugin plugin = mojoExecution.getPlugin();
             String pluginKey = plugin.getKey();
-            LOGGER.warn(
+            LOGGER.debug(
                 "Could not determine forked JVM path for plugin {} execution {} in project {}",
                 pluginKey,
                 mojoExecution.getExecutionId(),

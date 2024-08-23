@@ -15,6 +15,7 @@ import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.IsBenchmark;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
 import datadog.trace.api.civisibility.telemetry.tag.IsNew;
+import datadog.trace.api.civisibility.telemetry.tag.IsRetry;
 import datadog.trace.api.civisibility.telemetry.tag.IsRum;
 import datadog.trace.api.civisibility.telemetry.tag.IsUnsupportedCI;
 import datadog.trace.api.civisibility.telemetry.tag.ItrEnabled;
@@ -53,6 +54,7 @@ public enum CiVisibilityCountMetric {
       IsBenchmark.class,
       EarlyFlakeDetectionAbortReason.class,
       IsNew.class,
+      IsRetry.class,
       IsRum.class,
       BrowserDriver.class),
   /** The number of successfully collected code coverages that are empty */

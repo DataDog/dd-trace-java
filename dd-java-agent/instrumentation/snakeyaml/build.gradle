@@ -1,0 +1,24 @@
+muzzle {
+  pass {
+    name = 'snakeyaml-1.x'
+    group = "org.yaml"
+    module = "snakeyaml"
+    versions = "[1.4, 2.0)"
+    assertInverse = true
+  }
+  fail {
+    group = "org.yaml"
+    module = 'snakeyaml'
+    versions = "[2.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.yaml', name: 'snakeyaml', version: '1.33'
+  testImplementation group: 'org.yaml', name: 'snakeyaml', version: '1.33'
+
+  latestDepTestImplementation group: 'org.yaml', name: 'snakeyaml', version: '1.+'
+}

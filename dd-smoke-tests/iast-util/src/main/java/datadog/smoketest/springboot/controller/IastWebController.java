@@ -53,6 +53,7 @@ import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.servlet.view.UrlBasedViewResolver;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
+import org.yaml.snakeyaml.Yaml;
 
 @RestController
 public class IastWebController {
@@ -418,6 +419,12 @@ public class IastWebController {
     List<Part> parts = (List<Part>) request.getParts();
     final ObjectInputStream ois = new ObjectInputStream(parts.get(0).getInputStream());
     ois.close();
+    return "OK";
+  }
+
+  @GetMapping("/untrusted_deserialization/snakeyaml")
+  public String untrustedDeserializationSnakeYaml(@RequestParam("yaml") String param) {
+    new Yaml().load(param);
     return "OK";
   }
 
