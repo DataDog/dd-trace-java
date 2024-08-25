@@ -78,6 +78,7 @@ abstract class ProcessManager extends Specification {
   @AutoCleanup
   OutputThreads outputThreads = new OutputThreads()
 
+  @CompileStatic
   class OutputThreads implements Closeable {
     final ThreadGroup tg = new ThreadGroup("smoke-output")
     final List<String> testLogMessages = new ArrayList<>()

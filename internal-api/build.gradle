@@ -3,15 +3,7 @@ plugins {
 }
 
 ext {
-  // need access to sun.misc.SharedSecrets
-  skipSettingCompilerRelease = true
-}
-
-// sun.misc.SharedSecrets is gone in later versions
-compileJava {
-  javaCompiler = javaToolchains.compilerFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
+  defaultJdkVersion = 8
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -260,4 +252,3 @@ jmh {
   jmhVersion = '1.32'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
-
