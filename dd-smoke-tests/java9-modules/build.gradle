@@ -1,4 +1,7 @@
 ext {
+  defaultJdkVersion = 11
+  defaultJavaVersion = 11
+  defaultJavaCompilerRelease = 11
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
 
@@ -10,12 +13,8 @@ jar {
   }
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach { AbstractCompile ac ->
-    setJavaVersion(ac, 11)
     // read up classpath lazily to avoid early locking of gradle settings
     ac.options.compilerArgumentProviders.add(new CommandLineArgumentProvider() {
         @Override
