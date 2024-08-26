@@ -546,6 +546,7 @@ public class CustomSecurityManager extends SecurityManager {
       case "java.ext.dirs":
       case "java.version":
       case "java.home":
+      case "file.encoding":
       case "sun.boot.library.path":
       case "sun.jnu.encoding":
       case "jdk.module.main":
@@ -597,7 +598,8 @@ public class CustomSecurityManager extends SecurityManager {
         || isIbmProperty(propertyName)
         || isProxyProperty(propertyName)
         || isReflectProperty(propertyName)
-        || isAppleProperty(propertyName);
+        || isAppleProperty(propertyName)
+        || isFileProperty(propertyName);
   }
 
   protected static final boolean isSunProperty(String propertyName) {
@@ -618,6 +620,10 @@ public class CustomSecurityManager extends SecurityManager {
 
   protected static final boolean isOsProperty(String propertyName) {
     return propertyName.startsWith("os.") || propertyName.equals("path.separator");
+  }
+  
+  protected static final boolean isFileProperty(String propertyName) {
+    return propertyName.startsWith("file.");
   }
 
   protected static final boolean isUserLocaleProperty(String propertyName) {
