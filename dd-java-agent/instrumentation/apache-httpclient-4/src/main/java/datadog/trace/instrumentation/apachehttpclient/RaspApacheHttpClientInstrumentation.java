@@ -10,8 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule;
-import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -50,9 +48,9 @@ public class RaspApacheHttpClientInstrumentation extends InstrumenterModule.AppS
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      RaspHelperMethods.class.getName(),
-      InstrumentationLogger.class.getName(),
-      NetworkConnectionModule.class.getName()
+      "datadog.trace.instrumentation.apachehttpclient.RaspHelperMethods",
+      "datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule",
+      "datadog.trace.instrumentation.appsec.utils.InstrumentationLogger"
     };
   }
 
