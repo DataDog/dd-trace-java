@@ -68,6 +68,12 @@ final class JfrProfilerSettings extends ProfilerSettingsSupport {
       if (serviceInjection != null) {
         new ProfilerSettingEvent(SERVICE_INJECTION, serviceInjection).commit();
       }
+      new ProfilerSettingEvent(
+              PROFILER_ACTIVATION, profilerActivationSetting.enablement.getSource())
+          .commit();
+      new ProfilerSettingEvent(
+              SSI_MECHANISM, profilerActivationSetting.ssiMechanism.name().toLowerCase())
+          .commit();
     }
   }
 }
