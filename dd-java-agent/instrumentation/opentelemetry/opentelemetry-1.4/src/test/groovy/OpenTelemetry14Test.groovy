@@ -219,8 +219,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
     "evt1" | TIME_MILLIS | TimeUnit.MILLISECONDS | Attributes.empty() | null
     "evt2" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: 123456789, double-key: 1234.5678, boolean-key-true: true, boolean-key-false: false }'
     "evt3" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array: [ "string-value1", "string-value2", "string-value3" ], long-key-array: [ 123456, 1234567, 12345678 ], double-key-array: [ 1234.5, 1234.56, 1234.567], boolean-key-array: [true, false, true] }'
-    //    "evt4" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-array", "1", "2").build() | '{ string-array: [ "1", "2"]}'
-    // evt4 is failing because for some reason string arrays whose values are numbers are treated like number (int) arrays.
   }
 
   def "test multiple span events"() {

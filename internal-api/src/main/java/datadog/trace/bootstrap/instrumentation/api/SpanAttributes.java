@@ -54,7 +54,8 @@ public class SpanAttributes implements Attributes {
     return "SpanAttributes{" + this.attributes + '}';
   }
 
-  // Helper class for turning the Map<String,String> that holds the attributes into a JSON string
+  // JSONParser is a helper class for turning the Map<String,String> that holds the attributes into
+  // a JSON string
   public static class JSONParser {
     public static String toJson(Map<String, Object> map) {
       StringBuilder jsonBuilder = new StringBuilder();
@@ -62,7 +63,6 @@ public class SpanAttributes implements Attributes {
 
       Set<Map.Entry<String, Object>> entrySet = map.entrySet();
       int entryCount = 0;
-      int totalEntries = entrySet.size();
 
       for (Map.Entry<String, Object> entry : entrySet) {
         if (entryCount > 0) {
@@ -75,20 +75,40 @@ public class SpanAttributes implements Attributes {
         // Escape key and append it
         jsonBuilder.append("\"").append(escapeJson(key)).append("\":");
 
-        // Append value based on its type
-        if (value instanceof String) {
-          jsonBuilder.append("\"").append(escapeJson((String) value)).append("\"");
-        } else if (value instanceof Number || value instanceof Boolean || value instanceof List) {
-          jsonBuilder.append(value);
-        } else {
-          jsonBuilder.append("null"); // For unsupported types, use null
-        }
+        // Append value to jsonBuilder
+        appendValue(value, jsonBuilder);
         entryCount++;
       }
-
       jsonBuilder.append("}");
-
       return jsonBuilder.toString();
+    }
+
+    /**
+     * appendValue recursively adds the value of an Attribute to the active StringBuilder in JSON
+     * format, depending on the value's type
+     *
+     * @param value the value to append
+     * @param jsonBuilder the active StringBuilder
+     */
+    private static void appendValue(Object value, StringBuilder jsonBuilder) {
+      // Append value based on its type
+      if (value instanceof String) {
+        jsonBuilder.append("\"").append(escapeJson((String) value)).append("\"");
+      } else if (value instanceof List) {
+        jsonBuilder.append("[");
+        List<?> valArray = (List<?>) value;
+        for (int i = 0; i < valArray.size(); i++) {
+          if (i > 0) {
+            jsonBuilder.append(",");
+          }
+          appendValue(valArray.get(i), jsonBuilder);
+        }
+        jsonBuilder.append("]");
+      } else if (value instanceof Number || value instanceof Boolean) {
+        jsonBuilder.append(value);
+      } else {
+        jsonBuilder.append("null"); // For unsupported types, use null
+      }
     }
 
     private static String escapeJson(String value) {
@@ -104,6 +124,8 @@ public class SpanAttributes implements Attributes {
   }
 
   public static class Builder {
+    // SpanLinks and SpanEvents are encoded in different formats; Format represents the encoding
+    // standard
     public enum Format {
       LINKS,
       EVENTS
