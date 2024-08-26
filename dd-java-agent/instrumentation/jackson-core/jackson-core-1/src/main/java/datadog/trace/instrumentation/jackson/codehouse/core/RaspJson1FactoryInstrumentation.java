@@ -8,7 +8,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule;
-import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import java.io.InputStream;
 import java.io.Reader;
 import java.net.URL;
@@ -25,7 +24,8 @@ public class RaspJson1FactoryInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      InstrumentationLogger.class.getName(), NetworkConnectionModule.class.getName()
+      "datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule",
+      "datadog.trace.instrumentation.appsec.utils.InstrumentationLogger"
     };
   }
 
