@@ -34,7 +34,8 @@ public class RaspCommonsHttpClientInstrumentation extends InstrumenterModule.App
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      InstrumentationLogger.class.getName(), NetworkConnectionModule.class.getName()
+      "datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule",
+      "datadog.trace.instrumentation.appsec.utils.InstrumentationLogger"
     };
   }
 
@@ -50,16 +51,16 @@ public class RaspCommonsHttpClientInstrumentation extends InstrumenterModule.App
 
   public static class NetworkConnectionRaspAdvice {
     @Advice.OnMethodEnter()
-    public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
-      if (httpMethod == null) {
+    public static void methodEnter(
+        @Advice.This final Object self, @Advice.Argument(1) final HttpMethod httpMethod) {
+      if (self == null || httpMethod == null) {
         return;
       }
       String uri = null;
       try {
         uri = httpMethod.getURI().toString();
       } catch (Exception e) {
-        InstrumentationLogger.debug(
-            "Failed to get URI from HttpMethod", NetworkConnectionRaspAdvice.class, e);
+        InstrumentationLogger.debug("Failed to get URI from HttpMethod", self.getClass(), e);
       }
       NetworkConnectionModule.INSTANCE.onNetworkConnection(uri);
     }
