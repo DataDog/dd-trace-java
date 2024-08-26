@@ -500,6 +500,9 @@ jobs:
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
 
     parameters:
+      environment:
+        type: string
+        default: ""
       testJvm:
         type: string
         default: ""
@@ -562,6 +565,7 @@ jobs:
               PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/<< parameters.stage >>-<< parameters.testJvm >>.jfr,dumponexit=true"
             fi
 
+            << parameters.environment >>
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew
@@ -1247,6 +1251,20 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - ok_to_test
+      name: z_test_<< matrix.testJvm >>_ssi_smoke
+      environment: "DD_INJECT_FORCE=true DD_INJECTION_ENABLED=tracer"
+      gradleTarget: "stageMainDist :smokeTest"
+      gradleParameters: "-PskipFlakyTests"
+      stage: smoke
+      cacheType: smoke
+      parallelism: 4
+      maxWorkers: 3
+      matrix:
+        <<: *test_matrix
+
+  - tests:
+      requires:
+        - ok_to_test
       name: test_semeru8_debugger_smoke
       maxWorkers: 4
       gradleTarget: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
@@ -1286,11 +1304,23 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "8"
 
+  - tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_ssi_smoke
+      environment: "DD_INJECT_FORCE=true DD_INJECTION_ENABLED=tracer"
+      gradleTarget: "stageMainDist :smokeTest"
+      gradleParameters: "-PskipFlakyTests"
+      stage: smoke
+      cacheType: smoke
+      testJvm: "8"
+
   - fan_in:
       requires:
         - z_test_<< matrix.testJvm >>_base
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
+        - z_test_<< matrix.testJvm >>_ssi_smoke
       name: test_<< matrix.testJvm >>
       stage: tracing
       matrix:
@@ -1301,6 +1331,7 @@ build_test_jobs: &build_test_jobs
         - z_test_8_base
         - z_test_8_inst
         - z_test_8_smoke
+        - z_test_8_ssi_smoke
       name: test_8
       stage: tracing
       testJvm: "8"
