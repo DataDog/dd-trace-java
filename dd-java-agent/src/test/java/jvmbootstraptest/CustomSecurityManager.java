@@ -530,6 +530,7 @@ public class CustomSecurityManager extends SecurityManager {
     switch (property) {
       case "sun.boot.class.path":
       case "sun.reflect.noInflation":
+      case "sun.reflect.inflationThreshold":
       case "java.system.class.loader":
       case "java.protocol.handler.pkgs":
       case "java.vm.specification.version":
