@@ -160,6 +160,10 @@ public class WellKnownClasses {
       // All Collection implementations from JDK base module are considered as safe
       return true;
     }
+    if (className.startsWith("com.google.protobuf.")) {
+      // All Collection implementations from Google ProtoBuf are considered as safe
+      return true;
+    }
     return false;
   }
 
@@ -168,6 +172,10 @@ public class WellKnownClasses {
     String className = map.getClass().getTypeName();
     if (className.startsWith("java.")) {
       // All Map implementations from JDK base module are considered as safe
+      return true;
+    }
+    if (className.startsWith("com.google.protobuf.")) {
+      // All Map implementations from Google ProtoBuf are considered as safe
       return true;
     }
     return false;
