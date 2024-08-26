@@ -622,7 +622,7 @@ public class CustomSecurityManager extends SecurityManager {
   protected static final boolean isOsProperty(String propertyName) {
     return propertyName.startsWith("os.") || propertyName.equals("path.separator");
   }
-  
+
   protected static final boolean isFileProperty(String propertyName) {
     return propertyName.startsWith("file.");
   }
@@ -640,10 +640,10 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected static final boolean isIbmProperty(String propertyName) {
-	switch ( propertyName ) {
-	  case "JAVABIDI":
-	  return true;
-	}
+    switch (propertyName) {
+      case "JAVABIDI":
+        return true;
+    }
     return propertyName.startsWith("ibm.") || propertyName.startsWith("com.ibm.");
   }
 
