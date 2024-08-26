@@ -303,7 +303,7 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected final boolean defaultCheckRuntimeSetIO(RuntimePermission perm, Object ctx) {
-    return false;
+    return true;
   }
 
   protected boolean checkOtherRuntimePermission(
