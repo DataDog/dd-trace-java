@@ -7,8 +7,6 @@ import com.squareup.okhttp.Interceptor;
 import com.squareup.okhttp.OkHttpClient;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule;
-import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -27,8 +25,8 @@ public class RaspOkHttp2Instrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      InstrumentationLogger.class.getName(),
-      NetworkConnectionModule.class.getName(),
+      "datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule",
+      "datadog.trace.instrumentation.appsec.utils.InstrumentationLogger",
       packageName + ".RaspInterceptor",
     };
   }

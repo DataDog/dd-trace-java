@@ -7,8 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule;
-import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import net.bytebuddy.asm.Advice;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -29,9 +27,9 @@ public class RaspOkHttp3Instrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      "datadog.trace.instrumentation.appsec.rasp.modules.NetworkConnectionModule",
+      "datadog.trace.instrumentation.appsec.utils.InstrumentationLogger",
       packageName + ".RaspInterceptor",
-      InstrumentationLogger.class.getName(),
-      NetworkConnectionModule.class.getName()
     };
   }
 
