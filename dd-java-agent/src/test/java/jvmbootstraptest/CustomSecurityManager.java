@@ -357,7 +357,8 @@ public class CustomSecurityManager extends SecurityManager {
         || isDevFile(filePath)
         || isEtcFile(filePath)
         || isTimeZoneDb(filePath)
-        || isNetProperties(filePath);
+        || isNetProperties(filePath)
+        || isIbmFile(filePath);
   }
 
   protected boolean checkFileWritePermission(FilePermission perm, Object ctx, String filePath) {
@@ -384,6 +385,10 @@ public class CustomSecurityManager extends SecurityManager {
 
   protected static final boolean isClassFile(String filePath) {
     return filePath.endsWith(".class");
+  }
+  
+  protected static final boolean isIbmFile(String filePath) {
+	return filePath.endsWith("/tmp/.com_ibm_tools_attach");
   }
 
   protected static final boolean isLibraryFile(String filePath) {
@@ -562,6 +567,7 @@ public class CustomSecurityManager extends SecurityManager {
       case "com.ibm.dbgmalloc":
       case "com.ibm.tools.attach.shutdown_timeout":
       case "ibm.system.encoding":
+      case "os.name":
       case "JAVABIDI":
         return true;
     }
