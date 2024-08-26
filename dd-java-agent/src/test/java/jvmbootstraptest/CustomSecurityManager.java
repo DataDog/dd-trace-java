@@ -556,6 +556,7 @@ public class CustomSecurityManager extends SecurityManager {
       case "jdk.jar.maxSignatureFileSize":
       case "jdk.util.zip.disableZip64ExtraFieldValidation":
       case "user.dir":
+      case "ibm.java9.forceCommonCleanerShutdown":
         return true;
     }
 
@@ -592,6 +593,7 @@ public class CustomSecurityManager extends SecurityManager {
         || isUserLocaleProperty(propertyName)
         || isGraalProperty(propertyName)
         || isAzulProperty(propertyName)
+        || isIbmProperty(propertyName)
         || isProxyProperty(propertyName)
         || isReflectProperty(propertyName)
         || isAppleProperty(propertyName);
@@ -627,6 +629,10 @@ public class CustomSecurityManager extends SecurityManager {
 
   protected static final boolean isAzulProperty(String propertyName) {
     return propertyName.startsWith("com.azul.");
+  }
+  
+  protected static final boolean isIbmProperty(String propertyName) {
+	return propertyName.startsWith("ibm.");
   }
 
   protected static final boolean isAppleProperty(String propertyName) {
