@@ -386,9 +386,9 @@ public class CustomSecurityManager extends SecurityManager {
   protected static final boolean isClassFile(String filePath) {
     return filePath.endsWith(".class");
   }
-  
+
   protected static final boolean isIbmFile(String filePath) {
-	return filePath.endsWith("/tmp/.com_ibm_tools_attach");
+    return filePath.endsWith("/tmp/.com_ibm_tools_attach");
   }
 
   protected static final boolean isLibraryFile(String filePath) {
