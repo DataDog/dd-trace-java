@@ -50,7 +50,7 @@ public final class DollarVariableHelper {
       return null;
     }
     try {
-      return (String) EXPRESSION.get(dollarVariable);
+      return ((StringLiteral) EXPRESSION.get(dollarVariable)).getAsString();
     } catch (IllegalAccessException e) {
       throw new UndeclaredThrowableException(e);
     }

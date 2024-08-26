@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 
 @AutoService(InstrumenterModule.class)
 public class DollarVariableInstrumentation extends InstrumenterModule.Iast
@@ -20,13 +21,22 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String instrumentedType() {
-    return "freemarker.core.DollarVariable";
+    return FREEMARKER_CORE + ".DollarVariable";
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      FREEMARKER_CORE + ".DollarVariableHelper",
+    };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("accept")).and(takesArgument(0, named("freemarker.core.Environment"))),
-        getClass().getName() + ADVICE_BASE + "DollarVariableAdvice");
+        NameMatchers.named("accept")
+            .and(isMethod())
+            .and(takesArgument(0, named(FREEMARKER_CORE + ".Environment"))),
+        ADVICE_BASE + "DollarVariableAdvice");
   }
 }
