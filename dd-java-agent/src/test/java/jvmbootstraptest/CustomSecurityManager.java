@@ -557,6 +557,7 @@ public class CustomSecurityManager extends SecurityManager {
       case "jdk.util.zip.disableZip64ExtraFieldValidation":
       case "user.dir":
       case "ibm.java9.forceCommonCleanerShutdown":
+      case "com.ibm.dbgmalloc":
         return true;
     }
 
@@ -632,7 +633,7 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected static final boolean isIbmProperty(String propertyName) {
-    return propertyName.startsWith("ibm.");
+    return propertyName.startsWith("ibm.") || propertyName.startsWith("com.ibm.");
   }
 
   protected static final boolean isAppleProperty(String propertyName) {
