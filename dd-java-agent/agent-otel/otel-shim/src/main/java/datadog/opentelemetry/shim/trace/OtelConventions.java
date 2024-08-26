@@ -240,6 +240,15 @@ public final class OtelConventions {
     return (String) tag;
   }
 
+  /**
+   * convertAttributes is a helper function for converting opentelemetry Attributes to
+   * AgentSpan.Attributes based on the AttributeKey type
+   *
+   * @param attributes the Attributes to convert
+   * @param format the format to convert the Attributes to, given attributes are handled differently
+   *     for SpanLinks and SpanEvents
+   * @return the converted AgentSpan.Attributes
+   */
   public static AgentSpan.Attributes convertAttributes(
       Attributes attributes, SpanAttributes.Builder.Format format) {
     if (attributes == null || attributes.isEmpty()) {
@@ -284,8 +293,8 @@ public final class OtelConventions {
   }
 
   /**
-   * Generate Attributes about the exception using a default list + the additionalAttributes
-   * provided by the user
+   * processExceptionAttributes generates Attributes about the exception using a default list + the
+   * additionalAttributes provided by the user
    *
    * <p>If the same key exists in defaultAttributes and additionalAttributes, the latter always
    * wins.
@@ -296,35 +305,39 @@ public final class OtelConventions {
    */
   public static Attributes processExceptionAttributes(
       Throwable exception, Attributes additionalAttributes) {
-    // "exception.escaped" should be true if exception will "escape" the scope of the span. I'm not
-    // sure how to check that from within here. And it doesn't even look like Otel dynamically sets
-    // this field:
-    // https://github.com/open-telemetry/opentelemetry-java/blob/v1.41.0/sdk/trace/src/main/java/io/opentelemetry/sdk/trace/internal/data/ImmutableExceptionEventData.java#L22
-    boolean escaped = false;
-    Map<String, Object> defaultAttributes =
-        new HashMap<String, Object>() {
-          {
-            put("exception.message", exception.getMessage());
-            put("exception.type", exception.getClass().getName());
-            put("exception.escaped", escaped);
-            put("exception.stacktrace", Arrays.toString(exception.getStackTrace()));
-          }
-        };
+    Map<String, Object> defaultAttributes = getAttributesFromException(exception);
     // Create an AttributesBuilder with the additionalAttributes provided
     AttributesBuilder attrsBuilder = additionalAttributes.toBuilder();
     for (String key : defaultAttributes.keySet()) {
       // Add defaultAttributes onto the builder iff an equivalent key was not provided in
       // additionalAttributes
       if (additionalAttributes.get(AttributeKey.stringKey(key)) == null) {
-        // naive implementation, as the default attributes values re only strings and booleans
         Object value = defaultAttributes.get(key);
+        // Currently we only have Strings and booleans in defaultAttributes, but this could change.
         if (value instanceof String) {
           attrsBuilder.put(key, (String) defaultAttributes.get(key));
         } else if (value instanceof Boolean) {
           attrsBuilder.put(key, (Boolean) defaultAttributes.get(key));
         }
+        // Need a catchall else here?
       }
     }
     return attrsBuilder.build();
+  }
+
+  private static Map<String, Object> getAttributesFromException(Throwable exception) {
+    // "exception.escaped" should be true if exception will "escape" the scope of the span. I'm not
+    // sure how to check that from within here. And it doesn't even look like Otel dynamically sets
+    // this field:
+    // https://github.com/open-telemetry/opentelemetry-java/blob/v1.41.0/sdk/trace/src/main/java/io/opentelemetry/sdk/trace/internal/data/ImmutableExceptionEventData.java#L22
+    boolean escaped = false;
+    return new HashMap<String, Object>() {
+      {
+        put("exception.message", exception.getMessage());
+        put("exception.type", exception.getClass().getName());
+        put("exception.escaped", escaped);
+        put("exception.stacktrace", Arrays.toString(exception.getStackTrace()));
+      }
+    };
   }
 }
