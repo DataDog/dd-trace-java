@@ -35,7 +35,7 @@ class TaintedObjectsTest extends Specification {
     where:
     ranges                                                                                                       | taint
     null                                                                                                         | false
-    []                                                                                                           | false
+    []                                                                                                           | true
     [new Range(0, 10, new Source(1 as byte, 'a', 'b'), 1), null]                                                 | false
     [new Range(0, 10, new Source(1 as byte, 'a', 'b'), 1), new Range(0, 10, new Source(2 as byte, 'a', 'b'), 1)] | true
   }

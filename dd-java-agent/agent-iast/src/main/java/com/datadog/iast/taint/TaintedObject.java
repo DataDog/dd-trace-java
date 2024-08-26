@@ -73,9 +73,6 @@ public class TaintedObject extends WeakReference<Object> {
     if (ranges == null) {
       throw new IllegalArgumentException("ranges cannot be null");
     }
-    if (ranges.length == 0) {
-      throw new IllegalArgumentException("ranges cannot be empty");
-    }
     for (Range range : ranges) {
       if (range == null) {
         throw new IllegalArgumentException("found null range in " + Arrays.toString(ranges));
