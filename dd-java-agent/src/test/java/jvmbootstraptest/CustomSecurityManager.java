@@ -630,9 +630,9 @@ public class CustomSecurityManager extends SecurityManager {
   protected static final boolean isAzulProperty(String propertyName) {
     return propertyName.startsWith("com.azul.");
   }
-  
+
   protected static final boolean isIbmProperty(String propertyName) {
-	return propertyName.startsWith("ibm.");
+    return propertyName.startsWith("ibm.");
   }
 
   protected static final boolean isAppleProperty(String propertyName) {
