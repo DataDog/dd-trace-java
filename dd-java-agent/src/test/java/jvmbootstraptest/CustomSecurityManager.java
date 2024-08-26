@@ -101,6 +101,9 @@ public class CustomSecurityManager extends SecurityManager {
 
       case "enableContextClassLoaderOverride":
         return checkRuntimeContextClassLoader(perm, ctx);
+
+      case "setIO":
+        return checkRuntimeSetIO(perm, ctx);
     }
 
     if (name.startsWith("accessClassInPackage.")) {
@@ -292,6 +295,14 @@ public class CustomSecurityManager extends SecurityManager {
 
   protected final boolean defaultCheckRuntimeContextClassLoader(
       RuntimePermission perm, Object ctx) {
+    return false;
+  }
+
+  protected boolean checkRuntimeSetIO(RuntimePermission perm, Object ctx) {
+    return defaultCheckRuntimeSetIO(perm, ctx);
+  }
+
+  protected final boolean defaultCheckRuntimeSetIO(RuntimePermission perm, Object ctx) {
     return false;
   }
 
@@ -518,6 +529,7 @@ public class CustomSecurityManager extends SecurityManager {
       PropertyPermission perm, Object ctx, String property) {
     switch (property) {
       case "sun.boot.class.path":
+      case "sun.reflect.noInflation":
       case "java.system.class.loader":
       case "java.protocol.handler.pkgs":
       case "java.vm.specification.version":
