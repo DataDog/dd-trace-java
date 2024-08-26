@@ -559,6 +559,7 @@ public class CustomSecurityManager extends SecurityManager {
       case "user.dir":
       case "ibm.java9.forceCommonCleanerShutdown":
       case "com.ibm.dbgmalloc":
+      case "JAVABIDI":
         return true;
     }
 
@@ -639,6 +640,10 @@ public class CustomSecurityManager extends SecurityManager {
   }
 
   protected static final boolean isIbmProperty(String propertyName) {
+	switch ( propertyName ) {
+	  case "JAVABIDI":
+	  return true;
+	}
     return propertyName.startsWith("ibm.") || propertyName.startsWith("com.ibm.");
   }
 
