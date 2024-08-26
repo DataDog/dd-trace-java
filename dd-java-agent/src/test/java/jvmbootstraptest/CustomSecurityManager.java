@@ -561,6 +561,7 @@ public class CustomSecurityManager extends SecurityManager {
       case "ibm.java9.forceCommonCleanerShutdown":
       case "com.ibm.dbgmalloc":
       case "com.ibm.tools.attach.shutdown_timeout":
+      case "ibm.system.encoding":
       case "JAVABIDI":
         return true;
     }
