@@ -14,6 +14,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
 import io.grpc.ServerCall;
 import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
 import java.util.function.Function;
@@ -97,15 +99,27 @@ public class GrpcServerDecorator extends ServerDecorator {
     return span;
   }
 
-  public AgentSpan onClose(final AgentSpan span, final Status status) {
+  public AgentSpan onStatus(final AgentSpan span, final Status status) {
     span.setTag("status.code", status.getCode().name());
     span.setTag("status.description", status.getDescription());
+    return span.setError(SERVER_ERROR_STATUSES.get(status.getCode().value()));
+  }
 
-    if (SERVER_ERROR_STATUSES.get(status.getCode().value())) {
+  public AgentSpan onClose(final AgentSpan span, final Status status) {
+    if (status.getCause() != null) {
       onError(span, status.getCause());
-      span.setError(true);
     }
+    return onStatus(span, status);
+  }
 
+  @Override
+  public AgentSpan onError(AgentSpan span, Throwable throwable) {
+    super.onError(span, throwable);
+    if (throwable instanceof StatusRuntimeException) {
+      onStatus(span, ((StatusRuntimeException) throwable).getStatus());
+    } else if (throwable instanceof StatusException) {
+      onStatus(span, ((StatusException) throwable).getStatus());
+    }
     return span;
   }
 }
