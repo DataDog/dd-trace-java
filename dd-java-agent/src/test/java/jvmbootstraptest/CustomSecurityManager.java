@@ -643,7 +643,7 @@ public class CustomSecurityManager extends SecurityManager {
 
   protected static final boolean isIbmProperty(String propertyName) {
     // IBM specific properties w/o IBM in the name
-	switch (propertyName) {
+    switch (propertyName) {
       case "file.encoding":
       case "JAVABIDI":
         return true;
