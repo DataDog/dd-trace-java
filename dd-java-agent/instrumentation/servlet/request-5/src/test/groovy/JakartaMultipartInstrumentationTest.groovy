@@ -81,6 +81,21 @@ class JakartaMultipartInstrumentationTest extends AgentTestRunner {
     0 * _
   }
 
+  void 'test getInputStream'(){
+    given:
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+    final inputStream = new ByteArrayInputStream('inputStream'.getBytes())
+    final part = new MockPart('partName', inputStream)
+
+    when:
+    runUnderIastTrace { part.getInputStream() }
+
+    then:
+    1 * module.taintObject(iastCtx, inputStream, SourceTypes.REQUEST_MULTIPART_PARAMETER)
+    0 * _
+  }
+
   protected <E> E runUnderIastTrace(Closure<E> cl) {
     final ddctx = new TagContext().withRequestContextDataIast(iastCtx)
     final span = TEST_TRACER.startSpan("test", "test-iast-span", ddctx)

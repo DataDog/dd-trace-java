@@ -212,6 +212,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TELEMETRY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -836,6 +837,7 @@ public class Config {
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
+  private final int ciVisibilityTotalFlakyRetryCount;
   private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
   private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
   private final String ciVisibilityModuleName;
@@ -1898,6 +1900,8 @@ public class Config {
     ciVisibilityEarlyFlakeDetectionLowerLimit =
         configProvider.getInteger(CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, 30);
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
+    ciVisibilityTotalFlakyRetryCount =
+        configProvider.getInteger(CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT, 1000);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
     ciVisibilityRumFlushWaitMillis =
@@ -1993,13 +1997,17 @@ public class Config {
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
 
     // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
-    // users. This should be removed once we default to true, and then it can also be moved up
-    // together with the rest of telemetry ocnfig.
+    // users.
+    // FIXME: For progressive rollout, we include by default Java < 11 hosts as product independent
+    // sample users.
+    // FIXME:This should be removed once we default to true, and then it can also be moved up
+    // together with the rest of telemetry config.
     final boolean telemetryLogCollectionEnabledDefault =
         instrumenterConfig.isTelemetryEnabled()
                 && (instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
                     || instrumenterConfig.isCiVisibilityEnabled()
-                    || debuggerEnabled)
+                    || debuggerEnabled
+                    || !Platform.isJavaVersionAtLeast(11))
             || DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
     isTelemetryLogCollectionEnabled =
         configProvider.getBoolean(
@@ -3233,6 +3241,10 @@ public class Config {
 
   public int getCiVisibilityFlakyRetryCount() {
     return ciVisibilityFlakyRetryCount;
+  }
+
+  public int getCiVisibilityTotalFlakyRetryCount() {
+    return ciVisibilityTotalFlakyRetryCount;
   }
 
   public String getCiVisibilityModuleName() {

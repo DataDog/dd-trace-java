@@ -1,13 +1,16 @@
 package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.util.MethodHandles;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import javax.annotation.Nullable;
@@ -20,11 +23,15 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MavenPluginManager;
 import org.apache.maven.plugin.Mojo;
 import org.apache.maven.plugin.MojoExecution;
+import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.toolchain.Toolchain;
+import org.apache.maven.toolchain.ToolchainManager;
 import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.classworlds.realm.ClassRealm;
+import org.codehaus.plexus.component.configurator.expression.ExpressionEvaluator;
 import org.codehaus.plexus.configuration.PlexusConfiguration;
 import org.codehaus.plexus.configuration.xml.XmlPlexusConfiguration;
 import org.codehaus.plexus.logging.Logger;
@@ -330,6 +337,9 @@ public abstract class MavenUtils {
       return null;
     }
     String forkedJvm = getEffectiveJvm(session, mojoExecution, mavenPluginManager);
+    if (forkedJvm == null) {
+      forkedJvm = getEffectiveJvmFallback(session, mojoExecution);
+    }
     return forkedJvm != null ? Paths.get(forkedJvm) : null;
   }
 
@@ -396,7 +406,70 @@ public abstract class MavenUtils {
       }
       mojoClass = mojoClass.getSuperclass();
     } while (mojoClass != null);
-    return methodHandles.method(
-        "org.apache.maven.plugin.surefire.AbstractSurefireMojo", "getEffectiveJvm");
+    return null;
+  }
+
+  /** Fallback method that attempts to recreate the logic used by Maven Surefire plugin */
+  private static String getEffectiveJvmFallback(MavenSession session, MojoExecution mojoExecution) {
+    try {
+      PlexusConfiguration configuration = getPomConfiguration(mojoExecution);
+      PlexusConfiguration jvm = configuration.getChild("jvm");
+      if (jvm != null) {
+        String value = jvm.getValue();
+        if (Strings.isNotBlank(value)) {
+          ExpressionEvaluator expressionEvaluator =
+              new PluginParameterExpressionEvaluator(session, mojoExecution);
+          Object evaluatedValue = expressionEvaluator.evaluate(value);
+          if (evaluatedValue != null && Strings.isNotBlank(String.valueOf(evaluatedValue))) {
+            return String.valueOf(evaluatedValue);
+          }
+        }
+      }
+
+      PlexusConfiguration jdkToolchain = configuration.getChild("jdkToolchain");
+      if (jdkToolchain != null) {
+        ExpressionEvaluator expressionEvaluator =
+            new PluginParameterExpressionEvaluator(session, mojoExecution);
+        Map<String, String> toolchainConfig = new HashMap<>();
+        for (PlexusConfiguration child : jdkToolchain.getChildren()) {
+          Object value = expressionEvaluator.evaluate(child.getValue());
+          if (value != null && Strings.isNotBlank(String.valueOf(value))) {
+            toolchainConfig.put(child.getName(), String.valueOf(value));
+          }
+        }
+
+        if (!toolchainConfig.isEmpty()) {
+          PlexusContainer container = MavenUtils.getContainer(session);
+          ToolchainManager toolchainManager = container.lookup(ToolchainManager.class);
+
+          MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
+          PluginDescriptor pluginDescriptor = mojoDescriptor.getPluginDescriptor();
+          ClassRealm pluginRealm = pluginDescriptor.getClassRealm();
+          MethodHandles methodHandles = new MethodHandles(pluginRealm);
+          MethodHandle getToolchains =
+              methodHandles.method(
+                  ToolchainManager.class,
+                  "getToolchains",
+                  MavenSession.class,
+                  String.class,
+                  Map.class);
+          List<Toolchain> toolchains =
+              methodHandles.invoke(
+                  getToolchains, toolchainManager, session, "jdk", toolchainConfig);
+          if (toolchains.isEmpty()) {
+            LOGGER.debug("Could not find toolchains for {}", toolchainConfig);
+            return null;
+          }
+
+          Toolchain toolchain = toolchains.iterator().next();
+          return toolchain.findTool("java");
+        }
+      }
+      return null;
+
+    } catch (Exception e) {
+      LOGGER.debug("Error while getting effective JVM for mojo {}", mojoExecution, e);
+      return null;
+    }
   }
 }
