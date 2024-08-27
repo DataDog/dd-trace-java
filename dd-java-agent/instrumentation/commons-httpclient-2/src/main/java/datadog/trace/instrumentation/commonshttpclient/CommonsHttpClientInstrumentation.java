@@ -60,11 +60,12 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter()
     public static AgentScope methodEnter(
         @Advice.Argument(1) final HttpMethod httpMethod, @Advice.This final HttpClient httpClient) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-      if (callDepth > 0) {
-        return null;
-      }
       try {
+        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+        if (callDepth > 0) {
+          return null;
+        }
+
         final AgentSpan span = startSpan(HTTP_REQUEST);
         final AgentScope scope = activateSpan(span);
 

@@ -71,17 +71,26 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   }
 
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
-    String ssrfExploitPreventionUrl = null;
     if (request != null) {
+
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
+
+      if (CLIENT_TAG_HEADERS) {
+        for (Map.Entry<String, String> headerTag :
+            traceConfig(span).getRequestHeaderTags().entrySet()) {
+          String headerValue = getRequestHeader(request, headerTag.getKey());
+          if (null != headerValue) {
+            span.setTag(headerTag.getValue(), headerValue);
+          }
+        }
+      }
 
       // Copy of HttpServerDecorator url handling
       try {
         final URI url = url(request);
         if (url != null) {
           // //SSRF Exploit Prevention should be called at the end of the method with the url
-          ssrfExploitPreventionUrl = url.toString();
           onURI(span, url);
           span.setTag(
               Tags.HTTP_URL,
@@ -93,25 +102,13 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           if (shouldSetResourceName()) {
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
           }
+          onNetworkConnection(url.toString());
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
       }
-
-      if (CLIENT_TAG_HEADERS) {
-        for (Map.Entry<String, String> headerTag :
-            traceConfig(span).getRequestHeaderTags().entrySet()) {
-          String headerValue = getRequestHeader(request, headerTag.getKey());
-          if (null != headerValue) {
-            span.setTag(headerTag.getValue(), headerValue);
-          }
-        }
-      }
-    }
-    if (ssrfExploitPreventionUrl != null) {
-      onNetworkConnection(ssrfExploitPreventionUrl);
     }
     return span;
   }
