@@ -19,15 +19,17 @@ class ModuleSettingsRequestTest extends Specification {
     signal << [
       new ModuleSettingsRequest(Paths.get("").toString(), JvmInfo.CURRENT_JVM),
       new ModuleSettingsRequest(null, JvmInfo.CURRENT_JVM),
-      new ModuleSettingsRequest("abc", new JvmInfo("abc", "def", "ghi")),
-      new ModuleSettingsRequest("abc", new JvmInfo("", "def", "ghi")),
-      new ModuleSettingsRequest("abc", new JvmInfo("abc", "", "ghi")),
-      new ModuleSettingsRequest("abc", new JvmInfo("abc", "def", "")),
-      new ModuleSettingsRequest("abc", new JvmInfo("", "", "")),
-      new ModuleSettingsRequest("abc", new JvmInfo(null, "def", "ghi")),
-      new ModuleSettingsRequest("abc", new JvmInfo("abc", null, "ghi")),
-      new ModuleSettingsRequest("abc", new JvmInfo("abc", "def", null)),
-      new ModuleSettingsRequest("abc", new JvmInfo(null, null, null)),
+      new ModuleSettingsRequest("abc", new JvmInfo("abc", "def", "52.0", "123", "456")),
+      new ModuleSettingsRequest("abc", new JvmInfo("", "def", "61.0", "", "")),
+      new ModuleSettingsRequest("abc", new JvmInfo("abc", "", "ghi", null, null)),
+      new ModuleSettingsRequest("abc", new JvmInfo("abc", "def", "", "123", "456")),
+      new ModuleSettingsRequest("abc", new JvmInfo("", "", "", "", "")),
+      new ModuleSettingsRequest("abc", new JvmInfo(null, "def", "52.0", "123", "456")),
+      new ModuleSettingsRequest("abc", new JvmInfo("abc", null, "52.0", "123", "456")),
+      new ModuleSettingsRequest("abc", new JvmInfo("abc", "def", null, "123", "456")),
+      new ModuleSettingsRequest("abc", new JvmInfo("abc", "def", "52.0", null, "456")),
+      new ModuleSettingsRequest("abc", new JvmInfo("abc", "def", "52.0", null, null)),
+      new ModuleSettingsRequest("abc", new JvmInfo(null, null, null, null, null)),
     ]
   }
 }

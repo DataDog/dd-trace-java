@@ -199,6 +199,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_CACHE_SIZE;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_PATCHING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NAME;
@@ -844,6 +845,7 @@ public class Config {
   private final boolean ciVisibilityTelemetryEnabled;
   private final long ciVisibilityRumFlushWaitMillis;
   private final boolean ciVisibilityAutoInjected;
+  private final boolean ciVisibilityJvmPatchingEnabled;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1912,6 +1914,8 @@ public class Config {
         configProvider.getLong(CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS, 500);
     ciVisibilityAutoInjected =
         Strings.isNotBlank(configProvider.getString(CIVISIBILITY_AUTO_INSTRUMENTATION_PROVIDER));
+    ciVisibilityJvmPatchingEnabled =
+        configProvider.getBoolean(CIVISIBILITY_JVM_PATCHING_ENABLED, true);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -3265,6 +3269,10 @@ public class Config {
 
   public boolean isCiVisibilityAutoInjected() {
     return ciVisibilityAutoInjected;
+  }
+
+  public boolean isCiVisibilityJvmPatchingEnabled() {
+    return ciVisibilityJvmPatchingEnabled;
   }
 
   public String getAppSecRulesFile() {

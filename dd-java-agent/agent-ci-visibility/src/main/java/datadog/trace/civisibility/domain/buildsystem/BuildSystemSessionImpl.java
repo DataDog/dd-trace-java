@@ -173,6 +173,7 @@ public class BuildSystemSessionImpl extends AbstractTestSession implements Build
               settings.isFlakyTestRetriesEnabled(),
               settings.getEarlyFlakeDetectionSettings(),
               settings.getSystemProperties(),
+              settings.getJvmOptions(),
               settings.getItrCorrelationId(),
               skippableTests,
               settings.getFlakyTests(moduleName),

@@ -29,7 +29,7 @@ public class GitClient {
 
   public static final String HEAD = "HEAD";
 
-  private static final String DD_TEMP_DIRECTORY_PREFIX = "dd-ci-vis-";
+  private static final String DD_TEMP_DIRECTORY_PREFIX = "dd-ci-vis-git-";
 
   private final CiVisibilityMetricCollector metricCollector;
   private final String repoRoot;

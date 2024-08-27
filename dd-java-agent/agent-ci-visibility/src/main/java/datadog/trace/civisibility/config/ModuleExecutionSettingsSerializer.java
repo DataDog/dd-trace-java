@@ -30,6 +30,7 @@ public class ModuleExecutionSettingsSerializer {
     EarlyFlakeDetectionSettingsSerializer.serialize(s, settings.getEarlyFlakeDetectionSettings());
 
     s.write(settings.getSystemProperties());
+    s.write(settings.getJvmOptions());
     s.write(settings.getItrCorrelationId());
     s.write(
         settings.getSkippableTestsByModule(),
@@ -56,6 +57,8 @@ public class ModuleExecutionSettingsSerializer {
         EarlyFlakeDetectionSettingsSerializer.deserialize(buffer);
 
     Map<String, String> systemProperties = Serializer.readStringMap(buffer);
+    List<String> jvmOptions = Serializer.readStringList(buffer);
+
     String itrCorrelationId = Serializer.readString(buffer);
     Map<String, Collection<TestIdentifier>> skippableTestsByModule =
         Serializer.readMap(
@@ -78,6 +81,7 @@ public class ModuleExecutionSettingsSerializer {
         flakyTestRetriesEnabled,
         earlyFlakeDetectionSettings,
         systemProperties,
+        jvmOptions,
         itrCorrelationId,
         skippableTestsByModule,
         flakyTests,

@@ -64,7 +64,9 @@ public class JvmInfoFactoryImpl implements JvmInfoFactory {
     public JvmInfo parse(InputStream inputStream) throws IOException {
       String name = null;
       String version = null;
+      String classVersion = null;
       String vendor = null;
+      String home = null;
 
       BufferedReader bis =
           new BufferedReader(new InputStreamReader(inputStream, Charset.defaultCharset()));
@@ -74,11 +76,15 @@ public class JvmInfoFactoryImpl implements JvmInfoFactory {
           name = getPropertyValue(line);
         } else if (line.contains("java.version ")) {
           version = getPropertyValue(line);
+        } else if (line.contains("java.class.version ")) {
+          classVersion = getPropertyValue(line);
         } else if (line.contains("java.vendor ")) {
           vendor = getPropertyValue(line);
+        } else if (line.contains("java.home ")) {
+          home = getPropertyValue(line);
         }
       }
-      return new JvmInfo(name, version, vendor);
+      return new JvmInfo(name, version, classVersion, vendor, home);
     }
 
     private String getPropertyValue(String line) {

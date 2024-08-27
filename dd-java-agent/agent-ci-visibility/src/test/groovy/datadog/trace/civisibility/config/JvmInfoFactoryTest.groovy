@@ -21,7 +21,7 @@ class JvmInfoFactoryTest extends Specification {
     jvmInfo == JvmInfo.CURRENT_JVM
   }
 
-  private Path getCurrentJvmExecutable() {
+  private static Path getCurrentJvmExecutable() {
     def currentJvmPath = Paths.get(ProcessUtils.currentJvmPath)
     if (Files.isExecutable(currentJvmPath)) {
       return currentJvmPath
