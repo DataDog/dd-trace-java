@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 import org.apache.spark.ExceptionFailure;
@@ -194,10 +195,35 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     captureApplicationParameters(builder);
+    captureOpenlineageContextIfPresent(builder);
 
     applicationSpan = builder.start();
     setDataJobsSamplingPriority(applicationSpan);
     applicationSpan.setMeasured(true);
+  }
+
+  private void captureOpenlineageContextIfPresent(AgentTracer.SpanBuilder builder) {
+    Optional<OpenlineageParentContext> openlineageParentContext =
+        OpenlineageParentContext.from(sparkConf);
+
+    if (openlineageParentContext.isPresent()) {
+      OpenlineageParentContext context = openlineageParentContext.get();
+      builder.asChildOf(context);
+
+      builder.withSpanId(context.getChildRootSpanId());
+
+      log.debug(
+          "Captured Openlineage context: {}, with child trace_id: {}, child root span id: {}",
+          context,
+          context.getTraceId(),
+          context.getChildRootSpanId());
+
+      builder.withTag("openlineage_parent_job_namespace", context.getParentJobNamespace());
+      builder.withTag("openlineage_parent_job_name", context.getParentJobName());
+      builder.withTag("openlineage_parent_run_id", context.getParentRunId());
+    } else {
+      log.debug("Openlineage context not found");
+    }
   }
 
   @Override
