@@ -2,7 +2,6 @@ package com.datadog.crashtracking;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
@@ -39,19 +38,19 @@ public class ScriptInitializerTest {
 
   @Test
   void testCrashUploaderSanity() {
-    assertDoesNotThrow(() -> ScriptInitializer.initializeCrashUploader(null, null));
+    assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(null, null));
     assertDoesNotThrow(
         () ->
-            ScriptInitializer.initializeCrashUploader(
+            CrashUploaderScriptInitializer.initialize(
                 tempDir.resolve("dummy.sh").toString(), null));
-    assertDoesNotThrow(() -> ScriptInitializer.initializeCrashUploader(null, "hs_err.log"));
+    assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(null, "hs_err.log"));
   }
 
   @Test
   void testOomeNotifierSanity() {
-    assertDoesNotThrow(() -> ScriptInitializer.initializeOOMENotifier(null));
+    assertDoesNotThrow(() -> OOMENotifierScriptInitializer.initialize(null));
     assertDoesNotThrow(
-        () -> ScriptInitializer.initializeOOMENotifier(tempDir.resolve("dummy.sh").toString()));
+        () -> OOMENotifierScriptInitializer.initialize(tempDir.resolve("dummy.sh").toString()));
   }
 
   @ParameterizedTest
@@ -60,7 +59,7 @@ public class ScriptInitializerTest {
       throws IOException, InterruptedException {
     Path file = tempDir.resolve(target);
     String hsErrFile = "/tmp/hs_err.log";
-    ScriptInitializer.initializeCrashUploader(file + pidArg, hsErrFile);
+    CrashUploaderScriptInitializer.initialize(file + pidArg, hsErrFile);
     assertTrue(Files.exists(file), "File " + file + " should have been created");
     List<String> lines = Files.readAllLines(file);
     assertFalse(lines.isEmpty(), "File " + file + " is expected to be non-empty");
@@ -72,7 +71,7 @@ public class ScriptInitializerTest {
   void testCrashUploaderInitializationExisting() throws IOException {
     Path file = tempDir.resolve("dd_crash_uploader.sh");
     Files.createFile(file);
-    ScriptInitializer.initializeCrashUploader(file.toString(), "/tmp/hs_err%p.log");
+    CrashUploaderScriptInitializer.initialize(file.toString(), "/tmp/hs_err%p.log");
     assertTrue(Files.exists(file), "File " + file + " should not have been removed");
     assertTrue(
         Files.readAllLines(file).isEmpty(),
@@ -89,10 +88,9 @@ public class ScriptInitializerTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"dd_oome_notifier.sh", "dd_oome_notifier.bat"})
-  void testOomeNotifierInitializationSuccess(String target)
-      throws IOException, InterruptedException {
+  void testOomeNotifierInitializationSuccess(String target) throws IOException {
     Path file = tempDir.resolve(target);
-    ScriptInitializer.initializeOOMENotifier(file + " %p");
+    OOMENotifierScriptInitializer.initialize(file + " %p");
     assertTrue(Files.exists(file), "File " + file + " should have been created");
     List<String> lines = Files.readAllLines(file);
     assertFalse(lines.isEmpty(), "File " + file + " is expected to be non-empty");
@@ -101,19 +99,19 @@ public class ScriptInitializerTest {
   }
 
   @Test
-  void testCrashUploaderNoInitialization() throws IOException {
+  void testCrashUploaderNoInitialization() {
     // the initializer needs a particular script name to kick-in
     Path file = tempDir.resolve("some_other_script.sh");
     String hsErrFile = "/tmp/hs_err.log";
-    ScriptInitializer.initializeCrashUploader(file.toString(), hsErrFile);
+    CrashUploaderScriptInitializer.initialize(file.toString(), hsErrFile);
     assertFalse(Files.exists(file), "File " + file + " should not have been created");
   }
 
   @Test
-  void testOomeNotifierNoInitialization() throws IOException {
+  void testOomeNotifierNoInitialization() {
     // the initializer needs a particular script name to kick-in
     Path file = tempDir.resolve("some_other_script.sh");
-    ScriptInitializer.initializeOOMENotifier(file.toString());
+    OOMENotifierScriptInitializer.initialize(file.toString());
     assertFalse(Files.exists(file), "File " + file + " should not have been created");
   }
 
@@ -121,7 +119,7 @@ public class ScriptInitializerTest {
   void testOomeNotifierInitializationExisting() throws IOException {
     Path file = tempDir.resolve("dd_oome_notifier.sh");
     Files.createFile(file);
-    ScriptInitializer.initializeOOMENotifier(file.toString());
+    OOMENotifierScriptInitializer.initialize(file.toString());
     assertTrue(Files.exists(file), "File " + file + " should not have been removed");
     assertTrue(
         Files.readAllLines(file).isEmpty(),
@@ -131,7 +129,7 @@ public class ScriptInitializerTest {
   @Test
   void testCrashUploaderNoErrFileSpec() throws IOException {
     Path file = tempDir.resolve("dd_crash_uploader.sh");
-    ScriptInitializer.initializeCrashUploader(file.toString(), "");
+    CrashUploaderScriptInitializer.initialize(file.toString(), "");
     assertTrue(Files.exists(file), "File " + file + " should have been created");
     // sanity to check the crash log file was properly replaced in the script
     List<String> lines = Files.readAllLines(file);
@@ -144,16 +142,16 @@ public class ScriptInitializerTest {
   void testCrashUploaderInvalidFolder() throws IOException {
     Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("r-x------"));
     Path file = tempDir.resolve("dd_crash_uploader.sh");
-    assertThrows(
-        IOException.class,
-        () -> ScriptInitializer.initializeCrashUploader(file.toString(), "/tmp/hs_err.log"));
+    assertDoesNotThrow(
+        () -> CrashUploaderScriptInitializer.initialize(file.toString(), "/tmp/hs_err.log"));
+    assertFalse(Files.exists(file), "File " + file + " should not have been created");
   }
 
   @Test
   void testOomeInitializeInvalidFolder() throws IOException {
     Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("r-x------"));
     Path file = tempDir.resolve("dd_oome_notifier.sh");
-    assertThrows(
-        IOException.class, () -> ScriptInitializer.initializeOOMENotifier(file.toString() + " %p"));
+    assertDoesNotThrow(() -> OOMENotifierScriptInitializer.initialize(file + " %p"));
+    assertFalse(Files.exists(file), "File " + file + " should not have been created");
   }
 }
