@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jackson.core;
+package datadog.trace.instrumentation.jackson.codehouse.core;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
@@ -21,43 +21,41 @@ import java.net.URL;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class IastJson2FactoryInstrumentation extends InstrumenterModule.Iast
+public class Json1FactoryInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
-  public IastJson2FactoryInstrumentation() {
-    super("jackson", "jackson-2");
+  public Json1FactoryInstrumentation() {
+    super("jackson", "jackson-1");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("createParser")
+        named("createJsonParser")
             .and(isMethod())
             .and(
-                isPublic()
-                    .and(
-                        takesArguments(String.class)
-                            .or(takesArguments(InputStream.class))
-                            .or(takesArguments(Reader.class))
-                            .or(takesArguments(URL.class))
-                            .or(takesArguments(byte[].class)))),
-        IastJson2FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
+                takesArguments(String.class)
+                    .or(takesArguments(InputStream.class))
+                    .or(takesArguments(Reader.class))
+                    .or(takesArguments(URL.class))
+                    .or(takesArguments(byte[].class))),
+        Json1FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
     transformer.applyAdvice(
-        named("createParser")
+        named("createJsonParser")
             .and(isMethod())
             .and(isPublic().and(takesArguments(byte[].class, int.class, int.class))),
-        IastJson2FactoryInstrumentation.class.getName() + "$Instrumenter2Advice");
+        Json1FactoryInstrumentation.class.getName() + "$Instrumenter2Advice");
   }
 
   @Override
   public String instrumentedType() {
-    return "com.fasterxml.jackson.core.JsonFactory";
+    return "org.codehaus.jackson.JsonFactory";
   }
 
   public static class InstrumenterAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
-    @Sink(VulnerabilityTypes.SSRF) // it's both propagation and Sink but Sink takes priority
+    @Sink(VulnerabilityTypes.SSRF) // SSRF takes priority over the propagation one
     public static void onExit(
         @Advice.Argument(0) final Object input, @Advice.Return final Object parser) {
       if (input != null) {
