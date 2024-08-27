@@ -2,11 +2,10 @@ package datadog.trace.api.profiling;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.Properties;
-import java.util.stream.Stream;
-
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Properties;
+import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
