@@ -1,9 +1,8 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.Configurations;
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
@@ -12,17 +11,29 @@ import java.nio.file.Paths;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// FIXME nikita: set test.code_coverage.backfilled:true if ITR code coverage is in effect
 public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionSettingsFactoryImpl.class);
   private static final String TEST_CONFIGURATION_TAG_PREFIX = "test.configuration.";
+
+  /**
+   * A workaround for bulk-requesting module settings. For any module that has no settings that are
+   * exclusive to it (i.e. that has no skippable/flaky/known tests), the settings will be under this
+   * key in the resulting map.
+   */
+  static final String DEFAULT_SETTINGS = "<DEFAULT>";
 
   private final Config config;
   private final ConfigurationApi configurationApi;
@@ -40,73 +51,19 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     this.repositoryRoot = repositoryRoot;
   }
 
+  /** @return Executions settings by module name */
+  public Map<String, ExecutionSettings> create(@Nonnull JvmInfo jvmInfo) {
+    TracerEnvironment tracerEnvironment = buildTracerEnvironment(repositoryRoot, jvmInfo, null);
+    return create(tracerEnvironment);
+  }
+
   @Override
-  public ExecutionSettings create(JvmInfo jvmInfo, @Nullable String moduleName) {
+  public ExecutionSettings create(@Nonnull JvmInfo jvmInfo, @Nullable String moduleName) {
     TracerEnvironment tracerEnvironment =
         buildTracerEnvironment(repositoryRoot, jvmInfo, moduleName);
-    CiVisibilitySettings ciVisibilitySettings = getCiVisibilitySettings(tracerEnvironment);
-
-    boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
-    boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
-    boolean testSkippingEnabled = isTestSkippingEnabled(ciVisibilitySettings);
-    boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
-    boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
-
-    LOGGER.info(
-        "CI Visibility settings ({}, {}):\n"
-            + "Intelligent Test Runner - {},\n"
-            + "Per-test code coverage - {},\n"
-            + "Tests skipping - {},\n"
-            + "Early flakiness detection - {},\n"
-            + "Auto test retries - {}",
-        repositoryRoot,
-        jvmInfo,
-        itrEnabled,
-        codeCoverageEnabled,
-        testSkippingEnabled,
-        earlyFlakeDetectionEnabled,
-        flakyTestRetriesEnabled);
-
-    String itrCorrelationId = null;
-    Map<String, Collection<TestIdentifier>> skippableTestsByModuleName = Collections.emptyMap();
-    Map<String, BitSet> skippableTestsCoverage = null;
-    if (itrEnabled && repositoryRoot != null) {
-      SkippableTests skippableTests =
-          getSkippableTests(Paths.get(repositoryRoot), tracerEnvironment);
-      if (skippableTests != null) {
-        itrCorrelationId = skippableTests.getCorrelationId();
-        skippableTestsByModuleName =
-            (Map<String, Collection<TestIdentifier>>)
-                groupTestsByModule(tracerEnvironment, skippableTests.getIdentifiers());
-        skippableTestsCoverage = skippableTests.getCoveredLinesByRelativeSourcePath();
-      }
-    }
-
-    Collection<TestIdentifier> flakyTests =
-        flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
-            ? getFlakyTests(tracerEnvironment)
-            : null;
-
-    Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
-        earlyFlakeDetectionEnabled ? getKnownTests(tracerEnvironment) : null;
-
-    return new ExecutionSettings(
-        itrEnabled,
-        codeCoverageEnabled,
-        testSkippingEnabled,
-        flakyTestRetriesEnabled,
-        // knownTests being null covers the following cases:
-        //  - early flake detection is disabled in remote settings
-        //  - early flake detection is disabled via local config killswitch
-        //  - the list of known tests could not be obtained
-        knownTestsByModuleName != null
-            ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
-            : EarlyFlakeDetectionSettings.DEFAULT,
-        itrCorrelationId,
-        skippableTestsByModuleName,
-        skippableTestsCoverage,
-        flakyTests,
-        knownTestsByModuleName);
+    Map<String, ExecutionSettings> settingsByModule = create(tracerEnvironment);
+    ExecutionSettings settings = settingsByModule.get(moduleName);
+    return settings != null ? settings : settingsByModule.get(DEFAULT_SETTINGS);
   }
 
   private TracerEnvironment buildTracerEnvironment(
@@ -141,6 +98,90 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         .runtimeVendor(jvmInfo.getVendor())
         .testBundle(moduleName)
         .build();
+  }
+
+  private @NotNull Map<String, ExecutionSettings> create(TracerEnvironment tracerEnvironment) {
+    CiVisibilitySettings ciVisibilitySettings = getCiVisibilitySettings(tracerEnvironment);
+
+    boolean itrEnabled = isItrEnabled(ciVisibilitySettings);
+    boolean codeCoverageEnabled = isCodeCoverageEnabled(ciVisibilitySettings);
+    boolean testSkippingEnabled = isTestSkippingEnabled(ciVisibilitySettings);
+    boolean flakyTestRetriesEnabled = isFlakyTestRetriesEnabled(ciVisibilitySettings);
+    boolean earlyFlakeDetectionEnabled = isEarlyFlakeDetectionEnabled(ciVisibilitySettings);
+
+    LOGGER.info(
+        "CI Visibility settings ({}, {}/{}/{}):\n"
+            + "Intelligent Test Runner - {},\n"
+            + "Per-test code coverage - {},\n"
+            + "Tests skipping - {},\n"
+            + "Early flakiness detection - {},\n"
+            + "Auto test retries - {}",
+        repositoryRoot,
+        tracerEnvironment.getConfigurations().getRuntimeName(),
+        tracerEnvironment.getConfigurations().getRuntimeVersion(),
+        tracerEnvironment.getConfigurations().getRuntimeVendor(),
+        itrEnabled,
+        codeCoverageEnabled,
+        testSkippingEnabled,
+        earlyFlakeDetectionEnabled,
+        flakyTestRetriesEnabled);
+
+    String itrCorrelationId = null;
+    Map<String, Map<TestIdentifier, TestMetadata>> skippableTestIdentifiers =
+        Collections.emptyMap();
+    Map<String, BitSet> skippableTestsCoverage = null;
+    if (itrEnabled && repositoryRoot != null) {
+      SkippableTests skippableTests =
+          getSkippableTests(Paths.get(repositoryRoot), tracerEnvironment);
+      if (skippableTests != null) {
+        itrCorrelationId = skippableTests.getCorrelationId();
+        skippableTestIdentifiers = skippableTests.getIdentifiersByModule();
+        skippableTestsCoverage = skippableTests.getCoveredLinesByRelativeSourcePath();
+      }
+    }
+
+    Map<String, Collection<TestIdentifier>> flakyTestsByModule =
+        flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
+            ? getFlakyTestsByModule(tracerEnvironment)
+            : null;
+
+    Map<String, Collection<TestIdentifier>> knownTestsByModule =
+        earlyFlakeDetectionEnabled ? getKnownTestsByModule(tracerEnvironment) : null;
+
+    Set<String> moduleNames = new HashSet<>(Collections.singleton(DEFAULT_SETTINGS));
+    moduleNames.addAll(skippableTestIdentifiers.keySet());
+    if (flakyTestsByModule != null) {
+      moduleNames.addAll(flakyTestsByModule.keySet());
+    }
+    if (knownTestsByModule != null) {
+      moduleNames.addAll(knownTestsByModule.keySet());
+    }
+
+    Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
+    for (String moduleName : moduleNames) {
+      settingsByModule.put(
+          moduleName,
+          new ExecutionSettings(
+              itrEnabled,
+              codeCoverageEnabled,
+              testSkippingEnabled,
+              flakyTestRetriesEnabled,
+              // knownTests being null covers the following cases:
+              //  - early flake detection is disabled in remote settings
+              //  - early flake detection is disabled via local config killswitch
+              //  - the list of known tests could not be obtained
+              knownTestsByModule != null
+                  ? ciVisibilitySettings.getEarlyFlakeDetectionSettings()
+                  : EarlyFlakeDetectionSettings.DEFAULT,
+              itrCorrelationId,
+              skippableTestIdentifiers.getOrDefault(moduleName, Collections.emptyMap()),
+              skippableTestsCoverage,
+              flakyTestsByModule != null
+                  ? flakyTestsByModule.getOrDefault(moduleName, Collections.emptyList())
+                  : null,
+              knownTestsByModule != null ? knownTestsByModule.get(moduleName) : null));
+    }
+    return settingsByModule;
   }
 
   private CiVisibilitySettings getCiVisibilitySettings(TracerEnvironment tracerEnvironment) {
@@ -199,7 +240,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       SkippableTests skippableTests = configurationApi.getSkippableTests(tracerEnvironment);
       LOGGER.debug(
           "Received {} skippable tests in total for {}",
-          skippableTests.getIdentifiers().size(),
+          skippableTests.getIdentifiersByModule().size(),
           repositoryRoot);
 
       return skippableTests;
@@ -215,44 +256,22 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     }
   }
 
-  private static Map<String, ? extends Collection<TestIdentifier>> groupTestsByModule(
-      TracerEnvironment tracerEnvironment, Collection<TestIdentifier> tests) {
-    Configurations configurations = tracerEnvironment.getConfigurations();
-    String configurationsBundle = configurations.getTestBundle();
-    String defaultBundle = configurationsBundle != null ? configurationsBundle : "";
-    return tests.stream()
-        .collect(
-            Collectors.groupingBy(
-                t ->
-                    t.getConfigurations() != null && t.getConfigurations().getTestBundle() != null
-                        ? t.getConfigurations().getTestBundle()
-                        : defaultBundle,
-                Collectors.toSet()));
-  }
-
-  private Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {
+  private Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(
+      TracerEnvironment tracerEnvironment) {
     try {
-      Collection<TestIdentifier> flakyTests = configurationApi.getFlakyTests(tracerEnvironment);
-      LOGGER.debug("Received {} flaky tests in total for {}", flakyTests.size(), repositoryRoot);
-      return flakyTests;
+      return configurationApi.getFlakyTestsByModule(tracerEnvironment);
 
     } catch (Exception e) {
       LOGGER.error(
           "Could not obtain list of flaky tests, flaky test retries will not be available", e);
-      return Collections.emptyList();
+      return Collections.emptyMap();
     }
   }
 
-  private Map<String, Collection<TestIdentifier>> getKnownTests(
+  private Map<String, Collection<TestIdentifier>> getKnownTestsByModule(
       TracerEnvironment tracerEnvironment) {
     try {
-      Map<String, Collection<TestIdentifier>> knownTestsByModuleName =
-          configurationApi.getKnownTestsByModuleName(tracerEnvironment);
-      LOGGER.debug(
-          "Received known tests for {} modules for {}",
-          knownTestsByModuleName.size(),
-          repositoryRoot);
-      return knownTestsByModuleName;
+      return configurationApi.getKnownTestsByModule(tracerEnvironment);
 
     } catch (Exception e) {
       LOGGER.error(

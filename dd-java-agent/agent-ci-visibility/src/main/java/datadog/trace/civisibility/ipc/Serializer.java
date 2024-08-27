@@ -21,6 +21,10 @@ public class Serializer {
     baos.write(b);
   }
 
+  public void write(boolean b) {
+    baos.write((byte) (b ? 1 : 0));
+  }
+
   public void write(int i) {
     baos.write(i >> 24);
     baos.write(i >> 16);
@@ -104,6 +108,11 @@ public class Serializer {
 
   public static byte readByte(ByteBuffer byteBuffer) {
     return byteBuffer.get();
+  }
+
+  public static boolean readBoolean(ByteBuffer byteBuffer) {
+    byte b = byteBuffer.get();
+    return b == 1;
   }
 
   public static int readInt(ByteBuffer byteBuffer) {

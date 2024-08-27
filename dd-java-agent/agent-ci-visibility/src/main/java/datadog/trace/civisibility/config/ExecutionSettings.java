@@ -1,13 +1,12 @@
 package datadog.trace.civisibility.config;
 
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.civisibility.ipc.Serializer;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -35,10 +34,10 @@ public class ExecutionSettings {
   private final boolean flakyTestRetriesEnabled;
   @Nonnull private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   @Nullable private final String itrCorrelationId;
-  @Nonnull private final Map<String, Collection<TestIdentifier>> skippableTestsByModule;
+  @Nonnull private final Map<TestIdentifier, TestMetadata> skippableTests;
   @Nullable private final Map<String, BitSet> skippableTestsCoverage;
   @Nullable private final Collection<TestIdentifier> flakyTests;
-  @Nullable private final Map<String, Collection<TestIdentifier>> knownTestsByModule;
+  @Nullable private final Collection<TestIdentifier> knownTests;
 
   public ExecutionSettings(
       boolean itrEnabled,
@@ -47,20 +46,20 @@ public class ExecutionSettings {
       boolean flakyTestRetriesEnabled,
       @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       @Nullable String itrCorrelationId,
-      @Nonnull Map<String, Collection<TestIdentifier>> skippableTestsByModule,
+      @Nonnull Map<TestIdentifier, TestMetadata> skippableTests,
       @Nullable Map<String, BitSet> skippableTestsCoverage,
       @Nullable Collection<TestIdentifier> flakyTests,
-      @Nullable Map<String, Collection<TestIdentifier>> knownTestsByModule) {
+      @Nullable Collection<TestIdentifier> knownTests) {
     this.itrEnabled = itrEnabled;
     this.codeCoverageEnabled = codeCoverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
     this.flakyTestRetriesEnabled = flakyTestRetriesEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.itrCorrelationId = itrCorrelationId;
-    this.skippableTestsByModule = skippableTestsByModule;
+    this.skippableTests = skippableTests;
     this.skippableTestsCoverage = skippableTestsCoverage;
     this.flakyTests = flakyTests;
-    this.knownTestsByModule = knownTestsByModule;
+    this.knownTests = knownTests;
   }
 
   /**
@@ -100,8 +99,8 @@ public class ExecutionSettings {
   }
 
   @Nonnull
-  public Collection<TestIdentifier> getSkippableTests(String moduleName) {
-    return skippableTestsByModule.getOrDefault(moduleName, Collections.emptyList());
+  public Map<TestIdentifier, TestMetadata> getSkippableTests() {
+    return skippableTests;
   }
 
   /**
@@ -109,14 +108,12 @@ public class ExecutionSettings {
    *     tests could not be obtained
    */
   @Nullable
-  public Collection<TestIdentifier> getKnownTests(String moduleName) {
-    return knownTestsByModule != null
-        ? knownTestsByModule.getOrDefault(moduleName, Collections.emptyList())
-        : null;
+  public Collection<TestIdentifier> getKnownTests() {
+    return knownTests;
   }
 
   @Nullable
-  public Collection<TestIdentifier> getFlakyTests(String moduleName) {
+  public Collection<TestIdentifier> getFlakyTests() {
     // backend does not store module info for flaky tests yet
     return flakyTests;
   }
@@ -131,10 +128,10 @@ public class ExecutionSettings {
         && testSkippingEnabled == that.testSkippingEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
         && Objects.equals(itrCorrelationId, that.itrCorrelationId)
-        && Objects.equals(skippableTestsByModule, that.skippableTestsByModule)
+        && Objects.equals(skippableTests, that.skippableTests)
         && Objects.equals(skippableTestsCoverage, that.skippableTestsCoverage)
         && Objects.equals(flakyTests, that.flakyTests)
-        && Objects.equals(knownTestsByModule, that.knownTestsByModule);
+        && Objects.equals(knownTests, that.knownTests);
   }
 
   @Override
@@ -145,10 +142,10 @@ public class ExecutionSettings {
         testSkippingEnabled,
         earlyFlakeDetectionSettings,
         itrCorrelationId,
-        skippableTestsByModule,
+        skippableTests,
         skippableTestsCoverage,
         flakyTests,
-        knownTestsByModule);
+        knownTests);
   }
 
   public static class ExecutionSettingsSerializer {
@@ -173,18 +170,16 @@ public class ExecutionSettings {
 
       s.write(settings.itrCorrelationId);
       s.write(
-          settings.skippableTestsByModule,
-          Serializer::write,
-          (sr, c) -> sr.write(c, TestIdentifierSerializer::serialize));
+          settings.skippableTests,
+          TestIdentifierSerializer::serialize,
+          TestMetadataSerializer::serialize);
+
       s.write(
           settings.skippableTestsCoverage,
           Serializer::write,
           ExecutionSettingsSerializer::writeBitSet);
       s.write(settings.flakyTests, TestIdentifierSerializer::serialize);
-      s.write(
-          settings.knownTestsByModule,
-          Serializer::write,
-          (sr, c) -> sr.write(c, TestIdentifierSerializer::serialize));
+      s.write(settings.knownTests, TestIdentifierSerializer::serialize);
 
       return s.flush();
     }
@@ -200,21 +195,18 @@ public class ExecutionSettings {
           EarlyFlakeDetectionSettingsSerializer.deserialize(buffer);
 
       String itrCorrelationId = Serializer.readString(buffer);
-      Map<String, Collection<TestIdentifier>> skippableTestsByModule =
+
+      Map<TestIdentifier, TestMetadata> skippableTests =
           Serializer.readMap(
-              buffer,
-              Serializer::readString,
-              b -> Serializer.readSet(b, TestIdentifierSerializer::deserialize));
+              buffer, TestIdentifierSerializer::deserialize, TestMetadataSerializer::deserialize);
+
       Map<String, BitSet> skippableTestsCoverage =
           Serializer.readMap(
               buffer, Serializer::readString, ExecutionSettingsSerializer::readBitSet);
-      List<TestIdentifier> flakyTests =
-          Serializer.readList(buffer, TestIdentifierSerializer::deserialize);
-      Map<String, Collection<TestIdentifier>> knownTestsByModule =
-          Serializer.readMap(
-              buffer,
-              Serializer::readString,
-              b -> Serializer.readList(b, TestIdentifierSerializer::deserialize));
+      Collection<TestIdentifier> flakyTests =
+          Serializer.readSet(buffer, TestIdentifierSerializer::deserialize);
+      Collection<TestIdentifier> knownTests =
+          Serializer.readSet(buffer, TestIdentifierSerializer::deserialize);
 
       return new ExecutionSettings(
           itrEnabled,
@@ -223,10 +215,10 @@ public class ExecutionSettings {
           flakyTestRetriesEnabled,
           earlyFlakeDetectionSettings,
           itrCorrelationId,
-          skippableTestsByModule,
+          skippableTests,
           skippableTestsCoverage,
           flakyTests,
-          knownTestsByModule);
+          knownTests);
     }
 
     private static void writeBitSet(Serializer serializer, BitSet bitSet) {

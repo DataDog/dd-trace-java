@@ -7,7 +7,7 @@ import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
-import datadog.trace.api.civisibility.coverage.CoverageBridge;
+import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -31,6 +31,7 @@ import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
+import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
 import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
@@ -99,7 +100,7 @@ public class CiVisibilitySystem {
       InstrumentationBridge.registerTestEventsHandlerFactory(
           new TestEventsHandlerFactory(
               services, repoServices, coverageServices, executionSettings));
-      CoverageBridge.registerCoverageStoreRegistry(coverageServices.coverageStoreFactory);
+      CoveragePerTestBridge.registerCoverageStoreRegistry(coverageServices.coverageStoreFactory);
     }
   }
 
@@ -223,6 +224,8 @@ public class CiVisibilitySystem {
       long parentProcessModuleId = ProcessHierarchyUtils.getParentModuleId();
 
       TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
+      ExecutionStrategy executionStrategy =
+          new ExecutionStrategy(services.config, executionSettings);
       return new ProxyTestSession(
           parentProcessSessionId,
           parentProcessModuleId,
@@ -235,7 +238,7 @@ public class CiVisibilitySystem {
           coverageServices.coverageStoreFactory,
           coverageServices.coverageReporter,
           services.signalClientFactory,
-          executionSettings);
+          executionStrategy);
     };
   }
 
@@ -248,6 +251,8 @@ public class CiVisibilitySystem {
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
       TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
+      ExecutionStrategy executionStrategy =
+          new ExecutionStrategy(services.config, executionSettings);
       return new HeadlessTestSession(
           projectName,
           startTime,
@@ -259,7 +264,7 @@ public class CiVisibilitySystem {
           repoServices.codeowners,
           services.methodLinesResolver,
           coverageServices.coverageStoreFactory,
-          executionSettings);
+          executionStrategy);
     };
   }
 

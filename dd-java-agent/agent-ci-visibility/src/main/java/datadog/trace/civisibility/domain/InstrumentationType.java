@@ -1,4 +1,4 @@
-package datadog.trace.civisibility;
+package datadog.trace.civisibility.domain;
 
 import datadog.trace.api.civisibility.CIVisibility;
 

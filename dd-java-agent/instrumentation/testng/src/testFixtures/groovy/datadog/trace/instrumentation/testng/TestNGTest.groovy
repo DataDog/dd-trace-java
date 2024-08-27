@@ -98,14 +98,14 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                              | tests                     | expectedTracesCount | skippedTests
     "test-itr-skipping"                       | [TestFailedAndSucceed]    | 4                   | [
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null, null),
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null, null)
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null),
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null)
     ]
     "test-itr-skipping-parameterized"         | [TestParameterized]       | 3                   | [
-      new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", '{"arguments":{"0":"hello","1":"true"}}', null)
+      new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", '{"arguments":{"0":"hello","1":"true"}}')
     ]
-    "test-itr-skipping-factory-data-provider" | [TestSucceedDataProvider] | 2                   | [new TestIdentifier("org.example.TestSucceedDataProvider", "testMethod", null, null)]
-    "test-itr-unskippable"                    | [TestSucceedUnskippable]  | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null, null)]
+    "test-itr-skipping-factory-data-provider" | [TestSucceedDataProvider] | 2                   | [new TestIdentifier("org.example.TestSucceedDataProvider", "testMethod", null)]
+    "test-itr-unskippable"                    | [TestSucceedUnskippable]  | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
     "test-itr-unskippable-not-skipped"        | [TestSucceedUnskippable]  | 2                   | []
   }
 
@@ -118,11 +118,11 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                            | tests                     | expectedTracesCount | retriedTests
     "test-failed-${version()}"              | [TestFailed]              | 2                   | []
-    "test-skipped"                          | [TestSkipped]             | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null, null)]
-    "test-retry-failed-${version()}"        | [TestFailed]              | 6                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null, null)]
-    "test-retry-error"                      | [TestError]               | 6                   | [new TestIdentifier("org.example.TestError", "test_error", null, null)]
-    "test-retry-parameterized"              | [TestFailedParameterized] | 7                   | [new TestIdentifier("org.example.TestFailedParameterized", "parameterized_test_succeed", null, null)]
-    "test-failed-then-succeed-${version()}" | [TestFailedThenSucceed]   | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed", null, null)]
+    "test-skipped"                          | [TestSkipped]             | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
+    "test-retry-failed-${version()}"        | [TestFailed]              | 6                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-retry-error"                      | [TestError]               | 6                   | [new TestIdentifier("org.example.TestError", "test_error", null)]
+    "test-retry-parameterized"              | [TestFailedParameterized] | 7                   | [new TestIdentifier("org.example.TestFailedParameterized", "parameterized_test_succeed", null)]
+    "test-failed-then-succeed-${version()}" | [TestFailedThenSucceed]   | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -136,13 +136,13 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null, null)]
-    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null, null)]
+    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
+    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null)]
     "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
     "test-efd-new-parameterized-test"   | [TestParameterized]    | 7                   | []
     "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | 6                   | [
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null, null),
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null, null)
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null),
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null)
     ]
     "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
     "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | 2                   | [] // is executed only once

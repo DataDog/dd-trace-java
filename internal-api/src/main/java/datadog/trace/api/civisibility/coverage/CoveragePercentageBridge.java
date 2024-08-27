@@ -3,7 +3,7 @@ package datadog.trace.api.civisibility.coverage;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
-public abstract class JacocoCoverageBridge {
+public abstract class CoveragePercentageBridge {
 
   private static volatile Supplier<byte[]> JACOCO_COVERAGE_DATA_SUPPLIER;
 

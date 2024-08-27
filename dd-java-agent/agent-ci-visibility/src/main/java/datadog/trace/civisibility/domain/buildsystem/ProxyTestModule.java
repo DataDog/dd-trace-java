@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
@@ -9,28 +8,24 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
 import datadog.trace.civisibility.decorator.TestDecorator;
+import datadog.trace.civisibility.domain.InstrumentationType;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.ipc.ModuleExecutionResult;
 import datadog.trace.civisibility.ipc.ModuleSignal;
 import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.TestFramework;
-import datadog.trace.civisibility.retry.NeverRetry;
-import datadog.trace.civisibility.retry.RetryIfFailed;
-import datadog.trace.civisibility.retry.RetryNTimes;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.test.ExecutionStrategy;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -48,7 +43,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final long parentProcessSessionId;
   private final long parentProcessModuleId;
   private final String moduleName;
-  private final String itrCorrelationId;
+  private final ExecutionStrategy executionStrategy;
   private final SignalClient.Factory signalClientFactory;
   private final ChildProcessCoverageReporter childProcessCoverageReporter;
   private final Config config;
@@ -58,22 +53,13 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
-  private final LongAdder testsSkipped = new LongAdder();
-  private final Collection<TestIdentifier> skippableTests;
-  private final boolean testSkippingEnabled;
-  private final boolean flakyTestRetriesEnabled;
-  @Nullable private final Collection<TestIdentifier> flakyTests;
-  private final Collection<TestIdentifier> knownTests;
-  private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
-  private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
-  private final AtomicInteger autoRetriesUsed = new AtomicInteger(0);
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
   public ProxyTestModule(
       long parentProcessSessionId,
       long parentProcessModuleId,
       String moduleName,
-      ExecutionSettings executionSettings,
+      ExecutionStrategy executionStrategy,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -86,6 +72,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.parentProcessSessionId = parentProcessSessionId;
     this.parentProcessModuleId = parentProcessModuleId;
     this.moduleName = moduleName;
+    this.executionStrategy = executionStrategy;
     this.signalClientFactory = signalClientFactory;
     this.childProcessCoverageReporter = childProcessCoverageReporter;
     this.config = config;
@@ -94,67 +81,28 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.itrCorrelationId = executionSettings.getItrCorrelationId();
-
-    this.testSkippingEnabled = executionSettings.isTestSkippingEnabled();
-    this.skippableTests = executionSettings.getSkippableTests(moduleName);
     this.coverageStoreFactory = coverageStoreFactory;
-
-    this.flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
-    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
-    this.flakyTests = flakyTests != null ? new HashSet<>(flakyTests) : null;
-
-    Collection<TestIdentifier> moduleKnownTests = executionSettings.getKnownTests(moduleName);
-    this.knownTests = moduleKnownTests != null ? new HashSet<>(moduleKnownTests) : null;
-
-    this.earlyFlakeDetectionSettings = executionSettings.getEarlyFlakeDetectionSettings();
   }
 
   @Override
   public boolean isNew(TestIdentifier test) {
-    return knownTests != null && !knownTests.contains(test.withoutParameters());
+    return executionStrategy.isNew(test);
   }
 
   @Override
   public boolean shouldBeSkipped(TestIdentifier test) {
-    return testSkippingEnabled && test != null && skippableTests.contains(test);
+    return executionStrategy.shouldBeSkipped(test);
   }
 
   @Override
   public boolean skip(TestIdentifier test) {
-    if (shouldBeSkipped(test)) {
-      testsSkipped.increment();
-      return true;
-    } else {
-      return false;
-    }
+    return executionStrategy.skip(test);
   }
 
   @Override
   @Nonnull
   public TestRetryPolicy retryPolicy(TestIdentifier test) {
-    if (test != null) {
-      if (earlyFlakeDetectionSettings.isEnabled()
-          && !knownTests.contains(test.withoutParameters())
-          && !earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.incrementAndGet())) {
-        return new RetryNTimes(earlyFlakeDetectionSettings);
-      }
-      if (flakyTestRetriesEnabled
-          && (flakyTests == null || flakyTests.contains(test.withoutParameters()))
-          && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount()) {
-        return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount(), autoRetriesUsed);
-      }
-    }
-    return NeverRetry.INSTANCE;
-  }
-
-  private boolean earlyFlakeDetectionLimitReached(int earlyFlakeDetectionsUsed) {
-    int totalTests = knownTests.size() + earlyFlakeDetectionsUsed;
-    int threshold =
-        Math.max(
-            config.getCiVisibilityEarlyFlakeDetectionLowerLimit(),
-            totalTests * earlyFlakeDetectionSettings.getFaultySessionThreshold() / 100);
-    return earlyFlakeDetectionsUsed > threshold;
+    return executionStrategy.retryPolicy(test);
   }
 
   @Override
@@ -175,11 +123,14 @@ public class ProxyTestModule implements TestFrameworkModule {
 
       boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
       boolean testSkippingEnabled = config.isCiVisibilityTestSkippingEnabled();
+
+      ExecutionSettings executionSettings = executionStrategy.getExecutionSettings();
+      EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
+          executionSettings.getEarlyFlakeDetectionSettings();
       boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
       boolean earlyFlakeDetectionFaulty =
-          earlyFlakeDetectionEnabled
-              && earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.get());
-      long testsSkippedTotal = testsSkipped.sum();
+          earlyFlakeDetectionEnabled && executionStrategy.isEarlyFlakeDetectionLimitReached();
+      long testsSkippedTotal = executionStrategy.getTestsSkipped();
 
       signalClient.send(
           new ModuleExecutionResult(
@@ -210,7 +161,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         parentProcessModuleId,
         moduleName,
         testSuiteName,
-        itrCorrelationId,
+        executionStrategy.getExecutionSettings().getItrCorrelationId(),
         testClass,
         startTime,
         parallelized,

@@ -3,7 +3,6 @@ package datadog.trace.civisibility.domain.buildsystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -12,7 +11,6 @@ import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReas
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.ExecutionSettingsFactory;
@@ -21,6 +19,7 @@ import datadog.trace.civisibility.coverage.percentage.CoverageCalculator;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.BuildSystemSession;
+import datadog.trace.civisibility.domain.InstrumentationType;
 import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ExecutionSettingsRequest;
 import datadog.trace.civisibility.ipc.ExecutionSettingsResponse;
@@ -39,7 +38,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -163,35 +161,10 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
   private SignalResponse onExecutionSettingsRequestReceived(ExecutionSettingsRequest request) {
     try {
       JvmInfo jvmInfo = request.getJvmInfo();
-      ExecutionSettings settings = executionSettingsFactory.create(jvmInfo, null);
-
       String moduleName = request.getModuleName();
-      Collection<TestIdentifier> skippableTestsForModule = settings.getSkippableTests(moduleName);
-      Map<String, Collection<TestIdentifier>> skippableTests =
-          !skippableTestsForModule.isEmpty()
-              ? Collections.singletonMap(moduleName, skippableTestsForModule)
-              : Collections.emptyMap();
+      ExecutionSettings settings = executionSettingsFactory.create(jvmInfo, moduleName);
+      return new ExecutionSettingsResponse(settings);
 
-      Collection<TestIdentifier> knownTestsForModule = settings.getKnownTests(moduleName);
-      Map<String, Collection<TestIdentifier>> knownTests =
-          knownTestsForModule != null
-              ? Collections.singletonMap(moduleName, knownTestsForModule)
-              : null;
-
-      ExecutionSettings executionSettings =
-          new ExecutionSettings(
-              settings.isItrEnabled(),
-              settings.isCodeCoverageEnabled(),
-              settings.isTestSkippingEnabled(),
-              settings.isFlakyTestRetriesEnabled(),
-              settings.getEarlyFlakeDetectionSettings(),
-              settings.getItrCorrelationId(),
-              skippableTests,
-              settings.getSkippableTestsCoverage(),
-              settings.getFlakyTests(moduleName),
-              knownTests);
-
-      return new ExecutionSettingsResponse(executionSettings);
     } catch (Exception e) {
       return new ErrorResponse("Error while getting module execution settings: " + e.getMessage());
     }
@@ -203,7 +176,7 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
       @Nullable Long startTime,
       BuildModuleLayout moduleLayout,
       JvmInfo jvmInfo) {
-    ExecutionSettings executionSettings = executionSettingsFactory.create(jvmInfo, null);
+    ExecutionSettings executionSettings = executionSettingsFactory.create(jvmInfo, moduleName);
     return new BuildSystemModuleImpl(
         span.context(),
         span.getSpanId(),

@@ -77,9 +77,6 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
         BuildModuleLayout moduleLayout,
         ExecutionSettings executionSettings,
         JacocoCoverageCalculator sessionCoverage) {
-      // FIXME nikita: check the "line_data_missing" attribute to determine that module's coverage
-      // cannot be calculated
-      // FIXME nikita: also signal to the session that coverage cannot be calculated
       return new JacocoCoverageCalculator(
           config,
           repoIndexProvider,

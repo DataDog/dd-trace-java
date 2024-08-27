@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.Pair;
-import datadog.trace.api.civisibility.coverage.CoverageBridge;
+import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -127,7 +127,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
         null,
         JUnitPlatformUtils.isRetry(testDescriptor));
 
-    CoverageBridge.recordCoverage(classpathResourceName);
+    CoveragePerTestBridge.recordCoverage(classpathResourceName);
   }
 
   private void testCaseExecutionFinished(
