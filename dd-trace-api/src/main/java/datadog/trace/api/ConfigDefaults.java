@@ -103,7 +103,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_API_SECURITY_ENABLED = false;
   static final float DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE = 0.1f; // 10 %
   static final boolean DEFAULT_APPSEC_RASP_ENABLED = false;
-  static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = false;
+  static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH = 32;
   static final String DEFAULT_IAST_ENABLED = "false";

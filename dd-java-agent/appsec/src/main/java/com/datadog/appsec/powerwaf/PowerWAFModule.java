@@ -477,11 +477,14 @@ public class PowerWAFModule implements AppSecModule {
           } else if ("redirect_request".equals(actionInfo.type)) {
             Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
             flow.setAction(rba);
-          } else if ("generate_stack".equals(actionInfo.type)
-              && Config.get().isAppSecStackTraceEnabled()) {
-            String stackId = (String) actionInfo.parameters.get("stack_id");
-            StackTraceEvent stackTraceEvent = createExploitStackTraceEvent(stackId);
-            reqCtx.reportStackTrace(stackTraceEvent);
+          } else if ("generate_stack".equals(actionInfo.type)) {
+            if (Config.get().isAppSecStackTraceEnabled()) {
+              String stackId = (String) actionInfo.parameters.get("stack_id");
+              StackTraceEvent stackTraceEvent = createExploitStackTraceEvent(stackId);
+              reqCtx.reportStackTrace(stackTraceEvent);
+            } else {
+              log.debug("Ignoring action with type generate_stack (disabled by config)");
+            }
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
           }
