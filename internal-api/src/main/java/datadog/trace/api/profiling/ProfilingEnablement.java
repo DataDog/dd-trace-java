@@ -3,11 +3,16 @@ package datadog.trace.api.profiling;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public enum ProfilingEnablement {
   ENABLED(true, "manual"),
   DISABLED(false),
   AUTO(true),
   INJECTED(true);
+
+  private static final Logger logger = LoggerFactory.getLogger(Profiling.class);
 
   private final boolean active;
   private final String source;
@@ -51,6 +56,26 @@ public enum ProfilingEnablement {
         return AUTO;
       default:
         return DISABLED;
+    }
+  }
+
+  public static void validate(String value) {
+    if (value == null) {
+      return;
+    }
+    switch (value.toLowerCase()) {
+      case "false":
+      case "true":
+      case "auto":
+        return;
+        // values 1 and 0 are accepted for backwards compatibility
+      case "1":
+      case "0":
+        return;
+      default:
+        logger.warn(
+            "Invalid value for 'dd.profiling.enabled' (DD_PROFILING_ENABLED) detected: {}. Valid values are 'true', 'false' and 'auto'.",
+            value);
     }
   }
 }
