@@ -23,6 +23,8 @@ dependencies {
   testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring-scheduling-3.1')
+  testImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
 
   // IAST testing dependencies
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
@@ -38,7 +40,7 @@ dependencies {
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.+'
   latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.19.+'
-  latestDepTestImplementation deps.guava
+  latestDepTestImplementation libs.guava
 
   // Add kafka version 3.x for IAST
   iastLatestDepTest3Implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.+'
@@ -48,6 +50,8 @@ dependencies {
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java-io')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastLatestDepTest3Implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.3')
+  iastLatestDepTest3Implementation(testFixtures(project(':dd-java-agent:agent-iast')))
+
 }
 
 configurations.testRuntimeClasspath {

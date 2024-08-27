@@ -1,0 +1,4 @@
+datadog.trace.agent.test.TestIndexMultiModule
+datadog.trace.agent.test.TestIndexLastModule
+datadog.trace.agent.test.TestIndexFirstModule
+datadog.trace.agent.test.TestIndexSelfModule

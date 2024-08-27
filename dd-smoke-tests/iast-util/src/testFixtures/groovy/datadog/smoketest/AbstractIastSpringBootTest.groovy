@@ -5,6 +5,7 @@ import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 
 import static datadog.trace.api.config.IastConfig.IAST_DEBUG_ENABLED
 import static datadog.trace.api.config.IastConfig.IAST_DETECTION_MODE
@@ -86,7 +87,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     !logHasErrors
   }
 
-  void 'Multipart Request parameters'(){
+  void 'Multipart Request parameters'() {
     given:
     String url = "http://localhost:${httpPort}/multipart"
 
@@ -113,7 +114,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
   }
 
-  void 'Multipart Request original file name'(){
+  void 'Multipart Request original file name'() {
     given:
     String url = "http://localhost:${httpPort}/multipart"
 
@@ -431,23 +432,23 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'XSS' && vul.location.method == method }
 
     where:
-    method     | param
-    'write'    | 'test'
-    'write2'   | 'test'
-    'write3'   | 'test'
-    'write4'   | 'test'
-    'print'    | 'test'
-    'print2'   | 'test'
-    'println'  | 'test'
-    'println2' | 'test'
-    'printf'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
-    'printf2'  | 'test'
-    'printf3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
-    'printf4'  | 'test'
-    'format'   | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
-    'format2'  | 'test'
-    'format3'  | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
-    'format4'  | 'test'
+    method         | param
+    'write'        | 'test'
+    'write2'       | 'test'
+    'write3'       | 'test'
+    'write4'       | 'test'
+    'print'        | 'test'
+    'print2'       | 'test'
+    'println'      | 'test'
+    'println2'     | 'test'
+    'printf'       | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf2'      | 'test'
+    'printf3'      | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'printf4'      | 'test'
+    'format'       | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format2'      | 'test'
+    'format3'      | 'Formatted%20like%3A%20%251%24s%20and%20%252%24s.'
+    'format4'      | 'test'
     'responseBody' | 'test'
   }
 
@@ -680,14 +681,35 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
   void 'ssrf is present'() {
     setup:
     final url = "http://localhost:${httpPort}/ssrf"
-    final body = new FormBody.Builder().add('url', 'https://dd.datad0g.com/').build()
+    final body = new FormBody.Builder().add(parameter, value).build()
     final request = new Request.Builder().url(url).post(body).build()
 
     when:
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'SSRF' }
+    hasVulnerability { vul ->
+      if (vul.type != 'SSRF') {
+        return false
+      }
+      final parts = vul.evidence.valueParts
+      if (parameter == 'url') {
+        return parts.size() == 1
+        && parts[0].value == value && parts[0].source.origin == 'http.request.parameter' && parts[0].source.name == parameter
+      } else if (parameter == 'host') {
+        return parts.size() == 3
+        && parts[0].value == 'https://' && parts[0].source == null
+        && parts[1].value == value && parts[1].source.origin == 'http.request.parameter' && parts[1].source.name == parameter
+        && parts[2].value == ':443/test' && parts[2].source == null
+      } else {
+        throw new IllegalArgumentException("Parameter $parameter not supported")
+      }
+    }
+
+    where:
+    parameter | value
+    'url'     | 'https://dd.datad0g.com/'
+    'host'    | 'dd.datad0g.com'
   }
 
   void 'test iast metrics stored in spans'() {
@@ -854,7 +876,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
   }
 
-  void 'header injection'(){
+  void 'header injection'() {
     setup:
     final url = "http://localhost:${httpPort}/header_injection?param=test"
     final request = new Request.Builder().url(url).get().build()
@@ -866,7 +888,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'HEADER_INJECTION' }
   }
 
-  void 'header injection exclusion'(){
+  void 'header injection exclusion'() {
     setup:
     final url = "http://localhost:${httpPort}/header_injection_exclusion?param=testExclusion"
     final request = new Request.Builder().url(url).get().build()
@@ -875,10 +897,10 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    noVulnerability { vul -> vul.type == 'HEADER_INJECTION'}
+    noVulnerability { vul -> vul.type == 'HEADER_INJECTION' }
   }
 
-  void 'header injection redaction'(){
+  void 'header injection redaction'() {
     setup:
     String bearer = URLEncoder.encode("Authorization: bearer 12345644", "UTF-8")
     final url = "http://localhost:${httpPort}/header_injection_redaction?param=" + bearer
@@ -913,7 +935,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+    hasVulnerability { vul ->
+      vul.type == 'REFLECTION_INJECTION'
       && vul.location.method == 'reflectionInjectionClass'
       && vul.evidence.valueParts[0].value == "java.lang.String"
     }
@@ -928,7 +951,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+    hasVulnerability { vul ->
+      vul.type == 'REFLECTION_INJECTION'
       && vul.location.method == 'reflectionInjectionMethod'
       && vul.evidence.valueParts[0].value == "java.lang.String#"
       && vul.evidence.valueParts[1].value == "isEmpty"
@@ -945,7 +969,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+    hasVulnerability { vul ->
+      vul.type == 'REFLECTION_INJECTION'
       && vul.location.method == 'reflectionInjectionField'
       && vul.evidence.valueParts[0].value == "java.lang.String#"
       && vul.evidence.valueParts[1].value == "hash"
@@ -961,13 +986,154 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul -> vul.type == 'REFLECTION_INJECTION'
+    hasVulnerability { vul ->
+      vul.type == 'REFLECTION_INJECTION'
       && vul.location.method == 'reflectionInjectionLookup'
       && vul.evidence.valueParts[0].value == "java.lang.String#"
       && vul.evidence.valueParts[1].value == "hash"
     }
   }
 
+  void 'find session rewriting'() {
+    given:
+    String url = "http://localhost:${httpPort}/greeting"
+
+    when:
+    Response response = client.newCall(new Request.Builder().url(url).get().build()).execute()
+
+    then:
+    response.successful
+    hasVulnerabilityInLogs { vul ->
+      vul.type == 'SESSION_REWRITING'
+    }
+  }
+
+  void 'untrusted deserialization for an input stream'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray())
+    final request = new Request.Builder().url(url).post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
+  void 'untrusted deserialization for a servlet file upload which calls parseRequest'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/parse_request"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+      .build()
+    final request = new Request.Builder().url(url).post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
+  void 'untrusted deserialization for a servlet file upload which calls parseParameterMap'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/parse_parameter_map"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+      .build()
+    final request = new Request.Builder().url(url).post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
+  void 'untrusted deserialization for a servlet file upload which calls getItemIterator'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/get_item_iterator"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+      .build()
+    final request = new Request.Builder().url(url)
+      .post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
+  void 'untrusted deserialization for a multipart file'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/multipart"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+      .build()
+    final request = new Request.Builder().url(url)
+      .post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
+  void 'untrusted deserialization for a part'() {
+    setup:
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/part"
+    ByteArrayOutputStream baos = new ByteArrayOutputStream()
+    ObjectOutputStream oos = new ObjectOutputStream(baos)
+    oos.writeObject("This is a test object.")
+    RequestBody requestBody = new MultipartBody.Builder().setType(MultipartBody.FORM)
+      .addFormDataPart("file", "test.txt",
+      RequestBody.create(MediaType.parse("application/octet-stream"), baos.toByteArray()))
+      .build()
+    final request = new Request.Builder().url(url)
+      .post(requestBody).build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
+
+  void 'untrusted deserialization for snakeyaml with a string'() {
+    setup:
+    final String yaml = "test"
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/snakeyaml?yaml=${yaml}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    hasVulnerability { vul -> vul.type == 'UNTRUSTED_DESERIALIZATION' }
+  }
 
 
 }

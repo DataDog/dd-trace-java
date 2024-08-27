@@ -60,6 +60,9 @@ public final class Memoizer {
 
   private static final boolean namesAreUnique = InstrumenterConfig.get().isResolverNamesAreUnique();
 
+  // compact filter recording uninteresting types
+  private static final NoMatchFilter noMatchFilter = new NoMatchFilter();
+
   // caches positive memoized matches
   private static final TypeInfoCache<BitSet> memos =
       new TypeInfoCache<>(InstrumenterConfig.get().getResolverMemoPoolSize(), namesAreUnique);
@@ -83,7 +86,7 @@ public final class Memoizer {
   public static void resetState() {
     // no need to reset the state if we haven't added any external matchers
     if (matchers.size() > INTERNAL_MATCHERS) {
-      NoMatchFilter.clear();
+      noMatchFilter.clear();
       Memoizer.clear();
     }
   }
@@ -98,7 +101,7 @@ public final class Memoizer {
 
   /** Prepares a matcher for memoization. */
   static <T> MemoizingMatcher prepare(
-      MatcherKind kind, ElementMatcher.Junction<T> matcher, boolean inherited) {
+      MatcherKind kind, ElementMatcher<T> matcher, boolean inherited) {
 
     MemoizingMatcher memoizingMatcher =
         memoizingMatcherCache.computeIfAbsent(matcher, Memoizer::withMatcherId);
@@ -151,7 +154,7 @@ public final class Memoizer {
     @Override
     protected boolean doMatch(TypeDescription target) {
       String targetName = target.getName();
-      if (NoMatchFilter.contains(targetName)
+      if (noMatchFilter.contains(targetName)
           || "java.lang.Object".equals(targetName)
           || target.isPrimitive()) {
         return false;
@@ -162,7 +165,7 @@ public final class Memoizer {
   }
 
   static BitSet memoizeHierarchy(TypeDescription type, Map<String, BitSet> localMemos) {
-    if (NoMatchFilter.contains(type.getName())) {
+    if (noMatchFilter.contains(type.getName())) {
       return NO_MATCH;
     } else {
       return doMemoize(type, localMemos);
@@ -229,7 +232,7 @@ public final class Memoizer {
 
     // update no-match filter if there's no interesting matches and result is complete
     if (memo.nextSetBit(INTERNAL_MATCHERS) < 0 && !memo.get(isPartial.matcherId)) {
-      NoMatchFilter.add(name);
+      noMatchFilter.add(name);
       return NO_MATCH;
     }
 
@@ -242,6 +245,11 @@ public final class Memoizer {
     }
 
     return memo;
+  }
+
+  /** Any type not recorded as a definite "no-match" is a potential match. */
+  static boolean potentialMatch(String name) {
+    return !noMatchFilter.contains(name);
   }
 
   private static boolean sameOrigin(TypeDescription type, SharedTypeInfo<BitSet> sharedMemo) {

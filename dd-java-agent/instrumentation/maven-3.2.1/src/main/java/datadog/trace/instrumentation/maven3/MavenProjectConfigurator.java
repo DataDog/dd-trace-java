@@ -17,7 +17,9 @@ import org.apache.maven.model.InputSource;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecution;
+import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.configuration.PlexusConfiguration;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 class MavenProjectConfigurator {
@@ -33,32 +35,29 @@ class MavenProjectConfigurator {
   private static final String JAVAC_COMPILER_ID = "javac";
   private static final String DATADOG_COMPILER_PLUGIN_ID = "DatadogCompilerPlugin";
 
-  private static final ComparableVersion LATE_SUBSTITUTION_SUPPORTED_VERSION =
-      new ComparableVersion("2.17");
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   public void configureTracer(
-      MavenProject project,
-      MojoExecution mojoExecution,
-      Map<String, String> propagatedSystemProperties) {
-    Xpp3Dom configuration = mojoExecution.getConfiguration();
+      MavenTestExecution mavenTestExecution, Map<String, String> propagatedSystemProperties) {
+    MojoExecution mojoExecution = mavenTestExecution.getExecution();
+    PlexusConfiguration pomConfiguration = MavenUtils.getPomConfiguration(mojoExecution);
 
-    Xpp3Dom forkCount = configuration.getChild("forkCount");
+    PlexusConfiguration forkCount = pomConfiguration.getChild("forkCount");
     if (forkCount != null && "0".equals(forkCount.getValue())) {
       // tests will be executed inside this JVM, no need for additional configuration
       return;
     }
 
-    StringBuilder modifiedArgLine = new StringBuilder();
+    StringBuilder addedArgLine = new StringBuilder();
     // propagate to child process all "dd." system properties available in current process
     for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
-      modifiedArgLine.append("-D").append(e.getKey()).append('=').append(e.getValue()).append(" ");
+      addedArgLine.append("-D").append(e.getKey()).append('=').append(e.getValue()).append(" ");
     }
 
     Config config = Config.get();
     Integer ciVisibilityDebugPort = config.getCiVisibilityDebugPort();
     if (ciVisibilityDebugPort != null) {
-      modifiedArgLine
+      addedArgLine
           .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
           .append(ciVisibilityDebugPort)
           .append(" ");
@@ -66,11 +65,12 @@ class MavenProjectConfigurator {
 
     String additionalArgs = config.getCiVisibilityAdditionalChildProcessJvmArgs();
     if (additionalArgs != null) {
-      modifiedArgLine.append(additionalArgs).append(" ");
+      addedArgLine.append(additionalArgs).append(" ");
     }
 
+    MavenProject project = mavenTestExecution.getProject();
     String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
-    modifiedArgLine
+    addedArgLine
         .append("-D")
         .append(
             Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME))
@@ -79,40 +79,34 @@ class MavenProjectConfigurator {
         .append("' ");
 
     File agentJar = config.getCiVisibilityAgentJarFile();
-    modifiedArgLine.append("-javaagent:").append(agentJar.toPath());
+    addedArgLine.append("-javaagent:").append(agentJar.toPath());
 
-    Plugin plugin = mojoExecution.getPlugin();
-    Map<String, PluginExecution> pluginExecutions = plugin.getExecutionsAsMap();
-    PluginExecution pluginExecution = pluginExecutions.get(mojoExecution.getExecutionId());
-    Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
-
-    String argLine = MavenUtils.getConfigurationValue(executionConfiguration, "argLine");
-    boolean projectWideArgLineNeeded = argLine == null || !argLine.contains("{argLine}");
-
-    String finalArgLine =
-        (projectWideArgLineNeeded ? getReferenceToProjectWideArgLine(plugin) + " " : "")
-            + (argLine != null ? argLine + " " : "")
+    PlexusConfiguration argLineConfiguration = pomConfiguration.getChild("argLine");
+    String existingArgLine = argLineConfiguration.getValue();
+    String updatedArgLine =
+        (existingArgLine != null ? existingArgLine + " " : "")
             +
             // -javaagent that injects the tracer
             // has to be the last one,
             // since if there are other agents
             // we want to be able to instrument their code
             // (namely Jacoco's)
-            modifiedArgLine;
+            addedArgLine;
 
-    Xpp3Dom updatedExecutionConfiguration =
-        MavenUtils.setConfigurationValue(finalArgLine, executionConfiguration, "argLine");
-    pluginExecution.setConfiguration(updatedExecutionConfiguration);
-  }
+    MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
+    PlexusConfiguration mojoConfiguration = mojoDescriptor.getMojoConfiguration();
+    PlexusConfiguration argLine = mojoConfiguration.getChild("argLine");
+    argLine.setValue(updatedArgLine);
 
-  private static String getReferenceToProjectWideArgLine(Plugin plugin) {
-    String pluginVersion = plugin.getVersion();
-    ComparableVersion pluginVersionParsed =
-        new ComparableVersion(pluginVersion != null ? pluginVersion : "");
-    if (pluginVersionParsed.compareTo(LATE_SUBSTITUTION_SUPPORTED_VERSION) >= 0) {
-      return "@{argLine} ";
-    } else {
-      return "${argLine} ";
+    // needed for executions where argLine is configured in POM
+    Plugin plugin = mojoExecution.getPlugin();
+    Map<String, PluginExecution> pluginExecutions = plugin.getExecutionsAsMap();
+    PluginExecution pluginExecution = pluginExecutions.get(mojoExecution.getExecutionId());
+    if (pluginExecution != null) {
+      Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
+      Xpp3Dom updatedExecutionConfiguration =
+          MavenUtils.setConfigurationValue(updatedArgLine, executionConfiguration, "argLine");
+      pluginExecution.setConfiguration(updatedExecutionConfiguration);
     }
   }
 

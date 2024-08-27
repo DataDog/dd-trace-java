@@ -86,7 +86,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
   private void uploadGitData() {
     try {
-      LOGGER.info("Starting git data upload, {}", gitClient);
+      LOGGER.debug("Starting git data upload, {}", gitClient);
 
       if (config.isCiVisibilityGitUnshallowEnabled()
           && !config.isCiVisibilityGitUnshallowDefer()
@@ -98,14 +98,14 @@ public class GitDataUploaderImpl implements GitDataUploader {
       String remoteUrl = gitInfo.getRepositoryURL();
       List<String> latestCommits = gitClient.getLatestCommits();
       if (latestCommits.isEmpty()) {
-        LOGGER.info("No commits in the last month, skipping git data upload");
+        LOGGER.debug("No commits in the last month, skipping git data upload");
         callback.complete(null);
         return;
       }
 
       Collection<String> commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       if (commitsToSkip.size() == latestCommits.size()) {
-        LOGGER.info(
+        LOGGER.debug(
             "Backend already knows of the {} local commits, skipping git data upload",
             latestCommits.size());
         callback.complete(null);
@@ -130,7 +130,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
       List<String> objectHashes = gitClient.getObjects(commitsToSkip, commitsToInclude);
       if (objectHashes.isEmpty()) {
-        LOGGER.info("No git objects to upload");
+        LOGGER.debug("No git objects to upload");
         callback.complete(null);
         return;
       }
@@ -160,14 +160,22 @@ public class GitDataUploaderImpl implements GitDataUploader {
         FileUtils.delete(packFilesDirectory);
       }
 
-      LOGGER.info("Git data upload finished");
+      LOGGER.debug("Git data upload finished");
       callback.complete(null);
 
     } catch (Exception e) {
       LOGGER.error("Failed to upload git tree data for remote {}", remoteName, e);
       callback.completeExceptionally(e);
     } finally {
+      removeShutdownHook();
+    }
+  }
+
+  private void removeShutdownHook() {
+    try {
       Runtime.getRuntime().removeShutdownHook(uploadFinishedShutdownHook);
+    } catch (IllegalStateException e) {
+      // JVM is being shutdown
     }
   }
 
@@ -191,7 +199,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
           e);
       gitClient.unshallow(null);
     }
-    LOGGER.info("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);
+    LOGGER.debug("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);
   }
 
   private void waitForUploadToFinish() {

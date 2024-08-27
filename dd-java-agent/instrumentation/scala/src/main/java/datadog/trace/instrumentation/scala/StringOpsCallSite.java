@@ -9,7 +9,13 @@ import javax.annotation.Nonnull;
 import scala.collection.immutable.StringOps;
 
 @Propagation
-@CallSite(spi = IastCallSites.class, helpers = ScalaJavaConverters.class)
+@CallSite(
+    spi = IastCallSites.class,
+    helpers = {
+      ScalaJavaConverters.class,
+      ScalaJavaConverters.JavaIterable.class,
+      ScalaJavaConverters.JavaIterator.class
+    })
 public class StringOpsCallSite {
 
   @CallSite.After(

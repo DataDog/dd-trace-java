@@ -310,6 +310,16 @@ public abstract class JUnit4Utils {
   public static TestSuiteDescriptor toSuiteDescriptor(Description description) {
     Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
-    return new TestSuiteDescriptor(testSuiteName, testClass);
+    // relying exclusively on class name: some runners (such as PowerMock) may redefine test classes
+    return new TestSuiteDescriptor(testSuiteName, null);
+  }
+
+  /**
+   * Is JUnit 5 test that is executed with JUnit 4
+   * using @RunWith(org.junit.platform.runner.JUnitPlatform.class)
+   */
+  public static boolean isJUnitPlatformRunnerTest(Description description) {
+    Object uniqueId = getUniqueId(description);
+    return uniqueId != null && uniqueId.toString().contains("[engine:");
   }
 }

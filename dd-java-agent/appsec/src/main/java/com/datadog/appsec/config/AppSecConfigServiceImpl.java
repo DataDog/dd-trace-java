@@ -1,18 +1,22 @@
 package com.datadog.appsec.config;
 
 import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INVALID_JSON_FILE;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_ACTIVATION;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_CUSTOM_RULES;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_DD_RULES;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_EXCLUSIONS;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_IP_BLOCKING;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_REQUEST_BLOCKING;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_TRUSTED_IPS;
-import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.CAPABILITY_ASM_USER_BLOCKING;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING;
 
 import com.datadog.appsec.AppSecSystem;
+import com.datadog.appsec.api.security.ApiSecurityRequestSampler;
 import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
 import com.datadog.appsec.config.CurrentAppSecConfig.DirtyStatus;
 import com.datadog.appsec.util.AbortStartupException;
@@ -22,6 +26,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.UserIdCollectionMode;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -33,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +54,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   // However, the initial state is set up by another thread, and this needs to be visible to the RC
   // thread
   private CurrentAppSecConfig currentAppSecConfig;
+  private MergedAsmFeatures mergedAsmFeatures;
   private volatile boolean initialized;
 
   // for new subconfig subscribers
@@ -59,44 +64,47 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final Config tracerConfig;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
   private final AppSecModuleConfigurer.Reconfiguration reconfiguration;
+  private final ApiSecurityRequestSampler apiSecurityRequestSampler;
 
-  private final ConfigurationEndListener applyWAFChangesAsListener = this::applyWAFChanges;
+  private final ConfigurationEndListener applyRemoteConfigListener =
+      this::applyRemoteConfigListener;
 
   private boolean hasUserWafConfig;
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
-      @Nullable ConfigurationPoller configurationPoller,
+      ConfigurationPoller configurationPoller,
+      ApiSecurityRequestSampler apiSecurityRequestSampler,
       AppSecModuleConfigurer.Reconfiguration reconfig) {
     this.tracerConfig = tracerConfig;
     this.configurationPoller = configurationPoller;
     this.reconfiguration = reconfig;
+    this.apiSecurityRequestSampler = apiSecurityRequestSampler;
   }
 
   private void subscribeConfigurationPoller() {
     // see also close() method
-    if (tracerConfig.getAppSecActivation() == ProductActivation.ENABLED_INACTIVE) {
-      subscribeActivation();
-    } else {
-      log.debug("Will not subscribe to ASM_FEATURES (AppSec explicitly enabled)");
-    }
+    subscribeAsmFeatures();
+
     if (!hasUserWafConfig) {
       subscribeRulesAndData();
     } else {
       log.debug("Will not subscribe to ASM, ASM_DD and ASM_DATA (AppSec custom rules in use)");
     }
 
-    this.configurationPoller.addConfigurationEndListener(applyWAFChangesAsListener);
+    this.configurationPoller.addConfigurationEndListener(applyRemoteConfigListener);
 
     this.configurationPoller.addCapabilities(
         CAPABILITY_ASM_DD_RULES
             | CAPABILITY_ASM_IP_BLOCKING
             | CAPABILITY_ASM_EXCLUSIONS
+            | CAPABILITY_ASM_EXCLUSION_DATA
             | CAPABILITY_ASM_REQUEST_BLOCKING
             | CAPABILITY_ASM_USER_BLOCKING
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-            | CAPABILITY_ASM_TRUSTED_IPS);
+            | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ASM_RASP_SQLI);
   }
 
   private void subscribeRulesAndData() {
@@ -153,28 +161,27 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         });
   }
 
-  private void subscribeActivation() {
+  private void subscribeAsmFeatures() {
     this.configurationPoller.addListener(
         Product.ASM_FEATURES,
-        "asm_features_activation",
         AppSecFeaturesDeserializer.INSTANCE,
         (configKey, newConfig, hinter) -> {
           if (!initialized) {
             throw new IllegalStateException();
           }
-          final boolean newState =
-              newConfig != null && newConfig.asm != null && newConfig.asm.enabled;
-          if (AppSecSystem.isActive() != newState) {
-            log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");
-            AppSecSystem.setActive(newState);
-            if (AppSecSystem.isActive()) {
-              // On remote activation, we need to re-distribute the last known configuration.
-              // This may trigger initializations, including PowerWAF if it was lazy loaded.
-              this.currentAppSecConfig.dirtyStatus.markAllDirty();
-            }
+          if (newConfig == null) {
+            mergedAsmFeatures.removeConfig(configKey);
+          } else {
+            mergedAsmFeatures.addConfig(configKey, newConfig);
           }
         });
-    this.configurationPoller.addCapabilities(CAPABILITY_ASM_ACTIVATION);
+    if (tracerConfig.getAppSecActivation() == ProductActivation.ENABLED_INACTIVE) {
+      this.configurationPoller.addCapabilities(CAPABILITY_ASM_ACTIVATION);
+    } else {
+      log.debug("Will not subscribe report CAPABILITY_ASM_ACTIVATION (AppSec explicitly enabled)");
+    }
+    this.configurationPoller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE);
+    this.configurationPoller.addCapabilities(CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE);
   }
 
   private void distributeSubConfigurations(
@@ -216,6 +223,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.currentAppSecConfig = new CurrentAppSecConfig();
     this.currentAppSecConfig.setDdConfig(wafConfig);
     this.lastConfig.put("waf", this.currentAppSecConfig);
+    this.mergedAsmFeatures = new MergedAsmFeatures();
     this.initialized = true;
   }
 
@@ -329,21 +337,30 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_DD_RULES
             | CAPABILITY_ASM_IP_BLOCKING
             | CAPABILITY_ASM_EXCLUSIONS
+            | CAPABILITY_ASM_EXCLUSION_DATA
             | CAPABILITY_ASM_REQUEST_BLOCKING
             | CAPABILITY_ASM_USER_BLOCKING
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
-            | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE);
+            | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
+            | CAPABILITY_ASM_RASP_SQLI
+            | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE);
     this.configurationPoller.removeListeners(Product.ASM_DD);
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);
     this.configurationPoller.removeListeners(Product.ASM_FEATURES);
-    this.configurationPoller.removeConfigurationEndListener(applyWAFChangesAsListener);
+    this.configurationPoller.removeConfigurationEndListener(applyRemoteConfigListener);
     this.configurationPoller.stop();
   }
 
-  private void applyWAFChanges() {
+  private void applyRemoteConfigListener() {
+    // apply ASM_FEATURES configuration first as they might enable AppSec
+    final AppSecFeatures features = mergedAsmFeatures.getMergedData();
+    setAppSecActivation(features.asm);
+    setApiSecuritySampling(features.apiSecurity);
+    setUserIdCollectionMode(features.autoUserInstrum);
+
     if (!AppSecSystem.isActive() || !currentAppSecConfig.dirtyStatus.isAnyDirty()) {
       return;
     }
@@ -351,5 +368,55 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     distributeSubConfigurations(
         Collections.singletonMap("waf", currentAppSecConfig), reconfiguration);
     currentAppSecConfig.dirtyStatus.clearDirty();
+  }
+
+  private void setAppSecActivation(final AppSecFeatures.Asm asm) {
+    final boolean newState;
+    if (asm == null) {
+      newState = tracerConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+    } else {
+      newState = asm.enabled;
+    }
+    if (AppSecSystem.isActive() != newState) {
+      log.info("AppSec {} (runtime)", newState ? "enabled" : "disabled");
+      AppSecSystem.setActive(newState);
+      if (AppSecSystem.isActive()) {
+        // On remote activation, we need to re-distribute the last known configuration.
+        // This may trigger initializations, including PowerWAF if it was lazy loaded.
+        this.currentAppSecConfig.dirtyStatus.markAllDirty();
+      }
+    }
+  }
+
+  private void setApiSecuritySampling(final AppSecFeatures.ApiSecurity apiSecurity) {
+    final float newSampling;
+    if (apiSecurity == null) {
+      newSampling = tracerConfig.getApiSecurityRequestSampleRate();
+    } else {
+      newSampling = apiSecurity.requestSampleRate;
+    }
+    if (apiSecurityRequestSampler.setSampling(newSampling)) {
+      int pct = apiSecurityRequestSampler.getSampling();
+      if (pct == 0) {
+        log.info("Api Security is disabled via remote-config");
+      } else {
+        log.info(
+            "Api Security changed via remote-config. New sampling rate is {}% of all requests.",
+            pct);
+      }
+    }
+  }
+
+  private void setUserIdCollectionMode(final AppSecFeatures.AutoUserInstrum autoUserInstrum) {
+    UserIdCollectionMode current = UserIdCollectionMode.get();
+    UserIdCollectionMode newMode;
+    if (autoUserInstrum == null) {
+      newMode = tracerConfig.getAppSecUserIdCollectionMode();
+    } else {
+      newMode = UserIdCollectionMode.fromRemoteConfig(autoUserInstrum.mode);
+    }
+    if (newMode != current) {
+      log.info("User ID collection mode changed via remote-config: {} -> {}", current, newMode);
+    }
   }
 }

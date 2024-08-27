@@ -28,10 +28,10 @@ import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.TestTraceInterceptor;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -41,9 +41,7 @@ import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import org.joor.Reflect;
 import org.junit.jupiter.api.AfterEach;
@@ -57,6 +55,8 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   private static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
   private static final ProbeId PROBE_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
   private static final ProbeId PROBE_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
+  private static final ProbeId PROBE_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
+  private static final ProbeId PROBE_ID4 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f9", 0);
 
   private TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
 
@@ -166,7 +166,8 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(84, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertNull(span.getTags().get("tag1"));
-    assertEquals("Cannot find symbol: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
+    assertEquals(
+        "Cannot dereference field: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
   }
 
   @Test
@@ -183,7 +184,8 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(1, mockSink.getSnapshots().size());
     Snapshot snapshot = mockSink.getSnapshots().get(0);
     assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(
+        "Cannot dereference field: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
@@ -240,7 +242,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   public void lineActiveSpanSimpleTag() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 44);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 47);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "1").get();
     assertEquals(84, result);
@@ -273,7 +275,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
         createDecoration(eq(ref("arg"), value("5")), "arg == '5'", "tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 44);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 47);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     for (int i = 0; i < 10; i++) {
       int result = Reflect.on(testClass).call("main", String.valueOf(i)).get();
@@ -289,7 +291,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     SpanDecorationProbe.Decoration decoration =
         createDecoration(eq(ref("noarg"), value("5")), "arg == '5'", "tag1", "{arg}");
-    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 44);
+    installSingleSpanDecoration(CLASS_NAME, ACTIVE, decoration, "CapturedSnapshot20.java", 47);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.on(testClass).call("main", "5").get();
     assertEquals(84, result);
@@ -297,7 +299,8 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(1, mockSink.getSnapshots().size());
     Snapshot snapshot = mockSink.getSnapshots().get(0);
     assertEquals(1, snapshot.getEvaluationErrors().size());
-    assertEquals("Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals(
+        "Cannot dereference field: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
@@ -314,30 +317,39 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   @Test
   public void mixedWithLogProbes() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
-    SpanDecorationProbe.Decoration decoration = createDecoration("tag1", "{intLocal}");
-    SpanDecorationProbe spanDecoProbe =
+    SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{intLocal}");
+    SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{arg}");
+    SpanDecorationProbe spanDecoProbe1 =
         createProbeBuilder(
-                PROBE_ID, ACTIVE, singletonList(decoration), CLASS_NAME, "process", null, null)
+                PROBE_ID1, ACTIVE, singletonList(decoration1), CLASS_NAME, "process", null, null)
             .evaluateAt(MethodLocation.EXIT)
+            .build();
+    SpanDecorationProbe spanDecoProbe2 =
+        createProbeBuilder(
+                PROBE_ID2, ACTIVE, singletonList(decoration2), CLASS_NAME, "process", null, null)
+            .evaluateAt(MethodLocation.ENTRY)
             .build();
     LogProbe logProbe1 =
         LogProbe.builder()
-            .probeId(PROBE_ID1)
+            .probeId(PROBE_ID3)
             .where(CLASS_NAME, "process")
             .captureSnapshot(true)
+            .capture(1, 50, 50, 10)
             .build();
     LogProbe logProbe2 =
         LogProbe.builder()
-            .probeId(PROBE_ID2)
+            .probeId(PROBE_ID4)
             .where(CLASS_NAME, "process")
             .captureSnapshot(true)
+            .capture(5, 200, 200, 30)
             .build();
     Configuration configuration =
         Configuration.builder()
             .setService(SERVICE_NAME)
             .add(logProbe1)
             .add(logProbe2)
-            .add(spanDecoProbe)
+            .add(spanDecoProbe1)
+            .add(spanDecoProbe2)
             .build();
     installSpanDecorationProbes(CLASS_NAME, configuration);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -345,12 +357,44 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(84, result);
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals("84", span.getTags().get("tag1"));
-    assertEquals(PROBE_ID.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
+    assertEquals(PROBE_ID1.getId(), span.getTags().get("_dd.di.tag1.probe_id"));
+    assertEquals("1", span.getTags().get("tag2"));
+    assertEquals(PROBE_ID2.getId(), span.getTags().get("_dd.di.tag2.probe_id"));
     List<Snapshot> snapshots = mockSink.getSnapshots();
     assertEquals(2, snapshots.size());
     CapturedContext.CapturedValue intLocal =
         snapshots.get(0).getCaptures().getReturn().getLocals().get("intLocal");
     assertNotNull(intLocal);
+  }
+
+  @Test
+  public void mixedEntryExit() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration1 = createDecoration("tag1", "{intLocal}");
+    SpanDecorationProbe.Decoration decoration2 = createDecoration("tag2", "{arg}");
+    SpanDecorationProbe spanDecoProbe1 =
+        createProbeBuilder(
+                PROBE_ID1, ACTIVE, singletonList(decoration1), CLASS_NAME, "process", null, null)
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    SpanDecorationProbe spanDecoProbe2 =
+        createProbeBuilder(
+                PROBE_ID2, ACTIVE, singletonList(decoration2), CLASS_NAME, "process", null, null)
+            .evaluateAt(MethodLocation.ENTRY)
+            .build();
+    Configuration configuration =
+        Configuration.builder()
+            .setService(SERVICE_NAME)
+            .add(spanDecoProbe1)
+            .add(spanDecoProbe2)
+            .build();
+    installSpanDecorationProbes(CLASS_NAME, configuration);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(84, result);
+    MutableSpan span = traceInterceptor.getFirstSpan();
+    assertEquals("84", span.getTags().get("tag1"));
+    assertEquals("1", span.getTags().get("tag2"));
   }
 
   @Test
@@ -665,38 +709,5 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
       }
     }
     return null;
-  }
-
-  static class TestTraceInterceptor implements TraceInterceptor {
-    private Collection<? extends MutableSpan> currentTrace;
-    private List<List<? extends MutableSpan>> allTraces = new ArrayList<>();
-
-    @Override
-    public Collection<? extends MutableSpan> onTraceComplete(
-        Collection<? extends MutableSpan> trace) {
-      currentTrace = trace;
-      allTraces.add(new ArrayList<>(trace));
-      return trace;
-    }
-
-    @Override
-    public int priority() {
-      return 0;
-    }
-
-    public Collection<? extends MutableSpan> getTrace() {
-      return currentTrace;
-    }
-
-    public MutableSpan getFirstSpan() {
-      if (currentTrace == null) {
-        return null;
-      }
-      return currentTrace.iterator().next();
-    }
-
-    public List<List<? extends MutableSpan>> getAllTraces() {
-      return allTraces;
-    }
   }
 }

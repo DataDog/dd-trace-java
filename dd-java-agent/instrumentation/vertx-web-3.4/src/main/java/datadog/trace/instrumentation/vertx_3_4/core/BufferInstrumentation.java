@@ -60,47 +60,35 @@ public class BufferInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class ToStringAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void get(@Advice.This final Object self, @Advice.Return final String result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        try {
-          module.taintIfTainted(result, self);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("toString threw", e);
-        }
+      if (result != null && module != null) {
+        module.taintStringIfTainted(result, self);
       }
     }
   }
 
   public static class GetByteBuffAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void get(@Advice.This final Object self, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        try {
-          module.taintIfTainted(result, self);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("getByteBuf threw", e);
-        }
+      if (result != null && module != null) {
+        module.taintObjectIfTainted(result, self);
       }
     }
   }
 
   public static class AppendBufferAdvice {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void get(
         @Advice.Argument(0) final Object buffer, @Advice.Return final Object result) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        try {
-          module.taintIfTainted(result, buffer);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("appendBuffer threw", e);
-        }
+      if (result != null && module != null) {
+        module.taintObjectIfTainted(result, buffer);
       }
     }
   }

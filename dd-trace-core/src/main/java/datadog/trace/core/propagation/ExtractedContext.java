@@ -12,9 +12,9 @@ import java.util.Map;
  */
 public class ExtractedContext extends TagContext {
   private final DDTraceId traceId;
-  private final long spanId;
   private final long endToEndStartTime;
   private final PropagationTags propagationTags;
+  private long spanId;
 
   public ExtractedContext(
       final DDTraceId traceId,
@@ -66,6 +66,10 @@ public class ExtractedContext extends TagContext {
     return spanId;
   }
 
+  public final void overrideSpanId(final long spanId) {
+    this.spanId = spanId;
+  }
+
   public final long getEndToEndStartTime() {
     return endToEndStartTime;
   }
@@ -81,10 +85,10 @@ public class ExtractedContext extends TagContext {
       builder.append("traceId=").append(traceId).append(", ");
     }
     if (spanId != 0) {
-      builder.append("endToEndStartTime=").append(spanId).append(", ");
+      builder.append("spanId=").append(spanId).append(", ");
     }
     if (endToEndStartTime != 0) {
-      builder.append("spanId=").append(spanId).append(", ");
+      builder.append("endToEndStartTime=").append(endToEndStartTime).append(", ");
     }
     if (getOrigin() != null) {
       builder.append("origin=").append(getOrigin()).append(", ");

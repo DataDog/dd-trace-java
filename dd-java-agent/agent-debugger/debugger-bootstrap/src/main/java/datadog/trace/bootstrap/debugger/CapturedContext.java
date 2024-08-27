@@ -29,7 +29,6 @@ public class CapturedContext implements ValueReferenceResolver {
   private Map<String, CapturedValue> locals;
   private CapturedThrowable throwable;
   private Map<String, CapturedValue> staticFields;
-  private Map<String, CapturedValue> fields;
   private Limits limits = Limits.DEFAULT;
   private String thisClassName;
   private String traceId;
@@ -43,20 +42,17 @@ public class CapturedContext implements ValueReferenceResolver {
       CapturedValue[] arguments,
       CapturedValue[] locals,
       CapturedValue returnValue,
-      CapturedThrowable throwable,
-      CapturedValue[] fields) {
+      CapturedThrowable throwable) {
     addArguments(arguments);
     addLocals(locals);
     addReturn(returnValue);
     this.throwable = throwable;
-    addFields(fields);
   }
 
   private CapturedContext(CapturedContext other, Map<String, Object> extensions) {
     this.arguments = other.arguments;
     this.locals = other.getLocals();
     this.throwable = other.throwable;
-    this.fields = other.fields;
     this.extensions.putAll(other.extensions);
     this.extensions.putAll(extensions);
   }
@@ -130,20 +126,20 @@ public class CapturedContext implements ValueReferenceResolver {
         }
       }
     } else {
-      Function<Object, CapturedValue> specialFieldAccess =
-          WellKnownClasses.getSpecialFieldAccess(target.getClass().getTypeName());
-      if (specialFieldAccess != null) {
-        CapturedValue specialField = specialFieldAccess.apply(target);
-        if (specialField != null && specialField.getName().equals(memberName)) {
-          return specialField.getValue();
-        } else {
-          target = Values.UNDEFINED_OBJECT;
+      Map<String, Function<Object, CapturedValue>> specialTypeAccess =
+          WellKnownClasses.getSpecialTypeAccess(target);
+      if (specialTypeAccess != null) {
+        Function<Object, CapturedValue> specialFieldAccess = specialTypeAccess.get(memberName);
+        if (specialFieldAccess != null) {
+          CapturedValue specialField = specialFieldAccess.apply(target);
+          if (specialField != null && specialField.getName().equals(memberName)) {
+            return specialField.getValue();
+          }
         }
-      } else {
-        target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
       }
+      target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
     }
-    checkUndefined(target, memberName, "Cannot dereference to field: ");
+    checkUndefined(target, memberName, "Cannot dereference field: ");
     return target;
   }
 
@@ -168,14 +164,15 @@ public class CapturedContext implements ValueReferenceResolver {
     if (result != null) {
       return result;
     }
-    if (fields != null && !fields.isEmpty()) {
-      result = fields.get(name);
-    }
-    if (result != null) {
-      return result;
-    }
     if (staticFields != null && !staticFields.isEmpty()) {
       result = staticFields.get(name);
+    }
+    CapturedValue thisValue;
+    if (arguments != null && (thisValue = arguments.get("this")) != null) {
+      result = getMember(thisValue.getValue(), name);
+      if (result != Values.UNDEFINED_OBJECT) {
+        return result;
+      }
     }
     return result != null ? result : Values.UNDEFINED_OBJECT;
   }
@@ -236,25 +233,15 @@ public class CapturedContext implements ValueReferenceResolver {
     }
   }
 
-  public void addFields(CapturedValue[] values) {
-    if (values == null) {
-      return;
-    }
-    for (CapturedValue value : values) {
-      putInFields(value.name, value);
-    }
-    traceId = extractSpecialId("dd.trace_id");
-    spanId = extractSpecialId("dd.span_id");
+  public void addTraceId(CapturedValue capturedValue) {
+    traceId = extractStringId(capturedValue);
   }
 
-  private String extractSpecialId(String idName) {
-    if (fields == null) {
-      return null;
-    }
-    CapturedValue capturedValue = fields.get(idName);
-    if (capturedValue == null) {
-      return null;
-    }
+  public void addSpanId(CapturedValue capturedValue) {
+    spanId = extractStringId(capturedValue);
+  }
+
+  private String extractStringId(CapturedValue capturedValue) {
     Object value = capturedValue.getValue();
     return value instanceof String ? (String) value : null;
   }
@@ -278,10 +265,6 @@ public class CapturedContext implements ValueReferenceResolver {
 
   public Map<String, CapturedValue> getStaticFields() {
     return staticFields;
-  }
-
-  public Map<String, CapturedValue> getFields() {
-    return fields;
   }
 
   public Limits getLimits() {
@@ -313,9 +296,6 @@ public class CapturedContext implements ValueReferenceResolver {
     }
     if (staticFields != null) {
       staticFields.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
-    }
-    if (fields != null) {
-      fields.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
     }
   }
 
@@ -359,13 +339,13 @@ public class CapturedContext implements ValueReferenceResolver {
     CapturedContext context = (CapturedContext) o;
     return Objects.equals(arguments, context.arguments)
         && Objects.equals(locals, context.locals)
-        && Objects.equals(throwable, context.throwable)
-        && Objects.equals(fields, context.fields);
+        && Objects.equals(staticFields, context.staticFields)
+        && Objects.equals(throwable, context.throwable);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(arguments, locals, throwable, fields);
+    return Objects.hash(arguments, locals, throwable, staticFields);
   }
 
   @Override
@@ -377,8 +357,8 @@ public class CapturedContext implements ValueReferenceResolver {
         + locals
         + ", throwable="
         + throwable
-        + ", fields="
-        + fields
+        + ", staticFields="
+        + staticFields
         + '}';
   }
 
@@ -394,13 +374,6 @@ public class CapturedContext implements ValueReferenceResolver {
       arguments = new HashMap<>();
     }
     arguments.put(name, value);
-  }
-
-  private void putInFields(String name, CapturedValue value) {
-    if (fields == null) {
-      fields = new HashMap<>();
-    }
-    fields.put(name, value);
   }
 
   private void putInStaticFields(String name, CapturedValue value) {
@@ -544,6 +517,10 @@ public class CapturedContext implements ValueReferenceResolver {
           null);
     }
 
+    public static CapturedValue redacted(String name, String type) {
+      return build(name, type, REDACTED_VALUE, Limits.DEFAULT, null);
+    }
+
     public static CapturedValue notCapturedReason(String name, String type, String reason) {
       return build(name, type, null, Limits.DEFAULT, reason);
     }
@@ -565,9 +542,6 @@ public class CapturedContext implements ValueReferenceResolver {
 
     private static CapturedValue build(
         String name, String declaredType, Object value, Limits limits, String notCapturedReason) {
-      if (Redaction.isRedactedKeyword(name)) {
-        value = REDACTED_VALUE;
-      }
       CapturedValue val =
           new CapturedValue(
               name, declaredType, value, limits, Collections.emptyMap(), notCapturedReason);

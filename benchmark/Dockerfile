@@ -31,6 +31,22 @@ RUN cd insecure-bank \
   && ./gradlew bootWar \
   && cp build/libs/*.war /insecure-bank.war
 
+# Dacapo download
+FROM debian:bookworm-slim as dacapo
+RUN apt-get update \
+  && apt-get -y install wget unzip \
+  && apt-get -y clean \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG DACAPO_VERSION=23.11-chopin
+# The data for the big benchmarks is removed too ensure the final docker image is not too big
+RUN wget -nv -O dacapo.zip https://download.dacapobench.org/chopin/dacapo-$DACAPO_VERSION.zip \
+	&& mkdir /dacapo \
+	&& unzip dacapo.zip -d /dacapo/ \
+	&& rm -rf /dacapo/dacapo-$DACAPO_VERSION/dat/luindex \
+	&& rm -rf /dacapo/dacapo-$DACAPO_VERSION/dat/lusearch \
+	&& rm -rf /dacapo/dacapo-$DACAPO_VERSION/dat/graphchi \
+	&& rm dacapo.zip
 
 FROM debian:bookworm-slim
 
@@ -75,3 +91,7 @@ ENV PETCLINIC=/app/spring-petclinic.jar
 
 COPY --from=insecure-bank /insecure-bank.war /app/insecure-bank.war
 ENV INSECURE_BANK=/app/insecure-bank.war
+
+COPY --from=dacapo /dacapo/ /app/
+ARG DACAPO_VERSION=23.11-chopin
+ENV DACAPO=/app/dacapo-$DACAPO_VERSION.jar

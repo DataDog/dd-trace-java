@@ -11,10 +11,12 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +54,8 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
 
-  private final int instrumentationId;
+  protected static final String[] NO_HELPERS = {};
+
   private final List<String> instrumentationNames;
   private final String instrumentationPrimaryName;
   private final boolean enabled;
@@ -60,7 +63,6 @@ public abstract class InstrumenterModule implements Instrumenter {
   protected final String packageName = Strings.getPackageName(getClass().getName());
 
   public InstrumenterModule(final String instrumentationName, final String... additionalNames) {
-    instrumentationId = InstrumenterModules.currentInstrumentationId();
     instrumentationNames = new ArrayList<>(1 + additionalNames.length);
     instrumentationNames.add(instrumentationName);
     addAll(instrumentationNames, additionalNames);
@@ -69,16 +71,17 @@ public abstract class InstrumenterModule implements Instrumenter {
     enabled = InstrumenterConfig.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
   }
 
-  public int instrumentationId() {
-    return instrumentationId;
-  }
-
   public String name() {
     return instrumentationPrimaryName;
   }
 
   public Iterable<String> names() {
     return instrumentationNames;
+  }
+
+  /** Modules with higher order values are applied <i>after</i> those with lower values. */
+  public int order() {
+    return 0;
   }
 
   public List<Instrumenter> typeInstrumentations() {
@@ -105,7 +108,14 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   /** @return Class names of helpers to inject into the user's classloader */
   public String[] helperClassNames() {
-    return new String[0];
+    return NO_HELPERS;
+  }
+
+  /**
+   * @return {@code true} if helper classes should be injected with the agent's {@link CodeSource}
+   */
+  public boolean useAgentCodeSource() {
+    return false;
   }
 
   /** Override this to automatically inject all (non-bootstrap) helper dependencies. */
@@ -134,7 +144,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /** Override this to supply additional class-loader requirements. */
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return ANY_CLASS_LOADER;
   }
 
@@ -240,7 +250,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.IAST)
-          || (isOptOutEnabled() && enabledSystems.contains(TargetSystem.APPSEC));
+          || (isOptOutEnabled()
+              && InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED);
     }
 
     /**

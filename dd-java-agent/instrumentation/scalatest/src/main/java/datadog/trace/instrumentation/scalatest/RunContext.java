@@ -32,7 +32,7 @@ public class RunContext {
 
   private final int runStamp;
   private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler =
-      InstrumentationBridge.createTestEventsHandler("scalatest");
+      InstrumentationBridge.createTestEventsHandler("scalatest", null, null);
   private final java.util.Set<TestIdentifier> skippedTests = ConcurrentHashMap.newKeySet();
   private final java.util.Set<TestIdentifier> unskippableTests = ConcurrentHashMap.newKeySet();
   private final java.util.Map<TestIdentifier, TestRetryPolicy> retryPolicies =

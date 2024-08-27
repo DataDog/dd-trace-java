@@ -6,6 +6,7 @@ import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.flare.TracerFlare;
+import datadog.trace.api.time.TimeUtils;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.logging.GlobalLogLevelSwitcher;
@@ -27,8 +28,6 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.zip.ZipOutputStream;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -49,7 +48,9 @@ final class TracerFlareService {
 
   private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
 
-  private static final Pattern DELAY_TRIGGER = Pattern.compile("(\\d+)([HhMmSs]?)");
+  private static final int MAX_LOGFILE_SIZE_MB = 15;
+
+  private static final int MAX_LOGFILE_SIZE_BYTES = MAX_LOGFILE_SIZE_MB << 20;
 
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
 
@@ -81,20 +82,11 @@ final class TracerFlareService {
 
   private void applyTriageReportTrigger(String triageTrigger) {
     if (null != triageTrigger && !triageTrigger.isEmpty()) {
-      Matcher delayMatcher = DELAY_TRIGGER.matcher(triageTrigger);
-      if (delayMatcher.matches()) {
-        long delay = Integer.parseInt(delayMatcher.group(1));
-        String unit = delayMatcher.group(2);
-        if ("H".equalsIgnoreCase(unit)) {
-          delay = TimeUnit.HOURS.toSeconds(delay);
-        } else if ("M".equalsIgnoreCase(unit)) {
-          delay = TimeUnit.MINUTES.toSeconds(delay);
-        } else {
-          // already in seconds
-        }
-        scheduleTriageReport(delay);
-      } else {
+      long delay = TimeUtils.parseSimpleDelay(triageTrigger);
+      if (delay < 0) {
         log.info("Unrecognized triage trigger {}", triageTrigger);
+      } else {
+        scheduleTriageReport(delay);
       }
     }
   }
@@ -125,6 +117,7 @@ final class TracerFlareService {
 
   public synchronized void prepareForFlare(String logLevel) {
     // allow turning on debug even part way through preparation
+
     if (!log.isDebugEnabled() && "debug".equalsIgnoreCase(logLevel)) {
       GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
       logLevelOverridden = true;

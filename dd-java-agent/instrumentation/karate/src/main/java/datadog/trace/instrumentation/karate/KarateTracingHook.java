@@ -8,6 +8,7 @@ import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.Scenario;
+import com.intuit.karate.core.ScenarioIterator;
 import com.intuit.karate.core.ScenarioResult;
 import com.intuit.karate.core.ScenarioRuntime;
 import com.intuit.karate.core.Step;
@@ -18,6 +19,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -30,6 +32,12 @@ public class KarateTracingHook implements RuntimeHook {
   private static final String FRAMEWORK_NAME = "karate";
   private static final String FRAMEWORK_VERSION = FileUtils.KARATE_VERSION;
   private static final String KARATE_STEP_SPAN_NAME = "karate.step";
+
+  private final ContextStore<FeatureRuntime, Boolean> manualFeatureHooks;
+
+  public KarateTracingHook(ContextStore<FeatureRuntime, Boolean> manualFeatureHooks) {
+    this.manualFeatureHooks = manualFeatureHooks;
+  }
 
   @Override
   public boolean beforeFeature(FeatureRuntime fr) {
@@ -48,7 +56,21 @@ public class KarateTracingHook implements RuntimeHook {
         KarateUtils.getCategories(feature.getTags()),
         suite.parallel,
         TestFrameworkInstrumentation.KARATE);
+
+    if (!isFeatureContainingScenarios(fr)) {
+      // Karate will not trigger the afterFeature hook if suite has no scenarios
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
+      TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
+    }
+
     return true;
+  }
+
+  private boolean isFeatureContainingScenarios(FeatureRuntime fr) {
+    // cannot use existing iterator (FeatureRuntime#scenarios) because it may have been traversed
+    // already
+    // (likely, when scheduling parallel execution of scenarios)
+    return new ScenarioIterator(fr).filterSelected().iterator().hasNext();
   }
 
   @Override
@@ -75,6 +97,14 @@ public class KarateTracingHook implements RuntimeHook {
     Scenario scenario = sr.scenario;
     Feature feature = scenario.getFeature();
 
+    // There are cases when Karate does not call "beforeFeature" hooks,
+    // for example when using built-in retries
+    boolean beforeFeatureHookExecuted = KarateUtils.isBeforeHookExecuted(sr.featureRuntime);
+    if (!beforeFeatureHookExecuted) {
+      beforeFeature(sr.featureRuntime);
+      manualFeatureHooks.put(sr.featureRuntime, true);
+    }
+
     TestSuiteDescriptor suiteDescriptor = KarateUtils.toSuiteDescriptor(sr.featureRuntime);
     TestDescriptor testDescriptor = KarateUtils.toTestDescriptor(sr);
     String featureName = feature.getNameForReport();
@@ -82,7 +112,7 @@ public class KarateTracingHook implements RuntimeHook {
     String parameters = KarateUtils.getParameters(scenario);
     Collection<String> categories = scenario.getTagsEffective().getTagKeys();
 
-    if (Config.get().isCiVisibilityItrEnabled()
+    if (Config.get().isCiVisibilityTestSkippingEnabled()
         && !categories.contains(InstrumentationBridge.ITR_UNSKIPPABLE_TAG)) {
       TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario);
       if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skip(skippableTest)) {
@@ -133,6 +163,12 @@ public class KarateTracingHook implements RuntimeHook {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
     }
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor);
+
+    Boolean runHooksManually = manualFeatureHooks.remove(sr.featureRuntime);
+    if (runHooksManually != null && runHooksManually) {
+      afterFeature(sr.featureRuntime);
+      KarateUtils.resetBeforeHook(sr.featureRuntime);
+    }
   }
 
   private Throwable getFailedReason(ScenarioResult result) {

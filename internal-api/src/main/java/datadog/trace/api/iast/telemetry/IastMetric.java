@@ -3,7 +3,6 @@ package datadog.trace.api.iast.telemetry;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import java.util.Locale;
-import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -19,7 +18,10 @@ public enum IastMetric {
       "executed.sink", true, Scope.REQUEST, Tag.VULNERABILITY_TYPE, Verbosity.INFORMATION),
   EXECUTED_TAINTED("executed.tainted", true, Scope.REQUEST, Verbosity.DEBUG),
   REQUEST_TAINTED("request.tainted", true, Scope.REQUEST, Verbosity.INFORMATION),
-  TAINTED_FLAT_MODE("tainted.flat.mode", false, Scope.GLOBAL, Verbosity.INFORMATION);
+  TAINTED_FLAT_MODE("tainted.flat.mode", false, Scope.GLOBAL, Verbosity.INFORMATION),
+  JSON_TAG_SIZE_EXCEED("json.tag.size.exceeded", true, Scope.GLOBAL, Verbosity.INFORMATION),
+  SOURCE_MAPPING_LIMIT_REACHED(
+      "source.mapping.limit.reached", true, Scope.GLOBAL, Verbosity.INFORMATION);
 
   private static final int COUNT;
 
@@ -132,34 +134,40 @@ public enum IastMetric {
     return spanTags[tagValue];
   }
 
-  public static final class Tag {
+  public abstract static class Tag {
 
     public static final Tag VULNERABILITY_TYPE =
-        new Tag("vulnerability_type", VulnerabilityTypes.STRINGS, VulnerabilityTypes::unwrap);
+        new Tag("vulnerability_type", VulnerabilityTypes.STRINGS) {
+          @Nullable
+          @Override
+          public byte[] unwrap(byte tagValue) {
+            return VulnerabilityTypes.unwrap(tagValue);
+          }
+        };
 
     public static final Tag SOURCE_TYPE =
-        new Tag("source_type", SourceTypes.STRINGS, SourceTypes::unwrap);
+        new Tag("source_type", SourceTypes.STRINGS) {
 
-    private final String name;
+          @Nullable
+          @Override
+          public byte[] unwrap(byte tagValue) {
+            return SourceTypes.unwrap(tagValue);
+          }
+        };
 
-    private final String[] values;
+    protected final String name;
 
-    private final String[] telemetryTags;
+    protected final String[] values;
 
-    @Nullable private final Function<Byte, byte[]> unwrap;
+    protected final String[] telemetryTags;
 
     private Tag(final String name, final String[] values) {
-      this(name, values, null);
-    }
-
-    private Tag(final String name, final String[] values, final Function<Byte, byte[]> unwrap) {
       this.name = name;
       this.values = values;
       telemetryTags = new String[values.length];
       for (int i = 0; i < values.length; i++) {
         telemetryTags[i] = name + ":" + values[i];
       }
-      this.unwrap = unwrap;
     }
 
     public String getName() {
@@ -171,9 +179,7 @@ public enum IastMetric {
     }
 
     @Nullable
-    public byte[] unwrap(final byte tagValue) {
-      return unwrap == null ? null : unwrap.apply(tagValue);
-    }
+    public abstract byte[] unwrap(final byte tagValue);
 
     public String getTelemetryTag(final byte tagValue) {
       return telemetryTags[tagValue];

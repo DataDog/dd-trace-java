@@ -8,6 +8,7 @@ import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.ConfigSetting
+import datadog.trace.api.telemetry.ProductChange
 import groovy.json.JsonSlurper
 import okhttp3.Request
 import okio.Buffer
@@ -239,6 +240,31 @@ class TestTelemetryRouter extends TelemetryRouter {
         }
       }
       assert this.payload['configuration'] == expected
+      return this
+    }
+
+    PayloadAssertions instrumentationConfigId(String id) {
+      boolean checked = false
+      this.payload['configuration'].each { v ->
+        if (v['name'] == 'instrumentation_config_id') {
+          assert v['value'] == id
+          checked = true
+        }
+      }
+
+      if (!checked) {
+        assert id == null
+      }
+
+      return this
+    }
+
+    PayloadAssertions productChange(ProductChange product) {
+      def name = product.getProductType().getName()
+      def expected = [
+        (name) : [enabled: product.isEnabled()]
+      ]
+      assert this.payload['products'] == expected
       return this
     }
 

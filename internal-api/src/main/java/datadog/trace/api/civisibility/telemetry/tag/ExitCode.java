@@ -11,6 +11,7 @@ public enum ExitCode implements TagValue {
   CODE_127("127"),
   CODE_128("128"),
   CODE_129("129"),
+  EXECUTABLE_MISSING("missing"),
   CODE_UNKNOWN("unknown");
 
   private final String s;

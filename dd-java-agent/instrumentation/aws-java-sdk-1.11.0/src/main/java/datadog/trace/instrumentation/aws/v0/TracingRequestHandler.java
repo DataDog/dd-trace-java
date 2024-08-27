@@ -89,6 +89,7 @@ public class TracingRequestHandler extends RequestHandler2 {
     if (span != null) {
       request.addHandlerContext(SPAN_CONTEXT_KEY, null);
       DECORATE.onResponse(span, response);
+      DECORATE.onServiceResponse(span, request.getServiceName(), response);
       DECORATE.beforeFinish(span);
       span.finish();
     }

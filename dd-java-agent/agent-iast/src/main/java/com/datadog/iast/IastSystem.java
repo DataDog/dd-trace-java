@@ -5,7 +5,7 @@ import static datadog.trace.api.iast.IastContext.Mode.GLOBAL;
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
 
 import com.datadog.iast.overhead.OverheadController;
-import com.datadog.iast.propagation.FastCodecModule;
+import com.datadog.iast.propagation.CodecModuleImpl;
 import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.sink.ApplicationModuleImpl;
@@ -25,6 +25,7 @@ import com.datadog.iast.sink.SqlInjectionModuleImpl;
 import com.datadog.iast.sink.SsrfModuleImpl;
 import com.datadog.iast.sink.StacktraceLeakModuleImpl;
 import com.datadog.iast.sink.TrustBoundaryViolationModuleImpl;
+import com.datadog.iast.sink.UntrustedDeserializationModuleImpl;
 import com.datadog.iast.sink.UnvalidatedRedirectModuleImpl;
 import com.datadog.iast.sink.WeakCipherModuleImpl;
 import com.datadog.iast.sink.WeakHashModuleImpl;
@@ -46,6 +47,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastModule;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
@@ -62,6 +64,7 @@ public class IastSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(IastSystem.class);
   public static boolean DEBUG = false;
+  public static Verbosity VERBOSITY = Verbosity.OFF;
 
   public static void start(final SubscriptionService ss) {
     start(ss, null);
@@ -77,7 +80,11 @@ public class IastSystem {
       return;
     }
     DEBUG = config.isIastDebugEnabled();
-    LOGGER.debug("IAST is starting: debug={}", DEBUG);
+    VERBOSITY = config.getIastTelemetryVerbosity();
+    LOGGER.debug("IAST is starting: debug={}, verbosity={}", DEBUG, VERBOSITY);
+    if (VERBOSITY != Verbosity.OFF) {
+      IastMetricCollector.register(new IastMetricCollector());
+    }
     final Reporter reporter = new Reporter(config, AgentTaskScheduler.INSTANCE);
     final boolean globalContext = config.getIastContextMode() == GLOBAL;
     final IastContext.Provider contextProvider = contextProvider(iast, globalContext);
@@ -116,7 +123,7 @@ public class IastSystem {
     Stream<Class<? extends IastModule>> modules =
         Stream.of(
             StringModuleImpl.class,
-            FastCodecModule.class,
+            CodecModuleImpl.class,
             SqlInjectionModuleImpl.class,
             PathTraversalModuleImpl.class,
             CommandInjectionModuleImpl.class,
@@ -141,7 +148,8 @@ public class IastSystem {
             ApplicationModuleImpl.class,
             HardcodedSecretModuleImpl.class,
             InsecureAuthProtocolModuleImpl.class,
-            ReflectionInjectionModuleImpl.class);
+            ReflectionInjectionModuleImpl.class,
+            UntrustedDeserializationModuleImpl.class);
     if (iast != FULLY_ENABLED) {
       modules = modules.filter(IastSystem::isOptOut);
     }
@@ -161,12 +169,18 @@ public class IastSystem {
   private static <M extends IastModule> M newIastModule(
       final Dependencies dependencies, final Class<M> type) {
     try {
-      final Constructor<M> ctor = (Constructor<M>) type.getDeclaredConstructors()[0];
-      if (ctor.getParameterCount() == 0) {
-        return ctor.newInstance();
-      } else {
-        return ctor.newInstance(dependencies);
+      for (final Constructor<?> ctor : type.getDeclaredConstructors()) {
+        switch (ctor.getParameterCount()) {
+          case 0:
+            return (M) ctor.newInstance();
+          case 1:
+            if (ctor.getParameterTypes()[0] == Dependencies.class) {
+              return (M) ctor.newInstance(dependencies);
+            }
+            break;
+        }
       }
+      throw new RuntimeException("Cannot find constructor for the module " + type);
     } catch (final Throwable e) {
       // should never happen and be caught on IAST tests
       throw new UndeclaredThrowableException(

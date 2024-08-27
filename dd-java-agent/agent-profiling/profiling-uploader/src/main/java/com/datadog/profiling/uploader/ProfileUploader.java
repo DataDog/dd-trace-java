@@ -170,8 +170,8 @@ public final class ProfileUploader {
       tagsMap.put(Tags.GIT_REPOSITORY_URL, gitInfo.getRepositoryURL());
       tagsMap.put(Tags.GIT_COMMIT_SHA, gitInfo.getCommit().getSha());
     }
-    if (Platform.isGraalVM()) {
-      tagsMap.put(DDTags.RUNTIME_VERSION_TAG, tagsMap.get(DDTags.RUNTIME_VERSION_TAG) + "-graalvm");
+    if (Platform.isNativeImage()) {
+      tagsMap.put(DDTags.RUNTIME_VERSION_TAG, tagsMap.get(DDTags.RUNTIME_VERSION_TAG) + "-aot");
     }
 
     // Comma separated tags string for V2.4 format

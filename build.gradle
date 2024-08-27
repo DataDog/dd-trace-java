@@ -5,15 +5,17 @@ buildscript {
 
   configurations.all {
     resolutionStrategy.dependencySubstitution {
-      substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
-      substitute module("com.jcraft:jsch.agentproxy") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
-      substitute module("com.jcraft:jzlib") using module("com.github.mwiede:jsch:0.2.16") because "jcraft is unmaintained"
+      substitute module("com.jcraft:jsch") using module("com.github.mwiede:jsch:0.2.17") because "jcraft is unmaintained"
+      substitute module("com.jcraft:jsch.agentproxy") using module("com.github.mwiede:jsch:0.2.17") because "jcraft is unmaintained"
+      substitute module("com.jcraft:jzlib") using module("com.github.mwiede:jsch:0.2.17") because "jcraft is unmaintained"
     }
   }
 }
 
 plugins {
-  id "com.diffplug.spotless" version "6.11.0"
+  id "datadog.dependency-locking"
+
+  id "com.diffplug.spotless" version "6.13.0"
   id 'com.github.spotbugs' version '5.0.14'
   id "de.thetaphi.forbiddenapis" version "3.5.1"
 
@@ -91,12 +93,14 @@ nexusPublishing {
     if (forceLocal && !isCI) {
       local {
         // For testing use with https://hub.docker.com/r/sonatype/nexus
-        // docker run --rm -d -p 8081:8081 --name nexus sonatype/nexus
+        // docker run --rm -d -p 8081:8081 --name nexus sonatype/nexus:oss
+        // ./gradlew publishToLocal
         // Doesn't work for testing releases though... (due to staging)
         nexusUrl = uri("http://localhost:8081/nexus/content/repositories/releases/")
         snapshotRepositoryUrl = uri("http://localhost:8081/nexus/content/repositories/snapshots/")
         username = "admin"
         password = "admin123"
+        allowInsecureProtocol = true
       }
     } else {
       sonatype {
@@ -147,72 +151,4 @@ allprojects {
   }
 }
 
-allprojects { project ->
-  project.ext {
-    activePartition = true
-  }
-  final boolean shouldUseTaskPartitions = project.rootProject.hasProperty("taskPartitionCount") && project.rootProject.hasProperty("taskPartition")
-  if (shouldUseTaskPartitions) {
-    final int taskPartitionCount = project.rootProject.property("taskPartitionCount") as int
-    final int taskPartition = project.rootProject.property("taskPartition") as int
-    final currentTaskPartition = Math.abs(project.path.hashCode() % taskPartitionCount)
-    project.setProperty("activePartition", currentTaskPartition == taskPartition)
-  }
-}
-
-
-def testAggregate(String baseTaskName, includePrefixes, excludePrefixes) {
-  def createRootTask = { rootTaskName, subProjTaskName ->
-    tasks.register(rootTaskName) { aggTest ->
-      subprojects { subproject ->
-        if (subproject.property("activePartition") && includePrefixes.any { subproject.path.startsWith(it) } && !excludePrefixes.any { subproject.path.startsWith(it) }) {
-          def testTask = subproject.tasks.findByName(subProjTaskName)
-          if (testTask != null) {
-            aggTest.dependsOn(testTask)
-          }
-        }
-      }
-    }
-  }
-
-  createRootTask "${baseTaskName}Test", 'allTests'
-  createRootTask "${baseTaskName}LatestDepTest", 'allLatestDepTests'
-  createRootTask "${baseTaskName}Check", 'check'
-}
-
-// To lock dependency versions, run `./gradlew resolveAndLockAll --write-locks`
-tasks.register('resolveAndLockAll') {
-  notCompatibleWithConfigurationCache("Filters configurations at execution time")
-  doFirst {
-    assert gradle.startParameter.writeDependencyLocks
-  }
-  doLast {
-    allprojects { project ->
-      project.configurations.findAll {
-        it.canBeResolved && !it.name.startsWith('incrementalScalaAnalysis')
-      }.each { it.resolve() }
-    }
-  }
-}
-
-allprojects { project ->
-  project.dependencyLocking {
-    lockAllConfigurations()
-    //lockmode set to LENIENT because there are resolution
-    //errors in the build with an apiguardian dependency.
-    //See: https://docs.gradle.org/current/userguide/dependency_locking.html for more info
-    lockMode = LockMode.LENIENT
-
-  }
-}
-
-testAggregate("smoke", [":dd-smoke-tests"], [])
-testAggregate("instrumentation", [":dd-java-agent:instrumentation"], [])
-testAggregate("profiling", [":dd-java-agent:agent-profiling"], [])
-testAggregate("debugger", [":dd-java-agent:agent-debugger"], [])
-testAggregate("base", [":"], [
-  ":dd-java-agent:instrumentation",
-  ":dd-smoke-tests",
-  ":dd-java-agent:agent-profiling",
-  ":dd-java-agent:agent-debugger"
-])
+apply from: "$rootDir/gradle/ci_jobs.gradle"

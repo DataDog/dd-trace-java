@@ -65,7 +65,9 @@ public class SymbolExtractor {
           .scopes(new ArrayList<>(Collections.singletonList(classScope)))
           .build();
     } catch (Exception ex) {
-      LoggerFactory.getLogger(SymbolExtractor.class).info("", ex);
+      LoggerFactory.getLogger(SymbolExtractor.class)
+          .debug(
+              "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
       return null;
     }
   }
@@ -166,6 +168,9 @@ public class SymbolExtractor {
         case Opcodes.ACC_ENUM:
           results.add("enum");
           break;
+        case Opcodes.ACC_MODULE:
+          results.add("module");
+          break;
         case Opcodes.ACC_RECORD:
           results.add("record");
           break;
@@ -221,6 +226,9 @@ public class SymbolExtractor {
         case Opcodes.ACC_SYNTHETIC:
           results.add("synthetic");
           break;
+        case Opcodes.ACC_MANDATED:
+          results.add("mandated");
+          break;
         case Opcodes.ACC_DEPRECATED:
           results.add("deprecated");
           break;
@@ -267,6 +275,9 @@ public class SymbolExtractor {
           break;
         case Opcodes.ACC_ENUM:
           results.add("enum");
+          break;
+        case Opcodes.ACC_MANDATED:
+          results.add("mandated");
           break;
         case Opcodes.ACC_DEPRECATED:
           results.add("deprecated");

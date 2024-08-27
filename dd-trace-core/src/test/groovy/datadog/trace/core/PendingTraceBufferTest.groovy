@@ -91,6 +91,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.getTimeWithNanoTicks(_)
+    1 * tracer.onRootSpanPublished(span)
     0 * _
 
     when:
@@ -123,6 +124,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.getTimeWithNanoTicks(_)
+    1 * tracer.onRootSpanPublished(parent)
     0 * _
 
     when:
@@ -180,6 +182,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
+    buffer.queue.capacity() * tracer.onRootSpanPublished(_)
     0 * _
 
     when:
@@ -195,6 +198,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
+    1 * tracer.onRootSpanPublished(_)
     0 * _
     pendingTrace.isEnqueued == 0
   }
@@ -216,6 +220,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
+    buffer.queue.capacity() * tracer.onRootSpanPublished(_)
     0 * _
 
     when:
@@ -223,7 +228,6 @@ class PendingTraceBufferTest extends DDSpecification {
     pendingTrace.longRunningTrackedState = LongRunningTracesTracker.TO_TRACK
     addContinuation(newSpanOf(pendingTrace)).finish()
 
-    then:
     then:
     1 * tracer.captureTraceConfig() >> traceConfig
     1 * bufferSpy.enqueue(_)
@@ -234,6 +238,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
+    1 * tracer.onRootSpanPublished(_)
     0 * _
 
     pendingTrace.isEnqueued == 0
@@ -261,6 +266,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.getTimeWithNanoTicks(_)
+    1 * tracer.onRootSpanPublished(parent)
     0 * _
 
     when:
@@ -314,6 +320,7 @@ class PendingTraceBufferTest extends DDSpecification {
     }
     _ * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.getTimeWithNanoTicks(_)
+    1 * tracer.onRootSpanPublished(parent)
     0 * _
 
     when:
@@ -409,6 +416,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.getPartialFlushMinSpans() >> 10000
     1 * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
+    1 * tracer.onRootSpanPublished(_)
     0 * _
 
     when: "fail to fill the buffer"
@@ -471,9 +479,9 @@ class PendingTraceBufferTest extends DDSpecification {
   }
 
   static DDSpan newSpanOf(DDSpan parent) {
-    def trace = parent.context().trace
+    def traceCollector = parent.context().traceCollector
     def context = new DDSpanContext(
-      trace.traceId,
+      traceCollector.traceId,
       2,
       parent.context().spanId,
       null,
@@ -486,7 +494,7 @@ class PendingTraceBufferTest extends DDSpecification {
       false,
       "fakeType",
       0,
-      trace,
+      traceCollector,
       null,
       null,
       NoopPathwayContext.INSTANCE,

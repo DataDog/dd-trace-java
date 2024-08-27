@@ -84,7 +84,7 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
       final MethodList<?> methods,
       final int writerFlags,
       final int readerFlags) {
-    return new ClassVisitor(Opcodes.ASM7, classVisitor) {
+    return new ClassVisitor(Opcodes.ASM8, classVisitor) {
       @Override
       public MethodVisitor visitMethod(
           final int access,
@@ -93,7 +93,7 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
           final String signature,
           final String[] exceptions) {
         final MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
-        return new MethodVisitor(Opcodes.ASM7, mv) {
+        return new MethodVisitor(api, mv) {
           /** The last two constants pushed onto the stack. */
           private Object constant1, constant2;
 

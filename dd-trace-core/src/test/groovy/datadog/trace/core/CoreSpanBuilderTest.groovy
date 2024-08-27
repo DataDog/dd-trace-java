@@ -1,5 +1,7 @@
 package datadog.trace.core
 
+import static datadog.trace.api.DDTags.DJM_ENABLED
+import static datadog.trace.api.DDTags.DSM_ENABLED
 import static datadog.trace.api.DDTags.PROFILING_ENABLED
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY
 
@@ -74,14 +76,13 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     then:
     span.getTags() == [
-      (THREAD_NAME)     : Thread.currentThread().getName(),
-      (THREAD_ID)       : Thread.currentThread().getId(),
-      (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
-      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-      (PID_TAG)         : Config.get().getProcessId(),
-      (SCHEMA_VERSION_TAG_KEY) : SpanNaming.instance().version(),
-      (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0
-    ]
+      (THREAD_NAME)            : Thread.currentThread().getName(),
+      (THREAD_ID)              : Thread.currentThread().getId(),
+      (RUNTIME_ID_TAG)         : Config.get().getRuntimeId(),
+      (LANGUAGE_TAG_KEY)       : LANGUAGE_TAG_VALUE,
+      (PID_TAG)                : Config.get().getProcessId(),
+      (SCHEMA_VERSION_TAG_KEY) : SpanNaming.instance().version()
+    ] + productTags()
 
     when:
     // with all custom fields provided
@@ -179,7 +180,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     1 * mockedContext.getSpanId() >> spanId
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
-    1 * mockedContext.getTrace() >> tracer.pendingTraceFactory.create(DDTraceId.ONE)
+    1 * mockedContext.getTraceCollector() >> tracer.traceCollectorFactory.create(DDTraceId.ONE)
     _ * mockedContext.getPathwayContext() >> NoopPathwayContext.INSTANCE
 
     final String expectedName = "fakeName"
@@ -309,10 +310,10 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     }
 
     expect:
-    root.context().getTrace().rootSpan == root
-    root.context().getTrace().size() == nbSamples
-    root.context().getTrace().spans.containsAll(spans)
-    spans[(int) (Math.random() * nbSamples)].context.trace.spans.containsAll(spans)
+    root.context().getTraceCollector().rootSpan == root
+    root.context().getTraceCollector().size() == nbSamples
+    root.context().getTraceCollector().spans.containsAll(spans)
+    spans[(int) (Math.random() * nbSamples)].context.traceCollector.spans.containsAll(spans)
   }
 
   def "ExtractedContext should populate new span details"() {
@@ -352,13 +353,12 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.samplingPriority == null
     span.context().origin == tagContext.origin
     span.context().baggageItems == [:]
-    span.context().tags == tagContext.tags +
-      [(RUNTIME_ID_TAG)        : Config.get().getRuntimeId(),
-        (LANGUAGE_TAG_KEY)      : LANGUAGE_TAG_VALUE,
-        (THREAD_NAME)           : thread.name, (THREAD_ID): thread.id, (PID_TAG): Config.get().getProcessId(),
-        (SCHEMA_VERSION_TAG_KEY): SpanNaming.instance().version(),
-        (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0
-      ]
+    span.context().tags == tagContext.tags + [
+      (RUNTIME_ID_TAG)         : Config.get().getRuntimeId(),
+      (LANGUAGE_TAG_KEY)       : LANGUAGE_TAG_VALUE,
+      (THREAD_NAME)            : thread.name, (THREAD_ID): thread.id, (PID_TAG): Config.get().getProcessId(),
+      (SCHEMA_VERSION_TAG_KEY) : SpanNaming.instance().version()
+    ] + productTags()
 
     where:
     tagContext                                      | _
@@ -374,14 +374,13 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     expect:
     span.tags == tags + [
-      (THREAD_NAME)           : Thread.currentThread().getName(),
-      (THREAD_ID)             : Thread.currentThread().getId(),
-      (RUNTIME_ID_TAG)        : Config.get().getRuntimeId(),
-      (LANGUAGE_TAG_KEY)      : LANGUAGE_TAG_VALUE,
-      (PID_TAG)               : Config.get().getProcessId(),
-      (SCHEMA_VERSION_TAG_KEY): SpanNaming.instance().version(),
-      (PROFILING_ENABLED)     : Config.get().isProfilingEnabled() ? 1 : 0
-    ]
+      (THREAD_NAME)            : Thread.currentThread().getName(),
+      (THREAD_ID)              : Thread.currentThread().getId(),
+      (RUNTIME_ID_TAG)         : Config.get().getRuntimeId(),
+      (LANGUAGE_TAG_KEY)       : LANGUAGE_TAG_VALUE,
+      (PID_TAG)                : Config.get().getProcessId(),
+      (SCHEMA_VERSION_TAG_KEY) : SpanNaming.instance().version()
+    ] + productTags()
 
     cleanup:
     customTracer.close()
@@ -455,5 +454,18 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span3.finish()
     span2.finish()
     span1.finish()
+  }
+
+  def productTags() {
+    def productTags = [
+      (PROFILING_ENABLED) : Config.get().isProfilingEnabled() ? 1 : 0
+    ]
+    if (Config.get().isDataStreamsEnabled()) {
+      productTags[DSM_ENABLED] = 1
+    }
+    if (Config.get().isDataJobsEnabled()) {
+      productTags[DJM_ENABLED] = 1
+    }
+    return productTags
   }
 }

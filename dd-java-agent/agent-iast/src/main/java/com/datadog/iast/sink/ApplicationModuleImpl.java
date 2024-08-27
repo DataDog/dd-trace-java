@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -44,31 +45,50 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
 
   private static final String CONTEXT_LOADER_LISTENER =
       "org.springframework.web.context.ContextLoaderListener";
-
   private static final String DISPATCHER_SERVLET =
       "org.springframework.web.servlet.DispatcherServlet";
-
   private static final String DEFAULT_HTML_ESCAPE = "defaultHtmlEscape";
-
-  private static final String TOMCAT_MANAGER_APPLICATION = "Tomcat Manager Application";
-
   private static final String LISTINGS_PATTERN = "<param-name>listings</param-name>";
-
+  private static final String JETTY_LISTINGS_PATTERN = "<param-name>dirAllowed</param-name>";
+  private static final String WEBLOGIC_LISTING_PATTERN =
+      "<index-directory-enabled>true</index-directory-enabled>";
+  private static final String WEBSPHERE_XMI_LISTING_PATTERN = "directoryBrowsingEnabled=\"true\"";
+  private static final String WEBSPHERE_XML_LISTING_PATTERN =
+      "<enable-directory-browsing value=\"true\"/>";
   private static final String SESSION_TIMEOUT_START_TAG = "<session-timeout>";
-
   private static final String SESSION_TIMEOUT_END_TAG = "</session-timeout>";
-
   private static final String SECURITY_CONSTRAINT_START_TAG = "<security-constraint>";
-
   private static final String SECURITY_CONSTRAINT_END_TAG = "</security-constraint>";
-
   public static final String PARAM_VALUE_START_TAG = "<param-value>";
-
   public static final String PARAM_VALUE_END_TAG = "</param-value>";
-
+  public static final String DISPLAY_NAME_PATTERN = "<display-name>(.*?)</display-name>";
+  static final String TOMCAT_MANAGER_APP = "Tomcat Manager Application";
+  static final String TOMCAT_HOST_MANAGER_APP = "Tomcat Host Manager Application";
+  static final String TOMCAT_SAMPLES_APP = "Servlet and JSP Examples";
+  static final String JETTY_ASYNC_REST_APP = "Async REST Webservice Example";
+  static final String JETTY_JAVADOC_APP = "Transparent Proxy WebApp";
+  static final String JETTY_JAAS_APP = "JAAS Test";
+  static final String JETTY_JNDI_APP = "Test JNDI WebApp";
+  static final String JETTY_SPEC_APP = "Test Annotations WebApp";
+  static final String JETTY_TEST_APP = "Test WebApp";
+  public static final Set<String> ADMIN_CONSOLE_LIST =
+      new HashSet<>(Arrays.asList(TOMCAT_MANAGER_APP, TOMCAT_HOST_MANAGER_APP));
+  public static final Set<String> DEFAULT_APP_LIST =
+      new HashSet<>(
+          Arrays.asList(
+              TOMCAT_SAMPLES_APP,
+              JETTY_ASYNC_REST_APP,
+              JETTY_JAVADOC_APP,
+              JETTY_JAAS_APP,
+              JETTY_JNDI_APP,
+              JETTY_SPEC_APP,
+              JETTY_TEST_APP));
   public static final String WEB_INF = "WEB-INF";
-
   public static final String WEB_XML = "web.xml";
+  public static final String WEBLOGIC_XML = "weblogic.xml";
+  public static final String IBM_WEB_EXT_XMI = "ibm-web-ext.xmi";
+  public static final String IBM_WEB_EXT_XML = "ibm-web-ext.xml";
+  static final String SESSION_REWRITING_EVIDENCE_VALUE = "Servlet URL Session Tracking Mode";
 
   private static final Pattern PATTERN =
       Pattern.compile(
@@ -76,12 +96,21 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
                   CONTEXT_LOADER_LISTENER,
                   DISPATCHER_SERVLET,
                   DEFAULT_HTML_ESCAPE,
-                  TOMCAT_MANAGER_APPLICATION,
                   LISTINGS_PATTERN,
+                  JETTY_LISTINGS_PATTERN,
                   SESSION_TIMEOUT_START_TAG,
-                  SECURITY_CONSTRAINT_START_TAG)
-              .map(Pattern::quote)
+                  SECURITY_CONSTRAINT_START_TAG,
+                  DISPLAY_NAME_PATTERN)
               .collect(Collectors.joining("|")));
+
+  private static final Pattern WEBLOGIC_PATTERN =
+      Pattern.compile(WEBLOGIC_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern WEBSPHERE_XMI_PATTERN =
+      Pattern.compile(WEBSPHERE_XMI_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern WEBSPHERE_XML_PATTERN =
+      Pattern.compile(WEBSPHERE_XML_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
 
   private static final int NO_LINE = -1;
 
@@ -89,6 +118,11 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     super(dependencies);
   }
 
+  /**
+   * Overhead is not checked here as it's called once per application context
+   *
+   * @param realPath the real path of the application
+   */
   @Override
   public void onRealPath(final @Nullable String realPath) {
     if (realPath == null) {
@@ -101,10 +135,72 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     final AgentSpan span = AgentTracer.activeSpan();
     checkInsecureJSPLayout(root, span);
     checkWebXmlVulnerabilities(root, span);
+    // WEBLOGIC
+    checkWeblogicVulnerabilities(root, span);
+    // WEBSPHERE
+    checkWebsphereVulnerabilities(root, span);
   }
 
-  private void checkWebXmlVulnerabilities(@Nonnull Path path, AgentSpan span) {
-    String webXmlContent = webXmlContent(path);
+  /**
+   * Overhead is not checked here as it's called once per application context
+   *
+   * @param sessionTrackingModes the session tracking modes
+   */
+  @Override
+  public void checkSessionTrackingModes(@Nonnull Set<String> sessionTrackingModes) {
+    if (!sessionTrackingModes.contains("URL")) {
+      return;
+    }
+    final AgentSpan span = AgentTracer.activeSpan();
+    // No deduplication is needed as same service can have multiple applications
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.SESSION_REWRITING,
+            Location.forSpan(span),
+            new Evidence(SESSION_REWRITING_EVIDENCE_VALUE)));
+  }
+
+  private void checkWebsphereVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    checkWebsphereXMLVulnerabilities(path, span);
+    checkWebsphereXMIVulnerabilities(path, span);
+  }
+
+  private void checkWebsphereXMIVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String xmlContent = getXmlContent(path, IBM_WEB_EXT_XMI);
+    if (xmlContent == null) {
+      return;
+    }
+    Matcher matcher = WEBSPHERE_XMI_PATTERN.matcher(xmlContent);
+    while (matcher.find()) {
+      reportDirectoryListingLeak(xmlContent, matcher.start(), span);
+    }
+  }
+
+  private void checkWebsphereXMLVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String xmlContent = getXmlContent(path, IBM_WEB_EXT_XML);
+    if (xmlContent == null) {
+      return;
+    }
+    Matcher matcher = WEBSPHERE_XML_PATTERN.matcher(xmlContent);
+    while (matcher.find()) {
+      reportDirectoryListingLeak(xmlContent, matcher.start(), span);
+    }
+  }
+
+  private void checkWeblogicVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String xmlContent = getXmlContent(path, WEBLOGIC_XML);
+    if (xmlContent == null) {
+      return;
+    }
+    Matcher matcher = WEBLOGIC_PATTERN.matcher(xmlContent);
+    while (matcher.find()) {
+      reportDirectoryListingLeak(xmlContent, matcher.start(), span);
+    }
+  }
+
+  private void checkWebXmlVulnerabilities(@Nonnull final Path path, final AgentSpan span) {
+    String webXmlContent = getXmlContent(path, WEB_XML);
     if (webXmlContent == null) {
       return;
     }
@@ -123,10 +219,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case DEFAULT_HTML_ESCAPE:
           defaultHtmlEscapeIndex = matcher.start();
           break;
-        case TOMCAT_MANAGER_APPLICATION:
-          reportAdminConsoleActive(span);
-          break;
         case LISTINGS_PATTERN:
+        case JETTY_LISTINGS_PATTERN:
           checkDirectoryListingLeak(webXmlContent, matcher.start(), span);
           break;
         case SESSION_TIMEOUT_START_TAG:
@@ -135,7 +229,13 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case SECURITY_CONSTRAINT_START_TAG:
           checkVerbTampering(webXmlContent, matcher.start(), span);
           break;
-        default:
+        default: // DISPLAY NAME MATCH
+          String displayName = matcher.group(1);
+          if (ADMIN_CONSOLE_LIST.contains(displayName)) {
+            reportAdminConsoleActive(span, displayName);
+          } else if (DEFAULT_APP_LIST.contains(displayName)) {
+            reportDefaultAppDeployed(span, displayName);
+          }
           break;
       }
     }
@@ -169,8 +269,23 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
   }
 
-  private void reportAdminConsoleActive(AgentSpan span) {
-    report(span, VulnerabilityType.ADMIN_CONSOLE_ACTIVE, "Tomcat Manager Application", NO_LINE);
+  private void reportAdminConsoleActive(AgentSpan span, final String evidence) {
+    // No deduplication is needed as same service can have multiple applications
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.ADMIN_CONSOLE_ACTIVE,
+            Location.forSpan(span),
+            new Evidence(evidence)));
+  }
+
+  private void reportDefaultAppDeployed(final AgentSpan span, final String evidence) {
+    reporter.report(
+        span,
+        new Vulnerability(
+            VulnerabilityType.DEFAULT_APP_DEPLOYED,
+            Location.forSpan(span),
+            new Evidence(evidence)));
   }
 
   private void checkDirectoryListingLeak(
@@ -180,12 +295,17 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     int valueLast = webXmlContent.indexOf(PARAM_VALUE_END_TAG, valueIndex);
     String data = substringTrim(webXmlContent, valueIndex, valueLast);
     if (data.equalsIgnoreCase("true")) {
-      report(
-          span,
-          VulnerabilityType.DIRECTORY_LISTING_LEAK,
-          "Directory listings configured",
-          getLine(webXmlContent, index));
+      reportDirectoryListingLeak(webXmlContent, index, span);
     }
+  }
+
+  private void reportDirectoryListingLeak(
+      final String webXmlContent, int index, final AgentSpan span) {
+    report(
+        span,
+        VulnerabilityType.DIRECTORY_LISTING_LEAK,
+        "Directory listings configured",
+        getLine(webXmlContent, index));
   }
 
   private void checkSessionTimeOut(final String webXmlContent, int index, final AgentSpan span) {
@@ -257,8 +377,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   }
 
   @Nullable
-  private static String webXmlContent(final Path realPath) {
-    Path path = realPath.resolve(WEB_INF).resolve(WEB_XML);
+  private static String getXmlContent(final Path realPath, final String fileName) {
+    Path path = realPath.resolve(WEB_INF).resolve(fileName);
     if (Files.exists(path)) {
       try {
         return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
@@ -295,8 +415,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     private final Set<Path> folders = new HashSet<>();
 
     @Override
-    public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs)
-        throws IOException {
+    public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs) {
       final String folder = dir.getFileName().toString();
       if (endsWithIgnoreCase(folder, WEB_INF)) {
         return FileVisitResult.SKIP_SUBTREE;
@@ -305,8 +424,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
 
     @Override
-    public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs)
-        throws IOException {
+    public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
       final String fileName = file.getFileName().toString();
       if (endsWithIgnoreCase(fileName, ".jsp") || endsWithIgnoreCase(fileName, ".jspx")) {
         folders.add(file.getParent());
@@ -316,14 +434,12 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     }
 
     @Override
-    public FileVisitResult visitFileFailed(final Path file, final IOException exc)
-        throws IOException {
+    public FileVisitResult visitFileFailed(final Path file, final IOException exc) {
       return FileVisitResult.CONTINUE;
     }
 
     @Override
-    public FileVisitResult postVisitDirectory(final Path dir, final IOException exc)
-        throws IOException {
+    public FileVisitResult postVisitDirectory(final Path dir, final IOException exc) {
       return FileVisitResult.CONTINUE;
     }
   }

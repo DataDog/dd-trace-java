@@ -11,15 +11,16 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  api('com.datadoghq:jmxfetch:0.49.0') {
+  api('com.datadoghq:jmxfetch:0.49.4') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
     exclude group: 'com.beust', module: 'jcommander'
     exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
     exclude group: 'com.fasterxml.jackson.jr', module: 'jackson-jr-objects'
   }
-  api deps.slf4j
+  api libs.slf4j
   api project(':internal-api')
+  api project(':dd-java-agent:agent-bootstrap')
 }
 
 shadowJar {

@@ -404,6 +404,9 @@ public class LogProbe extends ProbeDefinition {
   }
 
   private void sample(LogStatus logStatus, MethodLocation methodLocation) {
+    if (logStatus.isForceSampling()) {
+      return;
+    }
     // sample only once and when we need to evaluate
     if (!MethodLocation.isSame(methodLocation, evaluateAt)) {
       return;
@@ -440,6 +443,26 @@ public class LogProbe extends ProbeDefinition {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
+    Snapshot snapshot = createSnapshot();
+    boolean shouldCommit = fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot);
+    DebuggerSink sink = DebuggerAgent.getSink();
+    if (shouldCommit) {
+      commitSnapshot(snapshot, sink);
+    } else {
+      sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
+    }
+  }
+
+  protected Snapshot createSnapshot() {
+    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
+    return new Snapshot(Thread.currentThread(), this, maxDepth);
+  }
+
+  protected boolean fillSnapshot(
+      CapturedContext entryContext,
+      CapturedContext exitContext,
+      List<CapturedContext.CapturedThrowable> caughtExceptions,
+      Snapshot snapshot) {
     LogStatus entryStatus = convertStatus(entryContext.getStatus(probeId.getEncodedId()));
     LogStatus exitStatus = convertStatus(exitContext.getStatus(probeId.getEncodedId()));
     String message = null;
@@ -458,10 +481,7 @@ public class LogProbe extends ProbeDefinition {
         spanId = exitContext.getSpanId();
         break;
     }
-    DebuggerSink sink = DebuggerAgent.getSink();
     boolean shouldCommit = false;
-    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
       snapshot.setTraceId(traceId);
       snapshot.setSpanId(spanId);
@@ -490,11 +510,7 @@ public class LogProbe extends ProbeDefinition {
       snapshot.addEvaluationErrors(exitStatus.getErrors());
       shouldCommit = true;
     }
-    if (shouldCommit) {
-      commitSnapshot(snapshot, sink);
-    } else {
-      sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
-    }
+    return shouldCommit;
   }
 
   private LogStatus convertStatus(CapturedContext.Status status) {
@@ -507,7 +523,7 @@ public class LogProbe extends ProbeDefinition {
     return (LogStatus) status;
   }
 
-  private void commitSnapshot(Snapshot snapshot, DebuggerSink sink) {
+  protected void commitSnapshot(Snapshot snapshot, DebuggerSink sink) {
     /*
      * Record stack trace having the caller of this method as 'top' frame.
      * For this it is necessary to discard:
@@ -517,8 +533,12 @@ public class LogProbe extends ProbeDefinition {
      * - ProbeDefinition.commit()
      * - DebuggerContext.commit() or DebuggerContext.evalAndCommit()
      */
-    snapshot.recordStackTrace(5);
-    sink.addSnapshot(snapshot);
+    if (isCaptureSnapshot()) {
+      snapshot.recordStackTrace(5);
+      sink.addSnapshot(snapshot);
+    } else {
+      sink.addHighRateSnapshot(snapshot);
+    }
   }
 
   @Override
@@ -528,8 +548,7 @@ public class LogProbe extends ProbeDefinition {
       return;
     }
     DebuggerSink sink = DebuggerAgent.getSink();
-    int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
-    Snapshot snapshot = new Snapshot(Thread.currentThread(), this, maxDepth);
+    Snapshot snapshot = createSnapshot();
     boolean shouldCommit = false;
     if (status.shouldSend()) {
       snapshot.setTraceId(lineContext.getTraceId());
@@ -565,15 +584,16 @@ public class LogProbe extends ProbeDefinition {
   }
 
   public static class LogStatus extends CapturedContext.Status {
-    private static final LogStatus EMPTY_LOG_STATUS =
+    public static final LogStatus EMPTY_LOG_STATUS =
         new LogStatus(ProbeImplementation.UNKNOWN, false);
-    private static final LogStatus EMPTY_CAPTURING_LOG_STATUS =
+    public static final LogStatus EMPTY_CAPTURING_LOG_STATUS =
         new LogStatus(ProbeImplementation.UNKNOWN, true);
 
     private boolean condition = true;
     private boolean hasLogTemplateErrors;
     private boolean hasConditionErrors;
     private boolean sampled = true;
+    private boolean forceSampling;
     private String message;
 
     public LogStatus(ProbeImplementation probeImplementation) {
@@ -642,6 +662,14 @@ public class LogProbe extends ProbeDefinition {
     public boolean isSampled() {
       return sampled;
     }
+
+    public boolean isForceSampling() {
+      return forceSampling;
+    }
+
+    public void setForceSampling(boolean forceSampling) {
+      this.forceSampling = forceSampling;
+    }
   }
 
   @Generated
@@ -689,7 +717,8 @@ public class LogProbe extends ProbeDefinition {
   @Generated
   @Override
   public String toString() {
-    return "LogProbe{"
+    return getClass().getSimpleName()
+        + "{"
         + "language='"
         + language
         + '\''

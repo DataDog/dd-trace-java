@@ -54,6 +54,11 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
     };
   }
 
+  @Override
+  public String muzzleDirective() {
+    return "javax.servlet";
+  }
+
   public static class DispatchAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
@@ -70,7 +75,8 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
         String relativePath = exchange.getRelativePath();
 
         ServletPathMatch servletPathMatch = servletRequestContext.getServletPathMatch();
-        if (servletPathMatch != null
+        if (UndertowDecorator.UNDERTOW_LEGACY_TRACING
+            && servletPathMatch != null
             && servletPathMatch.getMappingMatch() != MappingMatch.DEFAULT) {
           // Set the route unless the mapping match is default, this way we prevent setting route
           // for a non-existing resource. Otherwise, it'd set a non-existing resource name with

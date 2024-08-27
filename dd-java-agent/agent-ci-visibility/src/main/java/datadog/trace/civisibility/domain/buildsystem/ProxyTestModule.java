@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
@@ -12,7 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
+import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
@@ -56,13 +57,16 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStore.Factory coverageStoreFactory;
   private final LongAdder testsSkipped = new LongAdder();
   private final Collection<TestIdentifier> skippableTests;
-  private final Collection<TestIdentifier> flakyTests;
+  private final boolean testSkippingEnabled;
+  private final boolean flakyTestRetriesEnabled;
+  @Nullable private final Collection<TestIdentifier> flakyTests;
   private final Collection<TestIdentifier> knownTests;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
+  private final AtomicInteger autoRetriesUsed = new AtomicInteger(0);
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
   public ProxyTestModule(
@@ -76,7 +80,7 @@ public class ProxyTestModule implements TestFrameworkModule {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       CoverageDataSupplier coverageDataSupplier,
       SignalClient.Factory signalClientFactory) {
     this.parentProcessSessionId = parentProcessSessionId;
@@ -90,10 +94,18 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
     this.itrCorrelationId = executionSettings.getItrCorrelationId();
+
+    this.testSkippingEnabled = executionSettings.isTestSkippingEnabled();
     this.skippableTests = new HashSet<>(executionSettings.getSkippableTests(moduleName));
-    this.flakyTests = new HashSet<>(executionSettings.getFlakyTests(moduleName));
+    this.coverageStoreFactory =
+        executionSettings.isItrEnabled()
+            ? new SkippableAwareCoverageStoreFactory(skippableTests, coverageStoreFactory)
+            : coverageStoreFactory;
+
+    this.flakyTestRetriesEnabled = executionSettings.isFlakyTestRetriesEnabled();
+    Collection<TestIdentifier> flakyTests = executionSettings.getFlakyTests(moduleName);
+    this.flakyTests = flakyTests != null ? new HashSet<>(flakyTests) : null;
 
     Collection<TestIdentifier> moduleKnownTests = executionSettings.getKnownTests(moduleName);
     this.knownTests = moduleKnownTests != null ? new HashSet<>(moduleKnownTests) : null;
@@ -102,18 +114,18 @@ public class ProxyTestModule implements TestFrameworkModule {
   }
 
   @Override
-  public boolean isSkippable(TestIdentifier test) {
-    return test != null && skippableTests.contains(test);
-  }
-
-  @Override
   public boolean isNew(TestIdentifier test) {
     return knownTests != null && !knownTests.contains(test.withoutParameters());
   }
 
   @Override
+  public boolean shouldBeSkipped(TestIdentifier test) {
+    return testSkippingEnabled && test != null && skippableTests.contains(test);
+  }
+
+  @Override
   public boolean skip(TestIdentifier test) {
-    if (isSkippable(test)) {
+    if (shouldBeSkipped(test)) {
       testsSkipped.increment();
       return true;
     } else {
@@ -130,8 +142,10 @@ public class ProxyTestModule implements TestFrameworkModule {
           && !earlyFlakeDetectionLimitReached(earlyFlakeDetectionsUsed.incrementAndGet())) {
         return new RetryNTimes(earlyFlakeDetectionSettings);
       }
-      if (flakyTests.contains(test.withoutParameters())) {
-        return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount());
+      if (flakyTestRetriesEnabled
+          && (flakyTests == null || flakyTests.contains(test.withoutParameters()))
+          && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount()) {
+        return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount(), autoRetriesUsed);
       }
     }
     return NeverRetry.INSTANCE;
@@ -155,7 +169,7 @@ public class ProxyTestModule implements TestFrameworkModule {
 
   private void sendModuleExecutionResult() {
     boolean coverageEnabled = config.isCiVisibilityCodeCoverageEnabled();
-    boolean itrEnabled = config.isCiVisibilityItrEnabled();
+    boolean testSkippingEnabled = config.isCiVisibilityTestSkippingEnabled();
     boolean earlyFlakeDetectionEnabled = earlyFlakeDetectionSettings.isEnabled();
     boolean earlyFlakeDetectionFaulty =
         earlyFlakeDetectionEnabled
@@ -168,7 +182,7 @@ public class ProxyTestModule implements TestFrameworkModule {
             parentProcessSessionId,
             parentProcessModuleId,
             coverageEnabled,
-            itrEnabled,
+            testSkippingEnabled,
             earlyFlakeDetectionEnabled,
             earlyFlakeDetectionFaulty,
             testsSkippedTotal,
@@ -207,7 +221,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory,
+        coverageStoreFactory,
         this::propagateTestFrameworkData);
   }
 

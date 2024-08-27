@@ -18,7 +18,7 @@ public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVi
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Only instrument Gradle 8.3+
     return hasClassNamed("org.gradle.api.file.ConfigurableFilePermissions");
   }
@@ -56,6 +56,11 @@ public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVi
       packageName + ".CiVisibilityPluginExtension",
       packageName + ".CiVisibilityPlugin"
     };
+  }
+
+  @Override
+  public boolean useAgentCodeSource() {
+    return true;
   }
 
   @Override

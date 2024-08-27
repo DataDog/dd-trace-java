@@ -1,9 +1,6 @@
 package com.datadog.debugger.symbol;
 
-import com.datadog.debugger.agent.AllowListHelper;
-import com.datadog.debugger.sink.SymbolSink;
-import datadog.trace.api.Config;
-import datadog.trace.util.Strings;
+import com.datadog.debugger.util.ClassNameFiltering;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 import org.slf4j.Logger;
@@ -13,20 +10,13 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SymbolExtractionTransformer.class);
 
-  private final AllowListHelper allowListHelper;
   private final SymbolAggregator symbolAggregator;
-
-  public SymbolExtractionTransformer() {
-    this(
-        new AllowListHelper(null),
-        new SymbolAggregator(
-            new SymbolSink(Config.get()), Config.get().getDebuggerSymbolFlushThreshold()));
-  }
+  private final ClassNameFiltering classNameFiltering;
 
   public SymbolExtractionTransformer(
-      AllowListHelper allowListHelper, SymbolAggregator symbolAggregator) {
-    this.allowListHelper = allowListHelper;
+      SymbolAggregator symbolAggregator, ClassNameFiltering classNameFiltering) {
     this.symbolAggregator = symbolAggregator;
+    this.classNameFiltering = classNameFiltering;
   }
 
   @Override
@@ -40,25 +30,12 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
       return null;
     }
     try {
-      if (allowListHelper.isAllowAll()) {
-        if (className.startsWith("java/")
-            || className.startsWith("javax/")
-            || className.startsWith("jdk/")
-            || className.startsWith("sun/")
-            || className.startsWith("com/sun/")
-            || className.startsWith("datadog/")
-            || className.startsWith("com/datadog/")) {
-          return null;
-        }
-      } else {
-        String javaClassName = Strings.getClassName(className);
-        if (!allowListHelper.isAllowed(javaClassName)) {
-          return null;
-        }
-        if (javaClassName.startsWith("com.datadog.debugger.symbol.")) {
-          // Don't parse our own classes to avoid duplicate class definition
-          return null;
-        }
+      if (className.startsWith("com/datadog/debugger/symbol/")) {
+        // Don't parse our own classes to avoid duplicate class definition
+        return null;
+      }
+      if (classNameFiltering.isExcluded(className)) {
+        return null;
       }
       symbolAggregator.parseClass(className, classfileBuffer, protectionDomain);
       return null;
@@ -68,7 +45,7 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
     }
   }
 
-  AllowListHelper getAllowListHelper() {
-    return allowListHelper;
+  ClassNameFiltering getClassNameFiltering() {
+    return classNameFiltering;
   }
 }

@@ -20,6 +20,7 @@ public class TagsProcessor {
     }
   }
 
+  public static final String MANUAL_TAG = "manual_checkpoint";
   public static final String TYPE_TAG = "type";
   private static final DDCache<String, String> TYPE_TAG_CACHE = DDCaches.newFixedSizeCache(32);
   private static final Function<String, String> TYPE_TAG_PREFIX = new StringPrefix("type:");
@@ -57,6 +58,18 @@ public class TagsProcessor {
   private static final DDCache<String, String> EXCHANGE_TAG_CACHE = DDCaches.newFixedSizeCache(32);
   private static final Function<String, String> EXCHANGE_TAG_PREFIX = new StringPrefix("exchange:");
 
+  public static final String DATASET_NAME_TAG = "ds.name";
+  private static final DDCache<String, String> DATASET_NAME_TAG_CACHE =
+      DDCaches.newFixedSizeCache(32);
+  private static final Function<String, String> DATASET_NAME_TAG_PREFIX =
+      new StringPrefix("ds.name:");
+
+  public static final String DATASET_NAMESPACE_TAG = "ds.namespace";
+  private static final DDCache<String, String> DATASET_NAMESPACE_TAG_CACHE =
+      DDCaches.newFixedSizeCache(32);
+  private static final Function<String, String> DATASET_NAMESPACE_TAG_PREFIX =
+      new StringPrefix("ds.namespace:");
+
   public static final String HAS_ROUTING_KEY_TAG = "has_routing_key";
   private static final DDCache<String, String> HAS_ROUTING_KEY_TAG_CACHE =
       DDCaches.newFixedSizeCache(2); // true or false
@@ -84,6 +97,8 @@ public class TagsProcessor {
     result.put(EXCHANGE_TAG, EXCHANGE_TAG_CACHE);
     result.put(HAS_ROUTING_KEY_TAG, HAS_ROUTING_KEY_TAG_CACHE);
     result.put(KAFKA_CLUSTER_ID_TAG, KAFKA_CLUSTER_ID_TAG_CACHE);
+    result.put(DATASET_NAME_TAG, DATASET_NAME_TAG_CACHE);
+    result.put(DATASET_NAMESPACE_TAG, DATASET_NAMESPACE_TAG_CACHE);
     return result;
   }
 
@@ -99,6 +114,8 @@ public class TagsProcessor {
     result.put(EXCHANGE_TAG, EXCHANGE_TAG_PREFIX);
     result.put(HAS_ROUTING_KEY_TAG, HAS_ROUTING_KEY_TAG_PREFIX);
     result.put(KAFKA_CLUSTER_ID_TAG, KAFKA_CLUSTER_ID_TAG_PREFIX);
+    result.put(DATASET_NAME_TAG, DATASET_NAME_TAG_PREFIX);
+    result.put(DATASET_NAMESPACE_TAG, DATASET_NAMESPACE_TAG_PREFIX);
     return result;
   }
 

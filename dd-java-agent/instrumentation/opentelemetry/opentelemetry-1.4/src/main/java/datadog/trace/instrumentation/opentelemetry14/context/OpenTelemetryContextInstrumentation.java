@@ -2,12 +2,12 @@ package datadog.trace.instrumentation.opentelemetry14.context;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.opentelemetry14.OpenTelemetryInstrumentation.ROOT_PACKAGE_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
@@ -54,23 +54,23 @@ public class OpenTelemetryContextInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OtelContext",
-      packageName + ".OtelScope",
-      ROOT_PACKAGE_NAME + ".trace.OtelExtractedContext",
-      ROOT_PACKAGE_NAME + ".trace.OtelConventions",
-      ROOT_PACKAGE_NAME + ".trace.OtelConventions$1",
-      ROOT_PACKAGE_NAME + ".trace.OtelSpan",
-      ROOT_PACKAGE_NAME + ".trace.OtelSpan$1",
-      ROOT_PACKAGE_NAME + ".trace.OtelSpan$NoopSpan",
-      ROOT_PACKAGE_NAME + ".trace.OtelSpan$NoopSpanContext",
-      ROOT_PACKAGE_NAME + ".trace.OtelSpanBuilder",
-      ROOT_PACKAGE_NAME + ".trace.OtelSpanBuilder$1",
-      ROOT_PACKAGE_NAME + ".trace.OtelSpanContext",
-      ROOT_PACKAGE_NAME + ".trace.OtelSpanLink",
-      ROOT_PACKAGE_NAME + ".trace.OtelSpanLink$1",
-      ROOT_PACKAGE_NAME + ".trace.OtelTracer",
-      ROOT_PACKAGE_NAME + ".trace.OtelTracerBuilder",
-      ROOT_PACKAGE_NAME + ".trace.OtelTracerProvider",
+      "datadog.opentelemetry.shim.context.OtelContext",
+      "datadog.opentelemetry.shim.context.OtelContext$1",
+      "datadog.opentelemetry.shim.context.OtelScope",
+      "datadog.opentelemetry.shim.trace.OtelExtractedContext",
+      "datadog.opentelemetry.shim.trace.OtelConventions",
+      "datadog.opentelemetry.shim.trace.OtelConventions$1",
+      "datadog.opentelemetry.shim.trace.OtelSpan",
+      "datadog.opentelemetry.shim.trace.OtelSpan$1",
+      "datadog.opentelemetry.shim.trace.OtelSpan$NoopSpan",
+      "datadog.opentelemetry.shim.trace.OtelSpan$NoopSpanContext",
+      "datadog.opentelemetry.shim.trace.OtelSpanBuilder",
+      "datadog.opentelemetry.shim.trace.OtelSpanBuilder$1",
+      "datadog.opentelemetry.shim.trace.OtelSpanContext",
+      "datadog.opentelemetry.shim.trace.OtelSpanLink",
+      "datadog.opentelemetry.shim.trace.OtelTracer",
+      "datadog.opentelemetry.shim.trace.OtelTracerBuilder",
+      "datadog.opentelemetry.shim.trace.OtelTracerProvider",
     };
   }
 

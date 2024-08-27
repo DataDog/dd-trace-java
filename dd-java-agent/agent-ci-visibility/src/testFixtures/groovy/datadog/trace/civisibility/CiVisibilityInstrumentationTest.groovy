@@ -14,6 +14,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageBridge
 import datadog.trace.api.civisibility.events.TestEventsHandler
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
+import datadog.trace.api.civisibility.telemetry.tag.Provider
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.ContextStore
@@ -21,7 +22,7 @@ import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.JvmInfo
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl
 import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
-import datadog.trace.civisibility.coverage.SegmentlessTestProbes
+import datadog.trace.civisibility.coverage.file.FileCoverageStore
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.domain.BuildSystemSession
@@ -76,7 +77,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def rootPath = currentPath.parent
     dummyModule = rootPath.relativize(currentPath)
 
-    def supportedCiProvider = true
+    def ciProvider = Provider.GITHUBACTIONS
 
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
 
@@ -99,7 +100,9 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
         (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED)          : String.valueOf(flakyRetryEnabled),
         (CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED): String.valueOf(earlyFlakinessDetectionEnabled)
       ]
-      return new ModuleExecutionSettings(false,
+      return new ModuleExecutionSettings(
+      itrEnabled,
+      false,
       itrEnabled,
       flakyRetryEnabled,
       earlyFlakinessDetectionEnabled
@@ -118,21 +121,21 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       Collections.emptyList())
     }
 
-    def coverageProbeStoreFactory = new SegmentlessTestProbes.SegmentlessTestProbesFactory(metricCollector)
+    def coverageStoreFactory = new FileCoverageStore.Factory(metricCollector, sourcePathResolver)
     TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
       return new HeadlessTestSession(
       projectName,
       startTime,
-      supportedCiProvider,
+      ciProvider,
       Config.get(),
       metricCollector,
       testDecorator,
       sourcePathResolver,
       codeowners,
       methodLinesResolver,
-      coverageProbeStoreFactory,
+      coverageStoreFactory,
       moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, "")
       )
     }
@@ -150,7 +153,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       rootPath.toString(),
       startCommand,
       startTime,
-      supportedCiProvider,
+      ciProvider,
       Config.get(),
       metricCollector,
       testModuleRegistry,
@@ -159,7 +162,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       codeowners,
       methodLinesResolver,
       moduleExecutionSettingsFactory,
-      coverageProbeStoreFactory,
+      coverageStoreFactory,
       signalServer,
       repoIndexBuilder
       )
@@ -169,7 +172,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactoryImpl())
     }
 
-    CoverageBridge.registerCoverageProbeStoreRegistry(coverageProbeStoreFactory)
+    CoverageBridge.registerCoverageStoreRegistry(coverageStoreFactory)
   }
 
   private static final class TestEventHandlerFactory implements TestEventsHandler.Factory {
@@ -182,15 +185,12 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     }
 
     @Override
-    <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component) {
-      return create(component, new ConcurrentHashMapContextStore<>(), new ConcurrentHashMapContextStore())
-    }
-
-    @Override
     <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore) {
       TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(dummyModule, component, null)
       TestFrameworkModule testModule = testSession.testModuleStart(dummyModule, null)
-      new TestEventsHandlerImpl(metricCollector, testSession, testModule, suiteStore, testStore)
+      new TestEventsHandlerImpl(metricCollector, testSession, testModule,
+      suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
+      testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
     }
   }
 
@@ -238,7 +238,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     Files.deleteIfExists(agentKeyFile)
   }
 
-  def assertSpansData(String testcaseName, int expectedTracesCount) {
+  def assertSpansData(String testcaseName, int expectedTracesCount, Map<String, String> replacements = [:]) {
     TEST_WRITER.waitForTraces(expectedTracesCount)
     def traces = TEST_WRITER.toList()
 
@@ -247,20 +247,20 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def additionalReplacements = [
       "content.meta.['test.framework_version']": instrumentedLibraryVersion(),
       "content.meta.['test.toolchain']"        : "${instrumentedLibraryName()}:${instrumentedLibraryVersion()}"
-    ]
+    ] + replacements
 
     // uncomment to generate expected data templates
     //    def baseTemplatesPath = CiVisibilityInstrumentationTest.classLoader
-    //    .getResource("test-succeed")
-    //    .toURI()
-    //    .schemeSpecificPart
-    //    .replace('build/resources/test', 'src/test/resources')
-    //    .replace('build/resources/latestDepTest', 'src/test/resources')
-    //    .replace("test-succeed", testcaseName)
+    //      .getResource("test-succeed")
+    //      .toURI()
+    //      .schemeSpecificPart
+    //      .replace('build/resources/test', 'src/test/resources')
+    //      .replace('build/resources/latestDepTest', 'src/test/resources')
+    //      .replace("test-succeed", testcaseName)
     //    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements)
+    //    return [:]
 
-    CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
-    return true
+    return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements)
   }
 
   def getEventsAsJson(List<List<DDSpan>> traces) {

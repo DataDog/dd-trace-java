@@ -13,7 +13,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
-import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -59,7 +58,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".KafkaDecorator",
+      packageName + ".TextMapInjectAdapterInterface",
       packageName + ".TextMapInjectAdapter",
+      packageName + ".NoopTextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       packageName + ".AvroSchemaExtractor",
@@ -113,6 +114,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         span.setTag(InstrumentationTags.TOMBSTONE, true);
       }
 
+      TextMapInjectAdapterInterface setter = NoopTextMapInjectAdapter.NOOP_SETTER;
       // Do not inject headers for batch versions below 2
       // This is how similar check is being done in Kafka client itself:
       // https://github.com/apache/kafka/blob/05fcfde8f69b0349216553f711fdfc3f0259c601/clients/src/main/java/org/apache/kafka/common/record/MemoryRecordsBuilder.java#L411-L412
@@ -123,48 +125,48 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
           && Config.get().isKafkaClientPropagationEnabled()
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
-        sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
-        if (clusterId != null) {
-          sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+        setter = TextMapInjectAdapter.SETTER;
+      }
+      LinkedHashMap<String, String> sortedTags = new LinkedHashMap<>();
+      sortedTags.put(DIRECTION_TAG, DIRECTION_OUT);
+      if (clusterId != null) {
+        sortedTags.put(KAFKA_CLUSTER_ID_TAG, clusterId);
+      }
+      sortedTags.put(TOPIC_TAG, record.topic());
+      sortedTags.put(TYPE_TAG, "kafka");
+      try {
+        propagate().inject(span, record.headers(), setter);
+        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
+            || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+          // inject the context in the headers, but delay sending the stats until we know the
+          // message size.
+          // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
+          propagate()
+              .injectPathwayContextWithoutSendingStats(span, record.headers(), setter, sortedTags);
+          AvroSchemaExtractor.tryExtractProducer(record, span);
         }
-        sortedTags.put(TOPIC_TAG, record.topic());
-        sortedTags.put(TYPE_TAG, "kafka");
-        try {
-          propagate().inject(span, record.headers(), SETTER);
-          if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
-            // inject the context in the headers, but delay sending the stats until we know the
-            // message size.
-            // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
-            propagate()
-                .injectPathwayContextWithoutSendingStats(
-                    span, record.headers(), SETTER, sortedTags);
-            AvroSchemaExtractor.tryExtractProducer(record, span);
-          }
-        } catch (final IllegalStateException e) {
-          // headers must be read-only from reused record. try again with new one.
-          record =
-              new ProducerRecord<>(
-                  record.topic(),
-                  record.partition(),
-                  record.timestamp(),
-                  record.key(),
-                  record.value(),
-                  record.headers());
+      } catch (final IllegalStateException e) {
+        // headers must be read-only from reused record. try again with new one.
+        record =
+            new ProducerRecord<>(
+                record.topic(),
+                record.partition(),
+                record.timestamp(),
+                record.key(),
+                record.value(),
+                record.headers());
 
-          propagate().inject(span, record.headers(), SETTER);
-          if (STREAMING_CONTEXT.empty() || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
-            propagate()
-                .injectPathwayContextWithoutSendingStats(
-                    span, record.headers(), SETTER, sortedTags);
-            AvroSchemaExtractor.tryExtractProducer(record, span);
-          }
-        }
-        if (TIME_IN_QUEUE_ENABLED) {
-          SETTER.injectTimeInQueue(record.headers());
+        propagate().inject(span, record.headers(), setter);
+        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
+            || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+          propagate()
+              .injectPathwayContextWithoutSendingStats(span, record.headers(), setter, sortedTags);
+          AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       }
-
+      if (TIME_IN_QUEUE_ENABLED) {
+        setter.injectTimeInQueue(record.headers());
+      }
       return activateSpan(span);
     }
 
@@ -194,6 +196,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                 saved.getEdgeTags(),
                 saved.getHash(),
                 saved.getParentHash(),
+                saved.getAggregationHash(),
                 saved.getTimestampNanos(),
                 saved.getPathwayLatencyNano(),
                 saved.getEdgeLatencyNano(),

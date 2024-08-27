@@ -101,15 +101,7 @@ jar {
    Instead we should 'fail early' and avoid building such Jars.
    */
   duplicatesStrategy = 'fail'
-}
 
-tasks.register("packageSources", Jar) {
-  archiveClassifier = 'sources'
-  from sourceSets.main.allSource
-}
-artifacts.archives packageSources
-
-jar {
   manifest {
     attributes(
       "Implementation-Title": project.name,
@@ -180,6 +172,10 @@ project.afterEvaluate {
   }
 
   tasks.withType(Test).configureEach {
+    def allowReflectiveAccessToJdk = true
+    if (project.hasProperty('allowReflectiveAccessToJdk')) {
+      allowReflectiveAccessToJdk = project.getProperty('allowReflectiveAccessToJdk')
+    }
     if (javaTestLauncher) {
       def metadata = javaTestLauncher.get().metadata
       def allowedOrForced = !isJdkExcluded(testJvm) &&
@@ -192,14 +188,14 @@ project.afterEvaluate {
           enabled = false
         }
       }
-      if (metadata.languageVersion.asInt() >= 16) {
+      if (metadata.languageVersion.asInt() >= 16 && allowReflectiveAccessToJdk) {
         // temporary workaround when using Java16+: some tests require reflective access to java.lang/java.util
         jvmArgs += ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED']
       }
     } else {
       def name = it.name
       onlyIf { isJavaVersionAllowed(JavaVersion.current(), name) }
-      if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16)) {
+      if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16) && allowReflectiveAccessToJdk) {
         jvmArgs += ['--add-opens=java.base/java.lang=ALL-UNNAMED', '--add-opens=java.base/java.util=ALL-UNNAMED']
       }
     }

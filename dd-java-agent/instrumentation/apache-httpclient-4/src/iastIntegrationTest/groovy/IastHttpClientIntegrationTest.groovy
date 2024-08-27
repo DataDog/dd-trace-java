@@ -1,6 +1,9 @@
+import com.datadog.iast.model.Evidence
 import com.datadog.iast.model.VulnerabilityType
 import com.datadog.iast.test.IastHttpServerTest
 import datadog.trace.agent.test.base.HttpServer
+import foo.bar.VulnerableUrlBuilder
+import okhttp3.HttpUrl
 import okhttp3.Request
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -21,7 +24,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
       handlers {
         prefix('/ssrf/execute') {
           final msg = controller.apacheSsrf(
-          (String) request.getParameter('url'),
+          VulnerableUrlBuilder.url(request),
           (String) request.getParameter('clientClassName'),
           (String) request.getParameter('method'),
           (String) request.getParameter('requestType'),
@@ -33,13 +36,9 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
     }.asHttpServer()
   }
 
-  void 'ssrf is present'() {
+  void 'ssrf is present: #suite'() {
     setup:
-    def expected = 'http://inexistent/test/' + suite.executedMethod
-    if (suite.scheme == 'https') {
-      expected = expected.replace('http', 'https')
-    }
-    final url = address.toString() + 'ssrf/execute' + '?url=' + expected + '&clientClassName=' + suite.clientImplementation + '&method=' + suite.executedMethod + '&requestType=' + suite.requestType + '&scheme=' + suite.scheme
+    final url = suite.url(address)
     final request = new Request.Builder().url(url).get().build()
 
 
@@ -51,12 +50,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
     TEST_WRITER.waitForTraces(1)
     def to = getFinReqTaintedObjects()
     assert to != null
-    hasVulnerability (
-    vul ->
-    vul.type == VulnerabilityType.SSRF
-    && vul.evidence.value == expected
-    )
-
+    hasVulnerability(vul -> vul.type == VulnerabilityType.SSRF && suite.evidenceMatches(vul.evidence))
 
     where:
     suite << createTestSuite()
@@ -67,23 +61,26 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
     for (String client : getAvailableClientsClassName()) {
       for (SsrfController.ExecuteMethod method : SsrfController.ExecuteMethod.values()) {
         if (method.name().startsWith('HOST')) {
-          result.add(createTestSuite(client, method, SsrfController.Request.HttpRequest, 'http'))
-          result.add(createTestSuite(client, method, SsrfController.Request.HttpRequest, 'https'))
+          result.addAll(createTestSuite(client, method, SsrfController.Request.HttpRequest, 'http'))
+          result.addAll(createTestSuite(client, method, SsrfController.Request.HttpRequest, 'https'))
         }
-        result.add(createTestSuite(client, method, SsrfController.Request.HttpUriRequest, 'http'))
+        result.addAll(createTestSuite(client, method, SsrfController.Request.HttpUriRequest, 'http'))
       }
     }
     return result as Iterable<TestSuite>
   }
 
-  private TestSuite createTestSuite(client, method, request, scheme) {
-    return new TestSuite(
-    description: "ssrf is present for ${client} client and ${method} method with ${request} and ${scheme} scheme",
-    executedMethod: method.name(),
-    clientImplementation: client,
-    requestType: request.name(),
-    scheme: scheme
-    )
+  private List<TestSuite> createTestSuite(client, method, request, scheme) {
+    return TaintedTarget.values().collect {
+      new TestSuite(
+      description: "Tainted ${it.name()} with ${client} client and ${method} method with ${request} and ${scheme} scheme",
+      executedMethod: method.name(),
+      clientImplementation: client,
+      requestType: request.name(),
+      scheme: scheme,
+      tainted: it
+      )
+    }
   }
 
   private String[] getAvailableClientsClassName() {
@@ -105,10 +102,91 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
     String clientImplementation
     String requestType
     String scheme
+    TaintedTarget tainted
+
+    HttpUrl url(final URI address) {
+      final builder = new HttpUrl.Builder()
+      .scheme(address.getScheme())
+      .host(address.getHost())
+      .port(address.getPort())
+      .addPathSegments('ssrf/execute')
+      .addQueryParameter('clientClassName', clientImplementation)
+      .addQueryParameter('method', executedMethod)
+      .addQueryParameter('requestType', requestType)
+      .addQueryParameter('scheme', scheme)
+      tainted.addTainted(builder, this)
+      return builder.build()
+    }
+
+    boolean evidenceMatches(Evidence evidence) {
+      return tainted.matches(evidence, this)
+    }
 
     @Override
     String toString() {
-      return "IAST apache httpclient 4 test suite: ${description}"
+      return description
+    }
+  }
+
+  private static enum TaintedTarget {
+    URL{
+      void addTainted(HttpUrl.Builder builder, TestSuite suite) {
+        builder.addQueryParameter('url', suite.scheme + '://inexistent/test?1=1')
+      }
+
+      boolean matches(Evidence evidence, TestSuite suite) {
+        return assertTainted(evidence, 'url', suite.scheme + '://inexistent/test?1=1')
+      }
+    },
+    SCHEME{
+      void addTainted(HttpUrl.Builder builder, TestSuite suite) {
+        // already added by the test
+      }
+
+      boolean matches(Evidence evidence, TestSuite suite) {
+        return assertTainted(evidence, 'scheme', suite.scheme)
+      }
+    },
+    HOST{
+      void addTainted(HttpUrl.Builder builder, TestSuite suite) {
+        builder.addQueryParameter('host', 'inexistent')
+      }
+
+      boolean matches(Evidence evidence, TestSuite suite) {
+        return assertTainted(evidence, 'host', 'inexistent')
+      }
+    },
+    PATH{
+      void addTainted(HttpUrl.Builder builder, TestSuite suite) {
+        builder.addQueryParameter('path', '/test')
+      }
+
+      boolean matches(Evidence evidence, TestSuite suite) {
+        return assertTainted(evidence, 'path', '/test')
+      }
+    },
+    QUERY{
+      void addTainted(HttpUrl.Builder builder, TestSuite suite) {
+        builder.addQueryParameter('query', '?1=1')
+      }
+
+      boolean matches(Evidence evidence, TestSuite suite) {
+        return assertTainted(evidence, 'query', '?1=1')
+      }
+    }
+
+    abstract void addTainted(HttpUrl.Builder builder, TestSuite suite)
+
+    abstract boolean matches(Evidence evidence, TestSuite suite)
+
+    protected static boolean assertTainted(Evidence evidence, String sourceName, String expected) {
+      final value = evidence.value
+      final range = evidence.ranges[0]
+      if (range.source.name != sourceName) {
+        return false
+      }
+      final tainted = value.substring(range.start, range.start + range.length)
+      return tainted == expected
     }
   }
 }

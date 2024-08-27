@@ -8,8 +8,12 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
@@ -50,16 +54,19 @@ public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
         CookieHeaderInstrumentation.class.getName() + "$TaintAllCookiesAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   static class TaintAllCookiesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(
-        @Advice.This HttpHeader cookie, @Advice.Return Seq<HttpCookiePair> cookiePairs) {
+        @Advice.This HttpHeader cookie,
+        @Advice.Return Seq<HttpCookiePair> cookiePairs,
+        @ActiveRequestContext RequestContext reqCtx) {
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
       if (prop == null || cookiePairs == null || cookiePairs.isEmpty()) {
         return;
       }
-      final IastContext ctx = IastContext.Provider.get();
+      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
       if (!prop.isTainted(ctx, cookie)) {
         return;
       }
@@ -68,8 +75,8 @@ public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
       while (iterator.hasNext()) {
         HttpCookiePair pair = iterator.next();
         final String name = pair.name(), value = pair.value();
-        prop.taint(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
-        prop.taint(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
+        prop.taintString(ctx, name, SourceTypes.REQUEST_COOKIE_NAME, name);
+        prop.taintString(ctx, value, SourceTypes.REQUEST_COOKIE_VALUE, name);
       }
     }
   }

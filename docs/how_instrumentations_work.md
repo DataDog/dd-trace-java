@@ -176,6 +176,10 @@ classpath. For
 example, [`ShutdownInstrumentation`](https://github.com/DataDog/dd-trace-java/blob/3e81c006b54f73aae61f88c39b52a7267267075b/dd-java-agent/instrumentation/shutdown/src/main/java/datadog/trace/instrumentation/shutdown/ShutdownInstrumentation.java#L18)
 or [`UrlInstrumentation`](https://github.com/DataDog/dd-trace-java/blob/3e81c006b54f73aae61f88c39b52a7267267075b/dd-java-agent/instrumentation/http-url-connection/src/main/java/datadog/trace/instrumentation/http_url_connection/UrlInstrumentation.java#L21).
 
+> [!NOTE]
+> Without classloader available, helper classes for bootstrap instrumentation must be place into the 
+> `:dd-java-agent:agent-bootstrap` module rather than loaded using [the default mechanism](#helper-classes). 
+
 ### Method Matching
 
 After the type is selected, the type’s target members(e.g., methods) must next be selected using the Instrumentation

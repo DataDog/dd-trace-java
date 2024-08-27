@@ -46,10 +46,13 @@ abstract class CiVisibilityTestUtils {
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 
-  private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.comparing((Map m) -> {
+  private static final Comparator<Map<?,?>> EVENT_RESOURCE_COMPARATOR = Comparator.<Map<?,?>, String> comparing((Map m) -> {
     def content = (Map) m.get("content")
     return content.get("resource")
-  })
+  }).thenComparing(Comparator.<Map<?,?>, String> comparing((Map m) -> {
+    // module and session have the same resource name in headless mode
+    return m.get("type")
+  }).reversed())
 
   /**
    * Use this method to generate expected data templates
@@ -65,7 +68,7 @@ abstract class CiVisibilityTestUtils {
     Files.write(Paths.get(baseTemplatesPath, "coverages.ftl"), templateGenerator.generateTemplate(coverages, COVERAGE_DYNAMIC_PATHS + compiledAdditionalReplacements).bytes)
   }
 
-  static void assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
+  static Map<String, String> assertData(String baseTemplatesPath, List<Map<?, ?>> events, List<Map<?, ?>> coverages, Map<String, String> additionalReplacements) {
     events.sort(EVENT_RESOURCE_COMPARATOR)
 
     def labelGenerator = new LabelGenerator()
@@ -94,6 +97,8 @@ abstract class CiVisibilityTestUtils {
     } catch (AssertionError e) {
       throw new org.opentest4j.AssertionFailedError("Coverages mismatch", expectedCoverages, actualCoverages, e)
     }
+
+    return replacementMap
   }
 
   static final Configuration JSON_PATH_CONFIG = Configuration.builder()

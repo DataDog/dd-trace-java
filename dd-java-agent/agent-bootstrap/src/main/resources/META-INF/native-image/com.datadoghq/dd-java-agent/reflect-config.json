@@ -48,6 +48,25 @@
     ]
   },
   {
+    "name" : "datadog.trace.agent.core.TracingConfigPoller$TracingSamplingRulesAdapter",
+    "methods": [
+      {"name": "fromJson"}
+    ]
+  },
+  {
+    "name" : "datadog.trace.agent.core.DDSpanLink$SpanLinkAdapter",
+    "methods": [
+      {"name": "toSpanLinkJson"}
+    ]
+  },
+  {
+    "name" : "datadog.trace.agent.core.DDSpanLink$SpanLinkJson",
+    "allDeclaredConstructors" : true,
+    "allPublicConstructors" : true,
+    "allDeclaredFields" : true,
+    "allPublicFields" : true
+  },
+  {
     "name" : "datadog.trace.instrumentation.springweb.HandlerMappingResourceNameFilter",
     "methods": [
       {"name": "<init>", "parameterTypes": []}
@@ -85,32 +104,32 @@
     ]
   },
   {
-    "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueColdProducerFields",
+    "name" : "datadog.jctools.queues.MpscBlockingConsumerArrayQueueColdProducerFields",
     "fields": [
       {"name": "producerLimit", "allowUnsafeAccess": true}
     ]
   },
   {
-    "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueProducerFields",
+    "name" : "datadog.jctools.queues.MpscBlockingConsumerArrayQueueProducerFields",
     "fields": [
       {"name": "producerIndex", "allowUnsafeAccess": true}
     ]
   },
   {
-    "name" : "org.jctools.queues.MpscBlockingConsumerArrayQueueConsumerFields",
+    "name" : "datadog.jctools.queues.MpscBlockingConsumerArrayQueueConsumerFields",
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true},
       {"name": "blocked", "allowUnsafeAccess": true}
     ]
   },
   {
-    "name" : "org.jctools.queues.SpscArrayQueueProducerIndexFields",
+    "name" : "datadog.jctools.queues.SpscArrayQueueProducerIndexFields",
     "fields": [
       {"name": "producerIndex", "allowUnsafeAccess": true}
     ]
   },
   {
-    "name" : "org.jctools.queues.SpscArrayQueueConsumerIndexField",
+    "name" : "datadog.jctools.queues.SpscArrayQueueConsumerIndexField",
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true}
     ]

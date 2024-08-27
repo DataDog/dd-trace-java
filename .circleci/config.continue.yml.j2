@@ -31,12 +31,12 @@ system_test_matrix: &system_test_matrix
     weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-3-native', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
 
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
-core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking"
-instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-java-agent/testing|dd-trace-core|dd-trace-api|internal-api|communication"
+core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking|dd-trace-api|dd-trace-ot"
+instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-iast|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-java-agent/testing|dd-trace-core|dd-trace-api|internal-api|communication"
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 454b41b414ba9e4b534893c2fe77477428d3bdca
+default_system_tests_commit: &default_system_tests_commit 20b61e9be1e8c922804f8e5ddc80ba4a1f4cdd5b
 
 parameters:
   nightly:
@@ -99,6 +99,11 @@ commands:
   setup_code:
     steps:
       - checkout
+{% if use_git_changes %}
+      - run:
+          name: Fetch base branch
+          command: git fetch origin {{ pr_base_ref }}
+{% endif %}
       - run:
           name: Checkout merge commit
           command: .circleci/checkout_merge_commit.sh
@@ -260,12 +265,6 @@ commands:
           cacheType: lib
 
       - run:
-          name: Install python 3.9
-          command: |
-            sudo apt-get install python3.9-full python3.9-dev python3.9-venv
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
-
-      - run:
           name: Clone system-tests
           command: |
             git init system-tests
@@ -273,6 +272,13 @@ commands:
             git remote add origin https://github.com/DataDog/system-tests.git
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
+
+      - run:
+          name: Install python 3.12
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y python3.12-full python3.12-dev python3.12-venv
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
 
 jobs:
   build:
@@ -303,11 +309,17 @@ jobs:
       - run:
           name: Build Project
           command: >-
+{% if is_nightly %}
+            ./gradlew resolveAndLockAll --write-locks
+{% endif %}
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
             << parameters.gradleTarget >>
             -PskipTests
+{% if use_git_changes %}
+            -PgitBaseRef=origin/{{ pr_base_ref }}
+{% endif %}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
@@ -407,6 +419,9 @@ jobs:
             ./gradlew
             << parameters.gradleTarget >>
             -PskipTests
+{% if use_git_changes %}
+            -PgitBaseRef=origin/{{ pr_base_ref }}
+{% endif %}
             -PrunBuildSrcTests
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
@@ -451,7 +466,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
             << parameters.gradleTarget >>
             -PskipTests
@@ -485,6 +500,9 @@ jobs:
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
 
     parameters:
+      environment:
+        type: string
+        default: ""
       testJvm:
         type: string
         default: ""
@@ -546,12 +564,16 @@ jobs:
             then
               PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/<< parameters.stage >>-<< parameters.testJvm >>.jfr,dumponexit=true"
             fi
-            
+
+            << parameters.environment >>
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew
             << parameters.gradleTarget >>
             << parameters.gradleParameters >>
+{% if use_git_changes %}
+            -PgitBaseRef=origin/{{ pr_base_ref }}
+{% endif %}
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -611,10 +633,10 @@ jobs:
               echo "APM Test Agent is not running and was not used for testing. No checks failed."
               exit 0
             fi
-            
+
             RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://localhost:8126/test/trace_check/failures)
             RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
-               
+
             if [[ $RESPONSE_CODE -eq 200 ]]; then
               echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
               echo "APM Test Agent Check Traces Summary Results:"
@@ -794,8 +816,7 @@ jobs:
 
   system-tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:current
     resource_class: medium
     parameters:
       weblog-variant:
@@ -813,7 +834,7 @@ jobs:
           name: Build
           command: |
             cd system-tests
-            ./build.sh java --weblog-variant << parameters.weblog-variant >> 
+            ./build.sh java --weblog-variant << parameters.weblog-variant >>
 
       - run:
           name: Run
@@ -838,26 +859,6 @@ jobs:
             DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh APM_TRACING_E2E_SINGLE_SPAN
 
       - run:
-          name: Upload data to CI Visibility
-          command: |
-            cd system-tests
-            export DD_API_KEY=$SYSTEM_TESTS_CI_API_KEY
-            export DD_APP_KEY=$SYSTEM_TESTS_CI_APP_KEY
-
-            # Causes conflicts with DD_API_KEY and datadog-ci tool
-            unset DATADOG_API_KEY
-            
-            echo "Uploading tests results to CI Visibility"  
-            utils/scripts/upload_results_CI_visibility.sh dev java-tracer << pipeline.id >>-<< pipeline.number >>
-
-            if [[ $CIRCLE_BRANCH == "master" ]]; then
-              echo "Updating dashboard from dd-trace-java main branch"
-              utils/scripts/update_dashboard_CI_visibility.sh java-tracer << pipeline.id >>-<< pipeline.number >>
-            else
-              echo "Skipping CI Visibility dashboard update due to it is not a main branch"
-            fi
-
-      - run:
           name: Collect artifacts
           command: tar -cvzf logs_java_<< parameters.weblog-variant >>_dev.tar.gz -C system-tests logs logs_apm_tracing_e2e logs_apm_tracing_e2e_single_span
 
@@ -866,8 +867,7 @@ jobs:
 
   integrations-system-tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:current
     resource_class: medium
     steps:
       - setup_system_tests
@@ -880,10 +880,9 @@ jobs:
 
       - run:
           name: Build
-          # Build the default framework, which is springboot
           command: |
             cd system-tests
-            ./build.sh java
+            ./build.sh --library java --weblog-variant spring-boot
 
       - run:
           name: Run APM Integrations tests
@@ -899,11 +898,43 @@ jobs:
       - store_artifacts:
           path: system-tests/logs_integrations
 
+  debugger-system-tests:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+    steps:
+      - setup_system_tests
+
+      - run:
+          name: Copy jar file to system test binaries folder
+          command: |
+            ls -la ~/dd-trace-java/workspace/dd-java-agent/build/libs
+            cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
+
+      - run:
+          name: Build
+          command: |
+            cd system-tests
+            ./build.sh --library java --weblog-variant spring-boot
+
+      - run:
+          name: Run Dynamic Instrumentation system tests
+          # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
+          no_output_timeout: 5m
+          command: |
+            cd system-tests
+            DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh DEBUGGER_SCENARIOS
+
+      - store_test_results:
+          path: system-tests/logs_debugger*
+
+      - store_artifacts:
+          path: system-tests/logs_debugger*
+
   parametric-tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
-    resource_class: large
+      image: ubuntu-2404:current
+    resource_class: xlarge
     steps:
       - setup_system_tests
 
@@ -915,15 +946,13 @@ jobs:
             cp ~/dd-trace-java/workspace/dd-trace-api/build/libs/*.jar system-tests/binaries/
             cp ~/dd-trace-java/workspace/dd-java-agent/build/libs/*.jar system-tests/binaries/
 
+
       - run:
-          name: Install requirements
+          name: Build runner
           command: |
             cd system-tests
-            pyenv local system
-            python3.9 --version
-            python3.9 -m pip install wheel
-            python3.9 -m pip install -r requirements.txt
-            sudo ln -sf /usr/bin/python3.9 /usr/bin/python
+            export TEST_LIBRARY=java
+            ./build.sh -i runner
 
       - run:
           name: Run
@@ -931,9 +960,25 @@ jobs:
             set -e
             cd system-tests
             export TEST_LIBRARY=java
-            export PYTEST_WORKER_COUNT=8
-            ./build.sh -i runner
-            ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
+            export PYTEST_XDIST_AUTO_NUM_WORKERS=6
+            set +e
+            RUN_ATTEMPTS=1
+            while [ $RUN_ATTEMPTS -le 3 ]; do
+              echo "Running parametric test attempt $RUN_ATTEMPTS"
+              timeout 12m ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
+              status=$?
+              #timneout returns 124 if it times out
+              #if the return code is not 124, then we exit with the status
+              if [ $status -ne 124 ]; then
+                exit $status
+                break
+              fi
+              RUN_ATTEMPTS=$((RUN_ATTEMPTS+1))
+              if [ $RUN_ATTEMPTS -eq 4 ]; then
+                #Max attempts reached, exit with 124
+                exit 124
+              fi
+            done
 
       - store_test_results:
           path: system-tests/logs_parametric
@@ -1031,7 +1076,7 @@ build_test_jobs: &build_test_jobs
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
       gradleTarget: ":baseTest"
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
+      gradleParameters: "-PskipFlakyTests"
       stage: core
       cacheType: base
       parallelism: 4
@@ -1044,8 +1089,8 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_8_base
       triggeredBy: *core_modules
-      gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
+      gradleTarget: :baseTest
+      gradleParameters: "-PskipFlakyTests -PcheckCoverage"
       stage: core
       cacheType: base
       parallelism: 4
@@ -1206,6 +1251,20 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - ok_to_test
+      name: z_test_<< matrix.testJvm >>_ssi_smoke
+      environment: "DD_INJECT_FORCE=true DD_INJECTION_ENABLED=tracer"
+      gradleTarget: "stageMainDist :smokeTest"
+      gradleParameters: "-PskipFlakyTests"
+      stage: smoke
+      cacheType: smoke
+      parallelism: 4
+      maxWorkers: 3
+      matrix:
+        <<: *test_matrix
+
+  - tests:
+      requires:
+        - ok_to_test
       name: test_semeru8_debugger_smoke
       maxWorkers: 4
       gradleTarget: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
@@ -1223,7 +1282,7 @@ build_test_jobs: &build_test_jobs
       stage: smoke
       cacheType: smoke
       testJvm: "graalvm17"
-  
+
   - tests:
       requires:
         - ok_to_test
@@ -1245,11 +1304,23 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "8"
 
+  - tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_ssi_smoke
+      environment: "DD_INJECT_FORCE=true DD_INJECTION_ENABLED=tracer"
+      gradleTarget: "stageMainDist :smokeTest"
+      gradleParameters: "-PskipFlakyTests"
+      stage: smoke
+      cacheType: smoke
+      testJvm: "8"
+
   - fan_in:
       requires:
         - z_test_<< matrix.testJvm >>_base
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
+        - z_test_<< matrix.testJvm >>_ssi_smoke
       name: test_<< matrix.testJvm >>
       stage: tracing
       matrix:
@@ -1260,6 +1331,7 @@ build_test_jobs: &build_test_jobs
         - z_test_8_base
         - z_test_8_inst
         - z_test_8_smoke
+        - z_test_8_ssi_smoke
       name: test_8
       stage: tracing
       testJvm: "8"
@@ -1297,6 +1369,10 @@ build_test_jobs: &build_test_jobs
           <<: *system_test_matrix
 
   - integrations-system-tests:
+      requires:
+        - ok_to_test
+
+  - debugger-system-tests:
       requires:
         - ok_to_test
 

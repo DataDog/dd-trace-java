@@ -18,6 +18,11 @@ public class CachingJvmInfoFactory implements JvmInfoFactory {
 
   @Override
   public JvmInfo getJvmInfo(Path jvmExecutablePath) {
+    // DDCache does not support null keys.
+    if (jvmExecutablePath == null) {
+      // If we cannot determine forked JVM, we assume it is the same as current one.
+      return JvmInfo.CURRENT_JVM;
+    }
     return cache.computeIfAbsent(jvmExecutablePath, delegate::getJvmInfo);
   }
 }

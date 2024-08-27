@@ -2,7 +2,6 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.decorator.UrlConnectionDecorator
 
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -66,53 +65,6 @@ abstract class UrlConnectionTest extends VersionedNamingTestBase {
     "https" | false
 
     url = new URI("$scheme://localhost:$UNUSABLE_PORT").toURL()
-  }
-
-  def "trace request with connection failure to a local file with broken url path"() {
-    setup:
-    def url = new URI("file:/some-random-file%abc").toURL()
-
-    when:
-    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
-    runUnderTrace("someTrace") {
-      url.openConnection()
-    }
-
-    then:
-    thrown IllegalArgumentException
-
-    expect:
-    assertTraces(1) {
-      trace(2) {
-        span {
-          operationName "someTrace"
-          parent()
-          errored true
-          tags {
-            errorTags IllegalArgumentException, String
-            defaultTags()
-          }
-        }
-        span {
-          operationName operation(url.protocol)
-          resourceName "$url.path"
-          spanType DDSpanTypes.HTTP_CLIENT
-          childOf span(0)
-          errored true
-          tags {
-            "$Tags.COMPONENT" UrlConnectionDecorator.COMPONENT
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            // FIXME: These tags really make no sense for non-http connections, why do we set them?
-            "$Tags.HTTP_URL" "$url"
-            errorTags IllegalArgumentException, String
-            defaultTagsNoPeerService()
-          }
-        }
-      }
-    }
-
-    where:
-    renameService << [false, true]
   }
 
   def "DatadogClassloader ClassNotFoundException doesn't create span"() {

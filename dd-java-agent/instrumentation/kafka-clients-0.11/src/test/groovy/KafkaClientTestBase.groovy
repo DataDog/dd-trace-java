@@ -1,3 +1,5 @@
+import datadog.trace.common.writer.ListWriter
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
@@ -53,11 +55,55 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   public static final LinkedHashMap<String, String> PRODUCER_PATHWAY_EDGE_TAGS
 
+  // filter out Kafka poll, since the function is called in a loop, giving inconsistent results
+  final ListWriter.Filter dropKafkaPoll = new ListWriter.Filter() {
+    @Override
+    boolean accept(List<DDSpan> trace) {
+      return !(trace.size() == 1 &&
+        trace.get(0).getResourceName().toString().equals("kafka.poll"))
+    }
+  }
+
+  final ListWriter.Filter dropEmptyKafkaPoll = new ListWriter.Filter() {
+    @Override
+    boolean accept(List<DDSpan> trace) {
+      return !(trace.size() == 1 &&
+        trace.get(0).getResourceName().toString().equals("kafka.poll") &&
+        trace.get(0).getTag(InstrumentationTags.KAFKA_RECORDS_COUNT).equals(0))
+    }
+  }
+
+  // TraceID, start times & names changed based on the configuration, so overriding the sort to give consistent test results
+  private static class SortKafkaTraces implements Comparator<List<DDSpan>> {
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return rootSpanTrace(o1) - rootSpanTrace(o2)
+    }
+
+    int rootSpanTrace(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      def rootSpan = trace.get(0).localRootSpan
+      switch (rootSpan.operationName.toString()) {
+        case "parent":
+          return 3
+        case "kafka.poll":
+          return 2
+        default:
+          return 1
+      }
+    }
+  }
+
+
   static {
     PRODUCER_PATHWAY_EDGE_TAGS = new LinkedHashMap<>(3)
     PRODUCER_PATHWAY_EDGE_TAGS.put("direction", "out")
     PRODUCER_PATHWAY_EDGE_TAGS.put("topic", SHARED_TOPIC)
     PRODUCER_PATHWAY_EDGE_TAGS.put("type", "kafka")
+  }
+
+  def setup() {
+    TEST_WRITER.setFilter(dropKafkaPoll)
   }
 
   @Override
@@ -124,9 +170,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
     }
 
-    if (isDataStreamsEnabled()) {
-    }
-
     cleanup:
     producer.close()
   }
@@ -137,6 +180,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       senderProps.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000)
     }
+    TEST_WRITER.setFilter(dropEmptyKafkaPoll)
     KafkaProducer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
     String clusterId = ""
     if (isDataStreamsEnabled()) {
@@ -203,28 +247,37 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     received.value() == greeting
     received.key() == null
 
-    assertTraces(2, SORT_TRACES_BY_ID) {
+    int nTraces = isDataStreamsEnabled() ? 3 : 2
+    int produceTraceIdx = nTraces - 1
+    TEST_WRITER.waitForTraces(nTraces)
+    def traces = (Arrays.asList(TEST_WRITER.toArray()) as List<List<DDSpan>>)
+    Collections.sort(traces, new SortKafkaTraces())
+    assertTraces(nTraces, new SortKafkaTraces()) {
+      if (hasQueueSpan()) {
+        trace(2) {
+          consumerSpan(it, consumerProperties, span(1))
+          queueSpan(it, trace(produceTraceIdx)[2])
+        }
+      } else {
+        trace(1) {
+          consumerSpan(it, consumerProperties, trace(produceTraceIdx)[2])
+        }
+      }
+      if (isDataStreamsEnabled()) {
+        trace(1, {
+          pollSpan(it)
+        })
+      }
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
         producerSpan(it, senderProps, span(0), false)
       }
-      if (hasQueueSpan()) {
-        trace(2) {
-          consumerSpan(it, consumerProperties, trace(1)[1])
-          queueSpan(it, trace(0)[2])
-        }
-      } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[2])
-        }
-      }
     }
-
     def headers = received.headers()
     headers.iterator().hasNext()
-    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
-    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${traces[produceTraceIdx][2].traceId}"
+    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${traces[produceTraceIdx][2].spanId}"
 
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
@@ -916,6 +969,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         void onMessage(ConsumerRecord<String, String> record) {
           TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
+          if (isDataStreamsEnabled()) {
+            // even if header propagation is disabled, we want data streams to work.
+            TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+          }
         }
       })
 
@@ -1061,6 +1118,27 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           "$DDTags.PATHWAY_HASH" { String }
         }
         defaultTags(distributedRootSpan)
+      }
+    }
+  }
+
+  def pollSpan(
+    TraceAssert trace,
+    int recordCount = 1,
+    DDSpan parentSpan = null,
+    Range offset = 0..0,
+    boolean tombstone = false,
+    boolean distributedRootSpan = !hasQueueSpan()
+  ) {
+    trace.span {
+      serviceName Config.get().getServiceName()
+      operationName "kafka.poll"
+      resourceName "kafka.poll"
+      errored false
+      measured false
+      tags {
+        "$InstrumentationTags.KAFKA_RECORDS_COUNT" recordCount
+        defaultTags(true)
       }
     }
   }

@@ -123,6 +123,7 @@
 1 freemarker.*
 1 gnu.*
 1 graphql.*
+1 ibm.security.*
 1 io.dropwizard.*
 1 io.github.lukehutch.fastclasspathscanner.*
 1 io.grpc.*
@@ -183,6 +184,7 @@
 2 okhttp3.Request
 2 okhttp3.Request$*
 1 ognl.*
+2 oracle.j2ee.*
 1 oracle.jdbc.*
 1 oracle.sql.*
 1 org.ajax4jsf.*
@@ -193,9 +195,6 @@
 0 org.apache.http.client.methods.*
 # apache compiled jsps
 0 org.apache.jsp.*
-# Need for kafka propagation
-2 org.apache.kafka.common.serialization.ByteBufferDeserializer
-2 org.apache.kafka.common.serialization.StringDeserializer
 1 org.apiguardian.*
 1 org.aspectj.*
 1 org.attoparser.*
@@ -253,6 +252,7 @@
 1 org.mongodb.*
 1 org.mortbay.*
 1 org.objectweb.*
+1 org.openid4java.*
 # Weak randomness false positive on HotspotUnsafe.guessAlignment
 1 org.openjdk.jol.vm.*
 # Weak randomness false positive on RandomIdGenerator.generateTraceId
@@ -274,6 +274,7 @@
 1 org.relaxng.*
 1 org.renjin.*
 1 org.richfaces.*
+1 org.seasar.*
 1 org.slf4j.*
 1 org.springdoc.*
 1 org.springframework.*

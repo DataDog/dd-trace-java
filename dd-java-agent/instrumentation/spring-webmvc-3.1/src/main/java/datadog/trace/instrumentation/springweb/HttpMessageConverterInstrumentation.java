@@ -36,7 +36,7 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Only apply this spring-framework instrumentation when spring-webmvc is also deployed.
     return hasClassNamed(
         "org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping");

@@ -7,6 +7,7 @@ import com.datadog.iast.overhead.OverheadController;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.sink.HttpRequestEndModule;
@@ -27,7 +28,7 @@ public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInf
   @Override
   public Flow<Void> apply(final RequestContext requestContext, final IGSpanInfo igSpanInfo) {
     final TraceSegment traceSegment = requestContext.getTraceSegment();
-    final IastContext iastCtx = IastContext.Provider.get(requestContext);
+    final IastContext iastCtx = requestContext.getData(RequestContextSlot.IAST);
     if (iastCtx != null) {
       for (HttpRequestEndModule module : requestEndModules()) {
         if (module != null) {

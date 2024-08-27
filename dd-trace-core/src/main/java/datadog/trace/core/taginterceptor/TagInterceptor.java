@@ -5,10 +5,12 @@ import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_SAMPLING_PRIORITY;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
@@ -98,6 +100,20 @@ public class TagInterceptor {
       case DDTags.MANUAL_DROP:
         return interceptSamplingPriority(
             FORCE_MANUAL_DROP, USER_DROP, SamplingMechanism.MANUAL, span, value);
+      case Tags.ASM_KEEP:
+        if (asBoolean(value)) {
+          span.forceKeep(SamplingMechanism.APPSEC);
+          return true;
+        }
+        return false;
+      case Tags.SAMPLING_PRIORITY:
+        return interceptSamplingPriority(span, value);
+      case Tags.PROPAGATED_APPSEC:
+        span.updateAppsecPropagation(asBoolean(value));
+        return true;
+      case Tags.PROPAGATED_DEBUG:
+        span.updateDebugPropagation(asInt(value));
+        return true;
       case InstrumentationTags.SERVLET_CONTEXT:
         return interceptServletContext(span, value);
       case SPAN_TYPE:
@@ -241,6 +257,18 @@ public class TagInterceptor {
     return false;
   }
 
+  private boolean interceptSamplingPriority(DDSpanContext span, Object value) {
+    if (ruleFlags.isEnabled(FORCE_SAMPLING_PRIORITY)) {
+      Number samplingPriority = getOrTryParse(value);
+      if (null != samplingPriority) {
+        span.setSamplingPriority(
+            samplingPriority.intValue() > 0 ? USER_KEEP : USER_DROP, SamplingMechanism.MANUAL);
+      }
+      return true;
+    }
+    return false;
+  }
+
   private boolean interceptServletContext(DDSpanContext span, Object value) {
     // even though this tag is sometimes used to set the service name
     // (which has the side effect of marking the span as eligible for metrics
@@ -314,6 +342,18 @@ public class TagInterceptor {
     return Boolean.TRUE.equals(value)
         || "1".equals(value)
         || (!Boolean.FALSE.equals(value) && Boolean.parseBoolean(String.valueOf(value)));
+  }
+
+  private static int asInt(Object value) {
+    if (value instanceof Number) {
+      return ((Number) value).intValue();
+    } else if (value instanceof String) {
+      try {
+        return Integer.parseInt((String) value);
+      } catch (NumberFormatException ignore) {
+      }
+    }
+    return -1;
   }
 
   private static Number getOrTryParse(Object value) {

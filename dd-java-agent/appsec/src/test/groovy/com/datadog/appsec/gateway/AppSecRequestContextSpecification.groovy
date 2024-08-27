@@ -5,6 +5,8 @@ import com.datadog.appsec.config.CurrentAppSecConfig
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
+import com.datadog.appsec.stack_trace.StackTraceCollection
+import com.datadog.appsec.stack_trace.StackTraceEvent
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Additive
@@ -108,9 +110,11 @@ class AppSecRequestContextSpecification extends DDSpecification {
 
     when:
     ctx.reportEvents([new AppSecEvent()])
+    events = ctx.transferCollectedEvents()
 
     then:
-    thrown IllegalStateException
+    events.size() == 1
+    events[0] != null
   }
 
   void 'collect events when none reported'() {
@@ -118,11 +122,46 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.transferCollectedEvents().empty
   }
 
+  void 'can collect stack traces'() {
+    setup:
+    StackTraceElement element = new StackTraceElement('class', 'method', 'file', 1)
+    StackTraceEvent.Frame frame = new StackTraceEvent.Frame(element, 1)
+    StackTraceEvent event = new StackTraceEvent('id', 'message', [frame])
+
+    when:
+    ctx.reportStackTrace(event)
+    StackTraceCollection collection = ctx.transferStackTracesCollection()
+
+    then:
+    collection.exploit.size() == 1
+    collection.exploit[0].id == 'id'
+    collection.exploit[0].message == 'message'
+    collection.exploit[0].language == 'java'
+    collection.exploit[0].frames.size() == 1
+    collection.exploit[0].frames[0].id == 1
+    collection.exploit[0].frames[0].text == 'class.method(file:1)'
+    collection.exploit[0].frames[0].file == 'file'
+    collection.exploit[0].frames[0].line == 1
+    collection.exploit[0].frames[0].class_name == 'class'
+    collection.exploit[0].frames[0].function == 'method'
+  }
+
+  void 'collect stack traces when none reported'() {
+    expect:
+    ctx.transferStackTracesCollection() == null
+  }
+
   void 'headers allow list should contains only lowercase names'() {
     expect:
-    AppSecRequestContext.HEADERS_ALLOW_LIST.each {
-      assert it == it.toLowerCase() : "REASON: Allow header name \"$it\" MUST be lowercase"
+    headers.each {
+      assert it == it.toLowerCase(): "REASON: Allow header name \"$it\" MUST be lowercase"
     }
+
+    where:
+    headers                                                 | name
+    AppSecRequestContext.DEFAULT_REQUEST_HEADERS_ALLOW_LIST | 'Default request headers'
+    AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST         | 'Request headers'
+    AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST        | 'Response headers'
   }
 
   void 'basic headers collection test'() {
@@ -184,5 +223,25 @@ class AppSecRequestContextSpecification extends DDSpecification {
     then:
     ctx.additive == null
     !additive.online
+  }
+
+  void 'test isThrottled'(){
+    setup:
+    def rateLimiter = Mock(RateLimiter)
+    def appSecRequestContext = new AppSecRequestContext()
+
+    when: 'rate limiter is called and throttled is set'
+    def result = appSecRequestContext.isThrottled(rateLimiter)
+
+    then:
+    1 * rateLimiter.isThrottled() >> true
+    assert result
+
+    when: 'rate limiter is not called more than once per appsec context returns first result'
+    def result2 = appSecRequestContext.isThrottled(rateLimiter)
+
+    then:
+    0 * rateLimiter.isThrottled()
+    result == result2
   }
 }

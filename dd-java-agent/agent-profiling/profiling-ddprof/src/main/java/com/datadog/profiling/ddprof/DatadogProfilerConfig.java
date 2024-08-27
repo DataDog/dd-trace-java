@@ -22,6 +22,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL;
@@ -41,6 +43,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH;
@@ -222,6 +226,13 @@ public class DatadogProfilerConfig {
         PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE_DEFAFULT);
   }
 
+  public static int getLiveHeapSamplePercent(ConfigProvider configProvider) {
+    return getInteger(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT);
+  }
+
   public static long getMemleakInterval(ConfigProvider configProvider) {
     long maxheap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
     long memleakIntervalDefault =
@@ -353,6 +364,11 @@ public class DatadogProfilerConfig {
 
   public static boolean isResourceNameContextAttributeEnabled(ConfigProvider configProvider) {
     return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED, false);
+  }
+
+  public static boolean isTrackingGenerations(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider, PROFILING_HEAP_TRACK_GENERATIONS, PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT);
   }
 
   public static String getString(ConfigProvider configProvider, String key, String defaultValue) {

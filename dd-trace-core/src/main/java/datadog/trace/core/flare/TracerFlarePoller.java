@@ -4,10 +4,10 @@ import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.remoteconfig.ConfigurationChangesListener.PollingRateHinter;
 import datadog.remoteconfig.ConfigurationPoller;
+import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
-import datadog.remoteconfig.state.ParsedConfigKey;
+import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DynamicConfig;
@@ -66,7 +66,7 @@ public final class TracerFlarePoller {
     }
 
     @Override
-    public void accept(ParsedConfigKey configKey, byte[] content, PollingRateHinter hinter)
+    public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
         throws IOException {
       if (configKey.getConfigId().startsWith(FLARE_LOG_LEVEL_PREFIX)) {
         AgentConfigLayer agentConfigLayer =
@@ -83,7 +83,7 @@ public final class TracerFlarePoller {
     }
 
     @Override
-    public void remove(ParsedConfigKey configKey, PollingRateHinter hinter) {
+    public void remove(ConfigKey configKey, PollingRateHinter hinter) {
       if (configKey.getConfigId().startsWith(FLARE_LOG_LEVEL_PREFIX)) {
         cleanupAfterFlare();
       }
@@ -112,7 +112,7 @@ public final class TracerFlarePoller {
     }
 
     @Override
-    public void accept(ParsedConfigKey configKey, byte[] content, PollingRateHinter hinter)
+    public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
         throws IOException {
       AgentTask agentTask =
           AGENT_TASK_ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
@@ -125,7 +125,7 @@ public final class TracerFlarePoller {
     }
 
     @Override
-    public void remove(ParsedConfigKey configKey, PollingRateHinter hinter) {}
+    public void remove(ConfigKey configKey, PollingRateHinter hinter) {}
 
     @Override
     public void commit(PollingRateHinter hinter) {}

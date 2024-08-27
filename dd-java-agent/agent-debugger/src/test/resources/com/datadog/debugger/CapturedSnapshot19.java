@@ -10,6 +10,10 @@ public class CapturedSnapshot19 {
     if ("inherited".equals(arg)) {
       return new Inherited().f();
     }
+    return new CapturedSnapshot19().process(arg);
+  }
+
+  int process(String arg) {
     return 42;
   }
 

@@ -7,6 +7,7 @@ import static com.datadog.debugger.probe.MetricProbe.MetricKind.HISTOGRAM;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,6 +18,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
+import static utils.InstrumentationTestHelper.loadClass;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
@@ -1194,6 +1196,27 @@ public class MetricProbesInstrumentationTest {
     assertEquals(97, listener.counters.get(METRIC_NAME_CHAR));
   }
 
+  @Test
+  public void localVarNotInScope() throws IOException, URISyntaxException {
+    final String METRIC_NAME = "lenstr";
+    final String CLASS_NAME = "com.datadog.debugger.jaxrs.MyResource";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
+            .where(CLASS_NAME, "createResource", null)
+            .valueScript(new ValueScript(DSL.len(DSL.ref("varStr")), "len(varStr)"))
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass =
+        loadClass(CLASS_NAME, getClass().getResource("/MyResource.class").getFile());
+    Object result =
+        Reflect.onClass(testClass)
+            .create()
+            .call("createResource", (Object) null, (Object) null, 1)
+            .get();
+    assertNotNull(result);
+    assertFalse(listener.gauges.containsKey(METRIC_NAME));
+  }
+
   private MetricForwarderListener installSingleMetric(
       String metricName,
       MetricProbe.MetricKind metricKind,
@@ -1273,6 +1296,7 @@ public class MetricProbesInstrumentationTest {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
+    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");

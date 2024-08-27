@@ -64,9 +64,10 @@ public class DDSpanContext
       DDCaches.newFixedSizeCache(256);
 
   private static final Map<String, String> EMPTY_BAGGAGE = Collections.emptyMap();
+  private static final Map<String, Object> EMPTY_META_STRUCT = Collections.emptyMap();
 
   /** The collection of all span related to this one */
-  private final PendingTrace trace;
+  private final TraceCollector traceCollector;
 
   /** Baggage is associated with the whole trace and shared with other spans */
   private volatile Map<String, String> baggageItems;
@@ -140,6 +141,16 @@ public class DDSpanContext
   private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
+  private volatile boolean requiresPostProcessing;
+  private volatile CharSequence lastParentId;
+  private final boolean isRemote;
+
+  /**
+   * Metastruct keys are associated to the current span, they will not propagate to the children
+   * span. They are an efficient way to send binary data to the agent without relying on bulky json
+   * payloads inside tags.
+   */
+  private volatile Map<String, Object> metaStruct = EMPTY_META_STRUCT;
 
   public DDSpanContext(
       final DDTraceId traceId,
@@ -155,7 +166,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
@@ -175,7 +186,7 @@ public class DDSpanContext
         errorFlag,
         spanType,
         tagsSize,
-        trace,
+        traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
         null,
@@ -183,7 +194,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        true);
+        true,
+        false);
   }
 
   public DDSpanContext(
@@ -200,7 +212,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
@@ -221,7 +233,7 @@ public class DDSpanContext
         errorFlag,
         spanType,
         tagsSize,
-        trace,
+        traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
         null,
@@ -229,7 +241,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        injectBaggageAsTags);
+        injectBaggageAsTags,
+        false);
   }
 
   public DDSpanContext(
@@ -246,7 +259,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final PathwayContext pathwayContext,
@@ -267,7 +280,7 @@ public class DDSpanContext
         errorFlag,
         spanType,
         tagsSize,
-        trace,
+        traceCollector,
         requestContextDataAppSec,
         requestContextDataIast,
         null,
@@ -275,7 +288,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         profilingContextIntegration,
-        true);
+        true,
+        false);
   }
 
   public DDSpanContext(
@@ -292,7 +306,7 @@ public class DDSpanContext
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
+      final TraceCollector traceCollector,
       final Object requestContextDataAppSec,
       final Object requestContextDataIast,
       final Object CiVisibilityContextData,
@@ -300,10 +314,11 @@ public class DDSpanContext
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean injectBaggageAsTags) {
+      final boolean injectBaggageAsTags,
+      final boolean isRemote) {
 
-    assert trace != null;
-    this.trace = trace;
+    assert traceCollector != null;
+    this.traceCollector = traceCollector;
 
     assert traceId != null;
     this.traceId = traceId;
@@ -350,7 +365,7 @@ public class DDSpanContext
     this.propagationTags =
         propagationTags != null
             ? propagationTags
-            : trace.getTracer().getPropagationTagsFactory().empty();
+            : traceCollector.getTracer().getPropagationTagsFactory().empty();
     this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
     this.injectBaggageAsTags = injectBaggageAsTags;
     if (origin != null) {
@@ -359,6 +374,8 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
+    setLastParentId(this.propagationTags.getLastParentId());
+    this.isRemote = isRemote;
   }
 
   @Override
@@ -395,7 +412,7 @@ public class DDSpanContext
   }
 
   public void setServiceName(final String serviceName) {
-    this.serviceName = trace.mapServiceName(serviceName);
+    this.serviceName = traceCollector.mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
 
@@ -475,9 +492,14 @@ public class DDSpanContext
     this.spanType = spanType;
   }
 
+  /** Forces the local root span sampling decision to keep according manual mechanism. */
   public void forceKeep() {
+    forceKeep(SamplingMechanism.MANUAL);
+  }
+
+  public void forceKeep(byte samplingMechanism) {
     // set trace level sampling priority
-    getRootSpanContextOrThis().forceKeepThisSpan(SamplingMechanism.MANUAL);
+    getRootSpanContextOrThis().forceKeepThisSpan(samplingMechanism);
   }
 
   private void forceKeepThisSpan(byte samplingMechanism) {
@@ -487,6 +509,14 @@ public class DDSpanContext
         == PrioritySampling.UNSET) {
       propagationTags.updateTraceSamplingPriority(PrioritySampling.USER_KEEP, samplingMechanism);
     }
+  }
+
+  public void updateAppsecPropagation(boolean value) {
+    propagationTags.updateAppsecPropagation(value);
+  }
+
+  public void updateDebugPropagation(int value) {
+    propagationTags.updateDebugPropagation(value);
   }
 
   /** @return if sampling priority was set by this method invocation */
@@ -502,8 +532,8 @@ public class DDSpanContext
   }
 
   private DDSpanContext getRootSpanContextIfDifferent() {
-    if (trace != null) {
-      final DDSpan rootSpan = trace.getRootSpan();
+    if (traceCollector != null) {
+      final DDSpan rootSpan = traceCollector.getRootSpan();
       if (null != rootSpan && rootSpan.context() != this) {
         return rootSpan.context();
       }
@@ -514,6 +544,11 @@ public class DDSpanContext
   private boolean setThisSpanSamplingPriority(final int newPriority, final int newMechanism) {
     if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
+    }
+    if (SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism)) {
+      SAMPLING_PRIORITY_UPDATER.set(this, newPriority);
+      propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
+      return true;
     }
     if (!SAMPLING_PRIORITY_UPDATER.compareAndSet(this, PrioritySampling.UNSET, newPriority)) {
       if (log.isDebugEnabled()) {
@@ -585,7 +620,7 @@ public class DDSpanContext
     // this is now effectively a no-op - there is no locking.
     // the priority is just CAS'd against UNSET/UNKNOWN, unless it's forced to USER_KEEP/MANUAL
     // but is maintained for backwards compatibility, and returns false when it used to
-    final DDSpan rootSpan = trace.getRootSpan();
+    final DDSpan rootSpan = traceCollector.getRootSpan();
     if (null != rootSpan && rootSpan.context() != this) {
       return rootSpan.context().lockSamplingPriority();
     }
@@ -598,11 +633,11 @@ public class DDSpanContext
   }
 
   public void beginEndToEnd() {
-    trace.beginEndToEnd();
+    traceCollector.beginEndToEnd();
   }
 
   public long getEndToEndStartTime() {
-    return trace.getEndToEndStartTime();
+    return traceCollector.getEndToEndStartTime();
   }
 
   public void setBaggageItem(final String key, final String value) {
@@ -630,8 +665,8 @@ public class DDSpanContext
   }
 
   @Override
-  public PendingTrace getTrace() {
-    return trace;
+  public TraceCollector getTraceCollector() {
+    return traceCollector;
   }
 
   public RequestContext getRequestContext() {
@@ -663,7 +698,7 @@ public class DDSpanContext
   }
 
   public CoreTracer getTracer() {
-    return trace.getTracer();
+    return traceCollector.getTracer();
   }
 
   public void setHttpStatusCode(short statusCode) {
@@ -703,7 +738,7 @@ public class DDSpanContext
       synchronized (unsafeTags) {
         unsafeTags.remove(tag);
       }
-    } else if (!trace.getTracer().getTagInterceptor().interceptTag(this, tag, value)) {
+    } else if (!traceCollector.getTracer().getTagInterceptor().interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeSetTag(tag, value);
       }
@@ -715,7 +750,7 @@ public class DDSpanContext
       return;
     }
 
-    TagInterceptor tagInterceptor = trace.getTracer().getTagInterceptor();
+    TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ?> tag : map.entrySet()) {
         if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
@@ -777,6 +812,30 @@ public class DDSpanContext
         tags.put(Tags.HTTP_URL, value.toString());
       }
       return Collections.unmodifiableMap(tags);
+    }
+  }
+
+  /** @see CoreSpan#getMetaStruct() */
+  public Map<String, Object> getMetaStruct() {
+    return Collections.unmodifiableMap(metaStruct);
+  }
+
+  /** @see CoreSpan#setMetaStruct(String, Object) */
+  public <T> void setMetaStruct(final String field, final T value) {
+    if (null == field) {
+      return;
+    }
+    if (metaStruct == EMPTY_META_STRUCT) {
+      synchronized (this) {
+        if (metaStruct == EMPTY_META_STRUCT) {
+          metaStruct = new ConcurrentHashMap<>(4);
+        }
+      }
+    }
+    if (null == value) {
+      metaStruct.remove(field);
+    } else {
+      metaStruct.put(field, value);
     }
   }
 
@@ -908,11 +967,24 @@ public class DDSpanContext
   }
 
   @Override
+  public Object getTagTop(String key, boolean sanitize) {
+    return getRootSpanContextOrThis().getTagCurrent(key, sanitize);
+  }
+
+  @Override
   public void setTagCurrent(String key, Object value, boolean sanitize) {
     if (sanitize) {
       key = TagsHelper.sanitize(key);
     }
     this.setTag(key, value);
+  }
+
+  @Override
+  public Object getTagCurrent(String key, boolean sanitize) {
+    if (sanitize) {
+      key = TagsHelper.sanitize(key);
+    }
+    return this.getTag(key);
   }
 
   @Override
@@ -927,7 +999,7 @@ public class DDSpanContext
 
   @Override
   public void effectivelyBlocked() {
-    setTag("appsec.blocked", "true");
+    setTagTop("appsec.blocked", "true");
   }
 
   @Override
@@ -943,5 +1015,40 @@ public class DDSpanContext
   private String getTagName(String key) {
     // TODO is this decided?
     return "_dd." + key + ".json";
+  }
+
+  @Override
+  public void setMetaStructTop(String field, Object value) {
+    getRootSpanContextOrThis().setMetaStructCurrent(field, value);
+  }
+
+  @Override
+  public void setMetaStructCurrent(String field, Object value) {
+    setMetaStruct(field, value);
+  }
+
+  public void setRequiresPostProcessing(boolean postProcessing) {
+    this.requiresPostProcessing = postProcessing;
+  }
+
+  public boolean isRequiresPostProcessing() {
+    return requiresPostProcessing;
+  }
+
+  public CharSequence getLastParentId() {
+    return lastParentId;
+  }
+
+  public void setLastParentId(CharSequence lastParentId) {
+    if (lastParentId != null) {
+      synchronized (unsafeTags) {
+        unsafeSetTag("_dd.parent_id", lastParentId);
+      }
+      this.lastParentId = lastParentId;
+    }
+  }
+
+  public boolean isRemote() {
+    return isRemote;
   }
 }

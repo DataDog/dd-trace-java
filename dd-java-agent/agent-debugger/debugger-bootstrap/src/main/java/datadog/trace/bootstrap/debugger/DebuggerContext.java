@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.debugger;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -63,7 +64,11 @@ public class DebuggerContext {
   }
 
   public interface ExceptionDebugger {
-    void handleException(Throwable t);
+    void handleException(Throwable t, AgentSpan span);
+  }
+
+  public interface SpanDebugger {
+    String captureSnapshot(String signature);
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -72,6 +77,7 @@ public class DebuggerContext {
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
+  private static volatile SpanDebugger spanDebugger;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
@@ -95,6 +101,10 @@ public class DebuggerContext {
 
   public static void initExceptionDebugger(ExceptionDebugger exceptionDebugger) {
     DebuggerContext.exceptionDebugger = exceptionDebugger;
+  }
+
+  public static void initSpanDebugger(SpanDebugger spanDebugger) {
+    DebuggerContext.spanDebugger = spanDebugger;
   }
 
   /**
@@ -142,6 +152,7 @@ public class DebuggerContext {
           break;
         case DISTRIBUTION:
           forwarder.distribution(probeId, name, value, tags);
+          break;
         default:
           throw new IllegalArgumentException("Unsupported metric kind: " + kind);
       }
@@ -331,11 +342,27 @@ public class DebuggerContext {
     }
   }
 
-  public static void handleException(Throwable t) {
-    ExceptionDebugger exDebugger = exceptionDebugger;
-    if (exDebugger == null) {
-      return;
+  public static String captureSnapshot(String signature) {
+    try {
+      SpanDebugger debugger = spanDebugger;
+      if (debugger != null) {
+        return debugger.captureSnapshot(signature);
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in addSnapshot: ", ex);
     }
-    exDebugger.handleException(t);
+    return null;
+  }
+
+  public static void handleException(Throwable t, AgentSpan span) {
+    try {
+      ExceptionDebugger exDebugger = exceptionDebugger;
+      if (exDebugger == null) {
+        return;
+      }
+      exDebugger.handleException(t, span);
+    } catch (Exception ex) {
+      LOGGER.debug("Error in handleException: ", ex);
+    }
   }
 }

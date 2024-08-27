@@ -4,8 +4,13 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -32,12 +37,15 @@ public class ReaderInterceptorExecutorInstrumentation extends InstrumenterModule
         getClass().getName() + "$InstrumenterAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class InstrumenterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Return final InputStream inputStream) {
+    static void after(
+        @Advice.Return final InputStream inputStream, @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
-        module.taint(inputStream, SourceTypes.REQUEST_BODY);
+        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        module.taintObject(ctx, inputStream, SourceTypes.REQUEST_BODY);
       }
     }
   }

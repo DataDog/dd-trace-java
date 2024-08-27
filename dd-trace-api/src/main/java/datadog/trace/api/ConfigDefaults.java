@@ -47,8 +47,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
+  static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENABLED = false;
+  static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED = false;
   static final boolean DEFAULT_TRACE_ENABLED = true;
-  static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
+  public static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
@@ -100,7 +102,10 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
   static final boolean DEFAULT_API_SECURITY_ENABLED = true;
   static final float DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE = 0.1f; // 10 %
-
+  static final boolean DEFAULT_APPSEC_RASP_ENABLED = false;
+  static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = false;
+  static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;
+  static final int DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH = 32;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
@@ -122,18 +127,18 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH = 250;
   public static final boolean DEFAULT_IAST_DEDUPLICATION_ENABLED = true;
+  static final boolean DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED = true;
 
   static final boolean DEFAULT_USM_ENABLED = false;
 
   static final boolean DEFAULT_CIVISIBILITY_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED = true;
-  static final boolean DEFAULT_CIVISIBILITY_SOURCE_DATA_ROOT_CHECK_ENABLED = false;
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
-  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.1.8";
-  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.11";
+  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.0";
+  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.12";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
@@ -172,6 +177,10 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD = false;
   static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ENABLED = false;
+  static final int DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND = 100;
+  static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = true;
+  static final int DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES = 3;
+  static final boolean DEFAULT_DEBUGGER_SPAN_DEBUG_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
@@ -187,6 +196,8 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_CWS_ENABLED = false;
   static final int DEFAULT_CWS_TLS_REFRESH = 5000;
+
+  static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
@@ -214,6 +225,8 @@ public final class ConfigDefaults {
   static final long DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL = 120; // seconds -> 2 minutes
 
   static final float DEFAULT_TRACE_FLUSH_INTERVAL = 1;
+
+  static final long DEFAULT_TRACE_POST_PROCESSING_TIMEOUT = 1000; // 1 second
 
   static final boolean DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;

@@ -19,7 +19,7 @@ class JSONTokenerInstrumentationTest extends AgentTestRunner {
     new JSONTokener(json)
 
     then:
-    1 * module.taintIfTainted(_ as JSONTokener, json)
+    1 * module.taintObjectIfTainted(_ as JSONTokener, json)
     0 * _
   }
 }

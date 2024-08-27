@@ -6,6 +6,7 @@ import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 import static datadog.trace.util.Strings.toJson;
 
+import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
@@ -83,5 +84,10 @@ class BuildkiteInfo implements CIProviderInfo {
   private PersonInfo buildGitCommitAuthor() {
     return new PersonInfo(
         System.getenv(BUILDKITE_GIT_AUTHOR_NAME), System.getenv(BUILDKITE_GIT_AUTHOR_EMAIL));
+  }
+
+  @Override
+  public Provider getProvider() {
+    return Provider.BUILDKITE;
   }
 }

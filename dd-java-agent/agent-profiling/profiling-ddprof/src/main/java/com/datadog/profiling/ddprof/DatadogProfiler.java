@@ -4,6 +4,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getAllocationIn
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCStack;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttributes;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCpuInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLiveHeapSamplePercent;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLogLevel;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
@@ -18,18 +19,20 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeT
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isResourceNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isTrackingGenerations;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
 import static com.datadog.profiling.utils.ProfilingMode.WALL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DETAILED_DEBUG_LOGGING;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
-import com.datadog.profiling.utils.Timestamper;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
 import datadog.trace.api.profiling.RecordingData;
@@ -62,6 +65,8 @@ public final class DatadogProfiler {
   private static final String RESOURCE = "_dd.trace.resource";
 
   private static final int MAX_NUM_ENDPOINTS = 8192;
+
+  private final boolean detailedDebugLogging;
 
   /**
    * Creates a profiler API with default configuration, may result in loading the profiler native
@@ -97,7 +102,7 @@ public final class DatadogProfiler {
 
   private final List<String> orderedContextAttributes;
 
-  private final double queueTimeThresholdNanos;
+  private final long queueTimeThresholdMillis;
 
   private DatadogProfiler(ConfigProvider configProvider) {
     this(configProvider, getContextAttributes(configProvider));
@@ -107,6 +112,9 @@ public final class DatadogProfiler {
   DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes) {
     this.configProvider = configProvider;
     this.profiler = JavaProfilerLoader.PROFILER;
+    this.detailedDebugLogging =
+        configProvider.getBoolean(
+            PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
     if (JavaProfilerLoader.REASON_NOT_LOADED != null) {
       throw new UnsupportedOperationException(
           "Unable to instantiate datadog profiler", JavaProfilerLoader.REASON_NOT_LOADED);
@@ -134,11 +142,10 @@ public final class DatadogProfiler {
       orderedContextAttributes.add(RESOURCE);
     }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
-    this.queueTimeThresholdNanos =
-        1_000_000D
-            * configProvider.getLong(
-                PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
-                PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
+    this.queueTimeThresholdMillis =
+        configProvider.getLong(
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
+            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
   }
 
   void addThread() {
@@ -235,6 +242,7 @@ public final class DatadogProfiler {
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
     cmd.append(",attributes=").append(String.join(";", orderedContextAttributes));
+    cmd.append(",generations=").append(isTrackingGenerations(configProvider));
     if (omitLineNumbers(configProvider)) {
       cmd.append(",linenumbers=f");
     }
@@ -274,6 +282,8 @@ public final class DatadogProfiler {
       }
       if (profilingModes.contains(MEMLEAK)) {
         cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
+        cmd.append(':')
+            .append(String.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
       }
     }
     String cmdString = cmd.toString();
@@ -303,6 +313,7 @@ public final class DatadogProfiler {
   }
 
   public void setSpanContext(long spanId, long rootSpanId) {
+    debugLogging(rootSpanId);
     try {
       profiler.setContext(spanId, rootSpanId);
     } catch (IllegalStateException e) {
@@ -311,6 +322,7 @@ public final class DatadogProfiler {
   }
 
   public void clearSpanContext() {
+    debugLogging(0L);
     try {
       profiler.setContext(0L, 0L);
     } catch (IllegalStateException e) {
@@ -354,6 +366,12 @@ public final class DatadogProfiler {
     return false;
   }
 
+  private void debugLogging(long localRootSpanId) {
+    if (detailedDebugLogging && log.isDebugEnabled()) {
+      log.debug("localRootSpanId={}", localRootSpanId, new Throwable());
+    }
+  }
+
   int encode(CharSequence constant) {
     if (constant != null && profiler != null) {
       return contextSetter.encode(constant.toString());
@@ -377,34 +395,21 @@ public final class DatadogProfiler {
   }
 
   public QueueTimeTracker newQueueTimeTracker() {
-    return new QueueTimeTracker(this, timestamper().timestamp());
+    return new QueueTimeTracker(this, profiler.getCurrentTicks());
   }
 
-  void recordQueueTimeEvent(long startTicks, Object task, Class<?> scheduler, Thread origin) {
+  void recordQueueTimeEvent(
+      long startMillis, long startTicks, Object task, Class<?> scheduler, Thread origin) {
     if (profiler != null) {
-      Timestamper timestamper = timestamper();
-      long endTicks = timestamper.timestamp();
-      double durationNanos = timestamper.toNanosConversionFactor() * (endTicks - startTicks);
-      if (durationNanos >= queueTimeThresholdNanos) {
+      if (System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis) {
         // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
         // we avoid doing this unless we are absolutely certain we will record the event
         Class<?> taskType = TaskWrapper.getUnwrappedType(task);
         if (taskType != null) {
+          long endTicks = profiler.getCurrentTicks();
           profiler.recordQueueTime(startTicks, endTicks, taskType, scheduler, origin);
         }
       }
     }
-  }
-
-  private Timestamper timestamper() {
-    // FIXME intended to be injectable, but still a singleton for currently pragmatic reasons.
-    //  We need a way to make the Controller responsible for creating the context integration
-    //  for the tracer, which also allows the context integration to be constant in the tracer,
-    //  as well as allowing for the various late initialisation needs for JFR on certain JDK
-    // versions
-    // note that this access does not risk using the default version so long as queue time is
-    // guarded
-    // by checking if JFR is ready (this currently happens in QueueTimeHelper, so this is safe)
-    return Timestamper.timestamper();
   }
 }

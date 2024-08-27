@@ -29,12 +29,13 @@ public class KafkaDecorator extends MessagingClientDecorator {
   public static final CharSequence KAFKA_CONSUME =
       UTF8BytesString.create(
           SpanNaming.instance().namingSchema().messaging().inboundOperation(KAFKA));
+
+  public static final CharSequence KAFKA_POLL = UTF8BytesString.create("kafka.poll");
   public static final CharSequence KAFKA_PRODUCE =
       UTF8BytesString.create(
           SpanNaming.instance().namingSchema().messaging().outboundOperation(KAFKA));
   public static final CharSequence KAFKA_DELIVER = UTF8BytesString.create("kafka.deliver");
-  public static final boolean KAFKA_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(true, KAFKA);
+  public static final boolean KAFKA_LEGACY_TRACING = Config.get().isKafkaLegacyTracingEnabled();
   public static final boolean TIME_IN_QUEUE_ENABLED =
       Config.get().isTimeInQueueEnabled(!KAFKA_LEGACY_TRACING, KAFKA);
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";

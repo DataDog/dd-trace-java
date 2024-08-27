@@ -64,7 +64,7 @@ public abstract class NamedContext {
 
     @Override
     public void taintValue(@Nullable final String value) {
-      module.taint(iastCtx(), value, source.getOrigin(), currentName, source.getValue());
+      module.taintString(iastCtx(), value, source.getOrigin(), currentName, source.getValue());
     }
 
     @Override
@@ -74,7 +74,7 @@ public abstract class NamedContext {
       // prevent tainting the same name more than once
       if (currentName != name) {
         currentName = name;
-        module.taint(iastCtx(), name, source.getOrigin(), name, source.getValue());
+        module.taintString(iastCtx(), name, source.getOrigin(), name, source.getValue());
       }
     }
 

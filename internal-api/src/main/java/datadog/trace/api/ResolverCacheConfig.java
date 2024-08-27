@@ -11,6 +11,11 @@ public enum ResolverCacheConfig {
     }
 
     @Override
+    public int visibilitySize() {
+      return 4096;
+    }
+
+    @Override
     public int memoPoolSize() {
       return 4096;
     }
@@ -34,6 +39,11 @@ public enum ResolverCacheConfig {
     }
 
     @Override
+    public int visibilitySize() {
+      return 1024;
+    }
+
+    @Override
     public int memoPoolSize() {
       return 2048;
     }
@@ -53,6 +63,11 @@ public enum ResolverCacheConfig {
   NO_MEMOS {
     @Override
     public int noMatchesSize() {
+      return 0;
+    }
+
+    @Override
+    public int visibilitySize() {
       return 0;
     }
 
@@ -80,6 +95,11 @@ public enum ResolverCacheConfig {
     }
 
     @Override
+    public int visibilitySize() {
+      return 0;
+    }
+
+    @Override
     public int memoPoolSize() {
       return 0;
     }
@@ -103,6 +123,11 @@ public enum ResolverCacheConfig {
     }
 
     @Override
+    public int visibilitySize() {
+      return 0;
+    }
+
+    @Override
     public int memoPoolSize() {
       return 0;
     }
@@ -119,6 +144,8 @@ public enum ResolverCacheConfig {
   };
 
   public abstract int noMatchesSize();
+
+  public abstract int visibilitySize();
 
   public abstract int memoPoolSize();
 

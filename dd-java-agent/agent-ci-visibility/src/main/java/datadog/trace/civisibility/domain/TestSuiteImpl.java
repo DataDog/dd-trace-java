@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTestSuite;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -38,12 +37,12 @@ public class TestSuiteImpl implements DDTestSuite {
   private final InstrumentationType instrumentationType;
   private final TestFrameworkInstrumentation instrumentation;
   private final Config config;
-  CiVisibilityMetricCollector metricCollector;
+  private final CiVisibilityMetricCollector metricCollector;
   private final TestDecorator testDecorator;
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStore.Factory coverageStoreFactory;
   private final boolean parallelized;
   private final Consumer<AgentSpan> onSpanFinish;
 
@@ -65,7 +64,7 @@ public class TestSuiteImpl implements DDTestSuite {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       Consumer<AgentSpan> onSpanFinish) {
     this.sessionId = sessionId;
     this.moduleId = moduleId;
@@ -81,7 +80,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+    this.coverageStoreFactory = coverageStoreFactory;
     this.onSpanFinish = onSpanFinish;
 
     if (startTime != null) {
@@ -103,7 +102,7 @@ public class TestSuiteImpl implements DDTestSuite {
 
     // setting status to skip initially,
     // as we do not know in advance whether the suite will have any children
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
     this.testClass = testClass;
     if (this.testClass != null) {
@@ -138,12 +137,12 @@ public class TestSuiteImpl implements DDTestSuite {
   public void setErrorInfo(Throwable error) {
     span.setError(true);
     span.addThrowable(error);
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_FAIL);
+    span.setTag(Tags.TEST_STATUS, TestStatus.fail);
   }
 
   @Override
   public void setSkipReason(String skipReason) {
-    span.setTag(Tags.TEST_STATUS, CIConstants.TEST_SKIP);
+    span.setTag(Tags.TEST_STATUS, TestStatus.skip);
     if (skipReason != null) {
       span.setTag(Tags.TEST_SKIP_REASON, skipReason);
     }
@@ -165,7 +164,10 @@ public class TestSuiteImpl implements DDTestSuite {
                 + "it is possible that end() was called multiple times "
                 + "or an operation that was started by the suite is still in progress; "
                 + "active scope span is: "
-                + scopeSpan);
+                + scopeSpan
+                + "; "
+                + "expected span is: "
+                + span);
       }
 
       scope.close();
@@ -186,6 +188,14 @@ public class TestSuiteImpl implements DDTestSuite {
   @Override
   public TestImpl testStart(
       String testName, @Nullable Method testMethod, @Nullable Long startTime) {
+    return testStart(testName, null, testMethod, startTime);
+  }
+
+  public TestImpl testStart(
+      String testName,
+      @Nullable String testParameters,
+      @Nullable Method testMethod,
+      @Nullable Long startTime) {
     return new TestImpl(
         sessionId,
         moduleId,
@@ -193,6 +203,7 @@ public class TestSuiteImpl implements DDTestSuite {
         moduleName,
         testSuiteName,
         testName,
+        testParameters,
         itrCorrelationId,
         startTime,
         testClass,
@@ -205,7 +216,7 @@ public class TestSuiteImpl implements DDTestSuite {
         sourcePathResolver,
         methodLinesResolver,
         codeowners,
-        coverageProbeStoreFactory,
+        coverageStoreFactory,
         SpanUtils.propagateCiVisibilityTagsTo(span));
   }
 }

@@ -3,9 +3,10 @@ package datadog.trace.civisibility.domain.buildsystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.ModuleExecutionSettings;
 import datadog.trace.api.civisibility.coverage.CoverageDataSupplier;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
@@ -29,7 +30,7 @@ public class ProxyTestSession implements TestFrameworkSession {
   private final SourcePathResolver sourcePathResolver;
   private final Codeowners codeowners;
   private final MethodLinesResolver methodLinesResolver;
-  private final CoverageProbeStoreFactory coverageProbeStoreFactory;
+  private final CoverageStore.Factory coverageStoreFactory;
   private final CoverageDataSupplier coverageDataSupplier;
   private final SignalClient.Factory signalClientFactory;
   private final ModuleExecutionSettings moduleExecutionSettings;
@@ -43,7 +44,7 @@ public class ProxyTestSession implements TestFrameworkSession {
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
+      CoverageStore.Factory coverageStoreFactory,
       CoverageDataSupplier coverageDataSupplier,
       SignalClient.Factory signalClientFactory,
       ModuleExecutionSettings moduleExecutionSettings) {
@@ -55,7 +56,7 @@ public class ProxyTestSession implements TestFrameworkSession {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.methodLinesResolver = methodLinesResolver;
-    this.coverageProbeStoreFactory = coverageProbeStoreFactory;
+    this.coverageStoreFactory = coverageStoreFactory;
     this.coverageDataSupplier = coverageDataSupplier;
     this.signalClientFactory = signalClientFactory;
     this.moduleExecutionSettings = moduleExecutionSettings;
@@ -63,7 +64,10 @@ public class ProxyTestSession implements TestFrameworkSession {
 
   @Override
   public void end(Long startTime) {
-    // no op
+    // flushing written traces synchronously:
+    // as soon as all tests have been executed,
+    // the process can be killed by the build system
+    AgentTracer.get().flush();
   }
 
   @Override
@@ -79,7 +83,7 @@ public class ProxyTestSession implements TestFrameworkSession {
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory,
+        coverageStoreFactory,
         coverageDataSupplier,
         signalClientFactory);
   }

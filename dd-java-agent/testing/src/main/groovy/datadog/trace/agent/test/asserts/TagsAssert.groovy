@@ -62,6 +62,13 @@ class TagsAssert {
     assertedTags.add(DDTags.PROFILING_ENABLED)
     assertedTags.add(DDTags.PROFILING_CONTEXT_ENGINE)
     assertedTags.add(DDTags.BASE_SERVICE)
+    assertedTags.add(DDTags.DD_ENTRY_LOCATION_FILE)
+    assertedTags.add(DDTags.DD_ENTRY_METHOD)
+    assertedTags.add(DDTags.DD_ENTRY_LINE)
+    assertedTags.add(DDTags.DD_ENTRY_METHOD_SIGNATURE)
+    assertedTags.add(DDTags.DSM_ENABLED)
+    assertedTags.add(DDTags.DJM_ENABLED)
+    assertedTags.add(DDTags.PARENT_ID)
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
@@ -76,6 +83,8 @@ class TagsAssert {
       // If runtime id is actually different here, it might indicate that
       // the Config class was loaded on multiple different class loaders.
       assert tags[DDTags.RUNTIME_ID_TAG] == Config.get().runtimeId
+      assertedTags.add(DDTags.TRACER_HOST)
+      assert tags[DDTags.TRACER_HOST] == Config.get().getHostName()
     } else {
       assert tags[DDTags.RUNTIME_ID_TAG] == null
     }

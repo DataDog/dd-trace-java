@@ -9,7 +9,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.coverage.CoverageProbeStoreFactory;
 import datadog.trace.civisibility.coverage.CoverageUtils;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
@@ -40,7 +39,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
   private final TestModuleRegistry testModuleRegistry;
   private final LongAdder testsSkipped = new LongAdder();
   private volatile boolean codeCoverageEnabled;
-  private volatile boolean itrEnabled;
+  private volatile boolean testSkippingEnabled;
   private final Object coverageDataLock = new Object();
 
   @GuardedBy("coverageDataLock")
@@ -61,7 +60,6 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       SourcePathResolver sourcePathResolver,
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
-      CoverageProbeStoreFactory coverageProbeStoreFactory,
       RepoIndexProvider repoIndexProvider,
       TestModuleRegistry testModuleRegistry,
       Consumer<AgentSpan> onSpanFinish) {
@@ -77,7 +75,6 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         sourcePathResolver,
         codeowners,
         methodLinesResolver,
-        coverageProbeStoreFactory,
         onSpanFinish);
     this.repoRoot = repoRoot;
     this.signalServerAddress = signalServerAddress;
@@ -124,8 +121,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     if (result.isCoverageEnabled()) {
       codeCoverageEnabled = true;
     }
-    if (result.isItrEnabled()) {
-      itrEnabled = true;
+    if (result.isTestSkippingEnabled()) {
+      testSkippingEnabled = true;
     }
     if (result.isEarlyFlakeDetectionEnabled()) {
       setTag(Tags.TEST_EARLY_FLAKE_ENABLED, true);
@@ -163,7 +160,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
 
-    if (itrEnabled) {
+    if (testSkippingEnabled) {
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
       setTag(Tags.TEST_ITR_TESTS_SKIPPING_TYPE, "test");
 

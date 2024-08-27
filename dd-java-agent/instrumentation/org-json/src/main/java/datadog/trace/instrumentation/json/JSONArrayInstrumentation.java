@@ -14,6 +14,8 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 @AutoService(InstrumenterModule.class)
 public class JSONArrayInstrumentation extends InstrumenterModule.Iast
@@ -51,7 +53,7 @@ public class JSONArrayInstrumentation extends InstrumenterModule.Iast
     public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final Object input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
-        iastModule.taintIfTainted(self, input);
+        iastModule.taintObjectIfTainted(self, input);
       }
     }
   }
@@ -60,15 +62,18 @@ public class JSONArrayInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
-      if (result instanceof Integer
-          || result instanceof Long
-          || result instanceof Double
-          || result instanceof Boolean) {
+      boolean isString = result instanceof String;
+      boolean isJson = !isString && (result instanceof JSONObject || result instanceof JSONArray);
+      if (!isString && !isJson) {
         return;
       }
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
-      if (iastModule != null && result != null && result instanceof String) {
-        iastModule.taintIfTainted(result, self);
+      if (iastModule != null) {
+        if (isString) {
+          iastModule.taintStringIfTainted((String) result, self);
+        } else {
+          iastModule.taintObjectIfTainted(result, self);
+        }
       }
     }
   }
@@ -77,15 +82,18 @@ public class JSONArrayInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterMethod(@Advice.This Object self, @Advice.Return final Object result) {
-      if (result instanceof Integer
-          || result instanceof Long
-          || result instanceof Double
-          || result instanceof Boolean) {
+      boolean isString = result instanceof String;
+      boolean isJson = !isString && (result instanceof JSONObject || result instanceof JSONArray);
+      if (!isString && !isJson) {
         return;
       }
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
-      if (iastModule != null && result != null) {
-        iastModule.taintIfTainted(result, self);
+      if (iastModule != null) {
+        if (isString) {
+          iastModule.taintStringIfTainted((String) result, self);
+        } else {
+          iastModule.taintObjectIfTainted(result, self);
+        }
       }
     }
   }

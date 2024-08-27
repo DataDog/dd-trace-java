@@ -2,15 +2,19 @@ package com.datadog.iast.sink
 
 import com.datadog.iast.IastModuleImplTestBase
 import com.datadog.iast.Reporter
+import com.datadog.iast.model.Vulnerability
+import com.datadog.iast.model.VulnerabilityType
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
 
 import static com.datadog.iast.model.VulnerabilityType.ADMIN_CONSOLE_ACTIVE
 import static com.datadog.iast.model.VulnerabilityType.DEFAULT_HTML_ESCAPE_INVALID
+import static com.datadog.iast.model.VulnerabilityType.DEFAULT_APP_DEPLOYED
 import static com.datadog.iast.model.VulnerabilityType.DIRECTORY_LISTING_LEAK
 import static com.datadog.iast.model.VulnerabilityType.INSECURE_JSP_LAYOUT
 import static com.datadog.iast.model.VulnerabilityType.SESSION_TIMEOUT
 import static com.datadog.iast.model.VulnerabilityType.VERB_TAMPERING
+import static com.datadog.iast.sink.ApplicationModuleImpl.SESSION_REWRITING_EVIDENCE_VALUE
 
 class ApplicationModuleTest extends IastModuleImplTestBase {
 
@@ -61,14 +65,52 @@ class ApplicationModuleTest extends IastModuleImplTestBase {
     'application/sessiontimeout/secure'               | null                        | null                                                       | _
     'application/sessiontimeout/insecure'             | SESSION_TIMEOUT             | 'Found vulnerable timeout value: 80'                       | 7
     'application/directorylistingleak/secure'         | null                        | null                                                       | _
-    'application/directorylistingleak/insecure'       | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                            | 14
+    'application/directorylistingleak/insecure/tomcat'| DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                            | 14
+    'application/directorylistingleak/insecure/weblogic'     | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                             | 17
+    'application/directorylistingleak/insecure/websphere/xmi'        | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                             | 1
+    'application/directorylistingleak/insecure/websphere/xml'        | DIRECTORY_LISTING_LEAK      | 'Directory listings configured'                             | 10
     'application/adminconsoleactive/secure'           | null                        | null                                                       | _
-    'application/adminconsoleactive/insecure'         | ADMIN_CONSOLE_ACTIVE        | 'Tomcat Manager Application'                               | NO_LINE
+    'application/adminconsoleactive/insecure/tomcat/manager' | ADMIN_CONSOLE_ACTIVE | ApplicationModuleImpl.TOMCAT_MANAGER_APP                   | NO_LINE
+    'application/adminconsoleactive/insecure/tomcat/host'    | ADMIN_CONSOLE_ACTIVE | ApplicationModuleImpl.TOMCAT_HOST_MANAGER_APP              | NO_LINE
+    'application/defaultappdeployed/secure'           | null                        | null                                                       | _
+    'application/defaultappdeployed/insecure/tomcat/samples'         | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.TOMCAT_SAMPLES_APP                    | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/async'            | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_ASYNC_REST_APP                  | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/jaas'             | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_JAAS_APP                        | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/javadoc'          | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_JAVADOC_APP                     | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/jndi'             | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_JNDI_APP                        | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/spec'             | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_SPEC_APP                        | NO_LINE
+    'application/defaultappdeployed/insecure/jetty/test'             | DEFAULT_APP_DEPLOYED        | ApplicationModuleImpl.JETTY_TEST_APP                        | NO_LINE
     'application/defaulthtmlescapeinvalid/secure'     | null                        | null                                                       | _
     'application/defaulthtmlescapeinvalid/secure_tag' | null                        | null                                                       | _
     'application/defaulthtmlescapeinvalid/false_tag'  | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be true'                     | 8
     'application/defaulthtmlescapeinvalid/no_tag_1'   | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'                      | NO_LINE
     'application/defaulthtmlescapeinvalid/no_tag_2'   | DEFAULT_HTML_ESCAPE_INVALID | 'defaultHtmlEscape tag should be set'                      | NO_LINE
+  }
+
+  void 'iast module detects session rewriting on sessionTrackingModes'() {
+    when:
+    module.checkSessionTrackingModes(sessionTrackingModes as Set<String>)
+
+    then:
+    if (expected != null) {
+      1 * reporter.report(_, _) >> { args -> assertSessionRewriting(args[1] as Vulnerability, expected) }
+    } else {
+      0 * reporter.report(_, _)
+    }
+    0 * reporter.report(_, _)
+
+    where:
+    sessionTrackingModes        | expected
+    []                          | null
+    ['COOKIE']                  | null
+    ['URL']                     | SESSION_REWRITING_EVIDENCE_VALUE
+    ['COOKIE', 'URL']           | SESSION_REWRITING_EVIDENCE_VALUE
+  }
+
+  private static void assertSessionRewriting(final Vulnerability vuln, final String expected) {
+    assertVulnerability(vuln, VulnerabilityType.SESSION_REWRITING)
+    final evidence = vuln.getEvidence()
+    assert evidence.value == expected
   }
 
   private static void assertVulnerability(final vuln, final expectedVulnType) {

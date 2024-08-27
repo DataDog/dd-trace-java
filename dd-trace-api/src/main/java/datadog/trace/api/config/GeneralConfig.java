@@ -29,6 +29,7 @@ public final class GeneralConfig {
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
 
+  public static final String LOG_LEVEL = "log.level";
   public static final String TRACE_DEBUG = "trace.debug";
   public static final String TRACE_TRIAGE = "trace.triage";
   public static final String TRIAGE_REPORT_TRIGGER = "triage.report.trigger";
@@ -66,6 +67,9 @@ public final class GeneralConfig {
   public static final String AZURE_APP_SERVICES = "azure.app.services";
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
 
+  public static final String DATA_JOBS_ENABLED = "data.jobs.enabled";
+  public static final String DATA_JOBS_COMMAND_PATTERN = "data.jobs.command.pattern";
+
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
       "data.streams.bucket_duration.seconds";
@@ -82,6 +86,11 @@ public final class GeneralConfig {
   public static final String TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE =
       "telemetry.dependency-resolution.queue.size";
   public static final String TELEMETRY_DEBUG_REQUESTS_ENABLED = "telemetry.debug.requests.enabled";
+  public static final String AGENTLESS_LOG_SUBMISSION_ENABLED = "agentless.log.submission.enabled";
+  public static final String AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE =
+      "agentless.log.submission.queue.size";
+  public static final String AGENTLESS_LOG_SUBMISSION_LEVEL = "agentless.log.submission.level";
+  public static final String AGENTLESS_LOG_SUBMISSION_URL = "agentless.log.submission.url";
 
   private GeneralConfig() {}
 }

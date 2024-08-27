@@ -25,7 +25,7 @@ public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter")
         .and(hasClassNamed("jakarta.servlet.Filter"));
   }

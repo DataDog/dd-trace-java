@@ -1,3 +1,5 @@
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES
+
 import com.google.common.util.concurrent.ListenableFuture
 import com.linecorp.armeria.client.Clients
 import com.linecorp.armeria.common.SessionProtocol
@@ -45,6 +47,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
 
   def collectedAppSecHeaders = [:]
   boolean appSecHeaderDone = false
+  def collectedAppSecServerMethods = []
   def collectedAppSecReqMsgs = []
 
   final Duration timeoutDuration() {
@@ -73,6 +76,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
     // here to trigger wrapping to record scheduling time - the logic is trivial so it's enough to verify
     // that ClassCastExceptions do not arise from the wrapping
     injectSysConfig("dd.profiling.enabled", "true")
+    injectSysConfig(GRPC_SERVER_ERROR_STATUSES, "2-14", true)
   }
 
   @Override
@@ -97,6 +101,10 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
       collectedAppSecReqMsgs << obj
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, Object, Flow<Void>>)
+    ig.registerCallback(EVENTS.grpcServerMethod(), { reqCtx, method ->
+      collectedAppSecServerMethods << method
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, String, Flow<Void>>)
   }
 
   def cleanup() {
@@ -230,6 +238,8 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
     traceId.toLong() as String == collectedAppSecHeaders['x-datadog-trace-id']
     collectedAppSecReqMsgs.size() == 1
     collectedAppSecReqMsgs.first().name == name
+    collectedAppSecServerMethods.size() == 1
+    collectedAppSecServerMethods.first() == 'example.Greeter/SayHello'
 
     and:
     if (isDataStreamsEnabled()) {
@@ -429,12 +439,14 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
-          errored true
+          errored errorFlag
           measured true
           tags {
             "$Tags.COMPONENT" "armeria-grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             errorTags error.class, error.message
+            "status.code" "${status.code.name()}"
+            "status.description"  { it == null || String}
             "canceled" { true } // 1.0.0 handles cancellation incorrectly so accesting any value
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
@@ -463,13 +475,15 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
     serverRule.stop().get()
 
     where:
-    name                          | status
-    "Runtime - cause"             | Status.UNKNOWN.withCause(new RuntimeException("some error"))
-    "Status - cause"              | Status.PERMISSION_DENIED.withCause(new RuntimeException("some error"))
-    "StatusRuntime - cause"       | Status.UNIMPLEMENTED.withCause(new RuntimeException("some error"))
-    "Runtime - description"       | Status.UNKNOWN.withDescription("some description")
-    "Status - description"        | Status.PERMISSION_DENIED.withDescription("some description")
-    "StatusRuntime - description" | Status.UNIMPLEMENTED.withDescription("some description")
+    name                                    | status                                                                  | errorFlag
+    "Runtime - cause"                       | Status.UNKNOWN.withCause(new RuntimeException("some error"))            | true
+    "Status - cause"                        | Status.PERMISSION_DENIED.withCause(new RuntimeException("some error"))  | true
+    "StatusRuntime - cause"                 | Status.UNIMPLEMENTED.withCause(new RuntimeException("some error"))      | true
+    "Runtime - description"                 | Status.UNKNOWN.withDescription("some description")                      | true
+    "Status - description"                  | Status.PERMISSION_DENIED.withDescription("some description")            | true
+    "StatusRuntime - description"           | Status.UNIMPLEMENTED.withDescription("some description")                | true
+    "StatusRuntime - Not errored no cause"   | Status.fromCodeValue(15).withDescription("some description")           | false
+    "StatusRuntime - Not errored with cause" | Status.fromCodeValue(15).withCause(new RuntimeException("some error")) | false
   }
 
   def "skip binary headers"() {
@@ -665,7 +679,7 @@ abstract class ArmeriaGrpcDataStreamsEnabledForkedTest extends ArmeriaGrpcTest {
   }
 }
 
-class ArmeriaGrpcDataStreamsEnabledV0ForkedTest extends ArmeriaGrpcDataStreamsEnabledForkedTest {
+class ArmeriaGrpcDataStreamsEnabledV0Test extends ArmeriaGrpcDataStreamsEnabledForkedTest {
 
   @Override
   int version() {

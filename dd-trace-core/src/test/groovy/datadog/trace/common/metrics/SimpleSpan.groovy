@@ -244,4 +244,14 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   int samplingPriority() {
     return 0
   }
+
+  @Override
+  Map<String, Object> getMetaStruct() {
+    return [:]
+  }
+
+  @Override
+  SimpleSpan setMetaStruct(String field, Object value) {
+    return this
+  }
 }

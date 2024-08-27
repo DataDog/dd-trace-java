@@ -207,7 +207,7 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     TEST_WRITER.waitForTraces(1)
 
     then:
-    1 * mod.taint(_, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
+    1 * mod.taintString(_, '123', SourceTypes.REQUEST_PATH_PARAMETER, 'id')
     0 * mod._
 
     cleanup:

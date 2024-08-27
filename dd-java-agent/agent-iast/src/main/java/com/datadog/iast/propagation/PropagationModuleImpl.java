@@ -10,7 +10,6 @@ import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.Ranges;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
-import com.datadog.iast.taint.Tainteds;
 import com.datadog.iast.util.ObjectVisitor;
 import com.datadog.iast.util.Ranged;
 import datadog.trace.api.Config;
@@ -18,141 +17,286 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.Taintable;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Array;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.Contract;
 
+@SuppressWarnings("DuplicatedCode")
 public class PropagationModuleImpl implements PropagationModule {
 
   /** Prevent copy of values bigger than this threshold */
   private static final int MAX_VALUE_LENGTH = Config.get().getIastTruncationMaxValueLength();
 
   @Override
-  public void taint(@Nullable final Object target, final byte origin) {
-    taint(target, origin, null);
+  public void taintObject(@Nullable Object target, byte origin) {
+    taintObject(target, origin, null);
   }
 
   @Override
-  public void taint(
-      @Nullable final Object target, final byte origin, @Nullable final CharSequence name) {
-    taint(target, origin, name, target);
+  public void taintObject(@Nullable IastContext ctx, @Nullable Object target, byte origin) {
+    taintObject(ctx, target, origin, null);
   }
 
   @Override
-  public void taint(
-      @Nullable final Object target,
-      final byte origin,
-      @Nullable final CharSequence name,
-      @Nullable final Object value) {
-    if (!canBeTainted(target)) {
+  public void taintString(@Nullable String target, byte origin) {
+    taintString(target, origin, null);
+  }
+
+  @Override
+  public void taintString(@Nullable IastContext ctx, @Nullable String target, byte origin) {
+    taintString(ctx, target, origin, null);
+  }
+
+  @Override
+  public void taintObject(@Nullable Object target, byte origin, @Nullable CharSequence name) {
+    taintObject(target, origin, name, target);
+  }
+
+  @Override
+  public void taintObject(
+      @Nullable IastContext ctx,
+      @Nullable Object target,
+      byte origin,
+      @Nullable CharSequence name) {
+    taintObject(ctx, target, origin, name, target);
+  }
+
+  @Override
+  public void taintString(@Nullable String target, byte origin, @Nullable CharSequence name) {
+    taintString(target, origin, name, target);
+  }
+
+  @Override
+  public void taintString(
+      @Nullable IastContext ctx,
+      @Nullable String target,
+      byte origin,
+      @Nullable CharSequence name) {
+    taintString(ctx, target, origin, name, target);
+  }
+
+  @Override
+  public void taintObjectRange(
+      @Nullable final Object target, final byte origin, final int start, final int length) {
+    if (target == null || length == 0) {
       return;
     }
-    taint(LazyContext.build(), target, origin, name, value);
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintObjectRange(ctx, target, origin, start, length);
   }
 
   @Override
-  public void taint(
-      @Nullable final IastContext ctx, @Nullable final Object target, final byte origin) {
-    taint(ctx, target, origin, null);
-  }
-
-  @Override
-  public void taint(
-      @Nullable final Object target, final byte origin, final int start, final int length) {
-    taint(LazyContext.build(), target, origin, start, length);
-  }
-
-  @Override
-  public void taint(
+  public void taintObjectRange(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       final byte origin,
       final int start,
       final int length) {
-    if (!canBeTainted(target) || length == 0) {
+    if (ctx == null || target == null || length == 0) {
       return;
     }
+    final TaintedObjects to = ctx.getTaintedObjects();
     final Range range =
         new Range(start, length, newSource(target, origin, null, target), NOT_MARKED);
-    internalTaint(ctx, target, new Range[] {range}, NOT_MARKED);
+    internalTaint(to, target, new Range[] {range}, NOT_MARKED);
   }
 
   @Override
-  public void taint(
+  public void taintStringRange(
+      @Nullable final String target, final byte origin, final int start, final int length) {
+    if (target == null || length == 0) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintStringRange(ctx, target, origin, start, length);
+  }
+
+  @Override
+  public void taintStringRange(
       @Nullable final IastContext ctx,
+      @Nullable final String target,
+      final byte origin,
+      final int start,
+      final int length) {
+    if (ctx == null || target == null || length == 0) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final Range range =
+        new Range(start, length, newSource(target, origin, null, target), NOT_MARKED);
+    internalTaint(to, target, new Range[] {range}, NOT_MARKED);
+  }
+
+  @Override
+  public void taintObject(
       @Nullable final Object target,
       final byte origin,
-      @Nullable final CharSequence name) {
-    taint(ctx, target, origin, name, target);
+      @Nullable final CharSequence name,
+      @Nullable final Object value) {
+    if (target == null) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintObject(ctx, target, origin, name, value);
   }
 
   @Override
-  public void taint(
+  public void taintObject(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       final byte origin,
       @Nullable final CharSequence name,
       @Nullable final Object value) {
-    if (!canBeTainted(target)) {
+    if (ctx == null || target == null) {
       return;
     }
-    internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
+    final TaintedObjects to = ctx.getTaintedObjects();
+    internalTaint(to, target, newSource(target, origin, name, value), NOT_MARKED);
   }
 
   @Override
-  public void taintIfTainted(@Nullable final Object target, @Nullable final Object input) {
-    taintIfTainted(target, input, false, NOT_MARKED);
+  public void taintString(
+      @Nullable final String target,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final CharSequence value) {
+    if (target == null) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintString(ctx, target, origin, name, value);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintString(
+      @Nullable final IastContext ctx,
+      @Nullable final String target,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final CharSequence value) {
+    if (ctx == null || target == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    internalTaint(to, target, newSource(target, origin, name, value), NOT_MARKED);
+  }
+
+  @Override
+  public void taintObjectIfTainted(@Nullable Object target, @Nullable Object input) {
+    taintObjectIfTainted(target, input, false, NOT_MARKED);
+  }
+
+  @Override
+  public void taintObjectIfTainted(
+      @Nullable IastContext ctx, @Nullable Object target, @Nullable Object input) {
+    taintObjectIfTainted(ctx, target, input, false, NOT_MARKED);
+  }
+
+  @Override
+  public void taintStringIfTainted(@Nullable String target, @Nullable Object input) {
+    taintStringIfTainted(target, input, false, NOT_MARKED);
+  }
+
+  @Override
+  public void taintStringIfTainted(
+      @Nullable IastContext ctx, @Nullable String target, @Nullable Object input) {
+    taintStringIfTainted(ctx, target, input, false, NOT_MARKED);
+  }
+
+  @Override
+  public void taintObjectIfTainted(
       @Nullable final Object target, @Nullable final Object input, boolean keepRanges, int mark) {
-    if (!canBeTainted(target) || !canBeTainted(input)) {
+    if (target == null || input == null) {
       return;
     }
-    taintIfTainted(LazyContext.build(), target, input, keepRanges, mark);
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintObjectIfTainted(ctx, target, input, keepRanges, mark);
   }
 
   @Override
-  public void taintIfTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object input) {
-    taintIfTainted(ctx, target, input, false, NOT_MARKED);
-  }
-
-  @Override
-  public void taintIfTainted(
+  public void taintObjectIfTainted(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       @Nullable final Object input,
       boolean keepRanges,
       int mark) {
-    if (!canBeTainted(target) || !canBeTainted(input)) {
+    if (ctx == null || target == null || input == null) {
       return;
     }
+    final TaintedObjects to = ctx.getTaintedObjects();
     if (keepRanges) {
-      internalTaint(ctx, target, getRanges(ctx, input), mark);
+      internalTaint(to, target, getRanges(to, input), mark);
     } else {
-      internalTaint(ctx, target, highestPrioritySource(ctx, input), mark);
+      internalTaint(to, target, highestPrioritySource(to, input), mark);
     }
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintStringIfTainted(
+      @Nullable final String target, @Nullable final Object input, boolean keepRanges, int mark) {
+    if (target == null || input == null) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintStringIfTainted(ctx, target, input, keepRanges, mark);
+  }
+
+  @Override
+  public void taintStringIfTainted(
+      @Nullable final IastContext ctx,
+      @Nullable final String target,
+      @Nullable final Object input,
+      boolean keepRanges,
+      int mark) {
+    if (ctx == null || target == null || input == null) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    if (keepRanges) {
+      internalTaint(to, target, getRanges(to, input), mark);
+    } else {
+      internalTaint(to, target, highestPrioritySource(to, input), mark);
+    }
+  }
+
+  @Override
+  public void taintObjectIfRangeTainted(
       @Nullable final Object target,
       @Nullable final Object input,
       final int start,
       final int length,
       boolean keepRanges,
       int mark) {
-    taintIfTainted(LazyContext.build(), target, input, start, length, keepRanges, mark);
+    if (target == null || input == null || length == 0) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintObjectIfRangeTainted(ctx, target, input, start, length, keepRanges, mark);
   }
 
   @Override
-  public void taintIfTainted(
+  public void taintObjectIfRangeTainted(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       @Nullable final Object input,
@@ -160,10 +304,11 @@ public class PropagationModuleImpl implements PropagationModule {
       final int length,
       boolean keepRanges,
       int mark) {
-    if (!canBeTainted(target) || !canBeTainted(input) || length == 0) {
+    if (ctx == null || target == null || input == null || length == 0) {
       return;
     }
-    final Range[] ranges = getRanges(ctx, input);
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final Range[] ranges = getRanges(to, input);
     if (ranges == null || ranges.length == 0) {
       return;
     }
@@ -172,148 +317,309 @@ public class PropagationModuleImpl implements PropagationModule {
       return;
     }
     if (keepRanges) {
-      internalTaint(ctx, target, intersection, mark);
+      internalTaint(to, target, intersection, mark);
     } else {
       final Range range = highestPriorityRange(intersection);
-      internalTaint(ctx, target, range.getSource(), mark);
+      internalTaint(to, target, range.getSource(), mark);
     }
   }
 
   @Override
-  public void taintIfTainted(
-      @Nullable final Object target, @Nullable final Object input, final byte origin) {
-    taintIfTainted(target, input, origin, null);
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final Object target,
+  public void taintStringIfRangeTainted(
+      @Nullable final String target,
       @Nullable final Object input,
-      final byte origin,
-      @Nullable final CharSequence name) {
-    taintIfTainted(target, input, origin, name, target);
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final Object target,
-      @Nullable final Object input,
-      final byte origin,
-      @Nullable final CharSequence name,
-      @Nullable final Object value) {
-    if (!canBeTainted(target) || !canBeTainted(input)) {
+      final int start,
+      final int length,
+      boolean keepRanges,
+      int mark) {
+    if (target == null || input == null || length == 0) {
       return;
     }
-    taintIfTainted(LazyContext.build(), target, input, origin, name, value);
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object input,
-      final byte origin) {
-    taintIfTainted(ctx, target, input, origin, null);
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object input,
-      final byte origin,
-      @Nullable final CharSequence name) {
-    taintIfTainted(ctx, target, input, origin, name, target);
-  }
-
-  @Override
-  public void taintIfTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object input,
-      final byte origin,
-      @Nullable final CharSequence name,
-      @Nullable final Object value) {
-    if (!canBeTainted(target) || !canBeTainted(input)) {
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
       return;
     }
-    if (isTainted(ctx, input)) {
-      internalTaint(ctx, target, newSource(target, origin, name, value), NOT_MARKED);
-    }
+    taintStringIfRangeTainted(ctx, target, input, start, length, keepRanges, mark);
   }
 
   @Override
-  public void taintIfAnyTainted(@Nullable final Object target, @Nullable final Object[] inputs) {
-    taintIfAnyTainted(target, inputs, false, NOT_MARKED);
-  }
-
-  @Override
-  public void taintIfAnyTainted(
-      @Nullable final Object target,
-      @Nullable final Object[] inputs,
-      final boolean keepRanges,
-      final int mark) {
-    if (!canBeTainted(target) || !canBeTainted(inputs)) {
+  public void taintStringIfRangeTainted(
+      @Nullable final IastContext ctx,
+      @Nullable final String target,
+      @Nullable final Object input,
+      final int start,
+      final int length,
+      boolean keepRanges,
+      int mark) {
+    if (ctx == null || target == null || input == null || length == 0) {
       return;
     }
-    taintIfAnyTainted(LazyContext.build(), target, inputs, keepRanges, mark);
-  }
-
-  @Override
-  public void taintIfAnyTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object[] inputs) {
-    taintIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
-  }
-
-  @Override
-  public void taintIfAnyTainted(
-      @Nullable final IastContext ctx,
-      @Nullable final Object target,
-      @Nullable final Object[] inputs,
-      final boolean keepRanges,
-      final int mark) {
-    if (!canBeTainted(target) || !canBeTainted(inputs)) {
+    final TaintedObjects to = ctx.getTaintedObjects();
+    final Range[] ranges = getRanges(to, input);
+    if (ranges == null || ranges.length == 0) {
+      return;
+    }
+    final Range[] intersection = Ranges.intersection(Ranged.build(start, length), ranges);
+    if (intersection == null || intersection.length == 0) {
       return;
     }
     if (keepRanges) {
-      final Range[] ranges = getRangesInArray(ctx, inputs);
+      internalTaint(to, target, intersection, mark);
+    } else {
+      final Range range = highestPriorityRange(intersection);
+      internalTaint(to, target, range.getSource(), mark);
+    }
+  }
+
+  @Override
+  public void taintObjectIfTainted(@Nullable Object target, @Nullable Object input, byte origin) {
+    taintObjectIfTainted(target, input, origin, null, target);
+  }
+
+  @Override
+  public void taintObjectIfTainted(
+      @Nullable IastContext ctx, @Nullable Object target, @Nullable Object input, byte origin) {
+    taintObjectIfTainted(ctx, target, input, origin, null, target);
+  }
+
+  @Override
+  public void taintStringIfTainted(@Nullable String target, @Nullable Object input, byte origin) {
+    taintStringIfTainted(target, input, origin, null, target);
+  }
+
+  @Override
+  public void taintStringIfTainted(
+      @Nullable IastContext ctx, @Nullable String target, @Nullable Object input, byte origin) {
+    taintStringIfTainted(ctx, target, input, origin, null, target);
+  }
+
+  @Override
+  public void taintObjectIfTainted(
+      @Nullable Object target, @Nullable Object input, byte origin, @Nullable CharSequence name) {
+    taintObjectIfTainted(target, input, origin, name, target);
+  }
+
+  @Override
+  public void taintObjectIfTainted(
+      @Nullable IastContext ctx,
+      @Nullable Object target,
+      @Nullable Object input,
+      byte origin,
+      @Nullable CharSequence name) {
+    taintObjectIfTainted(ctx, target, input, origin, name, target);
+  }
+
+  @Override
+  public void taintStringIfTainted(
+      @Nullable String target, @Nullable Object input, byte origin, @Nullable CharSequence name) {
+    taintStringIfTainted(target, input, origin, name, target);
+  }
+
+  @Override
+  public void taintStringIfTainted(
+      @Nullable IastContext ctx,
+      @Nullable String target,
+      @Nullable Object input,
+      byte origin,
+      @Nullable CharSequence name) {
+    taintStringIfTainted(ctx, target, input, origin, name, target);
+  }
+
+  @Override
+  public void taintObjectIfTainted(
+      @Nullable final Object target,
+      @Nullable final Object input,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final Object value) {
+    if (target == null || input == null) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintObjectIfTainted(ctx, target, input, origin, name, value);
+  }
+
+  @Override
+  public void taintObjectIfTainted(
+      @Nullable final IastContext ctx,
+      @Nullable final Object target,
+      @Nullable final Object input,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final Object value) {
+    if (ctx == null || target == null || input == null) {
+      return;
+    }
+    if (isTainted(ctx, target)) {
+      final TaintedObjects to = ctx.getTaintedObjects();
+      internalTaint(to, target, newSource(target, origin, name, value), NOT_MARKED);
+    }
+  }
+
+  @Override
+  public void taintStringIfTainted(
+      @Nullable final String target,
+      @Nullable final Object input,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final Object value) {
+    if (target == null || input == null) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintStringIfTainted(ctx, target, input, origin, name, value);
+  }
+
+  @Override
+  public void taintStringIfTainted(
+      @Nullable final IastContext ctx,
+      @Nullable final String target,
+      @Nullable final Object input,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final Object value) {
+    if (ctx == null || target == null || input == null) {
+      return;
+    }
+    if (isTainted(ctx, input)) {
+      final TaintedObjects to = ctx.getTaintedObjects();
+      internalTaint(to, target, newSource(target, origin, name, value), NOT_MARKED);
+    }
+  }
+
+  @Override
+  public void taintObjectIfAnyTainted(@Nullable Object target, @Nullable Object[] inputs) {
+    taintObjectIfAnyTainted(target, inputs, false, NOT_MARKED);
+  }
+
+  @Override
+  public void taintObjectIfAnyTainted(
+      @Nullable IastContext ctx, @Nullable Object target, @Nullable Object[] inputs) {
+    taintObjectIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
+  }
+
+  @Override
+  public void taintStringIfAnyTainted(@Nullable String target, @Nullable Object[] inputs) {
+    taintStringIfAnyTainted(target, inputs, false, NOT_MARKED);
+  }
+
+  @Override
+  public void taintStringIfAnyTainted(
+      @Nullable IastContext ctx, @Nullable String target, @Nullable Object[] inputs) {
+    taintStringIfAnyTainted(ctx, target, inputs, false, NOT_MARKED);
+  }
+
+  @Override
+  public void taintObjectIfAnyTainted(
+      @Nullable final Object target,
+      @Nullable final Object[] inputs,
+      final boolean keepRanges,
+      final int mark) {
+    if (target == null || inputs == null || inputs.length == 0) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintObjectIfAnyTainted(ctx, target, inputs, keepRanges, mark);
+  }
+
+  @Override
+  public void taintObjectIfAnyTainted(
+      @Nullable final IastContext ctx,
+      @Nullable final Object target,
+      @Nullable final Object[] inputs,
+      final boolean keepRanges,
+      final int mark) {
+    if (ctx == null || target == null || inputs == null || inputs.length == 0) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    if (keepRanges) {
+      final Range[] ranges = getRangesInArray(to, inputs);
       if (ranges != null) {
-        internalTaint(ctx, target, ranges, mark);
+        internalTaint(to, target, ranges, mark);
       }
     } else {
-      final Source source = highestPrioritySourceInArray(ctx, inputs);
+      final Source source = highestPrioritySourceInArray(to, inputs);
       if (source != null) {
-        internalTaint(ctx, target, source, mark);
+        internalTaint(to, target, source, mark);
       }
     }
   }
 
   @Override
-  public int taintDeeply(
-      @Nullable final Object target, final byte origin, final Predicate<Class<?>> classFilter) {
-    if (!canBeTainted(target)) {
-      return 0;
+  public void taintStringIfAnyTainted(
+      @Nullable final String target,
+      @Nullable final Object[] inputs,
+      final boolean keepRanges,
+      final int mark) {
+    if (target == null || inputs == null || inputs.length == 0) {
+      return;
     }
-    return taintDeeply(LazyContext.build(), target, origin, classFilter);
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    taintStringIfAnyTainted(ctx, target, inputs, keepRanges, mark);
   }
 
   @Override
-  public int taintDeeply(
+  public void taintStringIfAnyTainted(
+      @Nullable final IastContext ctx,
+      @Nullable final String target,
+      @Nullable final Object[] inputs,
+      final boolean keepRanges,
+      final int mark) {
+    if (ctx == null || target == null || inputs == null || inputs.length == 0) {
+      return;
+    }
+    final TaintedObjects to = ctx.getTaintedObjects();
+    if (keepRanges) {
+      final Range[] ranges = getRangesInArray(to, inputs);
+      if (ranges != null) {
+        internalTaint(to, target, ranges, mark);
+      }
+    } else {
+      final Source source = highestPrioritySourceInArray(to, inputs);
+      if (source != null) {
+        internalTaint(to, target, source, mark);
+      }
+    }
+  }
+
+  @Override
+  public int taintObjectDeeply(
+      @Nullable final Object target, final byte origin, final Predicate<Class<?>> classFilter) {
+    if (target == null) {
+      return 0;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return 0;
+    }
+    return taintObjectDeeply(ctx, target, origin, classFilter);
+  }
+
+  @Override
+  public int taintObjectDeeply(
       @Nullable final IastContext ctx,
       @Nullable final Object target,
       final byte origin,
       final Predicate<Class<?>> classFilter) {
-    if (!canBeTainted(target)) {
+    if (ctx == null || target == null) {
       return 0;
     }
-    final TaintedObjects to = getTaintedObjects(ctx);
-    if (to == null) {
-      return 0;
-    }
+    final TaintedObjects to = ctx.getTaintedObjects();
     if (target instanceof CharSequence) {
-      internalTaint(ctx, target, newSource(target, origin, null, target), NOT_MARKED);
+      internalTaint(to, target, newSource(target, origin, null, target), NOT_MARKED);
       return 1;
     } else {
       final TaintingVisitor visitor = new TaintingVisitor(to, origin);
@@ -325,27 +631,42 @@ public class PropagationModuleImpl implements PropagationModule {
   @Nullable
   @Override
   public Taintable.Source findSource(@Nullable final Object target) {
-    return target == null ? null : findSource(LazyContext.build(), target);
+    if (target == null) {
+      return null;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return null;
+    }
+    return findSource(ctx, target);
   }
 
   @Nullable
   @Override
   public Taintable.Source findSource(
       @Nullable final IastContext ctx, @Nullable final Object target) {
-    if (target == null) {
+    if (ctx == null || target == null) {
       return null;
     }
-    return highestPrioritySource(ctx, target);
+    final TaintedObjects to = ctx.getTaintedObjects();
+    return highestPrioritySource(to, target);
   }
 
   @Override
   public boolean isTainted(@Nullable final Object target) {
-    return target != null && isTainted(LazyContext.build(), target);
+    if (target == null) {
+      return false;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return false;
+    }
+    return isTainted(ctx, target);
   }
 
   @Override
   public boolean isTainted(@Nullable final IastContext ctx, @Nullable final Object target) {
-    return target != null && findSource(ctx, target) != null;
+    return ctx != null && target != null && findSource(ctx, target) != null;
   }
 
   /**
@@ -353,10 +674,24 @@ public class PropagationModuleImpl implements PropagationModule {
    * properties
    */
   private static Source newSource(
-      @Nonnull final Object tainted,
+      @Nonnull final Object target,
       final byte origin,
       @Nullable final CharSequence name,
       @Nullable final Object value) {
+    final Object sourceValue = sourceReference(target, value, true);
+    final Object sourceName = name == value ? sourceValue : sourceReference(target, name, false);
+    return new Source(origin, sourceName, sourceValue);
+  }
+
+  /**
+   * Ensures that the reference is not kept due to a strong reference via the name or value
+   * properties
+   */
+  private static Source newSource(
+      @Nonnull final String tainted,
+      final byte origin,
+      @Nullable final CharSequence name,
+      @Nullable final CharSequence value) {
     final Object sourceValue = sourceReference(tainted, value, true);
     final Object sourceName = name == value ? sourceValue : sourceReference(tainted, name, false);
     return new Source(origin, sourceName, sourceValue);
@@ -384,38 +719,11 @@ public class PropagationModuleImpl implements PropagationModule {
     return value ? PROPAGATION_PLACEHOLDER : null;
   }
 
-  @Contract("null -> false")
-  private static boolean canBeTainted(@Nullable final Object target) {
-    if (target == null) {
-      return false;
-    }
-    if (target instanceof CharSequence) {
-      return Tainteds.canBeTainted((CharSequence) target);
-    }
-    if (target.getClass().isArray()) {
-      return Array.getLength(target) > 0;
-    }
-    return true;
-  }
-
-  @Contract("null -> false")
-  private static boolean canBeTainted(@Nullable final Object[] target) {
-    if (target == null || target.length == 0) {
-      return false;
-    }
-    return true;
-  }
-
-  @Nullable
-  private static TaintedObjects getTaintedObjects(@Nullable final IastContext ctx) {
-    return ctx == null ? null : ctx.getTaintedObjects();
-  }
-
   @Nullable
   private static Range[] getRangesInArray(
-      final @Nullable IastContext ctx, final @Nonnull Object[] objects) {
+      final @Nonnull TaintedObjects to, final @Nonnull Object[] objects) {
     for (final Object object : objects) {
-      final Range[] ranges = getRanges(ctx, object);
+      final Range[] ranges = getRanges(to, object);
       if (ranges != null) {
         return ranges;
       }
@@ -424,18 +732,14 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   @Nullable
-  private static Range[] getRanges(final @Nullable IastContext ctx, final @Nonnull Object object) {
+  private static Range[] getRanges(final @Nonnull TaintedObjects to, final @Nonnull Object object) {
     if (object instanceof Taintable) {
-      final Source source = highestPrioritySource(ctx, object);
+      final Source source = highestPrioritySource(to, object);
       if (source == null) {
         return null;
       } else {
         return new Range[] {new Range(0, Integer.MAX_VALUE, source, NOT_MARKED)};
       }
-    }
-    final TaintedObjects to = getTaintedObjects(ctx);
-    if (to == null) {
-      return null;
     }
     final TaintedObject tainted = to.get(object);
     return tainted == null ? null : tainted.getRanges();
@@ -443,9 +747,9 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Nullable
   private static Source highestPrioritySourceInArray(
-      final @Nullable IastContext ctx, final @Nonnull Object[] objects) {
+      final @Nonnull TaintedObjects to, final @Nonnull Object[] objects) {
     for (final Object object : objects) {
-      final Source source = highestPrioritySource(ctx, object);
+      final Source source = highestPrioritySource(to, object);
       if (source != null) {
         return source;
       }
@@ -455,17 +759,17 @@ public class PropagationModuleImpl implements PropagationModule {
 
   @Nullable
   private static Source highestPrioritySource(
-      final @Nullable IastContext ctx, final @Nonnull Object object) {
+      final @Nonnull TaintedObjects to, final @Nonnull Object object) {
     if (object instanceof Taintable) {
       return (Source) ((Taintable) object).$$DD$getSource();
     } else {
-      final Range[] ranges = getRanges(ctx, object);
+      final Range[] ranges = getRanges(to, object);
       return ranges != null && ranges.length > 0 ? highestPriorityRange(ranges).getSource() : null;
     }
   }
 
   private static void internalTaint(
-      @Nullable final IastContext ctx,
+      @Nonnull final TaintedObjects to,
       @Nonnull final Object value,
       @Nullable Source source,
       int mark) {
@@ -475,12 +779,8 @@ public class PropagationModuleImpl implements PropagationModule {
     if (value instanceof Taintable) {
       ((Taintable) value).$$DD$setSource(source);
     } else {
-      final TaintedObjects to = getTaintedObjects(ctx);
-      if (to == null) {
-        return;
-      }
       if (value instanceof CharSequence) {
-        source = source.attachValue((CharSequence) value);
+        source = attachSourceValue(source, (CharSequence) value);
         to.taint(value, Ranges.forCharSequence((CharSequence) value, source, mark));
       } else {
         to.taint(value, Ranges.forObject(source, mark));
@@ -489,7 +789,19 @@ public class PropagationModuleImpl implements PropagationModule {
   }
 
   private static void internalTaint(
-      @Nullable final IastContext ctx,
+      @Nonnull final TaintedObjects to,
+      @Nonnull final String value,
+      @Nullable Source source,
+      int mark) {
+    if (source == null) {
+      return;
+    }
+    source = attachSourceValue(source, value);
+    to.taint(value, Ranges.forCharSequence(value, source, mark));
+  }
+
+  private static void internalTaint(
+      @Nonnull final TaintedObjects to,
       @Nonnull final Object value,
       @Nullable Range[] ranges,
       final int mark) {
@@ -502,22 +814,40 @@ public class PropagationModuleImpl implements PropagationModule {
         taintable.$$DD$setSource(ranges[0].getSource());
       }
     } else {
-      final TaintedObjects to = getTaintedObjects(ctx);
-      if (to != null) {
-        if (value instanceof CharSequence) {
-          ranges = attachSourceValue(ranges, (CharSequence) value);
-        }
-        ranges = markRanges(ranges, mark);
-        final TaintedObject tainted = to.get(value);
-        if (tainted == null) {
-          // taint new value
-          to.taint(value, ranges);
-        } else {
-          // append ranges
-          final Range[] newRanges = Ranges.mergeRangesSorted(tainted.getRanges(), ranges);
-          tainted.setRanges(newRanges);
-        }
+      if (value instanceof CharSequence) {
+        ranges = attachSourceValue(ranges, (CharSequence) value);
       }
+      ranges = markRanges(ranges, mark);
+      final TaintedObject tainted = to.get(value);
+      if (tainted != null) {
+        // append ranges
+        final Range[] newRanges = Ranges.mergeRangesSorted(tainted.getRanges(), ranges);
+        tainted.setRanges(newRanges);
+      } else {
+        // taint new value
+        to.taint(value, ranges);
+      }
+    }
+  }
+
+  private static void internalTaint(
+      @Nonnull final TaintedObjects to,
+      @Nonnull final String value,
+      @Nullable Range[] ranges,
+      final int mark) {
+    if (ranges == null || ranges.length == 0) {
+      return;
+    }
+    ranges = attachSourceValue(ranges, value);
+    ranges = markRanges(ranges, mark);
+    final TaintedObject tainted = to.get(value);
+    if (tainted != null) {
+      // append ranges
+      final Range[] newRanges = Ranges.mergeRangesSorted(tainted.getRanges(), ranges);
+      tainted.setRanges(newRanges);
+    } else {
+      // taint new value
+      to.taint(value, ranges);
     }
   }
 
@@ -535,6 +865,11 @@ public class PropagationModuleImpl implements PropagationModule {
     return result;
   }
 
+  private static Source attachSourceValue(final Source source, final CharSequence value) {
+    final Object newValue = sourceReference(value, value, true);
+    return newValue == null ? source : source.attachValue(newValue);
+  }
+
   private static Range[] attachSourceValue(
       @Nonnull final Range[] ranges, @Nonnull final CharSequence value) {
     // unbound sources can only occur when there's a single range in the array
@@ -543,37 +878,10 @@ public class PropagationModuleImpl implements PropagationModule {
     }
     final Range range = ranges[0];
     final Source source = range.getSource();
-    final Source newSource = range.getSource().attachValue(value);
+    final Source newSource = attachSourceValue(source, value);
     return newSource == source
         ? ranges
         : Ranges.forCharSequence(value, newSource, range.getMarks());
-  }
-
-  private static class LazyContext implements IastContext {
-
-    private boolean fetched;
-    @Nullable private IastContext delegate;
-
-    @Nullable
-    private IastContext getDelegate() {
-      if (!fetched) {
-        fetched = true;
-        delegate = IastContext.Provider.get();
-      }
-      return delegate;
-    }
-
-    public static IastContext build() {
-      return new LazyContext();
-    }
-
-    @SuppressWarnings("unchecked")
-    @Nonnull
-    @Override
-    public TaintedObjects getTaintedObjects() {
-      final IastContext delegate = getDelegate();
-      return delegate == null ? TaintedObjects.NoOp.INSTANCE : delegate.getTaintedObjects();
-    }
   }
 
   private static class TaintingVisitor implements ObjectVisitor.Visitor {
@@ -592,12 +900,10 @@ public class PropagationModuleImpl implements PropagationModule {
     public ObjectVisitor.State visit(@Nonnull final String path, @Nonnull final Object value) {
       if (value instanceof CharSequence) {
         final CharSequence charSequence = (CharSequence) value;
-        if (canBeTainted(charSequence)) {
-          final Source source = newSource(charSequence, origin, path, charSequence);
-          count++;
-          taintedObjects.taint(
-              charSequence, Ranges.forCharSequence(charSequence, source, NOT_MARKED));
-        }
+        final Source source = newSource(charSequence, origin, path, charSequence);
+        count++;
+        taintedObjects.taint(
+            charSequence, Ranges.forCharSequence(charSequence, source, NOT_MARKED));
       }
       return CONTINUE;
     }

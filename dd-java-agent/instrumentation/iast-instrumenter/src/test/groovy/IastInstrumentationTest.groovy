@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.InstrumenterModule
-import datadog.trace.api.Config
+import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.IastConfig
 import datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListener
 import datadog.trace.instrumentation.iastinstrumenter.IastInstrumentation
@@ -10,6 +10,7 @@ class IastInstrumentationTest extends AgentTestRunner {
 
   void 'test Iast Instrumentation enablement'() {
     given:
+    injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, Boolean.toString(rasp))
     final instrumentation = new IastInstrumentation()
 
     when:
@@ -21,11 +22,13 @@ class IastInstrumentationTest extends AgentTestRunner {
     applicable == expected
 
     where:
-    enabledSystems                                                               | expected
-    []                                                                           | false
-    [InstrumenterModule.TargetSystem.APPSEC]                                       | false
-    [InstrumenterModule.TargetSystem.IAST]                                         | true
-    [InstrumenterModule.TargetSystem.IAST, InstrumenterModule.TargetSystem.APPSEC] | true
+    enabledSystems                                                                 | rasp  | expected
+    []                                                                             | false | false
+    [InstrumenterModule.TargetSystem.APPSEC]                                       | false | false
+    [InstrumenterModule.TargetSystem.IAST]                                         | false | true
+    [InstrumenterModule.TargetSystem.APPSEC]                                       | true  | true
+    [InstrumenterModule.TargetSystem.IAST, InstrumenterModule.TargetSystem.APPSEC] | false | true
+    [InstrumenterModule.TargetSystem.IAST, InstrumenterModule.TargetSystem.APPSEC] | true  | true
   }
 
   void 'test Iast Instrumentation type matching'() {
@@ -47,23 +50,9 @@ class IastInstrumentationTest extends AgentTestRunner {
     'oracle.jdbc.Connection' | false
   }
 
-  void 'test Iast Instrumentation call site supplier'() {
-    given:
-    final instrumentation = new IastInstrumentation()
-
-    when:
-    final callSites = instrumentation.callSites().get().toList()
-
-    then:
-    callSites.size() == 2
-    callSites.find { it instanceof MockCallSites } != null
-    final withTelemetry = callSites.find { it instanceof MockCallSitesWithTelemetry } as MockCallSitesWithTelemetry
-    withTelemetry != null
-    withTelemetry.verbosity == Config.get().iastTelemetryVerbosity
-  }
-
   void 'test Iast Instrumentation hardcoded secret listener'() {
     given:
+    injectSysConfig(IastConfig.IAST_ENABLED, "true")
     injectSysConfig(IastConfig.IAST_HARDCODED_SECRET_ENABLED, enabled)
     final instrumentation = new IastInstrumentation()
     final callSites = instrumentation.callSites().get().toList()
@@ -77,7 +66,7 @@ class IastInstrumentationTest extends AgentTestRunner {
 
     where:
     enabled | expected
-    'true'    | true
-    'false'   | false
+    'true'  | true
+    'false' | false
   }
 }

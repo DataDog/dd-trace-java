@@ -2,6 +2,18 @@ package datadog.trace.api;
 
 public class DDTags {
 
+  public static final String DD_ENTRY_LOCATION_FILE = "_dd.entry_location.file";
+  public static final String DD_ENTRY_METHOD = "_dd.entry_location.method";
+  public static final String DD_ENTRY_METHOD_SIGNATURE = "_dd.entry_location.signature";
+  public static final String DD_ENTRY_LINE = "_dd.entry_location.line";
+  public static final String DD_ENTRY_LOCATION_SNAPSHOT_ID = "_dd.entry_location.snapshot_id";
+  public static final String DD_ENTRY_TYPE = "_dd.entry_location.type";
+  public static final String DD_EXIT_LOCATION_FILE = "_dd.exit_location.%d.file";
+  public static final String DD_EXIT_LOCATION_LINE = "_dd.exit_location.%d.line";
+  public static final String DD_EXIT_LOCATION_METHOD = "_dd.exit_location.%d.method";
+  public static final String DD_EXIT_LOCATION_SNAPSHOT_ID = "_dd.exit_location.snapshot_id";
+  public static final String DD_EXIT_LOCATION_TYPE = "_dd.exit_location.%d.type";
+
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
   public static final String RESOURCE_NAME = "resource.name";
@@ -15,6 +27,7 @@ public class DDTags {
   public static final String SCHEMA_ID = "schema.id";
   public static final String SCHEMA_TOPIC = "schema.topic";
   public static final String SCHEMA_OPERATION = "schema.operation";
+  public static final String SCHEMA_NAME = "schema.name";
 
   public static final String HTTP_QUERY = "http.query.string";
   public static final String HTTP_FRAGMENT = "http.fragment.string";
@@ -37,6 +50,7 @@ public class DDTags {
 
   /* Tags below are for internal use only. */
   static final String INTERNAL_HOST_NAME = "_dd.hostname";
+  public static final String TRACER_HOST = "_dd.tracer_host";
   public static final String RUNTIME_ID_TAG = "runtime-id";
   public static final String RUNTIME_VERSION_TAG = "runtime_version";
   static final String SERVICE = "service";
@@ -58,7 +72,11 @@ public class DDTags {
   public static final String INTERNAL_GIT_COMMIT_SHA = "_dd.git.commit.sha";
 
   public static final String PROFILING_ENABLED = "_dd.profiling.enabled";
+  public static final String DSM_ENABLED = "_dd.dsm.enabled";
+  public static final String DJM_ENABLED = "_dd.djm.enabled";
 
   public static final String PROFILING_CONTEXT_ENGINE = "_dd.profiling.ctx";
   public static final String BASE_SERVICE = "_dd.base_service";
+  public static final String PARENT_ID = "_dd.parent_id";
+  public static final String APM_ENABLED = "_dd.apm.enabled";
 }

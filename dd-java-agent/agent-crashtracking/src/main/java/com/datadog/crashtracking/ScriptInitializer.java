@@ -1,140 +1,147 @@
 package com.datadog.crashtracking;
 
+import static java.util.Comparator.reverseOrder;
+import static java.util.Locale.ROOT;
+
 import com.sun.management.HotSpotDiagnosticMXBean;
 import datadog.trace.api.Platform;
 import datadog.trace.util.PidHelper;
-import datadog.trace.util.Strings;
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
-import java.nio.file.FileAlreadyExistsException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Comparator;
-import java.util.Locale;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ScriptInitializer {
-  private static final Logger log = LoggerFactory.getLogger(ScriptInitializer.class);
+  static final Logger LOG = LoggerFactory.getLogger(ScriptInitializer.class);
+  static final String PID_PREFIX = "_pid";
+  static final String RWXRWXRWX = "rwxrwxrwx";
+  static final String R_XR_XR_X = "r-xr-xr-x";
+
+  public static void initialize() {
+    // this is HotSpot specific implementation (eg. will not work for IBM J9)
+    HotSpotDiagnosticMXBean diagBean =
+        ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+
+    initializeCrashUploader(diagBean);
+    initializeOOMENotifier(diagBean);
+  }
+
+  static InputStream getCrashUploaderTemplate() {
+    String name = Platform.isWindows() ? "upload_crash.bat" : "upload_crash.sh";
+    return CrashUploader.class.getResourceAsStream(name);
+  }
+
+  static InputStream getOomeNotifierTemplate() {
+    String name = Platform.isWindows() ? "notify_oome.bat" : "notify_oome.sh";
+    return OOMENotifier.class.getResourceAsStream(name);
+  }
+
+  static String findAgentJar() {
+    String agentPath = null;
+    String classResourceName = CrashUploader.class.getName().replace('.', '/') + ".class";
+    URL classResource = CrashUploader.class.getClassLoader().getResource(classResourceName);
+    String selfClass = classResource == null ? "null" : classResource.toString();
+    if (selfClass.startsWith("jar:file:")) {
+      int idx = selfClass.lastIndexOf(".jar");
+      if (idx > -1) {
+        agentPath = selfClass.substring(9, idx + 4);
+      }
+    }
+    // test harness env is different; use the known project structure to locate the agent jar
+    else if (selfClass.startsWith("file:")) {
+      int idx = selfClass.lastIndexOf("dd-java-agent");
+      if (idx > -1) {
+        Path libsPath = Paths.get(selfClass.substring(5, idx + 13), "build", "libs");
+        try (Stream<Path> files = Files.walk(libsPath)) {
+          Predicate<Path> isJarFile =
+              p -> p.getFileName().toString().toLowerCase(ROOT).endsWith(".jar");
+          agentPath =
+              files
+                  .sorted(reverseOrder())
+                  .filter(isJarFile)
+                  .findFirst()
+                  .map(Path::toString)
+                  .orElse(null);
+        } catch (IOException ignored) {
+          // Ignore failure to get agent path
+        }
+      }
+    }
+    return agentPath;
+  }
+
+  static void writeConfig(Path scriptPath, String... entries) {
+    String cfgFileName = getBaseName(scriptPath) + PID_PREFIX + PidHelper.getPid() + ".cfg";
+    Path cfgPath = scriptPath.resolveSibling(cfgFileName);
+    LOG.debug("Writing config file: {}", cfgPath);
+    try (BufferedWriter bw = Files.newBufferedWriter(cfgPath)) {
+      for (int i = 0; i < entries.length; i += 2) {
+        bw.write(entries[i]);
+        bw.write('=');
+        bw.write(entries[i + 1]);
+        bw.newLine();
+      }
+      Runtime.getRuntime()
+          .addShutdownHook(
+              new Thread(
+                  () -> {
+                    try {
+                      LOG.debug("Deleting config file: {}", cfgPath);
+                      Files.deleteIfExists(cfgPath);
+                    } catch (IOException e) {
+                      LOG.warn("Failed deleting config file: {}", cfgPath, e);
+                    }
+                  }));
+      LOG.debug("Config file written: {}", cfgPath);
+    } catch (IOException e) {
+      LOG.warn("Failed writing config file: {}", cfgPath);
+      try {
+        Files.deleteIfExists(cfgPath);
+      } catch (IOException ignored) {
+        // ignore
+      }
+    }
+  }
+
+  private static String getBaseName(Path path) {
+    String filename = path.getFileName().toString();
+    int dotIndex = filename.lastIndexOf('.');
+    if (dotIndex == -1) {
+      return filename;
+    }
+    return filename.substring(0, dotIndex);
+  }
 
   /**
    * If the value of `-XX:OnError` JVM argument is referring to `dd_crash_uploader.sh` or
    * `dd_crash_uploader.bat` and the script does not exist it will be created and prefilled with
    * code ensuring the error log upload will be triggered on JVM crash.
    */
-  public static void initialize() {
+  private static void initializeCrashUploader(HotSpotDiagnosticMXBean diagBean) {
     try {
-      // this is HotSpot specific implementation (eg. will not work for IBM J9)
-      HotSpotDiagnosticMXBean diagBean =
-          ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
       String onErrorVal = diagBean.getVMOption("OnError").getValue();
-      String onErrorFile =
-          Strings.replace(diagBean.getVMOption("ErrorFile").getValue(), "%p", PidHelper.getPid());
-      initialize(onErrorVal, onErrorFile);
+      String onErrorFile = diagBean.getVMOption("ErrorFile").getValue();
+      CrashUploaderScriptInitializer.initialize(onErrorVal, onErrorFile);
     } catch (Throwable t) {
-      log.warn(
+      LOG.warn(
           "Failed creating custom crash upload script. Crash tracking will not work properly.", t);
     }
   }
 
-  // @VisibleForTests
-  static void initialize(String onErrorVal, String onErrorFile) throws IOException {
-    if (onErrorVal == null || onErrorVal.isEmpty()) {
-      log.debug("'-XX:OnError' argument was not provided. Crash tracking is disabled.");
-      return;
-    }
-    if (onErrorFile == null || onErrorFile.isEmpty()) {
-      onErrorFile = System.getProperty("user.dir") + "/hs_err_pid" + PidHelper.getPid() + ".log";
-      log.debug("No -XX:ErrorFile value, defaulting to {}", onErrorFile);
-    }
-    Path scriptPath = Paths.get(onErrorVal);
-    if (scriptPath.getFileName().toString().toLowerCase(Locale.ROOT).contains("dd_crash_uploader")
-        && Files.notExists(scriptPath)) {
-      try {
-        Files.createDirectories(
-            scriptPath.getParent(),
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxrwx")));
-      } catch (FileAlreadyExistsException ignored) {
-        // can be safely ignored; if the folder exists we will just reuse it
-      }
-      String agentJar = findAgentJar();
-      if (agentJar == null) {
-        log.warn("Unable to locate the agent jar. Crash tracking will not work properly.");
-        return;
-      }
-      writeScript(onErrorFile, agentJar, scriptPath);
-    }
-  }
-
-  private static void writeScript(String crashFile, String execClass, Path scriptPath)
-      throws IOException {
-    log.debug("Writing crash uploader script: {}", scriptPath);
-    try (BufferedReader br = new BufferedReader(new InputStreamReader(getScriptData()))) {
-      try (BufferedWriter bw = Files.newBufferedWriter(scriptPath)) {
-        br.lines()
-            .map(
-                line ->
-                    Strings.replace(
-                        Strings.replace(line, "!AGENT_JAR!", execClass),
-                        "!JAVA_ERROR_FILE!",
-                        crashFile))
-            .forEach(line -> writeLine(bw, line));
-      }
-    }
-    Files.setPosixFilePermissions(scriptPath, PosixFilePermissions.fromString("r-xr-xr-x"));
-  }
-
-  private static void writeLine(BufferedWriter bw, String line) {
+  private static void initializeOOMENotifier(HotSpotDiagnosticMXBean diagBean) {
     try {
-      bw.write(line);
-      bw.newLine();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+      String onOutOfMemoryVal = diagBean.getVMOption("OnOutOfMemoryError").getValue();
+      OOMENotifierScriptInitializer.initialize(onOutOfMemoryVal);
+    } catch (Throwable t) {
+      LOG.warn("Failed initializing OOME notifier. OOMEs will not be tracked.", t);
     }
-  }
-
-  private static InputStream getScriptData() {
-    String name = Platform.isWindows() ? "upload_crash.bat" : "upload_crash.sh";
-    return CrashUploader.class.getResourceAsStream(name);
-  }
-
-  private static String findAgentJar() throws IOException {
-    String agentPath = null;
-    String selfClass =
-        CrashUploader.class
-            .getClassLoader()
-            .getResource(CrashUploader.class.getName().replace('.', '/') + ".class")
-            .toString();
-    if (selfClass.startsWith("jar:file:")) {
-      int idx = selfClass.lastIndexOf(".jar");
-      if (idx > -1) {
-        agentPath = selfClass.substring(9, idx + 4);
-      }
-    } else {
-      // test harness env is different; use the known project structure to locate the agent jar
-      if (selfClass.startsWith("file:")) {
-        int idx = selfClass.lastIndexOf("dd-java-agent");
-        if (idx > -1) {
-          Path libsPath = Paths.get(selfClass.substring(5, idx + 13), "build", "libs");
-          try (Stream<Path> files = Files.walk(libsPath)) {
-            agentPath =
-                files
-                    .sorted(Comparator.reverseOrder())
-                    .filter(
-                        p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".jar"))
-                    .findFirst()
-                    .toString();
-          }
-        }
-      }
-    }
-    return agentPath;
   }
 }

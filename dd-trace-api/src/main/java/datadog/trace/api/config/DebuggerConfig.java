@@ -29,8 +29,17 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_SYMBOL_FORCE_UPLOAD = "internal.force.symbol.database.upload";
   public static final String DEBUGGER_SYMBOL_INCLUDES = "symbol.database.includes";
   public static final String DEBUGGER_SYMBOL_FLUSH_THRESHOLD = "symbol.database.flush.threshold";
-  public static final String DEBUGGER_EXCEPTION_ENABLED =
-      "dynamic.instrumentation.exception.enabled";
+  public static final String DEBUGGER_EXCEPTION_ENABLED = "exception.debugging.enabled";
+  public static final String DEBUGGER_SPAN_DEBUG_ENABLED = "span.debug.enabled";
+  public static final String EXCEPTION_REPLAY_ENABLED = "exception.replay.enabled";
+  public static final String DEBUGGER_MAX_EXCEPTION_PER_SECOND =
+      "exception.replay.max.exception.analysis.limit";
+  public static final String DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT =
+      "internal.exception.replay.only.local.root";
+  public static final String DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES =
+      "exception.replay.max.frames.to.capture";
+  public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
+  public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
 
   private DebuggerConfig() {}
 }

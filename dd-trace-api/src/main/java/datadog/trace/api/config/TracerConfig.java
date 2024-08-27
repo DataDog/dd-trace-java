@@ -133,5 +133,7 @@ public final class TracerConfig {
 
   public static final String TRACE_FLUSH_INTERVAL = "trace.flush.interval";
 
+  public static final String TRACE_POST_PROCESSING_TIMEOUT = "trace.post-processing.timeout";
+
   private TracerConfig() {}
 }

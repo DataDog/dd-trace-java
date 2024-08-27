@@ -2,18 +2,18 @@ package com.datadog.debugger.symbol;
 
 import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
 
-import com.datadog.debugger.agent.AllowListHelper;
-import com.datadog.debugger.agent.Configuration;
+import com.datadog.debugger.util.ClassNameFiltering;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
-import datadog.remoteconfig.ConfigurationChangesListener;
-import datadog.remoteconfig.state.ParsedConfigKey;
+import datadog.remoteconfig.PollingRateHinter;
+import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.instrument.Instrumentation;
@@ -24,7 +24,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -47,22 +46,24 @@ public class SymDBEnablement implements ProductListener {
   private final Instrumentation instrumentation;
   private final Config config;
   private final SymbolAggregator symbolAggregator;
+  private final AtomicBoolean starting = new AtomicBoolean();
   private SymbolExtractionTransformer symbolExtractionTransformer;
+  private final ClassNameFiltering classNameFiltering;
   private volatile long lastUploadTimestamp;
-  private AtomicBoolean starting = new AtomicBoolean();
 
   public SymDBEnablement(
-      Instrumentation instrumentation, Config config, SymbolAggregator symbolAggregator) {
+      Instrumentation instrumentation,
+      Config config,
+      SymbolAggregator symbolAggregator,
+      ClassNameFiltering classNameFiltering) {
     this.instrumentation = instrumentation;
     this.config = config;
     this.symbolAggregator = symbolAggregator;
+    this.classNameFiltering = classNameFiltering;
   }
 
   @Override
-  public void accept(
-      ParsedConfigKey configKey,
-      byte[] content,
-      ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
+  public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
       throws IOException {
     if (configKey.getConfigId().equals(SYM_DB_RC_KEY)) {
       SymDbRemoteConfigRecord symDb = deserializeSymDb(content);
@@ -78,16 +79,14 @@ public class SymDBEnablement implements ProductListener {
   }
 
   @Override
-  public void remove(
-      ParsedConfigKey configKey, ConfigurationChangesListener.PollingRateHinter pollingRateHinter)
-      throws IOException {
+  public void remove(ConfigKey configKey, PollingRateHinter pollingRateHinter) throws IOException {
     if (configKey.getConfigId().equals(SYM_DB_RC_KEY)) {
       stopSymbolExtraction();
     }
   }
 
   @Override
-  public void commit(ConfigurationChangesListener.PollingRateHinter pollingRateHinter) {}
+  public void commit(PollingRateHinter pollingRateHinter) {}
 
   private static SymDbRemoteConfigRecord deserializeSymDb(byte[] content) throws IOException {
     return SYM_DB_JSON_ADAPTER.fromJson(
@@ -116,14 +115,12 @@ public class SymDBEnablement implements ProductListener {
                 Instant.ofEpochMilli(lastUploadTimestamp), ZoneId.systemDefault()));
         return;
       }
-      String includes = config.getDebuggerSymbolIncludes();
-      AllowListHelper allowListHelper = new AllowListHelper(buildFilterList(includes));
       symbolAggregator.loadedClassesProcessStarted();
       try {
         symbolExtractionTransformer =
-            new SymbolExtractionTransformer(allowListHelper, symbolAggregator);
+            new SymbolExtractionTransformer(symbolAggregator, classNameFiltering);
         instrumentation.addTransformer(symbolExtractionTransformer);
-        extractSymbolForLoadedClasses(allowListHelper);
+        extractSymbolForLoadedClasses();
         lastUploadTimestamp = System.currentTimeMillis();
       } catch (Throwable ex) {
         // catch all Throwables because LinkageError is possible (duplicate class definition)
@@ -136,12 +133,12 @@ public class SymDBEnablement implements ProductListener {
     }
   }
 
-  private void extractSymbolForLoadedClasses(AllowListHelper allowListHelper) {
+  private void extractSymbolForLoadedClasses() {
     Class<?>[] classesToExtract;
     try {
       classesToExtract =
           Arrays.stream(instrumentation.getAllLoadedClasses())
-              .filter(clazz -> allowListHelper.isAllowed(clazz.getTypeName()))
+              .filter(clazz -> !classNameFiltering.isExcluded(clazz.getTypeName()))
               .filter(instrumentation::isModifiableClass)
               .toArray(Class<?>[]::new);
     } catch (Throwable ex) {
@@ -164,16 +161,21 @@ public class SymDBEnablement implements ProductListener {
       if (!Files.exists(jarPath)) {
         continue;
       }
+      File jarPathFile = jarPath.toFile();
+      if (jarPathFile.isDirectory()) {
+        // we are not supporting class directories (classpath) but only jar files
+        continue;
+      }
       if (alreadyScannedJars.contains(jarPath.toString())) {
         continue;
       }
       try {
-        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
+        try (JarFile jarFile = new JarFile(jarPathFile)) {
           jarFile.stream()
               .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
               .filter(
                   jarEntry ->
-                      allowListHelper.isAllowed(
+                      !classNameFiltering.isExcluded(
                           Strings.getClassName(trimPrefixes(jarEntry.getName()))))
               .forEach(jarEntry -> parseJarEntry(jarEntry, jarFile, jarPath, baos, buffer));
         }
@@ -198,13 +200,5 @@ public class SymDBEnablement implements ProductListener {
     } catch (IOException ex) {
       LOGGER.debug("Exception during parsing jarEntry class: {}", jarEntry.getName(), ex);
     }
-  }
-
-  private Configuration.FilterList buildFilterList(String includes) {
-    if (includes == null || includes.isEmpty()) {
-      return null;
-    }
-    String[] includeParts = COMMA_PATTERN.split(includes);
-    return new Configuration.FilterList(Arrays.asList(includeParts), Collections.emptyList());
   }
 }

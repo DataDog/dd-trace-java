@@ -6,6 +6,7 @@ import java.util.Map;
 public class PowerWAFResultData {
   Rule rule;
   List<RuleMatch> rule_matches;
+  String stack_id;
 
   public static class RuleMatch {
     String operator;
@@ -14,15 +15,21 @@ public class PowerWAFResultData {
   }
 
   public static class Rule {
-    String id;
+    public String id; // expose for log message
     String name;
     Map<String, String> tags;
   }
 
-  public static class Parameter {
+  public static class Parameter extends MatchInfo {
+    MatchInfo resource;
+    MatchInfo params;
+    MatchInfo db_type;
+    List<String> highlight;
+  }
+
+  public static class MatchInfo {
     String address;
     List<Object> key_path;
     String value;
-    List<String> highlight;
   }
 }

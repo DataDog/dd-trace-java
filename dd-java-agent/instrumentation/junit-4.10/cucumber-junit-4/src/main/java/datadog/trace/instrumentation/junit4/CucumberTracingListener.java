@@ -66,7 +66,7 @@ public class CucumberTracingListener extends TracingListener {
   @Override
   public void testStarted(final Description description) {
     String testSuiteName = CucumberUtils.getTestSuiteNameForScenario(description);
-    String testName = description.getMethodName();
+    String testName = CucumberUtils.getTestNameForScenario(description);
     List<String> categories = getCategories(description);
 
     TestRetryPolicy retryPolicy = retryPolicies.get(description);
@@ -91,7 +91,7 @@ public class CucumberTracingListener extends TracingListener {
     try {
       URI pickleUri = CucumberUtils.getPickleUri(scenarioDescription);
       String featureRelativePath = pickleUri.getSchemeSpecificPart();
-      CoverageBridge.currentCoverageProbeStoreRecordNonCode(featureRelativePath);
+      CoverageBridge.recordCoverage(featureRelativePath);
     } catch (Exception e) {
       LOGGER.error("Could not record feature file coverage for {}", scenarioDescription, e);
     }
@@ -159,7 +159,7 @@ public class CucumberTracingListener extends TracingListener {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFinish(suiteDescriptor);
     } else {
       String testSuiteName = CucumberUtils.getTestSuiteNameForScenario(description);
-      String testName = description.getMethodName();
+      String testName = CucumberUtils.getTestNameForScenario(description);
       List<String> categories = getCategories(description);
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
           new TestSuiteDescriptor(testSuiteName, null),

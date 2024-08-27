@@ -6,6 +6,7 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -187,6 +188,64 @@ public final class Events<D> {
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Object, Flow<Void>>> grpcServerRequestMessage() {
     return (EventType<BiFunction<RequestContext, Object, Flow<Void>>>) GRPC_SERVER_REQUEST_MESSAGE;
+  }
+
+  static final int GRAPHQL_SERVER_REQUEST_MESSAGE_ID = 15;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType GRAPHQL_SERVER_REQUEST_MESSAGE =
+      new ET<>("graphql.server.request.message", GRAPHQL_SERVER_REQUEST_MESSAGE_ID);
+  /** Before resolver execution */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>
+      graphqlServerRequestMessage() {
+    return (EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>)
+        GRAPHQL_SERVER_REQUEST_MESSAGE;
+  }
+
+  static final int DATABASE_CONNECTION_ID = 16;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType DATABASE_CONNECTION =
+      new ET<>("database.connection", DATABASE_CONNECTION_ID);
+  /** A database connection */
+  @SuppressWarnings("unchecked")
+  public EventType<BiConsumer<RequestContext, String>> databaseConnection() {
+    return (EventType<BiConsumer<RequestContext, String>>) DATABASE_CONNECTION;
+  }
+
+  static final int DATABASE_SQL_QUERY_ID = 17;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType DATABASE_SQL_QUERY =
+      new ET<>("database.query", DATABASE_SQL_QUERY_ID);
+  /** A database sql query */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> databaseSqlQuery() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) DATABASE_SQL_QUERY;
+  }
+
+  static final int GRPC_SERVER_METHOD_ID = 18;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType GRPC_SERVER_METHOD =
+      new ET<>("grpc.server.method", GRPC_SERVER_METHOD_ID);
+
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> grpcServerMethod() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) GRPC_SERVER_METHOD;
+  }
+
+  static final int NETWORK_CONNECTION_ID = 19;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType NETWORK_CONNECTION =
+      new ET<>("network.connection", NETWORK_CONNECTION_ID);
+
+  /** A I/O network URL */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> networkConnection() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) NETWORK_CONNECTION;
   }
 
   static final int MAX_EVENTS = nextId.get();

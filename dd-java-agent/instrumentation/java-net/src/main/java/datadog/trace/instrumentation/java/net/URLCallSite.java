@@ -1,14 +1,13 @@
 package datadog.trace.instrumentation.java.net;
 
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
+
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
-import datadog.trace.api.iast.Sink;
-import datadog.trace.api.iast.VulnerabilityTypes;
+import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import datadog.trace.api.iast.sink.SsrfModule;
-import java.net.Proxy;
 import java.net.URI;
 import java.net.URL;
 import javax.annotation.Nonnull;
@@ -29,10 +28,10 @@ public class URLCallSite {
   public static URL afterCtor(
       @CallSite.AllArguments final Object[] args, @CallSite.Return @Nonnull final URL result) {
     if (args != null && args.length > 0) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
+      final CodecModule module = InstrumentationBridge.CODEC;
       if (module != null) {
         try {
-          module.taintIfAnyTainted(result, args);
+          module.onUrlCreate(result, args);
         } catch (final Throwable e) {
           module.onUnexpectedException("ctor threw", e);
         }
@@ -41,15 +40,19 @@ public class URLCallSite {
     return result;
   }
 
+  /**
+   * Internally the URL is tainted following the <code>toString</code> representation
+   *
+   * @see CodecModule#onUrlCreate(URL, Object...)
+   */
   @Propagation
   @CallSite.After("java.lang.String java.net.URL.toString()")
-  @CallSite.After("java.lang.String java.net.URL.toExternalForm()")
   public static String afterToString(
       @CallSite.This final URL url, @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (module != null && result != null) {
       try {
-        module.taintIfTainted(result, url);
+        module.taintStringIfTainted(result, url, true, NOT_MARKED);
       } catch (final Throwable e) {
         module.onUnexpectedException("After toString threw", e);
       }
@@ -57,57 +60,36 @@ public class URLCallSite {
     return result;
   }
 
+  /** @see #afterToString(URL, String) */
   @Propagation
-  @CallSite.After("java.net.URI java.net.URL.toURI()")
-  public static URI afterToURI(@CallSite.This final URL url, @CallSite.Return final URI result) {
+  @CallSite.After("java.lang.String java.net.URL.toExternalForm()")
+  public static String afterToExternalForm(
+      @CallSite.This final URL url, @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module != null) {
+    if (module != null && result != null) {
       try {
-        module.taintIfTainted(result, url);
+        boolean keepRanges = url.toString().equals(result);
+        module.taintStringIfTainted(result, url, keepRanges, NOT_MARKED);
       } catch (final Throwable e) {
-        module.onUnexpectedException("After toURI threw", e);
+        module.onUnexpectedException("After toExternalForm threw", e);
       }
     }
     return result;
   }
 
-  @Sink(VulnerabilityTypes.SSRF)
-  @CallSite.Before("java.net.URLConnection java.net.URL.openConnection()")
-  public static void beforeOpenConnection(@CallSite.This final URL url) {
-    final SsrfModule module = InstrumentationBridge.SSRF;
-    if (module != null) {
+  /** @see #afterToString(URL, String) */
+  @Propagation
+  @CallSite.After("java.net.URI java.net.URL.toURI()")
+  public static URI afterToURI(@CallSite.This final URL url, @CallSite.Return final URI result) {
+    final PropagationModule module = InstrumentationBridge.PROPAGATION;
+    if (module != null && result != null) {
       try {
-        module.onURLConnection(url);
+        boolean keepRanges = url.toString().equals(result.toString());
+        module.taintObjectIfTainted(result, url, keepRanges, NOT_MARKED);
       } catch (final Throwable e) {
-        module.onUnexpectedException("After open connection threw", e);
+        module.onUnexpectedException("After toURI threw", e);
       }
     }
-  }
-
-  @Sink(VulnerabilityTypes.SSRF)
-  @CallSite.Before("java.net.URLConnection java.net.URL.openConnection(java.net.Proxy)")
-  public static void beforeOpenConnection(
-      @CallSite.This final URL url, @CallSite.Argument final Proxy proxy) {
-    final SsrfModule module = InstrumentationBridge.SSRF;
-    if (module != null) {
-      try {
-        module.onURLConnection(url);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("After open connection threw", e);
-      }
-    }
-  }
-
-  @Sink(VulnerabilityTypes.SSRF)
-  @CallSite.Before("java.io.InputStream java.net.URL.openStream()")
-  public static void beforeOpenStream(@CallSite.This final URL url) {
-    final SsrfModule module = InstrumentationBridge.SSRF;
-    if (module != null) {
-      try {
-        module.onURLConnection(url);
-      } catch (final Throwable e) {
-        module.onUnexpectedException("After open connection threw", e);
-      }
-    }
+    return result;
   }
 }

@@ -49,7 +49,7 @@ tasks.named("compileLatestDepTestGroovy").configure {
 dependencies {
   compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
 
-  testImplementation deps.scala
+  testImplementation libs.scala
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
   testImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
   testImplementation group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: akkaVersion

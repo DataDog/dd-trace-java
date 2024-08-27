@@ -7,6 +7,7 @@ import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeInterface;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
+import static com.datadog.debugger.instrumentation.ASMHelper.isInScope;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.*;
@@ -45,6 +46,7 @@ import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NullValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
+import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.Where;
@@ -100,7 +102,7 @@ public class MetricInstrumentor extends Instrumentor {
       case ENTRY:
       case DEFAULT:
         {
-          InsnList insnList = wrapTryCatch(callMetric(metricProbe));
+          InsnList insnList = wrapTryCatch(callMetric(metricProbe, null));
           methodNode.instructions.insert(methodEnterLabel, insnList);
           break;
         }
@@ -158,7 +160,7 @@ public class MetricInstrumentor extends Instrumentor {
     switch (node.getOpcode()) {
       case Opcodes.RET:
       case Opcodes.RETURN:
-        return wrapTryCatch(callMetric(metricProbe));
+        return wrapTryCatch(callMetric(metricProbe, node));
       case Opcodes.LRETURN:
         storeOpCode = Opcodes.LSTORE;
         loadOpCode = Opcodes.LLOAD;
@@ -191,7 +193,8 @@ public class MetricInstrumentor extends Instrumentor {
     }
     int tmpIdx = newVar(size);
     InsnList insnList =
-        wrapTryCatch(callMetric(metricProbe, new ReturnContext(tmpIdx, loadOpCode, returnType)));
+        wrapTryCatch(
+            callMetric(metricProbe, node, new ReturnContext(tmpIdx, loadOpCode, returnType)));
     // store return value from the stack to local before wrapped call
     insnList.insert(new VarInsnNode(storeOpCode, tmpIdx));
     // restore return value to the stack after wrapped call
@@ -218,7 +221,8 @@ public class MetricInstrumentor extends Instrumentor {
     finallyBlocks.add(new FinallyBlock(startLabel, endLabel, handlerLabel));
   }
 
-  private InsnList callCount(MetricProbe metricProbe, ReturnContext returnContext) {
+  private InsnList callCount(
+      MetricProbe metricProbe, AbstractInsnNode targetLocation, ReturnContext returnContext) {
     if (metricProbe.getValue() == null) {
       InsnList insnList = new InsnList();
       ldc(insnList, metricProbe.getProbeId().getEncodedId());
@@ -245,10 +249,11 @@ public class MetricInstrumentor extends Instrumentor {
       // stack []
       return insnList;
     }
-    return internalCallMetric(metricProbe, returnContext);
+    return internalCallMetric(metricProbe, targetLocation, returnContext);
   }
 
-  private InsnList internalCallMetric(MetricProbe metricProbe, ReturnContext returnContext) {
+  private InsnList internalCallMetric(
+      MetricProbe metricProbe, AbstractInsnNode targetLocation, ReturnContext returnContext) {
     InsnList insnList = new InsnList();
     InsnList nullBranch = new InsnList();
     VisitorResult result;
@@ -258,7 +263,7 @@ public class MetricInstrumentor extends Instrumentor {
           metricProbe
               .getValue()
               .getExpr()
-              .accept(new MetricValueVisitor(this, nullBranch, returnContext));
+              .accept(new MetricValueVisitor(this, nullBranch, targetLocation, returnContext));
     } catch (InvalidValueException | UnsupportedOperationException ex) {
       reportError(ex.getMessage());
       return EMPTY_INSN_LIST;
@@ -319,21 +324,22 @@ public class MetricInstrumentor extends Instrumentor {
     }
   }
 
-  private InsnList callMetric(MetricProbe metricProbe) {
-    return callMetric(metricProbe, null);
+  private InsnList callMetric(MetricProbe metricProbe, AbstractInsnNode targetLocation) {
+    return callMetric(metricProbe, targetLocation, null);
   }
 
-  private InsnList callMetric(MetricProbe metricProbe, ReturnContext returnContext) {
+  private InsnList callMetric(
+      MetricProbe metricProbe, AbstractInsnNode targetLocation, ReturnContext returnContext) {
     switch (metricProbe.getKind()) {
       case COUNT:
-        return callCount(metricProbe, returnContext);
+        return callCount(metricProbe, targetLocation, returnContext);
       case GAUGE:
       case HISTOGRAM:
       case DISTRIBUTION:
         if (metricProbe.getValue() == null) {
           return EMPTY_INSN_LIST;
         }
-        return internalCallMetric(metricProbe, returnContext);
+        return internalCallMetric(metricProbe, targetLocation, returnContext);
       default:
         reportError(String.format("Unknown metric kind: %s", metricProbe.getKind()));
     }
@@ -362,11 +368,11 @@ public class MetricInstrumentor extends Instrumentor {
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
       }
       if (beforeLabel != null) {
-        InsnList insnList = wrapTryCatch(callMetric(metricProbe));
+        InsnList insnList = wrapTryCatch(callMetric(metricProbe, beforeLabel));
         methodNode.instructions.insertBefore(beforeLabel.getNext(), insnList);
       }
       if (afterLabel != null && !sourceLine.isSingleLine()) {
-        InsnList insnList = wrapTryCatch(callMetric(metricProbe));
+        InsnList insnList = wrapTryCatch(callMetric(metricProbe, afterLabel));
         methodNode.instructions.insert(afterLabel, insnList);
       }
     }
@@ -386,12 +392,17 @@ public class MetricInstrumentor extends Instrumentor {
   private class MetricValueVisitor implements Visitor<VisitorResult> {
     private final MetricInstrumentor instrumentor;
     private final InsnList nullBranch;
+    private final AbstractInsnNode targetLocation;
     private final ReturnContext returnContext;
 
     public MetricValueVisitor(
-        MetricInstrumentor instrumentor, InsnList nullBranch, ReturnContext returnContext) {
+        MetricInstrumentor instrumentor,
+        InsnList nullBranch,
+        AbstractInsnNode targetLocation,
+        ReturnContext returnContext) {
       this.instrumentor = instrumentor;
       this.nullBranch = nullBranch;
+      this.targetLocation = targetLocation;
       this.returnContext = returnContext;
     }
 
@@ -658,6 +669,11 @@ public class MetricInstrumentor extends Instrumentor {
       throw new UnsupportedOperationException();
     }
 
+    @Override
+    public VisitorResult visit(SetValue setValue) {
+      throw new UnsupportedOperationException();
+    }
+
     private ASMHelper.Type tryRetrieve(String name, InsnList insnList) {
       ASMHelper.Type result = tryRetrieveArgument(name, insnList);
       if (result != null) {
@@ -703,12 +719,14 @@ public class MetricInstrumentor extends Instrumentor {
     private ASMHelper.Type tryRetrieveLocalVar(String head, InsnList insnList) {
       for (LocalVariableNode varNode : instrumentor.methodNode.localVariables) {
         if (varNode.name.equals(head)) {
-          Type varType = Type.getType(varNode.desc);
-          VarInsnNode varInsnNode =
-              new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), varNode.index);
-          insnList.add(varInsnNode);
-          // stack [local]
-          return new ASMHelper.Type(varType);
+          if (isInScope(instrumentor.methodNode, varNode, targetLocation)) {
+            Type varType = Type.getType(varNode.desc);
+            VarInsnNode varInsnNode =
+                new VarInsnNode(varType.getOpcode(Opcodes.ILOAD), varNode.index);
+            insnList.add(varInsnNode);
+            // stack [local]
+            return new ASMHelper.Type(varType);
+          }
         }
       }
       return null;
@@ -772,6 +790,11 @@ public class MetricInstrumentor extends Instrumentor {
           ldc(insnList, fieldName);
           // stack: [target_object, string]
           emitReflectiveCall(insnList, returnType, OBJECT_TYPE);
+          int sort = returnType.getMainType().getSort();
+          if (sort == org.objectweb.asm.Type.OBJECT || sort == org.objectweb.asm.Type.ARRAY) {
+            insnList.add(
+                new TypeInsnNode(Opcodes.CHECKCAST, returnType.getMainType().getInternalName()));
+          }
         }
         // build null branch which will be added later after the call to emit metric
         LabelNode gotoNode = new LabelNode();

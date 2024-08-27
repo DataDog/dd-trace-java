@@ -8,7 +8,11 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.core.CoreSpan;
+import java.time.Clock;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import org.slf4j.Logger;
@@ -31,17 +35,25 @@ public interface Sampler {
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
       Sampler sampler;
       if (config != null) {
+        if (config.isAppSecStandaloneEnabled()) {
+          log.debug("APM is disabled. Only 1 trace per minute will be sent.");
+          return new AsmStandaloneSampler(Clock.systemUTC());
+        }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
-        String traceSamplingRulesJson = config.getTraceSamplingRules();
-        TraceSamplingRules traceSamplingRules = TraceSamplingRules.EMPTY;
-        if (traceSamplingRulesJson != null) {
-          traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
+        List<? extends SamplingRule.TraceSamplingRule> traceSamplingRules;
+        if (null != traceConfig) {
+          traceSamplingRules = traceConfig.getTraceSamplingRules();
+        } else if (null != config.getTraceSamplingRules()) {
+          traceSamplingRules =
+              TraceSamplingRules.deserialize(config.getTraceSamplingRules()).getRules();
+        } else {
+          traceSamplingRules = Collections.emptyList();
         }
         boolean serviceRulesDefined = serviceRules != null && !serviceRules.isEmpty();
         boolean operationRulesDefined = operationRules != null && !operationRules.isEmpty();
-        boolean jsonTraceSamplingRulesDefined = !traceSamplingRules.isEmpty();
-        if ((serviceRulesDefined || operationRulesDefined) && jsonTraceSamplingRulesDefined) {
+        boolean traceSamplingRulesDefined = !traceSamplingRules.isEmpty();
+        if ((serviceRulesDefined || operationRulesDefined) && traceSamplingRulesDefined) {
           log.warn(
               "Both {} and/or {} as well as {} are defined. Only {} will be used for rule-based sampling",
               TracerConfig.TRACE_SAMPLING_SERVICE_RULES,
@@ -53,7 +65,7 @@ public interface Sampler {
             null != traceConfig ? traceConfig.getTraceSampleRate() : config.getTraceSampleRate();
         if (serviceRulesDefined
             || operationRulesDefined
-            || jsonTraceSamplingRulesDefined
+            || traceSamplingRulesDefined
             || traceSampleRate != null) {
           try {
             sampler =

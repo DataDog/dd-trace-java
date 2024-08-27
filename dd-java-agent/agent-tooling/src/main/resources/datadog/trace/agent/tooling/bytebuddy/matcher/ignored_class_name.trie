@@ -97,6 +97,7 @@
 # USM needs it
 0 sun.security.ssl.*
 0 javax.net.ssl.SSLSocket
+1 org.mockito.codegen.*
 
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
@@ -210,6 +211,7 @@
 2 com.google.logging.*
 2 com.google.longrunning.*
 2 com.google.protobuf.*
+0 com.google.protobuf.DynamicMessage
 2 com.google.rpc.*
 2 com.google.thirdparty.*
 2 com.google.type.*
@@ -352,6 +354,8 @@
 0 org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite
 2 org.xml.*
 2 org.yaml.snakeyaml.*
+# Need for IAST sink
+0 org.yaml.snakeyaml.Yaml
 # saves ~0.5s skipping instrumentation of almost ~470 classes
 2 scala.collection.*
 

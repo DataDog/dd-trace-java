@@ -1,15 +1,16 @@
 package datadog.trace.civisibility.config
 
 import com.squareup.moshi.Moshi
+import datadog.communication.BackendApi
+import datadog.communication.BackendApiFactory
+import datadog.communication.EvpProxyApi
+import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.civisibility.config.Configurations
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
-import datadog.trace.civisibility.communication.BackendApi
-import datadog.trace.civisibility.communication.EvpProxyApi
-import datadog.trace.civisibility.communication.IntakeApi
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.apache.commons.io.IOUtils
@@ -354,22 +355,22 @@ class ConfigurationApiImplTest extends Specification {
 
     where:
     api                   | displayName
-    givenEvpProxy(false)  | "EVP proxy, compression disabled"
-    givenEvpProxy(true)   | "EVP proxy, compression enabled"
-    givenIntakeApi(false) | "intake, compression disabled"
-    givenIntakeApi(true)  | "intake, compression enabled"
+    givenEvpProxy(false)  | "EVP proxy, response compression disabled"
+    givenEvpProxy(true)   | "EVP proxy, response compression enabled"
+    givenIntakeApi(false) | "intake, response compression disabled"
+    givenIntakeApi(true)  | "intake, response compression enabled"
   }
 
-  private BackendApi givenEvpProxy(boolean enableGzip) {
+  private BackendApi givenEvpProxy(boolean responseCompression) {
     String traceId = "a-trace-id"
     HttpUrl proxyUrl = HttpUrl.get(intakeServer.address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
     OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
-    return new EvpProxyApi(traceId, proxyUrl, retryPolicyFactory, client, enableGzip)
+    return new EvpProxyApi(traceId, proxyUrl, retryPolicyFactory, client, responseCompression)
   }
 
-  private BackendApi givenIntakeApi(boolean enableGzip) {
-    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", intakeServer.address.toString(), IntakeApi.API_VERSION))
+  private BackendApi givenIntakeApi(boolean responseCompression) {
+    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", intakeServer.address.toString(), BackendApiFactory.Intake.API.version))
 
     String apiKey = "api-key"
     String traceId = "a-trace-id"
@@ -381,7 +382,7 @@ class ConfigurationApiImplTest extends Specification {
     HttpRetryPolicy.Factory retryPolicyFactory = Stub(HttpRetryPolicy.Factory)
     retryPolicyFactory.create() >> retryPolicy
 
-    return new IntakeApi(intakeUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, enableGzip)
+    return new IntakeApi(intakeUrl, apiKey, traceId, timeoutMillis, retryPolicyFactory, responseCompression)
   }
 
   private static TracerEnvironment givenTracerEnvironment() {

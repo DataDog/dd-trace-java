@@ -4,6 +4,6 @@
   "span_id" : ${content_span_id},
   "files" : [ {
     "filename" : "src/test/java/datadog/smoke/TestSucceed.java",
-    "segments" : [ [ 11, -1, 12, -1, -1 ] ]
+    "bitmap" : "ABg="
   } ]
 } ]

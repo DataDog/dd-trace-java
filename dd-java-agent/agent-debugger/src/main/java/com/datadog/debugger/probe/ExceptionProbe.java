@@ -1,11 +1,13 @@
 package com.datadog.debugger.probe;
 
+import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 import static java.util.Collections.emptyList;
 
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.exception.ExceptionProbeManager;
 import com.datadog.debugger.exception.Fingerprinter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -15,9 +17,9 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExceptionProbe extends LogProbe {
+public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentation {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProbe.class);
-  private final ExceptionProbeManager exceptionProbeManager;
+  private final transient ExceptionProbeManager exceptionProbeManager;
 
   public ExceptionProbe(
       ProbeId probeId,
@@ -64,14 +66,27 @@ public class ExceptionProbe extends LogProbe {
     if (context.getCapturedThrowable() == null) {
       return;
     }
+    Throwable throwable = context.getCapturedThrowable().getThrowable();
+    Throwable innerMostThrowable = getInnerMostThrowable(throwable);
     String fingerprint =
         Fingerprinter.fingerprint(
-            context.getCapturedThrowable().getThrowable(),
-            exceptionProbeManager.getClassNameFiltering());
+            innerMostThrowable, exceptionProbeManager.getClassNameFiltering());
     if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
       LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
       // capture only on uncaught exception matching the fingerprint
-      ((ExceptionProbeStatus) status).setCapture(true);
+      ExceptionProbeStatus exceptionStatus = (ExceptionProbeStatus) status;
+      ExceptionProbeManager.ThrowableState state =
+          exceptionProbeManager.getStateByThrowable(innerMostThrowable);
+      if (state != null) {
+        // Already unwinding the exception
+        if (!state.isSampling()) {
+          // skip snapshot because no snapshot from previous stack level
+          return;
+        }
+        // Force for coordinated sampling
+        exceptionStatus.setForceSampling(true);
+      }
+      exceptionStatus.setCapture(true);
       super.evaluate(context, status, methodLocation);
     }
   }
@@ -81,8 +96,26 @@ public class ExceptionProbe extends LogProbe {
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
-    LOGGER.debug("committing exception probe id={}", id);
-    super.commit(entryContext, exitContext, caughtExceptions);
+    Snapshot snapshot = createSnapshot();
+    boolean shouldCommit = fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot);
+    if (shouldCommit) {
+      /*
+       * Record stack trace having the caller of this method as 'top' frame.
+       * For this it is necessary to discard:
+       * - Thread.currentThread().getStackTrace()
+       * - Snapshot.recordStackTrace()
+       * - ExceptionProbe.commit()
+       * - DebuggerContext.commit()
+       */
+      snapshot.recordStackTrace(4);
+      // add snapshot for later to wait for triggering point (ExceptionDebugger::handleException)
+      exceptionProbeManager.addSnapshot(snapshot);
+      LOGGER.debug(
+          "committing exception probe id={}, snapshot id={}, exception id={}",
+          id,
+          snapshot.getId(),
+          snapshot.getExceptionId());
+    }
   }
 
   @Override

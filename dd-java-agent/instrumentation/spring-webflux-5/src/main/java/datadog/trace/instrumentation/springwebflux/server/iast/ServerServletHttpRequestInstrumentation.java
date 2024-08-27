@@ -6,8 +6,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -33,14 +38,17 @@ public class ServerServletHttpRequestInstrumentation extends InstrumenterModule.
         getClass().getName() + "$TaintHeadersAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class TaintHeadersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void after(@Advice.Return Object object) {
+    public static void after(
+        @Advice.Return Object object, @ActiveRequestContext RequestContext reqCtx) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null) {
         return;
       }
-      propagation.taint(object, SourceTypes.REQUEST_HEADER_VALUE);
+      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      propagation.taintObject(ctx, object, SourceTypes.REQUEST_HEADER_VALUE);
     }
   }
 }

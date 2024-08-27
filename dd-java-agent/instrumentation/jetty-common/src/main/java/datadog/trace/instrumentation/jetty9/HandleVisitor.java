@@ -4,7 +4,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import net.bytebuddy.jar.asm.Handle;
@@ -32,7 +31,7 @@ import org.slf4j.LoggerFactory;
  *   } else {
  *     getServer().handle(this);
  *   }
- * </code> And for later versions of Jetty, <code>
+ * </code> And for later versions of Jetty before 11.16.0, <code>
  *   case DISPATCH:
  *   {
  *     // ...
@@ -57,6 +56,25 @@ import org.slf4j.LoggerFactory;
  *         // ...
  *         getServer().handle(HttpChannel.this);
  *       });
+ *   }
+ * </code> And for later versions of Jetty, <code>
+ *   case DISPATCH:
+ *   {
+ *     // ...
+ *     dispatch(DispatcherType.REQUEST, _requestDispatcher);
+ * </code> is replaced with: <code>
+ *   case DISPATCH:
+ *   {
+ *     // ...
+ *     if (span != null && span.getBlockingAction() != null) {
+ *       Request req = getRequest(); // actually on the stack only
+ *       Response resp = getResponse(); // idem
+ *       dispatch(DispatcherType.REQUEST, () -> {
+ *         JettyBlockingHelper.blockAndThrowOnFailure(
+ *             request, response, span.getBlockingAction(), span);
+ *       });
+ *     } else {
+ *       dispatch(DispatcherType.REQUEST, _requestDispatcher);
  *   }
  * </code>
  */
@@ -178,17 +196,7 @@ public class HandleVisitor extends MethodVisitor {
       List<Function> savedVisitations = mv.transferVisitations();
 
       // check that we've queued up what we're supposed to
-      if (savedVisitations.size() != 4
-          ||
-          // push this to the stack
-          !(savedVisitations.get(0) instanceof DelayCertainInsMethodVisitor.ALoadVarInsn)
-          ||
-          // push DispatcherType.REQUEST to the stack
-          !(savedVisitations.get(1) instanceof DelayCertainInsMethodVisitor.GetStaticFieldInsn)
-          ||
-          // push this to the stack (to create the lambda, which depends on this)
-          !(savedVisitations.get(2) instanceof DelayCertainInsMethodVisitor.ALoadVarInsn)
-          || !(savedVisitations.get(3) instanceof DelayCertainInsMethodVisitor.InvokeDynamicInsn)) {
+      if (!checkDispatchMethodState(savedVisitations)) {
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
         return;
       }
@@ -294,11 +302,36 @@ public class HandleVisitor extends MethodVisitor {
     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
   }
 
-  private static List<Object> fromArray(Object[] obj) {
-    if (obj == null) {
-      return new ArrayList<>();
+  private boolean checkDispatchMethodState(final List<Function> savedVisitations) {
+    if (savedVisitations.size() != 4) {
+      return false;
     }
-    return new ArrayList<>(Arrays.asList(obj));
+    // push this to the stack
+    if (!(savedVisitations.get(0) instanceof DelayCertainInsMethodVisitor.ALoadVarInsn)) {
+      return false;
+    }
+
+    // push DispatcherType.REQUEST to the stack
+    if (!(savedVisitations.get(1) instanceof DelayCertainInsMethodVisitor.GetStaticFieldInsn)) {
+      return false;
+    }
+
+    // push this to the stack (to create the lambda or access the instance field, which depends on
+    // this)
+    if (!(savedVisitations.get(2) instanceof DelayCertainInsMethodVisitor.ALoadVarInsn)) {
+      return false;
+    }
+
+    final Function last = savedVisitations.get(3);
+    // jetty < 11.16.0
+    //  this.dispatch(DispatcherType.REQUEST, () -> { ... });
+    if (last instanceof DelayCertainInsMethodVisitor.InvokeDynamicInsn) {
+      return true;
+    }
+
+    // jetty >= 11.16.0
+    // this.dispatch(DispatcherType.REQUEST, this._requestDispatcher);
+    return last instanceof DelayCertainInsMethodVisitor.GetFieldInsn;
   }
 
   @Override

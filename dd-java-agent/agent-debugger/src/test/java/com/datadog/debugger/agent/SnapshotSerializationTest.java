@@ -299,6 +299,8 @@ public class SnapshotSerializationTest {
     URI uri = URI.create("https://www.datadoghq.com");
     Optional<Date> maybeDate = Optional.of(new Date());
     Optional<Object> empty = Optional.empty();
+    Exception ex = new IllegalArgumentException("invalid arg");
+    StackTraceElement element = new StackTraceElement("Foo", "bar", "foo.java", 42);
   }
 
   @Test
@@ -344,6 +346,19 @@ public class SnapshotSerializationTest {
     value = (Map<String, Object>) emptyFields.get("value");
     assertEquals(Object.class.getTypeName(), value.get(TYPE));
     assertTrue((Boolean) value.get(IS_NULL));
+    Map<String, Object> ex = (Map<String, Object>) objLocalFields.get("ex");
+    assertComplexClass(ex, IllegalArgumentException.class.getTypeName());
+    Map<String, Object> exFields = (Map<String, Object>) ex.get(FIELDS);
+    assertPrimitiveValue(exFields, "detailMessage", String.class.getTypeName(), "invalid arg");
+    Map<String, Object> stackTrace = (Map<String, Object>) exFields.get("stackTrace");
+    Assertions.assertEquals(StackTraceElement[].class.getTypeName(), stackTrace.get(TYPE));
+    Map<String, Object> element = (Map<String, Object>) objLocalFields.get("element");
+    assertComplexClass(element, StackTraceElement.class.getTypeName());
+    Map<String, Object> elementFields = (Map<String, Object>) element.get(FIELDS);
+    assertPrimitiveValue(elementFields, "declaringClass", String.class.getTypeName(), "Foo");
+    assertPrimitiveValue(elementFields, "methodName", String.class.getTypeName(), "bar");
+    assertPrimitiveValue(elementFields, "fileName", String.class.getTypeName(), "foo.java");
+    assertPrimitiveValue(elementFields, "lineNumber", Integer.class.getTypeName(), "42");
   }
 
   @Test
@@ -729,10 +744,11 @@ public class SnapshotSerializationTest {
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
-    Map<String, Object> mapFieldObj = (Map<String, Object>) locals.get("listLocal");
-    Assertions.assertEquals(
-        "java.lang.RuntimeException: Unsupported Collection type: com.datadog.debugger.agent.SnapshotSerializationTest$1",
-        mapFieldObj.get(NOT_CAPTURED_REASON));
+    Map<String, Object> listLocalField = (Map<String, Object>) locals.get("listLocal");
+    Map<String, Object> listLocalFieldFields = (Map<String, Object>) listLocalField.get(FIELDS);
+    assertTrue(listLocalFieldFields.containsKey("elementData"));
+    assertTrue(listLocalFieldFields.containsKey("size"));
+    assertTrue(listLocalFieldFields.containsKey("modCount"));
   }
 
   @Test
@@ -748,10 +764,12 @@ public class SnapshotSerializationTest {
     String buffer = adapter.toJson(snapshot);
     System.out.println(buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
-    Map<String, Object> mapFieldObj = (Map<String, Object>) locals.get("mapLocal");
-    Assertions.assertEquals(
-        "java.lang.RuntimeException: Unsupported Map type: com.datadog.debugger.agent.SnapshotSerializationTest$2",
-        mapFieldObj.get(NOT_CAPTURED_REASON));
+    Map<String, Object> mapLocalField = (Map<String, Object>) locals.get("mapLocal");
+    Map<String, Object> mapLocalFieldFields = (Map<String, Object>) mapLocalField.get(FIELDS);
+    assertTrue(mapLocalFieldFields.containsKey("table"));
+    assertTrue(mapLocalFieldFields.containsKey("size"));
+    assertTrue(mapLocalFieldFields.containsKey("threshold"));
+    assertTrue(mapLocalFieldFields.containsKey("loadFactor"));
   }
 
   @Test

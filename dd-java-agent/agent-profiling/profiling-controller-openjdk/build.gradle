@@ -15,7 +15,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
 dependencies {
-  api deps.slf4j
+  api libs.slf4j
   api project(':internal-api')
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
@@ -23,8 +23,8 @@ dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
 
-  testImplementation deps.junit5
-  testImplementation deps.mockito
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
   testImplementation project(':dd-java-agent:agent-profiling')

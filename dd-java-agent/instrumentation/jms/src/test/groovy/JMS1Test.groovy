@@ -737,7 +737,7 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
     when:
     sender.send(message1)
-    sender.send(message2)
+    sender.send(destination, message2)
     sender.send(message3)
 
     TextMessage receivedMessage1 = receiver.receive()

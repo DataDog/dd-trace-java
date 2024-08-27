@@ -5,7 +5,7 @@ dependencies {
   implementation project(':dd-trace-ot')
 
   implementation 'info.picocli:picocli:4.0.4'
-  implementation deps.guava
+  implementation libs.guava
 }
 
 tasks.register('launch', JavaExec) {

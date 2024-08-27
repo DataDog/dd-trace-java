@@ -1,9 +1,34 @@
 rulesets:
-  - java-best-practices
-  - java-code-style
+  - java-best-practices:
+    rules:
+      array-is-stored-directly:
+        ignore:
+          - "**"
+      avoid-printstacktrace:
+        ignore:
+          - "buildSrc/**"
+          - "dd-java-agent/src/main/java/datadog/trace/bootstrap/**"
+      avoid-reassigning-parameters:
+        ignore:
+          - "**"
+      avoid-string-instantiation:
+        ignore:
+          - "**"
+      forloop-variable-count:
+        max-variables: 2
+  - java-code-style:
+    rules:
+      boolean-get-method-name:
+        ignore:
+          - "**"
+      generics-naming:
+        ignore:
+          - "**"
   - java-security
 ignore-paths:
   - ".mvn/**"
   - "dd-java-agent/appsec/weblog/**"
   - "dd-java-agent/benchmark-integration/**"
   - "dd-smoke-tests/**"
+  - "**/src/test/**"
+  - "**/src/jmh/**"

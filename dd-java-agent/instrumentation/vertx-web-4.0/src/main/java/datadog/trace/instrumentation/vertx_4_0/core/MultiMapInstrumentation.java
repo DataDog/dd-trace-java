@@ -7,10 +7,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
@@ -68,82 +72,92 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
         className + "$NamesAdvice");
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterGet(
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
-        @Advice.Return final String result) {
+        @Advice.Return final String result,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null) {
-        final Source source = propagation.findSource(self);
+        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        final Source source = propagation.findSource(ctx, self);
         if (source != null) {
-          propagation.taint(result, source.getOrigin(), name);
+          propagation.taintString(ctx, result, source.getOrigin(), name);
         }
       }
     }
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetAllAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterGetAll(
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
-        @Advice.Return final Collection<String> result) {
+        @Advice.Return final Collection<String> result,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
-        final Source source = propagation.findSource(self);
+        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        final Source source = propagation.findSource(ctx, self);
         if (source != null) {
-          final IastContext ctx = IastContext.Provider.get();
           for (final String value : result) {
-            propagation.taint(ctx, value, source.getOrigin(), name);
+            propagation.taintString(ctx, value, source.getOrigin(), name);
           }
         }
       }
     }
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class EntriesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterEntries(
         @Advice.This final Object self,
-        @Advice.Return final List<Map.Entry<String, String>> result) {
+        @Advice.Return final List<Map.Entry<String, String>> result,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
-        final Source source = propagation.findSource(self);
+        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        final Source source = propagation.findSource(ctx, self);
         if (source != null) {
-          final IastContext ctx = IastContext.Provider.get();
           final byte nameOrigin = namedSource(source.getOrigin());
           final Set<String> keys = new HashSet<>();
           for (final Map.Entry<String, String> entry : result) {
             final String name = entry.getKey();
             final String value = entry.getValue();
             if (keys.add(name)) {
-              propagation.taint(ctx, name, nameOrigin, name);
+              propagation.taintString(ctx, name, nameOrigin, name);
             }
-            propagation.taint(ctx, value, source.getOrigin(), name);
+            propagation.taintString(ctx, value, source.getOrigin(), name);
           }
         }
       }
     }
   }
 
+  @RequiresRequestContext(RequestContextSlot.IAST)
   public static class NamesAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterNames(
-        @Advice.This final Object self, @Advice.Return final Set<String> result) {
+        @Advice.This final Object self,
+        @Advice.Return final Set<String> result,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
-        final Source source = propagation.findSource(self);
+        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        final Source source = propagation.findSource(ctx, self);
         if (source != null) {
-          final IastContext ctx = IastContext.Provider.get();
           final byte nameOrigin = namedSource(source.getOrigin());
           for (final String name : result) {
-            propagation.taint(ctx, name, nameOrigin, name);
+            propagation.taintString(ctx, name, nameOrigin, name);
           }
         }
       }

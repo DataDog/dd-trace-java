@@ -49,8 +49,8 @@ public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
     public static void checkReturnedObject(
         @Advice.Return String string, @Advice.Argument(0) final InputStream in) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (in != null && string != null && !string.isEmpty()) {
-        module.taintIfTainted(string, in);
+      if (string != null && module != null) {
+        module.taintStringIfTainted(string, in);
       }
     }
 

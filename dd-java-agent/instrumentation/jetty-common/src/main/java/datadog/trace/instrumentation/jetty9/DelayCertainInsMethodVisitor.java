@@ -73,6 +73,8 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
       final int opcode, final String owner, final String name, final String descriptor) {
     if (opcode == Opcodes.GETSTATIC) {
       heldVisitations.add(new GetStaticFieldInsn(opcode, owner, name, descriptor));
+    } else if (opcode == Opcodes.GETFIELD) {
+      heldVisitations.add(new GetFieldInsn(opcode, owner, name, descriptor));
     } else {
       commitVisitations();
       super.visitFieldInsn(opcode, owner, name, descriptor);
@@ -259,6 +261,26 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
     public final String descriptor;
 
     public GetStaticFieldInsn(int opcode, String owner, String name, String descriptor) {
+      this.opcode = opcode;
+      this.owner = owner;
+      this.name = name;
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public Object apply(Object input) {
+      mv.visitFieldInsn(opcode, owner, name, descriptor);
+      return null;
+    }
+  }
+
+  public class GetFieldInsn implements Function {
+    public final int opcode;
+    public final String owner;
+    public final String name;
+    public final String descriptor;
+
+    public GetFieldInsn(int opcode, String owner, String name, String descriptor) {
       this.opcode = opcode;
       this.owner = owner;
       this.name = name;

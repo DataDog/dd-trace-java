@@ -27,6 +27,9 @@ public final class AgentJar {
           case "uploadCrash":
             uploadCrash(args);
             break;
+          case "sendOomeEvent":
+            sendOomeEvent(args);
+            break;
           case "scanDependencies":
             scanDependencies(args);
             break;
@@ -101,6 +104,13 @@ public final class AgentJar {
         .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
   }
 
+  private static void sendOomeEvent(final String[] args) throws Exception {
+    if (args.length < 1) {
+      throw new IllegalArgumentException("unexpected arguments");
+    }
+    installAgentCLI().getMethod("sendOomeEvent", String.class).invoke(null, args[1]);
+  }
+
   private static void scanDependencies(final String[] args) throws Exception {
     if (args.length < 2) {
       throw new IllegalArgumentException("missing path");
@@ -125,6 +135,18 @@ public final class AgentJar {
     } catch (final Exception e) {
       System.out.println("Failed to parse agent version");
       e.printStackTrace();
+    }
+  }
+
+  public static String tryGetAgentVersion() {
+    return getAgentVersionOrDefault(null);
+  }
+
+  public static String getAgentVersionOrDefault(String defaultValue) {
+    try {
+      return AgentJar.getAgentVersion();
+    } catch (IOException e) {
+      return defaultValue;
     }
   }
 

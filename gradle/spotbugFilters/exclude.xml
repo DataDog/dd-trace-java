@@ -2,8 +2,10 @@
 <FindBugsFilter>
   <Match>
     <Or>
+      <Class name="~com.datadog.debugger.util.WeakIdentityHashMap.*" />
       <Package name="io.sqreen.testapp.sampleapp" />
       <Package name="datadog.trace.bootstrap.instrumentation.decorator.http.utils" />
+      <Package name="datadog.smoketest.appsec.springboot.controller" />
       <!-- these are auto-generated -->
       <Package name="com.datadog.appsec.report.raw.contexts._definitions" />
       <Package name="com.datadog.appsec.report.raw.contexts.actor" />

@@ -11,17 +11,19 @@ import java.util.Map;
 
 public class ModuleExecutionSettingsSerializer {
 
-  private static final int CODE_COVERAGE_ENABLED_FLAG = 1;
-  private static final int ITR_ENABLED_FLAG = 2;
-  private static final int FLAKY_TEST_RETRIES_ENABLED_FLAG = 4;
+  private static final int ITR_ENABLED_FLAG = 1;
+  private static final int CODE_COVERAGE_ENABLED_FLAG = 2;
+  private static final int TEST_SKIPPING_ENABLED_FLAG = 4;
+  private static final int FLAKY_TEST_RETRIES_ENABLED_FLAG = 8;
 
   public static ByteBuffer serialize(ModuleExecutionSettings settings) {
     Serializer s = new Serializer();
 
     byte flags =
         (byte)
-            ((settings.isCodeCoverageEnabled() ? CODE_COVERAGE_ENABLED_FLAG : 0)
-                | (settings.isItrEnabled() ? ITR_ENABLED_FLAG : 0)
+            ((settings.isItrEnabled() ? ITR_ENABLED_FLAG : 0)
+                | (settings.isCodeCoverageEnabled() ? CODE_COVERAGE_ENABLED_FLAG : 0)
+                | (settings.isTestSkippingEnabled() ? TEST_SKIPPING_ENABLED_FLAG : 0)
                 | (settings.isFlakyTestRetriesEnabled() ? FLAKY_TEST_RETRIES_ENABLED_FLAG : 0));
     s.write(flags);
 
@@ -45,8 +47,9 @@ public class ModuleExecutionSettingsSerializer {
 
   public static ModuleExecutionSettings deserialize(ByteBuffer buffer) {
     byte flags = Serializer.readByte(buffer);
-    boolean codeCoverageEnabled = (flags & CODE_COVERAGE_ENABLED_FLAG) != 0;
     boolean itrEnabled = (flags & ITR_ENABLED_FLAG) != 0;
+    boolean codeCoverageEnabled = (flags & CODE_COVERAGE_ENABLED_FLAG) != 0;
+    boolean testSkippingEnabled = (flags & TEST_SKIPPING_ENABLED_FLAG) != 0;
     boolean flakyTestRetriesEnabled = (flags & FLAKY_TEST_RETRIES_ENABLED_FLAG) != 0;
 
     EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
@@ -69,8 +72,9 @@ public class ModuleExecutionSettingsSerializer {
     List<String> codeCoveragePackages = Serializer.readStringList(buffer);
 
     return new ModuleExecutionSettings(
-        codeCoverageEnabled,
         itrEnabled,
+        codeCoverageEnabled,
+        testSkippingEnabled,
         flakyTestRetriesEnabled,
         earlyFlakeDetectionSettings,
         systemProperties,

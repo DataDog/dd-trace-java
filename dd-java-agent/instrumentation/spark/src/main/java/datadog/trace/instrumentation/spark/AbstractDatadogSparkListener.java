@@ -9,6 +9,8 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.SpanLink;
+import datadog.trace.util.AgentThreadFactory;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -23,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 import org.apache.spark.ExceptionFailure;
@@ -40,6 +43,8 @@ import org.apache.spark.sql.streaming.SourceProgress;
 import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
@@ -52,11 +57,13 @@ import scala.collection.JavaConverters;
  * still needed
  */
 public abstract class AbstractDatadogSparkListener extends SparkListener {
+  private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
   public static volatile AbstractDatadogSparkListener listener = null;
   public static volatile boolean finishTraceOnApplicationEnd = true;
+  public static volatile boolean isPysparkShell = false;
 
-  private final int MAX_COLLECTION_SIZE = 1000;
-  private final int MAX_ACCUMULATOR_SIZE = 10000;
+  private final int MAX_COLLECTION_SIZE = 5000;
+  private final int MAX_ACCUMULATOR_SIZE = 50000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
 
   private final SparkConf sparkConf;
@@ -106,7 +113,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
 
-  private boolean applicationEnded = false;
+  private volatile boolean applicationEnded = false;
 
   public AbstractDatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
     tracer = AgentTracer.get();
@@ -119,6 +126,24 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
     sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
+
+    // If JVM exiting with System.exit(code), it bypass the code closing the application span
+    //
+    // Using shutdown hook to close the span, but it is only best effort:
+    // - no guarantee it will be executed before the tracer shuts down
+    // - no access to the exit code
+    Runtime.getRuntime()
+        .addShutdownHook(
+            AgentThreadFactory.newAgentThread(
+                AgentThreadFactory.AgentThread.DATA_JOBS_MONITORING_SHUTDOWN_HOOK,
+                () -> {
+                  if (!applicationEnded) {
+                    log.info("Finishing application trace from shutdown hook");
+                    finishApplication(System.currentTimeMillis(), null, 0, null);
+                  }
+                }));
+
+    log.info("Created datadog spark listener: {}", this.getClass().getSimpleName());
   }
 
   /** Resource name of the spark job. Provide an implementation based on a specific scala version */
@@ -163,14 +188,43 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     captureApplicationParameters(builder);
+    captureOpenlineageContextIfPresent(builder);
 
     applicationSpan = builder.start();
     setDataJobsSamplingPriority(applicationSpan);
     applicationSpan.setMeasured(true);
   }
 
+  private void captureOpenlineageContextIfPresent(AgentTracer.SpanBuilder builder) {
+    Optional<OpenlineageParentContext> openlineageParentContext =
+        OpenlineageParentContext.from(sparkConf);
+
+    if (openlineageParentContext.isPresent()) {
+      OpenlineageParentContext context = openlineageParentContext.get();
+      builder.asChildOf(context);
+
+      builder.withSpanId(context.getChildRootSpanId());
+
+      log.debug(
+          "Captured Openlineage context: {}, with child trace_id: {}, child root span id: {}",
+          context,
+          context.getTraceId(),
+          context.getChildRootSpanId());
+
+      builder.withTag("openlineage_parent_job_namespace", context.getParentJobNamespace());
+      builder.withTag("openlineage_parent_job_name", context.getParentJobName());
+      builder.withTag("openlineage_parent_run_id", context.getParentRunId());
+    } else {
+      log.debug("Openlineage context not found");
+    }
+  }
+
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
+    log.info(
+        "Received spark application end event, finish trace on this event: {}",
+        finishTraceOnApplicationEnd);
+
     if (finishTraceOnApplicationEnd) {
       finishApplication(applicationEnd.time(), null, 0, null);
     }
@@ -178,6 +232,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   public synchronized void finishApplication(
       long time, Throwable throwable, int exitCode, String msg) {
+    log.info("Finishing spark application trace");
+
     if (applicationEnded) {
       return;
     }
@@ -229,8 +285,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     AgentTracer.SpanBuilder builder =
         buildSparkSpan("spark.streaming_batch", jobProperties).withStartTimestamp(timeMs * 1000);
 
-    // Streaming spans will always be the root span, capturing all parameters on those
-    captureApplicationParameters(builder);
+    // Streaming spans will always be the root span, capturing job parameters on those
     captureJobParameters(builder, jobProperties);
 
     if (isRunningOnDatabricks) {
@@ -245,9 +300,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private void addDatabricksSpecificTags(
       AgentTracer.SpanBuilder builder, Properties properties, boolean withParentContext) {
-    // In databricks, there is no application span. Adding the spark conf parameters to the top
-    // level spark span
-    captureApplicationParameters(builder);
+    // Databricks has no application span. Adding the parameters to the top level spark span
     captureJobParameters(builder, properties);
 
     if (properties != null) {
@@ -260,12 +313,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("databricks_job_run_id", databricksJobRunId);
       builder.withTag("databricks_task_run_id", databricksTaskRunId);
 
-      if (withParentContext) {
-        AgentSpan.Context parentContext =
-            new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
+      AgentSpan.Context parentContext =
+          new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
 
-        if (parentContext.getTraceId() != DDTraceId.ZERO) {
+      if (parentContext.getTraceId() != DDTraceId.ZERO) {
+        if (withParentContext) {
           builder.asChildOf(parentContext);
+        } else {
+          builder.withLink(SpanLink.from(parentContext));
         }
       }
     }
@@ -353,9 +408,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, getSparkJobName(jobStart));
-
-    // Some properties can change at runtime, so capturing properties of all jobs
-    captureJobParameters(jobSpanBuilder, jobStart.properties());
 
     AgentSpan jobSpan = jobSpanBuilder.start();
     setDataJobsSamplingPriority(jobSpan);
@@ -1014,15 +1066,20 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void captureApplicationParameters(AgentTracer.SpanBuilder builder) {
-    for (Tuple2<String, String> conf : sparkConf.getAll()) {
-      if (SparkConfAllowList.canCaptureApplicationParameter(conf._1)) {
-        builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
-      }
+    for (Map.Entry<String, String> entry : SparkConfAllowList.getRedactedSparkConf(sparkConf)) {
+      builder.withTag("config." + entry.getKey().replace(".", "_"), entry.getValue());
     }
     builder.withTag("config.spark_version", sparkVersion);
   }
 
   private void captureJobParameters(AgentTracer.SpanBuilder builder, Properties properties) {
+    for (Tuple2<String, String> conf : sparkConf.getAll()) {
+      if (SparkConfAllowList.canCaptureJobParameter(conf._1)) {
+        builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
+      }
+    }
+
+    // Parameters from properties overwrite values from the spark conf
     if (properties != null) {
       for (final Map.Entry<Object, Object> entry : properties.entrySet()) {
         if (SparkConfAllowList.canCaptureJobParameter(entry.getKey().toString())) {
@@ -1103,13 +1160,26 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private static String getSparkServiceName(SparkConf conf, boolean isRunningOnDatabricks) {
-    if (Config.get().isServiceNameSetByUser()
-        || !Config.get().useSparkAppNameAsService()
-        || isRunningOnDatabricks) {
+    // If config is not set or running on databricks, not changing the service name
+    if (!Config.get().useSparkAppNameAsService() || isRunningOnDatabricks) {
       return null;
     }
 
-    return conf.get("spark.app.name", null);
+    // Keep service set by user, except if it is only "spark" or "hadoop" that can be set by USM
+    String serviceName = Config.get().getServiceName();
+    if (Config.get().isServiceNameSetByUser()
+        && !"spark".equals(serviceName)
+        && !"hadoop".equals(serviceName)) {
+      log.debug("Service '{}' explicitly set by user, not using the application name", serviceName);
+      return null;
+    }
+
+    String sparkAppName = conf.get("spark.app.name", null);
+    if (sparkAppName != null) {
+      log.info("Using Spark application name '{}' as the Datadog service name", sparkAppName);
+    }
+
+    return sparkAppName;
   }
 
   private static String getDatabricksRunName(SparkConf conf) {

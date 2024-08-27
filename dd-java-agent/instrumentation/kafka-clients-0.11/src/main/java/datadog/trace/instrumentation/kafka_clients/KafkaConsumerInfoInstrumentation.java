@@ -1,6 +1,11 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_RECORDS_COUNT;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_POLL;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -13,6 +18,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -130,18 +137,43 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
    * KafkaConsumer class.
    */
   public static class RecordsAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope onEnter() {
+      boolean dataStreamsEnabled;
+      if (activeSpan() != null) {
+        dataStreamsEnabled = activeSpan().traceConfig().isDataStreamsEnabled();
+      } else {
+        dataStreamsEnabled = Config.get().isDataStreamsEnabled();
+      }
+      if (dataStreamsEnabled) {
+        final AgentSpan span = startSpan(KAFKA_POLL);
+        return activateSpan(span);
+      }
+      return null;
+    }
+
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureGroup(
-        @Advice.This KafkaConsumer consumer, @Advice.Return ConsumerRecords records) {
-      if (records == null) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.This KafkaConsumer consumer,
+        @Advice.Return ConsumerRecords records) {
+      int recordsCount = 0;
+      if (records != null) {
+        KafkaConsumerInfo kafkaConsumerInfo =
+            InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
+        if (kafkaConsumerInfo != null) {
+          InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class)
+              .put(records, kafkaConsumerInfo);
+        }
+        recordsCount = records.count();
+      }
+      if (scope == null) {
         return;
       }
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
-      if (kafkaConsumerInfo != null) {
-        InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class)
-            .put(records, kafkaConsumerInfo);
-      }
+      AgentSpan span = scope.span();
+      span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
+      span.finish();
+      scope.close();
     }
   }
 }

@@ -7,6 +7,7 @@ import ddtest.client.sources.Hasher;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpCookie;
@@ -16,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.Principal;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -23,6 +25,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 import javax.websocket.server.PathParam;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -50,6 +53,7 @@ import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.servlet.view.UrlBasedViewResolver;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
+import org.yaml.snakeyaml.Yaml;
 
 @RestController
 public class IastWebController {
@@ -248,14 +252,16 @@ public class IastWebController {
   }
 
   @PostMapping("/ssrf")
-  public String ssrf(@RequestParam("url") final String url) {
+  public String ssrf(
+      @RequestParam(value = "url", required = false) final String url,
+      @RequestParam(value = "host", required = false) final String host) {
     try {
-      final URL target = new URL(url);
+      final URL target = url != null ? new URL(url) : new URL("https", host, 443, "/test");
       final HttpURLConnection conn = (HttpURLConnection) target.openConnection();
       conn.disconnect();
     } catch (final Exception e) {
     }
-    return "Url is: " + url;
+    return "ok";
   }
 
   @GetMapping("/weak_randomness")
@@ -390,6 +396,36 @@ public class IastWebController {
       @RequestParam("param") String param, HttpServletResponse response) {
     response.addHeader("X-Test-Header", param);
     return "Ok";
+  }
+
+  @PostMapping("/untrusted_deserialization")
+  public String untrustedDeserialization(HttpServletRequest request) throws IOException {
+    final ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
+    ois.close();
+    return "OK";
+  }
+
+  @PostMapping("/untrusted_deserialization/multipart")
+  public String untrustedDeserializationMultipart(@RequestParam("file") MultipartFile file)
+      throws IOException {
+    final ObjectInputStream ois = new ObjectInputStream(file.getInputStream());
+    ois.close();
+    return "OK";
+  }
+
+  @PostMapping("/untrusted_deserialization/part")
+  public String untrustedDeserializationParts(HttpServletRequest request)
+      throws IOException, ServletException {
+    List<Part> parts = (List<Part>) request.getParts();
+    final ObjectInputStream ois = new ObjectInputStream(parts.get(0).getInputStream());
+    ois.close();
+    return "OK";
+  }
+
+  @GetMapping("/untrusted_deserialization/snakeyaml")
+  public String untrustedDeserializationSnakeYaml(@RequestParam("yaml") String param) {
+    new Yaml().load(param);
+    return "OK";
   }
 
   private void withProcess(final Operation<Process> op) {

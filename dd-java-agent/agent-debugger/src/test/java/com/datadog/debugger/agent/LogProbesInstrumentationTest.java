@@ -4,6 +4,7 @@ import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
@@ -63,6 +64,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(3, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
+    assertTrue(snapshot.getStack().isEmpty());
     assertEquals("this is log line", snapshot.getMessage());
   }
 
@@ -338,13 +340,11 @@ public class LogProbesInstrumentationTest {
     Snapshot snapshot = assertOneSnapshot(listener);
     assertCapturesNull(snapshot);
     assertEquals(
-        "this is log line with field={Cannot dereference to field: intValue}",
-        snapshot.getMessage());
+        "this is log line with field={Cannot dereference field: intValue}", snapshot.getMessage());
     assertEquals(1, snapshot.getEvaluationErrors().size());
     assertEquals("nullObject.intValue", snapshot.getEvaluationErrors().get(0).getExpr());
     assertEquals(
-        "Cannot dereference to field: intValue",
-        snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot dereference field: intValue", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
@@ -376,7 +376,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
     assertEquals(
-        "this is log line for this={STATIC_STR=strStatic, intValue=48, doubleValue=3.14, strValue=done, strList=...}, ...",
+        "this is log line for this={intValue=48, doubleValue=3.14, strValue=done, strList=..., strMap=...}",
         snapshot.getMessage());
   }
 
@@ -402,7 +402,7 @@ public class LogProbesInstrumentationTest {
     Assertions.assertEquals(2, snapshot.getCaptures().getEntry().getArguments().size());
     Assertions.assertEquals(1, snapshot.getEvaluationErrors().size());
     Assertions.assertEquals(
-        "Cannot find symbol: typoArg", snapshot.getEvaluationErrors().get(0).getMessage());
+        "Cannot dereference field: typoArg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test

@@ -43,8 +43,14 @@ ext.generalShadowJarConfig = {
   exclude '**/liblz4-java.so'
   exclude '**/liblz4-java.dylib'
 
+  // Replaced by 'instrumenter.index', no need to include original service file
+  exclude '**/META-INF/services/datadog.trace.agent.tooling.InstrumenterModule'
+
   // Prevents conflict with other SLF4J instances. Important for premain.
   relocate 'org.slf4j', 'datadog.slf4j'
+  // Prevent conflicts with flat class-path when using GraalVM native-images
+  relocate 'org.jctools', 'datadog.jctools'
+  relocate 'net.jpountz', 'datadog.jpountz'
   // rewrite dependencies calling Logger.getLogger
   relocate 'java.util.logging.Logger', 'datadog.trace.bootstrap.PatchLogger'
 
@@ -110,9 +116,8 @@ includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 includeSubprojShadowJar ':dd-java-agent:agent-iast', 'iast'
 includeSubprojShadowJar ':dd-java-agent:agent-debugger', 'debugger'
 includeSubprojShadowJar ':dd-java-agent:agent-ci-visibility', 'ci-visibility'
-if (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) {
-  includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'
-}
+includeSubprojShadowJar ':dd-java-agent:agent-logs-intake', 'logs-intake'
+includeSubprojShadowJar ':dd-java-agent:cws-tls', 'cws-tls'
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   configurations = [project.configurations.sharedShadowInclude]
@@ -159,12 +164,13 @@ shadowJar generalShadowJarConfig >> {
 }
 
 tasks.register('generateAgentJarIndex', JavaExec) {
+  def indexName = 'dd-java-agent.index'
   def contentDir = "${sourceSets.main.output.resourcesDir}"
-  def indexFile = "${contentDir}/dd-java-agent.index"
+  def indexFile = "${contentDir}/${indexName}"
 
   it.group = 'Build'
   it.description = "Generate dd-java-agent.index"
-  it.inputs.files(contentDir)
+  it.inputs.files(fileTree(contentDir).exclude(indexName))
   it.outputs.files(indexFile)
   it.mainClass = 'datadog.trace.bootstrap.AgentJarIndex$IndexGenerator'
   it.classpath = project.configurations.shadowInclude
@@ -205,20 +211,20 @@ dependencies {
   testImplementation project(':dd-trace-core')
   testImplementation project(':utils:test-utils')
 
-  testImplementation deps.testLogging
-  testImplementation deps.guava
-  testImplementation deps.okhttp
+  testImplementation libs.bundles.test.logging
+  testImplementation libs.guava
+  testImplementation libs.okhttp
   testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
+  shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared
   // force a controlled version of ASM that is used by Debugger while pulled transitively by jnr
-  sharedShadowInclude deps.asm
-  sharedShadowInclude deps.asmcommons
+  sharedShadowInclude libs.bundles.asm
   sharedShadowInclude project(':communication'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects
@@ -229,8 +235,11 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
-  sharedShadowInclude deps.cafe_crypto
-  sharedShadowInclude project(':remote-config'), {
+  sharedShadowInclude libs.bundles.cafe.crypto
+  sharedShadowInclude project(':remote-config:remote-config-api'), {
+    transitive = false
+  }
+  sharedShadowInclude project(':remote-config:remote-config-core'), {
     transitive = false
   }
   sharedShadowInclude project(':utils:container-utils'), {
@@ -275,8 +284,7 @@ tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    def megs = (project.rootProject.hasProperty("agentIncludeCwsTls") && agentIncludeCwsTls) ? 29 : 28
-    assert shadowJar.archiveFile.get().getAsFile().length() <= megs * 1024 * 1024
+    assert shadowJar.archiveFile.get().getAsFile().length() <= 30 * 1024 * 1024
   }
 
   dependsOn "shadowJar"

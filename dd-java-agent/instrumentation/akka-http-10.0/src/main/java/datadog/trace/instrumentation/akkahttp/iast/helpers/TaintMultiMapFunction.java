@@ -4,6 +4,7 @@ import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import scala.Tuple1;
 import scala.Tuple2;
 import scala.collection.Iterator;
@@ -24,15 +25,18 @@ public class TaintMultiMapFunction
       return v1;
     }
 
-    final IastContext ctx = IastContext.Provider.get();
+    IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
+    if (ctx == null) {
+      return v1;
+    }
     Iterator<Tuple2<String, List<String>>> entriesIterator = m.iterator();
     while (entriesIterator.hasNext()) {
       Tuple2<String, List<String>> e = entriesIterator.next();
       final String name = e._1();
-      mod.taint(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
+      mod.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
       List<String> values = e._2();
       for (final String value : ScalaToJava.listAsList(values)) {
-        mod.taint(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+        mod.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
       }
     }
 
