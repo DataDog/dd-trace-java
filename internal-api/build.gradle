@@ -180,7 +180,6 @@ excludedClassesCoverage += [
 excludedClassesBranchCoverage = [
   'datadog.trace.api.ProductActivationConfig',
   'datadog.trace.api.Config',
-  'datadog.trace.api.profiling.ProfilingEnablement',
   'datadog.trace.util.stacktrace.HotSpotStackWalker',
   'datadog.trace.util.stacktrace.StackWalkerFactory'
 ]

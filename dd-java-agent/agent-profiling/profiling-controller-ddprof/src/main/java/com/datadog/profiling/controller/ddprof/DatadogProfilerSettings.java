@@ -36,7 +36,7 @@ public class DatadogProfilerSettings extends ProfilerSettingsSupport {
       datadogProfiler.recordSetting(SERVICE_INJECTION, serviceInjection);
     }
     datadogProfiler.recordSetting(
-        PROFILER_ACTIVATION, profilerActivationSetting.enablement.getSource());
+        PROFILER_ACTIVATION, profilerActivationSetting.enablement.getAlias());
     datadogProfiler.recordSetting(
         SSI_MECHANISM, profilerActivationSetting.ssiMechanism.name().toLowerCase());
   }

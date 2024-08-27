@@ -14,33 +14,37 @@ public enum ProfilingEnablement {
   private static final Logger logger = LoggerFactory.getLogger(Profiling.class);
 
   private final boolean active;
-  private final String source;
+  private final String alias;
 
   ProfilingEnablement(boolean active) {
     this.active = active;
-    this.source = this.name().toLowerCase();
+    this.alias = this.name().toLowerCase();
   }
 
-  ProfilingEnablement(boolean active, String source) {
+  ProfilingEnablement(boolean active, String alias) {
     this.active = active;
-    this.source = source;
+    this.alias = alias;
   }
 
   public boolean isActive() {
     return active;
   }
 
-  public String getSource() {
-    return source;
+  public String getAlias() {
+    return alias;
   }
 
   public static ProfilingEnablement from(ConfigProvider config) {
+    ProfilingEnablement ret = ProfilingEnablement.DISABLED;
     String value = config.getString(ProfilingConfig.PROFILING_ENABLED);
     if (value != null) {
-      return of(value);
+      ret = of(value);
     }
-    String ssi = config.getString("injection.enabled");
-    return ssi != null && ssi.contains("profiler") ? INJECTED : DISABLED;
+    if (ret == DISABLED) {
+      String ssi = config.getString("injection.enabled");
+      ret = ssi != null && ssi.contains("profiler") ? INJECTED : DISABLED;
+    }
+    return ret;
   }
 
   public static ProfilingEnablement of(String value) {
