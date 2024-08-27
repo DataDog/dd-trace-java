@@ -14,6 +14,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
+import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import freemarker.template.TemplateModel;
 import net.bytebuddy.asm.Advice;
@@ -50,6 +51,7 @@ public class ObjectWrapperInstrumentation extends InstrumenterModule.Iast
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class ObjectWrapperAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @Propagation
     public static void onExit(
         @Advice.Return final TemplateModel templateModel,
         @Advice.Argument(0) final Object object,

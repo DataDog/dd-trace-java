@@ -21,9 +21,10 @@ public class XssController {
   public void freemarker(
       @RequestParam(name = "name") String name, final HttpServletResponse response)
       throws IOException, TemplateException {
-    Configuration cfg = new Configuration(Configuration.VERSION_2_3_23);
-    cfg.setDirectoryForTemplateLoading(
-        new File("dd-smoke-tests/springboot-freemarker/src/main/resources/templates"));
+    Configuration cfg = new Configuration(Configuration.VERSION_2_3_32);
+    cfg.setDirectoryForTemplateLoading(new File("resources/main/templates"));
+    //    cfg.setDirectoryForTemplateLoading(
+    //        new File("dd-smoke-tests/springboot-freemarker/src/main/resources/templates"));
     Template template = cfg.getTemplate("freemarker.ftlh");
     Map<String, String> root = new HashMap<>();
     root.put("name", name);

@@ -4,9 +4,10 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.XssModule;
+import datadog.trace.instrumentation.freemarker.EnvironmentHelper;
 import freemarker.template.TemplateHashModel;
-import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
+import freemarker.template.TemplateScalarModel;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,18 +32,20 @@ public final class DollarVariableDatadogAdvice {
       if (DollarVariableHelper.fetchAutoEscape(self)) {
         return;
       }
-      final String charSec = DollarVariableHelper.fetchExpression(self);
-      final TemplateHashModel templateHashModel = environment.getDataModel();
-      TemplateModel templateModel = null;
+      final String expression = DollarVariableHelper.fetchExpression(self);
+      final TemplateHashModel templateHashModel = EnvironmentHelper.fetchRootDataModel(environment);
+      String charSec = null;
       try {
-        templateModel = templateHashModel.get(charSec);
+        TemplateScalarModel templateScalarModel =
+            (TemplateScalarModel) templateHashModel.get(expression);
+        charSec = templateScalarModel.getAsString();
       } catch (TemplateModelException e) {
         log.debug("Failed to get DollarVariable templateModel", e);
         return;
       }
       final String templateName = environment.getMainTemplate().getName();
       final int line = self.beginLine;
-      xssModule.onXss(templateModel.toString(), templateName, line);
+      xssModule.onXss(charSec, templateName, line);
     }
   }
 }
