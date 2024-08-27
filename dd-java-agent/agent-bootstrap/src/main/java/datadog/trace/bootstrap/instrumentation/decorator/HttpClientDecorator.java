@@ -80,7 +80,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       try {
         final URI url = url(request);
         if (url != null) {
-          // //SSRF Exploit Prevention shod be called at the end of the method with the url
+          // //SSRF Exploit Prevention should be called at the end of the method with the url
           ssrfExploitPreventionUrl = url.toString();
           onURI(span, url);
           span.setTag(
