@@ -38,7 +38,9 @@ public class ExceptionHandlers {
 
               // Writes the following bytecode if exitOnFailure is false:
               //
+              // BlockingExceptionHandler.rethrowIfBlockingException(t);
               // try {
+              //   InstrumentationErrors.incrementErrorCount();
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .debug("Failed to handle exception in instrumentation for ...", t);
               // } catch (Throwable t2) {
@@ -46,7 +48,9 @@ public class ExceptionHandlers {
               //
               // And the following bytecode if exitOnFailure is true:
               //
+              // BlockingExceptionHandler.rethrowIfBlockingException(t);
               // try {
+              //   InstrumentationErrors.incrementErrorCount();
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .error("Failed to handle exception in instrumentation for ...", t);
               //   System.exit(1);
@@ -61,6 +65,14 @@ public class ExceptionHandlers {
               // Frames are only meaningful for class files in version 6 or later.
               final boolean frames =
                   context.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6);
+
+              // rethrow blocking exceptions
+              // stack: (top) throwable
+              mv.visitMethodInsn(
+                  Opcodes.INVOKESTATIC,
+                  "datadog/trace/bootstrap/blocking/BlockingExceptionHandler",
+                  "rethrowIfBlockingException",
+                  "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
 
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
               mv.visitLabel(logStart);
