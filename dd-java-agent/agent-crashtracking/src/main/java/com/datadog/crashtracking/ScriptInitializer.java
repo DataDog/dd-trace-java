@@ -131,8 +131,9 @@ public final class ScriptInitializer {
       String onErrorFile = diagBean.getVMOption("ErrorFile").getValue();
       CrashUploaderScriptInitializer.initialize(onErrorVal, onErrorFile);
     } catch (Throwable t) {
-      LOG.warn(
-          "Failed creating custom crash upload script. Crash tracking will not work properly.", t);
+      logInitializationError(
+          "Unexpected exception while creating custom crash upload script. Crash tracking will not work properly.",
+          t);
     }
   }
 
@@ -141,7 +142,19 @@ public final class ScriptInitializer {
       String onOutOfMemoryVal = diagBean.getVMOption("OnOutOfMemoryError").getValue();
       OOMENotifierScriptInitializer.initialize(onOutOfMemoryVal);
     } catch (Throwable t) {
-      LOG.warn("Failed initializing OOME notifier. OOMEs will not be tracked.", t);
+      logInitializationError(
+          "Unexpected exception while initializing OOME notifier. OOMEs will not be tracked.", t);
+    }
+  }
+
+  private static void logInitializationError(String msg, Throwable t) {
+    if (LOG.isDebugEnabled()) {
+      LOG.warn("{}", msg, t);
+    } else {
+      LOG.warn(
+          "{} [{}] (Change the logging level to debug to see the full stacktrace)",
+          msg,
+          t.getMessage());
     }
   }
 }
