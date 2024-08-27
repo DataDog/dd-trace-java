@@ -90,7 +90,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       try {
         final URI url = url(request);
         if (url != null) {
-          // //SSRF Exploit Prevention should be called at the end of the method with the url
           onURI(span, url);
           span.setTag(
               Tags.HTTP_URL,
@@ -102,6 +101,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           if (shouldSetResourceName()) {
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
           }
+          // SSRF exploit prevention check
           onNetworkConnection(url.toString());
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);

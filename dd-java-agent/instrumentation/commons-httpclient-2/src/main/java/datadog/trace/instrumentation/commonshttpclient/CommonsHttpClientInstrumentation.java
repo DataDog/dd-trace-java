@@ -40,9 +40,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CommonsHttpClientDecorator",
-      packageName + ".HttpHeadersInjectAdapter",
-      "datadog.trace.bootstrap.instrumentation.appsec.InstrumentationLogger",
+      packageName + ".CommonsHttpClientDecorator", packageName + ".HttpHeadersInjectAdapter",
     };
   }
 
