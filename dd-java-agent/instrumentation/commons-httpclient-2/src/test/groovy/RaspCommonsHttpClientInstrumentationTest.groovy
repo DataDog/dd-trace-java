@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.RequestContext
@@ -7,8 +6,8 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import org.codehaus.jackson.JsonFactory
-import org.codehaus.jackson.map.ObjectMapper
+import org.apache.commons.httpclient.HttpClient
+import org.apache.commons.httpclient.methods.GetMethod
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -17,22 +16,28 @@ import java.util.function.BiFunction
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class RaspJson1FactoryInstrumentationTest extends AgentTestRunner {
+class RaspCommonsHttpClientInstrumentationTest extends AgentTestRunner {
+
+  @Override
+  protected void configurePreAgent() {
+    injectSysConfig(AppSecConfig.APPSEC_ENABLED, 'true')
+    injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, 'true')
+  }
 
   @Shared
   protected static final ORIGINAL_TRACER = AgentTracer.get()
 
-  @Shared
   @AutoCleanup
-  TestHttpServer clientServer = httpServer {
+  @Shared
+  def server = httpServer {
     handlers {
-      prefix("/json") {
-        final json = '{"key":"value"}'
-        response.addHeader('Content-Type', 'application/json')
-        response.status(200).send(json)
+      prefix('/') {
+        String msg = "Hello."
+        response.status(200).send(msg)
       }
     }
   }
+
 
   protected traceSegment
   protected reqCtx
@@ -57,29 +62,19 @@ class RaspJson1FactoryInstrumentationTest extends AgentTestRunner {
     AgentTracer.forceRegister(ORIGINAL_TRACER)
   }
 
-  @Override
-  protected void configurePreAgent() {
-    injectSysConfig(AppSecConfig.APPSEC_ENABLED, 'true')
-    injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, 'true')
-  }
-
-  void 'test createParser(URL)'() {
+  void 'test ssrf'() {
     setup:
-    final url = new URL("${clientServer.address}/json")
+    final url = server.address.toString()
     final callbackProvider = Mock(CallbackProvider)
     final listener = Mock(BiFunction)
+    final httpMethod = new GetMethod(url)
     tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
 
-
     when:
-    final parser = new JsonFactory().createJsonParser(url)
-    parser.setCodec(new ObjectMapper())
-    final json = parser.readValueAs(Map)
+    new HttpClient().executeMethod(httpMethod)
 
     then:
-    parser != null
-    json == [key: 'value']
     1 * callbackProvider.getCallback(EVENTS.networkConnection()) >> listener
-    1 * listener.apply(reqCtx, url.toString())
+    1 * listener.apply(reqCtx, httpMethod.getURI().toString())
   }
 }

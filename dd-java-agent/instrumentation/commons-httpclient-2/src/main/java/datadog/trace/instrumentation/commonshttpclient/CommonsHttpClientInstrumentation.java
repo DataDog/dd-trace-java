@@ -12,12 +12,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import net.bytebuddy.asm.Advice;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
@@ -38,7 +40,9 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CommonsHttpClientDecorator", packageName + ".HttpHeadersInjectAdapter",
+      packageName + ".CommonsHttpClientDecorator",
+      packageName + ".HttpHeadersInjectAdapter",
+      "datadog.trace.instrumentation.appsec.utils.InstrumentationLogger",
     };
   }
 
@@ -53,24 +57,36 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class ExecAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
+    @Advice.OnMethodEnter()
+    public static AgentScope methodEnter(
+        @Advice.Argument(1) final HttpMethod httpMethod, @Advice.This final HttpClient httpClient) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
       if (callDepth > 0) {
         return null;
       }
+      try {
+        final AgentSpan span = startSpan(HTTP_REQUEST);
+        final AgentScope scope = activateSpan(span);
 
-      final AgentSpan span = startSpan(HTTP_REQUEST);
-      final AgentScope scope = activateSpan(span);
+        DECORATE.afterStart(span);
+        DECORATE.onRequest(span, httpMethod);
+        propagate().inject(span, httpMethod, SETTER);
+        propagate()
+            .injectPathwayContext(
+                span, httpMethod, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
 
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, httpMethod);
-      propagate().inject(span, httpMethod, SETTER);
-      propagate()
-          .injectPathwayContext(
-              span, httpMethod, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
-
-      return scope;
+        return scope;
+      } catch (BlockingException e) {
+        // re-throw blocking exceptions
+        throw e;
+      } catch (Throwable e) {
+        // suppress anything else
+        InstrumentationLogger.debug(
+            "datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientInstrumentation",
+            httpClient.getClass(),
+            e);
+        return null;
+      }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
