@@ -18,8 +18,8 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.appsec.InstrumentationLogger;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
-import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import net.bytebuddy.asm.Advice;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
@@ -42,7 +42,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
     return new String[] {
       packageName + ".CommonsHttpClientDecorator",
       packageName + ".HttpHeadersInjectAdapter",
-      "datadog.trace.instrumentation.appsec.utils.InstrumentationLogger",
+      "datadog.trace.bootstrap.instrumentation.appsec.InstrumentationLogger",
     };
   }
 

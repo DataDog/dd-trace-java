@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.appsec.utils;
+package datadog.trace.bootstrap.instrumentation.appsec;
 
 import org.slf4j.LoggerFactory;
 
