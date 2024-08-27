@@ -1,8 +1,9 @@
 package datadog.trace.civisibility;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestMetadata;
+import datadog.trace.api.civisibility.coverage.CoveragePercentageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
-import datadog.trace.api.civisibility.coverage.JacocoCoverageBridge;
 import datadog.trace.api.civisibility.coverage.NoOpCoverageStore;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
@@ -13,7 +14,7 @@ import datadog.trace.civisibility.coverage.percentage.JacocoCoverageCalculator;
 import datadog.trace.civisibility.coverage.percentage.child.ChildProcessCoverageReporter;
 import datadog.trace.civisibility.coverage.percentage.child.JacocoChildProcessCoverageReporter;
 import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter;
-import java.util.Collection;
+import java.util.Map;
 
 /**
  * Services that are related to coverage calculation (both per-test coverage and total coverage
@@ -47,7 +48,7 @@ public class CiVisibilityCoverageServices {
         CiVisibilityRepoServices repoServices,
         ExecutionSettings executionSettings) {
       coverageReporter =
-          new JacocoChildProcessCoverageReporter(JacocoCoverageBridge::getJacocoCoverageData);
+          new JacocoChildProcessCoverageReporter(CoveragePercentageBridge::getJacocoCoverageData);
 
       coverageStoreFactory = buildCoverageStoreFactory(services, repoServices, executionSettings);
     }
@@ -71,9 +72,8 @@ public class CiVisibilityCoverageServices {
       }
 
       if (executionSettings.isItrEnabled()) {
-        Collection<TestIdentifier> skippableTests =
-            executionSettings.getSkippableTests(repoServices.moduleName);
-        return new SkippableAwareCoverageStoreFactory(skippableTests, factory);
+        Map<TestIdentifier, TestMetadata> skippableTests = executionSettings.getSkippableTests();
+        return new SkippableAwareCoverageStoreFactory(skippableTests.keySet(), factory);
       } else {
         return factory;
       }

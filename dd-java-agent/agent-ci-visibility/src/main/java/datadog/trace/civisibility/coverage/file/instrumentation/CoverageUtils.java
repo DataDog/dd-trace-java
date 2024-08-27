@@ -13,7 +13,7 @@ public class CoverageUtils {
 
     mv.visitMethodInsn(
         Opcodes.INVOKESTATIC,
-        "datadog/trace/api/civisibility/coverage/CoverageBridge",
+        "datadog/trace/api/civisibility/coverage/CoveragePerTestBridge",
         "recordCoverage",
         "(Ljava/lang/Class;)V",
         false);

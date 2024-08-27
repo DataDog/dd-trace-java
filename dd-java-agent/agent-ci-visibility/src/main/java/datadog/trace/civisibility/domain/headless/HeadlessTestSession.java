@@ -10,14 +10,14 @@ import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReas
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.civisibility.InstrumentationType;
 import datadog.trace.civisibility.codeowners.Codeowners;
-import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
+import datadog.trace.civisibility.domain.InstrumentationType;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.SpanUtils;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
  */
 public class HeadlessTestSession extends AbstractTestSession implements TestFrameworkSession {
 
-  private final ExecutionSettings executionSettings;
+  private final ExecutionStrategy executionStrategy;
   private final CoverageStore.Factory coverageStoreFactory;
 
   public HeadlessTestSession(
@@ -46,7 +46,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
       Codeowners codeowners,
       MethodLinesResolver methodLinesResolver,
       CoverageStore.Factory coverageStoreFactory,
-      ExecutionSettings executionSettings) {
+      ExecutionStrategy executionStrategy) {
     super(
         projectName,
         startTime,
@@ -58,7 +58,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         sourcePathResolver,
         codeowners,
         methodLinesResolver);
-    this.executionSettings = executionSettings;
+    this.executionStrategy = executionStrategy;
     this.coverageStoreFactory = coverageStoreFactory;
   }
 
@@ -76,7 +76,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         codeowners,
         methodLinesResolver,
         coverageStoreFactory,
-        executionSettings,
+        executionStrategy,
         this::propagateModuleTags);
   }
 

@@ -8,8 +8,8 @@ import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
 import datadog.trace.agent.test.server.http.TestHttpServer
-import datadog.trace.api.civisibility.config.Configurations
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.config.TestMetadata
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -19,6 +19,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 import java.util.concurrent.TimeUnit
+import java.util.function.Function
 import java.util.zip.GZIPOutputStream
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -149,7 +150,8 @@ class ConfigurationApiImplTest extends Specification {
         },
         "suite": "suite-a",
         "name": "name-a",
-        "parameters": "parameters-a"
+        "parameters": "parameters-a",
+        "_missing_line_code_coverage": true
       }
     },
     {
@@ -316,13 +318,9 @@ class ConfigurationApiImplTest extends Specification {
     def skippableTests = configurationApi.getSkippableTests(tracerEnvironment)
 
     then:
-    skippableTests.identifiers == [
-      new TestIdentifier("suite-a", "name-a", "parameters-a",
-      new Configurations(null, null, null, null, null,
-      null, null, "testBundle-a", Collections.singletonMap("customTag", "customValue"))),
-      new TestIdentifier("suite-b", "name-b", "parameters-b",
-      new Configurations(null, null, null, null, null,
-      null, null, "testBundle-b", Collections.singletonMap("customTag", "customValue")))
+    skippableTests.identifiersByModule == [
+      "testBundle-a": [ new TestIdentifier("suite-a", "name-a", "parameters-a"): new TestMetadata(true), ],
+      "testBundle-b": [ new TestIdentifier("suite-b", "name-b", "parameters-b"): new TestMetadata(false) ],
     ]
 
     skippableTests.correlationId == "11223344"
@@ -340,7 +338,7 @@ class ConfigurationApiImplTest extends Specification {
     givenIntakeApi(true)  | "intake, compression enabled"
   }
 
-  private BitSet bits(int... bits) {
+  private static BitSet bits(int... bits) {
     BitSet bitSet = new BitSet()
     for (int bit : bits) {
       bitSet.set(bit)
@@ -354,20 +352,25 @@ class ConfigurationApiImplTest extends Specification {
 
     when:
     def configurationApi = new ConfigurationApiImpl(api, Stub(CiVisibilityMetricCollector), () -> "1234")
-    def knownTests = configurationApi.getKnownTestsByModuleName(tracerEnvironment)
+    def knownTests = configurationApi.getKnownTestsByModule(tracerEnvironment)
 
+    for (Map.Entry<String, Collection<TestIdentifier>> e : knownTests.entrySet()) {
+      def sortedTests = new ArrayList<>(e.value)
+      Collections.sort(sortedTests, Comparator.comparing(TestIdentifier::getSuite).thenComparing((Function) TestIdentifier::getName))
+      e.value = sortedTests
+    }
 
     then:
     knownTests == [
       "test-bundle-a": [
-        new TestIdentifier("test-suite-a", "test-name-1", null, null),
-        new TestIdentifier("test-suite-a", "test-name-2", null, null),
-        new TestIdentifier("test-suite-b", "another-test-name-1", null, null),
-        new TestIdentifier("test-suite-b", "test-name-2", null, null)
+        new TestIdentifier("test-suite-a", "test-name-1", null),
+        new TestIdentifier("test-suite-a", "test-name-2", null),
+        new TestIdentifier("test-suite-b", "another-test-name-1", null),
+        new TestIdentifier("test-suite-b", "test-name-2", null)
       ],
       "test-bundle-N": [
-        new TestIdentifier("test-suite-M", "test-name-1", null, null),
-        new TestIdentifier("test-suite-M", "test-name-2", null, null)
+        new TestIdentifier("test-suite-M", "test-name-1", null),
+        new TestIdentifier("test-suite-M", "test-name-2", null)
       ]
     ]
 

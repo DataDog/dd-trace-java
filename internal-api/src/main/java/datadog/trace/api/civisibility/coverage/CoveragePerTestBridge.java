@@ -3,7 +3,7 @@ package datadog.trace.api.civisibility.coverage;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
 
-public abstract class CoverageBridge {
+public abstract class CoveragePerTestBridge {
 
   private static final ThreadLocal<CoverageProbes> COVERAGE_PROBES = new ThreadLocal<>();
 

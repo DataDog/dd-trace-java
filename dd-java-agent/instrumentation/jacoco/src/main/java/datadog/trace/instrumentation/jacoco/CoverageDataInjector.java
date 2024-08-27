@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jacoco;
 
-import datadog.trace.api.civisibility.coverage.JacocoCoverageBridge;
+import datadog.trace.api.civisibility.coverage.CoveragePercentageBridge;
 import org.jacoco.agent.rt.IAgent;
 import org.jacoco.agent.rt.RT;
 import org.slf4j.Logger;
@@ -13,7 +13,7 @@ public class CoverageDataInjector {
   static {
     try {
       IAgent agent = RT.getAgent();
-      JacocoCoverageBridge.registerCoverageDataSupplier(() -> agent.getExecutionData(false));
+      CoveragePercentageBridge.registerCoverageDataSupplier(() -> agent.getExecutionData(false));
     } catch (Exception e) {
       log.info("Could not register coverage execution data factory", e);
     }

@@ -11,13 +11,13 @@ import datadog.trace.civisibility.ci.CITagsProvider;
 import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.codeowners.CodeownersProvider;
 import datadog.trace.civisibility.codeowners.NoCodeowners;
-import datadog.trace.civisibility.config.CachingExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ConfigurationApi;
 import datadog.trace.civisibility.config.ConfigurationApiImpl;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.ExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ExecutionSettingsFactoryImpl;
 import datadog.trace.civisibility.config.JvmInfo;
+import datadog.trace.civisibility.config.MultiModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.GitDataApi;
 import datadog.trace.civisibility.git.tree.GitDataUploader;
@@ -135,9 +135,14 @@ public class CiVisibilityRepoServices {
     } else {
       configurationApi = new ConfigurationApiImpl(backendApi, metricCollector);
     }
-    return new CachingExecutionSettingsFactory(
-        config,
-        new ExecutionSettingsFactoryImpl(config, configurationApi, gitDataUploader, repoRoot));
+
+    ExecutionSettingsFactoryImpl factory =
+        new ExecutionSettingsFactoryImpl(config, configurationApi, gitDataUploader, repoRoot);
+    if (ProcessHierarchyUtils.isHeadless()) {
+      return factory;
+    } else {
+      return new MultiModuleExecutionSettingsFactory(config, factory);
+    }
   }
 
   private static GitDataUploader buildGitDataUploader(
