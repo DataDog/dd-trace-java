@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
+import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.config.ProfilingConfig;
@@ -227,9 +228,23 @@ public abstract class InstrumenterModule implements Instrumenter {
       super(instrumentationName, additionalNames);
     }
 
+    private boolean applies() {
+      Set<String> disabled = Config.get().getDisabledAppSecInstrumentations();
+      if (disabled.contains("*")) {
+        return false;
+      }
+      if (disabled.contains(name())) {
+        return false;
+      }
+      if (disabled.contains(getClass().getSimpleName())) {
+        return false;
+      }
+      return true;
+    }
+
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-      return enabledSystems.contains(TargetSystem.APPSEC);
+      return enabledSystems.contains(TargetSystem.APPSEC) && applies();
     }
   }
 

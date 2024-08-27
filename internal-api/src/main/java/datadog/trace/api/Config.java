@@ -164,6 +164,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_STANDALONE_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_METRICS;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_WAF_TIMEOUT;
+import static datadog.trace.api.config.AppSecConfig.DISABLED_INSTRUMENTATIONS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ADDITIONAL_CHILD_PROCESS_JVM_ARGS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL;
@@ -490,6 +491,7 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
+import static java.util.Collections.emptySet;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
@@ -763,6 +765,7 @@ public class Config {
   private final boolean appSecStandaloneEnabled;
   private final boolean apiSecurityEnabled;
   private final float apiSecurityRequestSampleRate;
+  private final Set<String> disabledAppSecInstrumentations;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -1710,6 +1713,7 @@ public class Config {
     apiSecurityRequestSampleRate =
         configProvider.getFloat(
             API_SECURITY_REQUEST_SAMPLE_RATE, DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE);
+    disabledAppSecInstrumentations = configProvider.getSet(DISABLED_INSTRUMENTATIONS, emptySet());
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -2931,6 +2935,10 @@ public class Config {
     return apiSecurityRequestSampleRate;
   }
 
+  public Set<String> getDisabledAppSecInstrumentations() {
+    return disabledAppSecInstrumentations;
+  }
+
   public ProductActivation getIastActivation() {
     return instrumenterConfig.getIastActivation();
   }
@@ -4140,7 +4148,7 @@ public class Config {
 
   private <F, T> Set<T> convertSettingsSet(Set<F> fromSet, Function<F, Iterable<T>> mapper) {
     if (fromSet.isEmpty()) {
-      return Collections.emptySet();
+      return emptySet();
     }
     Set<T> result = new LinkedHashSet<>(fromSet.size());
     for (F from : fromSet) {
@@ -4220,7 +4228,7 @@ public class Config {
   private static <T> Set<T> convertStringSetToSet(
       String setting, final Set<String> input, Function<String, T> mapper) {
     if (input.isEmpty()) {
-      return Collections.emptySet();
+      return emptySet();
     }
     // Using LinkedHashSet to preserve original string order
     final Set<T> result = new LinkedHashSet<>();
