@@ -74,13 +74,12 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
         @Advice.This final Statement statement) {
+      // TODO consider matching known non-wrapper implementations to avoid this check
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
+      if (callDepth > 0) {
+        return null;
+      }
       try {
-        // TODO consider matching known non-wrapper implementations to avoid this check
-        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
-        if (callDepth > 0) {
-          return null;
-        }
-
         final Connection connection = statement.getConnection();
         final DBInfo dbInfo =
             JDBCDecorator.parseDBInfo(
