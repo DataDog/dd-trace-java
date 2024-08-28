@@ -3,8 +3,6 @@ import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.api.iast.InstrumentationBridge
-import datadog.trace.api.iast.sink.SsrfModule
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
