@@ -43,7 +43,7 @@ class IastSpringBootFreemarkerSmokeTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'XSS' && vul.location.path == templateName && vul.location.line == line }
 
     where:
-    param  | templateName | line
-    'name' | 'freemarker' | 9
+    param  | templateName      | line
+    'name' | 'freemarker.ftlh' | 9
   }
 }

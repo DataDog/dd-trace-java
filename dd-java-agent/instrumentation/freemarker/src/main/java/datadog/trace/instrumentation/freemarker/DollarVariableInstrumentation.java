@@ -16,7 +16,7 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
   static final String ADVICE_BASE = FREEMARKER_CORE + ".DollarVariableDatadogAdvice$";
 
   public DollarVariableInstrumentation() {
-    super("freemarker", "dollar-variable");
+    super("freemarker");
   }
 
   @Override
@@ -27,7 +27,7 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      FREEMARKER_CORE + ".DollarVariableHelper", packageName + ".EnvironmentHelper",
+      FREEMARKER_CORE + ".DollarVariableHelper", FREEMARKER_CORE + ".DollarVariableDatadogAdvice"
     };
   }
 

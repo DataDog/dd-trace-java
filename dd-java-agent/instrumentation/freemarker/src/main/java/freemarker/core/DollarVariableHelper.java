@@ -11,7 +11,6 @@ public final class DollarVariableHelper {
   private static final Logger log = LoggerFactory.getLogger(DollarVariableHelper.class);
 
   private static final Field AUTO_ESCAPE = prepareAutoEscape();
-  private static final Field EXPRESSION = prepareExpression();
 
   private static Field prepareAutoEscape() {
     Field autoEscape = null;
@@ -25,32 +24,9 @@ public final class DollarVariableHelper {
     return autoEscape;
   }
 
-  private static Field prepareExpression() {
-    Field expression = null;
-    try {
-      expression = DollarVariable.class.getDeclaredField("expression");
-      expression.setAccessible(true);
-    } catch (Throwable e) {
-      log.debug("Failed to get DollarVariable expression", e);
-      return null;
-    }
-    return expression;
-  }
-
   public static boolean fetchAutoEscape(DollarVariable dollarVariable) {
     try {
       return (boolean) AUTO_ESCAPE.get(dollarVariable);
-    } catch (IllegalAccessException e) {
-      throw new UndeclaredThrowableException(e);
-    }
-  }
-
-  public static String fetchExpression(DollarVariable dollarVariable) {
-    if (EXPRESSION == null) {
-      return null;
-    }
-    try {
-      return ((StringLiteral) EXPRESSION.get(dollarVariable)).getAsString();
     } catch (IllegalAccessException e) {
       throw new UndeclaredThrowableException(e);
     }

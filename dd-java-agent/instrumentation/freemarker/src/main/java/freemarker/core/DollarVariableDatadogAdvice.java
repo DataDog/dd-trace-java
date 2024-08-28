@@ -4,10 +4,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.XssModule;
-import datadog.trace.instrumentation.freemarker.EnvironmentHelper;
-import freemarker.template.TemplateHashModel;
-import freemarker.template.TemplateModelException;
-import freemarker.template.TemplateScalarModel;
+import freemarker.template.TemplateException;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,14 +29,10 @@ public final class DollarVariableDatadogAdvice {
       if (DollarVariableHelper.fetchAutoEscape(self)) {
         return;
       }
-      final String expression = DollarVariableHelper.fetchExpression(self);
-      final TemplateHashModel templateHashModel = EnvironmentHelper.fetchRootDataModel(environment);
       String charSec = null;
       try {
-        TemplateScalarModel templateScalarModel =
-            (TemplateScalarModel) templateHashModel.get(expression);
-        charSec = templateScalarModel.getAsString();
-      } catch (TemplateModelException e) {
+        charSec = (String) self.calculateInterpolatedStringOrMarkup(environment);
+      } catch (TemplateException e) {
         log.debug("Failed to get DollarVariable templateModel", e);
         return;
       }

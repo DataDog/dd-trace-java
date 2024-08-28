@@ -17,21 +17,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequestMapping("/xss")
 public class XssController {
 
+  private static final String DIRECTORY_TEMPLATES_TEST = "resources/main/templates";
+  private static final String DIRECTORY_TEMPLATES_RUN =
+      "dd-smoke-tests/springboot-freemarker/src/main/resources/templates";
+
   @GetMapping(value = "/freemarker")
   public void freemarker(
       @RequestParam(name = "name") String name, final HttpServletResponse response)
       throws IOException, TemplateException {
     Configuration cfg = new Configuration(Configuration.VERSION_2_3_32);
-    cfg.setDirectoryForTemplateLoading(new File("resources/main/templates"));
-    //    cfg.setDirectoryForTemplateLoading(
-    //        new File("dd-smoke-tests/springboot-freemarker/src/main/resources/templates"));
+    cfg.setDirectoryForTemplateLoading(new File(DIRECTORY_TEMPLATES_TEST));
     Template template = cfg.getTemplate("freemarker.ftlh");
     Map<String, String> root = new HashMap<>();
     root.put("name", name);
-    //    template.process(
-    //        root,
-    //        new FileWriter(
-    //            "dd-smoke-tests/springboot-freemarker/src/main/resources/templates/output.txt"));
     template.process(root, response.getWriter());
   }
 }
