@@ -924,4 +924,20 @@ class GatewayBridgeSpecification extends DDSpecification {
     'appsec.events.users.login.failure.track' | true
     'appsec.another.unrelated.tag'            | false
   }
+
+  void 'fingerprints are set in the span after a request'() {
+    given:
+    final mockAppSecCtx = new AppSecRequestContext(derivatives: ['_dd.appsec.fp.http.endpoint': 'xyz'])
+    final mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    final spanInfo = Stub(AgentSpan)
+
+    when:
+    requestEndedCB.apply(mockCtx, spanInfo)
+
+    then:
+    1 * traceSegment.setTagTop('_dd.appsec.fp.http.endpoint', 'xyz')
+  }
 }

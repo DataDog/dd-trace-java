@@ -512,8 +512,8 @@ public class PowerWAFModule implements AppSecModule {
         }
       }
 
-      if (resultWithData != null && resultWithData.schemas != null) {
-        reqCtx.reportApiSchemas(resultWithData.schemas);
+      if (resultWithData.derivatives != null) {
+        reqCtx.reportDerivatives(resultWithData.derivatives);
       }
     }
 

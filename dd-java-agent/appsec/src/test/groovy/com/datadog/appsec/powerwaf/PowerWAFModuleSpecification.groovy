@@ -1486,6 +1486,30 @@ class PowerWAFModuleSpecification extends DDSpecification {
     })
   }
 
+  void 'fingerprint support'() {
+    given:
+    final flow = Mock(ChangeableFlow)
+    setupWithStubConfigService 'fingerprint_config.json'
+    dataListener = pwafModule.dataSubscriptions.first()
+    ctx.closeAdditive()
+    final bundle = MapDataBundle.ofDelegate([
+      (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
+      (KnownAddresses.REQUEST_METHOD): 'GET',
+      (KnownAddresses.REQUEST_URI_RAW): 'http://localhost:8080/test',
+      (KnownAddresses.REQUEST_BODY_OBJECT): [:],
+      (KnownAddresses.REQUEST_QUERY): [name: ['test']],
+      (KnownAddresses.HEADERS_NO_COOKIES): new CaseInsensitiveMap<List<String>>(['user-agent': ['Arachni/v1.5.1']])
+    ])
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeAdditive()
+
+    then:
+    1 * flow.setAction({ it.blocking })
+    ctx.derivativeKeys.contains('_dd.appsec.fp.http.endpoint')
+  }
+
   private Map<String, Object> getDefaultConfig() {
     def service = new StubAppSecConfigService()
     service.init()
