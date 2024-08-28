@@ -9,7 +9,6 @@ import datadog.trace.api.Config;
 import datadog.trace.util.TagsHelper;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -35,7 +34,7 @@ public class SymbolSink {
   private final String version;
   private final BatchUploader symbolUploader;
   private final BatchUploader.MultiPartContent event;
-  private final BlockingQueue<ServiceVersion> scopes = new ArrayBlockingQueue<>(CAPACITY);
+  private final BlockingQueue<Scope> scopes = new ArrayBlockingQueue<>(CAPACITY);
   private final Stats stats = new Stats();
 
   public SymbolSink(Config config) {
@@ -59,14 +58,12 @@ public class SymbolSink {
   }
 
   public void addScope(Scope jarScope) {
-    ServiceVersion serviceVersion =
-        new ServiceVersion(serviceName, env, version, "JAVA", Collections.singletonList(jarScope));
-    boolean added = scopes.offer(serviceVersion);
+    boolean added = scopes.offer(jarScope);
     int retries = 10;
     while (!added) {
       // Q is full, flushing synchronously
       flush();
-      added = scopes.offer(serviceVersion);
+      added = scopes.offer(jarScope);
       retries--;
       if (retries < 0) {
         throw new IllegalStateException("Scope cannot be enqueued after 10 retries" + jarScope);
@@ -78,18 +75,18 @@ public class SymbolSink {
     if (scopes.isEmpty()) {
       return;
     }
-    List<ServiceVersion> scopesToSerialize = new ArrayList<>();
+    List<Scope> scopesToSerialize = new ArrayList<>();
     // ArrayBlockingQueue makes drainTo atomic, so it is safe to call flush from different and
     // concurrent threads
     scopes.drainTo(scopesToSerialize);
-    List<Scope> allScopes = new ArrayList<>();
-    for (ServiceVersion serviceVersion : scopesToSerialize) {
-      allScopes.addAll(serviceVersion.getScopes());
+    // concurrent calls to flush can result in empty scope to send, we don't want to send empty
+    if (scopesToSerialize.isEmpty()) {
+      return;
     }
     String json =
         SERVICE_VERSION_ADAPTER.toJson(
-            new ServiceVersion(serviceName, env, version, "JAVA", allScopes));
-    LOGGER.debug("Sending {} jar scopes size={}", allScopes.size(), json.length());
+            new ServiceVersion(serviceName, env, version, "JAVA", scopesToSerialize));
+    LOGGER.debug("Sending {} jar scopes size={}", scopesToSerialize.size(), json.length());
     updateStats(scopesToSerialize, json);
     symbolUploader.uploadAsMultipart(
         "",
@@ -98,11 +95,9 @@ public class SymbolSink {
             json.getBytes(StandardCharsets.UTF_8), "file", "file.json"));
   }
 
-  private void updateStats(List<ServiceVersion> scopesToSerialize, String json) {
-    for (ServiceVersion serviceVersion : scopesToSerialize) {
-      List<Scope> classScopes = serviceVersion.getScopes().get(0).getScopes();
-      int classScopeCount = classScopes != null ? classScopes.size() : 0;
-      stats.updateStats(classScopeCount, json.length());
+  private void updateStats(List<Scope> scopesToSerialize, String json) {
+    for (Scope scope : scopesToSerialize) {
+      stats.updateStats(scope.getScopes() != null ? scope.getScopes().size() : 0, json.length());
     }
   }
 
