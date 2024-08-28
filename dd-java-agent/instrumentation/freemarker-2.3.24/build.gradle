@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = 'org.freemarker'
     module = 'freemarker'
-    versions = '[2.3.32,]'
+    versions = '[2.3.24-incubating,]'
     assertInverse = true
   }
 }
@@ -13,11 +13,11 @@ apply plugin: 'call-site-instrumentation'
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  compileOnly group: 'org.freemarker', name: 'freemarker', version: '2.3.32'
+  compileOnly group: 'org.freemarker', name: 'freemarker', version: '2.3.24-incubating'
 
-  testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.32'
+  testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.24-incubating'
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
-  latestDepTestImplementation group: 'org.freemarker', name: 'freemarker', version: '+'
+  latestDepTestImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.+'
 }

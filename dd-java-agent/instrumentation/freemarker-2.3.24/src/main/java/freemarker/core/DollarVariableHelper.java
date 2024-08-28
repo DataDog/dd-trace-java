@@ -25,6 +25,9 @@ public final class DollarVariableHelper {
   }
 
   public static boolean fetchAutoEscape(DollarVariable dollarVariable) {
+    if (AUTO_ESCAPE == null) {
+      return true;
+    }
     try {
       return (boolean) AUTO_ESCAPE.get(dollarVariable);
     } catch (IllegalAccessException e) {
