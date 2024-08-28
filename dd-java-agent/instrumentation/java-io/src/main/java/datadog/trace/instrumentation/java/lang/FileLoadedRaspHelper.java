@@ -10,9 +10,16 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+
+import java.io.File;
+import java.net.URI;
+import java.nio.file.FileSystems;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class FileLoadedRaspHelper {
 
@@ -24,11 +31,63 @@ public class FileLoadedRaspHelper {
     // prevent instantiation
   }
 
-  public void onFileLoaded(final String path) {
-    if (!Config.get().isAppSecRaspEnabled()) {
-      return;
+  public void onFileLoaded(@Nullable final String parent, @Nonnull final String child){
+    try{
+      String s = parent + FileSystems.getDefault().getSeparator() + child;
+      onFileLoaded(s);
+    }catch (final BlockingException e) {
+    // re-throw blocking exceptions
+    throw e;
+  } catch (final Throwable e) {
+    // suppress anything else
+    LOGGER.debug("Exception during FLI rasp callback", e);
+  }
+  }
+
+  public void onFileLoaded(@Nonnull final String first, @Nonnull final String[] more){
+    try{
+      String separator = FileSystems.getDefault().getSeparator();
+      String s = first;
+      if (more.length > 0) {
+        s += separator + String.join(separator, more);
+      }
+      onFileLoaded(s);
+    }catch (final BlockingException e) {
+      // re-throw blocking exceptions
+      throw e;
+    } catch (final Throwable e) {
+      // suppress anything else
+      LOGGER.debug("Exception during FLI rasp callback", e);
     }
-    if (path == null) {
+  }
+
+  public void onFileLoaded(@Nonnull final URI uri){
+    try{
+      onFileLoaded(uri.toString());
+    }catch (final BlockingException e) {
+      // re-throw blocking exceptions
+      throw e;
+    } catch (final Throwable e) {
+      // suppress anything else
+      LOGGER.debug("Exception during FLI rasp callback", e);
+    }
+  }
+
+  public void onFileLoaded(@Nullable final File parent, @Nonnull final String child){
+    try{
+     String s =  parent + FileSystems.getDefault().getSeparator() + child;
+      onFileLoaded(s);
+    }catch (final BlockingException e) {
+      // re-throw blocking exceptions
+      throw e;
+    } catch (final Throwable e) {
+      // suppress anything else
+      LOGGER.debug("Exception during FLI rasp callback", e);
+    }
+  }
+
+  public void onFileLoaded(@Nonnull final String path) {
+    if (!Config.get().isAppSecRaspEnabled()) {
       return;
     }
     try {
