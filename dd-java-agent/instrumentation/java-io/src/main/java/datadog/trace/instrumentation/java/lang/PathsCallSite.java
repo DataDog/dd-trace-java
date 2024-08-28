@@ -70,7 +70,10 @@ public class PathsCallSite {
   private static void raspCallback(String first, String[] more) {
     try {
       String separator = FileSystems.getDefault().getSeparator();
-      String path = first + separator + String.join(separator, more);
+      String path = first;
+      if (more.length > 0) {
+        path += separator + String.join(separator, more);
+      }
       FileLoadedRaspHelper.INSTANCE.onFileLoaded(path);
     } catch (final BlockingException e) {
       throw e;

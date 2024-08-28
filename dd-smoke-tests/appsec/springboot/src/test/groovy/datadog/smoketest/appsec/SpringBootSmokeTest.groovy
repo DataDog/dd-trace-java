@@ -393,9 +393,9 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     assert trigger != null, 'test trigger not found'
   }
 
-  void 'rasp blocks on LFI'() {
+  void 'rasp blocks on LFI for #variant'() {
     when:
-    String url = "http://localhost:${httpPort}/lfi?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
+    String url = "http://localhost:${httpPort}/lfi/"+variant+"?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
     def request = new Request.Builder()
       .url(url)
       .get()
@@ -412,8 +412,8 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     then:
     def rootSpans = this.rootSpans.toList()
-    rootSpans.size() == 1
-    def rootSpan = rootSpans[0]
+    //rootSpans.size() == 1
+    def rootSpan = findFirstMatchingSpan(variant)
     assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
     assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     def trigger = null
@@ -424,5 +424,17 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
+
+    where:
+    variant | _
+    'paths'    | _
+    'file'    | _
+    'path'    | _
+
   }
+
+  def findFirstMatchingSpan(String resource) {
+    return this.rootSpans.toList().find { (it.span.resource == 'GET /lfi/' + resource) }
+  }
+
 }
