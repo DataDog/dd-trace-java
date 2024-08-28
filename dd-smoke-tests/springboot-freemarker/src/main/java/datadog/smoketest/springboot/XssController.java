@@ -25,7 +25,7 @@ public class XssController {
   public void freemarker(
       @RequestParam(name = "name") String name, final HttpServletResponse response)
       throws IOException, TemplateException {
-    Configuration cfg = new Configuration(Configuration.VERSION_2_3_32);
+    Configuration cfg = new Configuration();
     cfg.setDirectoryForTemplateLoading(new File(DIRECTORY_TEMPLATES_TEST));
     Template template = cfg.getTemplate("freemarker.ftlh");
     Map<String, String> root = new HashMap<>();
