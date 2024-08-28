@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.appsec.rasp.modules;
+package datadog.trace.instrumentation.java.lang;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
@@ -10,14 +10,17 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.instrumentation.appsec.utils.InstrumentationLogger;
 import java.util.function.BiFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class FileLoadedModule {
+public class FileLoadedRaspHelper {
 
-  public static final FileLoadedModule INSTANCE = new FileLoadedModule();
+  public static final FileLoadedRaspHelper INSTANCE = new FileLoadedRaspHelper();
 
-  private FileLoadedModule() {
+  private static final Logger LOGGER = LoggerFactory.getLogger(FileLoadedRaspHelper.class);
+
+  private FileLoadedRaspHelper() {
     // prevent instantiation
   }
 
@@ -67,7 +70,7 @@ public class FileLoadedModule {
       throw e;
     } catch (final Throwable e) {
       // suppress anything else
-      InstrumentationLogger.debug("Exception during FLI rasp advice", FileLoadedModule.class, e);
+      LOGGER.debug("Exception during FLI rasp callback", e);
     }
   }
 }

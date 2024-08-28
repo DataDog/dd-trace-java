@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.java.lang;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.appsec.RaspCallSites;
 import datadog.trace.api.iast.IastCallSites;
@@ -7,14 +8,17 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.PathTraversalModule;
-import datadog.trace.instrumentation.appsec.rasp.modules.FileLoadedModule;
 import java.net.URI;
 import java.nio.file.FileSystems;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
 @CallSite(spi = {IastCallSites.class, RaspCallSites.class})
 public class PathsCallSite {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(PathsCallSite.class);
 
   @CallSite.Before(
       "java.nio.file.Path java.nio.file.Paths.get(java.lang.String, java.lang.String[])")
@@ -58,12 +62,18 @@ public class PathsCallSite {
   }
 
   private static void raspCallback(String uriString) {
-    FileLoadedModule.INSTANCE.onFileLoaded(uriString);
+    FileLoadedRaspHelper.INSTANCE.onFileLoaded(uriString);
   }
 
   private static void raspCallback(String first, String[] more) {
-    String separator = FileSystems.getDefault().getSeparator();
-    String path = first + separator + String.join(separator, more);
-    FileLoadedModule.INSTANCE.onFileLoaded(path);
+    try {
+      String separator = FileSystems.getDefault().getSeparator();
+      String path = first + separator + String.join(separator, more);
+      FileLoadedRaspHelper.INSTANCE.onFileLoaded(path);
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Throwable e) {
+      LOGGER.debug("Exception during LFI rasp callback", e);
+    }
   }
 }

@@ -7,7 +7,6 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.PathTraversalModule;
-import datadog.trace.instrumentation.appsec.rasp.modules.FileLoadedModule;
 import java.io.File;
 import java.net.URI;
 import java.nio.file.FileSystems;
@@ -105,6 +104,6 @@ public class FileCallSite {
   }
 
   private static void raspCallback(String file) {
-    FileLoadedModule.INSTANCE.onFileLoaded(file);
+    FileLoadedRaspHelper.INSTANCE.onFileLoaded(file);
   }
 }

@@ -7,7 +7,6 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.PathTraversalModule;
-import datadog.trace.instrumentation.appsec.rasp.modules.FileLoadedModule;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
@@ -34,6 +33,6 @@ public class FileInputStreamCallSite {
   }
 
   private static void raspCallback(String path) {
-    FileLoadedModule.INSTANCE.onFileLoaded(path);
+    FileLoadedRaspHelper.INSTANCE.onFileLoaded(path);
   }
 }
