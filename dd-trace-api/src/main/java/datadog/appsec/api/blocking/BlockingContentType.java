@@ -10,6 +10,8 @@ public enum BlockingContentType {
   HTML,
   /** A JSON response. */
   JSON,
-  /** No body in the response */
+  /** No-body in the response */
   NONE,
+  /** Captcha response. */
+  CAPTCHA,
 }

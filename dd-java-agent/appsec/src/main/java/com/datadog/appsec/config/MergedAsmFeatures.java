@@ -33,6 +33,7 @@ public class MergedAsmFeatures {
     mergeAsm(target, newFeatures.asm);
     mergeApiSecurity(target, newFeatures.apiSecurity);
     mergeAutoUserInstrum(target, newFeatures.autoUserInstrum);
+    mergeAttackMode(target, newFeatures.attackMode);
     return target;
   }
 
@@ -57,5 +58,15 @@ public class MergedAsmFeatures {
       return;
     }
     target.autoUserInstrum = newValue;
+    target.autoUserInstrum = new AppSecFeatures.AutoUserInstrum();
+    target.autoUserInstrum.mode = "identification";
+  }
+
+  private void mergeAttackMode(
+      final AppSecFeatures target, final AppSecFeatures.AttackMode newValue) {
+    if (newValue == null || newValue.isAttackModeEnabled == null) {
+      return;
+    }
+    target.attackMode = newValue;
   }
 }

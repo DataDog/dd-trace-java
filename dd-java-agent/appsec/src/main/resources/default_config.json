@@ -6996,7 +6996,10 @@
           "operator": "match_regex"
         }
       ],
-      "transformers": []
+      "transformers": [],
+      "on_match": [
+        "block"
+      ],
     },
     {
       "id": "ua0-600-13x",

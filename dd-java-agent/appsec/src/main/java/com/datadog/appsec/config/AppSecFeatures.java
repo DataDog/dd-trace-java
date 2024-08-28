@@ -9,6 +9,9 @@ public class AppSecFeatures {
   @com.squareup.moshi.Json(name = "auto_user_instrum")
   public AutoUserInstrum autoUserInstrum;
 
+  @com.squareup.moshi.Json(name = "attack_mode")
+  public AttackMode attackMode;
+
   public static class Asm {
     public Boolean enabled;
 
@@ -37,6 +40,15 @@ public class AppSecFeatures {
     }
   }
 
+  public static class AttackMode {
+    public Boolean isAttackModeEnabled;
+
+    @Override
+    public String toString() {
+      return "AttackMode{" + "enabled=" + isAttackModeEnabled + '}';
+    }
+  }
+
   @Override
   public String toString() {
     return "AppSecFeatures{"
@@ -46,6 +58,8 @@ public class AppSecFeatures {
         + apiSecurity
         + ", autoUserInstrum="
         + autoUserInstrum
+        + ", attackMode="
+        + attackMode
         + '}';
   }
 }
