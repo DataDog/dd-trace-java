@@ -20,7 +20,7 @@ class DollarVariableInstrumentationTest extends AgentTestRunner {
     final module = Mock(XssModule)
     InstrumentationBridge.registerIastModule(module)
 
-    final Configuration cfg = new Configuration(Configuration.VERSION_2_3_32)
+    final Configuration cfg = new Configuration()
     final Template template = new Template("test", new StringReader("test"), cfg)
     final TemplateHashModel rootDataModel = new SimpleHash(cfg.getObjectWrapper())
     rootDataModel.put(stringExpression, expression)
