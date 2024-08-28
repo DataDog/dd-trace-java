@@ -37,7 +37,7 @@ public class GradleBuildScopeServices_8_3_Instrumentation extends InstrumenterMo
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CiVisibilityGradleListenerInjector",
+      packageName + ".CiVisibilityGradleListenerInjector_8_3",
     };
   }
 
@@ -57,7 +57,7 @@ public class GradleBuildScopeServices_8_3_Instrumentation extends InstrumenterMo
     public static void afterConstructor(
         @Advice.This final BuildScopeServices buildScopeServices,
         @Advice.Argument(0) final ServiceRegistry parentServices) {
-      CiVisibilityGradleListenerInjector.injectCiVisibilityGradleListenerLegacy(
+      CiVisibilityGradleListenerInjector_8_3.injectCiVisibilityGradleListener(
           buildScopeServices, parentServices);
     }
   }
