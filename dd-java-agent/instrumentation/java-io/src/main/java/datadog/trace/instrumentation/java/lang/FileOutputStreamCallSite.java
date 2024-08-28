@@ -10,7 +10,9 @@ import datadog.trace.api.iast.sink.PathTraversalModule;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
-@CallSite(spi = {IastCallSites.class, RaspCallSites.class})
+@CallSite(
+    spi = {IastCallSites.class, RaspCallSites.class},
+    helpers = FileLoadedRaspHelper.class)
 public class FileOutputStreamCallSite {
 
   @CallSite.Before("void java.io.FileOutputStream.<init>(java.lang.String)")

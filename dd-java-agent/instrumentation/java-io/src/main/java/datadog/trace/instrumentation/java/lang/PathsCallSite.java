@@ -15,7 +15,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
-@CallSite(spi = {IastCallSites.class, RaspCallSites.class})
+@CallSite(
+    spi = {IastCallSites.class, RaspCallSites.class},
+    helpers = FileLoadedRaspHelper.class)
 public class PathsCallSite {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PathsCallSite.class);

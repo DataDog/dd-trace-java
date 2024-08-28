@@ -13,7 +13,9 @@ import java.nio.file.FileSystems;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
-@CallSite(spi = {IastCallSites.class, RaspCallSites.class})
+@CallSite(
+    spi = {IastCallSites.class, RaspCallSites.class},
+    helpers = FileLoadedRaspHelper.class)
 public class FileCallSite {
 
   @CallSite.Before("void java.io.File.<init>(java.lang.String)")
@@ -42,7 +44,7 @@ public class FileCallSite {
     if (child != null) { // new File(parent, null) throws NPE
       final PathTraversalModule module = InstrumentationBridge.PATH_TRAVERSAL;
       iastCallback(parent, child);
-      raspCallback(parent.toString(), child);
+      raspCallback(parent, child);
     }
   }
 
@@ -96,6 +98,12 @@ public class FileCallSite {
       } catch (final Throwable e) {
         module.onUnexpectedException("beforeConstructor threw", e);
       }
+    }
+  }
+
+  private static void raspCallback(File parent, String child) {
+    if (parent != null) {
+      raspCallback(parent + FileSystems.getDefault().getSeparator() + child);
     }
   }
 
