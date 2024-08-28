@@ -22,7 +22,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// FIXME nikita: set test.code_coverage.backfilled:true if ITR code coverage is in effect
 public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionSettingsFactoryImpl.class);

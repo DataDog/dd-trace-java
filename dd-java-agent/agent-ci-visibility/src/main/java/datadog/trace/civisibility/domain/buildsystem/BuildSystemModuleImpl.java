@@ -245,6 +245,10 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     Long coveragePercentage = coverageCalculator.calculateCoveragePercentage();
     if (coveragePercentage != null) {
       setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
+
+      if (testSkippingEnabled) {
+        setTag(Tags.TEST_CODE_COVERAGE_BACKFILLED, true);
+      }
     }
 
     moduleSignalRouter.removeModuleHandlers(span.getSpanId());

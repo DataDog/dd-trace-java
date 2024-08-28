@@ -237,6 +237,11 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
     Long coveragePercentage = coverageCalculator.calculateCoveragePercentage();
     if (coveragePercentage != null) {
       setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
+
+      Object testSkippingEnabled = span.getTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED);
+      if (testSkippingEnabled != null && (Boolean) testSkippingEnabled) {
+        setTag(Tags.TEST_CODE_COVERAGE_BACKFILLED, true);
+      }
     }
 
     super.end(endTime);
