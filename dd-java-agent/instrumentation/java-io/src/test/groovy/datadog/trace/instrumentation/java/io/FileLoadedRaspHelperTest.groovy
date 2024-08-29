@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.io
 
 import datadog.trace.api.gateway.CallbackProvider
+import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
 
@@ -14,6 +15,7 @@ class FileLoadedRaspHelperTest  extends  BaseIoRaspCallSiteTest {
     setup:
     final callbackProvider = Mock(CallbackProvider)
     final listener = Mock(BiFunction)
+    final flow = Mock(Flow)
     tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
 
     when:
@@ -21,7 +23,7 @@ class FileLoadedRaspHelperTest  extends  BaseIoRaspCallSiteTest {
 
     then:
     1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
-    1 * listener.apply(reqCtx, expected)
+    1 * listener.apply(reqCtx, expected) >> flow
 
     where:
     args | expected
