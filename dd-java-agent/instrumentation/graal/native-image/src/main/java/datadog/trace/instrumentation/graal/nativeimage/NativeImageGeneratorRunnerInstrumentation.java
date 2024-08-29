@@ -82,6 +82,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.WithGlobalTracer:build_time,"
               + "datadog.trace.api.PropagationStyle:build_time,"
               + "datadog.trace.api.telemetry.OtelEnvMetricCollector:build_time,"
+              + "datadog.trace.api.profiling.ProfilingEnablement:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigConverter:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigProvider:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigProvider$Singleton:build_time,"

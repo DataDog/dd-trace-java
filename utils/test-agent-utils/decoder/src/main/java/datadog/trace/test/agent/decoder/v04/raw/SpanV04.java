@@ -2,11 +2,15 @@ package datadog.trace.test.agent.decoder.v04.raw;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.msgpack.core.MessageIntegerOverflowException;
+import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.Value;
 import org.msgpack.value.ValueType;
 
 public class SpanV04 implements DecodedSpan {
@@ -33,9 +37,11 @@ public class SpanV04 implements DecodedSpan {
   static SpanV04 unpack(MessageUnpacker unpacker) {
     try {
       int size = unpacker.unpackMapHeader();
-      if (size != 12) {
+      if (size != 12 && size != 13) {
         throw new IllegalArgumentException(
-            "Wrong span element map size " + size + ". Expected 12.");
+            "Wrong span element map size "
+                + size
+                + ". Expected 12 (plain) or 13 (with meta_struct).");
       }
 
       String service = unpackString("service", unpacker);
@@ -55,9 +61,26 @@ public class SpanV04 implements DecodedSpan {
       unpackKey("meta", unpacker);
       Map<String, String> meta = unpackMeta(unpacker, spanId);
 
+      Map<String, Object> metaStruct = null;
+      if (size > 12) {
+        unpackKey("meta_struct", unpacker);
+        metaStruct = unpackMetaStruct(unpacker, spanId);
+      }
+
       return new SpanV04(
-          service, name, resource, traceId, spanId, parentId, start, duration, error, type, metrics,
-          meta);
+          service,
+          name,
+          resource,
+          traceId,
+          spanId,
+          parentId,
+          start,
+          duration,
+          error,
+          type,
+          metrics,
+          meta,
+          metaStruct);
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -93,6 +116,23 @@ public class SpanV04 implements DecodedSpan {
       meta.put(unpacker.unpackString(), unpacker.unpackString());
     }
     return meta;
+  }
+
+  private static Map<String, Object> unpackMetaStruct(MessageUnpacker unpacker, long spanId)
+      throws IOException {
+    int metaSize = unpacker.unpackMapHeader();
+    if (metaSize < 0) {
+      throw new IllegalArgumentException(
+          "Negative meta map size " + metaSize + " for span " + spanId);
+    }
+    Map<String, Object> result = new HashMap<>(metaSize);
+    for (int i = 0; i < metaSize; i++) {
+      final String key = unpacker.unpackString();
+      final int payloadSize = unpacker.unpackBinaryHeader();
+      final byte[] payload = unpacker.readPayload(payloadSize);
+      result.put(key, decodeObject(payload));
+    }
+    return result;
   }
 
   private static String unpackString(String expectedKey, MessageUnpacker unpacker)
@@ -143,6 +183,51 @@ public class SpanV04 implements DecodedSpan {
     return result;
   }
 
+  private static Object decodeObject(final byte[] input) {
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(input);
+    try {
+      final Value value = unpacker.unpackValue();
+      return convertValueToObject(value);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Failed to decode object.", e);
+    }
+  }
+
+  private static Object convertValueToObject(final Value value) {
+    switch (value.getValueType()) {
+      case NIL:
+        return null;
+      case BOOLEAN:
+        return value.asBooleanValue().getBoolean();
+      case INTEGER:
+        return value.asIntegerValue().toLong();
+      case FLOAT:
+        return value.asFloatValue().toFloat();
+      case BINARY:
+        return value.asBinaryValue().asByteArray();
+      case STRING:
+        return value.asStringValue().asString();
+      case ARRAY:
+        final List<Value> array = value.asArrayValue().list();
+        final List<Object> result = new ArrayList<>(array.size());
+        for (final Value element : array) {
+          result.add(convertValueToObject(element));
+        }
+        return result;
+      case MAP:
+        final Map<Value, Value> map = value.asMapValue().map();
+        final Map<String, Object> resultMap = new HashMap<>(map.size());
+        for (final Map.Entry<Value, Value> entry : map.entrySet()) {
+          resultMap.put(
+              entry.getKey().asStringValue().asString(), convertValueToObject(entry.getValue()));
+        }
+        return resultMap;
+      default:
+        throw new IllegalArgumentException(
+            "Failed to convert value to object. Unexpected value type " + value.getValueType());
+    }
+  }
+
   private final String service;
   private final String name;
   private final String resource;
@@ -153,6 +238,7 @@ public class SpanV04 implements DecodedSpan {
   private final long duration;
   private final int error;
   private final Map<String, String> meta;
+  private final Map<String, Object> metaStruct;
   private final Map<String, Number> metrics;
   private final String type;
 
@@ -168,7 +254,8 @@ public class SpanV04 implements DecodedSpan {
       int error,
       String type,
       Map<String, Number> metrics,
-      Map<String, String> meta) {
+      Map<String, String> meta,
+      Map<String, Object> metaStruct) {
     this.service = service;
     this.name = name;
     this.resource = resource;
@@ -179,6 +266,7 @@ public class SpanV04 implements DecodedSpan {
     this.duration = duration;
     this.error = error;
     this.meta = Collections.unmodifiableMap(meta);
+    this.metaStruct = metaStruct == null ? null : Collections.unmodifiableMap(metaStruct);
     this.metrics = Collections.unmodifiableMap(metrics);
     this.type = type;
   }
@@ -223,6 +311,10 @@ public class SpanV04 implements DecodedSpan {
     return meta;
   }
 
+  public Map<String, Object> getMetaStruct() {
+    return metaStruct;
+  }
+
   public Map<String, Number> getMetrics() {
     return metrics;
   }
@@ -257,6 +349,8 @@ public class SpanV04 implements DecodedSpan {
         + error
         + ", meta="
         + meta
+        + ", metaStruct="
+        + metaStruct
         + ", metrics="
         + metrics
         + ", type='"

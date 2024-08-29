@@ -12,6 +12,7 @@ import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
+import datadog.telemetry.products.ProductChangeAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.util.AgentThreadFactory;
@@ -64,6 +65,7 @@ public class TelemetrySystem {
       actions.add(new LogPeriodicAction());
       log.debug("Telemetry log collection enabled");
     }
+    actions.add(new ProductChangeAction());
 
     TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);
     return AgentThreadFactory.newAgentThread(

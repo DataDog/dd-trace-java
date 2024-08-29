@@ -387,8 +387,6 @@ public class PowerWAFModule implements AppSecModule {
       Address<?> address = KnownAddresses.forName(addrKey);
       if (address != null) {
         addressList.add(address);
-      } else {
-        log.warn("WAF has rule against unknown address {}", addrKey);
       }
     }
 
@@ -404,6 +402,7 @@ public class PowerWAFModule implements AppSecModule {
     addressList.add(KnownAddresses.GRAPHQL_SERVER_ALL_RESOLVERS);
     addressList.add(KnownAddresses.DB_TYPE);
     addressList.add(KnownAddresses.DB_SQL_QUERY);
+    addressList.add(KnownAddresses.IO_NET_URL);
 
     return addressList;
   }
@@ -478,11 +477,14 @@ public class PowerWAFModule implements AppSecModule {
           } else if ("redirect_request".equals(actionInfo.type)) {
             Flow.Action.RequestBlockingAction rba = createRedirectRequestAction(actionInfo);
             flow.setAction(rba);
-          } else if ("generate_stack".equals(actionInfo.type)
-              && Config.get().isAppSecStackTraceEnabled()) {
-            String stackId = (String) actionInfo.parameters.get("stack_id");
-            StackTraceEvent stackTraceEvent = createExploitStackTraceEvent(stackId);
-            reqCtx.reportStackTrace(stackTraceEvent);
+          } else if ("generate_stack".equals(actionInfo.type)) {
+            if (Config.get().isAppSecStackTraceEnabled()) {
+              String stackId = (String) actionInfo.parameters.get("stack_id");
+              StackTraceEvent stackTraceEvent = createExploitStackTraceEvent(stackId);
+              reqCtx.reportStackTrace(stackTraceEvent);
+            } else {
+              log.debug("Ignoring action with type generate_stack (disabled by config)");
+            }
           } else {
             log.info("Ignoring action with type {}", actionInfo.type);
           }
@@ -513,8 +515,8 @@ public class PowerWAFModule implements AppSecModule {
         }
       }
 
-      if (resultWithData != null && resultWithData.schemas != null) {
-        reqCtx.reportApiSchemas(resultWithData.schemas);
+      if (resultWithData.derivatives != null) {
+        reqCtx.reportDerivatives(resultWithData.derivatives);
       }
     }
 

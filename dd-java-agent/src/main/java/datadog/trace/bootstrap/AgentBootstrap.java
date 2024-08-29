@@ -61,24 +61,18 @@ public final class AgentBootstrap {
   }
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
-    if (alreadyInitialized() || lessThanJava8() || isJdkTool()) {
-      return;
-    }
-    // Prevent incompatibility issues with other JVM agents when setup using lib-injection
-    if (shouldAbortDueToOtherJavaAgents()) {
-      return;
-    }
+    BootstrapInitializationTelemetry initTelemetry;
 
     try {
-      final URL agentJarURL = installAgentJar(inst);
-      final Class<?> agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
-      if (agentClass.getClassLoader() != null) {
-        throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
-      }
-      final Method startMethod =
-          agentClass.getMethod("start", Instrumentation.class, URL.class, String.class);
-      startMethod.invoke(null, inst, agentJarURL, agentArgs);
+      initTelemetry = createInitializationTelemetry();
+    } catch (Throwable t) {
+      initTelemetry = BootstrapInitializationTelemetry.noOpInstance();
+    }
+    try {
+      agentmainImpl(initTelemetry, agentArgs, inst);
     } catch (final Throwable ex) {
+      initTelemetry.onFatalError(ex);
+
       if (exceptionCauseChainContains(
           ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
         throw new Error(ex);
@@ -86,7 +80,79 @@ public final class AgentBootstrap {
       // Don't rethrow.  We don't have a log manager here, so just print.
       System.err.println("ERROR " + thisClass.getName());
       ex.printStackTrace();
+    } finally {
+      try {
+        initTelemetry.finish();
+      } catch (Throwable t) {
+        // safeguard - ignore
+      }
     }
+  }
+
+  private static BootstrapInitializationTelemetry createInitializationTelemetry() {
+    String forwarderPath = SystemUtils.tryGetEnv("DD_TELEMETRY_FORWARDER_PATH");
+    if (forwarderPath == null) {
+      return BootstrapInitializationTelemetry.noOpInstance();
+    }
+
+    BootstrapInitializationTelemetry initTelemetry =
+        BootstrapInitializationTelemetry.createFromForwarderPath(forwarderPath);
+    initTelemetry.initMetaInfo("runtime_name", "java");
+    initTelemetry.initMetaInfo("language_name", "java");
+
+    String javaVersion = SystemUtils.tryGetProperty("java.version");
+    if (javaVersion != null) {
+      initTelemetry.initMetaInfo("runtime_version", javaVersion);
+      initTelemetry.initMetaInfo("language_version", javaVersion);
+    }
+
+    // If version was compiled into a class, then we wouldn't have the potential to be missing
+    // version info
+    String agentVersion = AgentJar.tryGetAgentVersion();
+    if (agentVersion != null) {
+      initTelemetry.initMetaInfo("tracer_version", agentVersion);
+    }
+
+    return initTelemetry;
+  }
+
+  private static void agentmainImpl(
+      final BootstrapInitializationTelemetry initTelemetry,
+      final String agentArgs,
+      final Instrumentation inst)
+      throws IOException, URISyntaxException, ReflectiveOperationException {
+    if (alreadyInitialized()) {
+      initTelemetry.onError("already_initialized");
+      // since tracer is presumably initialized elsewhere, still considering this complete
+      return;
+    }
+    if (lessThanJava8()) {
+      initTelemetry.onAbort("incompatible_runtime");
+      return;
+    }
+    if (isJdkTool()) {
+      initTelemetry.onAbort("jdk_tool");
+      return;
+    }
+    if (shouldAbortDueToOtherJavaAgents()) {
+      initTelemetry.onAbort("other-java-agents");
+      return;
+    }
+
+    final URL agentJarURL = installAgentJar(inst);
+    final Class<?> agentClass;
+    try {
+      agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
+    } catch (ClassNotFoundException | LinkageError e) {
+      throw new IllegalStateException("Unable to load DD Java Agent.", e);
+    }
+    if (agentClass.getClassLoader() != null) {
+      throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
+    }
+    final Method startMethod =
+        agentClass.getMethod("start", Object.class, Instrumentation.class, URL.class, String.class);
+
+    startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
   }
 
   static boolean getConfig(String configName) {
@@ -116,7 +182,7 @@ public final class AgentBootstrap {
 
   private static boolean alreadyInitialized() {
     if (initialized) {
-      System.out.println(
+      System.err.println(
           "Warning: dd-java-agent is being initialized more than once. Please check that you are defining -javaagent:dd-java-agent.jar only once.");
       return true;
     }
@@ -125,18 +191,21 @@ public final class AgentBootstrap {
   }
 
   private static boolean lessThanJava8() {
-    return lessThanJava8(System.getProperty("java.version"), System.out);
+    try {
+      return lessThanJava8(System.getProperty("java.version"), System.err);
+    } catch (SecurityException e) {
+      // Hypothetically, we could version sniff the supported version level
+      // For now, just skip the check and let the JVM handle things instead
+      return false;
+    }
   }
 
   // Reachable for testing
   static boolean lessThanJava8(String version, PrintStream output) {
     if (parseJavaMajorVersion(version) < 8) {
-      String agentVersion = "This version"; // If we can't find the agent version
-      try {
-        agentVersion = AgentJar.getAgentVersion();
-        agentVersion = "Version " + agentVersion;
-      } catch (IOException ignored) {
-      }
+      String agentRawVersion = AgentJar.tryGetAgentVersion();
+      String agentVersion = agentRawVersion == null ? "This version" : "Version " + agentRawVersion;
+
       output.println(
           "Warning: "
               + agentVersion
@@ -151,7 +220,7 @@ public final class AgentBootstrap {
   }
 
   private static boolean isJdkTool() {
-    String moduleMain = System.getProperty("jdk.module.main");
+    String moduleMain = SystemUtils.tryGetProperty("jdk.module.main");
     if (null != moduleMain && !moduleMain.isEmpty() && moduleMain.charAt(0) == 'j') {
       switch (moduleMain) {
         case "java.base": // keytool
@@ -234,7 +303,7 @@ public final class AgentBootstrap {
         agentFiles.append(agentFile.getAbsolutePath());
         agentFiles.append('"');
       }
-      System.out.println(
+      System.err.println(
           "Info: multiple JVM agents detected, found "
               + agentFiles
               + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
@@ -267,14 +336,14 @@ public final class AgentBootstrap {
       }
     }
 
-    System.out.println("Could not get bootstrap jar from code source, using -javaagent arg");
+    System.err.println("Could not get bootstrap jar from code source, using -javaagent arg");
     File javaagentFile = getAgentFileFromJavaagentArg(getAgentFilesFromVMArguments());
     if (javaagentFile != null) {
       URL ddJavaAgentJarURL = javaagentFile.toURI().toURL();
       return appendAgentToBootstrapClassLoaderSearch(inst, ddJavaAgentJarURL, javaagentFile);
     }
 
-    System.out.println(
+    System.err.println(
         "Could not get agent jar from -javaagent arg, using ClassLoader#getResource");
     javaagentFile = getAgentFileUsingClassLoaderLookup();
     if (!javaagentFile.isDirectory()) {
@@ -295,10 +364,10 @@ public final class AgentBootstrap {
 
   private static File getAgentFileFromJavaagentArg(List<File> agentFiles) {
     if (agentFiles.isEmpty()) {
-      System.out.println("Could not get bootstrap jar from -javaagent arg: no argument specified");
+      System.err.println("Could not get bootstrap jar from -javaagent arg: no argument specified");
       return null;
     } else if (agentFiles.size() > 1) {
-      System.out.println(
+      System.err.println(
           "Could not get bootstrap jar from -javaagent arg: multiple javaagents specified");
       return null;
     } else {
@@ -324,7 +393,7 @@ public final class AgentBootstrap {
           if (agentFile.exists() && agentFile.isFile()) {
             agentFiles.add(agentFile);
           } else {
-            System.out.println(
+            System.err.println(
                 "Could not get bootstrap jar from -javaagent arg: unable to find javaagent file: "
                     + agentFile);
           }
@@ -395,13 +464,13 @@ public final class AgentBootstrap {
 
     // Fallback to default
     try {
-      System.out.println(
+      System.err.println(
           "WARNING: Unable to get VM args through reflection. A custom java.util.logging.LogManager may not work correctly");
       return ManagementFactory.getRuntimeMXBean().getInputArguments();
     } catch (final Throwable t) {
       // Throws InvocationTargetException on modularized applications
       // with non-opened java.management module
-      System.out.println("WARNING: Unable to get VM args using managed beans");
+      System.err.println("WARNING: Unable to get VM args using managed beans");
     }
     return Collections.emptyList();
   }

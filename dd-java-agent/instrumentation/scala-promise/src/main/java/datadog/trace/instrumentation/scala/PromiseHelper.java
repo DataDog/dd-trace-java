@@ -77,7 +77,7 @@ public class PromiseHelper {
     if (capturedSpan != null) {
       AgentSpan activeSpan = activeSpan();
       if (capturedSpan != activeSpan) {
-        return AdviceUtils.startTaskScope(state, true);
+        return AdviceUtils.startTaskScope(state);
       } else {
         state.closeContinuation();
       }

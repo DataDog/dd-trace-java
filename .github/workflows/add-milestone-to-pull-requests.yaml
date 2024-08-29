@@ -57,13 +57,14 @@ jobs:
                   return a.version.patch - b.version.patch
                 })
                 .pop()?.number
-            } else if (base.startsWith('release/v')) {
-              // Pick the milestone with the same title as the base branch
-              const version = base.substring(9)
+            } else if (base.startsWith('release/v') && base.endsWith('.x')) {
+              // Extract the minor version related to the base branch (e.g. "release/v1.2.x" -> "1.2.")
+              const version = base.substring(9, base.length - 1)
+              // Pick the milestone with title matching the extracted version
               const versionMilestone = response.data
-                .find(milestone => milestone.title == version)
+                .find(milestone => milestone.title.startsWith(version))
               if (!versionMilestone) {
-                core.setFailed(`Version milestone not found: ${version}`)
+                core.setFailed(`Milestone not found for minor version: ${version}`)
               } else {
                 milestoneNumber = versionMilestone.number
               }

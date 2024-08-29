@@ -2,6 +2,7 @@ package com.datadog.appsec.powerwaf
 
 import com.datadog.appsec.AppSecModule
 import com.datadog.appsec.config.AppSecConfig
+import com.datadog.appsec.config.AppSecData
 import com.datadog.appsec.config.AppSecModuleConfigurer
 import com.datadog.appsec.config.AppSecUserConfig
 import com.datadog.appsec.config.CurrentAppSecConfig
@@ -171,7 +172,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
         on_match: ['block2']
       ]
     ]
-    def ipData = [
+    def ipData = new AppSecData(rules: [
       [
         id  : 'ip_data',
         type: 'ip_with_expiration',
@@ -180,7 +181,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
             expiration: '0',
           ]]
       ]
-    ]
+    ])
     service.currentAppSecConfig.with {
       def dirtyStatus = userConfigs.addConfig(
         new AppSecUserConfig('b', ruleOverrides, actions, [], []))
@@ -249,7 +250,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * _
 
     when: 'merges new waf data with the one in the rules config'
-    def newData = [
+    def newData = new AppSecData(rules: [
       [
         id  : 'blocked_users',
         type: 'data_with_expiration',
@@ -260,7 +261,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
           ]
         ]
       ]
-    ]
+    ])
     service.currentAppSecConfig.with {
       mergedAsmData.addConfig('c', newData)
       it.dirtyStatus.data = true
@@ -656,7 +657,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * segment.setTagTop('_dd.appsec.waf.version', _ as String)
-    1 * segment.setTagTop('_dd.appsec.event_rules.loaded', 115)
+    1 * segment.setTagTop('_dd.appsec.event_rules.loaded', 116)
     1 * segment.setTagTop('_dd.appsec.event_rules.error_count', 1)
     1 * segment.setTagTop('_dd.appsec.event_rules.errors', { it =~ /\{"[^"]+":\["bad rule"\]\}/})
     1 * segment.setTagTop('asm.keep', true)
@@ -776,11 +777,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
     setupWithStubConfigService()
     AppSecEvent event
     StackTraceEvent stackTrace
-    injectSysConfig('appsec.stacktrace.enabled', 'true')
     pwafModule = new PowerWAFModule() // replace the one created too soon
+    def attackBundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/generate-stacktrace']))
 
     when:
-    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, gwCtx)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, attackBundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -790,16 +792,16 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
     ctx.reportStackTrace(_ as StackTraceEvent) >> { stackTrace = it[0] }
 
-    event.rule.id == 'ua0-600-12x'
+    event.rule.id == 'generate-stacktrace-on-scanner'
     event.rule.name == 'Arachni'
     event.rule.tags == [type: 'security_scanner', category: 'attack_attempt']
 
     event.ruleMatches[0].operator == 'match_regex'
-    event.ruleMatches[0].operator_value == '^Arachni\\/v'
+    event.ruleMatches[0].operator_value == '^Arachni\\/generate-stacktrace'
     event.ruleMatches[0].parameters[0].address == 'server.request.headers.no_cookies'
-    event.ruleMatches[0].parameters[0].highlight == ['Arachni/v']
+    event.ruleMatches[0].parameters[0].highlight == ['Arachni/generate-stacktrace']
     event.ruleMatches[0].parameters[0].key_path == ['user-agent']
-    event.ruleMatches[0].parameters[0].value == 'Arachni/v0'
+    event.ruleMatches[0].parameters[0].value == 'Arachni/generate-stacktrace'
 
     event.spanId == 777
 
@@ -999,7 +1001,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     setupWithStubConfigService()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
     ChangeableFlow flow = Mock()
-    def ipData = [
+    def ipData = new AppSecData(rules: [
       [
         id  : 'ip_data',
         type: 'ip_with_expiration',
@@ -1008,7 +1010,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
             expiration: '0',
           ]]
       ]
-    ]
+    ])
 
     when:
     service.currentAppSecConfig.with {
@@ -1051,7 +1053,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     setupWithStubConfigService()
     AppSecModuleConfigurer.Reconfiguration reconf = Mock()
     ChangeableFlow flow = Mock()
-    def ipData = [
+    def ipData = new AppSecData(rules: [
       [
         id  : 'ip_data',
         type: 'ip_with_expiration',
@@ -1060,7 +1062,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
             expiration: '0',
           ]]
       ]
-    ]
+    ])
 
     when: 'reconfigure with data and toggling'
     service.currentAppSecConfig.with {
@@ -1435,6 +1437,78 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     waf.rateLimiter.limitPerSec == 5
 
+  }
+
+  void 'suspicious attacker blocking'() {
+    given:
+    final flow = Mock(ChangeableFlow)
+    final reconf = Mock(AppSecModuleConfigurer.Reconfiguration)
+    final suspiciousIp = '34.65.27.85'
+    setupWithStubConfigService('rules_suspicious_attacker_blocking.json')
+    dataListener = pwafModule.dataSubscriptions.first()
+    ctx.closeAdditive()
+    final bundle = MapDataBundle.of(
+      KnownAddresses.REQUEST_INFERRED_CLIENT_IP,
+      suspiciousIp,
+      KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': ['Arachni/v1.5.1']])
+      )
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeAdditive()
+
+    then:
+    0 * flow.setAction(_)
+
+    when:
+    final ipData = new AppSecData(exclusion: [
+      [
+        id  : 'suspicious_ips_data_id',
+        type: 'ip_with_expiration',
+        data: [[value: suspiciousIp]]
+      ]
+    ])
+    service.currentAppSecConfig.with {
+      mergedAsmData.addConfig('suspicious_ips', ipData)
+      it.dirtyStatus.data = true
+      it.dirtyStatus.mergeFrom(dirtyStatus)
+
+      service.listeners['waf'].onNewSubconfig(it, reconf)
+      it.dirtyStatus.clearDirty()
+    }
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeAdditive()
+
+    then:
+    1 * reconf.reloadSubscriptions()
+    1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
+      rba.statusCode == 402 && rba.blockingContentType == BlockingContentType.AUTO
+    })
+  }
+
+  void 'fingerprint support'() {
+    given:
+    final flow = Mock(ChangeableFlow)
+    setupWithStubConfigService 'fingerprint_config.json'
+    dataListener = pwafModule.dataSubscriptions.first()
+    ctx.closeAdditive()
+    final bundle = MapDataBundle.ofDelegate([
+      (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
+      (KnownAddresses.REQUEST_METHOD): 'GET',
+      (KnownAddresses.REQUEST_URI_RAW): 'http://localhost:8080/test',
+      (KnownAddresses.REQUEST_BODY_OBJECT): [:],
+      (KnownAddresses.REQUEST_QUERY): [name: ['test']],
+      (KnownAddresses.HEADERS_NO_COOKIES): new CaseInsensitiveMap<List<String>>(['user-agent': ['Arachni/v1.5.1']])
+    ])
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeAdditive()
+
+    then:
+    1 * flow.setAction({ it.blocking })
+    ctx.derivativeKeys.contains('_dd.appsec.fp.http.endpoint')
   }
 
   private Map<String, Object> getDefaultConfig() {

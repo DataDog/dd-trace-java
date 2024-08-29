@@ -30,12 +30,6 @@ dependencies {
   testImplementation libs.bundles.mockito
 }
 
-subprojects { Project subProj ->
-  subProj.tasks.withType(Test).configureEach { subTask ->
-    onlyIf { !project.rootProject.hasProperty("skipProfilingTests") }
-  }
-}
-
 configurations {
   // exclude bootstrap dependencies from shadowJar
   runtime {
