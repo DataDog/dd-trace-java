@@ -1,5 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.api.Config
+import datadog.trace.api.ProductActivation
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.IastConfig
 import datadog.trace.instrumentation.iastinstrumenter.IastInstrumentation
@@ -11,15 +13,35 @@ class IastInstrumentationForkedTest extends AgentTestRunner {
   boolean iastEnabled = false
 
   @Shared
+  def appSecActivation = ProductActivation.ENABLED_INACTIVE
+
+  @Shared
   boolean raspEnabled = false
 
   @Shared
+  boolean applicable = false
+
+  @Shared
   Set<Class<?>> expectedCallSites = []
+
+  Set<InstrumenterModule.TargetSystem> enabledSystems
 
   @Override
   protected void configurePreAgent() {
     injectSysConfig(IastConfig.IAST_ENABLED, iastEnabled.toString())
     injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, raspEnabled.toString())
+    enabledSystems = new HashSet<>()
+    if (iastEnabled) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.IAST)
+    }
+    if (appSecActivation == ProductActivation.ENABLED_INACTIVE) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.APPSEC)
+    } else if (appSecActivation == ProductActivation.FULLY_ENABLED) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.APPSEC)
+      injectSysConfig(AppSecConfig.APPSEC_ENABLED, "true")
+    } else {
+      injectSysConfig(AppSecConfig.APPSEC_ENABLED, "false")
+    }
   }
 
   void 'test Iast Instrumentation call site supplier'() {
@@ -27,7 +49,13 @@ class IastInstrumentationForkedTest extends AgentTestRunner {
     final instrumentation = new IastInstrumentation()
 
     when:
-    final callSites = instrumentation.callSites().get().toList()
+    final shouldApply = instrumentation.isApplicable(enabledSystems)
+
+    then:
+    shouldApply == applicable
+
+    when:
+    final callSites = !applicable ? [] : instrumentation.callSites().get().toList()
 
     then:
     callSites.size() == expectedCallSites.size()
@@ -47,16 +75,50 @@ class IastForkedTest extends IastInstrumentationForkedTest {
 
   boolean iastEnabled = true
 
+  def appSecActivation = ProductActivation.ENABLED_INACTIVE
+
   boolean raspEnabled = false
+
+  boolean applicable = true
 
   Set<Class<?>> expectedCallSites = [MockCallSites, MockCallSitesWithTelemetry]
 }
 
-class RaspForkedTest extends IastInstrumentationForkedTest {
+class AppSecInactiveRaspForkedTest extends IastInstrumentationForkedTest {
 
   boolean iastEnabled = false
 
+  def appSecActivation = ProductActivation.ENABLED_INACTIVE
+
   boolean raspEnabled = true
+
+  boolean applicable = false
+
+  Set<Class<?>> expectedCallSites = []
+}
+
+class AppSecDisabledRaspForkedTest extends IastInstrumentationForkedTest {
+
+  boolean iastEnabled = false
+
+  def appSecActivation = ProductActivation.FULLY_DISABLED
+
+  boolean raspEnabled = true
+
+  boolean applicable = false
+
+  Set<Class<?>> expectedCallSites = []
+}
+
+class AppSecEnabledRaspForkedTest extends IastInstrumentationForkedTest {
+
+  boolean iastEnabled = false
+
+  def appSecActivation = ProductActivation.FULLY_ENABLED
+
+  boolean raspEnabled = true
+
+  boolean applicable = true
 
   Set<Class<?>> expectedCallSites = [MockRaspCallSites]
 }
@@ -65,7 +127,11 @@ class AllCallSitesForkedTest extends IastInstrumentationForkedTest {
 
   boolean iastEnabled = true
 
+  def appSecActivation = ProductActivation.FULLY_ENABLED
+
   boolean raspEnabled = true
+
+  boolean applicable = true
 
   Set<Class<?>> expectedCallSites = [MockCallSites, MockCallSitesWithTelemetry, MockRaspCallSites]
 }

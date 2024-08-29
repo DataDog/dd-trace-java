@@ -1522,11 +1522,14 @@ public class Config {
     // the profiler was enabled at build time or not.
     // Otherwise just do the standard config lookup by key.
     // An extra step is needed to properly handle the 'auto' value for profiling enablement via SSI.
-    profilingEnabled =
-        ProfilingEnablement.of(
-            configProvider.getString(
-                ProfilingConfig.PROFILING_ENABLED,
-                String.valueOf(instrumenterConfig.isProfilingEnabled())));
+    String value =
+        configProvider.getString(
+            ProfilingConfig.PROFILING_ENABLED,
+            String.valueOf(instrumenterConfig.isProfilingEnabled()));
+    // Run a validator that will emit a warning if the value is not a valid ProfilingEnablement
+    // We don't want it to run in each call to ProfilingEnablement.of(value) not to flood the logs
+    ProfilingEnablement.validate(value);
+    profilingEnabled = ProfilingEnablement.of(value);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isDatadogProfilerEnabled =
@@ -1572,7 +1575,8 @@ public class Config {
         configProvider.getInteger(PROFILING_START_DELAY, PROFILING_START_DELAY_DEFAULT);
     boolean profilingStartForceFirstValue =
         configProvider.getBoolean(PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
-    if (profilingEnabled == ProfilingEnablement.AUTO) {
+    if (profilingEnabled == ProfilingEnablement.AUTO
+        || profilingEnabled == ProfilingEnablement.INJECTED) {
       if (profilingStartDelayValue != PROFILING_START_DELAY_DEFAULT) {
         log.info(
             "Profiling start delay is set to {}s, but profiling enablement is set to auto. Using the default delay of {}s.",

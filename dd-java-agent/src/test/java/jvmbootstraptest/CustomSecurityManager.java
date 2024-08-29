@@ -101,6 +101,9 @@ public class CustomSecurityManager extends SecurityManager {
 
       case "enableContextClassLoaderOverride":
         return checkRuntimeContextClassLoader(perm, ctx);
+
+      case "setIO":
+        return checkRuntimeSetIO(perm, ctx);
     }
 
     if (name.startsWith("accessClassInPackage.")) {
@@ -295,6 +298,14 @@ public class CustomSecurityManager extends SecurityManager {
     return false;
   }
 
+  protected boolean checkRuntimeSetIO(RuntimePermission perm, Object ctx) {
+    return defaultCheckRuntimeSetIO(perm, ctx);
+  }
+
+  protected final boolean defaultCheckRuntimeSetIO(RuntimePermission perm, Object ctx) {
+    return true;
+  }
+
   protected boolean checkOtherRuntimePermission(
       RuntimePermission perm, Object ctx, String permName) {
     return defaultOtherRuntimePermission(perm, ctx, permName);
@@ -346,7 +357,8 @@ public class CustomSecurityManager extends SecurityManager {
         || isDevFile(filePath)
         || isEtcFile(filePath)
         || isTimeZoneDb(filePath)
-        || isNetProperties(filePath);
+        || isNetProperties(filePath)
+        || isIbmFile(filePath);
   }
 
   protected boolean checkFileWritePermission(FilePermission perm, Object ctx, String filePath) {
@@ -373,6 +385,10 @@ public class CustomSecurityManager extends SecurityManager {
 
   protected static final boolean isClassFile(String filePath) {
     return filePath.endsWith(".class");
+  }
+
+  protected static final boolean isIbmFile(String filePath) {
+    return filePath.endsWith("/tmp/.com_ibm_tools_attach");
   }
 
   protected static final boolean isLibraryFile(String filePath) {
@@ -518,6 +534,9 @@ public class CustomSecurityManager extends SecurityManager {
       PropertyPermission perm, Object ctx, String property) {
     switch (property) {
       case "sun.boot.class.path":
+      case "sun.reflect.noInflation":
+      case "sun.reflect.inflationThreshold":
+      case "sun.nio.cs.bugLevel":
       case "java.system.class.loader":
       case "java.protocol.handler.pkgs":
       case "java.vm.specification.version":
@@ -533,6 +552,7 @@ public class CustomSecurityManager extends SecurityManager {
       case "java.ext.dirs":
       case "java.version":
       case "java.home":
+      case "file.encoding":
       case "sun.boot.library.path":
       case "sun.jnu.encoding":
       case "jdk.module.main":
@@ -543,6 +563,12 @@ public class CustomSecurityManager extends SecurityManager {
       case "jdk.jar.maxSignatureFileSize":
       case "jdk.util.zip.disableZip64ExtraFieldValidation":
       case "user.dir":
+      case "ibm.java9.forceCommonCleanerShutdown":
+      case "com.ibm.dbgmalloc":
+      case "com.ibm.tools.attach.shutdown_timeout":
+      case "ibm.system.encoding":
+      case "os.name":
+      case "JAVABIDI":
         return true;
     }
 
@@ -579,9 +605,11 @@ public class CustomSecurityManager extends SecurityManager {
         || isUserLocaleProperty(propertyName)
         || isGraalProperty(propertyName)
         || isAzulProperty(propertyName)
+        || isIbmProperty(propertyName)
         || isProxyProperty(propertyName)
         || isReflectProperty(propertyName)
-        || isAppleProperty(propertyName);
+        || isAppleProperty(propertyName)
+        || isFileProperty(propertyName);
   }
 
   protected static final boolean isSunProperty(String propertyName) {
@@ -604,6 +632,10 @@ public class CustomSecurityManager extends SecurityManager {
     return propertyName.startsWith("os.") || propertyName.equals("path.separator");
   }
 
+  protected static final boolean isFileProperty(String propertyName) {
+    return propertyName.startsWith("file.");
+  }
+
   protected static final boolean isUserLocaleProperty(String propertyName) {
     return propertyName.startsWith("user.");
   }
@@ -614,6 +646,16 @@ public class CustomSecurityManager extends SecurityManager {
 
   protected static final boolean isAzulProperty(String propertyName) {
     return propertyName.startsWith("com.azul.");
+  }
+
+  protected static final boolean isIbmProperty(String propertyName) {
+    // IBM specific properties w/o IBM in the name
+    switch (propertyName) {
+      case "file.encoding":
+      case "JAVABIDI":
+        return true;
+    }
+    return propertyName.startsWith("ibm.") || propertyName.startsWith("com.ibm.");
   }
 
   protected static final boolean isAppleProperty(String propertyName) {

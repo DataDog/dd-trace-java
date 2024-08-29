@@ -37,8 +37,12 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.IAST)
-        || (enabledSystems.contains(TargetSystem.APPSEC) && Config.get().isAppSecRaspEnabled());
+    return enabledSystems.contains(TargetSystem.IAST) || isRaspEnabled();
+  }
+
+  private boolean isRaspEnabled() {
+    return InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED
+        && Config.get().isAppSecRaspEnabled();
   }
 
   @Override

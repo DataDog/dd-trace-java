@@ -150,7 +150,7 @@ public class GatewayBridge {
       DataBundle bundle =
           new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.IO_NET_URL, url).build();
       try {
-        GatewayContext gwCtx = new GatewayContext(false, RuleType.SSRF);
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.SSRF);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         ioNetUrlSubInfo = null;
@@ -179,7 +179,7 @@ public class GatewayBridge {
               .add(KnownAddresses.DB_SQL_QUERY, sql)
               .build();
       try {
-        GatewayContext gwCtx = new GatewayContext(false, RuleType.SQL_INJECTION);
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.SQL_INJECTION);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         dbSqlQuerySubInfo = null;
@@ -481,9 +481,9 @@ public class GatewayBridge {
         // Report minimum set of collected request headers
         writeRequestHeaders(traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
       }
-      // If extracted any Api Schemas - commit them
-      if (!ctx.commitApiSchemas(traceSeg)) {
-        log.debug("Unable to commit, api security schemas and will be skipped");
+      // If extracted any derivatives - commit them
+      if (!ctx.commitDerivatives(traceSeg)) {
+        log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
       }
 
       if (ctx.isBlocked()) {
