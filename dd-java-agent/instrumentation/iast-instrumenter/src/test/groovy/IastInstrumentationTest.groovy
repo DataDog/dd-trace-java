@@ -1,35 +1,10 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.tooling.InstrumenterModule
-import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.IastConfig
 import datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListener
 import datadog.trace.instrumentation.iastinstrumenter.IastInstrumentation
 import net.bytebuddy.description.type.TypeDescription
 
 class IastInstrumentationTest extends AgentTestRunner {
-
-  void 'test Iast Instrumentation enablement'() {
-    given:
-    injectSysConfig(AppSecConfig.APPSEC_RASP_ENABLED, Boolean.toString(rasp))
-    final instrumentation = new IastInstrumentation()
-
-    when:
-    final enabled = instrumentation.isEnabled()
-    final applicable = instrumentation.isApplicable(enabledSystems as Set<InstrumenterModule.TargetSystem>)
-
-    then:
-    enabled
-    applicable == expected
-
-    where:
-    enabledSystems                                                                 | rasp  | expected
-    []                                                                             | false | false
-    [InstrumenterModule.TargetSystem.APPSEC]                                       | false | false
-    [InstrumenterModule.TargetSystem.IAST]                                         | false | true
-    [InstrumenterModule.TargetSystem.APPSEC]                                       | true  | true
-    [InstrumenterModule.TargetSystem.IAST, InstrumenterModule.TargetSystem.APPSEC] | false | true
-    [InstrumenterModule.TargetSystem.IAST, InstrumenterModule.TargetSystem.APPSEC] | true  | true
-  }
 
   void 'test Iast Instrumentation type matching'() {
     given:

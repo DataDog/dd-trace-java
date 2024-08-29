@@ -38,7 +38,11 @@ public abstract class ProcessHierarchyUtils {
   }
 
   private static boolean isGradleDaemon() {
-    return ClassLoader.getSystemClassLoader().getResource("org/gradle/launcher/daemon/") != null;
+    return ClassLoader.getSystemClassLoader()
+                .getResource("org/gradle/launcher/daemon/bootstrap/GradleDaemon.class")
+            != null
+        // double-check this is not a Gradle Worker
+        && System.getProperties().getProperty("org.gradle.internal.worker.tmpdir") == null;
   }
 
   public static long getParentSessionId() {
