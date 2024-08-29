@@ -9,7 +9,6 @@ import static io.opentelemetry.api.trace.StatusCode.UNSET;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import io.opentelemetry.api.common.AttributeKey;
@@ -19,7 +18,6 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -29,7 +27,6 @@ public class OtelSpan implements Span {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
-  private List<AgentSpanLink> links;
 
   public OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
@@ -38,7 +35,6 @@ public class OtelSpan implements Span {
     }
     this.statusCode = UNSET;
     this.recording = true;
-    this.links = new ArrayList<AgentSpanLink>();
   }
 
   public static Span invalid() {
@@ -85,7 +81,7 @@ public class OtelSpan implements Span {
     return this;
   }
 
-  // @Override
+  //   @Override <- once io.opentelemetry.api upgrade takes effect
   public Span addLink(SpanContext spanContext) {
     if (spanContext != null && spanContext.isValid() && this.recording) {
       this.delegate.addLink(new OtelSpanLink(spanContext));
@@ -93,7 +89,7 @@ public class OtelSpan implements Span {
     return this;
   }
 
-  // @Override
+  // @Override <- once io.opentelemetry.api upgrade takes effect
   public Span addLink(SpanContext spanContext, Attributes attributes) {
     if (spanContext != null && spanContext.isValid() && this.recording) {
       this.delegate.addLink(new OtelSpanLink(spanContext, attributes));
