@@ -1,4 +1,4 @@
-name: "DataDog CI Static Analysis"
+name: "Analyze changes with DataDog Static Analyser"
 on:
   push:
     branches: [ master ]

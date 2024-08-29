@@ -76,9 +76,9 @@ _Recovery:_ Check at the milestone for the related issues and update them manual
 
 ## Code Quality and Security
 
-### ci-static-analysis [🔗](ci-static-analysis.yml)
+### analyze-changes-with-datadog-static-analyzer [🔗](analyze-changes-with-datadog-static-analyzer.yml)
 
-_Trigger:_ When pushing commits to `master` or any pull request to `master`.
+_Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
 
 _Actions:_ Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis.
 
