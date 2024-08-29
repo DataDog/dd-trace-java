@@ -31,9 +31,9 @@ class IastSpringBootFreemarkerSmokeTest extends AbstractIastServerSmokeTest {
     return processBuilder
   }
 
-  void 'xss is present (freemarker)'() {
+  void 'xss is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/xss/freemarker?name=${param}"
+    final url = "http://localhost:${httpPort}/xss/freemarker?name=${param}&prior=${prior}"
     final request = new Request.Builder().url(url).get().build()
 
     when:
@@ -43,7 +43,8 @@ class IastSpringBootFreemarkerSmokeTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'XSS' && vul.location.path == templateName && vul.location.line == line }
 
     where:
-    param  | templateName      | line
-    'name' | 'freemarker.ftlh' | 9
+    prior | param  | templateName             | line
+    false | 'name' | 'freemarker-2.3.24.ftlh' | 9
+    true  | 'name' | 'freemarker-2.3.9.ftlh'  | 6
   }
 }

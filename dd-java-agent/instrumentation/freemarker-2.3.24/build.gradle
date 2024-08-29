@@ -1,5 +1,6 @@
 muzzle {
   pass {
+    name = 'freemarker-2.3.24'
     group = 'org.freemarker'
     module = 'freemarker'
     versions = '[2.3.24-incubating,]'

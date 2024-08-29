@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.freemarker
+package datadog.trace.instrumentation.freemarker24
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.IastContext

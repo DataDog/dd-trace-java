@@ -9,9 +9,9 @@ import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class DollarVariableDatadogAdvice {
+public final class DollarVariable24DatadogAdvice {
 
-  protected static final Logger log = LoggerFactory.getLogger(DollarVariableDatadogAdvice.class);
+  protected static final Logger log = LoggerFactory.getLogger(DollarVariable24DatadogAdvice.class);
 
   public static class DollarVariableAdvice {
 
@@ -26,7 +26,7 @@ public final class DollarVariableDatadogAdvice {
       if (xssModule == null) {
         return;
       }
-      if (DollarVariableHelper.fetchAutoEscape(self)) {
+      if (DollarVariable24Helper.fetchAutoEscape(self)) {
         return;
       }
       String charSec = null;

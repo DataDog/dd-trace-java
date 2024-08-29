@@ -23,11 +23,14 @@ public class XssController {
 
   @GetMapping(value = "/freemarker")
   public void freemarker(
-      @RequestParam(name = "name") String name, final HttpServletResponse response)
+      @RequestParam(name = "name") String name,
+      @RequestParam("prior") boolean prior,
+      final HttpServletResponse response)
       throws IOException, TemplateException {
     Configuration cfg = new Configuration();
     cfg.setDirectoryForTemplateLoading(new File(DIRECTORY_TEMPLATES_TEST));
-    Template template = cfg.getTemplate("freemarker.ftlh");
+    String templateName = prior ? "freemarker-2.3.9.ftlh" : "freemarker-2.3.24.ftlh";
+    Template template = cfg.getTemplate(templateName);
     Map<String, String> root = new HashMap<>();
     root.put("name", name);
     template.process(root, response.getWriter());

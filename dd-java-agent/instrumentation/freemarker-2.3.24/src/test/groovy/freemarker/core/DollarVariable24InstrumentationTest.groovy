@@ -8,7 +8,7 @@ import freemarker.template.SimpleHash
 import freemarker.template.Template
 import freemarker.template.TemplateHashModel
 
-class DollarVariableInstrumentationTest extends AgentTestRunner {
+class DollarVariable24InstrumentationTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {

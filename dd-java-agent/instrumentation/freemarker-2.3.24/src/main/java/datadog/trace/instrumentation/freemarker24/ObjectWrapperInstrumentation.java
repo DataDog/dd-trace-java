@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.freemarker;
+package datadog.trace.instrumentation.freemarker24;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
