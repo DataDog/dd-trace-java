@@ -6,6 +6,8 @@ import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
 
 import java.util.function.BiFunction
 
+import static datadog.trace.api.gateway.Events.EVENTS
+
 class FileLoadedRaspHelperTest  extends  BaseIoRaspCallSiteTest {
 
   void 'test Helper'(){
@@ -18,14 +20,16 @@ class FileLoadedRaspHelperTest  extends  BaseIoRaspCallSiteTest {
     FileLoadedRaspHelper.INSTANCE."onFileLoaded"(*args)
 
     then:
-    1 * tracer.getCallbackProvider(RequestContextSlot.APPSEC)
+    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
     1 * listener.apply(reqCtx, expected)
 
     where:
     args | expected
     ['test.txt'] | 'test.txt'
-
-
+    ['/home/test', 'test.txt'] | '/home/test/test.txt'
+    [new File('/home/test'), 'test.txt'] | '/home/test/test.txt'
+    [new URI('file:/test.txt')] | 'file:/test.txt'
+    ['/tmp', ['log', 'test.txt'] as String[]] | '/tmp/log/test.txt'
+    ['test.txt', [] as String[]] | 'test.txt'
   }
-
 }

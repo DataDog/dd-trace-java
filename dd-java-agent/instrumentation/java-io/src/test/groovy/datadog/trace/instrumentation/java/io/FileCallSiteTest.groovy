@@ -4,6 +4,7 @@ import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.PathTraversalModule
+import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
 import foo.bar.TestFileSuite
 
 import java.util.function.BiFunction
@@ -83,9 +84,8 @@ class FileCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void 'test RASP new file with parent and child'() {
     setup:
-    final callbackProvider = Mock(CallbackProvider)
-    final listener = Mock(BiFunction)
-    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final helper = Mock(FileLoadedRaspHelper)
+    FileLoadedRaspHelper.INSTANCE = helper
     final parent = '/home/test'
     final child = 'test.txt'
 
@@ -93,15 +93,13 @@ class FileCallSiteTest extends BaseIoRaspCallSiteTest {
     TestFileSuite.newFile(parent, child)
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
-    1 * listener.apply(reqCtx, '/home/test/test.txt')
+    1 *  helper.onFileLoaded(parent, child)
   }
 
   void 'test RASP new file with parent file and child'() {
     setup:
-    final callbackProvider = Mock(CallbackProvider)
-    final listener = Mock(BiFunction)
-    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final helper = Mock(FileLoadedRaspHelper)
+    FileLoadedRaspHelper.INSTANCE = helper
     final parent = new File('/home/test')
     final child = 'test.txt'
 
@@ -109,22 +107,19 @@ class FileCallSiteTest extends BaseIoRaspCallSiteTest {
     TestFileSuite.newFile(parent, child)
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
-    1 * listener.apply(reqCtx, '/home/test/test.txt')
+    1 *  helper.onFileLoaded(parent, child)
   }
 
   void 'test RASP new file with uri'() {
     setup:
-    final callbackProvider = Mock(CallbackProvider)
-    final listener = Mock(BiFunction)
-    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final helper = Mock(FileLoadedRaspHelper)
+    FileLoadedRaspHelper.INSTANCE = helper
     final file = new URI('file:/test.txt')
 
     when:
     TestFileSuite.newFile(file)
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
-    1 * listener.apply(reqCtx, file.toString())
+    1 *  helper.onFileLoaded(file)
   }
 }

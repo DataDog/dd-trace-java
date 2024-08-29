@@ -4,6 +4,7 @@ import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.PathTraversalModule
+import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
 import foo.bar.TestPathsSuite
 
 import java.nio.file.FileSystems
@@ -45,17 +46,14 @@ class PathsCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void 'test RASP get path from strings'(final String first, final String... other) {
     setup:
-    final callbackProvider = Mock(CallbackProvider)
-    final listener = Mock(BiFunction)
-    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
-    final stringToCheck = first + FileSystems.getDefault().getSeparator() + String.join(FileSystems.getDefault().getSeparator(), other)
+    final helper = Mock(FileLoadedRaspHelper)
+    FileLoadedRaspHelper.INSTANCE = helper
 
     when:
     TestPathsSuite.get(first, other)
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
-    1 * listener.apply(reqCtx, stringToCheck)
+    1 * helper.onFileLoaded(first, other)
 
     where:
     first      | other
@@ -65,16 +63,14 @@ class PathsCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void 'test RASP get path from uri'() {
     setup:
-    final callbackProvider = Mock(CallbackProvider)
-    final listener = Mock(BiFunction)
-    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final helper = Mock(FileLoadedRaspHelper)
+    FileLoadedRaspHelper.INSTANCE = helper
     final file = new URI('file:/test.txt')
 
     when:
     TestPathsSuite.get(file)
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
-    1 * listener.apply(reqCtx, file.toString())
+    1 * helper.onFileLoaded(file)
   }
 }

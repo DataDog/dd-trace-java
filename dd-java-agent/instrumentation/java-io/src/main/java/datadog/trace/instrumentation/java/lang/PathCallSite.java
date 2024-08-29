@@ -24,18 +24,18 @@ public class PathCallSite {
     }
   }
 
-  private static void iastCallback(String path) {
+  private static void iastCallback(String other) {
     final PathTraversalModule module = InstrumentationBridge.PATH_TRAVERSAL;
     if (module != null) {
       try {
-        module.onPathTraversal(path);
+        module.onPathTraversal(other);
       } catch (final Throwable e) {
         module.onUnexpectedException("beforeResolve threw", e);
       }
     }
   }
 
-  private static void raspCallback(String path) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(path);
+  private static void raspCallback(String other) {
+    FileLoadedRaspHelper.INSTANCE.onFileLoaded(other);
   }
 }

@@ -1,14 +1,9 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.api.gateway.CallbackProvider
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.PathTraversalModule
+import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
 import foo.bar.TestPathSuite
-
-import java.util.function.BiFunction
-
-import static datadog.trace.api.gateway.Events.EVENTS
 
 class PathCallSiteTest extends BaseIoRaspCallSiteTest {
 
@@ -41,24 +36,21 @@ class PathCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void 'test RASP resolve path'() {
     setup:
-    final callbackProvider = Mock(CallbackProvider)
-    final listener = Mock(BiFunction)
-    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final helper = Mock(FileLoadedRaspHelper)
+    FileLoadedRaspHelper.INSTANCE = helper
     final path = 'test.txt'
 
     when:
     TestPathSuite.resolve(getRootFolder().toPath(), path)
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
-    1 * listener.apply(reqCtx, path)
+    1 * helper.onFileLoaded(path)
   }
 
   void 'test RASP resolve sibling'() {
     setup:
-    final callbackProvider = Mock(CallbackProvider)
-    final listener = Mock(BiFunction)
-    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    final helper = Mock(FileLoadedRaspHelper)
+    FileLoadedRaspHelper.INSTANCE = helper
     final sibling = newFile('test1.txt').toPath()
     final path = 'test2.txt'
 
@@ -66,7 +58,6 @@ class PathCallSiteTest extends BaseIoRaspCallSiteTest {
     TestPathSuite.resolveSibling(sibling, path)
 
     then:
-    1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
-    1 * listener.apply(reqCtx, path)
+    1 * helper.onFileLoaded(path)
   }
 }

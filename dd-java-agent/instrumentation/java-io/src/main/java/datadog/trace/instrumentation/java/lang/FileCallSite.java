@@ -9,7 +9,6 @@ import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.PathTraversalModule;
 import java.io.File;
 import java.net.URI;
-import java.nio.file.FileSystems;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
@@ -53,7 +52,7 @@ public class FileCallSite {
     if (uri != null) {
       final PathTraversalModule module = InstrumentationBridge.PATH_TRAVERSAL;
       iastCallback(uri);
-      raspCallback(uri.toString());
+      raspCallback(uri);
     }
   }
 
@@ -102,16 +101,18 @@ public class FileCallSite {
   }
 
   private static void raspCallback(File parent, String child) {
-    if (parent != null) {
-      raspCallback(parent + FileSystems.getDefault().getSeparator() + child);
-    }
+    FileLoadedRaspHelper.INSTANCE.onFileLoaded(parent, child);
   }
 
   private static void raspCallback(String parent, String file) {
-    raspCallback(parent + FileSystems.getDefault().getSeparator() + file);
+    FileLoadedRaspHelper.INSTANCE.onFileLoaded(parent, file);
   }
 
-  private static void raspCallback(String file) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(file);
+  private static void raspCallback(String s) {
+    FileLoadedRaspHelper.INSTANCE.onFileLoaded(s);
+  }
+
+  private static void raspCallback(URI uri) {
+    FileLoadedRaspHelper.INSTANCE.onFileLoaded(uri);
   }
 }
