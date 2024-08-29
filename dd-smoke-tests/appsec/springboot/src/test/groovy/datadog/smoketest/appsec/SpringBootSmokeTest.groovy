@@ -411,8 +411,6 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(1)
 
     then:
-    def rootSpans = this.rootSpans.toList()
-    //rootSpans.size() == 1
     def rootSpan = findFirstMatchingSpan(variant)
     assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
     assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
