@@ -1,16 +1,9 @@
 package datadog.trace.instrumentation.java.io
 
-import datadog.trace.api.gateway.CallbackProvider
-import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.PathTraversalModule
 import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
 import foo.bar.TestPathsSuite
-
-import java.nio.file.FileSystems
-import java.util.function.BiFunction
-
-import static datadog.trace.api.gateway.Events.EVENTS
 
 class PathsCallSiteTest extends BaseIoRaspCallSiteTest {
 
