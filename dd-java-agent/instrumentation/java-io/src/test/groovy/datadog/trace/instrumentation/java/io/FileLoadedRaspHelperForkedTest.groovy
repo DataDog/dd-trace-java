@@ -9,7 +9,7 @@ import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class FileLoadedRaspHelperTest  extends  BaseIoRaspCallSiteTest {
+class FileLoadedRaspHelperForkedTest extends  BaseIoRaspCallSiteTest {
 
   void 'test Helper'(){
     setup:
@@ -26,12 +26,12 @@ class FileLoadedRaspHelperTest  extends  BaseIoRaspCallSiteTest {
     1 * listener.apply(reqCtx, expected) >> flow
 
     where:
-    args | expected
-    ['test.txt'] | 'test.txt'
-    ['/home/test', 'test.txt'] | '/home/test/test.txt'
-    [new File('/home/test'), 'test.txt'] | '/home/test/test.txt'
-    [new URI('file:/test.txt')] | 'file:/test.txt'
-    ['/tmp', ['log', 'test.txt'] as String[]] | '/tmp/log/test.txt'
-    ['test.txt', [] as String[]] | 'test.txt'
+    args                                                      |  expected
+    ['test.txt']                                            |  'test.txt'
+    ['/home/test', 'test.txt']                      |  '/home/test/test.txt'
+    [new File('/home/test'), 'test.txt']     |  '/home/test/test.txt'
+    [new URI('file:/test.txt')]                    |  'file:/test.txt'
+    ['/tmp', ['log', 'test.txt'] as String[]] |  '/tmp/log/test.txt'
+    ['test.txt', [] as String[]]                    |  'test.txt'
   }
 }

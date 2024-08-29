@@ -42,7 +42,7 @@ public class FileLoadedRaspHelper {
       throw e;
     } catch (final Throwable e) {
       // suppress anything else
-      LOGGER.debug("Exception during FLI rasp callback", e);
+      LOGGER.debug("Exception during LFI rasp callback", e);
     }
   }
 
@@ -59,7 +59,7 @@ public class FileLoadedRaspHelper {
       throw e;
     } catch (final Throwable e) {
       // suppress anything else
-      LOGGER.debug("Exception during FLI rasp callback", e);
+      LOGGER.debug("Exception during LFI rasp callback", e);
     }
   }
 
@@ -71,7 +71,7 @@ public class FileLoadedRaspHelper {
       throw e;
     } catch (final Throwable e) {
       // suppress anything else
-      LOGGER.debug("Exception during FLI rasp callback", e);
+      LOGGER.debug("Exception during LFI rasp callback", e);
     }
   }
 
@@ -88,7 +88,7 @@ public class FileLoadedRaspHelper {
       throw e;
     } catch (final Throwable e) {
       // suppress anything else
-      LOGGER.debug("Exception during FLI rasp callback", e);
+      LOGGER.debug("Exception during LFI rasp callback", e);
     }
   }
 
@@ -128,14 +128,14 @@ public class FileLoadedRaspHelper {
               rba.getBlockingContentType(),
               rba.getExtraHeaders());
         }
-        throw new BlockingException("Blocked request (for FLI attempt)");
+        throw new BlockingException("Blocked request (for LFI attempt)");
       }
     } catch (final BlockingException e) {
       // re-throw blocking exceptions
       throw e;
     } catch (final Throwable e) {
       // suppress anything else
-      LOGGER.debug("Exception during FLI rasp callback", e);
+      LOGGER.debug("Exception during LFI rasp callback", e);
     }
   }
 }
