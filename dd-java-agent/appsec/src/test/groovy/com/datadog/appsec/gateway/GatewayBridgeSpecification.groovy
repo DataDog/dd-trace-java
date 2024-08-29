@@ -773,7 +773,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.get(KnownAddresses.DB_SQL_QUERY) == 'SELECT * FROM foo'
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
-    gatewayContext.isTransient == false
+    gatewayContext.isTransient == true
     gatewayContext.isRasp == true
   }
 
@@ -793,7 +793,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.get(KnownAddresses.IO_NET_URL) == url
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
-    gatewayContext.isTransient == false
+    gatewayContext.isTransient == true
     gatewayContext.isRasp == true
   }
 
