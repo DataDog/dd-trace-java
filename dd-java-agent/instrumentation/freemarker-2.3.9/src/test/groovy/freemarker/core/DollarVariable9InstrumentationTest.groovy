@@ -27,10 +27,6 @@ class DollarVariable9InstrumentationTest extends AgentTestRunner {
     final Environment environment = new Environment(template, rootDataModel, Mock(FileWriter))
     final dollarVariable = new DollarVariable(expression, escapedExpression)
     dollarVariable.beginLine = 1
-    expression.target = new Identifier(stringExpression)
-    expression.constantValue = new StringLiteral(stringExpression)
-    escapedExpression.target = new Identifier(stringExpression)
-    escapedExpression.constantValue = new StringLiteral(stringExpression)
 
     when:
     dollarVariable.accept(environment)
@@ -39,7 +35,7 @@ class DollarVariable9InstrumentationTest extends AgentTestRunner {
     1 * module.onXss(_, _, _)
 
     where:
-    stringExpression | expression                | escapedExpression
-    "test"           | new BuiltIn.htmlBI()      | new BuiltIn.htmlBI()
+    stringExpression | expression                     | escapedExpression
+    "test"           | new Identifier("test")         | new Identifier("test")
   }
 }

@@ -1,6 +1,5 @@
 package freemarker.core;
 
-import datadog.trace.api.iast.sink.XssModule;
 import java.lang.reflect.Field;
 import java.lang.reflect.UndeclaredThrowableException;
 import org.slf4j.Logger;
@@ -25,8 +24,7 @@ public final class DollarVariable9Helper {
     return autoEscape;
   }
 
-  public static Expression fetchEscapeExpression(
-      DollarVariable dollarVariable, Environment environment, XssModule xssModule) {
+  public static Expression fetchEscapeExpression(DollarVariable dollarVariable) {
     if (ESCAPED_EXPRESSION == null) {
       return null;
     }

@@ -25,8 +25,7 @@ public final class DollarVariable9DatadogAdvice {
       if (xssModule == null) {
         return;
       }
-      final Expression expression =
-          DollarVariable9Helper.fetchEscapeExpression(self, environment, xssModule);
+      final Expression expression = DollarVariable9Helper.fetchEscapeExpression(self);
       if (expression instanceof BuiltIn) {
         return;
       }
