@@ -121,3 +121,12 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+
+      - name: Upload results to Datadog CI Static Analysis
+        run: |
+          wget --no-verbose https://github.com/DataDog/datadog-ci/releases/download/v2.42.0/datadog-ci_linux-x64 -O datadog-ci
+          chmod +x datadog-ci
+          ./datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: datad0g.com
