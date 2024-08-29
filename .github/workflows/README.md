@@ -76,17 +76,14 @@ _Recovery:_ Check at the milestone for the related issues and update them manual
 
 ## Code Quality and Security
 
-### analyze-changes-with-datadog-static-analyzer [🔗](analyze-changes-with-datadog-static-analyzer.yml)
+### analyze-changes [🔗](analyze-changes-with-github-codeql.yml)
 
 _Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
 
-_Actions:_ Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis.
-
-### analyze-changes-with-github-codeql [🔗](analyze-changes-with-github-codeql.yml)
-
-_Trigger:_ When pushing commits to `master`.
-
-_Action:_ Run GitHub CodeQL action, upload result to GitHub security tab and DataDog Code Analysis.
+_Action:_ 
+* Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis,
+* Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab and DataDog Code Analysis -- do not apply to pull request, only when pushing to `master`,
+* Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab.
 
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 
@@ -94,19 +91,13 @@ _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a
 
 _Action:_ Notify the PR author through comments that about the Git Submodule update.
 
-### update-gradle-dependencies [🔗](trivy-analysis.yml)
+### update-gradle-dependencies [🔗](update-gradle-dependencies.yml)
 
 _Trigger:_ Every week or manually.
 
 _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
-
-### trivy-analysis [🔗](trivy-analysis.yml)
-
-_Trigger:_ When pushing commits to `master` or any pull request to `master`.
-
-_Action:_ Run Trivy security scanner on built artifacts and upload result to GitHub security tab.
 
 ### gradle-wrapper-validation [🔗](gradle-wrapper-validation.yaml.disabled)
 
