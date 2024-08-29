@@ -82,17 +82,17 @@ _Trigger:_ When pushing commits to `master` or any pull request targeting `maste
 
 _Actions:_ Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis.
 
+### analyze-changes-with-github-codeql [🔗](analyze-changes-with-github-codeql.yml)
+
+_Trigger:_ When pushing commits to `master`.
+
+_Action:_ Run GitHub CodeQL action, upload result to GitHub security tab and DataDog Code Analysis.
+
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 
 _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a Git Submodule update.
 
 _Action:_ Notify the PR author through comments that about the Git Submodule update.
-
-### codeql-analysis [🔗](codeql-analysis.yml)
-
-_Trigger:_ When pushing commits to `master`.
-
-_Action:_ Run GitHub CodeQL action, upload result to GitHub security tab and DataDog Code Analysis.
 
 ### update-gradle-dependencies [🔗](trivy-analysis.yml)
 
