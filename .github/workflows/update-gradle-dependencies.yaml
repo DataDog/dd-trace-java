@@ -70,7 +70,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr create --title "Update Gradle dependencies" \
-            --body "This PR updates the Gradle dependencies.  \n:warning: Don't forget to squash commits before merging :warning:" \
+            --body "This PR updates the Gradle dependencies. ⚠️ Don't forget to squash commits before merging. ⚠️" \
             --base master \
             --head $BRANCH_NAME \
             --label "tag: dependencies" \

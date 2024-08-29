@@ -79,5 +79,19 @@ class TaintedObjectsLogTest extends DDSpecification {
     taintedObjects.size() == 1
     taintedObjects.iterator().size() == 1
   }
+
+  void 'should not taint null ranges'() {
+    given:
+    IastSystem.DEBUG = true
+    logger.level = Level.ALL
+    TaintedObjects taintedObjects = taintedObjects()
+    final obj = 'A'
+
+    when:
+    taintedObjects.taint(obj, null)
+
+    then:
+    taintedObjects.empty
+  }
 }
 

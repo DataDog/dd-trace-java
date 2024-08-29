@@ -83,6 +83,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo graphqlServerRequestMsgSubInfo;
   private volatile DataSubscriberInfo requestEndSubInfo;
   private volatile DataSubscriberInfo dbSqlQuerySubInfo;
+  private volatile DataSubscriberInfo ioNetUrlSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -121,6 +122,7 @@ public class GatewayBridge {
         EVENTS.graphqlServerRequestMessage(), this::onGraphqlServerRequestMessage);
     subscriptionService.registerCallback(EVENTS.databaseConnection(), this::onDatabaseConnection);
     subscriptionService.registerCallback(EVENTS.databaseSqlQuery(), this::onDatabaseSqlQuery);
+    subscriptionService.registerCallback(EVENTS.networkConnection(), this::onNetworkConnection);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -128,6 +130,31 @@ public class GatewayBridge {
     if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
       subscriptionService.registerCallback(
           EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
+    }
+  }
+
+  private Flow<Void> onNetworkConnection(RequestContext ctx_, String url) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = ioNetUrlSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.IO_NET_URL);
+        ioNetUrlSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.IO_NET_URL, url).build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(false, RuleType.SSRF);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        ioNetUrlSubInfo = null;
+      }
     }
   }
 
@@ -454,9 +481,9 @@ public class GatewayBridge {
         // Report minimum set of collected request headers
         writeRequestHeaders(traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders());
       }
-      // If extracted any Api Schemas - commit them
-      if (!ctx.commitApiSchemas(traceSeg)) {
-        log.debug("Unable to commit, api security schemas and will be skipped");
+      // If extracted any derivatives - commit them
+      if (!ctx.commitDerivatives(traceSeg)) {
+        log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
       }
 
       if (ctx.isBlocked()) {

@@ -68,7 +68,6 @@ public class OpenTelemetryContextInstrumentation extends InstrumenterModule.Trac
       "datadog.opentelemetry.shim.trace.OtelSpanBuilder$1",
       "datadog.opentelemetry.shim.trace.OtelSpanContext",
       "datadog.opentelemetry.shim.trace.OtelSpanLink",
-      "datadog.opentelemetry.shim.trace.OtelSpanLink$1",
       "datadog.opentelemetry.shim.trace.OtelTracer",
       "datadog.opentelemetry.shim.trace.OtelTracerBuilder",
       "datadog.opentelemetry.shim.trace.OtelTracerProvider",

@@ -6,6 +6,7 @@ import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
+import static datadog.trace.api.gateway.Events.NETWORK_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
@@ -378,6 +379,7 @@ public class InstrumentationGateway {
               }
             };
       case DATABASE_SQL_QUERY_ID:
+      case NETWORK_CONNECTION_ID:
         return (C)
             new BiFunction<RequestContext, String, Flow<Void>>() {
               @Override

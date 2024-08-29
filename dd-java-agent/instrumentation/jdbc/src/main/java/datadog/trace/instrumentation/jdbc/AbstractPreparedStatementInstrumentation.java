@@ -102,6 +102,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      CallDepthThreadLocalMap.decrementCallDepth(Statement.class);
       if (scope == null) {
         return;
       }
@@ -109,7 +110,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       DECORATE.beforeFinish(scope.span());
       scope.close();
       scope.span().finish();
-      CallDepthThreadLocalMap.reset(Statement.class);
     }
   }
 }

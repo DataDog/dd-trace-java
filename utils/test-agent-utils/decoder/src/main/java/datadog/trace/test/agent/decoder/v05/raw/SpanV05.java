@@ -188,6 +188,11 @@ public class SpanV05 implements DecodedSpan {
     return meta;
   }
 
+  public Map<String, Object> getMetaStruct() {
+    // XXX: meta_struct is not supported in v0.5.
+    return null;
+  }
+
   public Map<String, Number> getMetrics() {
     return metrics;
   }

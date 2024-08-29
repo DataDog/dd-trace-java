@@ -5,6 +5,7 @@ import com.datadog.crashtracking.OOMENotifier;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.bootstrap.Agent;
+import datadog.trace.bootstrap.InitializationTelemetry;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.File;
@@ -53,7 +54,7 @@ public final class AgentCLI {
    * @param interval the interval (in seconds) to wait for each trace
    */
   public static void sendSampleTraces(final int count, final double interval) throws Exception {
-    Agent.startDatadogTracer();
+    Agent.startDatadogTracer(InitializationTelemetry.noOpInstance());
 
     int numTraces = 0;
     while (++numTraces <= count || count < 0) {
