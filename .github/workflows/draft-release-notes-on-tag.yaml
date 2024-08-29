@@ -6,6 +6,8 @@ on:
 jobs:
   draft_release_notes:
     name: Draft release notes
+    permissions:
+      contents: write # Required to create a release
     if: (github.event.ref_type == 'tag' && github.event.master_branch == 'master') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
