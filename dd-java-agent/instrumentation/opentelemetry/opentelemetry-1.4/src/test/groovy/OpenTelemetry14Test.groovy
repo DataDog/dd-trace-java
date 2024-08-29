@@ -198,18 +198,18 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  def "test simple span links"() {
+  def "test simple SpanBuilder links"() {
     setup:
     def traceId = "1234567890abcdef1234567890abcdef" as String
     def spanId = "fedcba0987654321" as String
-    def traceState = TraceState.builder().put("string-key", "string-value").build()
+    def traceState = TraceState.builder().put("string-key1", "string-value1").build()
 
     def expectedLinksTag = """
     [
       { trace_id: "${traceId}",
         span_id: "${spanId}",
         flags: 1,
-        tracestate: "string-key=string-value"}
+        tracestate: "string-key1=string-value1"}
     ]"""
 
     when:
@@ -217,6 +217,43 @@ class OpenTelemetry14Test extends AgentTestRunner {
     .addLink(SpanContext.getInvalid())  // Should not be added
     .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
     .startSpan()
+    span1.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("_dd.span_links", { JSONAssert.assertEquals(expectedLinksTag, it as String, true); return true })
+          }
+        }
+      }
+    }
+  }
+
+  def "test simple Span links"() {
+    setup:
+    def traceId = "1234567890abcdef1234567890abcdef" as String
+    def spanId = "fedcba0987654321" as String
+    def traceState = TraceState.builder().put("string-key1", "string-value1").build()
+    //    def traceId2 = "234567890abcdef1234567890abcdef1" as String
+    //    def spanId2 = "edcba0987654321f"
+
+    def expectedLinksTag = """
+    [
+      { trace_id: "${traceId}",
+        span_id: "${spanId}",
+        flags: 1,
+        tracestate: "string-key1=string-value1"}
+    ]"""
+
+    when:
+    def span1 =tracer.spanBuilder("some-name")
+    .startSpan()
+    span1.addLink(SpanContext.getInvalid())  // Should not be added
+    span1.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
     span1.end()
 
     then:
@@ -249,9 +286,20 @@ class OpenTelemetry14Test extends AgentTestRunner {
         tracestate: "string-key=string-value$it"}"""
       spanBuilder.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
     }
+    def span1 = spanBuilder.startSpan()
+    10..19.each {
+      def traceId = "1234567890abcdef1234567890abcde$it" as String
+      def spanId = "fedcba098765432$it" as String
+      def traceState = TraceState.builder().put('string-key', 'string-value'+it).build()
+      links << """{ trace_id: "${traceId}",
+        span_id: "${spanId}",
+        flags: 1,
+        tracestate: "string-key=string-value$it"}"""
+      span1.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
+    }
     def expectedLinksTag = "[${links.join(',')}]" as String
 
-    spanBuilder.startSpan().end()
+    span1.end()
 
     then:
     assertTraces(1) {
@@ -283,10 +331,15 @@ class OpenTelemetry14Test extends AgentTestRunner {
     ]"""
 
     when:
-    def span1 =tracer.spanBuilder("some-name")
-    .addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState), attributes)
-    .startSpan()
-    span1.end()
+    if (beforeStart) {
+      def span1 = tracer.spanBuilder("some-name").addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState), attributes)
+      .startSpan()
+      span1.end()
+    } else {
+      def span1 = tracer.spanBuilder("some-name").startSpan()
+      span1.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState), attributes)
+      span1.end()
+    }
 
     then:
     assertTraces(1) {
@@ -302,13 +355,16 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
 
     where:
-    attributes | expectedAttributes
-    Attributes.empty() | null
-    Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: "123456789", double-key: "1234.5678", boolean-key-true: "true", boolean-key-false: "false" }'
-    Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array.0: "string-value1", string-key-array.1: "string-value2", string-key-array.2: "string-value3", long-key-array.0: "123456", long-key-array.1: "1234567", long-key-array.2: "12345678", double-key-array.0: "1234.5", double-key-array.1: "1234.56", double-key-array.2: "1234.567", boolean-key-array.0: "true", boolean-key-array.1: "false", boolean-key-array.2: "true" }'
+    beforeStart | attributes | expectedAttributes
+    true        | Attributes.empty() | null
+    true        | Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: "123456789", double-key: "1234.5678", boolean-key-true: "true", boolean-key-false: "false" }'
+    true        | Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array.0: "string-value1", string-key-array.1: "string-value2", string-key-array.2: "string-value3", long-key-array.0: "123456", long-key-array.1: "1234567", long-key-array.2: "12345678", double-key-array.0: "1234.5", double-key-array.1: "1234.56", double-key-array.2: "1234.567", boolean-key-array.0: "true", boolean-key-array.1: "false", boolean-key-array.2: "true" }'
+    false       | Attributes.empty() | null
+    false       | Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678D).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: "123456789", double-key: "1234.5678", boolean-key-true: "true", boolean-key-false: "false" }'
+    false       | Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array.0: "string-value1", string-key-array.1: "string-value2", string-key-array.2: "string-value3", long-key-array.0: "123456", long-key-array.1: "1234567", long-key-array.2: "12345678", double-key-array.0: "1234.5", double-key-array.1: "1234.56", double-key-array.2: "1234.567", boolean-key-array.0: "true", boolean-key-array.1: "false", boolean-key-array.2: "true" }'
   }
 
-  def "test span links trace state"() {
+  def "test SpanBuilder links trace state"() {
     setup:
     def traceId = "1234567890abcdef1234567890abcdef" as String
     def spanId = "fedcba0987654321" as String
