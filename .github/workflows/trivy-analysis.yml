@@ -21,7 +21,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # 3.6.0
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
+        with:
+          submodules: 'recursive'
 
       - name: Remove old artifacts
         run: |
