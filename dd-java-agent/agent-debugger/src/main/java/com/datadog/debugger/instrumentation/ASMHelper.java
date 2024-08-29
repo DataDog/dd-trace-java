@@ -293,6 +293,30 @@ public class ASMHelper {
     return false;
   }
 
+  public static boolean isStoreCompatibleType(
+      org.objectweb.asm.Type previousType, org.objectweb.asm.Type currentType) {
+    if (previousType == null || currentType == null) {
+      return false;
+    }
+    if (previousType.getSort() == currentType.getSort()) {
+      return true;
+    }
+    int previousSort = widenIntType(previousType.getSort());
+    int currentSort = widenIntType(currentType.getSort());
+    return previousSort == currentSort;
+  }
+
+  private static int widenIntType(int sort) {
+    switch (sort) {
+      case org.objectweb.asm.Type.BOOLEAN:
+      case org.objectweb.asm.Type.BYTE:
+      case org.objectweb.asm.Type.CHAR:
+      case org.objectweb.asm.Type.SHORT:
+        return org.objectweb.asm.Type.INT;
+    }
+    return sort;
+  }
+
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */
   public static class Type {
     private final org.objectweb.asm.Type mainType;
