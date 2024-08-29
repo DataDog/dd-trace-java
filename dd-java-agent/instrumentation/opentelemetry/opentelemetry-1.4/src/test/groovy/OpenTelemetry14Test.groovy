@@ -202,14 +202,14 @@ class OpenTelemetry14Test extends AgentTestRunner {
     setup:
     def traceId = "1234567890abcdef1234567890abcdef" as String
     def spanId = "fedcba0987654321" as String
-    def traceState = TraceState.builder().put("string-key1", "string-value1").build()
+    def traceState = TraceState.builder().put("string-key", "string-value").build()
 
     def expectedLinksTag = """
     [
       { trace_id: "${traceId}",
         span_id: "${spanId}",
         flags: 1,
-        tracestate: "string-key1=string-value1"}
+        tracestate: "string-key=string-value"}
     ]"""
 
     when:
@@ -238,8 +238,6 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def traceId = "1234567890abcdef1234567890abcdef" as String
     def spanId = "fedcba0987654321" as String
     def traceState = TraceState.builder().put("string-key1", "string-value1").build()
-    //    def traceId2 = "234567890abcdef1234567890abcdef1" as String
-    //    def spanId2 = "edcba0987654321f"
 
     def expectedLinksTag = """
     [
@@ -364,7 +362,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     false       | Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array.0: "string-value1", string-key-array.1: "string-value2", string-key-array.2: "string-value3", long-key-array.0: "123456", long-key-array.1: "1234567", long-key-array.2: "12345678", double-key-array.0: "1234.5", double-key-array.1: "1234.56", double-key-array.2: "1234.567", boolean-key-array.0: "true", boolean-key-array.1: "false", boolean-key-array.2: "true" }'
   }
 
-  def "test SpanBuilder links trace state"() {
+  def "test span links trace state"() {
     setup:
     def traceId = "1234567890abcdef1234567890abcdef" as String
     def spanId = "fedcba0987654321" as String
