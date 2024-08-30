@@ -50,13 +50,14 @@ jobs:
           build-mode: 'manual'
       - name: Build dd-trace-java for creating the CodeQL database
         run: |
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
           JAVA_11_HOME=$JAVA_HOME_11_X64 \
           JAVA_17_HOME=$JAVA_HOME_17_X64 \
           JAVA_21_HOME=$JAVA_HOME_21_X64 \
           ./gradlew clean :dd-java-agent:shadowJar \
-            --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+            --build-cache --parallel --stacktrace --no-daemon --max-workers=4
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
         uses: github/codeql-action/analyze@4dd16135b69a43b6c8efb853346f8437d92d3c93 # v3.26.6
 
