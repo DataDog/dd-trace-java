@@ -98,7 +98,12 @@ abstract class GradleUtils {
   static List<Path> getClasspath(Task task) {
     if (task.hasProperty("classpath")) {
       try {
-        return task.classpath.getFiles().stream().map(File::toPath).collect(Collectors.toList())
+        Collection<File> files = task.classpath.getFiles()
+        List<Path> paths = new ArrayList<>(files.size())
+        for (File file : files) {
+          paths.add(file.toPath())
+        }
+        return paths
       } catch (Exception e) {
         LOGGER.error("Could not get classpath for test task", e)
       }
