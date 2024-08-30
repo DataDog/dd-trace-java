@@ -136,10 +136,9 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
     this.repoRoot = repoRoot;
     this.eventId = moduleId;
 
-    // this is the data that would've been covered if we ran all the skippable tests
-    Map<String, BitSet> skippableTestsCoverage = executionSettings.getSkippableTestsCoverage();
-    if (skippableTestsCoverage != null) {
-      addBackendCoverageData(skippableTestsCoverage);
+    if (executionSettings.isTestSkippingEnabled()) {
+      // this is the data that would've been covered if we ran all the skippable tests
+      addBackendCoverageData(executionSettings.getSkippableTestsCoverage());
     }
 
     addModuleLayout(moduleLayout);
@@ -163,7 +162,10 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
   }
 
   /** Handles skipped tests' coverage data received from the backend */
-  private void addBackendCoverageData(Map<String, BitSet> skippableTestsCoverage) {
+  private void addBackendCoverageData(@Nullable Map<String, BitSet> skippableTestsCoverage) {
+    if (skippableTestsCoverage == null) {
+      return;
+    }
     synchronized (coverageDataLock) {
       for (Map.Entry<String, BitSet> e : skippableTestsCoverage.entrySet()) {
         backendCoverageData.merge(e.getKey(), e.getValue(), JacocoCoverageCalculator::mergeBitSets);
@@ -356,7 +358,7 @@ public class JacocoCoverageCalculator implements CoverageCalculator {
 
         BitSet sourceFileCoveredLines = getCoveredLines(sourceFile);
         // backendCoverageData contains data for all modules in the repo,
-        // but coverageBundle bundle only has source files that are relevant for the given module
+        // but coverageBundle bundle only has source files that are relevant for the given module,
         // so we are not taking into account any backend coverage that is not relevant
         sourceFileCoveredLines.or(
             backendCoverageData.getOrDefault(pathRelativeToIndexRoot, EMPTY_BIT_SET));

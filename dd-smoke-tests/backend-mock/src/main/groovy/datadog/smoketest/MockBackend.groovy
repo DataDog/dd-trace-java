@@ -62,8 +62,12 @@ class MockBackend implements AutoCloseable {
     flakyTests.add(["module": module, "suite": suite, "name": name])
   }
 
-  void givenSkippableTest(String module, String suite, String name) {
-    skippableTests.add(["module": module, "suite": suite, "name": name])
+  void givenTestsSkipping(boolean testsSkipping) {
+    this.testsSkippingEnabled = testsSkipping
+  }
+
+  void givenSkippableTest(String module, String suite, String name, Map<String, BitSet> coverage = null) {
+    skippableTests.add(["module": module, "suite": suite, "name": name, "coverage": coverage ])
   }
 
   String getIntakeUrl() {
@@ -116,6 +120,7 @@ class MockBackend implements AutoCloseable {
       }
 
       prefix("/api/v2/ci/tests/skippable") {
+
         StringBuilder skippableTestsResponse = new StringBuilder("[")
         def i = skippableTests.iterator()
         while (i.hasNext()) {
@@ -129,7 +134,8 @@ class MockBackend implements AutoCloseable {
                   "test.bundle": "$test.module"
               },
               "name": "$test.name",
-              "suite": "$test.suite"
+              "suite": "$test.suite",
+              "_missing_line_code_coverage": ${test.coverage == null}
             }
           }
           """)
@@ -139,9 +145,41 @@ class MockBackend implements AutoCloseable {
         }
         skippableTestsResponse.append("]")
 
+        Map<String, BitSet> combinedCoverage = new HashMap<>()
+        for (def test : skippableTests) {
+          if (test.coverage != null) {
+            for (Map.Entry<String, BitSet> e : test.coverage.entrySet()) {
+              combinedCoverage.merge(e.key, e.value, (a, b) -> {
+                BitSet bitSet = new BitSet()
+                bitSet.or(a)
+                bitSet.or(b)
+                return bitSet
+              })
+            }
+          }
+        }
+
+        StringBuilder coverageResponse = new StringBuilder("{")
+        def ci = combinedCoverage.entrySet().iterator()
+        while (ci.hasNext()) {
+          def e = ci.next()
+          coverageResponse.append("""
+            "$e.key": "${Base64.encoder.encodeToString(e.value.toByteArray())}"
+          """)
+          if (ci.hasNext()) {
+            coverageResponse.append(",")
+          }
+        }
+        coverageResponse.append("}")
+
         response.status(200)
-          .addHeader("Content-Encoding", "gzip")
-          .send(MockBackend.compress((""" { "data": $skippableTestsResponse } """).bytes))
+        .addHeader("Content-Encoding", "gzip")
+        .send(MockBackend.compress(("""
+          { 
+            "data": $skippableTestsResponse,
+            "meta": { "coverage": $coverageResponse } 
+          } 
+          """).bytes))
       }
 
       prefix("/api/v2/ci/libraries/tests/flaky") {
@@ -169,8 +207,8 @@ class MockBackend implements AutoCloseable {
         flakyTestsResponse.append("]")
 
         response.status(200)
-          .addHeader("Content-Encoding", "gzip")
-          .send(MockBackend.compress((""" { "data": $flakyTestsResponse } """).bytes))
+        .addHeader("Content-Encoding", "gzip")
+        .send(MockBackend.compress((""" { "data": $flakyTestsResponse } """).bytes))
       }
 
       prefix("/api/v2/apmtelemetry") {

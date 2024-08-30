@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.maven3;
 
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildModuleSettings;
+import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.domain.SourceSet;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -9,6 +10,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.maven.execution.AbstractExecutionListener;
@@ -19,7 +21,6 @@ import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Build;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.configuration.PlexusConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,15 +91,22 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     BuildModuleLayout moduleLayout = new BuildModuleLayout(Arrays.asList(classes, tests));
 
     Path forkedJvmPath = MavenUtils.getForkedJvmPath(session, mojoExecution);
+    List<Path> classpath = MavenUtils.getClasspath(session, mojoExecution);
     Map<String, Object> additionalTags = Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
+    JavaAgent jacocoAgent = MavenUtils.getJacocoAgent(session, project, mojoExecution);
 
     BuildModuleSettings moduleSettings =
         buildEventsHandler.onTestModuleStart(
-            request, moduleName, moduleLayout, forkedJvmPath, additionalTags);
+            request,
+            moduleName,
+            moduleLayout,
+            forkedJvmPath,
+            classpath,
+            jacocoAgent,
+            additionalTags);
 
-    PlexusConfiguration pomConfiguration = MavenUtils.getPomConfiguration(mojoExecution);
-    PlexusConfiguration forkCount = pomConfiguration.getChild("forkCount");
-    if (forkCount != null && "0".equals(forkCount.getValue())) {
+    String forkCount = MavenUtils.getConfigurationValue(session, mojoExecution, "forkCount");
+    if ("0".equals(forkCount)) {
       log.warn(
           "Tests execution {} does not run in a forked JVM, this configuration is not supported",
           executionId);
@@ -106,7 +114,8 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     }
 
     Map<String, String> systemProperties = moduleSettings.getSystemProperties();
-    MavenProjectConfigurator.INSTANCE.configureTracer(mojoExecution, systemProperties);
+    MavenProjectConfigurator.INSTANCE.configureTracer(
+        session, project, mojoExecution, systemProperties);
   }
 
   @Nullable

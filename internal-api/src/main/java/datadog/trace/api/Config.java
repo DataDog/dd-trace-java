@@ -1815,7 +1815,6 @@ public class Config {
             DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
     ciVisibilityCodeCoverageEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
-    // FIXME nikita: should be set to true in ExecutionSettings if Jacoco detected?
     ciVisibilityCoverageLinesEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED, false);
     ciVisibilityCodeCoverageReportDumpDir =

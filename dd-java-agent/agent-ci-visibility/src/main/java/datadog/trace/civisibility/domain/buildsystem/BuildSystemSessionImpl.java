@@ -5,6 +5,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
+import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.TagValue;
 import datadog.trace.api.civisibility.telemetry.tag.EarlyFlakeDetectionAbortReason;
@@ -33,6 +34,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.utils.SpanUtils;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -175,7 +177,9 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
       String moduleName,
       @Nullable Long startTime,
       BuildModuleLayout moduleLayout,
-      JvmInfo jvmInfo) {
+      JvmInfo jvmInfo,
+      @Nullable Collection<Path> classpath,
+      @Nullable JavaAgent jacocoAgent) {
     ExecutionSettings executionSettings = executionSettingsFactory.create(jvmInfo, moduleName);
     return new BuildSystemModuleImpl(
         span.context(),
@@ -185,6 +189,8 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         startTime,
         signalServer.getAddress(),
         moduleLayout,
+        classpath,
+        jacocoAgent,
         config,
         metricCollector,
         testDecorator,

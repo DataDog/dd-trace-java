@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.gradle.legacy
 
 import datadog.trace.api.civisibility.domain.BuildModuleLayout
+import datadog.trace.api.civisibility.domain.JavaAgent
 import datadog.trace.api.civisibility.domain.SourceSet
 import org.gradle.StartParameter
 import org.gradle.api.Project
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory
 
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.stream.Collectors
 
 abstract class GradleUtils {
 
@@ -91,5 +93,28 @@ abstract class GradleUtils {
       ? task.executable
       : Jvm.current().getJavaExecutable().getAbsolutePath()
     return stringPath != null ? Paths.get(stringPath) : null
+  }
+
+  static List<Path> getClasspath(Task task) {
+    if (task.hasProperty("classpath")) {
+      try {
+        return task.classpath.getFiles().stream().map(File::toPath).collect(Collectors.toList())
+      } catch (Exception e) {
+        LOGGER.error("Could not get classpath for test task", e)
+      }
+    }
+    return null
+  }
+
+  static JavaAgent getJacocoAgent(Task task) {
+    def jacocoExtension = task.extensions.findByName("jacoco")
+    if (jacocoExtension != null) {
+      def jacocoJvmArg = jacocoExtension.asJvmArg // -javaagent:<PATH>/agent.jar=<ARGS>
+      String noPrefix = jacocoJvmArg.substring(jacocoJvmArg.indexOf(':') + 1)
+      String agentPath = noPrefix.substring(0, noPrefix.indexOf('='))
+      String args = noPrefix.substring(noPrefix.indexOf('=') + 1)
+      return new JavaAgent(agentPath, args)
+    }
+    return null
   }
 }

@@ -2,10 +2,12 @@ package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import datadog.trace.api.civisibility.domain.JavaAgent;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -179,14 +181,17 @@ public class CiVisibilityGradleListener extends BuildAdapter
     Project project = gradle.getRootProject().project(projectPath);
     Test task = (Test) project.getTasks().getByName(taskIdentity.name);
 
+    Map<String, Object> inputProperties = task.getInputs().getProperties();
     BuildModuleLayout moduleLayout =
-        (BuildModuleLayout)
-            task.getInputs()
-                .getProperties()
-                .get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
+        (BuildModuleLayout) inputProperties.get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
+    JavaAgent jacocoAgent =
+        (JavaAgent) inputProperties.get(CiVisibilityPluginExtension.JACOCO_AGENT_PROPERTY);
 
     Path jvmExecutable = CiVisibilityPluginExtension.getEffectiveExecutable(task);
-    ciVisibilityService.onModuleStart(taskPath, moduleLayout, jvmExecutable);
+    List<Path> taskClasspath = CiVisibilityPluginExtension.getClasspath(task);
+
+    ciVisibilityService.onModuleStart(
+        taskPath, moduleLayout, jvmExecutable, taskClasspath, jacocoAgent);
   }
 
   @Override
