@@ -1313,6 +1313,8 @@ build_test_jobs: &build_test_jobs
       gradleParameters: "-PskipFlakyTests"
       stage: smoke
       cacheType: smoke
+      parallelism: 4
+      maxWorkers: 3
       testJvm: "8"
 
   - fan_in:
