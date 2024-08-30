@@ -855,6 +855,11 @@ public class AgentTracer {
     public AgentSpan setMetaStruct(String field, Object value) {
       return this;
     }
+
+    @Override
+    public boolean isRequiresPostProcessing() {
+      return false;
+    }
   }
 
   public static final class NoopAgentScope implements AgentScope {
