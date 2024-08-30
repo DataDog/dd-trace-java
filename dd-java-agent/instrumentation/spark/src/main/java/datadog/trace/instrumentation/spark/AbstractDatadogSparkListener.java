@@ -65,6 +65,7 @@ import scala.collection.JavaConverters;
  */
 public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
+  private static final ObjectMapper objectMapper = new ObjectMapper();
   public static volatile AbstractDatadogSparkListener listener = null;
   public static volatile boolean finishTraceOnApplicationEnd = true;
   public static volatile boolean isPysparkShell = false;
@@ -1200,7 +1201,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     // check if this is a kafka source
     if (progress.description().toLowerCase().startsWith("kafka")) {
       try {
-        ObjectMapper objectMapper = new ObjectMapper();
         // parse offsets from endOffsets json, reported in a format:
         // "topic" -> ["partition":value]
         JsonNode jsonNode = objectMapper.readTree(progress.endOffset());
@@ -1227,7 +1227,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
                 .trackBacklog(sortedTags, topicNode.get(partition).asLong());
           }
         }
-      } catch (Exception e) {
+      } catch (Throwable e) {
         log.debug("Failed to parse kafka offsets", e);
       }
     }
@@ -1242,7 +1242,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     try {
       // Using the jackson JSON lib used by spark
       // https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.12/3.5.0
-      ObjectMapper objectMapper = new ObjectMapper();
       JsonNode jsonNode = objectMapper.readTree(allTags);
 
       for (JsonNode node : jsonNode) {
