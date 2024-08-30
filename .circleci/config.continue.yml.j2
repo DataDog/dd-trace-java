@@ -28,7 +28,7 @@ debugger_test_matrix: &debugger_test_matrix
 
 system_test_matrix: &system_test_matrix
   parameters:
-    weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-3-native', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
+    weblog-variant: ['akka-http', 'jersey-grizzly2', 'play', 'resteasy-netty3', 'ratpack', 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-payara', 'spring-boot-undertow', 'spring-boot-wildfly', 'spring-boot-3-native', 'uds-spring-boot', 'vertx3', 'vertx4']
 
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
 core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking|dd-trace-api|dd-trace-ot"
