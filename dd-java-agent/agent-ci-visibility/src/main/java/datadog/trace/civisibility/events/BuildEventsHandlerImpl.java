@@ -3,6 +3,7 @@ package datadog.trace.civisibility.events;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildModuleSettings;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
+import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.config.JvmInfo;
@@ -11,6 +12,7 @@ import datadog.trace.civisibility.domain.BuildSystemModule;
 import datadog.trace.civisibility.domain.BuildSystemSession;
 import datadog.trace.civisibility.domain.TestStatus;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -83,12 +85,15 @@ public class BuildEventsHandlerImpl<SessionKey> implements BuildEventsHandler<Se
       final String moduleName,
       BuildModuleLayout moduleLayout,
       @Nullable Path jvmExecutable,
+      @Nullable Collection<Path> classpath,
+      @Nullable JavaAgent jacocoAgent,
       @Nullable Map<String, Object> additionalTags) {
 
     BuildSystemSession testSession = inProgressTestSessions.get(sessionKey);
     JvmInfo jvmInfo = jvmInfoFactory.getJvmInfo(jvmExecutable);
     BuildSystemModule testModule =
-        testSession.testModuleStart(moduleName, null, moduleLayout, jvmInfo);
+        testSession.testModuleStart(
+            moduleName, null, moduleLayout, jvmInfo, classpath, jacocoAgent);
     testModule.setTag(Tags.TEST_STATUS, TestStatus.pass);
 
     if (additionalTags != null) {

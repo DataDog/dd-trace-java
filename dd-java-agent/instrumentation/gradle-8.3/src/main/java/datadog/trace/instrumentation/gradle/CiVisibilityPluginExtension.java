@@ -1,17 +1,21 @@
 package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
+import datadog.trace.api.civisibility.domain.JavaAgent;
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.api.provider.Property;
 import org.gradle.api.services.ServiceReference;
 import org.gradle.api.tasks.compile.CompileOptions;
@@ -28,6 +32,7 @@ public abstract class CiVisibilityPluginExtension {
   private static final Logger LOGGER = Logging.getLogger(CiVisibilityPluginExtension.class);
 
   public static final String MODULE_LAYOUT_PROPERTY = "moduleLayout";
+  public static final String JACOCO_AGENT_PROPERTY = "jacocoAgent";
 
   private final ObjectFactory objectFactory;
   private FileCollection compilerPluginClasspath;
@@ -103,6 +108,8 @@ public abstract class CiVisibilityPluginExtension {
 
   public void applyTo(Test task) {
     task.getInputs().property(MODULE_LAYOUT_PROPERTY, moduleLayout);
+    task.getInputs()
+        .property(JACOCO_AGENT_PROPERTY, CiVisibilityPluginExtension.getJacocoAgent(task));
 
     applyTracerSettings(task.getPath(), getProjectProperties(task), task.getJvmArgumentProviders());
 
@@ -111,6 +118,19 @@ public abstract class CiVisibilityPluginExtension {
     if (jacocoTaskExtension != null) {
       applyJacocoSettings(jacocoTaskExtension);
     }
+  }
+
+  private static JavaAgent getJacocoAgent(Test task) {
+    ExtensionContainer extensions = task.getExtensions();
+    JacocoTaskExtension jacocoExtension = extensions.findByType(JacocoTaskExtension.class);
+    if (jacocoExtension != null) {
+      String jacocoJvmArg = jacocoExtension.getAsJvmArg(); // -javaagent:<PATH>/agent.jar=<ARGS>
+      String noPrefix = jacocoJvmArg.substring(jacocoJvmArg.indexOf(':') + 1);
+      String agentPath = noPrefix.substring(0, noPrefix.indexOf('='));
+      String args = noPrefix.substring(noPrefix.indexOf('=') + 1);
+      return new JavaAgent(agentPath, args);
+    }
+    return null;
   }
 
   public static Path getEffectiveExecutable(Test task) {
@@ -127,6 +147,15 @@ public abstract class CiVisibilityPluginExtension {
       return Paths.get(executable);
     } else {
       return Jvm.current().getJavaExecutable().toPath();
+    }
+  }
+
+  public static List<Path> getClasspath(Test task) {
+    try {
+      return task.getClasspath().getFiles().stream().map(File::toPath).collect(Collectors.toList());
+    } catch (Exception e) {
+      LOGGER.error("Could not get classpath for test task", e);
+      return null;
     }
   }
 

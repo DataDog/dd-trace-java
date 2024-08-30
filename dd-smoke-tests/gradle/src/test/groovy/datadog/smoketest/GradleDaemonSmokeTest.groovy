@@ -76,18 +76,18 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
   @IgnoreIf(reason = "Jacoco plugin does not work with OpenJ9 in older Gradle versions", value = {
     Platform.isJ9()
   })
-  def "test legacy #projectName, v#gradleVersion, configCache: #configurationCache"() {
-    runGradleTest(gradleVersion, projectName, configurationCache, successExpected, flakyRetries, expectedTraces, expectedCoverages)
+  def "test legacy #projectName, v#gradleVersion"() {
+    runGradleTest(gradleVersion, projectName, false, successExpected, false, expectedTraces, expectedCoverages)
 
     where:
-    gradleVersion         | projectName                                        | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages
-    "3.0"                 | "test-succeed-old-gradle"                          | false              | true            | false        | 5              | 1
-    "7.6.4"               | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
-    "7.6.4"               | "test-succeed-multi-module-legacy-instrumentation" | false              | true            | false        | 7              | 2
-    "7.6.4"               | "test-succeed-multi-forks-legacy-instrumentation"  | false              | true            | false        | 6              | 2
-    "7.6.4"               | "test-skip-legacy-instrumentation"                 | false              | true            | false        | 2              | 0
-    "7.6.4"               | "test-failed-legacy-instrumentation"               | false              | false           | false        | 4              | 0
-    "7.6.4"               | "test-corrupted-config-legacy-instrumentation"     | false              | false           | false        | 1              | 0
+    gradleVersion         | projectName                                        | successExpected | expectedTraces | expectedCoverages
+    "3.0"                 | "test-succeed-old-gradle"                          | true            | 5              | 1
+    "7.6.4"               | "test-succeed-legacy-instrumentation"              | true            | 5              | 1
+    "7.6.4"               | "test-succeed-multi-module-legacy-instrumentation" | true            | 7              | 2
+    "7.6.4"               | "test-succeed-multi-forks-legacy-instrumentation"  | true            | 6              | 2
+    "7.6.4"               | "test-skip-legacy-instrumentation"                 | true            | 2              | 0
+    "7.6.4"               | "test-failed-legacy-instrumentation"               | false           | 4              | 0
+    "7.6.4"               | "test-corrupted-config-legacy-instrumentation"     | false           | 1              | 0
   }
 
   def "test #projectName, v#gradleVersion, configCache: #configurationCache"() {
@@ -161,7 +161,6 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=$JACOCO_PLUGIN_VERSION," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED)}=true," + // FIXME nikita: remove when automated?
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}"
 
     Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())

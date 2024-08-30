@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildModuleSettings;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
+import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -103,8 +104,14 @@ public abstract class CiVisibilityService
         SESSION_KEY, buildPath, projectRoot, startCommand, "gradle", gradleVersion, additionalTags);
   }
 
-  public void onModuleStart(String taskPath, BuildModuleLayout moduleLayout, Path jvmExecutable) {
-    buildEventsHandler.onTestModuleStart(SESSION_KEY, taskPath, moduleLayout, jvmExecutable, null);
+  public void onModuleStart(
+      String taskPath,
+      BuildModuleLayout moduleLayout,
+      Path jvmExecutable,
+      Collection<Path> taskClasspath,
+      JavaAgent jacocoAgent) {
+    buildEventsHandler.onTestModuleStart(
+        SESSION_KEY, taskPath, moduleLayout, jvmExecutable, taskClasspath, jacocoAgent, null);
   }
 
   public void onModuleFinish(

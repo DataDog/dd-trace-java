@@ -47,7 +47,11 @@ class MavenProjectConfigurator {
 
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
-  public void configureTracer(MojoExecution mojoExecution, Map<String, String> systemProperties) {
+  public void configureTracer(
+      MavenSession session,
+      MavenProject project,
+      MojoExecution mojoExecution,
+      Map<String, String> systemProperties) {
     Config config = Config.get();
     if (!config.isCiVisibilityAutoConfigurationEnabled()) {
       return;
@@ -81,9 +85,7 @@ class MavenProjectConfigurator {
         .append("-javaagent:")
         .append(escapeForCommandLine(String.valueOf(agentJar.toPath())));
 
-    PlexusConfiguration pomConfiguration = MavenUtils.getPomConfiguration(mojoExecution);
-    PlexusConfiguration argLineConfiguration = pomConfiguration.getChild("argLine");
-    String existingArgLine = argLineConfiguration.getValue();
+    String existingArgLine = MavenUtils.getArgLine(session, project, mojoExecution);
     String updatedArgLine =
         (existingArgLine != null ? existingArgLine + " " : "")
             +
@@ -96,7 +98,7 @@ class MavenProjectConfigurator {
 
     Xpp3Dom configuration = mojoExecution.getConfiguration();
     mojoExecution.setConfiguration(
-        MavenUtils.setConfigurationValue(updatedArgLine, configuration, "argLine"));
+        MavenUtils.setXmlConfigurationValue(updatedArgLine, configuration, "argLine"));
 
     // needed for goal executions (e.g. "surefire:test")
     MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
@@ -111,7 +113,7 @@ class MavenProjectConfigurator {
     if (pluginExecution != null) {
       Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
       Xpp3Dom updatedExecutionConfiguration =
-          MavenUtils.setConfigurationValue(updatedArgLine, executionConfiguration, "argLine");
+          MavenUtils.setXmlConfigurationValue(updatedArgLine, executionConfiguration, "argLine");
       pluginExecution.setConfiguration(updatedExecutionConfiguration);
     }
   }
@@ -137,7 +139,8 @@ class MavenProjectConfigurator {
     }
 
     Xpp3Dom pluginConfiguration = (Xpp3Dom) compilerPlugin.getConfiguration();
-    String pluginCompilerId = MavenUtils.getConfigurationValue(pluginConfiguration, "compilerId");
+    String pluginCompilerId =
+        MavenUtils.getXmlConfigurationValue(pluginConfiguration, "compilerId");
     if (pluginCompilerId != null && !JAVAC_COMPILER_ID.equals(pluginCompilerId)) {
       return;
     }
@@ -145,7 +148,7 @@ class MavenProjectConfigurator {
     for (PluginExecution execution : compilerPlugin.getExecutions()) {
       Xpp3Dom configuration = (Xpp3Dom) execution.getConfiguration();
 
-      String compilerId = MavenUtils.getConfigurationValue(configuration, "compilerId");
+      String compilerId = MavenUtils.getXmlConfigurationValue(configuration, "compilerId");
       if (compilerId != null && !JAVAC_COMPILER_ID.equals(compilerId)) {
         // Javac plugin does not work with other compilers
         continue;
@@ -261,14 +264,10 @@ class MavenProjectConfigurator {
   void configureJacoco(
       MavenSession session, MavenProject project, BuildSessionSettings sessionSettings) {
     excludeDatadogClassLoaderFromJacocoInstrumentation(project);
-
-    if (!Config.get().isCiVisibilityCoverageLinesEnabled()
-            && !Config.get().isCiVisibilityJacocoPluginVersionProvided()
-        || runsWithJacoco(session, project)) {
-      return;
+    if (Config.get().isCiVisibilityJacocoPluginVersionProvided()
+        && !runsWithJacoco(session, project)) {
+      configureJacocoPlugin(project, sessionSettings);
     }
-
-    configureJacocoPlugin(project, sessionSettings);
   }
 
   private boolean runsWithJacoco(MavenSession session, MavenProject project) {

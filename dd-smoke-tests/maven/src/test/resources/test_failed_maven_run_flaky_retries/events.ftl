@@ -11,10 +11,9 @@
     "error" : 1,
     "metrics" : {
       "process_id" : ${content_metrics_process_id},
-      "test.itr.tests_skipping.count" : 0,
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "test.code_coverage.lines_pct" : 50
+      "test.code_coverage.lines_pct" : 33
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
@@ -29,7 +28,6 @@
       "span.kind" : "test_session_end",
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
-      "test.itr.tests_skipping.enabled" : "true",
       "test.type" : "test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
@@ -39,7 +37,6 @@
       "test.toolchain" : ${content_meta_test_toolchain},
       "error.message" : ${content_meta_error_message},
       "error.stack" : ${content_meta_error_stack},
-      "test.itr.tests_skipping.type" : "test",
       "test.command" : "mvn -B test",
       "test.framework_version" : "4.13.2",
       "test.framework" : "junit4"
@@ -58,8 +55,7 @@
     "duration" : ${content_duration_2},
     "error" : 1,
     "metrics" : {
-      "test.itr.tests_skipping.count" : 0,
-      "test.code_coverage.lines_pct" : 50
+      "test.code_coverage.lines_pct" : 33
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
@@ -73,7 +69,6 @@
       "library_version" : ${content_meta_library_version},
       "span.kind" : "test_module_end",
       "runtime.version" : ${content_meta_runtime_version},
-      "test.itr.tests_skipping.enabled" : "true",
       "test.type" : "test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
@@ -83,7 +78,6 @@
       "test.execution" : "maven-surefire-plugin:test:default-test",
       "error.message" : ${content_meta_error_message},
       "error.stack" : ${content_meta_error_stack_2},
-      "test.itr.tests_skipping.type" : "test",
       "test.command" : "mvn -B test",
       "test.framework_version" : "4.13.2",
       "test.framework" : "junit4"

@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildModuleSettings;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
+import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -27,6 +28,8 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.utils.SpanUtils;
 import datadog.trace.util.Strings;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +57,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       @Nullable Long startTime,
       InetSocketAddress signalServerAddress,
       BuildModuleLayout moduleLayout,
+      @Nullable Collection<Path> classpath,
+      @Nullable JavaAgent jacocoAgent,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -92,13 +97,20 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     settings =
         new BuildModuleSettings(
             getPropertiesPropagatedToChildProcess(
-                moduleName, signalServerAddress, executionSettings, sessionSettings));
+                moduleName,
+                classpath,
+                jacocoAgent,
+                signalServerAddress,
+                executionSettings,
+                sessionSettings));
 
     setTag(Tags.TEST_COMMAND, startCommand);
   }
 
   private Map<String, String> getPropertiesPropagatedToChildProcess(
       String moduleName,
+      @Nullable Collection<Path> classpath,
+      @Nullable JavaAgent jacocoAgent,
       InetSocketAddress signalServerAddress,
       ExecutionSettings executionSettings,
       BuildSessionSettings sessionSettings) {
@@ -160,6 +172,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_MODULE_NAME),
         moduleName);
+
     propagatedSystemProperties.put(
         Strings.propertyNameToSystemPropertyName(
             CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_HOST),
@@ -174,6 +187,20 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         Strings.propertyNameToSystemPropertyName(
             CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES),
         String.join(":", coverageEnabledPackages));
+
+    if (jacocoAgent != null) {
+      // If the module is using Jacoco,
+      // per-test code coverage needs to have line-level granularity
+      // (as opposed to default file-level granularity).
+      // Line coverage data is needed to back-fill coverage for tests skipped by ITR
+      // in order to calculate accurate coverage percentage.
+      // This setting is only relevant if per-test code coverage is enabled,
+      // otherwise it has no effect.
+      propagatedSystemProperties.put(
+          Strings.propertyNameToSystemPropertyName(
+              CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED),
+          Boolean.toString(true));
+    }
 
     return propagatedSystemProperties;
   }

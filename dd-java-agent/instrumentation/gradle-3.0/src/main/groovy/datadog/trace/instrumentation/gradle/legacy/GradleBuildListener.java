@@ -5,8 +5,8 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildModuleSettings;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
+import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
-import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -106,15 +106,14 @@ public class GradleBuildListener extends BuildAdapter {
       List<String> sourceSetNames = Config.get().getCiVisibilityJacocoGradleSourceSets();
       BuildModuleLayout moduleLayout = GradleUtils.getModuleLayout(project, sourceSetNames);
       Path jvmExecutable = GradleUtils.getEffectiveExecutable(task);
+      List<Path> classpath = GradleUtils.getClasspath(task);
+      JavaAgent jacocoAgent = GradleUtils.getJacocoAgent(task);
 
       BuildModuleSettings moduleSettings =
-          buildEventsHandler.onTestModuleStart(gradle, taskPath, moduleLayout, jvmExecutable, null);
+          buildEventsHandler.onTestModuleStart(
+              gradle, taskPath, moduleLayout, jvmExecutable, classpath, jacocoAgent, null);
       Map<String, String> systemProperties = moduleSettings.getSystemProperties();
       GradleProjectConfigurator.INSTANCE.configureTracer(task, systemProperties);
-    }
-
-    private String arg(String propertyName, Object value) {
-      return "-D" + Strings.propertyNameToSystemPropertyName(propertyName) + "=" + value;
     }
 
     @Override

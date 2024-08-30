@@ -100,6 +100,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.coverage.NoOpProbes",
   "datadog.trace.api.civisibility.coverage.TestReport",
   "datadog.trace.api.civisibility.coverage.TestReportFileEntry",
+  "datadog.trace.api.civisibility.domain.JavaAgent",
   "datadog.trace.api.civisibility.domain.Language",
   "datadog.trace.api.civisibility.domain.BuildModuleLayout",
   "datadog.trace.api.civisibility.domain.BuildModuleSettings",
