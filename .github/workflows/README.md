@@ -74,6 +74,14 @@ _Action:_
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
 
+### prune-github-container-registry [🔗](prune-github-container-registry.yaml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Clean up old lib-injection OCI images from GitHub Container Registry.
+
+_Recovery:_ Manually trigger the action again.
+
 ## Code Quality and Security
 
 ### analyze-changes [🔗](analyze-changes-with-github-codeql.yml)
@@ -104,13 +112,3 @@ _Recovery:_ Manually trigger the action again.
 **DISABLED** - GitHub provides a way to disable actions rather than changing their extensions.
 
 _Comment:_ To delete?
-
-## Lib Injection
-
-### lib-injection-prune-registry [🔗](lib-injection-prune-registry.yaml)
-
-_Trigger:_ Every week or manually.
-
-_Action:_ Clean up old lib-injection Docker images from GHCR.
-
-_Recovery:_ Manually trigger the action again.
