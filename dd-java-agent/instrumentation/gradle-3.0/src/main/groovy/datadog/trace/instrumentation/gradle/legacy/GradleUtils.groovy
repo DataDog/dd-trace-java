@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory
 
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.stream.Collectors
 
 abstract class GradleUtils {
 
@@ -116,8 +115,14 @@ abstract class GradleUtils {
     if (jacocoExtension != null) {
       def jacocoJvmArg = jacocoExtension.asJvmArg // -javaagent:<PATH>/agent.jar=<ARGS>
       String noPrefix = jacocoJvmArg.substring(jacocoJvmArg.indexOf(':') + 1)
-      String agentPath = noPrefix.substring(0, noPrefix.indexOf('='))
-      String args = noPrefix.substring(noPrefix.indexOf('=') + 1)
+
+      def agentArgsIdx = noPrefix.indexOf('=')
+      if (agentArgsIdx < 0) {
+        return new JavaAgent(noPrefix, null)
+      }
+
+      String agentPath = noPrefix.substring(0, agentArgsIdx)
+      String args = noPrefix.substring(agentArgsIdx + 1)
       return new JavaAgent(agentPath, args)
     }
     return null

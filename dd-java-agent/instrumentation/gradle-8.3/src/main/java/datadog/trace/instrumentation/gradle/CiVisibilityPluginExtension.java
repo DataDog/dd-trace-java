@@ -108,8 +108,11 @@ public abstract class CiVisibilityPluginExtension {
 
   public void applyTo(Test task) {
     task.getInputs().property(MODULE_LAYOUT_PROPERTY, moduleLayout);
-    task.getInputs()
-        .property(JACOCO_AGENT_PROPERTY, CiVisibilityPluginExtension.getJacocoAgent(task));
+
+    JavaAgent jacocoAgent = CiVisibilityPluginExtension.getJacocoAgent(task);
+    if (jacocoAgent != null) {
+      task.getInputs().property(JACOCO_AGENT_PROPERTY, jacocoAgent);
+    }
 
     applyTracerSettings(task.getPath(), getProjectProperties(task), task.getJvmArgumentProviders());
 
@@ -126,9 +129,14 @@ public abstract class CiVisibilityPluginExtension {
     if (jacocoExtension != null) {
       String jacocoJvmArg = jacocoExtension.getAsJvmArg(); // -javaagent:<PATH>/agent.jar=<ARGS>
       String noPrefix = jacocoJvmArg.substring(jacocoJvmArg.indexOf(':') + 1);
-      String agentPath = noPrefix.substring(0, noPrefix.indexOf('='));
-      String args = noPrefix.substring(noPrefix.indexOf('=') + 1);
-      return new JavaAgent(agentPath, args);
+      int agentArgsIndex = noPrefix.indexOf('=');
+      if (agentArgsIndex < 0) {
+        return new JavaAgent(noPrefix, null);
+      } else {
+        String agentPath = noPrefix.substring(0, agentArgsIndex);
+        String args = noPrefix.substring(noPrefix.indexOf('=') + 1);
+        return new JavaAgent(agentPath, args);
+      }
     }
     return null;
   }
