@@ -1,7 +1,7 @@
 {
   "version": "2.2",
   "metadata": {
-    "rules_version": "1.13.0"
+    "rules_version": "1.13.1"
   },
   "rules": [
     {
@@ -6239,7 +6239,6 @@
     {
       "id": "rasp-930-100",
       "name": "Local file inclusion exploit",
-      "enabled": false,
       "tags": {
         "type": "lfi",
         "category": "vulnerability_trigger",
@@ -6288,7 +6287,6 @@
     {
       "id": "rasp-932-100",
       "name": "Shell injection exploit",
-      "enabled": false,
       "tags": {
         "type": "command_injection",
         "category": "vulnerability_trigger",
@@ -6337,7 +6335,6 @@
     {
       "id": "rasp-934-100",
       "name": "Server-side request forgery exploit",
-      "enabled": false,
       "tags": {
         "type": "ssrf",
         "category": "vulnerability_trigger",
@@ -6386,7 +6383,6 @@
     {
       "id": "rasp-942-100",
       "name": "SQL injection exploit",
-      "enabled": false,
       "tags": {
         "type": "sql_injection",
         "category": "vulnerability_trigger",
