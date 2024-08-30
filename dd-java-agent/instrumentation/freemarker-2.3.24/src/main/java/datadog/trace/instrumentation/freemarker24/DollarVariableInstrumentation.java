@@ -41,8 +41,8 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
   @Override
   public String[] helperClassNames() {
     return new String[] {
-        FREEMARKER_CORE + ".DollarVariable24Helper",
-        FREEMARKER_CORE + ".DollarVariable24DatadogAdvice"
+      FREEMARKER_CORE + ".DollarVariable24Helper",
+      FREEMARKER_CORE + ".DollarVariable24DatadogAdvice"
     };
   }
 
