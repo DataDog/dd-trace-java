@@ -3803,7 +3803,33 @@
         }
       ],
       "transformers": [],
-      "on_match": ["block", "stack_trace"]
+      "on_match": ["block"]
+    },
+    {
+      "id": "generate-stacktrace-on-scanner",
+      "name": "Arachni",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^Arachni\\/generate-stacktrace"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": ["stack_trace"]
     },
     {
       "id": "ua0-600-13x",

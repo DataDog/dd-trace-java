@@ -1,5 +1,7 @@
 package com.datadog.appsec.gateway;
 
+import static java.util.Collections.emptySet;
+
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
@@ -104,7 +106,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-  private Map<String, String> apiSchemas;
+  private Map<String, String> derivatives;
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
@@ -499,22 +501,27 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public void reportApiSchemas(Map<String, String> schemas) {
-    if (schemas == null || schemas.isEmpty()) return;
+  public void reportDerivatives(Map<String, String> data) {
+    if (data == null || data.isEmpty()) return;
 
-    if (apiSchemas == null) {
-      apiSchemas = schemas;
+    if (derivatives == null) {
+      derivatives = data;
     } else {
-      apiSchemas.putAll(schemas);
+      derivatives.putAll(data);
     }
   }
 
-  boolean commitApiSchemas(TraceSegment traceSegment) {
-    if (traceSegment == null || apiSchemas == null) {
+  boolean commitDerivatives(TraceSegment traceSegment) {
+    if (traceSegment == null || derivatives == null) {
       return false;
     }
-    apiSchemas.forEach(traceSegment::setTagTop);
+    derivatives.forEach(traceSegment::setTagTop);
     return true;
+  }
+
+  // Mainly used for testing and logging
+  Set<String> getDerivativeKeys() {
+    return derivatives == null ? emptySet() : new HashSet<>(derivatives.keySet());
   }
 
   public boolean isThrottled(RateLimiter rateLimiter) {

@@ -235,6 +235,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SPAN_DEBUG_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
@@ -872,6 +873,7 @@ public class Config {
   private final String debuggerExcludeFiles;
   private final int debuggerCaptureTimeout;
   private final String debuggerRedactedIdentifiers;
+  private final Set<String> debuggerRedactionExcludedIdentifiers;
   private final String debuggerRedactedTypes;
   private final boolean debuggerSymbolEnabled;
   private final boolean debuggerSymbolForceUpload;
@@ -1970,6 +1972,8 @@ public class Config {
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
     debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
+    debuggerRedactionExcludedIdentifiers =
+        tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
     debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
@@ -3422,6 +3426,10 @@ public class Config {
 
   public String getDebuggerRedactedIdentifiers() {
     return debuggerRedactedIdentifiers;
+  }
+
+  public Set<String> getDebuggerRedactionExcludedIdentifiers() {
+    return debuggerRedactionExcludedIdentifiers;
   }
 
   public String getDebuggerRedactedTypes() {

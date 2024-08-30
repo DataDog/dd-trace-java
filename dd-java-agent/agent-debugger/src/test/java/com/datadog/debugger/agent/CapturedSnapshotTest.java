@@ -1777,6 +1777,34 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  public void enumCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "convert", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.and(
+                            DSL.eq(DSL.ref("@return"), DSL.value("TWO")),
+                            DSL.eq(DSL.ref("@return"), DSL.value("MyEnum.TWO")),
+                            DSL.eq(
+                                DSL.ref("@return"),
+                                DSL.value("com.datadog.debugger.CapturedSnapshot23$MyEnum.TWO")))),
+                    "@return == 'TWO' && @return == 'MyEnum.TWO' && @return == 'com.datadog.debugger.CapturedSnapshot23$MyEnum.TWO'"))
+            .build();
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "2").get();
+    assertEquals(2, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureReturnValue(
+        snapshot.getCaptures().getReturn(),
+        "com.datadog.debugger.CapturedSnapshot23$MyEnum",
+        "TWO");
+  }
+
+  @Test
   public void recursiveCapture() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot24";
     final String INNER_CLASS = CLASS_NAME + "$Holder";

@@ -174,7 +174,8 @@ public class BatchUploader {
         debuggerMetrics.count("batch.uploaded", 1);
       } else {
         debuggerMetrics.count("request.queue.full", 1);
-        log.warn("Cannot upload batch data: too many enqueued requests!");
+        ratelimitedLogger.warn(
+            "Cannot upload batch data to {}: too many enqueued requests!", urlBase);
       }
     } catch (Exception ex) {
       debuggerMetrics.count("batch.upload.error", 1);
