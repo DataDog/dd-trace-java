@@ -106,9 +106,3 @@ _Trigger:_ Every week or manually.
 _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
-
-### gradle-wrapper-validation [🔗](gradle-wrapper-validation.yaml.disabled)
-
-**DISABLED** - GitHub provides a way to disable actions rather than changing their extensions.
-
-_Comment:_ To delete?
