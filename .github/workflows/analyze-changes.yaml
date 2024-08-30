@@ -70,7 +70,7 @@ jobs:
           DD_SITE: datad0g.com
 
   trivy:
-    name: Analyze changes with GitHub CodeQL
+    name: Analyze changes with Trivy
     runs-on: ubuntu-latest
     permissions:
       actions: read
