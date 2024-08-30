@@ -106,3 +106,14 @@ _Trigger:_ Every week or manually.
 _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
+
+
+## Maintenance
+
+GitHub actions should be part of the [repository allowed actions to run](https://github.com/DataDog/dd-trace-java/settings/actions).
+While GitHub owned actions are allowed by default, the other ones must be declared.
+
+Run the following script to get the list of actions to declare according the state of your working copy:
+```bash
+find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sort | uniq
+```
