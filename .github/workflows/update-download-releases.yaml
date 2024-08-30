@@ -6,6 +6,8 @@ on:
   workflow_dispatch:
 jobs:
   update-releases:
+    permissions:
+      contents: write # Required to update releases content
     runs-on: ubuntu-latest
     steps:
       - name: Update download releases

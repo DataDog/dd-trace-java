@@ -5,11 +5,12 @@ on:
     branches:
       - master
       - release/v*
-
 jobs:
   add_milestone_to_merged:
-    if: github.event.pull_request.merged && github.event.pull_request.milestone == null
     name: Add milestone to merged pull requests
+    permissions:
+      issues: write # Required to update the milestone of a pull request
+    if: github.event.pull_request.merged && github.event.pull_request.milestone == null
     runs-on: ubuntu-latest
     steps:
       - name: Add milestone to merged pull requests
