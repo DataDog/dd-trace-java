@@ -118,7 +118,9 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
 
     mockBackend.givenFlakyRetries(flakyRetries)
     mockBackend.givenFlakyTest(":test", "datadog.smoke.TestFailed", "test_failed")
-    mockBackend.givenSkippableTest(":test", "datadog.smoke.TestSucceed", "test_to_skip_with_itr")
+
+    mockBackend.givenTestsSkipping(true)
+    mockBackend.givenSkippableTest(":test", "datadog.smoke.TestSucceed", "test_to_skip_with_itr", [:])
 
     BuildResult buildResult = runGradleTests(gradleVersion, successExpected, configurationCache)
 
