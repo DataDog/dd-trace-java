@@ -322,7 +322,7 @@ public class DebuggerSinkTest {
     DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
     StringBuilder largeMessageBuilder = new StringBuilder(100_001);
     for (int i = 0; i < 100_000; i++) {
-      largeMessageBuilder.append("f");
+      largeMessageBuilder.append('f');
     }
     String largeMessage = largeMessageBuilder.toString();
     for (int i = 0; i < 100; i++) {
