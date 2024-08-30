@@ -567,10 +567,14 @@ public abstract class MavenUtils {
     for (String arg : args) {
       if (arg.startsWith(JAVAAGENT_PREFIX)) {
         int agentArgsBegin = arg.indexOf('=');
-        String path = arg.substring(JAVAAGENT_PREFIX.length(), agentArgsBegin);
-        if (path.contains("jacoco")) {
-          String agentArgs = arg.substring(agentArgsBegin + 1);
-          return new JavaAgent(path, agentArgs);
+        if (agentArgsBegin < 0) {
+          return new JavaAgent(arg.substring(JAVAAGENT_PREFIX.length()), null);
+        } else {
+          String path = arg.substring(JAVAAGENT_PREFIX.length(), agentArgsBegin);
+          if (path.contains("jacoco")) {
+            String agentArgs = arg.substring(agentArgsBegin + 1);
+            return new JavaAgent(path, agentArgs);
+          }
         }
       }
     }
