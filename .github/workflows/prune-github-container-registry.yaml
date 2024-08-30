@@ -12,16 +12,16 @@ jobs:
       contents: read
       packages: write # Required to delete images
     steps:
-    - name: Prune registry
-      uses: vlaurin/action-ghcr-prune@0cf7d39f88546edd31965acba78cdcb0be14d641 #v0.6.0
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        organization: Datadog
-        container: dd-trace-java/dd-lib-java-init
-        keep-younger-than: 7 # days
-        keep-last: 10
-        keep-tags: |
-          latest_snapshot
-        prune-tags-regexes: |
-          ^[a-z0-9]{40}$
-        prune-untagged: true
+      - name: Prune registry
+        uses: vlaurin/action-ghcr-prune@0cf7d39f88546edd31965acba78cdcb0be14d641 #v0.6.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          organization: Datadog
+          container: dd-trace-java/dd-lib-java-init
+          keep-younger-than: 7 # days
+          keep-last: 10
+          keep-tags: |
+            latest_snapshot
+          prune-tags-regexes: |
+            ^[a-z0-9]{40}$
+          prune-untagged: true

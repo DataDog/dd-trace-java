@@ -84,7 +84,7 @@ _Recovery:_ Manually trigger the action again.
 
 ## Code Quality and Security
 
-### analyze-changes [🔗](analyze-changes-with-github-codeql.yml)
+### analyze-changes [🔗](analyze-changes-with-github-codeql.yaml)
 
 _Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
 
