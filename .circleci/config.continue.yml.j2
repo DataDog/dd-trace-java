@@ -1100,7 +1100,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 8
+      parallelism: 12
       maxWorkers: 3
       matrix:
         <<: *test_matrix
@@ -1114,7 +1114,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 8
+      parallelism: 12
       maxWorkers: 3
       testJvm: "8"
 
@@ -1128,7 +1128,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 8
+      parallelism: 12
       maxWorkers: 3
       testJvm: "8"
 
@@ -1142,7 +1142,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 8
+      parallelism: 12
       maxWorkers: 3
       testJvm: "17"
 
@@ -1156,7 +1156,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: latestdep
-      parallelism: 8
+      parallelism: 12
       maxWorkers: 3
       testJvm: "21"
 
@@ -1185,7 +1185,7 @@ build_test_jobs: &build_test_jobs
       triggeredBy: *instrumentation_modules
       stage: instrumentation
       cacheType: inst
-      parallelism: 8
+      parallelism: 12
       maxWorkers: 4
       testJvm: "8"
 
