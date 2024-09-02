@@ -43,11 +43,22 @@ jobs:
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
         with:
           submodules: 'recursive'
+
+      - uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+        
       - name: Initialize CodeQL
         uses: github/codeql-action/init@4dd16135b69a43b6c8efb853346f8437d92d3c93 # v3.26.6
         with:
           languages: 'java'
           build-mode: 'manual'
+      
       - name: Build dd-trace-java for creating the CodeQL database
         run: |
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
@@ -58,17 +69,19 @@ jobs:
           JAVA_21_HOME=$JAVA_HOME_21_X64 \
           ./gradlew clean :dd-java-agent:shadowJar \
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
         uses: github/codeql-action/analyze@4dd16135b69a43b6c8efb853346f8437d92d3c93 # v3.26.6
 
-      - name: Upload results to Datadog CI Static Analysis
-        run: |
-          wget --no-verbose https://github.com/DataDog/datadog-ci/releases/download/v2.42.0/datadog-ci_linux-x64 -O datadog-ci
-          chmod +x datadog-ci
-          ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
-        env:
-          DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          DD_SITE: datad0g.com
+      # For now, CodeQL SARIF results are not supported by Datadog CI
+      # - name: Upload results to Datadog CI Static Analysis
+      #   run: |
+      #     wget --no-verbose https://github.com/DataDog/datadog-ci/releases/download/v2.42.0/datadog-ci_linux-x64 -O datadog-ci
+      #     chmod +x datadog-ci
+      #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
+      #   env:
+      #     DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      #     DD_SITE: datad0g.com
 
   trivy:
     name: Analyze changes with Trivy
@@ -83,6 +96,15 @@ jobs:
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
         with:
           submodules: 'recursive'
+      
+      - uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Remove old artifacts
         run: |
