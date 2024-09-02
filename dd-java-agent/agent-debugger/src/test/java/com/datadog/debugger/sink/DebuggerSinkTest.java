@@ -1,5 +1,6 @@
 package com.datadog.debugger.sink;
 
+import static com.datadog.debugger.util.TestHelper.setEnvVar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -41,6 +42,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,6 +65,13 @@ public class DebuggerSinkTest {
   private String EXPECTED_SNAPSHOT_TAGS;
   private ProbeStatusSink probeStatusSink;
 
+  @BeforeAll
+  public static void beforeAll() {
+    // set env vars now to be cached by GitInfoProvider
+    setEnvVar("DD_GIT_COMMIT_SHA", "sha1");
+    setEnvVar("DD_GIT_REPOSITORY_URL", "http://github.com");
+  }
+
   @BeforeEach
   void setUp() {
     JsonSnapshotSerializer jsonSnapshotSerializer = new JsonSnapshotSerializer();
@@ -80,7 +89,7 @@ public class DebuggerSinkTest {
     EXPECTED_SNAPSHOT_TAGS =
         "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+[^~]*~[0-9a-f]+,agent_version:null,host_name:"
             + config.getHostName()
-            + "$";
+            + ",git.commit.sha:sha1,git.repository_url:http://github.com$";
     probeStatusSink = new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false);
   }
 

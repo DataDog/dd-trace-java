@@ -1,5 +1,6 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.util.TestHelper.setEnvVar;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -9,14 +10,17 @@ import static org.junit.jupiter.api.condition.JRE.JAVA_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.util.RemoteConfigHelper;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -25,7 +29,8 @@ import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Paths;
-import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import okhttp3.HttpUrl;
@@ -33,6 +38,7 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnJre;
@@ -59,10 +65,16 @@ public class DebuggerAgentTest {
     }
   }
 
+  @BeforeAll
+  public static void beforeAll() {
+    // set env vars now to be cached by GitInfoProvider
+    setEnvVar("DD_GIT_COMMIT_SHA", "sha1");
+    setEnvVar("DD_GIT_REPOSITORY_URL", "http://github.com");
+  }
+
   @BeforeEach
   public void setUp() {
     url = server.url(URL_PATH);
-    setFieldInConfig(Config.get(), "runtimeId", UUID.randomUUID().toString());
   }
 
   @AfterEach
@@ -158,5 +170,32 @@ public class DebuggerAgentTest {
     assumeTrue(inst.getAllLoadedClasses() != null);
     DebuggerAgent.run(inst, new SharedCommunicationObjects());
     verify(inst, atLeastOnce()).addTransformer(any(), eq(true));
+  }
+
+  @Test
+  @EnabledOnJre({JAVA_8, JAVA_11})
+  public void tags() {
+    Config config = mock(Config.class);
+    when(config.getEnv()).thenReturn("staging");
+    when(config.getVersion()).thenReturn("42.0");
+    when(config.getHostName()).thenReturn("MyHost");
+    Map<String, String> globalTags = new HashMap<>();
+    globalTags.put("globalTag1", "globalValue1");
+    globalTags.put("globalTag2", "globalValue2");
+    when(config.getGlobalTags()).thenReturn(globalTags);
+    String tags = DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config);
+    Map<String, String> resultTags = new HashMap<>();
+    String[] splitTags = tags.split(",");
+    for (String splitTag : splitTags) {
+      int idx = splitTag.indexOf(':');
+      resultTags.put(splitTag.substring(0, idx), splitTag.substring(idx + 1));
+    }
+    assertEquals("staging", resultTags.get(Tags.ENV));
+    assertEquals("42.0", resultTags.get("version"));
+    assertEquals("MyHost", resultTags.get("host_name"));
+    assertEquals("globalValue1", resultTags.get("globalTag1"));
+    assertEquals("globalValue2", resultTags.get("globalTag2"));
+    assertEquals("sha1", resultTags.get(Tags.GIT_COMMIT_SHA));
+    assertEquals("http://github.com", resultTags.get(Tags.GIT_REPOSITORY_URL));
   }
 }
