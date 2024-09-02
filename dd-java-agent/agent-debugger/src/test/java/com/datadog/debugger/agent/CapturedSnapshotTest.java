@@ -1762,7 +1762,7 @@ public class CapturedSnapshotTest {
         "java.lang.RuntimeException",
         "oops",
         "com.datadog.debugger.CapturedSnapshot31.uncaughtException",
-        21);
+        24);
   }
 
   @Test
@@ -1793,6 +1793,37 @@ public class CapturedSnapshotTest {
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL2", "int", "2");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL3", "int", "3");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL4", "int", "4");
+  }
+
+  @Test
+  public void methodProbeExceptionLocalVars() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createProbeAtExit(PROBE_ID, CLASS_NAME, "caughtException", "(String)");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "illegalState").get();
+    assertEquals(0, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    Map<String, String> expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "state");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(),
+        "ex",
+        IllegalStateException.class.getTypeName(),
+        expectedFields);
+    listener.snapshots.clear();
+    result = Reflect.onClass(testClass).call("main", "illegalArgument").get();
+    assertEquals(0, result);
+    snapshot = assertOneSnapshot(listener);
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "argument");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(),
+        "ex",
+        IllegalArgumentException.class.getTypeName(),
+        expectedFields);
   }
 
   @Test

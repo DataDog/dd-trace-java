@@ -12,6 +12,9 @@ public class CapturedSnapshot31 {
     if ("deepScopes".equals(arg)) {
       return new CapturedSnapshot31().deepScopes(arg);
     }
+    if (arg.startsWith("illegal")) {
+      return new CapturedSnapshot31().caughtException(arg);
+    }
     return 0;
   }
 
@@ -59,5 +62,23 @@ public class CapturedSnapshot31 {
       }
     }
     return localVarL0;
+  }
+
+  private int caughtException(String arg) {
+    try {
+      if ("illegalState".equals(arg)) {
+        throw new IllegalStateException("state");
+      }
+      if ("illegalArgument".equals(arg)) {
+        throw new IllegalArgumentException("argument");
+      }
+      return -1;
+    } catch (IllegalStateException ex) {
+      ex.printStackTrace();
+      return 0;
+    } catch (IllegalArgumentException ex) {
+      ex.printStackTrace();
+      return 0;
+    }
   }
 }
