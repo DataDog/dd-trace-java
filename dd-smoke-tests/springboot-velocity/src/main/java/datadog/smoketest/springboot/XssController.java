@@ -15,6 +15,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequestMapping("/xss")
 public class XssController {
 
+  private static final String DIRECTORY_TEMPLATES_TEST = "resources/main/templates/";
+  private static final String DIRECTORY_TEMPLATES_RUN =
+      "dd-smoke-tests/springboot-velocity/src/main/resources/templates/";
+
   @GetMapping("/velocity")
   public void xssVelocity(@RequestParam("velocity") String param, HttpServletResponse response)
       throws Exception {
@@ -24,20 +28,12 @@ public class XssController {
         RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS,
         "org.apache.velocity.runtime.log.NullLogChute");
     velocity.init();
-    Template template =
-        velocity.getTemplate(
-            "dd-smoke-tests/springboot-velocity/src/main/resources/templates/velocity.vm");
-
-    //    Map<String, Object> properties = new HashMap<String, Object>();
-    //    properties.put("engine", velocity);
-    //    ToolManager manager = new ToolManager(autoConfigure, includeDefaults);
+    Template template = velocity.getTemplate(DIRECTORY_TEMPLATES_TEST + "velocity.vm");
 
     VelocityContext context = new VelocityContext();
     context.put("esc", new EscapeTool());
     context.put("param", param);
 
-    //    StringWriter writer = new StringWriter();
     template.merge(context, response.getWriter());
-    //    return "OK";
   }
 }

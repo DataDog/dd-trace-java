@@ -1,4 +1,7 @@
 plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
   id 'java-test-fixtures'
 }
 
@@ -14,4 +17,9 @@ dependencies {
 
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "bootJar"
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
 }
