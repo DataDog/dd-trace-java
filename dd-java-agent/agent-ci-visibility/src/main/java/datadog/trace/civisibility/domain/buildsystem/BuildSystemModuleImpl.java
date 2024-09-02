@@ -188,6 +188,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
             CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES),
         String.join(":", coverageEnabledPackages));
 
+    // FIXME nikita: it should be possible to explicitly disable this (+ do it in test env)
     if (jacocoAgent != null) {
       // If the module is using Jacoco,
       // per-test code coverage needs to have line-level granularity

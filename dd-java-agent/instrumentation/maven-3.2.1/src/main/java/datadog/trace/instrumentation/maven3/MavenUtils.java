@@ -47,7 +47,6 @@ import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.slf4j.LoggerFactory;
 
-// FIXME nikita: see if I can cover this with unit tests
 public abstract class MavenUtils {
 
   private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(MavenUtils.class);
@@ -500,7 +499,7 @@ public abstract class MavenUtils {
   }
 
   /** Fallback method that attempts to recreate the logic used by Maven Surefire plugin */
-  private static String getEffectiveJvmFallback(MavenSession session, MojoExecution mojoExecution) {
+  static String getEffectiveJvmFallback(MavenSession session, MojoExecution mojoExecution) {
     try {
       String jvm = getConfigurationValue(session, mojoExecution, "jvm");
       if (Strings.isNotBlank(jvm)) {
@@ -581,6 +580,7 @@ public abstract class MavenUtils {
     return null;
   }
 
+  @Nullable
   public static String getArgLine(
       MavenSession session, MavenProject project, MojoExecution mojoExecution) {
     try {
@@ -607,6 +607,7 @@ public abstract class MavenUtils {
     }
   }
 
+  @Nullable
   public static String getConfigurationValue(
       MavenSession session, MojoExecution mojoExecution, String propertyName) {
     try {
