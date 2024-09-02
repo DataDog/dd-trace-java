@@ -9,7 +9,8 @@ jobs:
   add_milestone_to_merged:
     name: Add milestone to merged pull requests
     permissions:
-      issues: write # Required to update the milestone of a pull request
+      issues: read # Required to list milestones
+      pull-requests: write # Required to update the milestone of a pull request
     if: github.event.pull_request.merged && github.event.pull_request.milestone == null
     runs-on: ubuntu-latest
     steps:
