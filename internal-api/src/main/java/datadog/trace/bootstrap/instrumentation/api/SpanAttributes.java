@@ -59,7 +59,7 @@ public class SpanAttributes implements Attributes {
   public static class JSONParser {
     public static String toJson(Map<String, Object> map) {
       StringBuilder jsonBuilder = new StringBuilder();
-      jsonBuilder.append("{");
+      jsonBuilder.append('{');
 
       Set<Map.Entry<String, Object>> entrySet = map.entrySet();
       int entryCount = 0;
