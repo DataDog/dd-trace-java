@@ -1,6 +1,6 @@
 # GitHub Actions Documentation
 
-This lists and describes the repository GitHub actions.
+This lists and describes the repository GitHub actions, how to maintain and test them.
 
 ## Release Management
 
@@ -18,7 +18,7 @@ _Trigger:_ When a release is published.
 
 _Action:_ Append the new release to the Cloud Foundry repository.
 
-_Recovery:_ Manually edit and push the `index.yml` file from [the cloudfoundry branch](https://github.com/DataDog/dd-trace-java/tree/cloudfoundry).
+_Recovery:_ Manually edit and push the `index.yml` file from [the cloudfoundry branch](https://github.com/DataDog/dd-trace-java/tree/cloudfoundry).
 
 ### create-next-milestone [🔗](create-next-milestone.yaml)
 
@@ -26,7 +26,8 @@ _Trigger:_ When closing a milestone.
 
 _Action:_ Create a new milestone by incrementing minor version.
 
-_Comment:_ Already done when closing a tag. To delete?
+_Comment:_ Disabled as also covered by increment-milestone-on-tag.
+This will be removed after some testing.  
 
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
@@ -40,18 +41,17 @@ _Actions:_
 
 _Recovery:_ Manually trigger the action again on the relevant tag.
 
-### increment-milestones-on-tag [🔗](increment-milestones-on-tag.yaml)
+### increment-milestone-on-tag [🔗](increment-milestone-on-tag.yaml)
 
-_Trigger:_ When creating a tag. Release Candidate tags containing "-RC" or "-rc" will skip this.
+_Trigger:_ When creating a minor or major version tag.
 
 _Actions:_
 * Close the milestone related to the tag,
 * Create a new milestone by incrementing minor version.
 
-_Recovery:_ Manually close the related milestone and create a new one.
+_Recovery:_ Manually [close the related milestone and create a new one](https://github.com/DataDog/dd-trace-java/milestones).
 
-_Notes:_ This actions will handle _minor_ releases only.
-As there is no milestone for _patch_ releases, it won't close and create _patch_ releated milestone.
+_Notes:_ This action will not apply to release candidate versions using `-RC` tags.
 
 ### update-download-releases [🔗](update-download-releases.yaml)
 
@@ -117,3 +117,12 @@ Run the following script to get the list of actions to declare according the sta
 ```bash
 find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sort | uniq
 ```
+
+## Testing
+
+Workflows can be locally tested using the [`act` CLI](https://github.com/nektos/act/).
+The [.github/workflows/tests/](./tests) folder contains test scripts and event payloads to locally trigger workflows.
+
+> [!WARNING]
+> Locally running workflows will still query GitHub backend and will update the GitHub project accordingly.
+> Pay extra attention to the workflow jobs you trigger to not create development disruption.
