@@ -325,6 +325,12 @@ public final class OtelConventions {
     return attrsBuilder.build();
   }
 
+  /**
+   * generate default list of attribtues about a Throwable
+   *
+   * @param exception the Throwable about which to generate attribtues
+   * @return Map of attributes about the Throwable
+   */
   private static Map<String, Object> getAttributesFromException(Throwable exception) {
     return new HashMap<String, Object>() {
       {
