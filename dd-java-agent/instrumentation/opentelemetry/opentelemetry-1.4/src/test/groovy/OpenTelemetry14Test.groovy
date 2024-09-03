@@ -3,6 +3,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.time.ControllableTimeSource
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.common.Attributes
@@ -256,24 +257,37 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  //    def "test add event no timestamp"() {
-  //      setup:
-  //      def builder = tracer.spanBuilder("some-name")
-  //
-  //      when:
-  //      def result = builder.startSpan()
-  //      result.addEvent("evt", null, null)
-  //      result.end()
-  //
-  //      then:
-  //      long endBlock = System.nanoTime();
-  //
-  //      // I'd like to grab the span's `time_unix_nano` field under `events` tag is not null, and is more than beforeBlock and less than afterBlock
-  //      // But I don't know how to access this without asserting the span tags look a specific way using assertTraces.
-  //
-  //      where:
-  //      long startBlock = System.nanoTime();
-  //    }
+      def "test add event no timestamp"() {
+        setup:
+        def builder = tracer.spanBuilder("some-name")
+        def timeSource = new ControllableTimeSource();
+        timeSource.set(1000);
+        SpanEvent.setTimeSource(timeSource);
+
+        when:
+        def result = builder.startSpan()
+        result.addEvent("evt", null, )
+        result.end()
+
+        then:
+        def expectedEventTag = """
+        [
+          { "time_unix_nano": ${timeSource.getCurrentTimeNanos()},
+            "name": "evt"
+          }
+        ]"""
+        assertTraces(1) {
+          trace(1) {
+            span {
+              tags {
+                defaultTags()
+                "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+                tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
+              }
+            }
+          }
+        }
+      }
 
   def "test simple span links"() {
     setup:
@@ -691,8 +705,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     where:
     exception                                            | attributes                                                              | expectedAttributes
-    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.escaped: false, exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
-    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | """{exception.message: "something-else", exception.type: "${exception.getClass().getName()}", exception.escaped: false, exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
+    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
+    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | """{exception.message: "something-else", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
     new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | """{"key": "value","exception.message": "${exception.getMessage()}"}"""
   }
 

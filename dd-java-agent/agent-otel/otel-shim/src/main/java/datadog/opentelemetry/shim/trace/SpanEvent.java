@@ -4,35 +4,48 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.opentelemetry.api.common.Attributes;
+
+import java.sql.Time;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 
 public class SpanEvent {
 
   private final long timestamp;
   private final String name;
   private final AgentSpan.Attributes attributes;
+  private static TimeSource timeSource;
 
   public SpanEvent(String name, Attributes attributes) {
     this.name = name;
     this.attributes =
         OtelConventions.convertAttributes(attributes, SpanAttributes.Builder.Format.EVENTS);
-    this.timestamp = timeNano();
+    this.timestamp = getNanosFromTimeSource();
   }
 
   public SpanEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     this.name = name;
     this.attributes =
         OtelConventions.convertAttributes(attributes, SpanAttributes.Builder.Format.EVENTS);
-    this.timestamp = timeNano(timestamp, unit);
+    this.timestamp = convertNano(timestamp, unit);
   }
 
-  private static long timeNano() {
-    return System.nanoTime();
-  }
-
-  private static long timeNano(long timestamp, TimeUnit unit) {
+  private static long convertNano(long timestamp, TimeUnit unit) {
     return TimeUnit.NANOSECONDS.convert(timestamp, unit);
+  }
+
+  private long getNanosFromTimeSource() {
+    if (timeSource == null) {
+      return SystemTimeSource.INSTANCE.getCurrentTimeNanos();
+    } else {
+      return timeSource.getCurrentTimeNanos();
+    }
+  }
+
+  public static void setTimeSource(TimeSource newTimeSource) {
+    timeSource = newTimeSource;
   }
 
   public String toString() {
