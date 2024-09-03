@@ -141,6 +141,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
   void addLink(AgentSpanLink link);
 
+  boolean isRequiresPostProcessing();
+
   @Override
   default ScopedContext storeInto(ScopedContext context) {
     return context.with(ScopedContextKey.SPAN_KEY, this);

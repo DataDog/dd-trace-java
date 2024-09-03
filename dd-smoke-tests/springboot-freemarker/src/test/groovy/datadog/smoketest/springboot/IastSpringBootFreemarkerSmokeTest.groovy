@@ -33,7 +33,7 @@ class IastSpringBootFreemarkerSmokeTest extends AbstractIastServerSmokeTest {
 
   void 'xss is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/xss/freemarker?name=${param}&prior=${prior}"
+    final url = "http://localhost:${httpPort}/xss/freemarker?name=${param}&templateName=${templateName}"
     final request = new Request.Builder().url(url).get().build()
 
     when:
@@ -43,8 +43,25 @@ class IastSpringBootFreemarkerSmokeTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'XSS' && vul.location.path == templateName && vul.location.line == line }
 
     where:
-    prior | param  | templateName             | line
-    false | 'name' | 'freemarker-2.3.24.ftlh' | 9
-    true  | 'name' | 'freemarker-2.3.9.ftlh'  | 6
+    param  | templateName                      | line
+    'name' | 'freemarker-2.3.24-insecure.ftlh' | 9
+    'name' | 'freemarker-2.3.9-insecure.ftlh'  | 6
+  }
+
+  void 'xss is not present'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xss/freemarker?name=${param}&templateName=${templateName}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    noVulnerability { vul -> vul.type == 'XSS' && vul.location.path == templateName && vul.location.line == line }
+
+    where:
+    param  | templateName                    | line
+    'name' | 'freemarker-2.3.24-secure.ftlh' | 9
+    'name' | 'freemarker-2.3.9-secure.ftlh'  | 6
   }
 }

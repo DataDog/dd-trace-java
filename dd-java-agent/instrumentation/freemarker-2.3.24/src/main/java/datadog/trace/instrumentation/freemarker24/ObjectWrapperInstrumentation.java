@@ -26,7 +26,7 @@ public class ObjectWrapperInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   public ObjectWrapperInstrumentation() {
-    super("freemarker", "object-wrapper");
+    super("freemarker");
   }
 
   @Override

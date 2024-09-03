@@ -553,9 +553,6 @@ public class LogProbe extends ProbeDefinition {
     if (status.shouldSend()) {
       snapshot.setTraceId(lineContext.getTraceId());
       snapshot.setSpanId(lineContext.getSpanId());
-      if (isCaptureSnapshot()) {
-        snapshot.addLine(lineContext, line);
-      }
       snapshot.setMessage(status.getMessage());
       shouldCommit = true;
     }
@@ -564,9 +561,12 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (shouldCommit) {
-      // freeze context just before commit because line probes have only one context
-      Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
-      lineContext.freeze(new TimeoutChecker(timeout));
+      if (isCaptureSnapshot()) {
+        // freeze context just before commit because line probes have only one context
+        Duration timeout = Duration.of(Config.get().getDebuggerCaptureTimeout(), ChronoUnit.MILLIS);
+        lineContext.freeze(new TimeoutChecker(timeout));
+        snapshot.addLine(lineContext, line);
+      }
       commitSnapshot(snapshot, sink);
       return;
     }

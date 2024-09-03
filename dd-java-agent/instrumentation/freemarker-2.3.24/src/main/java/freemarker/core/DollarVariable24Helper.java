@@ -1,5 +1,6 @@
 package freemarker.core;
 
+import freemarker.template.TemplateException;
 import java.lang.reflect.Field;
 import java.lang.reflect.UndeclaredThrowableException;
 import org.slf4j.Logger;
@@ -24,8 +25,8 @@ public final class DollarVariable24Helper {
     return autoEscape;
   }
 
-  public static boolean fetchAutoEscape(DollarVariable dollarVariable) {
-    if (AUTO_ESCAPE == null) {
+  public static boolean fetchAutoEscape(Object dollarVariable) {
+    if (AUTO_ESCAPE == null || !(dollarVariable instanceof DollarVariable)) {
       return true;
     }
     try {
@@ -33,5 +34,23 @@ public final class DollarVariable24Helper {
     } catch (IllegalAccessException e) {
       throw new UndeclaredThrowableException(e);
     }
+  }
+
+  public static String fetchCharSec(Object object, Environment environment) {
+    if (!(object instanceof DollarVariable)) {
+      return null;
+    }
+    try {
+      return (String) ((DollarVariable) object).calculateInterpolatedStringOrMarkup(environment);
+    } catch (TemplateException e) {
+      throw new UndeclaredThrowableException(e);
+    }
+  }
+
+  public static Integer fetchBeginLine(Object object) {
+    if (!(object instanceof DollarVariable)) {
+      return null;
+    }
+    return ((DollarVariable) object).beginLine;
   }
 }

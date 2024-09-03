@@ -14,7 +14,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class DollarVariableInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
   static final String FREEMARKER_CORE = "freemarker.core";
-  static final String ADVICE_BASE = FREEMARKER_CORE + ".DollarVariable24DatadogAdvice$";
 
   public DollarVariableInstrumentation() {
     super("freemarker");
@@ -42,7 +41,6 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
   public String[] helperClassNames() {
     return new String[] {
       FREEMARKER_CORE + ".DollarVariable24Helper",
-      FREEMARKER_CORE + ".DollarVariable24DatadogAdvice"
     };
   }
 
@@ -52,6 +50,6 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
         named("accept")
             .and(isMethod())
             .and(takesArgument(0, named(FREEMARKER_CORE + ".Environment"))),
-        ADVICE_BASE + "DollarVariableAdvice");
+        packageName + ".DollarVariableDatadogAdvice$DollarVariableAdvice");
   }
 }

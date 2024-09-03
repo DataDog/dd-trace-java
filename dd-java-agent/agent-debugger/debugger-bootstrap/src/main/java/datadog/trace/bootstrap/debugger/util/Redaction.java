@@ -110,10 +110,15 @@ public class Redaction {
   private static List<String> redactedPackages;
 
   static {
+    initKeywords();
+  }
+
+  static void initKeywords() {
     /*
      * based on sentry list: https://github.com/getsentry/sentry-python/blob/fefb454287b771ac31db4e30fa459d9be2f977b8/sentry_sdk/scrubber.py#L17-L58
      */
     KEYWORDS.addAll(PREDEFINED_KEYWORDS);
+    KEYWORDS.removeAll(Config.get().getDebuggerRedactionExcludedIdentifiers());
   }
 
   public static void addUserDefinedKeywords(Config config) {

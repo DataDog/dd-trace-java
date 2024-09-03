@@ -33,6 +33,7 @@ import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.net.URI;
@@ -495,8 +496,16 @@ public class GatewayBridge {
       }
     }
 
-    ctx.close();
+    ctx.close(requiresPostProcessing(spanInfo));
     return NoopFlow.INSTANCE;
+  }
+
+  private boolean requiresPostProcessing(final IGSpanInfo spanInfo) {
+    if (!(spanInfo instanceof AgentSpan)) {
+      return true; // be conservative
+    }
+    final AgentSpan span = (AgentSpan) spanInfo;
+    return span.isRequiresPostProcessing();
   }
 
   private Flow<Void> onRequestHeadersDone(RequestContext ctx_) {
