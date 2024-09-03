@@ -1,4 +1,4 @@
-package freemarker.core
+package datadog.trace.instrumentation.freemarker9
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
@@ -8,7 +8,7 @@ import freemarker.template.SimpleHash
 import freemarker.template.Template
 import freemarker.template.TemplateHashModel
 
-class DollarVariable9InstrumentationTest extends AgentTestRunner {
+class DollarVariableInstrumentationTest extends AgentTestRunner {
 
   @Override
   protected void configurePreAgent() {
@@ -21,21 +21,18 @@ class DollarVariable9InstrumentationTest extends AgentTestRunner {
     InstrumentationBridge.registerIastModule(module)
 
     final Configuration cfg = new Configuration()
-    final Template template = new Template("test", new StringReader("test"), cfg)
+    final Template template = new Template("test", new StringReader("test \${$stringExpression}"), cfg)
     final TemplateHashModel rootDataModel = new SimpleHash(cfg.getObjectWrapper())
     rootDataModel.put(stringExpression, expression)
-    final Environment environment = new Environment(template, rootDataModel, Mock(FileWriter))
-    final dollarVariable = new DollarVariable(expression, escapedExpression)
-    dollarVariable.beginLine = 1
 
     when:
-    dollarVariable.accept(environment)
+    template.process(rootDataModel, Mock(FileWriter))
 
     then:
     1 * module.onXss(_, _, _)
 
     where:
-    stringExpression | expression                     | escapedExpression
-    "test"           | new Identifier("test")         | new Identifier("test")
+    stringExpression | expression
+    "test"           | "test"
   }
 }
