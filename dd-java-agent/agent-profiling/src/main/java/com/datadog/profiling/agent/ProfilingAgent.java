@@ -93,7 +93,8 @@ public class ProfilingAgent {
 
       boolean startForceFirst =
           configProvider.getBoolean(
-              PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
+              PROFILING_START_FORCE_FIRST,
+              Platform.isNativeImage() || PROFILING_START_FORCE_FIRST_DEFAULT);
 
       if (!isStartForceFirstSafe()) {
         log.debug(
