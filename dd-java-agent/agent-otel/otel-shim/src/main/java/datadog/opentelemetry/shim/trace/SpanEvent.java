@@ -1,15 +1,13 @@
 package datadog.opentelemetry.shim.trace;
 
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.opentelemetry.api.common.Attributes;
-
-import java.sql.Time;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import datadog.trace.api.time.SystemTimeSource;
-import datadog.trace.api.time.TimeSource;
 
 public class SpanEvent {
 

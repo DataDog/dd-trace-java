@@ -112,13 +112,13 @@ public class OtelSpan implements Span {
   }
 
   /**
-   * Records information about the Throwable as a span event
-   * exception.escaped cannot be determined by this function and therefore is not automatically recorded. Record this manually using additionalAttributes
-   * See: <a href="https://javadoc.io/doc/io.opentelemetry/opentelemetry-api-trace/latest/io/opentelemetry/api/trace/Span.html#recordException(java.lang.Throwable)">...</a>
+   * Records information about the Throwable as a span event exception.escaped cannot be determined
+   * by this function and therefore is not automatically recorded. Record this manually using
+   * additionalAttributes See: <a
+   * href="https://javadoc.io/doc/io.opentelemetry/opentelemetry-api-trace/latest/io/opentelemetry/api/trace/Span.html#recordException(java.lang.Throwable)">...</a>
    *
    * @param exception the Throwable to record
    * @param additionalAttributes the additional attributes to record
-   *
    */
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {

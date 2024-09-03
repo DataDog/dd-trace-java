@@ -257,37 +257,37 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-      def "test add event no timestamp"() {
-        setup:
-        def builder = tracer.spanBuilder("some-name")
-        def timeSource = new ControllableTimeSource();
-        timeSource.set(1000);
-        SpanEvent.setTimeSource(timeSource);
+  def "test add event no timestamp"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def timeSource = new ControllableTimeSource()
+    timeSource.set(1000)
+    SpanEvent.setTimeSource(timeSource)
 
-        when:
-        def result = builder.startSpan()
-        result.addEvent("evt", null, )
-        result.end()
+    when:
+    def result = builder.startSpan()
+    result.addEvent("evt", null, )
+    result.end()
 
-        then:
-        def expectedEventTag = """
+    then:
+    def expectedEventTag = """
         [
           { "time_unix_nano": ${timeSource.getCurrentTimeNanos()},
             "name": "evt"
           }
         ]"""
-        assertTraces(1) {
-          trace(1) {
-            span {
-              tags {
-                defaultTags()
-                "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
-                tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
-              }
-            }
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
           }
         }
       }
+    }
+  }
 
   def "test simple span links"() {
     setup:
