@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import datadog.trace.api.interceptor.TraceInterceptor;
-import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.context.NoopTraceScope;
 import datadog.trace.context.TraceScope;
 import java.util.ArrayList;
@@ -74,12 +73,17 @@ public class GlobalTracer {
   }
 
   public static EventTracker getEventTracker() {
-    if (eventTracker == EventTracker.NO_EVENT_TRACKER) {
-      if (provider instanceof InternalTracer) {
-        eventTracker = new EventTracker((InternalTracer) provider);
-      }
-    }
     return eventTracker;
+  }
+
+  /**
+   * Controls the implementation for the event tracker. The AppSec subsystem calls this method on
+   * startup. This can be called explicitly for e.g. testing purposes.
+   *
+   * @param tracker the implementation for the event tracker.
+   */
+  public static void setEventTracker(final EventTracker tracker) {
+    eventTracker = tracker;
   }
 
   // --------------------------------------------------------------------------------
