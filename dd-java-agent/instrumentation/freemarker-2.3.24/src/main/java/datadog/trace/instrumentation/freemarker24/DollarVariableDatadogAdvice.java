@@ -7,12 +7,8 @@ import datadog.trace.api.iast.sink.XssModule;
 import freemarker.core.DollarVariable24Helper;
 import freemarker.core.Environment;
 import net.bytebuddy.asm.Advice;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class DollarVariableDatadogAdvice {
-
-  protected static final Logger log = LoggerFactory.getLogger(DollarVariableDatadogAdvice.class);
 
   public static class DollarVariableAdvice {
 
