@@ -79,7 +79,7 @@ public class SpanAttributes implements Attributes {
         appendValue(value, jsonBuilder);
         entryCount++;
       }
-      jsonBuilder.append("}");
+      jsonBuilder.append('}');
       return jsonBuilder.toString();
     }
 
