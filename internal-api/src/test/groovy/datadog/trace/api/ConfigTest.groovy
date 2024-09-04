@@ -63,6 +63,9 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PE
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS
+import static datadog.trace.api.config.LlmObsConfig.LLM_OBS_AGENTLESS_ENABLED
+import static datadog.trace.api.config.LlmObsConfig.LLM_OBS_ML_APP
+import static datadog.trace.api.config.LlmObsConfig.LLM_OBS_ENABLED
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD
@@ -2206,6 +2209,67 @@ class ConfigTest extends DDSpecification {
     then:
     hostname != null
     !hostname.trim().isEmpty()
+  }
+
+  def "config instantiation should fail if llm obs is enabled and ml app is not set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLM_OBS_ENABLED, "true")
+
+    when:
+    new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    thrown IllegalArgumentException
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless disabled) and ml app is set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLM_OBS_ENABLED, "true")
+    properties.setProperty(LLM_OBS_AGENTLESS_ENABLED, "false")
+    properties.setProperty(LLM_OBS_ML_APP, "test-ml-app")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    !config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "test-ml-app"
+  }
+
+  def "config instantiation should fail if llm obs is in agentless mode and API key is not set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLM_OBS_ENABLED, "true")
+    properties.setProperty(LLM_OBS_AGENTLESS_ENABLED, "true")
+    properties.setProperty(LLM_OBS_ML_APP, "test-ml-app")
+
+    when:
+    new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    thrown FatalAgentMisconfigurationError
+  }
+
+  def "config instantiation should NOT fail if llm obs is enabled (agentless enabled) and API key & ml app are set"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(LLM_OBS_ENABLED, "true")
+    properties.setProperty(LLM_OBS_AGENTLESS_ENABLED, "true")
+    properties.setProperty(LLM_OBS_ML_APP, "test-ml-app")
+    properties.setProperty(API_KEY, "123456789")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    noExceptionThrown()
+    config.isLlmObsEnabled()
+    config.isLlmObsAgentlessEnabled()
+    config.llmObsMlApp == "test-ml-app"
   }
 
   def "config instantiation should fail if CI visibility agentless mode is enabled and API key is not set"() {

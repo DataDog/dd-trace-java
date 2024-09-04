@@ -49,7 +49,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     APPSEC,
     IAST,
     CIVISIBILITY,
-    USM
+    USM,
+    LLMOBS,
   }
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);

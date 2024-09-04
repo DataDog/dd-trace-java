@@ -89,6 +89,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
@@ -324,6 +325,8 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
+import static datadog.trace.api.config.LlmObsConfig.LLM_OBS_AGENTLESS_ENABLED;
+import static datadog.trace.api.config.LlmObsConfig.LLM_OBS_ML_APP;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -789,6 +792,9 @@ public class Config {
   private final boolean iastAnonymousClassesEnabled;
   private final boolean iastSourceMappingEnabled;
   private final int iastSourceMappingMaxSize;
+
+  private final boolean llmObsAgentlessEnabled;
+  private final String llmObsMlApp;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1769,6 +1775,10 @@ public class Config {
     iastSourceMappingEnabled = configProvider.getBoolean(IAST_SOURCE_MAPPING_ENABLED, false);
     iastSourceMappingMaxSize = configProvider.getInteger(IAST_SOURCE_MAPPING_MAX_SIZE, 1000);
 
+    llmObsAgentlessEnabled =
+        configProvider.getBoolean(LLM_OBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
+    llmObsMlApp = configProvider.getString(LLM_OBS_ML_APP);
+
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
 
@@ -2202,6 +2212,18 @@ public class Config {
     this.tracePostProcessingTimeout =
         configProvider.getLong(
             TRACE_POST_PROCESSING_TIMEOUT, ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
+
+    if (isLlmObsEnabled()) {
+      if (llmObsMlApp == null || llmObsMlApp.isEmpty()) {
+        throw new IllegalArgumentException("Attempt to enable LLM Observability without ML app defined."
+        + "Please ensure that the name of the ML app is provided through properties or env variable");
+      }
+      if (llmObsAgentlessEnabled && (apiKey == null || apiKey.isEmpty())) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start LLM Observability in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
+    }
 
     if (isCiVisibilityEnabled()
         && ciVisibilityAgentlessEnabled
@@ -3028,6 +3050,18 @@ public class Config {
 
   public boolean isIastAnonymousClassesEnabled() {
     return iastAnonymousClassesEnabled;
+  }
+
+  public boolean isLlmObsEnabled() {
+    return instrumenterConfig.isLlmObsEnabled();
+  }
+
+  public boolean isLlmObsAgentlessEnabled() {
+    return llmObsAgentlessEnabled;
+  }
+
+  public String getLlmObsMlApp() {
+    return llmObsMlApp;
   }
 
   public boolean isCiVisibilityEnabled() {
