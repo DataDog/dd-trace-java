@@ -20,7 +20,10 @@ public class XssController {
       "dd-smoke-tests/springboot-velocity/src/main/resources/templates/";
 
   @GetMapping("/velocity")
-  public void xssVelocity(@RequestParam("velocity") String param, HttpServletResponse response)
+  public void xssVelocity(
+      @RequestParam("velocity") String param,
+      @RequestParam("templateName") String templateName,
+      HttpServletResponse response)
       throws Exception {
     VelocityEngine velocity = new VelocityEngine();
     // To avoid the creation of a Velocity log file
@@ -28,7 +31,7 @@ public class XssController {
         RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS,
         "org.apache.velocity.runtime.log.NullLogChute");
     velocity.init();
-    Template template = velocity.getTemplate(DIRECTORY_TEMPLATES_TEST + "velocity.vm");
+    Template template = velocity.getTemplate(DIRECTORY_TEMPLATES_TEST + templateName);
 
     VelocityContext context = new VelocityContext();
     context.put("esc", new EscapeTool());

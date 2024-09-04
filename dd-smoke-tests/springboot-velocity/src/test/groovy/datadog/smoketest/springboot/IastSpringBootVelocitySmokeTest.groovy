@@ -33,7 +33,7 @@ class IastSpringBootVelocitySmokeTest extends AbstractIastServerSmokeTest {
 
   void 'xss is present'() {
     setup:
-    final url = "http://localhost:${httpPort}/xss/velocity?velocity=${param}"
+    final url = "http://localhost:${httpPort}/xss/velocity?velocity=${param}&templateName=${templateName}"
     final request = new Request.Builder().url(url).get().build()
 
     when:
@@ -43,7 +43,23 @@ class IastSpringBootVelocitySmokeTest extends AbstractIastServerSmokeTest {
     hasVulnerability { vul -> vul.type == 'XSS' && vul.location.path.contains(templateName) && vul.location.line == line }
 
     where:
-    param  | templateName             | line
-    'name' | 'velocity.vm' | 2
+    param  | templateName           | line
+    'name' | 'velocity-insecure.vm' | 2
+  }
+
+  void 'xss is not present'() {
+    setup:
+    final url = "http://localhost:${httpPort}/xss/velocity?velocity=${param}&templateName=${templateName}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    client.newCall(request).execute()
+
+    then:
+    noVulnerability { vul -> vul.type == 'XSS' && vul.location.path.contains(templateName) && vul.location.line == line }
+
+    where:
+    param  | templateName         | line
+    'name' | 'velocity-secure.vm' | 2
   }
 }
