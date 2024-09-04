@@ -9,6 +9,7 @@ import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.PubsubMessage;
+import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -75,13 +76,19 @@ public class PubSubDecorator extends MessagingClientDecorator {
       new PubSubDecorator(
           Tags.SPAN_KIND_PRODUCER,
           InternalSpanTypes.MESSAGE_PRODUCER,
-          SpanNaming.instance().namingSchema().messaging().outboundService(PUBSUB, true));
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .outboundService(PUBSUB, Config.get().isGooglePubSubLegacyTracingEnabled()));
 
   public static final PubSubDecorator CONSUMER_DECORATE =
       new PubSubDecorator(
           Tags.SPAN_KIND_CONSUMER,
           InternalSpanTypes.MESSAGE_CONSUMER,
-          SpanNaming.instance().namingSchema().messaging().inboundService(PUBSUB, true));
+          SpanNaming.instance()
+              .namingSchema()
+              .messaging()
+              .inboundService(PUBSUB, Config.get().isGooglePubSubLegacyTracingEnabled()));
   private final String spanKind;
   private final CharSequence spanType;
   private final String serviceName;
