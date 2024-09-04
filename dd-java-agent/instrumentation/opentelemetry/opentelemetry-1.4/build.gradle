@@ -1,4 +1,4 @@
-def openTelemetryVersion = '1.4.0'
+def openTelemetryVersion = '1.37.0'
 
 muzzle {
   pass {

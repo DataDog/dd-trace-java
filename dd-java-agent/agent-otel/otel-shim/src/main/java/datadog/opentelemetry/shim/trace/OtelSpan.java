@@ -81,7 +81,6 @@ public class OtelSpan implements Span {
     return this;
   }
 
-  //   @Override <- once io.opentelemetry.api upgrade takes effect
   public Span addLink(SpanContext spanContext) {
     if (spanContext != null && spanContext.isValid() && this.recording) {
       this.delegate.addLink(new OtelSpanLink(spanContext));
@@ -89,7 +88,6 @@ public class OtelSpan implements Span {
     return this;
   }
 
-  // @Override <- once io.opentelemetry.api upgrade takes effect
   public Span addLink(SpanContext spanContext, Attributes attributes) {
     if (spanContext != null && spanContext.isValid() && this.recording) {
       this.delegate.addLink(new OtelSpanLink(spanContext, attributes));
