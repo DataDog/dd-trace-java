@@ -35,6 +35,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
   private String remoteConfigResponse
 
   @Shared
+  private Throwable traceDecodingFailure = null
+
+  @Shared
   @AutoCleanup
   protected TestHttpServer server = httpServer {
     handlers {
@@ -74,6 +77,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
           } catch (Throwable t) {
             println("=== Failure during message v0.4 decoding ===")
             t.printStackTrace(System.out)
+            traceDecodingFailure = t
             throw t
           }
         }
@@ -95,6 +99,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
           } catch (Throwable t) {
             println("=== Failure during message v0.5 decoding ===")
             t.printStackTrace(System.out)
+            traceDecodingFailure = t
             throw t
           }
         }
@@ -163,10 +168,14 @@ abstract class AbstractSmokeTest extends ProcessManager {
     traceCount.set(0)
     decodeTraces.clear()
     remoteConfigResponse = "{}"
+    traceDecodingFailure = null
   }
 
   def cleanup() {
     decodeTraces.clear()
+    if (traceDecodingFailure != null) {
+      throw traceDecodingFailure
+    }
   }
 
   def setupSpec() {
@@ -229,6 +238,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
 
   int waitForTraceCount(int count, PollingConditions conditions) {
     conditions.eventually {
+      if (traceDecodingFailure != null) {
+        throw traceDecodingFailure
+      }
       assert traceCount.get() >= count
     }
     traceCount.get()
@@ -237,6 +249,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
   void waitForTrace(final PollingConditions poll, final Function<DecodedTrace, Boolean> predicate) {
     assert decode != null // override decodedTracesCallback to avoid this and enable trace decoding
     poll.eventually {
+      if (traceDecodingFailure != null) {
+        throw traceDecodingFailure
+      }
       assert decodeTraces.find { predicate.apply(it) } != null
     }
   }
