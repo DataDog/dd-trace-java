@@ -20,6 +20,9 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +100,23 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
       String normalizedConsumerGroup =
           consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
+
+      if (normalizedConsumerGroup == null) {
+          // Try to use new groupMetadata().groupId to get the group ID, if available in this version
+
+          try {
+              Class<?> clazz = consumer.getClass();
+              Method groupMetadataMethod = clazz.getMethod("groupMetadata");
+              Object consumerGroupMetadata = groupMetadataMethod.invoke(consumer);
+              if (consumerGroupMetadata != null) {
+                  Class<?> consumerGroupMetadataClass = consumerGroupMetadata.getClass();
+                  Field groupIdField = consumerGroupMetadataClass.getDeclaredField("groupId");
+                  groupIdField.setAccessible(true);
+                  normalizedConsumerGroup = groupIdField.get(consumerGroupMetadata).toString();
+              }
+          } catch (NoSuchMethodException | NoSuchFieldException | IllegalAccessException | InvocationTargetException e) {
+          }
+      }
 
       List<String> bootstrapServersList =
           consumerConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
