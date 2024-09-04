@@ -1,6 +1,5 @@
 ext {
-  // TODO Java 17: Mule 4 doesn't support Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
+  maxJavaVersionForTests = JavaVersion.VERSION_17
 }
 
 muzzle {
@@ -11,23 +10,16 @@ muzzle {
   pass {
     group = 'org.mule.runtime'
     module = 'mule-core'
-    versions = '[,]'
+    versions = '[4.5.0,)'
     assertInverse = true
 
-    excludeDependency 'com.google.code.findbugs:jsr305' // avoid dependency issue with mule-4.5.0
-  }
-
-  fail {
-    group = 'org.mule'
-    module = 'mule-core'
-    versions = '[3.2.0,)' // First version where muzzle can resolve all dependencies
-    skipVersions += "3.9.5" // bad release
+    excludeDependency 'com.google.code.findbugs:jsr305'
   }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
-def muleVersion = '4.2.2'
+def muleVersion = '4.5.0'
 def muleBaseDir = "$buildDir/mule"
 def appDir = "$projectDir/application"
 def generatedResourcesDir = "$buildDir/generated-resources/test"
@@ -57,7 +49,10 @@ configurations {
 
 configurations.all {
   // don't allow mule to do slf4j over log4j
-  exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
+  exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j2-impl'
+  resolutionStrategy {
+    force libs.slf4j
+  }
 }
 
 sourceSets {
@@ -72,8 +67,9 @@ tasks.named("compileTestGroovy").configure {
 
 dependencies {
   compileOnly group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
-  testImplementation project(':dd-java-agent:instrumentation:aws-common')
+  //compileOnly group: 'org.mule.runtime', name: 'mule-tracer-internal-impl', version: '4.5.0'
 
+  testImplementation project(':dd-java-agent:instrumentation:aws-common')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
   testImplementation project(':dd-java-agent:instrumentation:grizzly-http-2.3.20')
@@ -86,10 +82,12 @@ dependencies {
   testImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: muleVersion
   // this is needed for mule to find removed javax.* APIs on Java 11+
   testImplementation group: 'org.mule.runtime', name: 'mule-module-javaee', version: muleVersion
+  testImplementation group: 'org.mule.runtime', name: 'mule-dwb-api', version: '2.5.0'
+  testImplementation group: 'xml-apis', name: 'xml-apis', version: '1.4.01'
 
-  muleServices group: 'org.mule.services', name: 'mule-service-http', version: '1.4.7', classifier: 'mule-service'
-  muleServices group: 'org.mule.services', name: 'mule-service-scheduler', version: '1.2.4', classifier: 'mule-service'
-  muleServices group: 'org.mule.services', name: 'mule-service-weave', version: '2.2.2', classifier: 'mule-service'
+  muleServices group: 'org.mule.services', name: 'mule-service-http', version: '1.5.21', classifier: 'mule-service'
+  muleServices group: 'org.mule.services', name: 'mule-service-scheduler', version: '1.5.0', classifier: 'mule-service'
+  muleServices group: 'org.mule.services', name: 'mule-service-weave', version: '2.5.0', classifier: 'mule-service'
 }
 
 // extract the enabled services into the mule base directory

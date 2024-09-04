@@ -13,7 +13,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
 class HttpServerTestBridge {
   static Object[] testHandle(String requestPath) {
     ServerEndpoint endpoint = ServerEndpoint.forPath(requestPath)
-
+    new Exception("IN CONTROLLER").printStackTrace()
     if (endpoint == ServerEndpoint.EXCEPTION) {
       controller(endpoint) {
         throw new Exception(endpoint.body)

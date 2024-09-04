@@ -19,7 +19,7 @@ class TraceAssert {
     size = trace.size()
   }
 
-  private static final NAME_COMPARATOR = new Comparator<DDSpan>() {
+  public static final NAME_COMPARATOR = new Comparator<DDSpan>() {
     @Override
     int compare(DDSpan o1, DDSpan o2) {
       int compare = o1.spanName.toString() <=> o2.spanName.toString()
@@ -30,18 +30,18 @@ class TraceAssert {
   static void assertTrace(List<DDSpan> trace, int expectedSize,
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
     @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
-    assertTrace(trace, expectedSize, false, spec)
+    assertTrace(trace, expectedSize, null, spec)
   }
 
-  static void assertTrace(List<DDSpan> trace, int expectedSize, boolean sortByName,
+  static void assertTrace(List<DDSpan> trace, int expectedSize, Comparator<DDSpan> sorter,
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
     @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     // Some tests do their own sorting of the spans which can happen concurrently with other code doing
     // iterations, so we make a copy of the list here to not cause a ConcurrentModificationException
     trace = new ArrayList<DDSpan>(trace)
     assert trace.size() == expectedSize
-    if (sortByName) {
-      Collections.sort(trace, NAME_COMPARATOR)
+    if (sorter != null) {
+      Collections.sort(trace, sorter)
     }
     def asserter = new TraceAssert(trace)
     def clone = (Closure) spec.clone()

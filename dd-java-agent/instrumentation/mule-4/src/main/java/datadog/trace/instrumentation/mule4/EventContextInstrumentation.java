@@ -22,11 +22,6 @@ public final class EventContextInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       "org.mule.runtime.core.internal.event.DefaultEventContext",
@@ -36,9 +31,7 @@ public final class EventContextInstrumentation extends InstrumenterModule.Tracin
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(
-        "org.mule.runtime.api.event.EventContext",
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+    return singletonMap("org.mule.runtime.api.event.EventContext", packageName + ".SpanState");
   }
 
   @Override

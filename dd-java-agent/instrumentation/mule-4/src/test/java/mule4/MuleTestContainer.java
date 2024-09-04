@@ -5,9 +5,10 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Properties;
 import org.mule.runtime.api.exception.MuleException;
+import org.mule.runtime.api.lifecycle.InitialisationException;
 import org.mule.runtime.api.util.MuleSystemProperties;
 import org.mule.runtime.core.api.config.MuleProperties;
-import org.mule.runtime.module.launcher.MuleContainer;
+import org.mule.runtime.module.launcher.DefaultMuleContainer;
 
 /**
  * A Mule test container where it is possible to deploy and undeploy mule applications.
@@ -16,9 +17,9 @@ import org.mule.runtime.module.launcher.MuleContainer;
  * mule directory.
  */
 public class MuleTestContainer {
-  final MuleContainer container;
+  final DefaultMuleContainer container;
 
-  public MuleTestContainer(File muleBaseDirectory) throws IOException {
+  public MuleTestContainer(File muleBaseDirectory) throws IOException, InitialisationException {
     if (!muleBaseDirectory.exists()) {
       muleBaseDirectory.mkdirs();
     }
@@ -35,7 +36,7 @@ public class MuleTestContainer {
         dir.mkdirs();
       }
     }
-    this.container = new MuleContainer(new String[0]);
+    this.container = new DefaultMuleContainer(new String[0]);
   }
 
   public void start() throws MuleException {
@@ -50,7 +51,7 @@ public class MuleTestContainer {
     container.getDeploymentService().undeploy(appName);
   }
 
-  public void stop() throws MuleException {
+  public void stop() throws Exception {
     container.shutdown();
   }
 }

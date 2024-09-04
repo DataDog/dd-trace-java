@@ -6,8 +6,8 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <app.runtime>4.2.2-20210129</app.runtime>
-    <mule.maven.plugin.version>3.4.2</mule.maven.plugin.version>
+    <app.runtime>4.5.0</app.runtime>
+    <mule.maven.plugin.version>3.8.6</mule.maven.plugin.version>
     <datadog.builddir>${project.basedir}</datadog.builddir>
     <datadog.name>mule-test-application</datadog.name>
     <datadog.version>1.0.0-SNAPSHOT</datadog.version>
@@ -71,6 +71,11 @@
       <artifactId>mule-java-module</artifactId>
       <version>1.2.7</version>
       <classifier>mule-plugin</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.mule.weave</groupId>
+      <artifactId>runtime</artifactId>
+      <version>2.5.0</version>
     </dependency>
   </dependencies>
 
