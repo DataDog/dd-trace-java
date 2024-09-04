@@ -6,6 +6,8 @@ import static java.util.Collections.singletonMap;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Pair;
+
 import java.util.Map;
 
 /**
@@ -35,7 +37,7 @@ public final class PrivilegedEventInstrumentation extends InstrumenterModule.Tra
   public Map<String, String> contextStore() {
     return singletonMap(
         "org.mule.runtime.api.event.EventContext",
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+        Pair.class.getName());
   }
 
   @Override

@@ -27,7 +27,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-def muleVersion = '4.2.2'
+def muleVersion = '4.5.0'
 def muleBaseDir = "$buildDir/mule"
 def appDir = "$projectDir/application"
 def generatedResourcesDir = "$buildDir/generated-resources/test"

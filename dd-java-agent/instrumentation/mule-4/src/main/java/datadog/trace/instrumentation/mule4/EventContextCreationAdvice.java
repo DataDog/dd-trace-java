@@ -2,12 +2,14 @@ package datadog.trace.instrumentation.mule4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.mule.runtime.api.event.EventContext;
+import org.mule.runtime.api.profiling.tracing.Span;
 import org.mule.runtime.core.internal.event.DefaultEventContext;
 
 public class EventContextCreationAdvice {
@@ -27,8 +29,8 @@ public class EventContextCreationAdvice {
     }
     CallDepthThreadLocalMap.reset(EventContext.class);
 
-    final ContextStore<EventContext, AgentSpan> contextStore =
-        InstrumentationContext.get(EventContext.class, AgentSpan.class);
+    final ContextStore<EventContext, Pair> contextStore =
+        InstrumentationContext.get(EventContext.class, Pair.class);
     AgentSpan span = null;
 
     // This is a roundabout way to know if we are in the constructor for DefaultEventContext or
@@ -38,10 +40,13 @@ public class EventContextCreationAdvice {
     } else if (arg instanceof EventContext) {
       // This means that we are in the constructor for ChildContext and we should copy the span
       // from the parent EventContext which is the first argument.
-      span = contextStore.get((EventContext) arg);
+      Pair<AgentSpan, Object> pair = contextStore.get((EventContext) arg);
+      if (pair != null && pair.hasLeft()) {
+        span = pair.getLeft();
+      }
     }
     if (null != span) {
-      contextStore.put(zis, span);
+      contextStore.put(zis, Pair.of(span, null));
     }
   }
 }
