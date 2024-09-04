@@ -5,6 +5,8 @@ on:
       - released
 jobs:
   update-releases:
+    permissions:
+      contents: write # Required to commit and push changes to the repository
     runs-on: ubuntu-latest
     steps:
       - name: Checkout "cloudfoundry" branch

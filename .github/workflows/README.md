@@ -74,13 +74,24 @@ _Action:_
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
 
+### prune-github-container-registry [🔗](prune-github-container-registry.yaml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Clean up old lib-injection OCI images from GitHub Container Registry.
+
+_Recovery:_ Manually trigger the action again.
+
 ## Code Quality and Security
 
-### ci-static-analysis [🔗](ci-static-analysis.yml)
+### analyze-changes [🔗](analyze-changes-with-github-codeql.yaml)
 
-_Trigger:_ When pushing commits to `master` or any pull request to `master`.
+_Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
 
-_Actions:_ Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis.
+_Action:_ 
+* Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis,
+* Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab and DataDog Code Analysis -- do not apply to pull request, only when pushing to `master`,
+* Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab.
 
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 
@@ -88,13 +99,7 @@ _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a
 
 _Action:_ Notify the PR author through comments that about the Git Submodule update.
 
-### codeql-analysis [🔗](codeql-analysis.yml)
-
-_Trigger:_ When pushing commits to `master`.
-
-_Action:_ Run GitHub CodeQL action, upload result to GitHub security tab and DataDog Code Analysis.
-
-### update-gradle-dependencies [🔗](trivy-analysis.yml)
+### update-gradle-dependencies [🔗](update-gradle-dependencies.yml)
 
 _Trigger:_ Every week or manually.
 
@@ -102,24 +107,13 @@ _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
 
-### trivy-analysis [🔗](trivy-analysis.yml)
 
-_Trigger:_ When pushing commits to `master` or any pull request to `master`.
+## Maintenance
 
-_Action:_ Run Trivy security scanner on built artifacts and upload result to GitHub security tab.
+GitHub actions should be part of the [repository allowed actions to run](https://github.com/DataDog/dd-trace-java/settings/actions).
+While GitHub owned actions are allowed by default, the other ones must be declared.
 
-### gradle-wrapper-validation [🔗](gradle-wrapper-validation.yaml.disabled)
-
-**DISABLED** - GitHub provides a way to disable actions rather than changing their extensions.
-
-_Comment:_ To delete?
-
-## Lib Injection
-
-### lib-injection-prune-registry [🔗](lib-injection-prune-registry.yaml)
-
-_Trigger:_ Every week or manually.
-
-_Action:_ Clean up old lib-injection Docker images from GHCR.
-
-_Recovery:_ Manually trigger the action again.
+Run the following script to get the list of actions to declare according the state of your working copy:
+```bash
+find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sort | uniq
+```

@@ -2012,7 +2012,8 @@ public class Config {
     // together with the rest of telemetry config.
     final boolean telemetryLogCollectionEnabledDefault =
         instrumenterConfig.isTelemetryEnabled()
-                && (instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
+                && (instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED
+                    || instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
                     || instrumenterConfig.isCiVisibilityEnabled()
                     || debuggerEnabled
                     || !Platform.isJavaVersionAtLeast(11))
