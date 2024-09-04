@@ -832,6 +832,11 @@ public class DDSpan
     }
   }
 
+  @Override
+  public boolean isRequiresPostProcessing() {
+    return context.isRequiresPostProcessing();
+  }
+
   // to be accessible in Spock spies, which the field wouldn't otherwise be
   public long getStartTimeNano() {
     return startTimeNano;

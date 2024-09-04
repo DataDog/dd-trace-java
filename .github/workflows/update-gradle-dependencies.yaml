@@ -9,10 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Update Gradle dependencies
     permissions:
-      # Commit and push changes to a new branch
-      contents: write
-      # Create a pull request
-      pull-requests: write
+      contents: write # Required to commit and push changes to a new branch
+      pull-requests: write # Required to create a pull request
     steps:
       - name: Checkout repository
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6

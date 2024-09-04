@@ -18,7 +18,7 @@ public class ObjectInputStreamCallSite {
 
     if (module != null) {
       try {
-        module.onInputStream(is);
+        module.onObject(is);
       } catch (Throwable e) {
         module.onUnexpectedException("before constructor untrusted threw", e);
       }
