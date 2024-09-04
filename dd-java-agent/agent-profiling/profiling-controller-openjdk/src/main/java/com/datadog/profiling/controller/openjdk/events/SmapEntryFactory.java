@@ -73,7 +73,7 @@ public class SmapEntryFactory {
       }
     }
     if (annotatedMapsAvailable) {
-      log.info("Smap entry events registered successfully");
+      log.debug("Smap entry events registered successfully");
     } else {
       log.warn("Smap entry events could not be registered due to missing systemMap operation");
     }
