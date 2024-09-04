@@ -55,7 +55,12 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
       }
       if (dataValue instanceof CompletionStage<?>) {
         if (dataValue instanceof CompletableFuture<?>) {
-          CompletableFuture<?> completableFuture = (CompletableFuture<?>) dataValue;
+          // It's possible to get an instance of a MinimalStage here, which is a subclass of
+          // CompletableFuture but throws on a bunch of functions, including isDone().
+          // Using toCompletableFuture forces the creation of a fully functional CompletableFuture
+          // if necessary.
+          CompletableFuture<?> completableFuture =
+              ((CompletableFuture<?>) dataValue).toCompletableFuture();
           if (completableFuture.isDone()) {
             if (completableFuture.isCompletedExceptionally()) {
               try {
