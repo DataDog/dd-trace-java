@@ -13,6 +13,7 @@ import static datadog.trace.api.config.GeneralConfig.*;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.IastConfig.*;
 import static datadog.trace.api.config.JmxFetchConfig.*;
+import static datadog.trace.api.config.LlmObsConfig.*;
 import static datadog.trace.api.config.ProfilingConfig.*;
 import static datadog.trace.api.config.RemoteConfigConfig.*;
 import static datadog.trace.api.config.TraceInstrumentationConfig.*;
@@ -308,6 +309,9 @@ public class Config {
   private final boolean iastStackTraceEnabled;
   private final boolean iastExperimentalPropagationEnabled;
   private final String iastSecurityControlsConfiguration;
+
+  private final boolean llmObsAgentlessEnabled;
+  private final String llmObsMlApp;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1336,6 +1340,10 @@ public class Config {
     iastSecurityControlsConfiguration =
         configProvider.getString(IAST_SECURITY_CONTROLS_CONFIGURATION, null);
 
+    llmObsAgentlessEnabled =
+        configProvider.getBoolean(LLM_OBS_AGENTLESS_ENABLED, DEFAULT_LLM_OBS_AGENTLESS_ENABLED);
+    llmObsMlApp = configProvider.getString(LLM_OBS_ML_APP);
+
     ciVisibilityTraceSanitationEnabled =
         configProvider.getBoolean(CIVISIBILITY_TRACE_SANITATION_ENABLED, true);
 
@@ -1774,6 +1782,24 @@ public class Config {
     this.tracePostProcessingTimeout =
         configProvider.getLong(
             TRACE_POST_PROCESSING_TIMEOUT, ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT);
+
+    if (isLlmObsEnabled()) {
+      log.debug("Attempting to enable LLM Observability");
+      if (llmObsMlApp == null || llmObsMlApp.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Attempt to enable LLM Observability without ML app defined."
+                + "Please ensure that the name of the ML app is provided through properties or env variable");
+      }
+      if (llmObsAgentlessEnabled && (apiKey == null || apiKey.isEmpty())) {
+        throw new FatalAgentMisconfigurationError(
+            "Attempt to start LLM Observability in Agentless mode without API key. "
+                + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
+      }
+      log.debug(
+          "LLM Observability enabled for ML app {}, agentless mode {}",
+          llmObsMlApp,
+          llmObsAgentlessEnabled);
+    }
 
     if (isCiVisibilityEnabled()
         && ciVisibilityAgentlessEnabled
@@ -2638,6 +2664,18 @@ public class Config {
 
   public String getIastSecurityControlsConfiguration() {
     return iastSecurityControlsConfiguration;
+  }
+
+  public boolean isLlmObsEnabled() {
+    return instrumenterConfig.isLlmObsEnabled();
+  }
+
+  public boolean isLlmObsAgentlessEnabled() {
+    return llmObsAgentlessEnabled;
+  }
+
+  public String getLlmObsMlApp() {
+    return llmObsMlApp;
   }
 
   public boolean isCiVisibilityEnabled() {
