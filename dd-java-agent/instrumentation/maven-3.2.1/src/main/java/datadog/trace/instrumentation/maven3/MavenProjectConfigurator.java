@@ -138,10 +138,6 @@ class MavenProjectConfigurator {
       return;
     }
 
-    // FIXME nikita: rewrite to use
-    // datadog.trace.instrumentation.maven3.MavenUtils.getPomConfiguration() and
-    // getConfigurationValue()
-    // FIXME nikita: remove MavenUtils.getXmlConfigurationValue()
     Xpp3Dom pluginConfiguration = (Xpp3Dom) compilerPlugin.getConfiguration();
     String pluginCompilerId =
         MavenUtils.getXmlConfigurationValue(pluginConfiguration, "compilerId");

@@ -12,8 +12,6 @@
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <surefire.timeout>887</surefire.timeout>
-    <argLine>-Xms128m</argLine>
   </properties>
 
   <repositories>
@@ -47,11 +45,6 @@
       <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
-      <version>3.17.0</version>
-    </dependency>
   </dependencies>
 
   <build>
@@ -60,9 +53,13 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <threadCount>112</threadCount>
-          <argLine>@{argLine} -Xmx2g</argLine>
-          <jvm>jvm-config-property-value</jvm>
+          <additionalClasspathDependencies>
+            <dependency>
+              <groupId>commons-io</groupId>
+              <artifactId>commons-io</artifactId>
+              <version>2.16.1</version>
+            </dependency>
+          </additionalClasspathDependencies>
         </configuration>
       </plugin>
     </plugins>

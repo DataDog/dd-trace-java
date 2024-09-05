@@ -333,17 +333,6 @@ public abstract class MavenUtils {
     return METHOD_HANDLES.invoke(LOOKUP_METHOD, lookup, PlexusContainer.class);
   }
 
-  public static PlexusConfiguration getPomConfiguration(MojoExecution mojoExecution) {
-    Xpp3Dom configuration = mojoExecution.getConfiguration();
-    if (configuration == null) {
-      return new XmlPlexusConfiguration("configuration");
-    } else {
-      return new XmlPlexusConfiguration(configuration);
-    }
-  }
-
-  // FIXME nikita: check that <additionalClasspathDependencies>, <additionalClasspathElements>,
-  // <argLine> (e.g. Jacoco agent), <useModulePath> are accounted for
   @Nullable
   public static List<Path> getClasspath(MavenSession session, MojoExecution mojoExecution) {
     if (!MavenUtils.isTestExecution(mojoExecution)) {
@@ -369,18 +358,25 @@ public abstract class MavenUtils {
         return null;
       }
 
-      Object /* org.apache.maven.plugin.surefire.TestClassPath */ testClassPath =
-          methodHandles.invoke(generateTestClasspathMethod, mojo);
-      MethodHandle toClasspathMethod =
-          findMethod(methodHandles, testClassPath.getClass(), "toClasspath");
-      if (toClasspathMethod == null) {
-        LOGGER.debug(
-            "Could not find toClasspath method in {} class", testClassPath.getClass().getName());
-        return null;
+      Object /* org.apache.maven.surefire.booter.Classpath */ classPath;
+
+      Object generatedClassPath = methodHandles.invoke(generateTestClasspathMethod, mojo);
+      if ("org.apache.maven.surefire.booter.Classpath"
+          .equals(generatedClassPath.getClass().getName())) {
+        classPath = generatedClassPath;
+      } else {
+        /* org.apache.maven.plugin.surefire.TestClassPath */
+        MethodHandle toClasspathMethod =
+            findMethod(methodHandles, generatedClassPath.getClass(), "toClasspath");
+        if (toClasspathMethod == null) {
+          LOGGER.debug(
+              "Could not find toClasspath method in {} class",
+              generatedClassPath.getClass().getName());
+          return null;
+        }
+        classPath = methodHandles.invoke(toClasspathMethod, generatedClassPath);
       }
 
-      Object /* org.apache.maven.surefire.booter.Classpath */ classPath =
-          methodHandles.invoke(toClasspathMethod, testClassPath);
       MethodHandle getClassPathMethod =
           findMethod(methodHandles, classPath.getClass(), "getClassPath");
       if (getClassPathMethod == null) {
@@ -506,7 +502,7 @@ public abstract class MavenUtils {
         return jvm;
       }
 
-      PlexusConfiguration configuration = getPomConfiguration(mojoExecution);
+      PlexusConfiguration configuration = getConfiguration(mojoExecution);
       PlexusConfiguration jdkToolchain = configuration.getChild("jdkToolchain");
       if (jdkToolchain != null) {
         ExpressionEvaluator expressionEvaluator =
@@ -611,7 +607,7 @@ public abstract class MavenUtils {
   public static String getConfigurationValue(
       MavenSession session, MojoExecution mojoExecution, String propertyName) {
     try {
-      PlexusConfiguration pomConfiguration = MavenUtils.getPomConfiguration(mojoExecution);
+      PlexusConfiguration pomConfiguration = MavenUtils.getConfiguration(mojoExecution);
       PlexusConfiguration property = pomConfiguration.getChild(propertyName);
       if (property == null) {
         return null;
@@ -629,6 +625,15 @@ public abstract class MavenUtils {
           mojoExecution,
           e);
       return null;
+    }
+  }
+
+  private static PlexusConfiguration getConfiguration(MojoExecution mojoExecution) {
+    Xpp3Dom configuration = mojoExecution.getConfiguration();
+    if (configuration == null) {
+      return new XmlPlexusConfiguration("configuration");
+    } else {
+      return new XmlPlexusConfiguration(configuration);
     }
   }
 }
