@@ -1,9 +1,8 @@
-package datadog.trace.instrumentation.redisson;
+package datadog.trace.instrumentation.redisson30;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.redisson.RedissonClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -17,7 +16,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import net.bytebuddy.asm.Advice;
+import org.redisson.api.RFuture;
 import org.redisson.client.RedisConnection;
 import org.redisson.client.protocol.CommandData;
 import org.redisson.client.protocol.CommandsData;
@@ -38,7 +39,9 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RedissonClientDecorator", packageName + ".SpanFinishListener",
+      packageName + ".RedissonClientDecorator",
+      packageName + ".SpanFinishListener",
+      packageName + ".PromiseHelper",
     };
   }
 
@@ -64,14 +67,16 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(0) final CommandData<?, ?> command, @Advice.This RedisConnection thiz) {
-      if (command.getPromise() == null) {
+      final CompletionStage<?> promise =
+          PromiseHelper.getPromise(PromiseHelper.COMMAND_GET_PROMISE_HANDLE, command);
+      if (promise == null) {
         return null;
       }
       final AgentSpan span = startSpan(RedissonClientDecorator.OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
-      DECORATE.onStatement(span, command.getCommand().getName());
-      command.getPromise().addListener(new SpanFinishListener(AgentTracer.captureSpan(span)));
+      RedissonClientDecorator.DECORATE.afterStart(span);
+      RedissonClientDecorator.DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
+      RedissonClientDecorator.DECORATE.onStatement(span, command.getCommand().getName());
+      promise.whenComplete(new SpanFinishListener(AgentTracer.captureSpan(span)));
       return activateSpan(span);
     }
 
@@ -81,6 +86,11 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
         scope.close();
       }
     }
+
+    public static void muzzleCheck(final RFuture<?> future) {
+      // added on 3.10.3
+      future.onComplete(null);
+    }
   }
 
   public static class RedissonCommandsAdvice {
@@ -88,20 +98,21 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(0) final CommandsData command, @Advice.This final RedisConnection thiz) {
-      if (command.getPromise() == null) {
+      final CompletionStage<?> promise =
+          PromiseHelper.getPromise(PromiseHelper.COMMANDS_GET_PROMISE_HANDLE, command);
+      if (promise == null) {
         return null;
       }
-
       final AgentSpan span = startSpan(RedissonClientDecorator.OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
+      RedissonClientDecorator.DECORATE.afterStart(span);
+      RedissonClientDecorator.DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
 
       List<String> commandResourceNames = new ArrayList<>();
       for (CommandData<?, ?> commandData : command.getCommands()) {
         commandResourceNames.add(commandData.getCommand().getName());
       }
-      DECORATE.onStatement(span, Strings.join(";", commandResourceNames));
-      command.getPromise().addListener(new SpanFinishListener(AgentTracer.captureSpan(span)));
+      RedissonClientDecorator.DECORATE.onStatement(span, Strings.join(";", commandResourceNames));
+      promise.whenComplete(new SpanFinishListener(AgentTracer.captureSpan(span)));
       return activateSpan(span);
     }
 
