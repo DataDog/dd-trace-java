@@ -10,7 +10,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Profiling Integration Tests.'
 
-jar {
+tasks.named("jar", Jar).configure {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication')
   }
@@ -36,7 +36,7 @@ tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
-shadowJar {
+tasks.named("shadowJar").configure {
   include {
     return it.directory || it.path.endsWith('.jar') ||
       it.path.startsWith('io/opentracing') ||

@@ -1,3 +1,6 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'java-test-fixtures'
+
 muzzle {
   pass {
     name = 'jaxrs'
@@ -13,15 +16,14 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'java-test-fixtures'
-
 addTestSuite('nettyTest')
 addTestSuite('jettyAsyncTest')
 
 //check.dependsOn nettyTest, jettyAsyncTest
 // CI invocations are only for test/latestDepTest
-test.finalizedBy nettyTest, jettyAsyncTest
+tasks.named("test", Test).configure {
+  finalizedBy nettyTest, jettyAsyncTest
+}
 configurations.all {
   resolutionStrategy.deactivateDependencyLocking()
 }

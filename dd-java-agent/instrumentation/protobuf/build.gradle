@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "com.google.protobuf"
@@ -6,8 +8,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'

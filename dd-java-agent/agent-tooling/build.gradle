@@ -34,8 +34,8 @@ configurations {
   }
 }
 
-compileJava.dependsOn 'generateClassNameTries'
-sourcesJar.dependsOn 'generateClassNameTries'
+tasks.named('compileJava').configure { dependsOn 'generateClassNameTries' }
+tasks.named('sourcesJar').configure { dependsOn 'generateClassNameTries' }
 
 dependencies {
   api(project(':dd-java-agent:agent-bootstrap')) {
@@ -65,27 +65,34 @@ jmh {
   jmhVersion = '1.32'
   includeTests = true
 }
-compileJmhJava.dependsOn compileTestJava
-compileTestJava.dependsOn 'generateTestClassNameTries'
+tasks.named("compileJmhJava", JavaCompile).configure {
+  dependsOn 'compileTestJava'
+}
+tasks.named("compileTestJava", JavaCompile).configure {
+  dependsOn 'generateTestClassNameTries'
+}
 
-forbiddenApisJmh {
+tasks.named("forbiddenApisJmh").configure {
   ignoreFailures = true
 }
 
-forbiddenApisTest_java11 {
+tasks.named("forbiddenApisTest_java11").configure {
   // it will fail due to missing JDK >= 9 classes
   // java.lang.ClassNotFoundException: java.lang.invoke.StringConcatFactory
   failOnMissingClasses = false
 }
 
-project.tasks.compileTestJava.dependsOn(project.tasks.generateTestClassNameTries)
-project.tasks.compileTestGroovy.dependsOn(project.tasks.compileTest_java11Java)
-project.tasks.compileTest_java11Java.configure {
+tasks.named("compileTestGroovy", GroovyCompile).configure {
+  dependsOn 'compileTest_java11Java'
+}
+
+tasks.named("compileTest_java11Java", JavaCompile).configure {
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
   setJavaVersion(it, 11)
 }
 
-final jmh = project.tasks.jmh
-jmh.outputs.upToDateWhen { false }
-jmh.dependsOn(compileTestJava)
+tasks.named("jmh").configure {
+  outputs.upToDateWhen { false }
+  dependsOn 'compileTestJava'
+}

@@ -1,3 +1,6 @@
+apply plugin: 'java-test-fixtures'
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     name = '9_full_series'
@@ -60,9 +63,6 @@ muzzle {
   }
 }
 
-apply plugin: 'java-test-fixtures'
-apply from: "$rootDir/gradle/java.gradle"
-
 sourceSets {
   main_jetty904 {
     java.srcDirs "${project.projectDir}/src/main/java_jetty904"
@@ -78,21 +78,34 @@ sourceSets {
   }
 }
 
-jar {
+tasks.named("jar", Jar).configure {
   from sourceSets.main_jetty904.output
   from sourceSets.main_jetty93.output
   from sourceSets.main_jetty9421.output
   from sourceSets.main_jetty10.output
 }
 
-List<DirectoryProperty> extraInstrumentJavaDirs = []
-['main_jetty904', 'main_jetty93', 'main_jetty9421', 'main_jetty10'].each {
-  JavaCompile compileTask = tasks["compile${it.capitalize()}Java"]
-  extraInstrumentJavaDirs << compileTask.destinationDirectory
-  compileTask.dependsOn tasks['compileJava']
+Provider<List<DirectoryProperty>> extraInstrumentJavaDirsProvider = project.provider {
+  List<DirectoryProperty> extraInstrumentJavaDirs = []
+  ['main_jetty904', 'main_jetty93', 'main_jetty9421', 'main_jetty10'].each {sourceSetName ->
+    final compileTaskName = "compile${sourceSetName.capitalize()}Java"
+    extraInstrumentJavaDirs << tasks.named(compileTaskName, JavaCompile).get().destinationDirectory
+  }
+  extraInstrumentJavaDirs
+}
+
+['main_jetty904', 'main_jetty93', 'main_jetty9421', 'main_jetty10'].each {sourceSetName ->
+  final compileTaskName = "compile${sourceSetName.capitalize()}Java"
+  tasks.named(compileTaskName).configure {
+    dependsOn 'compileJava'
+  }
   project.afterEvaluate { p ->
-    tasks['instrumentJava'].dependsOn compileTask
-    tasks["forbiddenApis${it.capitalize()}"].dependsOn("instrument${it.capitalize()}Java")
+    tasks.named('instrumentJava').configure {
+      dependsOn compileTaskName
+    }
+    tasks.named("forbiddenApis${sourceSetName.capitalize()}").configure {
+      dependsOn "instrument${sourceSetName.capitalize()}Java"
+    }
   }
 }
 
@@ -101,11 +114,11 @@ instrument {
   // The muzzle generator of references run as part of InstrumentJava needs access to
   // these extra classes. The task dependencies for instrumentJava are added above
   additionalClasspath = [
-    instrumentJava: extraInstrumentJavaDirs
+    instrumentJava: extraInstrumentJavaDirsProvider
   ]
 }
 
-tasks['compileMain_jetty10Java'].configure {
+tasks.named('compileMain_jetty10Java').configure {
   setJavaVersion(it, 11)
 }
 

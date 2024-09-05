@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id "com.github.johnrengelman.shadow"
 }
@@ -40,7 +42,7 @@ dependencies {
   testImplementation libs.bundles.junit5
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar).configure {
   archiveClassifier = ''
   include {
     def rslt = false
@@ -53,7 +55,9 @@ shadowJar {
   }
 }
 
-build.dependsOn shadowJar
+tasks.named("build").configure {
+  dependsOn shadowJar
+}
 
 configurations.all {
   resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
@@ -71,7 +75,7 @@ configurations.all {
   }
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain").configure {
   failOnMissingClasses = false
 }
 

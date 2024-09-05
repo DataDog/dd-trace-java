@@ -9,9 +9,8 @@ configurations {
 
 // Create test artifact so that test base class can be reused
 artifacts {
-  testArtifacts testJar
+  testArtifacts tasks.named("testJar", Jar)
 }
-
 
 dependencies {
   compileOnly group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.0.2'

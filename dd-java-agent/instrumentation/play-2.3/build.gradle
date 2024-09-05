@@ -3,6 +3,8 @@ ext {
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'com.typesafe.play'
@@ -21,8 +23,6 @@ muzzle {
     versions = '[,]'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 repositories {
   maven {
@@ -58,7 +58,7 @@ dependencies {
   }
 }
 
-compileLatestDepTestGroovy {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile).configure {
   classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
   dependsOn compileLatestDepTestScala
 }

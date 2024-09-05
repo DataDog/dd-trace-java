@@ -7,20 +7,20 @@ description = 'SpringBoot GraphQL Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
-jar {
+tasks.named("jar", Jar).configure {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.appsec.springbootgraphql.SpringbootGraphqlApplication')
   }
 }
 
-shadowJar {
+tasks.named("shadowJar").configure {
   mergeServiceFiles {
     include 'META-INF/spring.*'
   }
 }
 
 // Use Java 11 to build application
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
   setJavaVersion(delegate, 11)
 }
 
@@ -38,8 +38,9 @@ tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
-task testRuntimeActivation(type: Test) {
+tasks.register('testRuntimeActivation', Test).configure {
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
     "-Ddatadog.smoketest.appsec.springboot-graphql.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
-tasks['check'].dependsOn(testRuntimeActivation)
+
+tasks.named('check').configure { it.dependsOn 'testRuntimeActivation' }

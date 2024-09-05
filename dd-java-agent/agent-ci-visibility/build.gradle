@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 buildscript {
   repositories {
     mavenCentral()
@@ -50,10 +52,10 @@ dependencies {
   testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.9.2") // Required to update dependency lock files
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar).configure {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar).configure {
   archiveClassifier = 'unbundled'
 }

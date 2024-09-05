@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.apache.kafka"
@@ -5,9 +7,6 @@ muzzle {
     versions = "[1.0.0.0,3)"
   }
 }
-
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 

@@ -38,7 +38,7 @@ configurations.matching({ it.name.startsWith('test') || it.name.startsWith('late
   }
 })
 
-tasks.matching { it.name.startsWith('latestDepTest') || it.name.contains('LatestDepTest') }.each {
+tasks.named("latestDepTest").configure {
   it.onlyIf {
     // Only run latest dep tests tasks (including compilation) if the current JVM is compatible with the latest Selenium version
     JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)

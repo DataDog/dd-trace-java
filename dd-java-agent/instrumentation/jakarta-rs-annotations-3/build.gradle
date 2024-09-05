@@ -1,3 +1,4 @@
+apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
@@ -6,8 +7,6 @@ muzzle {
     versions = "[3.0.0,]"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')

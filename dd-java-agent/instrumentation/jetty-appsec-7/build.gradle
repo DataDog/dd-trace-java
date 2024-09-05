@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.eclipse.jetty'
@@ -6,8 +8,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.0.0.v20091005'

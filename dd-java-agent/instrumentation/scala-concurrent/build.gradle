@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 
 muzzle {
   pass {
@@ -7,9 +9,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 
 /**
  * This project has instrumentation to support Scala's copy of ForkJoinPool which was added in 2.8 and removed in 2.11.

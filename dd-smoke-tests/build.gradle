@@ -1,3 +1,5 @@
+logger.debug("Will apply build.gradle for ${project.path}")
+
 apply from: "$rootDir/gradle/java.gradle"
 
 description = 'dd-smoke-tests'
@@ -12,6 +14,7 @@ dependencies {
 
 Project parent_project = project
 subprojects { Project subProj ->
+  logger.debug("Will apply build.gradle (sub ${subProj.path}) for ${project.path}")
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 

@@ -2,6 +2,10 @@ ext {
   jetty11TestMinJavaVersionForTests = JavaVersion.VERSION_11
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+// TODO: This needed? not implicit?
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
 muzzle {
   pass {
     group = "com.linecorp.armeria"
@@ -15,9 +19,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 
 addTestSuiteForDir("jetty9Test", "test/jetty9")
@@ -25,8 +26,13 @@ addTestSuiteForDir("jetty11Test", "test/jetty11")
 addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9")
 addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
 
-[compileJetty11TestGroovy, jetty11Test, compileJetty11LatestDepTestGroovy, jetty11LatestDepTest].each {
-  it.configure {
+for (final taskName in [
+    'compileJetty11TestGroovy',
+    'jetty11Test',
+    'compileJetty11LatestDepTestGroovy',
+    'jetty11LatestDepTest'
+  ]) {
+  tasks.named(taskName).configure {
     javaLauncher = getJavaLauncherFor(11)
   }
 }

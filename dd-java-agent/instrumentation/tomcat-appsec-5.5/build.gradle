@@ -1,5 +1,7 @@
 evaluationDependsOn ':dd-java-agent:instrumentation:tomcat-5.5'
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   // despite the name of module, this also applies to tomcat < 6.0.35 or 7.0-7.0.22
   pass {
@@ -46,8 +48,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'tomcat', name: 'tomcat-util', version: '5.5.23'

@@ -1,3 +1,9 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_17
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.springframework.security'
@@ -7,21 +13,15 @@ muzzle {
   }
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
-apply from: "$rootDir/gradle/java.gradle"
-
-[compileMain_java17Java, compileTestJava].each {
-  it.configure {
+for (final taskName in ["compileMain_java17Java", "compileTestJava"]) {
+  tasks.named(taskName, JavaCompile).configure {
     setJavaVersion(it, 17)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy", GroovyCompile).configure {
   javaLauncher = getJavaLauncherFor(17)
 }
 

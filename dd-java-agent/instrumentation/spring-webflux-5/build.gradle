@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     name = "webflux_5.0.0+_with_netty_0.8.0"
@@ -57,9 +59,6 @@ muzzle {
     extraDependency "io.projectreactor:reactor-core:3.6.0"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestBoot20Test', 'bootTest')

@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.restlet.jse"
@@ -6,8 +8,6 @@ muzzle {
     assertInverse = false
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 repositories {
   maven {

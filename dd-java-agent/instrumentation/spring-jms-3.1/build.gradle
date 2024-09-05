@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.springframework'
@@ -7,14 +9,12 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 apply from: "$rootDir/gradle/configure_tests.gradle"
 
-latestDepTest {
+tasks.named("latestDepTest").configure {
   finalizedBy 'latestDepForkedTest'
 }
 

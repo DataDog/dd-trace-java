@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'com.twilio.sdk'
@@ -5,8 +7,6 @@ muzzle {
     versions = "(,8.0.0)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 

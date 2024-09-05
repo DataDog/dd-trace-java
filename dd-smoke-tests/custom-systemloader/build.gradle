@@ -5,13 +5,13 @@ plugins {
 description = 'Check classes loaded by custom system class-loader are transformed'
 apply from: "$rootDir/gradle/java.gradle"
 
-jar {
+tasks.named("jar", Jar).configure {
   manifest {
     attributes('Main-Class': 'sample.app.App')
   }
 }
 
-shadowJar {
+tasks.named("shadowJar").configure {
   configurations = [project.configurations.runtimeClasspath]
 }
 

@@ -5,6 +5,8 @@ ext {
   latest10ForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   // Catalina doesn't reliably depend on coyote, so we use a different dependency that does.
   pass {
@@ -37,8 +39,6 @@ muzzle {
   }
   // org.apache.catalina.connector.CoyoteAdapter introduced in Catalina 5.5
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')

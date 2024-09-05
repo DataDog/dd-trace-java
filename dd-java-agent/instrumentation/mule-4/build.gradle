@@ -3,6 +3,8 @@ ext {
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   extraRepository('anypoint-releases', 'https://maven.anypoint.mulesoft.com/api/v2/maven')
   extraRepository('mulesoft-releases', 'https://repository.mulesoft.org/releases')
@@ -25,15 +27,15 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 def muleVersion = '4.2.2'
 def muleBaseDir = "$buildDir/mule"
 def appDir = "$projectDir/application"
 def generatedResourcesDir = "$buildDir/generated-resources/test"
 
-clean.doFirst {
-  delete muleBaseDir
+tasks.named("clean").configure {
+  doFirst {
+    delete muleBaseDir
+  }
 }
 
 repositories {

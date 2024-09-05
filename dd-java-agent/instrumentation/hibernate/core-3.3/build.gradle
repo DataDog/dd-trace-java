@@ -5,6 +5,8 @@
  * instrumentation isn't able to reference it.
  */
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.hibernate"
@@ -13,8 +15,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

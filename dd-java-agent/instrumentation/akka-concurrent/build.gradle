@@ -2,6 +2,9 @@
 def akkaVersion = '2.5.0'
 def scalaVersion = '2.11'
 
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-scala.gradle"
+
 muzzle {
   pass {
     group = 'com.typesafe.akka'
@@ -11,9 +14,6 @@ muzzle {
     assertInverse = false
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuite('akka23Test')
 addTestSuiteForDir('latestDepTest', 'test')

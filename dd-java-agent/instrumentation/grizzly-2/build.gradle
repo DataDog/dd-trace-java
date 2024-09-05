@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.glassfish.grizzly"
@@ -9,8 +11,6 @@ muzzle {
   // Not bothering to test against 1.x since it has a different package name.
   // https://mvnrepository.com/artifact/com.sun.grizzly/grizzly-http
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

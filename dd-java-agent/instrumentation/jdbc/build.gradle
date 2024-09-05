@@ -3,15 +3,15 @@ plugins {
   id 'me.champeau.jmh'
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
 muzzle {
   pass {
     coreJdk()
     extraDependency 'com.ibm.db2:jcc:11.1.4.4'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
 
 addTestSuiteForDir('oldH2Test', 'test')
 addTestSuiteForDir('oldPostgresTest', 'test')

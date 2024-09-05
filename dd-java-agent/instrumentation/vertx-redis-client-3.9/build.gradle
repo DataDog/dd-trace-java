@@ -1,3 +1,6 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/configure_tests.gradle"
+
 muzzle {
   pass {
     group = 'io.vertx'
@@ -6,9 +9,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/configure_tests.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')

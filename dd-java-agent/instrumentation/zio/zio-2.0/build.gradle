@@ -1,6 +1,9 @@
 def zioVersion = '2.0.0'
 def scalaVersion = '2.12'
 
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-scala.gradle"
+
 muzzle {
   pass {
     group = 'dev.zio'
@@ -21,9 +24,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 tasks.named("compileLatestDepTestGroovy").configure {

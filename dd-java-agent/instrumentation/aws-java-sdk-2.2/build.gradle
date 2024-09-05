@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "software.amazon.awssdk"
@@ -7,8 +9,6 @@ muzzle {
     skipVersions += '2.20.34' // broken jar on maven central
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 // Broken: at some point S3 moved the bucket name to the hostname resulting in host not found somebucket.localhost on all S3 tests

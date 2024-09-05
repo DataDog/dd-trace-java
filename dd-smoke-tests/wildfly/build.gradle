@@ -57,9 +57,7 @@ tasks.register('earBuild', Exec) {
   })
   .withPropertyName("application")
   .withPathSensitivity(PathSensitivity.RELATIVE)
-}
 
-earBuild {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 

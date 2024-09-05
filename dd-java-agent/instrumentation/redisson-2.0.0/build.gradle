@@ -1,3 +1,4 @@
+apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
@@ -9,8 +10,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestRedisson20Test', 'test/redisson20')
 addTestSuiteExtendingForDir('latestRedisson20ForkedTest', 'latestRedisson20Test', 'test/redisson20')
 addTestSuiteForDir('latestRedisson23Test', 'test/redisson23')
@@ -18,15 +17,15 @@ addTestSuiteExtendingForDir('latestRedisson23ForkedTest', 'latestRedisson23Test'
 addTestSuiteForDir('latestDepTest', 'test/redissonLatest')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test/redissonLatest')
 
-latestRedisson20Test {
+tasks.named("latestRedisson20Test").configure {
   finalizedBy latestRedisson20ForkedTest
 }
 
-latestRedisson23Test {
+tasks.named("latestRedisson23Test").configure {
   finalizedBy latestRedisson20ForkedTest
 }
 
-latestDepTest {
+tasks.named("latestDepTest").configure {
   finalizedBy latestDepForkedTest
 }
 

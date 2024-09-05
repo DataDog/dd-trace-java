@@ -1,6 +1,9 @@
 
 def scalaVersion = '2.11'
 
+apply from: "${rootDir}/gradle/java.gradle"
+apply from: "${rootDir}/gradle/test-with-scala.gradle"
+
 muzzle {
   pass {
     group = 'io.spray'
@@ -8,9 +11,6 @@ muzzle {
     versions = "[1.3.1,)"
   }
 }
-
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/test-with-scala.gradle"
 
 dependencies {
   compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '2.3.14'

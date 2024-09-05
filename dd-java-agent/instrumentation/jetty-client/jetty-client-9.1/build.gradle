@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   /**
    * Jetty Client 10+ passes if muzzle is run with Java 11 but fails otherwise because it
@@ -43,7 +45,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {

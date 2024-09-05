@@ -13,7 +13,6 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Tomcat Smoke Tests.'
 
-
 repositories {
   ivy {
     url 'https://archive.apache.org/dist'
@@ -67,36 +66,28 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-tasks.sourcesJar {
+// DEBUG: meant for sourcesJar and javaDoc, but experimenting with removing it, and why would we need this anyway?
+tasks.withType(Jar).configureEach {
   dependsOn 'unzip'
 }
 
-tasks.javadocJar {
+tasks.named('bootWar').configure {
   dependsOn 'unzip'
 }
 
-tasks.bootWar {
+tasks.named('bootWarMainClassName').configure {
   dependsOn 'unzip'
 }
 
-tasks.bootWarMainClassName {
+tasks.named('war').configure {
   dependsOn 'unzip'
 }
 
-tasks.war {
-  dependsOn 'unzip'
-}
-
-tasks.javadocJar{
-  dependsOn 'unzip'
-}
-
-tasks.sourcesJar{
-  dependsOn 'unzip'
-}
-
-tasks.matching({it.name.startsWith('compileTest')}).configureEach {
-  dependsOn 'war', 'bootWar', 'unzip'
+// TODO: Figure out if there's a cleaner way
+tasks.withType(AbstractCompile).configureEach {
+  if (it.name.startsWith('compileTest')) {
+    dependsOn 'war', 'bootWar', 'unzip'
+  }
 }
 
 tasks.withType(Test).configureEach {

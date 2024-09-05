@@ -2,6 +2,9 @@ ext {
   spring6TestMinJavaVersionForTests = JavaVersion.VERSION_17
   spring6LatestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
 }
+
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.springframework'
@@ -18,25 +21,33 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('spring6Test', 'test')
 addTestSuiteExtendingForDir('spring6LatestDepTest', 'latestDepTest', 'test')
 
-[compileSpring6TestJava, compileSpring6LatestDepTestJava].each {
-  setJavaVersion(it, 17)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+for (final taskName in ["compileSpring6TestJava", "compileSpring6LatestDepTestJava"]) {
+  tasks.named(taskName, JavaCompile).configure {
+    setJavaVersion(it, 17)
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+  }
 }
 
-
-[compileSpring6TestGroovy, compileSpring6LatestDepTestGroovy, spring6Test, spring6LatestDepTest].each {
-  it.javaLauncher = getJavaLauncherFor(17)
+for (final taskName in [
+    "compileSpring6TestGroovy",
+    "compileSpring6LatestDepTestGroovy",
+    "spring6Test",
+    "spring6LatestDepTest"
+  ]) {
+  tasks.named(taskName).configure {
+    it.javaLauncher = getJavaLauncherFor(17)
+  }
 }
 
-[spring6Test, spring6LatestDepTest].each {
-  it.jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+for (final taskName in ["spring6Test", "spring6LatestDepTest"]) {
+  tasks.named(taskName).configure {
+    it.jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+  }
 }
 
 dependencies {

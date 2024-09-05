@@ -3,6 +3,8 @@ ext {
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.elasticsearch"
@@ -12,8 +14,6 @@ muzzle {
     skipVersions = ["7.11.0", "7.17.8", "8.8.0"]
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'latestDepTest')
 

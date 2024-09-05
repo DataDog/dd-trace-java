@@ -3,6 +3,9 @@ ext {
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+
 def scalaVersion = '2.11'
 def playVersion = '2.6.0'
 
@@ -50,9 +53,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
-
 repositories {
   maven {
     // for muzzle because of play-2.3
@@ -70,17 +70,23 @@ sourceSets {
     java.srcDirs "${project.projectDir}/src/main/java_play27"
   }
 }
-jar {
+tasks.named("jar", Jar).configure {
   from sourceSets.main_play27.output
 }
-compileMain_play27Java.dependsOn compileJava
+tasks.named("compileMain_play27Java").configure { dependsOn compileJava }
 project.afterEvaluate { p ->
-  instrumentJava.dependsOn compileMain_play27Java
-  forbiddenApisMain_play27.dependsOn instrumentMain_play27Java
+  tasks.named("instrumentJava").configure {
+    dependsOn compileMain_play27Java
+  }
+  tasks.named("forbiddenApisMain_play27").configure {
+    dependsOn instrumentMain_play27Java
+  }
 }
 instrument {
   additionalClasspath = [
-    instrumentJava: compileMain_play27Java.destinationDirectory
+    instrumentJava: tasks.named("compileMain_play27Java", JavaCompile).map {
+      it.destinationDirectory
+    }
   ]
 }
 
@@ -125,17 +131,17 @@ configurations.matching({ it.name.startsWith('latestDepTest') }).each({
     force group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.5'
   }
 })
-tasks.named("compileLatestDepTestJava").configure {
+tasks.named("compileLatestDepTestJava", JavaCompile).configure {
   it.sourceCompatibility = JavaVersion.VERSION_11
   it.targetCompatibility = JavaVersion.VERSION_11
   setJavaVersion(it, 11)
 }
-compileLatestDepTestScala {
+tasks.named("compileLatestDepTestScala", ScalaCompile).configure {
   javaLauncher = getJavaLauncherFor(11)
   classpath = classpath + files(compileBaseTestJava.destinationDirectory)
   dependsOn 'compileBaseTestJava'
 }
-latestDepTest {
+tasks.named("latestDepTest").configure {
   javaLauncher = getJavaLauncherFor(11)
   testClassesDirs = testClassesDirs + sourceSets.baseTest.output.classesDirs
 }
@@ -179,16 +185,16 @@ tasks.register('buildLatestDepTestRoutes', JavaExec) {
 
   dependsOn compileRouteGeneratorScala, compileLatestDepTestScala
 }
-compileLatestDepTestGeneratedScala {
+tasks.named("compileLatestDepTestGeneratedScala", ScalaCompile).configure {
   javaLauncher = getJavaLauncherFor(11)
   classpath = classpath + files(compileLatestDepTestScala.destinationDirectory)
   dependsOn buildLatestDepTestRoutes, compileLatestDepTestScala
 }
-forbiddenApisLatestDepTestGenerated {
+tasks.named("forbiddenApisLatestDepTestGenerated").configure {
   enabled = false
 }
 
-compileLatestDepTestGroovy {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile).configure {
   javaLauncher = getJavaLauncherFor(11)
   classpath = classpath +
     files(compileLatestDepTestScala.destinationDirectory) +

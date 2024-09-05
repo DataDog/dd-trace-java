@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   // despite the name of module, this doesn't apply to tomcat < 6.0.35 or 7.0-7.0.22
   pass {
@@ -18,8 +20,6 @@ muzzle {
     versions = '[,5.5.23]'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.apache.tomcat', name: 'coyote', version: '6.0.53'

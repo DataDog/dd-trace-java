@@ -5,6 +5,7 @@ ext {
   cassandraDriverTestVersions = "[3.0,4.0)"
 }
 
+apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
 
@@ -40,8 +41,6 @@ muzzle {
     extraDependency "com.google.guava:guava:27.0-jre"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

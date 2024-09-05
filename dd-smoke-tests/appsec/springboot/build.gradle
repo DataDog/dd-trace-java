@@ -7,7 +7,7 @@ description = 'SpringBoot Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
-jar {
+tasks.named("jar", Jar).configure {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.appsec.springboot.SpringbootApplication')
   }
@@ -27,8 +27,8 @@ tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
-task testRuntimeActivation(type: Test) {
+tasks.register('testRuntimeActivation', Test) {
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
     "-Ddatadog.smoketest.appsec.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
-tasks['check'].dependsOn(testRuntimeActivation)
+tasks.named('check').configure { dependsOn 'testRuntimeActivation' }

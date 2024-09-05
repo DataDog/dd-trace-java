@@ -22,12 +22,12 @@ addTestSuiteForDir 'version101IastTest', 'iastTest'
 addTestSuiteForDir 'version102IastTest', 'iastTest'
 addTestSuiteForDir 'latestDepIastTest', 'iastTest'
 
-compileLagomTestJava {
+tasks.named("compileLagomTestJava", JavaCompile).configure {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-compileLagomTestGroovy {
+tasks.named("compileLagomTestGroovy", GroovyCompile).configure {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
@@ -86,7 +86,7 @@ configurations {
 
 // Create test artifacts so play-2.6 can reuse the akka-http test instrumentation
 artifacts {
-  testArtifacts baseTestJar
+  testArtifacts tasks.named("baseTestJar", Jar)
 }
 
 sourceSets {
@@ -168,32 +168,32 @@ dependencies {
   lagomTestImplementation group: 'com.lightbend.lagom', name: 'lagom-javadsl-testkit_2.11', version: '1.4.0'
 }
 
-compileBaseTestGroovy {
+tasks.named("compileBaseTestGroovy", GroovyCompile).configure {
   classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
   dependsOn "compileBaseTestScala"
 }
 
-compileBaseForkedTestGroovy {
+tasks.named("compileBaseForkedTestGroovy", GroovyCompile).configure {
   classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
   dependsOn "compileBaseTestScala"
 }
 
-compileVersion101TestGroovy {
+tasks.named("compileVersion101TestGroovy", GroovyCompile).configure {
   classpath = classpath.plus(files(compileVersion101TestScala.destinationDirectory))
   dependsOn "compileVersion101TestScala"
 }
 
-compileVersion101ForkedTestGroovy {
+tasks.named("compileVersion101ForkedTestGroovy", GroovyCompile).configure {
   classpath = classpath.plus(files(compileVersion101TestScala.destinationDirectory))
   dependsOn "compileVersion101TestScala"
 }
 
-compileVersion102Scala213TestGroovy {
+tasks.named("compileVersion102Scala213TestGroovy", GroovyCompile).configure {
   classpath = classpath.plus(files(compileVersion102Scala213TestScala.destinationDirectory))
   dependsOn "compileVersion102Scala213TestScala"
 }
 
-compileLatestDepTestGroovy {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile).configure {
   classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
   dependsOn "compileLatestDepTestScala"
 }

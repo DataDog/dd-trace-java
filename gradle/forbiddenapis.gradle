@@ -11,6 +11,8 @@ buildscript {
 
 apply plugin: "de.thetaphi.forbiddenapis"
 
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
+
 def mainFilterFile = files("$rootDir/gradle/forbiddenApiFilters/main.txt")
 
 forbiddenApis {
@@ -20,8 +22,8 @@ forbiddenApis {
 }
 
 // disable forbiddenApis for all test tasks
-afterEvaluate {
-  tasks.matching({it.name.startsWith('forbiddenApis') && it.name.endsWith('Test')}).configureEach {
+tasks.withType(CheckForbiddenApis).configureEach {
+  if (it.name.endsWith('Test')) {
     it.enabled = false
   }
 }

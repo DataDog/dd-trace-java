@@ -76,20 +76,23 @@ tasks.withType(Test).configureEach {
   }
 
   timeout = testTimeoutDuration
-
-  check.dependsOn it
 }
 
-Task allTestsTask = tasks.maybeCreate('allTests')
-Task allLatestDepTestsTask = tasks.maybeCreate('allLatestDepTests')
-project.afterEvaluate {
-  tasks.withType(Test).each {
-    if (it.name.containsIgnoreCase('latest')) {
-      allLatestDepTestsTask.dependsOn it
-    } else if (it.name != 'traceAgentTest') {
-      allTestsTask.dependsOn it
-    }
-  }
+tasks.named('check').configure { it.dependsOn tasks.withType(Test) }
+
+// XXX: Some projects apply configure_tests.gradle twice, so we need to avoid registering the same tasks twice.
+//      But also avoid using maybeCreate, which will realize the task and ruin configuration avoidance.
+void maybeRegister(String name, Action<? extends Task> configurationAction) {
+  try {
+    tasks.register(name)
+  } catch (InvalidUserDataException ignored) { }
+  tasks.named(name).configure(configurationAction)
+}
+maybeRegister('allTests') {
+  it.dependsOn tasks.withType(Test).matching { !it.name.containsIgnoreCase('latest') && it.name != 'traceAgentTest' }
+}
+maybeRegister('allLatestDepTests') {
+  it.dependsOn tasks.withType(Test).matching { it.name.containsIgnoreCase('latest') }
 }
 
 // Setup flaky tests jobs. Done in afterEvaluate so that it applies to latestDepTest.
@@ -122,3 +125,5 @@ if (!project.property("activePartition")) {
     }
   }
 }
+
+logger.debug("Will apply configure_tests.gradle for ${project.path} (done)")

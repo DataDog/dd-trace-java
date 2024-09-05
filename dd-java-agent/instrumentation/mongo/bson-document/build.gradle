@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.mongodb"
@@ -6,8 +8,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.mongodb', name: 'mongo-java-driver', version: '3.1.0'

@@ -4,7 +4,7 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-jar {
+tasks.named("jar", Jar).configure {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.moduleapp.ModuleApplication')
   }
@@ -30,7 +30,7 @@ tasks.withType(Test).configureEach {
   dependsOn "jar"
 }
 
-tasks.withType(Test).forEach {
+tasks.withType(Test).configureEach {
   it.doFirst {
     JavaInstallationMetadata metadata = it.getJavaLauncher().get().metadata
     // We can safely assume that the general configuration has disabled this test if

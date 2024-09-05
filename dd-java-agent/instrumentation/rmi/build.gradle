@@ -5,13 +5,13 @@ ext {
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     coreJdk()
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 def rmic = tasks.register('rmic', Exec) {
   dependsOn testClasses

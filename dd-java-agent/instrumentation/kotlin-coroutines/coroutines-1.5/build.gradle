@@ -2,6 +2,9 @@ plugins {
   id 'java-test-fixtures'
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-kotlin.gradle"
+
 muzzle {
   pass {
     group = 'org.jetbrains.kotlin'
@@ -16,9 +19,6 @@ muzzle {
     extraDependency "org.jetbrains.kotlin:kotlin-stdlib:1.6.21"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

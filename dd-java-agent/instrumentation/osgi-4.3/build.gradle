@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   // old coordinates
   pass {
@@ -13,8 +15,6 @@ muzzle {
     versions = '[4.3.1,]'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.osgi', name: 'org.osgi.core', version: '4.3.0'

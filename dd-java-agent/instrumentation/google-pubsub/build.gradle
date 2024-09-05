@@ -1,3 +1,5 @@
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "com.google.cloud"
@@ -6,11 +8,9 @@ muzzle {
     excludeDependency "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava"
   }
 }
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-
 
 dependencies {
   compileOnly group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '1.116.0'

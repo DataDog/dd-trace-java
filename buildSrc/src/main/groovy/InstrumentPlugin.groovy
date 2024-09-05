@@ -5,6 +5,8 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.invocation.BuildInvocationDetails
+import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Classpath
@@ -13,6 +15,7 @@ import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -32,66 +35,76 @@ import java.util.regex.Matcher
 class InstrumentPlugin implements Plugin<Project> {
   @Override
   void apply(Project project) {
+    assert project.plugins.hasPlugin(JavaPlugin), "InstrumentPlugin must be applied after JavaPlugin"
+    println("Applying InstrumentPlugin to ${project.name}")
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
+    project.extensions.getByType(JavaPluginExtension).sourceSets.all { SourceSet sourceSet ->
+      createTask(project, extension, sourceSet)
+    }
+  }
 
-    project.tasks.matching {
-      it.name in ['compileJava', 'compileScala', 'compileKotlin'] ||
-        it.name =~ /compileMain_.+Java/
-    }.all {
-      AbstractCompile compileTask = it as AbstractCompile
-      Matcher versionMatcher = it.name =~ /compileMain_(.+)Java/
-      project.afterEvaluate {
-        if (!compileTask.source.empty) {
-          String sourceSetSuffix = null
-          String javaVersion = null
-          if (versionMatcher.matches()) {
-            sourceSetSuffix = versionMatcher.group(1)
-            if (sourceSetSuffix ==~ /java\d+/) {
-              javaVersion = sourceSetSuffix[4..-1]
-            }
-          }
+  static void createTask(Project project,  InstrumentExtension extension, SourceSet sourceSet) {
+    String compileTaskName = sourceSet.getTaskName('compile', 'java')
+    println("InstrumentPlugin: Creating task for $compileTaskName")
+    boolean isMainSourceSet = compileTaskName in ['compileJava', 'compileScala', 'compileKotlin'] || compileTaskName =~ /compileMain_.+Java/
+    if (!isMainSourceSet) {
+      return
+    }
 
-          // insert intermediate 'raw' directory for unprocessed classes
-          Directory classesDir = compileTask.destinationDirectory.get()
-          Directory rawClassesDir = classesDir.dir(
-            "../raw${sourceSetSuffix ? "_$sourceSetSuffix" : ''}/")
-          compileTask.destinationDirectory.set(rawClassesDir.asFile)
+    Matcher versionMatcher = compileTaskName =~ /compileMain_(.+)Java/
+    String instrumentTaskName = compileTaskName.replace('compile', 'instrument')
 
-          // insert task between compile and jar, and before test*
-          String instrumentTaskName = compileTask.name.replace('compile', 'instrument')
-          def instrumentTask = project.tasks.register(instrumentTaskName, InstrumentTask) {
-            // Task configuration
-            it.group = 'Byte Buddy'
-            it.description = "Instruments the classes compiled by ${compileTask.name}"
-            it.inputs.dir(compileTask.destinationDirectory)
-            it.outputs.dir(classesDir)
-            // Task inputs
-            it.javaVersion = javaVersion
-            def instrumenterConfiguration = project.configurations.named('instrumentPluginClasspath')
-            if (instrumenterConfiguration.present) {
-              it.pluginClassPath.from(instrumenterConfiguration.get())
-            }
-            it.plugins = extension.plugins
-            it.instrumentingClassPath.from(
-              findCompileClassPath(project, it.name) +
-                rawClassesDir +
-                findAdditionalClassPath(extension, it.name)
-            )
-            it.sourceDirectory = rawClassesDir
-            // Task output
-            it.targetDirectory = classesDir
-          }
-          if (javaVersion) {
-            project.tasks.named(project.sourceSets."main_java${javaVersion}".classesTaskName) {
-              it.dependsOn(instrumentTask)
-            }
-          } else {
-            project.tasks.named(project.sourceSets.main.classesTaskName) {
-              it.dependsOn(instrumentTask)
-            }
-          }
-        }
+    String sourceSetSuffix = null
+    String javaVersion = null
+    if (versionMatcher.matches()) {
+      sourceSetSuffix = versionMatcher.group(1)
+      if (sourceSetSuffix ==~ /java\d+/) {
+        javaVersion = sourceSetSuffix[4..-1]
       }
+    }
+
+    project.tasks.named(compileTaskName, AbstractCompile).configure {
+      // insert intermediate 'raw' directory for unprocessed classes
+      Directory classesDir = it.destinationDirectory.get()
+      Directory rawClassesDir = classesDir.dir(
+        "../raw${sourceSetSuffix ? "_$sourceSetSuffix" : ''}/")
+      it.destinationDirectory.set(rawClassesDir.asFile)
+
+      ext.originalClassesDir = classesDir
+      ext.rawClassesDir = rawClassesDir
+    }
+
+    def instrumentTask = project.tasks.register(instrumentTaskName, InstrumentTask) {
+      AbstractCompile compileTask = project.tasks.named(compileTaskName, AbstractCompile).get()
+      Directory originalClassesDir = compileTask.originalClassesDir
+      Directory rawClassesDir = compileTask.rawClassesDir
+
+      // insert task between compile and jar, and before test*
+
+      // Task configuration
+      it.group = 'Byte Buddy'
+      it.description = "Instruments the classes compiled by ${compileTask.name}"
+      it.inputs.dir(compileTask.destinationDirectory)
+      it.outputs.dir(originalClassesDir)
+      // Task inputs
+      it.javaVersion = javaVersion
+      def instrumenterConfiguration = project.configurations.named('instrumentPluginClasspath')
+      if (instrumenterConfiguration.present) {
+        it.pluginClassPath.from(instrumenterConfiguration.get())
+      }
+      it.plugins = extension.plugins
+      it.instrumentingClassPath.from(
+        findCompileClassPath(project, it.name) +
+          rawClassesDir +
+          findAdditionalClassPath(extension, it.name)
+      )
+      it.sourceDirectory = rawClassesDir
+      // Task output
+      it.targetDirectory = originalClassesDir
+    }
+
+    project.tasks.named(sourceSet.classesTaskName).configure {
+      it.dependsOn(instrumentTask)
     }
   }
 

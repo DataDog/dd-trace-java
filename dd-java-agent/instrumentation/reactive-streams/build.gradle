@@ -1,5 +1,7 @@
 def reactiveStreamsVersion = '1.0.0'
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.reactivestreams'
@@ -7,8 +9,6 @@ muzzle {
     versions = "[${reactiveStreamsVersion},)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

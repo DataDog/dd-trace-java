@@ -1,3 +1,5 @@
+apply from: "${rootDir}/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "com.google.guava"
@@ -9,8 +11,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "${rootDir}/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

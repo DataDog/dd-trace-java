@@ -2,6 +2,8 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_17
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'org.springframework'
@@ -12,19 +14,17 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir("latestDepTest", "test")
 
-[compileMain_java17Java, compileTestJava, compileLatestDepTestJava].each {
-  it.configure {
+for (final taskName in ["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"]) {
+  tasks.named(taskName, JavaCompile).configure {
     setJavaVersion(it, 17)
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
   }
 }
 
-tasks.withType(GroovyCompile) {
+tasks.withType(GroovyCompile).configureEach {
   javaLauncher = getJavaLauncherFor(17)
   groovyOptions.setParameters(true)
 }

@@ -15,7 +15,7 @@ java {
   }
 }
 
-tasks.withType(Javadoc) {
+tasks.withType(Javadoc).configureEach {
   javadocTool.set(javaToolchains.javadocToolFor(java.toolchain))
 }
 
@@ -37,7 +37,7 @@ dependencies {
   testImplementation libs.slf4j
 }
 
-forbiddenApisMain {
+tasks.named("forbiddenApisMain").configure {
   failOnMissingClasses = false
 }
 

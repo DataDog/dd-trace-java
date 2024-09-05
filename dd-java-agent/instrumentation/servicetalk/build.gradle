@@ -2,6 +2,12 @@ plugins {
   id 'java-test-fixtures'
 }
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = 'io.servicetalk'
@@ -17,12 +23,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-}
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

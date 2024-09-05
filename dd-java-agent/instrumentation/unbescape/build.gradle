@@ -1,3 +1,6 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'call-site-instrumentation'
+
 muzzle {
   pass {
     group = 'org.unbescape'
@@ -6,9 +9,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
 
 addTestSuiteForDir('latestDepTest', 'test')
 

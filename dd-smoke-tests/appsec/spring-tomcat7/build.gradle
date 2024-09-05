@@ -5,7 +5,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Spring Tomcat7 Smoke Tests.'
 
-jar {
+tasks.named("jar", Jar).configure {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.appsec.springtomcat7.Main')
   }
@@ -26,8 +26,8 @@ tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.appsec.springtomcat7.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
 
-task testRuntimeActivation(type: Test) {
+tasks.register('testRuntimeActivation', Test) {
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive',
     "-Ddatadog.smoketest.appsec.springtomcat7.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
 }
-tasks['check'].dependsOn(testRuntimeActivation)
+tasks.named('check').configure { dependsOn 'testRuntimeActivation' }

@@ -5,6 +5,8 @@ ext {
   maxJavaVersionForTests = JavaVersion.VERSION_15
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 muzzle {
   pass {
     group = "org.elasticsearch.client"
@@ -21,8 +23,6 @@ muzzle {
     skipVersions = ["7.11.0", "7.17.8", "8.8.0"]
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.elasticsearch.client', name: 'transport', version: '5.0.0'
