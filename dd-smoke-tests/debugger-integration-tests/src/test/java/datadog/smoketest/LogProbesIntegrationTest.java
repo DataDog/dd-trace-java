@@ -79,7 +79,8 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               "java.lang.String",
               "42, foobar, 3.42, {key1=val1, key2=val2, key3=val3}, var1,var2,var3");
           assertNotNull(snapshot.getCaptures().getReturn().getLocals());
-          assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size()); // @return
+          // ex & @return are the only locals
+          assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
           assertNull(snapshot.getCaptures().getReturn().getCapturedThrowable());
           snapshotReceived.set(true);
         });
