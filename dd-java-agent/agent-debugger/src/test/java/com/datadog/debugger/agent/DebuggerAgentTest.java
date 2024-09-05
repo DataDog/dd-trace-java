@@ -20,6 +20,7 @@ import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -38,7 +39,6 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnJre;
@@ -63,13 +63,6 @@ public class DebuggerAgentTest {
     } catch (Throwable e) {
       e.printStackTrace();
     }
-  }
-
-  @BeforeAll
-  public static void beforeAll() {
-    // set env vars now to be cached by GitInfoProvider
-    setEnvVar("DD_GIT_COMMIT_SHA", "sha1");
-    setEnvVar("DD_GIT_REPOSITORY_URL", "http://github.com");
   }
 
   @BeforeEach
@@ -183,7 +176,18 @@ public class DebuggerAgentTest {
     globalTags.put("globalTag1", "globalValue1");
     globalTags.put("globalTag2", "globalValue2");
     when(config.getGlobalTags()).thenReturn(globalTags);
-    String tags = DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config);
+    // set env vars now to be cached by GitInfoProvider
+    GitInfoProvider.INSTANCE.invalidateCache();
+    setEnvVar("DD_GIT_COMMIT_SHA", "sha1");
+    setEnvVar("DD_GIT_REPOSITORY_URL", "http://github.com");
+    String tags;
+    try {
+      tags = DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config);
+    } finally {
+      setEnvVar("DD_GIT_COMMIT_SHA", null);
+      setEnvVar("DD_GIT_REPOSITORY_URL", null);
+      GitInfoProvider.INSTANCE.invalidateCache();
+    }
     Map<String, String> resultTags = new HashMap<>();
     String[] splitTags = tags.split(",");
     for (String splitTag : splitTags) {

@@ -38,7 +38,11 @@ public class TestHelper {
       Class<?> classOfMap = System.getenv().getClass();
       Field field = classOfMap.getDeclaredField("m");
       field.setAccessible(true);
-      ((Map<String, String>) field.get(System.getenv())).put(envName, envValue);
+      if (envValue == null) {
+        ((Map<String, String>) field.get(System.getenv())).remove(envName);
+      } else {
+        ((Map<String, String>) field.get(System.getenv())).put(envName, envValue);
+      }
     } catch (Exception ex) {
       ex.printStackTrace();
     }
