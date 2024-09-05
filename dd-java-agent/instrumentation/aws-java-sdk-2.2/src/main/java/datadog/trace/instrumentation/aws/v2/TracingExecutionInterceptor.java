@@ -64,6 +64,18 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   }
 
   @Override
+  public SdkRequest modifyRequest(
+      Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
+    SdkRequest sdkRequest = context.request();
+    final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+    if (span != null) {
+      DECORATE.injectTraceToStepFunctionInput(sdkRequest, span);
+    }
+
+    return sdkRequest;
+  }
+
+  @Override
   public SdkHttpRequest modifyHttpRequest(
       Context.ModifyHttpRequest context, ExecutionAttributes executionAttributes) {
     if (Config.get().isAwsPropagationEnabled()) {

@@ -6,6 +6,9 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
@@ -23,6 +26,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.core.datastreams.TagsProcessor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
@@ -396,6 +401,37 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
     }
     return span;
+  }
+
+  public static void injectTraceToStepFunctionInput(SdkRequest request, AgentSpan span) {
+    Class<?> clazz = request.getClass();
+    if ((clazz.getSimpleName().equals("StartExecutionRequest"))
+        || clazz.getSimpleName().equals("StartSyncExecutionRequest")) {
+      try {
+        Method method = clazz.getMethod("input");
+        String input = (String) method.invoke(request);
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode inputJsonNode = mapper.readTree(input);
+        if (inputJsonNode.isObject()) {
+          ObjectNode traceContext = mapper.createObjectNode();
+          traceContext.put("x-datadog-trace-id", span.getTraceId().toString());
+          traceContext.put("x-datadog-parent-id", String.valueOf(span.getSpanId()));
+          traceContext.put("x-datadog-sampling-priority", span.getSamplingPriority().toString());
+          traceContext.put("x-datadog-tags", mapper.writeValueAsString(span.getTags()));
+
+          ObjectNode ddInputNode = (ObjectNode) inputJsonNode;
+          ddInputNode.put("_datadog", traceContext);
+        }
+
+        Field inputField = clazz.getDeclaredField("input");
+        inputField.setAccessible(true);
+        inputField.set(request, mapper.writeValueAsString(inputJsonNode));
+
+      } catch (Throwable e) {
+        // Failed to inject trace context
+      }
+    }
   }
 
   @Override
