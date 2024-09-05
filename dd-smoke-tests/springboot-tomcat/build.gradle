@@ -95,6 +95,14 @@ tasks.sourcesJar{
   dependsOn 'unzip'
 }
 
+tasks.forbiddenApisMain {
+  dependsOn 'unzip'
+}
+
+tasks.spotbugsMain {
+  dependsOn 'unzip'
+}
+
 tasks.matching({it.name.startsWith('compileTest')}).configureEach {
   dependsOn 'war', 'bootWar', 'unzip'
 }
