@@ -13,7 +13,6 @@ import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.XssModule;
 import net.bytebuddy.asm.Advice;
 import org.apache.velocity.context.InternalContextAdapter;
-import org.apache.velocity.runtime.parser.node.ASTMethod;
 import org.apache.velocity.runtime.parser.node.ASTReference;
 
 @AutoService(InstrumenterModule.class)
@@ -31,13 +30,11 @@ public class ASTReferenceInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("execute")
+        named("render")
             .and(isMethod())
             .and(
-                takesArgument(0, named("java.lang.Object"))
-                    .and(
-                        takesArgument(
-                            1, named("org.apache.velocity.context.InternalContextAdapter")))),
+                takesArgument(0, named("org.apache.velocity.context.InternalContextAdapter"))
+                    .and(takesArgument(1, named("java.io.Writer")))),
         ASTReferenceInstrumentation.class.getName() + "$ASTReferenceAdvice");
   }
 
@@ -46,7 +43,7 @@ public class ASTReferenceInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.XSS)
     public static void onEnter(
-        @Advice.Argument(1) final InternalContextAdapter context,
+        @Advice.Argument(0) final InternalContextAdapter context,
         @Advice.This final ASTReference self) {
       if (self == null) {
         return;
@@ -55,11 +52,8 @@ public class ASTReferenceInstrumentation extends InstrumenterModule.Iast
       if (xssModule == null) {
         return;
       }
-      if (self.jjtGetParent() instanceof ASTMethod) {
-        return;
-      }
       Object variable = self.getVariableValue(context, self.getRootString());
-      // For cases when you have a variable that is not an string such as the EscapeTool variable
+      // For cases when you have a variable that is not a string such as the EscapeTool variable
       if (!(variable instanceof String)) {
         return;
       }
