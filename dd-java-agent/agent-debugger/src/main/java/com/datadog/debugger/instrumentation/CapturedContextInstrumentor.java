@@ -392,7 +392,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     if (methodNode.tryCatchBlocks.size() > 0) {
       throwableListVar = declareThrowableList(insnList);
     }
-    unscopedLocalVars = initLocalVars(insnList);
+    unscopedLocalVars = initAndHoistLocalVars(insnList);
     insnList.add(contextInitLabel);
     if (definition instanceof SpanDecorationProbe
         && definition.getEvaluateAt() == MethodLocation.EXIT) {
@@ -458,7 +458,9 @@ public class CapturedContextInstrumentor extends Instrumentor {
     methodNode.instructions.insert(methodEnterLabel, insnList);
   }
 
-  private Collection<LocalVariableNode> initLocalVars(InsnList insnList) {
+  // Initialize and hoist local variables to the top of the method
+  // if there is name conflict, do nothing for the conflicting local variable
+  private Collection<LocalVariableNode> initAndHoistLocalVars(InsnList insnList) {
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
       return Collections.emptyList();
     }
