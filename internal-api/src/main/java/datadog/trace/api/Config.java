@@ -803,7 +803,7 @@ public class Config {
   private final String ciVisibilityAdditionalChildProcessJvmArgs;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
   private final boolean ciVisibilityCodeCoverageEnabled;
-  private final boolean ciVisibilityCoverageLinesEnabled;
+  private final Boolean ciVisibilityCoverageLinesEnabled;
   private final String ciVisibilityCodeCoverageReportDumpDir;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
@@ -1818,7 +1818,7 @@ public class Config {
     ciVisibilityCodeCoverageEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
     ciVisibilityCoverageLinesEnabled =
-        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED, false);
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED);
     ciVisibilityCodeCoverageReportDumpDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
     ciVisibilityCompilerPluginVersion =
@@ -3099,8 +3099,14 @@ public class Config {
     return ciVisibilityCodeCoverageEnabled;
   }
 
+  /** @return {@code true} if code coverage line-granularity is explicitly enabled */
   public boolean isCiVisibilityCoverageLinesEnabled() {
-    return ciVisibilityCoverageLinesEnabled;
+    return ciVisibilityCoverageLinesEnabled != null && ciVisibilityCoverageLinesEnabled;
+  }
+
+  /** @return {@code true} if code coverage line-granularity is explicitly disabled */
+  public boolean isCiVisibilityCoverageLinesDisabled() {
+    return ciVisibilityCoverageLinesEnabled != null && !ciVisibilityCoverageLinesEnabled;
   }
 
   public String getCiVisibilityCodeCoverageReportDumpDir() {
