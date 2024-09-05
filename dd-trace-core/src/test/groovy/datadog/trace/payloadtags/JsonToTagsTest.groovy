@@ -8,7 +8,6 @@ class JsonToTagsTest extends Specification {
     JsonToTags jsonToTags = new JsonToTags.Builder()
       .parseExpansionRules(['$.Message'])
       .parseRedactionRules(['$.MessageAttributes.*.StringValue', '$.Message.password'])
-      .tagPrefix("dd")
       .build()
 
     String inner = "{ 'a': 1.15, 'password': 'my-secret-password' }"
@@ -23,7 +22,7 @@ class JsonToTagsTest extends Specification {
         }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "dd") == [
       "dd.Message.a":1.15,
       "dd.Message.password":"redacted",
       "dd.MessageAttributes.baz.DataType":"String",
@@ -48,7 +47,7 @@ class JsonToTagsTest extends Specification {
     }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "") == [
       ".a": 1,
       ".b": 2.0,
       ".c": "string",
@@ -67,7 +66,7 @@ class JsonToTagsTest extends Specification {
     }"""
 
     expect:
-    jsonToTags.process(json) == [:]
+    process(jsonToTags, json, "") == [:]
   }
 
   def "traverse nested arrays"() {
@@ -78,7 +77,7 @@ class JsonToTagsTest extends Specification {
     }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "") == [
       ".a.0.0": 1,
       ".a.1.0": 2,
       ".a.1.1": 3,
@@ -93,7 +92,7 @@ class JsonToTagsTest extends Specification {
     }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "") == [
       ".a.b.c.d": "e",
     ]
   }
@@ -106,7 +105,7 @@ class JsonToTagsTest extends Specification {
     }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "") == [
       ".a.0": "b",
       ".a.1.c.0.d": "e",
     ]
@@ -130,7 +129,7 @@ class JsonToTagsTest extends Specification {
     }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "") == [
       ".a": 1,
       ".b": 2,
       ".c": 3,
@@ -149,7 +148,7 @@ class JsonToTagsTest extends Specification {
     }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "") == [
       ".a\\.b": 1,
       ".c\\.d": 2,
     ]
@@ -172,14 +171,13 @@ class JsonToTagsTest extends Specification {
     }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "") == [
       ".a.b.e": 2
     ]
   }
 
   def "prefix tags"() {
     JsonToTags jsonToTags = new JsonToTags.Builder()
-      .tagPrefix("prefix")
       .build()
 
     def json = """{
@@ -188,7 +186,7 @@ class JsonToTagsTest extends Specification {
     }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "prefix") == [
       "prefix.a": 1,
       "prefix.b": 2,
     ]
@@ -205,7 +203,7 @@ class JsonToTagsTest extends Specification {
         }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "") == [
       ".foo":"bar",
     ]
   }
@@ -220,7 +218,7 @@ class JsonToTagsTest extends Specification {
         }"""
 
     expect:
-    jsonToTags.process(json) == [
+    process(jsonToTags, json, "") == [
       ".Message":"${invalidInnerJson}",
     ]
 
@@ -247,14 +245,14 @@ class JsonToTagsTest extends Specification {
         }"""
 
     expect: "Message attribute neither expanded nor redacted because of invalid rules"
-    jsonToTags.process(json) == [".Message":"{ 'a: 1.15, 'password': 'my-secret-password' }"]
+    process(jsonToTags, json, "") == [".Message":"{ 'a: 1.15, 'password': 'my-secret-password' }"]
   }
 
   def "ignore invalid json, return an empty tag map"() {
     JsonToTags jsonToTags = new JsonToTags.Builder().build()
 
     expect:
-    jsonToTags.process(invalidJson) == [:]
+    process(jsonToTags, invalidJson, "") == [:]
 
     where:
     invalidJson << [
@@ -266,5 +264,11 @@ class JsonToTagsTest extends Specification {
       "{ 'a: 1.15,",
       "body", // expect an object not a string
     ]
+  }
+
+  Map<String, Object> process(JsonToTags jsonToTags, String str, String tagPrefix) {
+    try (InputStream is = new ByteArrayInputStream(str.getBytes())) {
+      return jsonToTags.process(is, tagPrefix)
+    }
   }
 }

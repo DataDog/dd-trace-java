@@ -774,19 +774,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.localRootSpanTags = localRootSpanTags;
     }
-
     requestJsonToTags =
         new JsonToTags.Builder()
             // TODO add common expansion / redaction rules
             .parseRedactionRules(config.getCloudRequestPayloadTagging())
-            .tagPrefix("aws.request.body")
             .build();
 
     responseJsonToTags =
         new JsonToTags.Builder()
             // TODO add common expansion / redaction rules
             .parseRedactionRules(config.getCloudResponsePayloadTagging())
-            .tagPrefix("aws.response.body")
             .build();
   }
 
@@ -1208,17 +1205,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void addTagsFromResponseBody(AgentSpan span, InputStream body) {
+  public void addTagsFromResponseBody(AgentSpan span, InputStream body, String tagPrefix) {
     if (responseJsonToTags != null) {
-      Map<String, Object> tags = responseJsonToTags.process(body);
+      Map<String, Object> tags = responseJsonToTags.process(body, tagPrefix);
       setTags(span, tags);
     }
   }
 
   @Override
-  public void addTagsFromRequestBody(AgentSpan span, InputStream body) {
+  public void addTagsFromRequestBody(AgentSpan span, InputStream body, String tagPrefix) {
     if (requestJsonToTags != null) {
-      Map<String, Object> tags = requestJsonToTags.process(body);
+      Map<String, Object> tags = requestJsonToTags.process(body, tagPrefix);
       setTags(span, tags);
     }
   }

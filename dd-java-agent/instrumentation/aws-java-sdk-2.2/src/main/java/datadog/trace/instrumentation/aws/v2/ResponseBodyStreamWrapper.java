@@ -7,7 +7,7 @@ import java.io.InputStream;
 import java.util.Optional;
 
 /**
- * Buffers stream data that starts with '{' character meaning it is a JSON object. This is used to
+ * Buffers stream data that starts with '{' character assuming it is a JSON object. This is used to
  * read the response body from AWS SDK after it has been read by the SDK.
  */
 public class ResponseBodyStreamWrapper extends InputStream {
@@ -22,6 +22,8 @@ public class ResponseBodyStreamWrapper extends InputStream {
 
   @Override
   public int read() throws IOException {
+    // TODO maybe there should be an upper bound limit to avoid buffering large data
+
     int value = originalStream.read();
 
     if (!hasBeenRead) {

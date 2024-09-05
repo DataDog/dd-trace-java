@@ -6,7 +6,6 @@ import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.ParseContext;
 import com.jayway.jsonpath.PathNotFoundException;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,8 +26,6 @@ public final class JsonToTags {
     private List<JsonPath> redactionRules = Collections.emptyList();
     private int limitTags = 784;
     private int limitDeepness = 10;
-    private String tagPrefix = "";
-
     // for test purposes only
     Builder parseExpansionRules(List<String> rules) {
       this.expansionRules = parseRules(rules);
@@ -66,13 +63,8 @@ public final class JsonToTags {
       return this;
     }
 
-    public Builder tagPrefix(String tagPrefix) {
-      this.tagPrefix = tagPrefix;
-      return this;
-    }
-
     public JsonToTags build() {
-      return new JsonToTags(expansionRules, redactionRules, limitTags, limitDeepness, tagPrefix);
+      return new JsonToTags(expansionRules, redactionRules, limitTags, limitDeepness);
     }
   }
 
@@ -82,7 +74,6 @@ public final class JsonToTags {
   private final List<JsonPath> redactionRules;
   private final int limitTags;
   private final int limitDeepness;
-  private final String tagPrefix;
 
   private final ParseContext parseContext;
 
@@ -90,13 +81,11 @@ public final class JsonToTags {
       List<JsonPath> expansionRules,
       List<JsonPath> redactionRules,
       int limitTags,
-      int limitDeepness,
-      String tagPrefix) {
+      int limitDeepness) {
     this.expansionRules = expansionRules;
     this.redactionRules = redactionRules;
     this.limitTags = limitTags;
     this.limitDeepness = limitDeepness;
-    this.tagPrefix = tagPrefix;
 
     Configuration configuration =
         Configuration.builder()
@@ -107,12 +96,7 @@ public final class JsonToTags {
     parseContext = JsonPath.using(configuration);
   }
 
-  public Map<String, Object> process(String str) {
-    InputStream is = new ByteArrayInputStream(str.getBytes());
-    return process(is);
-  }
-
-  public Map<String, Object> process(InputStream is) {
+  public Map<String, Object> process(InputStream is, String tagPrefix) {
     DocumentContext dc;
 
     try {

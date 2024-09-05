@@ -121,7 +121,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     if (requestBody.isPresent()) {
       InputStream body = requestBody.get().contentStreamProvider().newStream();
-      AgentTracer.get().addTagsFromRequestBody(span, body);
+      AgentTracer.get().addTagsFromRequestBody(span, body, "aws.request.body");
     }
 
     // S3
@@ -311,7 +311,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       if (body instanceof ResponseBodyStreamWrapper) {
         Optional<ByteArrayInputStream> bodyStream =
             ((ResponseBodyStreamWrapper) body).toByteArrayInputStream();
-        bodyStream.ifPresent(bs -> AgentTracer.get().addTagsFromResponseBody(span, bs));
+        bodyStream.ifPresent(
+            bs -> AgentTracer.get().addTagsFromResponseBody(span, bs, "aws.response.body"));
       }
     }
 
