@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.api.Config;
 import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 
 public class TestHelper {
@@ -30,5 +31,20 @@ public class TestHelper {
       }
     }
     assertTrue(predicate.getAsBoolean());
+  }
+
+  public static void setEnvVar(String envName, String envValue) {
+    try {
+      Class<?> classOfMap = System.getenv().getClass();
+      Field field = classOfMap.getDeclaredField("m");
+      field.setAccessible(true);
+      if (envValue == null) {
+        ((Map<String, String>) field.get(System.getenv())).remove(envName);
+      } else {
+        ((Map<String, String>) field.get(System.getenv())).put(envName, envValue);
+      }
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
   }
 }
