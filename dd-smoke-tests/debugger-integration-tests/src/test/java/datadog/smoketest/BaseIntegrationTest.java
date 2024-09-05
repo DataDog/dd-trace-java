@@ -145,7 +145,7 @@ public abstract class BaseIntegrationTest {
         Arrays.asList(
             "-Ddd.service.name=" + getAppId(),
             "-Ddd.profiling.enabled=false",
-            // "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
+            "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=info",
             "-Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug",
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
