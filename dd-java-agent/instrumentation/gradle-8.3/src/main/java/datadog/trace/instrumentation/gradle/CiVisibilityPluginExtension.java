@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.gradle;
 
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
-import datadog.trace.api.civisibility.domain.JavaAgent;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,7 +14,6 @@ import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
-import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.api.provider.Property;
 import org.gradle.api.services.ServiceReference;
 import org.gradle.api.tasks.compile.CompileOptions;
@@ -32,7 +30,6 @@ public abstract class CiVisibilityPluginExtension {
   private static final Logger LOGGER = Logging.getLogger(CiVisibilityPluginExtension.class);
 
   public static final String MODULE_LAYOUT_PROPERTY = "moduleLayout";
-  public static final String JACOCO_AGENT_PROPERTY = "jacocoAgent";
 
   private final ObjectFactory objectFactory;
   private FileCollection compilerPluginClasspath;
@@ -109,11 +106,6 @@ public abstract class CiVisibilityPluginExtension {
   public void applyTo(Test task) {
     task.getInputs().property(MODULE_LAYOUT_PROPERTY, moduleLayout);
 
-    JavaAgent jacocoAgent = CiVisibilityPluginExtension.getJacocoAgent(task);
-    if (jacocoAgent != null) {
-      task.getInputs().property(JACOCO_AGENT_PROPERTY, jacocoAgent);
-    }
-
     applyTracerSettings(task.getPath(), getProjectProperties(task), task.getJvmArgumentProviders());
 
     JacocoTaskExtension jacocoTaskExtension =
@@ -121,24 +113,6 @@ public abstract class CiVisibilityPluginExtension {
     if (jacocoTaskExtension != null) {
       applyJacocoSettings(jacocoTaskExtension);
     }
-  }
-
-  private static JavaAgent getJacocoAgent(Test task) {
-    ExtensionContainer extensions = task.getExtensions();
-    JacocoTaskExtension jacocoExtension = extensions.findByType(JacocoTaskExtension.class);
-    if (jacocoExtension != null) {
-      String jacocoJvmArg = jacocoExtension.getAsJvmArg(); // -javaagent:<PATH>/agent.jar=<ARGS>
-      String noPrefix = jacocoJvmArg.substring(jacocoJvmArg.indexOf(':') + 1);
-      int agentArgsIndex = noPrefix.indexOf('=');
-      if (agentArgsIndex < 0) {
-        return new JavaAgent(noPrefix, null);
-      } else {
-        String agentPath = noPrefix.substring(0, agentArgsIndex);
-        String args = noPrefix.substring(noPrefix.indexOf('=') + 1);
-        return new JavaAgent(agentPath, args);
-      }
-    }
-    return null;
   }
 
   public static Path getEffectiveExecutable(Test task) {

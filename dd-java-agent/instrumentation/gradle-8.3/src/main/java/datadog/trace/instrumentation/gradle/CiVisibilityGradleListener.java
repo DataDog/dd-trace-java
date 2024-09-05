@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.gradle.BuildAdapter;
 import org.gradle.BuildResult;
 import org.gradle.StartParameter;
+import org.gradle.api.Named;
 import org.gradle.api.Project;
 import org.gradle.api.internal.BuildDefinition;
 import org.gradle.api.internal.StartParameterInternal;
@@ -31,6 +32,7 @@ import org.gradle.internal.build.BuildState;
 import org.gradle.internal.build.NestedBuildState;
 import org.gradle.internal.build.RootBuildState;
 import org.gradle.internal.service.scopes.ListenerService;
+import org.gradle.process.CommandLineArgumentProvider;
 
 @ListenerService
 public class CiVisibilityGradleListener extends BuildAdapter
@@ -184,14 +186,42 @@ public class CiVisibilityGradleListener extends BuildAdapter
     Map<String, Object> inputProperties = task.getInputs().getProperties();
     BuildModuleLayout moduleLayout =
         (BuildModuleLayout) inputProperties.get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
-    JavaAgent jacocoAgent =
-        (JavaAgent) inputProperties.get(CiVisibilityPluginExtension.JACOCO_AGENT_PROPERTY);
+    JavaAgent jacocoAgent = getJacocoAgent(task);
 
     Path jvmExecutable = CiVisibilityPluginExtension.getEffectiveExecutable(task);
     List<Path> taskClasspath = CiVisibilityPluginExtension.getClasspath(task);
 
     ciVisibilityService.onModuleStart(
         taskPath, moduleLayout, jvmExecutable, taskClasspath, jacocoAgent);
+  }
+
+  private JavaAgent getJacocoAgent(Test task) {
+    for (CommandLineArgumentProvider jvmArgumentProvider : task.getJvmArgumentProviders()) {
+      if (!(jvmArgumentProvider instanceof Named)) {
+        continue;
+      }
+      Named namedProvider = (Named) jvmArgumentProvider;
+      String providerName = namedProvider.getName();
+      if (!providerName.toLowerCase().contains("jacoco")) {
+        continue;
+      }
+      Iterable<String> arguments = jvmArgumentProvider.asArguments();
+      for (String arg : arguments) {
+        if (!arg.contains("-javaagent:")) {
+          continue;
+        }
+        String argNoPrefix = arg.substring(arg.indexOf(':') + 1);
+        int agentArgsIndex = argNoPrefix.indexOf('=');
+        if (agentArgsIndex < 0) {
+          return new JavaAgent(argNoPrefix, null);
+        } else {
+          String agentPath = argNoPrefix.substring(0, agentArgsIndex);
+          String args = argNoPrefix.substring(argNoPrefix.indexOf('=') + 1);
+          return new JavaAgent(agentPath, args);
+        }
+      }
+    }
+    return null;
   }
 
   @Override
