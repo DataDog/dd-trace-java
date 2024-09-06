@@ -34,11 +34,11 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
   public static Collection<Object[]> surefireVersions() {
     return Arrays.asList(
         new Object[][] {
-          {"sampleProject/pom.xml", "test", new String[] {"-X", "-DargLine=-verbose:class"}},
+          {"sampleProject/pom.xml", "test", new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}},
           {
             "sampleProject/pom.xml",
             "surefire:test",
-            new String[] {"-X", "-DargLine=-verbose:class"}
+            new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}
           },
           {"sampleProjectArgLine/pom.xml", "test", new String[] {"-X"}},
           {"sampleProjectArgLine/pom.xml", "surefire:test", new String[] {"-X"}},
@@ -79,7 +79,10 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
       String buildOutputLine;
       while ((buildOutputLine = buildOutputReader.readLine()) != null) {
         javaAgentInjected |= buildOutputLine.contains("TEST JAVA AGENT STARTED");
-        argLinePreserved |= buildOutputLine.contains("[Loaded java.lang.");
+        argLinePreserved |=
+            buildOutputLine.contains("surefire")
+                && buildOutputLine.contains("Forking command line")
+                && buildOutputLine.contains("-DmyArgLineProp=true");
       }
 
       assertTrue("Tracer wasn't injected", javaAgentInjected);
