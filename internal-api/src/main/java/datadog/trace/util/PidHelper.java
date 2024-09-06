@@ -1,6 +1,8 @@
 package datadog.trace.util;
 
 import datadog.trace.api.Platform;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.context.TraceScope;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -66,7 +68,7 @@ public final class PidHelper {
     // any time -
     //  also, no guarantee it will work with all JVMs
     ProcessBuilder pb = new ProcessBuilder("jps");
-    try {
+    try (TraceScope ignored = AgentTracer.get().muteTracing()) {
       Process p = pb.start();
       if (p.waitFor(500, TimeUnit.MILLISECONDS)) {
         if (p.exitValue() == 0) {
