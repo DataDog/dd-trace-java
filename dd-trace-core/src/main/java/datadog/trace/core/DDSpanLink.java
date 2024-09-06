@@ -65,7 +65,7 @@ public class DDSpanLink extends SpanLink {
    * @param links The span link collection to encode.
    * @return The encoded tag value, {@code null} if no links.
    */
-  public static String toTag(List<AgentSpanLink> links) {
+  static String toTag(List<AgentSpanLink> links) {
     if (links == null || links.isEmpty()) {
       return null;
     }
