@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<migration xmlns="http://ebean-orm.github.io/xml/ns/dbmigration">
+  <changeSet type="apply">
+    <createTable name="exa_content" pkName="pk_exa_content">
+      <column name="id" type="bigint" primaryKey="true"/>
+      <column name="name" type="varchar"/>
+      <column name="version" type="bigint" notnull="true"/>
+      <column name="when_created" type="timestamp" notnull="true"/>
+      <column name="when_modified" type="timestamp" notnull="true"/>
+      <column name="who_created" type="varchar" notnull="true"/>
+      <column name="who_modified" type="varchar" notnull="true"/>
+    </createTable>
+  </changeSet>
+</migration>

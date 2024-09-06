@@ -1,0 +1,53 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+  id 'java-test-fixtures'
+  id 'io.ebean' version '15.5.1'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Freemarker Smoke Tests.'
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+}
+
+tasks.withType(Javadoc) {
+  javadocTool.set(javaToolchains.javadocToolFor(java.toolchain))
+}
+
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it).configureEach {
+    setJavaVersion(it, 11)
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+  }
+}
+
+tasks.withType(JavaCompile).configureEach {
+  options.compilerArgs += ["-source", "11", "-target", "11"]
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
+  implementation group: 'io.ebean', name: 'ebean', version: '15.5.1'
+  implementation group: 'com.h2database', name: 'h2', version: '2.1.214'
+  runtimeOnly group: 'com.h2database', name: 'h2', version: '2.1.214'
+  implementation group: 'io.ebean', name: 'ebean-ddl-generator', version: '15.5.1'
+  annotationProcessor group: 'io.ebean', name: 'querybean-generator', version: '15.5.1'
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "bootJar"
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
+}
