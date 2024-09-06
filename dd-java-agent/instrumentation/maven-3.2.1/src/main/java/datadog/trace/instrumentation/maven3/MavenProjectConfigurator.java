@@ -22,10 +22,8 @@ import org.apache.maven.model.InputSource;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.MojoExecution;
-import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.PlexusContainer;
-import org.codehaus.plexus.configuration.PlexusConfiguration;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,8 +49,8 @@ class MavenProjectConfigurator {
       MavenSession session,
       MavenProject project,
       MojoExecution mojoExecution,
-      Map<String, String> systemProperties) {
-    Config config = Config.get();
+      Map<String, String> systemProperties,
+      Config config) {
     if (!config.isCiVisibilityAutoConfigurationEnabled()) {
       return;
     }
@@ -99,23 +97,6 @@ class MavenProjectConfigurator {
     Xpp3Dom configuration = mojoExecution.getConfiguration();
     mojoExecution.setConfiguration(
         MavenUtils.setXmlConfigurationValue(updatedArgLine, configuration, "argLine"));
-
-    // needed for goal executions (e.g. "surefire:test")
-    MojoDescriptor mojoDescriptor = mojoExecution.getMojoDescriptor();
-    PlexusConfiguration mojoConfiguration = mojoDescriptor.getMojoConfiguration();
-    PlexusConfiguration argLine = mojoConfiguration.getChild("argLine");
-    argLine.setValue(updatedArgLine);
-
-    // needed for executions where argLine is configured in POM
-    Plugin plugin = mojoExecution.getPlugin();
-    Map<String, PluginExecution> pluginExecutions = plugin.getExecutionsAsMap();
-    PluginExecution pluginExecution = pluginExecutions.get(mojoExecution.getExecutionId());
-    if (pluginExecution != null) {
-      Xpp3Dom executionConfiguration = (Xpp3Dom) pluginExecution.getConfiguration();
-      Xpp3Dom updatedExecutionConfiguration =
-          MavenUtils.setXmlConfigurationValue(updatedArgLine, executionConfiguration, "argLine");
-      pluginExecution.setConfiguration(updatedExecutionConfiguration);
-    }
   }
 
   private String escapeForCommandLine(String value) {

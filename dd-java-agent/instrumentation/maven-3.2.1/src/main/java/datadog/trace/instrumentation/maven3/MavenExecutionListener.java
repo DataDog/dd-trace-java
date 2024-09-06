@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.maven3;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildModuleSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
@@ -115,7 +116,7 @@ public class MavenExecutionListener extends AbstractExecutionListener {
 
     Map<String, String> systemProperties = moduleSettings.getSystemProperties();
     MavenProjectConfigurator.INSTANCE.configureTracer(
-        session, project, mojoExecution, systemProperties);
+        session, project, mojoExecution, systemProperties, Config.get());
   }
 
   @Nullable

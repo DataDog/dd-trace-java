@@ -9,7 +9,7 @@ import java.nio.file.Paths
 
 import static org.junit.jupiter.api.Assertions.assertEquals
 
-class MavenTest extends CiVisibilityInstrumentationTest {
+class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 3
 
