@@ -97,8 +97,6 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
     signalServer.registerSignalHandler(
         SignalType.MODULE_COVERAGE_DATA_JACOCO, moduleSignalRouter::onModuleSignalReceived);
     signalServer.registerSignalHandler(
-        SignalType.MODULE_COVERAGE_DATA_ITR, moduleSignalRouter::onModuleSignalReceived);
-    signalServer.registerSignalHandler(
         SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
     signalServer.registerSignalHandler(
         SignalType.EXECUTION_SETTINGS_REQUEST, this::onExecutionSettingsRequestReceived);

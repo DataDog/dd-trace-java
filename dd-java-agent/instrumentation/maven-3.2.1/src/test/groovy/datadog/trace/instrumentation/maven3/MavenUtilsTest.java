@@ -7,7 +7,6 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.hasToString;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertTrue;
 
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import freemarker.template.Configuration;
@@ -24,27 +23,19 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.apache.maven.artifact.versioning.ComparableVersion;
-import org.apache.maven.cli.MavenCli;
-import org.apache.maven.eventspy.AbstractEventSpy;
-import org.apache.maven.eventspy.EventSpy;
 import org.apache.maven.execution.ExecutionEvent;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.PlexusContainer;
 import org.junit.Assume;
-import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
@@ -53,11 +44,9 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
 @RunWith(Parameterized.class)
-public class MavenUtilsTest {
+public class MavenUtilsTest extends AbstractMavenTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenUtilsTest.class);
-
-  @ClassRule public static TemporaryFolder WORKING_DIRECTORY = new TemporaryFolder();
 
   private static final Configuration FREEMARKER = new Configuration(Configuration.VERSION_2_3_30);
 
@@ -81,9 +70,6 @@ public class MavenUtilsTest {
         "Newer maven version required to run chosen version of Surefire plugin",
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0);
     this.surefirePluginVersion = surefirePluginVersion;
-
-    System.setProperty(
-        "maven.multiModuleProjectDirectory", WORKING_DIRECTORY.getRoot().getAbsolutePath());
   }
 
   private ComparableVersion getCurrentMavenVersion() {
@@ -397,64 +383,6 @@ public class MavenUtilsTest {
     PlexusContainer container = MavenUtils.getContainer(session);
     assertThat(container, notNullValue());
     return true;
-  }
-
-  private void executeMaven(
-      Function<ExecutionEvent, Boolean> assertAction,
-      String pomPath,
-      String goal,
-      String... additionalArgs)
-      throws Exception {
-    MojoStartedSpy spy = new MojoStartedSpy(assertAction);
-    MavenCli mavenCli =
-        new MavenCli() {
-          @Override
-          protected void customizeContainer(PlexusContainer container) {
-            container.addComponent(spy, EventSpy.class, null);
-          }
-        };
-
-    File pomFile = new File(MavenUtilsTest.class.getResource(pomPath).toURI());
-
-    String[] arguments = new String[additionalArgs.length + 3];
-    arguments[0] = "-f";
-    arguments[1] = pomFile.getAbsolutePath();
-    arguments[2] = goal;
-    System.arraycopy(additionalArgs, 0, arguments, 3, additionalArgs.length);
-
-    mavenCli.doMain(arguments, WORKING_DIRECTORY.getRoot().getAbsolutePath(), null, null);
-
-    AssertionError error = spy.assertionError.get();
-    if (error != null) {
-      throw error;
-    }
-    assertTrue(spy.assertsRan.get());
-  }
-
-  private static final class MojoStartedSpy extends AbstractEventSpy {
-    private final Function<ExecutionEvent, Boolean> assertAction;
-    private final AtomicBoolean assertsRan = new AtomicBoolean(false);
-    private final AtomicReference<AssertionError> assertionError = new AtomicReference<>(null);
-
-    private MojoStartedSpy(Function<ExecutionEvent, Boolean> assertAction) {
-      this.assertAction = assertAction;
-    }
-
-    @Override
-    public void onEvent(Object o) {
-      if (!(o instanceof ExecutionEvent)) {
-        return;
-      }
-      ExecutionEvent executionEvent = (ExecutionEvent) o;
-      if (executionEvent.getType() != ExecutionEvent.Type.MojoStarted) {
-        return;
-      }
-      try {
-        assertsRan.compareAndSet(false, assertAction.apply(executionEvent));
-      } catch (AssertionError error) {
-        assertionError.compareAndSet(null, error);
-      }
-    }
   }
 
   @Parameterized.Parameters(name = "{0}")

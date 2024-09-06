@@ -25,7 +25,6 @@ class SignalServerRunnable implements Runnable {
     DESERIALIZERS.put(SignalType.MODULE_EXECUTION_RESULT, ModuleExecutionResult::deserialize);
     DESERIALIZERS.put(
         SignalType.MODULE_COVERAGE_DATA_JACOCO, ModuleCoverageDataJacoco::deserialize);
-    DESERIALIZERS.put(SignalType.MODULE_COVERAGE_DATA_ITR, ModuleCoverageDataItr::deserialize);
     DESERIALIZERS.put(SignalType.REPO_INDEX_REQUEST, b -> RepoIndexRequest.INSTANCE);
     DESERIALIZERS.put(SignalType.EXECUTION_SETTINGS_REQUEST, ExecutionSettingsRequest::deserialize);
   }
