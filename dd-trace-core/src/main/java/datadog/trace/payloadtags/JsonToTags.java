@@ -4,14 +4,19 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.ParseContext;
 import com.jayway.jsonpath.PathNotFoundException;
+import com.jayway.jsonpath.spi.json.JsonProvider;
+import com.jayway.jsonpath.spi.mapper.MappingProvider;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +81,31 @@ public final class JsonToTags {
   private final int limitDeepness;
 
   private final ParseContext parseContext;
+
+  static {
+    // ensure that no default minidev json-smart provider is used
+    // this is necessary for graal native to prevent NoClassDefFoundError
+    Configuration.setDefaults(
+        new Configuration.Defaults() {
+          private final JsonProvider jsonProvider = new MoshiJsonProvider();
+          private final MappingProvider mappingProvider = new MoshiMappingProvider();
+
+          @Override
+          public JsonProvider jsonProvider() {
+            return jsonProvider;
+          }
+
+          @Override
+          public MappingProvider mappingProvider() {
+            return mappingProvider;
+          }
+
+          @Override
+          public Set<Option> options() {
+            return EnumSet.noneOf(Option.class);
+          }
+        });
+  }
 
   private JsonToTags(
       List<JsonPath> expansionRules,
