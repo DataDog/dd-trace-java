@@ -14,9 +14,10 @@ public class ResponseBodyStreamWrapper extends InputStream {
 
   private final InputStream originalStream;
   private ByteArrayOutputStream buffer;
-  private boolean hasBeenRead = false;
+  private boolean hasBeenRead;
 
   public ResponseBodyStreamWrapper(InputStream is) {
+    super();
     this.originalStream = is;
   }
 
