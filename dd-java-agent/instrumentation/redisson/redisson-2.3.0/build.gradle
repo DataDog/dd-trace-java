@@ -20,12 +20,20 @@ dependencies {
   testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
   testImplementation libs.testcontainers
   testImplementation group: 'org.redisson', name: 'redisson', version: '2.3.0'
-  testImplementation(project(':dd-java-agent:instrumentation:redisson-2.0.0'))
+  testImplementation(project(':dd-java-agent:instrumentation:redisson:redisson-2.0.0'))
   latestDepTestImplementation group: 'org.redisson', name: 'redisson', version: '3.10.2', {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
 }
 
-tasks.withType(Test).configureEach {
-  usesService(testcontainersLimit)
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
+      jvmArgs += ['--add-opens', 'java.base/java.math=ALL-UNNAMED']
+      jvmArgs += ['--add-opens', 'java.base/java.util.concurrent=ALL-UNNAMED']
+      jvmArgs += ['--add-opens', 'java.base/java.net=ALL-UNNAMED']
+      jvmArgs += ['--add-opens', 'java.base/java.text=ALL-UNNAMED']
+    }
+    usesService(testcontainersLimit)
+  }
 }

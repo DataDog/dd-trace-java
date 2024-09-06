@@ -11,12 +11,13 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.redisson.Redisson
 import org.redisson.api.RedissonClient
 import org.redisson.config.Config
+import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.Shared
 
 abstract class RedissonClientTest extends VersionedNamingTestBase {
 
   @Shared
-  RedisServer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME)
+  RedisServer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME).waitingFor(Wait.forListeningPort())
 
   @Shared
   Config config = new Config()

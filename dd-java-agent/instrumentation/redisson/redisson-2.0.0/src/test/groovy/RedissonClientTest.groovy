@@ -14,12 +14,13 @@ import org.redisson.RedissonClient
 import org.redisson.client.RedisClient
 import org.redisson.client.RedisConnection
 import org.redisson.client.protocol.RedisCommands
+import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.Shared
 
 abstract class RedissonClientTest extends VersionedNamingTestBase {
 
   @Shared
-  RedisServer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME)
+  RedisServer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME).waitingFor(Wait.forListeningPort())
 
   @Shared
   Config config = new Config()
