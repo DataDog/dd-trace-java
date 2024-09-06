@@ -130,11 +130,11 @@ public final class OtelConventions {
     }
   }
 
-  public static void setEventsAsTag(AgentSpan span, List<SpanEvent> events) {
+  public static void setEventsAsTag(AgentSpan span, List<OtelSpanEvent> events) {
     if (events == null || events.isEmpty()) {
       return;
     }
-    span.setTag(DDTags.SPAN_EVENTS, SpanEvent.toTag(events));
+    span.setTag(DDTags.SPAN_EVENTS, OtelSpanEvent.toTag(events));
   }
 
   private static String computeOperationName(AgentSpan span) {

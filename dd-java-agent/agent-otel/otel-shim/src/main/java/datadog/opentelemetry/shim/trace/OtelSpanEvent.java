@@ -9,21 +9,21 @@ import io.opentelemetry.api.common.Attributes;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class SpanEvent {
+public class OtelSpanEvent {
 
   private final long timestamp;
   private final String name;
   private final AgentSpan.Attributes attributes;
-  private static TimeSource timeSource;
+  private static TimeSource timeSource = SystemTimeSource.INSTANCE;
 
-  public SpanEvent(String name, Attributes attributes) {
+  public OtelSpanEvent(String name, Attributes attributes) {
     this.name = name;
     this.attributes =
         OtelConventions.convertAttributes(attributes, SpanAttributes.Builder.Format.EVENTS);
     this.timestamp = getNanosFromTimeSource();
   }
 
-  public SpanEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
+  public OtelSpanEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     this.name = name;
     this.attributes =
         OtelConventions.convertAttributes(attributes, SpanAttributes.Builder.Format.EVENTS);
@@ -35,11 +35,7 @@ public class SpanEvent {
   }
 
   private long getNanosFromTimeSource() {
-    if (timeSource == null) {
-      return SystemTimeSource.INSTANCE.getCurrentTimeNanos();
-    } else {
-      return timeSource.getCurrentTimeNanos();
-    }
+    return timeSource.getCurrentTimeNanos();
   }
 
   public static void setTimeSource(TimeSource newTimeSource) {
@@ -55,19 +51,18 @@ public class SpanEvent {
           .append(",\"attributes\":")
           .append(SpanAttributes.JSONParser.toJson(this.attributes.asMap()));
     }
-    return builder.append("}").toString();
+    return builder.append('}').toString();
   }
 
   @NonNull
-  public static String toTag(List<SpanEvent> events) {
-    // TODO: Do we want to enforce a maximum tag size, like TAG_MAX_LENGTH in DDSpanLink?
+  public static String toTag(List<OtelSpanEvent> events) {
     StringBuilder builder = new StringBuilder("[");
     for (int i = 0; i < events.size(); i++) {
       if (i > 0) {
-        builder.append(",");
+        builder.append(',');
       }
       builder.append(events.get(i).toString());
     }
-    return builder.append("]").toString();
+    return builder.append(']').toString();
   }
 }

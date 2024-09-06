@@ -30,7 +30,7 @@ public class OtelSpan implements Span {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
-  private List<SpanEvent> events;
+  private List<OtelSpanEvent> events;
 
   public OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
@@ -76,10 +76,10 @@ public class OtelSpan implements Span {
   @Override
   public Span addEvent(String name, Attributes attributes) {
     if (this.recording) {
-      if (this.events == null || this.events.isEmpty()) {
+      if (this.events == null) {
         this.events = new ArrayList<>();
       }
-      this.events.add(new SpanEvent(name, attributes));
+      this.events.add(new OtelSpanEvent(name, attributes));
     }
     return this;
   }
@@ -87,10 +87,10 @@ public class OtelSpan implements Span {
   @Override
   public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     if (this.recording) {
-      if (this.events == null || this.events.isEmpty()) {
+      if (this.events == null) {
         this.events = new ArrayList<>();
       }
-      this.events.add(new SpanEvent(name, attributes, timestamp, unit));
+      this.events.add(new OtelSpanEvent(name, attributes, timestamp, unit));
     }
     return this;
   }
@@ -123,11 +123,12 @@ public class OtelSpan implements Span {
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {
     if (this.recording) {
-      if (this.events == null || this.events.isEmpty()) {
+      if (this.events == null) {
         this.events = new ArrayList<>();
       }
       this.events.add(
-          new SpanEvent("exception", processExceptionAttributes(exception, additionalAttributes)));
+          new OtelSpanEvent(
+              "exception", processExceptionAttributes(exception, additionalAttributes)));
       this.delegate.addThrowable(exception, ErrorPriorities.UNSET);
     }
     return this;

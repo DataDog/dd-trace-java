@@ -124,7 +124,7 @@ public class SpanAttributes implements Attributes {
   }
 
   public static class Builder {
-    // SpanLinks and SpanEvents are encoded in different formats; Format represents the encoding
+    // SpanLinks and OtelSpanEvents are encoded in different formats; Format represents the encoding
     // standard
     public enum Format {
       LINKS,

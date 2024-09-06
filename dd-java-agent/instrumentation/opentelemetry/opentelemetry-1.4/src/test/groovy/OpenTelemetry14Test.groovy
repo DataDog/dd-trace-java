@@ -1,4 +1,4 @@
-import datadog.opentelemetry.shim.trace.SpanEvent
+import datadog.opentelemetry.shim.trace.OtelSpanEvent
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
@@ -262,7 +262,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def builder = tracer.spanBuilder("some-name")
     def timeSource = new ControllableTimeSource()
     timeSource.set(1000)
-    SpanEvent.setTimeSource(timeSource)
+    OtelSpanEvent.setTimeSource(timeSource)
 
     when:
     def result = builder.startSpan()
@@ -654,10 +654,12 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  // This is failing because of the time_unix_nano issue described on the "test add event no timestamp" scenario
   def "test span record exception"() {
     setup:
     def result = tracer.spanBuilder("some-name").startSpan()
+    def timeSource = new ControllableTimeSource()
+    timeSource.set(1000)
+    OtelSpanEvent.setTimeSource(timeSource)
 
     expect:
     result.delegate.getTag(ERROR_MSG) == null
@@ -678,10 +680,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
     result.end()
 
     then:
-    // TODO: Same issue with time_unix_nano here -- I can't control what it is and don't know how to check the name and attributes without it
     def expectedEventTag = """
     [
-      { "time_unix_nano": ${TIME_NANO},
+      { "time_unix_nano": ${timeSource.getCurrentTimeNanos()},
         "name": "exception",
         "attributes": ${expectedAttributes}
       }
