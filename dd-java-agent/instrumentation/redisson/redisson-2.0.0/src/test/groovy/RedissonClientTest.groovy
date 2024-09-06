@@ -2,39 +2,28 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
+import com.redis.testcontainers.RedisContainer
+import com.redis.testcontainers.RedisServer
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import org.redisson.Config
 import org.redisson.Redisson
-import org.redisson.api.RedissonClient
+import org.redisson.RedissonClient
 import org.redisson.client.RedisClient
 import org.redisson.client.RedisConnection
 import org.redisson.client.protocol.RedisCommands
-import org.redisson.config.Config
-import org.redisson.config.SingleServerConfig
-import redis.embedded.RedisServer
+import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.Shared
 
 abstract class RedissonClientTest extends VersionedNamingTestBase {
 
   @Shared
-  int port = PortUtils.randomOpenPort()
-
-  @Shared
-  RedisServer redisServer = RedisServer.builder()
-  // bind to localhost to avoid firewall popup
-  .setting("bind 127.0.0.1")
-  // set max memory to avoid problems in CI
-  .setting("maxmemory 128M")
-  .port(port).build()
+  RedisServer redisServer = new RedisContainer(RedisContainer.DEFAULT_IMAGE_NAME).waitingFor(Wait.forListeningPort())
 
   @Shared
   Config config = new Config()
-
-  @Shared
-  SingleServerConfig singleServerConfig = config.useSingleServer().setAddress("localhost:${port}")
 
   @Shared
   RedissonClient redissonClient
@@ -51,19 +40,17 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    println "Using redis: $redisServer.args"
     redisServer.start()
+    println "Using redis: $redisServer.redisURI"
+    config.useSingleServer().setAddress("$redisServer.host:$redisServer.firstMappedPort")
     redissonClient = Redisson.create(config)
-    lowLevelRedisClient = new RedisClient("127.0.0.1", port)
+    lowLevelRedisClient = new RedisClient(redisServer.host, redisServer.firstMappedPort)
   }
 
   def cleanupSpec() {
     redisServer.stop()
-    try {
-      lowLevelRedisClient.shutdown()
-      redissonClient.shutdown()
-    } catch (Exception ignored) {
-    }
+    lowLevelRedisClient.shutdown()
+    redissonClient.shutdown()
   }
 
   def setup() {
@@ -133,7 +120,6 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     assertTraces(2) {
       trace(1) {
         redisSpan(it, "SET")
-
       }
       trace(1) {
         span {
@@ -148,7 +134,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
             "$Tags.DB_TYPE" "redis"
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" port
+            "$Tags.PEER_PORT" redisServer.firstMappedPort
             peerServiceFrom(Tags.PEER_HOSTNAME)
             defaultTags()
           }
@@ -344,7 +330,7 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
         "$Tags.DB_TYPE" "redis"
         "$Tags.PEER_HOSTNAME" "localhost"
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" port
+        "$Tags.PEER_PORT" redisServer.firstMappedPort
         peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
       }
@@ -387,3 +373,4 @@ class RedissonClientV1ForkedTest extends RedissonClientTest {
     return "redis.command"
   }
 }
+
