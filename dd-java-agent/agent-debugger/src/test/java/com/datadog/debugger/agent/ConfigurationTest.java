@@ -121,6 +121,11 @@ public class ConfigurationTest {
     ArrayList<LogProbe> logProbes = new ArrayList<>(config.getLogProbes());
     assertEquals(1, logProbes.size());
     LogProbe logProbe0 = logProbes.get(0);
+    assertEquals(2, logProbe0.getTags().length);
+    assertEquals("dd_watches_dsl", logProbe0.getTags()[0].getKey());
+    assertEquals("{object.objField.intField}", logProbe0.getTags()[0].getValue());
+    assertEquals("env", logProbe0.getTags()[1].getKey());
+    assertEquals("staging", logProbe0.getTags()[1].getValue());
     assertEquals(8, logProbe0.getSegments().size());
     assertEquals("this is a log line customized! uuid=", logProbe0.getSegments().get(0).getStr());
     assertEquals("uuid", logProbe0.getSegments().get(1).getExpr());
