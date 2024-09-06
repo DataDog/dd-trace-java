@@ -48,6 +48,7 @@ excludedClassesCoverage += [
   'datadog.trace.core.TracingConfigPoller.Updater',
   // covered with dd-trace-core/src/test/groovy/datadog/trace/core/datastreams/CheckpointerTest.groovy
   'datadog.trace.core.datastreams.DefaultDataStreamsMonitoring',
+  'datadog.trace.payloadtags.MoshiMappingProvider',
 ]
 
 addTestSuite('traceAgentTest')
