@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springscheduling;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
@@ -23,24 +22,23 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
 
   @Override
   public void run() {
-    try (AgentScope closeMe = LEGACY_TRACING ? null : activateSpan(noopSpan())) {
-      final AgentSpan span = startSpan(SCHEDULED_CALL);
-      DECORATE.afterStart(span);
+    final AgentSpan span =
+        LEGACY_TRACING ? startSpan(SCHEDULED_CALL) : startSpan(SCHEDULED_CALL, null);
+    DECORATE.afterStart(span);
 
-      try (final AgentScope scope = activateSpan(span)) {
-        DECORATE.onRun(span, runnable);
-        scope.setAsyncPropagation(true);
+    try (final AgentScope scope = activateSpan(span)) {
+      DECORATE.onRun(span, runnable);
+      scope.setAsyncPropagation(true);
 
-        try {
-          runnable.run();
-        } catch (final Throwable throwable) {
-          DECORATE.onError(span, throwable);
-          throw throwable;
-        }
-      } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+      try {
+        runnable.run();
+      } catch (final Throwable throwable) {
+        DECORATE.onError(span, throwable);
+        throw throwable;
       }
+    } finally {
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
   }
 
