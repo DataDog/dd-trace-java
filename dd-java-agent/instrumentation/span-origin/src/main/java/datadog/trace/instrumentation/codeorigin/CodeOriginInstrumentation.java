@@ -41,8 +41,10 @@ public abstract class CodeOriginInstrumentation extends Tracing implements ForTy
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        HierarchyMatchers.isAnnotatedWith(matcher),
-        "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+    /*
+        transformer.applyAdvice(
+            HierarchyMatchers.isAnnotatedWith(matcher),
+            "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+    */
   }
 }

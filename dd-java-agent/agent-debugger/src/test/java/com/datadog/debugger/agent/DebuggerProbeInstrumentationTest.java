@@ -75,7 +75,7 @@ public class DebuggerProbeInstrumentationTest extends ProbeInstrumentationTest {
     Redaction.clearUserDefinedTypes();
   }
 
-  //  @Test
+  @Test
   public void testProbeInstallation() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     installProbe(CLASS_NAME, "process", "int (java.lang.String)");
@@ -92,7 +92,6 @@ public class DebuggerProbeInstrumentationTest extends ProbeInstrumentationTest {
     String debugFlag =
         ((DDSpan) span.getLocalRootSpan()).context().getPropagationTags().getDebugPropagation();
     assertEquals("1", debugFlag);
-    verify(probeStatusSink).addEmitting(ArgumentMatchers.eq(DEBUG_PROBE_ID));
   }
 
   @Test

@@ -38,21 +38,6 @@ public class Where {
     this.lines = lines;
   }
 
-  Where(
-      String typeName,
-      String methodName,
-      String signature,
-      String descriptor,
-      SourceLine[] lines,
-      String sourceFile) {
-    this.typeName = typeName;
-    this.methodName = methodName;
-    this.sourceFile = sourceFile;
-    this.signature = signature;
-    this.lines = lines;
-    this.probeMethodDescriptor = descriptor;
-  }
-
   Where(String typeName, String methodName, String signature, String[] lines, String sourceFile) {
     this(typeName, methodName, signature, sourceLines(lines), sourceFile);
   }
@@ -81,13 +66,6 @@ public class Where {
         // pick the first method, as we can have multiple methods (lambdas) on the same line
         MethodNode method = methodsByLine.get(0);
         return new Where(lineWhere.typeName, method.name, method.desc, (SourceLine[]) null, null);
-        /* return new Where(
-        lineWhere.typeName,
-        method.name,
-        method.signature != null ? method.signature : lineWhere.signature,
-        method.desc,
-        (SourceLine[]) null,
-        null);*/
       }
     }
     throw new IllegalArgumentException("Invalid where to convert from line to method " + lineWhere);

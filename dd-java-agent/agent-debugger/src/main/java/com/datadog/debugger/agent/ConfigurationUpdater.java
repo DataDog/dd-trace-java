@@ -130,6 +130,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       currentConfiguration = newConfiguration;
       if (changes.hasProbeRelatedChanges()) {
         LOGGER.info("Applying new probe configuration, changes: {}", changes);
+        System.out.println(
+            "****** ConfigurationUpdater.applyNewConfiguration newConfiguration = "
+                + newConfiguration);
         handleProbesChanges(changes, newConfiguration);
       }
     } finally {

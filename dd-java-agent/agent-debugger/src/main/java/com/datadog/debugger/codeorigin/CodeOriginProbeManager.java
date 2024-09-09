@@ -9,6 +9,7 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.Collection;
@@ -25,7 +26,7 @@ import org.slf4j.LoggerFactory;
 public class CodeOriginProbeManager {
   private static final Logger LOG = LoggerFactory.getLogger(CodeOriginProbeManager.class);
 
-  private Map<String, String> fingerprints = new HashMap<>();
+  private Map<String, CodeOriginProbe> fingerprints = new HashMap<>();
 
   private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
 
@@ -45,12 +46,12 @@ public class CodeOriginProbeManager {
     return probes.values();
   }
 
-  void addFingerprint(String fingerprint, String probeId) {
-    fingerprints.putIfAbsent(fingerprint, probeId);
+  void addFingerprint(String fingerprint, CodeOriginProbe probe) {
+    fingerprints.putIfAbsent(fingerprint, probe);
   }
 
   String getProbeId(String fingerprint) {
-    return fingerprints.get(fingerprint);
+    return fingerprints.get(fingerprint).getProbeId().getId();
   }
 
   public ClassNameFiltering getClassNameFiltering() {
@@ -77,18 +78,17 @@ public class CodeOriginProbeManager {
       probe =
           new CodeOriginProbe(
               new ProbeId(UUID.randomUUID().toString(), 0), where.getSignature(), where, this);
-      addFingerprint(fingerprint, probe.getProbeId().getId());
+      addFingerprint(fingerprint, probe);
 
       installProbe(probe);
+    } else {
+      probe = fingerprints.get(fingerprint);
     }
-    probe =
-        getProbes().stream()
-            .filter(p -> p.getId().equals(getProbeId(fingerprint)))
-            .collect(Collectors.toList())
-            .get(0);
 
-    probe.commit(
-        CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+    if (AgentTracer.get().activeSpan() != null) {
+      probe.commit(
+          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+    }
     return probe.getId();
   }
 
