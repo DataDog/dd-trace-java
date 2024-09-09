@@ -273,13 +273,6 @@ commands:
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
 
-      - run:
-          name: Install python 3.12
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y python3.12-full python3.12-dev python3.12-venv
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
-
 jobs:
   build:
     <<: *defaults
