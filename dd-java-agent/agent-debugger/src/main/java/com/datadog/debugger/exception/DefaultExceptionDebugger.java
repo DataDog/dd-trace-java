@@ -89,6 +89,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
     } else {
       if (exceptionProbeManager.createProbesForException(innerMostException.getStackTrace())) {
         AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+      } else {
+        LOGGER.debug("No probe created for exception: {}", innerMostException.toString());
       }
     }
   }

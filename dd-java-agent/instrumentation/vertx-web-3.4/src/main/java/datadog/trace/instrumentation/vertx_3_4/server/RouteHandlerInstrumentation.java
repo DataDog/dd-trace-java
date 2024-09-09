@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -35,7 +36,7 @@ public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("handler"))
+            .and(namedOneOf("handler", "blockingHandler"))
             .and(isPublic())
             .and(takesArgument(0, named("io.vertx.core.Handler"))),
         packageName + ".RouteHandlerWrapperAdvice");

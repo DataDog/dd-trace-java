@@ -4046,6 +4046,11 @@ public class Config {
         && isLegacyTracingEnabled(true, "kafka");
   }
 
+  public boolean isGooglePubSubLegacyTracingEnabled() {
+    return SpanNaming.instance().namingSchema().allowInferredServices()
+        && isLegacyTracingEnabled(true, "google-pubsub");
+  }
+
   public boolean isTimeInQueueEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
     return SpanNaming.instance().namingSchema().allowInferredServices()

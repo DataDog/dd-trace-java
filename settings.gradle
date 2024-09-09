@@ -1,5 +1,5 @@
 plugins {
-  id 'com.gradle.develocity' version '3.17.2'
+  id 'com.gradle.develocity' version '3.18'
 }
 
 def isCI = System.getenv("CI") != null
@@ -471,7 +471,10 @@ include ':dd-java-agent:instrumentation:vertx-web-3.4'
 include ':dd-java-agent:instrumentation:vertx-web-3.5'
 include ':dd-java-agent:instrumentation:vertx-web-3.9'
 include ':dd-java-agent:instrumentation:vertx-web-4.0'
-include ':dd-java-agent:instrumentation:redisson-2.0.0'
+include ':dd-java-agent:instrumentation:redisson'
+include ':dd-java-agent:instrumentation:redisson:redisson-2.0.0'
+include ':dd-java-agent:instrumentation:redisson:redisson-2.3.0'
+include ':dd-java-agent:instrumentation:redisson:redisson-3.10.3'
 include ':dd-java-agent:instrumentation:websphere-jmx'
 include ':dd-java-agent:instrumentation:zio'
 include ':dd-java-agent:instrumentation:zio:zio-2.0'

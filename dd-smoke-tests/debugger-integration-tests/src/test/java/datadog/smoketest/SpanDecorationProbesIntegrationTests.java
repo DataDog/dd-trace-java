@@ -263,11 +263,6 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
     processRequests(() -> count.get() >= 100);
   }
 
-  private boolean isTracedFullMethodSpan(DecodedSpan span) {
-    return span.getName().equals("trace.annotation")
-        && span.getResource().equals("ServerDebuggerTestApplication.runTracedMethod");
-  }
-
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {
     List<SpanDecorationProbe.Tag> tags =
         Arrays.asList(
