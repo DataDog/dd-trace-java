@@ -21,8 +21,11 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.util.Redaction;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.SizeCheckedInputStream;
 import datadog.trace.util.TagsHelper;
@@ -164,13 +167,18 @@ public class DebuggerAgent {
   }
 
   public static String getDefaultTagsMergedWithGlobalTags(Config config) {
+    GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
+    String gitSha = gitInfo.getCommit().getSha();
+    String gitUrl = gitInfo.getRepositoryURL();
     String debuggerTags =
         TagsHelper.concatTags(
             "env:" + config.getEnv(),
             "version:" + config.getVersion(),
             "debugger_version:" + DDTraceCoreInfo.VERSION,
             "agent_version:" + DebuggerAgent.getAgentVersion(),
-            "host_name:" + config.getHostName());
+            "host_name:" + config.getHostName(),
+            gitSha != null ? Tags.GIT_COMMIT_SHA + ":" + gitSha : null,
+            gitUrl != null ? Tags.GIT_REPOSITORY_URL + ":" + gitUrl : null);
     if (config.getGlobalTags().isEmpty()) {
       return debuggerTags;
     }

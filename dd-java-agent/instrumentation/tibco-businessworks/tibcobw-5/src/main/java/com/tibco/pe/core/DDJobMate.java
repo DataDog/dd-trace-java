@@ -7,6 +7,6 @@ public class DDJobMate {
     if (!(job instanceof Job)) {
       return null;
     }
-    return ((Job) job).getWorkflow();
+    return ((Job) job).getActualWorkflow();
   }
 }
