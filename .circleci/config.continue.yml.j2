@@ -199,11 +199,11 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-dep-<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
             # New branch commits will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+            - dd-trace-java-dep-<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
             # New branches fall back on main build caches
-            - dd-trace-java-dep<< parameters.cacheType >>-v5-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep-<< parameters.cacheType >>-v5-master-{{ checksum "_circle_ci_cache_base_id" }}-
 
   save_dependency_cache:
     parameters:
@@ -211,7 +211,7 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-dep-<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Cached dependencies and wrappers for gradle.
             # .gradle-ro-dep-cache is used with GRADLE_RO_DEP_CACHEenv var,
@@ -222,6 +222,31 @@ commands:
             - ~/.m2/repository
             - ~/.m2/wrapper
 
+  restore_dependency_extra_cache:
+    parameters:
+      cacheType:
+        type: string
+    steps:
+      - restore_cache:
+          keys:
+            # Dependent steps will find this cache
+            - dd-trace-java-depextra-<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            # New branch commits will find this cache
+            - dd-trace-java-depextra-<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+            # New branches fall back on main build caches
+            - dd-trace-java-depextra-<< parameters.cacheType >>-v5-master-{{ checksum "_circle_ci_cache_base_id" }}-
+
+  save_dependency_extra_cache:
+    parameters:
+      cacheType:
+        type: string
+    steps:
+      - save_cache:
+          key: dd-trace-java-depextra-<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          paths:
+            # Cache extra dependencies (the main batch is at ~/.gradle-ro-dep-cache/modules-2).
+            - ~/.gradle/caches/modules-2
+
   restore_build_cache:
     parameters:
       cacheType:
@@ -230,7 +255,7 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-build<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-build-<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
 
   save_build_cache:
     parameters:
@@ -238,7 +263,7 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-build<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-build-<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
             # Gradle version specific cache for incremental builds. Needs to match version in
             # gradle/wrapper/gradle-wrapper.properties
@@ -294,12 +319,21 @@ jobs:
       - restore_dependency_cache:
           cacheType: << parameters.cacheType >>
 
+{% if not is_master_or_release %}
+      # Restore the incremental dependency cache (changed since last weekly).
+      # Do not do this for master, to avoid accumulating cruft week to week.
+      - restore_dependency_extra_cache:
+          cacheType: << parameters.cacheType >>
+{% endif %}
+
       - run:
           name: Build Project
           command: >-
 {% if is_nightly %}
+            GRADLE_RO_DEP_CACHE=~/.gradle-ro-dep-cache
             ./gradlew resolveAndLockAll --write-locks &&
 {% endif %}
+            GRADLE_RO_DEP_CACHE=~/.gradle-ro-dep-cache
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
@@ -335,17 +369,10 @@ jobs:
       - store_artifacts:
           path: ./check_reports
 
-      # Save a full dependency cache when building on master or a base project branch.
-      # We used to do this on the first build of each PR, but now it's skipped at the
-      # cost of downloading new dependencies a few more times.
-      - when:
-          condition:
-            matches:
-              pattern: "^(master|project/.+)$"
-              value: << pipeline.git.branch >>
-          steps:
-            - save_dependency_cache:
-                cacheType: << parameters.cacheType >>
+      # Save incremental dependency cache. This only includes dependencies that
+      # changed since the last successful weekly pipeline.
+      - save_dependency_extra_cache:
+          cacheType: << parameters.cacheType >>
 
       # Save the small build cache
       - save_build_cache:
@@ -395,12 +422,15 @@ jobs:
 
       - restore_dependency_cache:
           cacheType: << parameters.cacheType >>
+      - restore_dependency_extra_cache:
+          cacheType: << parameters.cacheType >>
       - restore_build_cache:
           cacheType: << parameters.cacheType >>
 
       - run:
           name: Check Project
           command: >-
+            GRADLE_RO_DEP_CACHE=~/.gradle-ro-dep-cache
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew
@@ -538,6 +568,8 @@ jobs:
 
       - restore_dependency_cache:
           cacheType: << parameters.cacheType >>
+      - restore_dependency_extra_cache:
+          cacheType: << parameters.cacheType >>
       - restore_build_cache:
           cacheType: << parameters.cacheType >>
 
@@ -559,6 +591,7 @@ jobs:
             fi
 
             << parameters.environment >>
+            GRADLE_RO_DEP_CACHE=~/.gradle-ro-dep-cache
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew
@@ -743,12 +776,15 @@ jobs:
           pattern: "dd-java-agent/instrumentation"
       - restore_dependency_cache:
           cacheType: inst
+      - restore_dependency_extra_cache:
+          cacheType: inst
       - restore_build_cache:
           cacheType: inst
       - run:
           name: Generate muzzle dep report
           command: >-
             SKIP_BUILDSCAN="true"
+            GRADLE_RO_DEP_CACHE=~/.gradle-ro-dep-cache
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew generateMuzzleReport muzzleInstrumentationReport
       - run:
@@ -774,6 +810,8 @@ jobs:
       # Let's at least restore the build cache to have something to start from.
       - restore_dependency_cache:
           cacheType: inst
+      - restore_dependency_extra_cache:
+          cacheType: inst
       - restore_build_cache:
           cacheType: inst
 
@@ -781,6 +819,7 @@ jobs:
           name: Gather muzzle tasks
           command: >-
             SKIP_BUILDSCAN="true"
+            GRADLE_RO_DEP_CACHE=~/.gradle-ro-dep-cache
             ./gradlew writeMuzzleTasksToFile
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
@@ -789,6 +828,7 @@ jobs:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
+            GRADLE_RO_DEP_CACHE=~/.gradle-ro-dep-cache
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
             << pipeline.parameters.gradle_flags >>
