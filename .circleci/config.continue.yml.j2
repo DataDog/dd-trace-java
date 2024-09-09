@@ -199,13 +199,11 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
             # New branch commits will find this cache
-            - dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
             # New branches fall back on main build caches
-            - dd-trace-java-dep<< parameters.cacheType >>-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
-            # Fallback to the previous cache during transition
-            - dd-trace-java-dep<< parameters.cacheType >>-v3-master-{{ checksum "_circle_ci_cache_base_id" }}-
+            - dd-trace-java-dep<< parameters.cacheType >>-v5-master-{{ checksum "_circle_ci_cache_base_id" }}-
 
   save_dependency_cache:
     parameters:
@@ -213,19 +211,16 @@ commands:
         type: string
     steps:
       - save_cache:
-          key: dd-trace-java-dep<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+          key: dd-trace-java-dep<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           paths:
-            # Cached dependencies and wrappers for gradle
-            - ~/.gradle/caches
+            # Cached dependencies and wrappers for gradle.
+            # .gradle-ro-dep-cache is used with GRADLE_RO_DEP_CACHEenv var,
+            # see https://docs.gradle.org/current/userguide/dependency_resolution.html#sub:ephemeral-ci-cache
+            - ~/.gradle-ro-dep-cache
             - ~/.gradle/wrapper
             # Cached dependencies for maven
-            - ~/.m2
-            # Cached launchers and compilers for sbt
-            - ~/.sbt
-            # Cached dependencies for sbt handled by ivy
-            - ~/.ivy2
-            # Cached dependencies for sbt handled by coursier
-            - ~/.cache/coursier
+            - ~/.m2/repository
+            - ~/.m2/wrapper
 
   restore_build_cache:
     parameters:
@@ -235,7 +230,7 @@ commands:
       - restore_cache:
           keys:
             # Dependent steps will find this cache
-            - dd-trace-java-build<< parameters.cacheType >>-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
+            - dd-trace-java-build<< parameters.cacheType >>-v5-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
 
   save_build_cache:
     parameters:
@@ -315,7 +310,6 @@ jobs:
 {% endif %}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
-            --rerun-tasks
 
       - when:
           condition:
@@ -465,7 +459,7 @@ jobs:
             -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
-            --rerun-tasks
+            --no-build-cache
 
       - when:
           condition:
@@ -478,6 +472,12 @@ jobs:
               command: .circleci/collect_libs.sh
           - store_artifacts:
               path: ./libs
+
+      - run:
+          name: Prepare read-only cache directory
+          command: |
+            mkdir -p ~/.gradle-ro-dep-cache
+            mv ~/.gradle/caches/modules-2 ~/.gradle-ro-dep-cache/
 
       - save_dependency_cache:
           cacheType: << parameters.cacheType >>
