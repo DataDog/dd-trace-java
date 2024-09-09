@@ -3,6 +3,7 @@ package com.datadog.debugger.origin;
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_FRAME;
+import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -70,10 +71,10 @@ public class CodeOriginTest {
           DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE);
   private static final List<String> STACK_FRAME_TAGS =
       asList(
-          format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file"),
-          format(DD_STACK_CODE_ORIGIN_FRAME, 0, "line"),
-          format(DD_STACK_CODE_ORIGIN_FRAME, 0, "method"),
-          format(DD_STACK_CODE_ORIGIN_FRAME, 0, "type"));
+          format(DD_STACK_CODE_ORIGIN_FRAME, 0, 0, "file"),
+          format(DD_STACK_CODE_ORIGIN_FRAME, 0, 0, "line"),
+          format(DD_STACK_CODE_ORIGIN_FRAME, 0, 0, "method"),
+          format(DD_STACK_CODE_ORIGIN_FRAME, 0, 0, "type"));
   private static final List<String> COMBO_TAGS = new ArrayList<>();
 
   private final Instrumentation instr = ByteBuddyAgent.install();
@@ -105,6 +106,8 @@ public class CodeOriginTest {
   static {
     COMBO_TAGS.addAll(CODE_ORIGIN_TAGS);
     COMBO_TAGS.addAll(STACK_FRAME_TAGS);
+
+    System.out.println("****** CodeOriginTest.static initializer COMBO_TAGS = " + COMBO_TAGS);
   }
 
   @Test
@@ -199,7 +202,7 @@ public class CodeOriginTest {
         format(
             "Existing keys for %s: %s",
             span.getOperationName(), new TreeSet<>(span.getTags().keySet()));
-    assertEquals(span.getTag(DDTags.DD_STACK_CODE_ORIGIN_TYPE), spanType, keys);
+    assertEquals(span.getTag(format(DD_STACK_CODE_ORIGIN_TYPE, 0)), spanType, keys);
     for (String tag : included) {
       assertNotNull(span.getTag(tag), tag + " not found.  " + keys);
     }
@@ -219,11 +222,11 @@ public class CodeOriginTest {
     assertNull(span.getTag(DDTags.DD_CODE_ORIGIN_METHOD), keys);
     assertNull(span.getTag(DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE), keys);
 
-    assertEquals(span.getTag(DDTags.DD_STACK_CODE_ORIGIN_TYPE), "exit", keys);
-    assertNotNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file")));
-    assertNotNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 0, "line")));
-    assertNotNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 0, "method")));
-    assertNotNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 0, "type")));
+    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_TYPE, 1)), keys);
+    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, 0, "file")));
+    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, 0, "line")));
+    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, 0, "method")));
+    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, 0, "type")));
   }
 
   public static Config createConfig() {
