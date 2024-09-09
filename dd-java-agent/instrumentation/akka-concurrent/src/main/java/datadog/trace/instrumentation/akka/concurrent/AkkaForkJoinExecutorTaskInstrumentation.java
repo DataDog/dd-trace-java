@@ -51,7 +51,7 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends InstrumenterM
   public static final class Construct {
     @Advice.OnMethodExit
     public static void construct(@Advice.Argument(0) Runnable wrapped) {
-      capture(InstrumentationContext.get(Runnable.class, State.class), wrapped, true);
+      capture(InstrumentationContext.get(Runnable.class, State.class), wrapped);
     }
   }
 

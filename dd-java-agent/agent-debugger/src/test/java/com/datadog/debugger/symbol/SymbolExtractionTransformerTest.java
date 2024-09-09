@@ -982,8 +982,8 @@ class SymbolExtractionTransformerTest {
     }
 
     @Override
-    public boolean addScope(Scope jarScope) {
-      return jarScopes.add(jarScope);
+    public void addScope(Scope jarScope) {
+      jarScopes.add(jarScope);
     }
   }
 }

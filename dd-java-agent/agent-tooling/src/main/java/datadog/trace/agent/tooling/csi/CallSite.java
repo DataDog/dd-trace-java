@@ -10,8 +10,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 public @interface CallSite {
 
-  /** Interface to be used for SPI injection */
-  Class<?> spi();
+  /** Interfaces to be used for SPI injection */
+  Class<?>[] spi();
 
   /** Enable or disable the call site: (fully qualified name, method name and arguments) */
   String[] enabled() default {};

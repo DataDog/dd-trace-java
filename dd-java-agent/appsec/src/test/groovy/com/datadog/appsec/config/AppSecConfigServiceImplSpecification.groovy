@@ -22,11 +22,15 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_R
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSIONS
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT
 import static datadog.remoteconfig.PollingHinterNoop.NOOP
 import static datadog.trace.api.UserIdCollectionMode.ANONYMIZATION
 import static datadog.trace.api.UserIdCollectionMode.DISABLED
@@ -254,12 +258,17 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
+      | CAPABILITY_ASM_EXCLUSION_DATA
       | CAPABILITY_ASM_REQUEST_BLOCKING
       | CAPABILITY_ASM_USER_BLOCKING
       | CAPABILITY_ASM_CUSTOM_RULES
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
-      | CAPABILITY_ASM_RASP_SQLI)
+      | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ENDPOINT_FINGERPRINT
+      // | CAPABILITY_ASM_SESSION_FINGERPRINT
+      | CAPABILITY_ASM_NETWORK_FINGERPRINT
+      | CAPABILITY_ASM_HEADER_FINGERPRINT)
     0 * _._
     initialWafConfig.get() != null
 
@@ -307,7 +316,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
           enabled     : false
         ]
       ]
-      casc.mergedAsmData == [[data: [], id: 'foo', type: '']]
+      casc.mergedAsmData.mergedData.rules == [[data: [], id: 'foo', type: '']]
     }, _)
 
     when:
@@ -398,12 +407,17 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * poller.addCapabilities(CAPABILITY_ASM_DD_RULES
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
+      | CAPABILITY_ASM_EXCLUSION_DATA
       | CAPABILITY_ASM_REQUEST_BLOCKING
       | CAPABILITY_ASM_USER_BLOCKING
       | CAPABILITY_ASM_CUSTOM_RULES
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
-      | CAPABILITY_ASM_RASP_SQLI)
+      | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ENDPOINT_FINGERPRINT
+      // | CAPABILITY_ASM_SESSION_FINGERPRINT
+      | CAPABILITY_ASM_NETWORK_FINGERPRINT
+      | CAPABILITY_ASM_HEADER_FINGERPRINT)
     0 * _._
 
     when:
@@ -430,7 +444,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     }
     mergedUpdateConfig.numberOfRules == 0
     mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == false
-    mergedAsmData.isEmpty() == false
+    mergedAsmData.mergedData.rules.isEmpty() == false
 
     when:
     listeners.savedConfChangesListener.accept('asm_dd config', null, null)
@@ -447,7 +461,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     mergedUpdateConfig.numberOfRules > 0
     mergedUpdateConfig.rawConfig['rules_override'].isEmpty() == true
-    mergedAsmData.isEmpty() == true
+    mergedAsmData.mergedData.rules.isEmpty() == true
   }
 
   void 'stopping appsec unsubscribes from the poller'() {
@@ -463,6 +477,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_DD_RULES
       | CAPABILITY_ASM_IP_BLOCKING
       | CAPABILITY_ASM_EXCLUSIONS
+      | CAPABILITY_ASM_EXCLUSION_DATA
       | CAPABILITY_ASM_REQUEST_BLOCKING
       | CAPABILITY_ASM_USER_BLOCKING
       | CAPABILITY_ASM_CUSTOM_RULES
@@ -470,7 +485,11 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
       | CAPABILITY_ASM_RASP_SQLI
-      | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE,)
+      | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
+      | CAPABILITY_ENDPOINT_FINGERPRINT
+      // | CAPABILITY_ASM_SESSION_FINGERPRINT
+      | CAPABILITY_ASM_NETWORK_FINGERPRINT
+      | CAPABILITY_ASM_HEADER_FINGERPRINT)
     4 * poller.removeListeners(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()

@@ -28,15 +28,15 @@ debugger_test_matrix: &debugger_test_matrix
 
 system_test_matrix: &system_test_matrix
   parameters:
-    weblog-variant: [ 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-3-native', 'jersey-grizzly2', 'resteasy-netty3','ratpack', 'vertx3' ]
+    weblog-variant: ['akka-http', 'jersey-grizzly2', 'play', 'resteasy-netty3', 'ratpack', 'spring-boot', 'spring-boot-jetty', 'spring-boot-openliberty', 'spring-boot-payara', 'spring-boot-undertow', 'spring-boot-wildfly', 'spring-boot-3-native', 'uds-spring-boot', 'vertx3', 'vertx4']
 
 agent_integration_tests_modules: &agent_integration_tests_modules "dd-trace-core|communication|internal-api|utils"
 core_modules: &core_modules "dd-java-agent|dd-trace-core|communication|internal-api|telemetry|utils|dd-java-agent/agent-bootstrap|dd-java-agent/agent-installer|dd-java-agent/agent-tooling|dd-java-agent/agent-builder|dd-java-agent/appsec|dd-java-agent/agent-crashtracking|dd-trace-api|dd-trace-ot"
-instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-java-agent/testing|dd-trace-core|dd-trace-api|internal-api|communication"
+instrumentation_modules: &instrumentation_modules "dd-java-agent/instrumentation|dd-java-agent/agent-tooling|dd-java-agent/agent-iast|dd-java-agent/agent-installer|dd-java-agent/agent-builder|dd-java-agent/agent-bootstrap|dd-java-agent/appsec|dd-java-agent/testing|dd-trace-core|dd-trace-api|internal-api|communication"
 debugger_modules: &debugger_modules "dd-java-agent/agent-debugger|dd-java-agent/agent-bootstrap|dd-java-agent/agent-builder|internal-api|communication|dd-trace-core"
 profiling_modules: &profiling_modules "dd-java-agent/agent-profiling"
 
-default_system_tests_commit: &default_system_tests_commit 06cbfad5f9facbc6e258d9c8208c466cd46efeea
+default_system_tests_commit: &default_system_tests_commit c87bd359aad64a29f280fc5c70a879f7c7f4846e
 
 parameters:
   nightly:
@@ -99,6 +99,11 @@ commands:
   setup_code:
     steps:
       - checkout
+{% if use_git_changes %}
+      - run:
+          name: Fetch base branch
+          command: git fetch origin {{ pr_base_ref }}
+{% endif %}
       - run:
           name: Checkout merge commit
           command: .circleci/checkout_merge_commit.sh
@@ -268,13 +273,6 @@ commands:
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
 
-      - run:
-          name: Install python 3.12
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y python3.12-full python3.12-dev python3.12-venv
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$BASH_ENV"
-
 jobs:
   build:
     <<: *defaults
@@ -305,13 +303,16 @@ jobs:
           name: Build Project
           command: >-
 {% if is_nightly %}
-            ./gradlew resolveAndLockAll --write-locks
+            ./gradlew resolveAndLockAll --write-locks &&
 {% endif %}
             MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2560M -Xms2560M -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
             ./gradlew clean
             << parameters.gradleTarget >>
             -PskipTests
+{% if use_git_changes %}
+            -PgitBaseRef=origin/{{ pr_base_ref }}
+{% endif %}
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
             --rerun-tasks
@@ -411,6 +412,9 @@ jobs:
             ./gradlew
             << parameters.gradleTarget >>
             -PskipTests
+{% if use_git_changes %}
+            -PgitBaseRef=origin/{{ pr_base_ref }}
+{% endif %}
             -PrunBuildSrcTests
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             << pipeline.parameters.gradle_flags >>
@@ -489,6 +493,9 @@ jobs:
       - image: << pipeline.parameters.docker_image >>:{{ docker_image_prefix }}<< parameters.testJvm >>
 
     parameters:
+      environment:
+        type: string
+        default: ""
       testJvm:
         type: string
         default: ""
@@ -551,11 +558,15 @@ jobs:
               PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/<< parameters.stage >>-<< parameters.testJvm >>.jfr,dumponexit=true"
             fi
 
+            << parameters.environment >>
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms<< parameters.maxDaemonHeapSize >> -Xmx<< parameters.maxDaemonHeapSize >> $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=768M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew
             << parameters.gradleTarget >>
             << parameters.gradleParameters >>
+{% if use_git_changes %}
+            -PgitBaseRef=origin/{{ pr_base_ref }}
+{% endif %}
             -PtaskPartitionCount=${CIRCLE_NODE_TOTAL} -PtaskPartition=${CIRCLE_NODE_INDEX}
             <<# parameters.testJvm >>-PtestJvm=<< parameters.testJvm >><</ parameters.testJvm >>
             << pipeline.parameters.gradle_flags >>
@@ -916,7 +927,7 @@ jobs:
   parametric-tests:
     machine:
       image: ubuntu-2404:current
-    resource_class: large
+    resource_class: xlarge
     steps:
       - setup_system_tests
 
@@ -933,6 +944,7 @@ jobs:
           name: Build runner
           command: |
             cd system-tests
+            export TEST_LIBRARY=java
             ./build.sh -i runner
 
       - run:
@@ -941,12 +953,12 @@ jobs:
             set -e
             cd system-tests
             export TEST_LIBRARY=java
-            export PYTEST_WORKER_COUNT=8
+            export PYTEST_XDIST_AUTO_NUM_WORKERS=6
             set +e
             RUN_ATTEMPTS=1
             while [ $RUN_ATTEMPTS -le 3 ]; do
               echo "Running parametric test attempt $RUN_ATTEMPTS"
-              timeout 780s ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
+              timeout 12m ./run.sh PARAMETRIC --log-cli-level=DEBUG --durations=30 -vv
               status=$?
               #timneout returns 124 if it times out
               #if the return code is not 124, then we exit with the status
@@ -1057,7 +1069,7 @@ build_test_jobs: &build_test_jobs
       name: z_test_<< matrix.testJvm >>_base
       triggeredBy: *core_modules
       gradleTarget: ":baseTest"
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
+      gradleParameters: "-PskipFlakyTests"
       stage: core
       cacheType: base
       parallelism: 4
@@ -1070,8 +1082,8 @@ build_test_jobs: &build_test_jobs
         - ok_to_test
       name: z_test_8_base
       triggeredBy: *core_modules
-      gradleTarget: :baseTest jacocoTestReport jacocoTestCoverageVerification
-      gradleParameters: "-PskipFlakyTests -PskipInstTests -PskipSmokeTests -PskipProfilingTests -PskipDebuggerTests"
+      gradleTarget: :baseTest
+      gradleParameters: "-PskipFlakyTests -PcheckCoverage"
       stage: core
       cacheType: base
       parallelism: 4
@@ -1232,6 +1244,20 @@ build_test_jobs: &build_test_jobs
   - tests:
       requires:
         - ok_to_test
+      name: z_test_<< matrix.testJvm >>_ssi_smoke
+      environment: "DD_INJECT_FORCE=true DD_INJECTION_ENABLED=tracer"
+      gradleTarget: "stageMainDist :smokeTest"
+      gradleParameters: "-PskipFlakyTests"
+      stage: smoke
+      cacheType: smoke
+      parallelism: 4
+      maxWorkers: 3
+      matrix:
+        <<: *test_matrix
+
+  - tests:
+      requires:
+        - ok_to_test
       name: test_semeru8_debugger_smoke
       maxWorkers: 4
       gradleTarget: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
@@ -1271,11 +1297,25 @@ build_test_jobs: &build_test_jobs
       maxWorkers: 3
       testJvm: "8"
 
+  - tests:
+      requires:
+        - ok_to_test
+      name: z_test_8_ssi_smoke
+      environment: "DD_INJECT_FORCE=true DD_INJECTION_ENABLED=tracer"
+      gradleTarget: "stageMainDist :smokeTest"
+      gradleParameters: "-PskipFlakyTests"
+      stage: smoke
+      cacheType: smoke
+      parallelism: 4
+      maxWorkers: 3
+      testJvm: "8"
+
   - fan_in:
       requires:
         - z_test_<< matrix.testJvm >>_base
         - z_test_<< matrix.testJvm >>_inst
         - z_test_<< matrix.testJvm >>_smoke
+        - z_test_<< matrix.testJvm >>_ssi_smoke
       name: test_<< matrix.testJvm >>
       stage: tracing
       matrix:
@@ -1286,6 +1326,7 @@ build_test_jobs: &build_test_jobs
         - z_test_8_base
         - z_test_8_inst
         - z_test_8_smoke
+        - z_test_8_ssi_smoke
       name: test_8
       stage: tracing
       testJvm: "8"

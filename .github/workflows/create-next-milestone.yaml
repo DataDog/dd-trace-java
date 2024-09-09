@@ -5,15 +5,17 @@ on:
 
 jobs:
   create_next_milestone:
+    permissions:
+      issues: write # Required to create a milestone
     runs-on: ubuntu-latest
     steps:
       - name: Get next minor version
         id: semvers
-        uses: WyriHaximus/github-action-next-semvers@33d116a4c239252582a60a1ba8dbba63ad493ffd # 1.1.0
+        uses: WyriHaximus/github-action-next-semvers@18aa9ed4152808ab99b88d71f5481e41f8d89930 # 1.2.1
         with:
           version: ${{ github.event.milestone.title }}
       - name: Create next milestone
-        uses: WyriHaximus/github-action-create-milestone@b86699ba7511fa3b61154ac8675d86b01938fc16 # 1.0.0
+        uses: WyriHaximus/github-action-create-milestone@bb0276ee386c630b476fa3ca788457bf3daa7c2e # 1.1.1
         with:
           title: ${{ steps.semvers.outputs.minor }}
         env:

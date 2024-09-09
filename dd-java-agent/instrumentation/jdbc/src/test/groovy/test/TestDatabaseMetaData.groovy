@@ -12,6 +12,8 @@ class TestDatabaseMetaData implements DatabaseMetaData {
     return false
   }
 
+  private String url
+
   @Override
   boolean allTablesAreSelectable() throws SQLException {
     return false
@@ -19,7 +21,14 @@ class TestDatabaseMetaData implements DatabaseMetaData {
 
   @Override
   String getURL() throws SQLException {
-    return "jdbc:testdb://localhost"
+    if (url == null) {
+      return "jdbc:testdb://localhost"
+    }
+    return url
+  }
+
+  void setURL(String url) {
+    this.url = url
   }
 
   @Override

@@ -6,6 +6,7 @@ import static datadog.smoketest.SmokeTestUtils.createProcessBuilder;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
@@ -63,10 +64,9 @@ public final class CodeHotspotsTest {
 
   @BeforeAll
   static void setupAll() throws Exception {
-    if (Platform.isMac() && System.getenv("TEST_LIBDDPROF") == null) {
-      throw new UnsupportedOperationException(
-          "Set TEST_LIBDDPROF env variable to point to MacOS version of libjavaProfiler.so, and rerun.");
-    }
+    assumeFalse(
+        Platform.isMac() || System.getenv("TEST_LIBDDPROF") == null,
+        "Test skipped. Set TEST_LIBDDPROF env variable to point to MacOS version of libjavaProfiler.so, and rerun.");
     Files.createDirectories(LOG_FILE_BASE);
   }
 

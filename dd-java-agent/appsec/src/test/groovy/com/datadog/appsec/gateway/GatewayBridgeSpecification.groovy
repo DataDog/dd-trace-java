@@ -8,6 +8,7 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
+import datadog.trace.api.Config
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -80,6 +81,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, Map<String, Object>, Flow<Void>> graphqlServerRequestMessageCB
   BiConsumer<RequestContext, String> databaseConnectionCB
   BiFunction<RequestContext, String, Flow<Void>> databaseSqlQueryCB
+  BiFunction<RequestContext, String, Flow<Void>> networkConnectionCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -136,7 +138,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * spanInfo.getTags() >> ['http.client_ip':'1.1.1.1']
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
-    1 * mockAppSecCtx.close()
+    1 * mockAppSecCtx.close(false)
     1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
     1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
     1 * traceSegment.setTagTop('appsec.event', true)
@@ -413,6 +415,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.graphqlServerRequestMessage(), _) >> { graphqlServerRequestMessageCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.databaseConnection(), _) >> { databaseConnectionCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.databaseSqlQuery(), _) >> { databaseSqlQueryCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.networkConnection(), _) >> { networkConnectionCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -771,7 +774,27 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.get(KnownAddresses.DB_SQL_QUERY) == 'SELECT * FROM foo'
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
-    gatewayContext.isTransient == false
+    gatewayContext.isTransient == true
+    gatewayContext.isRasp == true
+  }
+
+  void 'process network connection URL'() {
+    setup:
+    final url = 'https://www.datadoghq.com/'
+    eventDispatcher.getDataSubscribers({ KnownAddresses.IO_NET_URL in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = networkConnectionCB.apply(ctx, url)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.IO_NET_URL) == url
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == true
     gatewayContext.isRasp == true
   }
 
@@ -901,5 +924,21 @@ class GatewayBridgeSpecification extends DDSpecification {
     'appsec.events.users.login.success.track' | true
     'appsec.events.users.login.failure.track' | true
     'appsec.another.unrelated.tag'            | false
+  }
+
+  void 'fingerprints are set in the span after a request'() {
+    given:
+    final mockAppSecCtx = new AppSecRequestContext(derivatives: ['_dd.appsec.fp.http.endpoint': 'xyz'])
+    final mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    final spanInfo = Stub(AgentSpan)
+
+    when:
+    requestEndedCB.apply(mockCtx, spanInfo)
+
+    then:
+    1 * traceSegment.setTagTop('_dd.appsec.fp.http.endpoint', 'xyz')
   }
 }

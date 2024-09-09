@@ -28,7 +28,6 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 public class IntegrationTestUtils {
-
   /** Returns the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
     Field classloaderField = null;
@@ -52,10 +51,15 @@ public class IntegrationTestUtils {
     return BootstrapProxy.INSTANCE;
   }
 
+  public static File createJarFileWithClasses(final Class<?>... classes) throws IOException {
+    return createJarFileWithClasses(null, classes);
+  }
+
   /** See {@link IntegrationTestUtils#createJarWithClasses(String, Class[])} */
   public static URL createJarWithClasses(final Class<?>... classes) throws IOException {
     return createJarWithClasses(null, classes);
   }
+
   /**
    * Create a temporary jar on the filesystem with the bytes of the given classes.
    *
@@ -66,7 +70,7 @@ public class IntegrationTestUtils {
    * @return the location of the newly created jar.
    * @throws IOException
    */
-  public static URL createJarWithClasses(final String mainClassname, final Class<?>... classes)
+  public static File createJarFileWithClasses(final String mainClassname, final Class<?>... classes)
       throws IOException {
     final File tmpJar = File.createTempFile(UUID.randomUUID().toString() + "-", ".jar");
     tmpJar.deleteOnExit();
@@ -78,13 +82,21 @@ public class IntegrationTestUtils {
       mainAttributes.put(Attributes.Name.MAIN_CLASS, mainClassname);
       mainAttributes.put(new Attributes.Name("Premain-Class"), mainClassname);
     }
-    final JarOutputStream target = new JarOutputStream(new FileOutputStream(tmpJar), manifest);
-    for (final Class<?> clazz : classes) {
-      addToJar(clazz, target);
-    }
-    target.close();
 
-    return tmpJar.toURI().toURL();
+    try (final JarOutputStream target =
+        new JarOutputStream(new FileOutputStream(tmpJar), manifest)) {
+      for (final Class<?> clazz : classes) {
+        addToJar(clazz, target);
+      }
+    }
+
+    return tmpJar;
+  }
+
+  public static URL createJarWithClasses(final String mainClassname, final Class<?>... classes)
+      throws IOException {
+
+    return createJarFileWithClasses(mainClassname, classes).toURI().toURL();
   }
 
   private static void addToJar(final Class<?> clazz, final JarOutputStream jarOutputStream)
@@ -164,6 +176,18 @@ public class IntegrationTestUtils {
       throws Exception {
     final String classPath = System.getProperty("java.class.path");
     return runOnSeparateJvm(mainClassName, jvmArgs, mainMethodArgs, envVars, classPath, out);
+  }
+
+  public static int runOnSeparateJvm(
+      final String mainClassName,
+      final String[] jvmArgs,
+      final String[] mainMethodArgs,
+      final Map<String, String> envVars,
+      final File classpath,
+      final boolean printOutputStreams)
+      throws Exception {
+    return runOnSeparateJvm(
+        mainClassName, jvmArgs, mainMethodArgs, envVars, classpath.getPath(), printOutputStreams);
   }
 
   public static int runOnSeparateJvm(

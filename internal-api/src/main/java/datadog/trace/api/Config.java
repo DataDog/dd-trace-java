@@ -212,6 +212,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TELEMETRY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -234,6 +235,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_POLL_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATION;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SPAN_DEBUG_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
@@ -540,6 +542,7 @@ import java.util.SortedSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -585,6 +588,10 @@ public class Config {
 
   static class HostNameHolder {
     static final String hostName = initHostName();
+
+    public static String getHostName() {
+      return hostName;
+    }
   }
 
   private final boolean runtimeIdEnabled;
@@ -831,6 +838,7 @@ public class Config {
   private final boolean ciVisibilityFlakyRetryEnabled;
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
+  private final int ciVisibilityTotalFlakyRetryCount;
   private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
   private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
   private final String ciVisibilityModuleName;
@@ -865,6 +873,7 @@ public class Config {
   private final String debuggerExcludeFiles;
   private final int debuggerCaptureTimeout;
   private final String debuggerRedactedIdentifiers;
+  private final Set<String> debuggerRedactionExcludedIdentifiers;
   private final String debuggerRedactedTypes;
   private final boolean debuggerSymbolEnabled;
   private final boolean debuggerSymbolForceUpload;
@@ -1515,11 +1524,14 @@ public class Config {
     // the profiler was enabled at build time or not.
     // Otherwise just do the standard config lookup by key.
     // An extra step is needed to properly handle the 'auto' value for profiling enablement via SSI.
-    profilingEnabled =
-        ProfilingEnablement.of(
-            configProvider.getString(
-                ProfilingConfig.PROFILING_ENABLED,
-                String.valueOf(instrumenterConfig.isProfilingEnabled())));
+    String value =
+        configProvider.getString(
+            ProfilingConfig.PROFILING_ENABLED,
+            String.valueOf(instrumenterConfig.isProfilingEnabled()));
+    // Run a validator that will emit a warning if the value is not a valid ProfilingEnablement
+    // We don't want it to run in each call to ProfilingEnablement.of(value) not to flood the logs
+    ProfilingEnablement.validate(value);
+    profilingEnabled = ProfilingEnablement.of(value);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, PROFILING_AGENTLESS_DEFAULT);
     isDatadogProfilerEnabled =
@@ -1565,7 +1577,8 @@ public class Config {
         configProvider.getInteger(PROFILING_START_DELAY, PROFILING_START_DELAY_DEFAULT);
     boolean profilingStartForceFirstValue =
         configProvider.getBoolean(PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
-    if (profilingEnabled == ProfilingEnablement.AUTO) {
+    if (profilingEnabled == ProfilingEnablement.AUTO
+        || profilingEnabled == ProfilingEnablement.INJECTED) {
       if (profilingStartDelayValue != PROFILING_START_DELAY_DEFAULT) {
         log.info(
             "Profiling start delay is set to {}s, but profiling enablement is set to auto. Using the default delay of {}s.",
@@ -1893,6 +1906,8 @@ public class Config {
     ciVisibilityEarlyFlakeDetectionLowerLimit =
         configProvider.getInteger(CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, 30);
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
+    ciVisibilityTotalFlakyRetryCount =
+        configProvider.getInteger(CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT, 1000);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
     ciVisibilityRumFlushWaitMillis =
@@ -1957,6 +1972,8 @@ public class Config {
     debuggerCaptureTimeout =
         configProvider.getInteger(DEBUGGER_CAPTURE_TIMEOUT, DEFAULT_DEBUGGER_CAPTURE_TIMEOUT);
     debuggerRedactedIdentifiers = configProvider.getString(DEBUGGER_REDACTED_IDENTIFIERS, null);
+    debuggerRedactionExcludedIdentifiers =
+        tryMakeImmutableSet(configProvider.getList(DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS));
     debuggerRedactedTypes = configProvider.getString(DEBUGGER_REDACTED_TYPES, null);
     debuggerSymbolEnabled =
         configProvider.getBoolean(DEBUGGER_SYMBOL_ENABLED, DEFAULT_DEBUGGER_SYMBOL_ENABLED);
@@ -1988,13 +2005,18 @@ public class Config {
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
 
     // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
-    // users. This should be removed once we default to true, and then it can also be moved up
-    // together with the rest of telemetry ocnfig.
+    // users.
+    // FIXME: For progressive rollout, we include by default Java < 11 hosts as product independent
+    // sample users.
+    // FIXME:This should be removed once we default to true, and then it can also be moved up
+    // together with the rest of telemetry config.
     final boolean telemetryLogCollectionEnabledDefault =
         instrumenterConfig.isTelemetryEnabled()
-                && (instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
+                && (instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED
+                    || instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
                     || instrumenterConfig.isCiVisibilityEnabled()
-                    || debuggerEnabled)
+                    || debuggerEnabled
+                    || !Platform.isJavaVersionAtLeast(11))
             || DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
     isTelemetryLogCollectionEnabled =
         configProvider.getBoolean(
@@ -2270,6 +2292,10 @@ public class Config {
 
   public String getHostName() {
     return HostNameHolder.hostName;
+  }
+
+  public Supplier<String> getHostNameSupplier() {
+    return HostNameHolder::getHostName;
   }
 
   public String getServiceName() {
@@ -3226,6 +3252,10 @@ public class Config {
     return ciVisibilityFlakyRetryCount;
   }
 
+  public int getCiVisibilityTotalFlakyRetryCount() {
+    return ciVisibilityTotalFlakyRetryCount;
+  }
+
   public String getCiVisibilityModuleName() {
     return ciVisibilityModuleName;
   }
@@ -3397,6 +3427,10 @@ public class Config {
 
   public String getDebuggerRedactedIdentifiers() {
     return debuggerRedactedIdentifiers;
+  }
+
+  public Set<String> getDebuggerRedactionExcludedIdentifiers() {
+    return debuggerRedactionExcludedIdentifiers;
   }
 
   public String getDebuggerRedactedTypes() {
@@ -4010,6 +4044,11 @@ public class Config {
   public boolean isKafkaLegacyTracingEnabled() {
     return SpanNaming.instance().namingSchema().allowInferredServices()
         && isLegacyTracingEnabled(true, "kafka");
+  }
+
+  public boolean isGooglePubSubLegacyTracingEnabled() {
+    return SpanNaming.instance().namingSchema().allowInferredServices()
+        && isLegacyTracingEnabled(true, "google-pubsub");
   }
 
   public boolean isTimeInQueueEnabled(

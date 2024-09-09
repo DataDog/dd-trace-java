@@ -34,9 +34,11 @@ dependencies {
 
   testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
   testImplementation group: 'org.postgresql', name: 'postgresql', version: '[9.4,42.2.18]'
+  testImplementation group: 'com.microsoft.sqlserver', name: 'mssql-jdbc', version: '10.2.0.jre8'
 
   testImplementation group: 'org.testcontainers', name:'mysql', version: libs.versions.testcontainers.get()
   testImplementation group: 'org.testcontainers', name:'postgresql', version: libs.versions.testcontainers.get()
+  testImplementation group: 'org.testcontainers', name:'mssqlserver', version: '1.19.8'
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
@@ -53,7 +55,7 @@ dependencies {
     }
   }
 
-  latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
+  latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '2.2.+' // 2.3+ requires Java 11
   latestDepTestImplementation group: 'org.apache.derby', name: 'derby', version: '10.14.+'
   latestDepTestImplementation group: 'org.hsqldb', name: 'hsqldb', version: '2.5+'
 
@@ -63,6 +65,7 @@ dependencies {
   // Broke from 0.10.+: https://datadoghq.atlassian.net/browse/AIDM-165
   latestDepTestImplementation group: 'com.mchange', name: 'c3p0', version: '0.9.+'
 
+  latestDepJava11TestImplementation group: 'com.h2database', name: 'h2', version: '+'
   latestDepJava11TestImplementation group: 'com.zaxxer', name: 'HikariCP', version: '+'
 }
 

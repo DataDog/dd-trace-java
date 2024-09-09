@@ -89,7 +89,10 @@ public class ClassesToRetransformFinder {
 
   private void processAdditionalClasses(String sourceFile, Trie changedClasses) {
     sourceFile = stripPackagePath(sourceFile);
-    List<String> additionalClasses = classNamesBySourceFile.get(sourceFile);
+    // need to clone the list to avoid concurrent modification during iteration
+    List<String> additionalClasses =
+        classNamesBySourceFile.computeIfPresent(
+            sourceFile, (k, classNames) -> new ArrayList<>(classNames));
     if (additionalClasses == null) {
       return;
     }

@@ -66,6 +66,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final Collection<TestIdentifier> knownTests;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final AtomicInteger earlyFlakeDetectionsUsed = new AtomicInteger(0);
+  private final AtomicInteger autoRetriesUsed = new AtomicInteger(0);
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
 
   public ProxyTestModule(
@@ -142,8 +143,9 @@ public class ProxyTestModule implements TestFrameworkModule {
         return new RetryNTimes(earlyFlakeDetectionSettings);
       }
       if (flakyTestRetriesEnabled
-          && (flakyTests == null || flakyTests.contains(test.withoutParameters()))) {
-        return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount());
+          && (flakyTests == null || flakyTests.contains(test.withoutParameters()))
+          && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount()) {
+        return new RetryIfFailed(config.getCiVisibilityFlakyRetryCount(), autoRetriesUsed);
       }
     }
     return NeverRetry.INSTANCE;

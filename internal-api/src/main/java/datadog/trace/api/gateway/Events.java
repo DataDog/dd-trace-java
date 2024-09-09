@@ -236,6 +236,18 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) GRPC_SERVER_METHOD;
   }
 
+  static final int NETWORK_CONNECTION_ID = 19;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType NETWORK_CONNECTION =
+      new ET<>("network.connection", NETWORK_CONNECTION_ID);
+
+  /** A I/O network URL */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> networkConnection() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) NETWORK_CONNECTION;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

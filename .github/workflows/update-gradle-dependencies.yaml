@@ -9,10 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Update Gradle dependencies
     permissions:
-      # Commit and push changes to a new branch
-      contents: write
-      # Create a pull request
-      pull-requests: write
+      contents: write # Required to commit and push changes to a new branch
+      pull-requests: write # Required to create a pull request
     steps:
       - name: Checkout repository
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
@@ -70,7 +68,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr create --title "Update Gradle dependencies" \
-            --body "This PR updates the Gradle dependencies.  \n:warning: Don't forget to squash commits before merging :warning:" \
+            --body "This PR updates the Gradle dependencies. ⚠️ Don't forget to squash commits before merging. ⚠️" \
             --base master \
             --head $BRANCH_NAME \
             --label "tag: dependencies" \

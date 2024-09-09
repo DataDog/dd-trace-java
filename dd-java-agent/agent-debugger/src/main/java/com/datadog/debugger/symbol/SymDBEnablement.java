@@ -13,6 +13,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.instrument.Instrumentation;
@@ -160,11 +161,16 @@ public class SymDBEnablement implements ProductListener {
       if (!Files.exists(jarPath)) {
         continue;
       }
+      File jarPathFile = jarPath.toFile();
+      if (jarPathFile.isDirectory()) {
+        // we are not supporting class directories (classpath) but only jar files
+        continue;
+      }
       if (alreadyScannedJars.contains(jarPath.toString())) {
         continue;
       }
       try {
-        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
+        try (JarFile jarFile = new JarFile(jarPathFile)) {
           jarFile.stream()
               .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
               .filter(

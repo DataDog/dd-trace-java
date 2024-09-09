@@ -8,18 +8,22 @@ import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.test.util.Flaky
 import org.apache.activemq.ActiveMQConnectionFactory
 import org.apache.activemq.command.ActiveMQTextMessage
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
 import spock.lang.Shared
 
 import javax.jms.Connection
+import javax.jms.Destination
 import javax.jms.Message
 import javax.jms.MessageListener
 import javax.jms.QueueConnection
 import javax.jms.QueueSession
 import javax.jms.Session
+import javax.jms.TemporaryQueue
+import javax.jms.TemporaryTopic
+import javax.jms.Queue
+import javax.jms.Topic
 import javax.jms.TextMessage
 import javax.jms.TopicConnection
 import javax.jms.TopicSession
@@ -79,9 +83,34 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     broker.stop()
   }
 
-  @Flaky
-  def "sending messages to #jmsResourceName generates spans"() {
+  /**
+   * Create unique destinations of different types. If queue/topic is not temporary, the name will be unique. This
+   * avoids leaking data between tests. Type is enum to get a sane toString that guarantees stable test IDs.
+   */
+  enum DestinationType {
+    QUEUE, TOPIC, TEMPORARY_QUEUE, TEMPORARY_TOPIC
+
+    private static int counter = 0
+
+    Destination create(final Session session) {
+      switch (this) {
+        case QUEUE:
+          return session.createQueue("queue-${counter++}")
+        case TOPIC:
+          return session.createTopic("topic-${counter++}")
+        case TEMPORARY_QUEUE:
+          return session.createTemporaryQueue()
+        case TEMPORARY_TOPIC:
+          return session.createTemporaryTopic()
+        default:
+          throw new IllegalArgumentException("Unknown destination type: $this")
+      }
+    }
+  }
+
+  def "sending messages to #destinationType generates spans"() {
     setup:
+    def destination = destinationType.create(session)
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
@@ -100,11 +129,11 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
     }
 
     when:
@@ -113,12 +142,12 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
+      consumerTraceWithNaming(it, destination, trace(2)[0])
     }
 
     cleanup:
@@ -126,15 +155,16 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     consumer.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
-    session.createTemporaryQueue()   | "Temporary Queue"
-    session.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_QUEUE | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
-  def "closing #jmsResourceName session should close and finish any pending scopes"() {
+  def "closing #destinationType session should close and finish any pending scopes"() {
     setup:
+    def destination = destinationType.create(session)
     def localSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
     def producer = localSession.createProducer(destination)
     def consumer = localSession.createConsumer(destination)
@@ -147,20 +177,21 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     expect:
     receivedMessage.text == messageText1
     assertTraces(2) {
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
     }
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
-    session.createTemporaryQueue()   | "Temporary Queue"
-    session.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_QUEUE | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
-  def "receiving messages from #jmsResourceName in a transacted session"() {
+  def "receiving messages from #destinationType in a transacted session"() {
     setup:
+    def destination = destinationType.create(session)
     def transactedSession = connection.createSession(true, Session.SESSION_TRANSACTED)
     def producer = session.createProducer(destination)
     def consumer = transactedSession.createConsumer(destination)
@@ -181,11 +212,11 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
     }
 
     when:
@@ -194,12 +225,12 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
+      consumerTraceWithNaming(it, destination, trace(2)[0])
     }
 
     cleanup:
@@ -209,15 +240,16 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     transactedSession.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
-    session.createTemporaryQueue()   | "Temporary Queue"
-    session.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_QUEUE | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
-  def "receiving messages from #jmsResourceName with manual acknowledgement"() {
+  def "receiving messages from #destinationType with manual acknowledgement"() {
     setup:
+    def destination = destinationType.create(session)
     def clientSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
     def consumer = clientSession.createConsumer(destination)
@@ -238,11 +270,11 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
     }
 
     when:
@@ -251,12 +283,12 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
+      consumerTraceWithNaming(it, destination, trace(2)[0])
     }
 
     cleanup:
@@ -266,15 +298,16 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     clientSession.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
-    session.createTemporaryQueue()   | "Temporary Queue"
-    session.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_QUEUE | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
-  def "recovering messages from #jmsResourceName with manual acknowledgement"() {
+  def "recovering messages from #destinationType with manual acknowledgement"() {
     setup:
+    def destination = destinationType.create(session)
     def clientSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
     def consumer = clientSession.createConsumer(destination)
@@ -293,11 +326,11 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage2.text == messageText2
     // two consume traces will be finished at this point
     assertTraces(5) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
     }
 
     when:
@@ -312,14 +345,14 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage3.text == messageText3
     // the two consume traces plus three more will be finished at this point
     assertTraces(8) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0]) // redelivered message
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0]) // redelivered message
-      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
+      consumerTraceWithNaming(it, destination, trace(0)[0]) // redelivered message
+      consumerTraceWithNaming(it, destination, trace(1)[0]) // redelivered message
+      consumerTraceWithNaming(it, destination, trace(2)[0])
     }
 
     cleanup:
@@ -329,15 +362,16 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     clientSession.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
-    session.createTemporaryQueue()   | "Temporary Queue"
-    session.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_QUEUE | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
-  def "sending to a MessageListener on #jmsResourceName generates a span"() {
+  def "sending to a MessageListener on #destinationType generates a span"() {
     setup:
+    def destination = destinationType.create(session)
     def lock = new CountDownLatch(1)
     def messageRef = new AtomicReference<TextMessage>()
     def producer = session.createProducer(destination)
@@ -355,8 +389,8 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
     expect:
     assertTraces(2) {
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
     }
     // This check needs to go after all traces have been accounted for
     messageRef.get().text == messageText1
@@ -366,15 +400,16 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     consumer.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
-    session.createTemporaryQueue()   | "Temporary Queue"
-    session.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_QUEUE | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
-  def "sending to a null MessageListener on #jmsResourceName generates only producer spans"() {
+  def "sending to a null MessageListener on #destinationType generates only producer spans"() {
     setup:
+    def destination = destinationType.create(session)
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
     consumer.setMessageListener(null)
@@ -383,7 +418,7 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
     expect:
     assertTraces(1) {
-      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, destination)
     }
 
     cleanup:
@@ -392,15 +427,16 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     consumer.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
-    session.createTemporaryQueue()   | "Temporary Queue"
-    session.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_QUEUE | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
-  def "failing to receive message with receiveNoWait on #jmsResourceName works"() {
+  def "failing to receive message with receiveNoWait on #destinationType works"() {
     setup:
+    def destination = destinationType.create(session)
     def consumer = session.createConsumer(destination)
 
     // Receive with timeout
@@ -416,13 +452,14 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     consumer.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
   }
 
-  def "failing to receive message with wait(timeout) on #jmsResourceName works"() {
+  def "failing to receive message with wait(timeout) on #destinationType works"() {
     setup:
+    def destination = destinationType.create(session)
     def consumer = session.createConsumer(destination)
 
     // Receive with timeout
@@ -438,13 +475,14 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     consumer.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
   }
 
-  def "sending a read-only message to #jmsResourceName fails"() {
+  def "sending a read-only message to #destinationType fails"() {
     setup:
+    def destination = destinationType.create(session)
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
@@ -467,14 +505,14 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     // write properties in MessagePropertyTextMap when readOnlyProperties = true.
     // The consumer span will also not be linked to the parent.
     assertTraces(2) {
-      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, destination)
       trace(1) {
         // Consumer trace
         span {
           parent()
           serviceName service()
           operationName operationForConsumer()
-          resourceName "Consumed from $jmsResourceName"
+          resourceName "Consumed from ${toJmsResourceName(destination)}"
           spanType DDSpanTypes.MESSAGE_CONSUMER
           errored false
 
@@ -493,17 +531,18 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     consumer.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
-    session.createTemporaryQueue()   | "Temporary Queue"
-    session.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_QUEUE | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
   def "sending a message with disabled timestamp generates spans without specific tag"() {
     setup:
-    def producer = session.createProducer(session.createQueue("someQueue"))
-    def consumer = session.createConsumer(session.createQueue("someQueue"))
+    def destination = DestinationType.QUEUE.create(session)
+    def producer = session.createProducer(destination)
+    def consumer = session.createConsumer(destination)
 
     producer.setDisableMessageTimestamp(true)
     producer.send(message1)
@@ -515,18 +554,18 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
     expect:
     assertTraces(2) {
-      producerTraceWithNaming(it, "Queue someQueue")
-      consumerTraceWithNaming(it, "Queue someQueue", trace(0)[0], isTimeStampDisabled)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0], isTimeStampDisabled)
     }
 
     cleanup:
     producer.close()
     consumer.close()
-
   }
 
-  def "traceable work between two receive calls has jms.consume parent"() {
+  def "traceable work between two #destinationType receive calls has jms.consume parent"() {
     setup:
+    def destination = destinationType.create(session)
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
@@ -540,9 +579,9 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     expect:
     receivedMessage.text == messageText1
     assertTraces(2) {
-      producerTraceWithNaming(it, jmsResourceName)
+      producerTraceWithNaming(it, destination)
       trace(2) {
-        consumerSpan(it, jmsResourceName, trace(0)[0], false, service(), operationForConsumer())
+        consumerSpan(it, toJmsResourceName(destination), trace(0)[0], false, service(), operationForConsumer())
         span {
           operationName "do.stuff"
           childOf(trace(1)[0])
@@ -555,20 +594,21 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     consumer.close()
 
     where:
-    destination                      | jmsResourceName
-    session.createQueue("someQueue") | "Queue someQueue"
-    session.createTopic("someTopic") | "Topic someTopic"
-    session.createTemporaryQueue()   | "Temporary Queue"
-    session.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_QUEUE | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
-  def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on producer side"() {
+  def "sending a message to #destinationType with given disabled topic or queue disables propagation on producer side"() {
     setup:
+    def destination = destinationType.create(session)
     // create consumer while propagation is enabled (state will be cached)
     def consumer = session.createConsumer(destination)
     // now disable propagation for any messages produced in the given topic/queue
-    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
-    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, toName(destination))
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, toName(destination))
     def producer = session.createProducer(destination)
     producer.send(message1)
     TextMessage receivedMessage = consumer.receive()
@@ -578,18 +618,18 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage.text == messageText1
     if (expected) {
       assertTraces(2) {
-        producerTraceWithNaming(it, jmsResourceName)
-        consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+        producerTraceWithNaming(it, destination)
+        consumerTraceWithNaming(it, destination, trace(0)[0])
       }
     } else {
       assertTraces(2) {
-        producerTraceWithNaming(it, jmsResourceName)
+        producerTraceWithNaming(it, destination)
         trace(1) {
           span {
             parentSpanId(0 as BigInteger)
             serviceName service()
             operationName operationForConsumer()
-            resourceName "Consumed from $jmsResourceName"
+            resourceName "Consumed from ${toJmsResourceName(destination)}"
             spanType DDSpanTypes.MESSAGE_CONSUMER
             errored false
             tags {
@@ -605,19 +645,21 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     cleanup:
     producer.close()
     consumer.close()
+
     where:
-    destination                      | jmsResourceName   | queue       | topic       | expected
-    session.createQueue("someQueue") | "Queue someQueue" | "someQueue" | "someTopic" | false
-    session.createTopic("someTopic") | "Topic someTopic" | ""          | "someTopic" | false
-    session.createTemporaryQueue()   | "Temporary Queue" | ""          | ""          | true
-    session.createTemporaryTopic()   | "Temporary Topic" | "random"    | ""          | true
+    destinationType                 | expected
+    DestinationType.QUEUE           | false
+    DestinationType.TOPIC           | false
+    DestinationType.TEMPORARY_QUEUE | true
+    DestinationType.TEMPORARY_TOPIC | true
   }
 
-  def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on consumer side"() {
+  def "sending a message to #destinationType with given disabled topic or queue disables propagation on consumer side"() {
     setup:
+    def destination = destinationType.create(session)
     // create consumer while propagation is disabled for given topic/queue (state will be cached)
-    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
-    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, toName(destination))
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, toName(destination))
     def consumer = session.createConsumer(destination)
     // now enable propagation for the producer and any messages produced
     removeSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS)
@@ -631,18 +673,18 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage.text == messageText1
     if (expected) {
       assertTraces(2) {
-        producerTraceWithNaming(it, jmsResourceName)
-        consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+        producerTraceWithNaming(it, destination)
+        consumerTraceWithNaming(it, destination, trace(0)[0])
       }
     } else {
       assertTraces(2) {
-        producerTraceWithNaming(it, jmsResourceName)
+        producerTraceWithNaming(it, destination)
         trace(1) {
           span {
             parentSpanId(0 as BigInteger)
             serviceName service()
             operationName operationForConsumer()
-            resourceName "Consumed from $jmsResourceName"
+            resourceName "Consumed from ${toJmsResourceName(destination)}"
             spanType DDSpanTypes.MESSAGE_CONSUMER
             errored false
             tags {
@@ -658,19 +700,21 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     cleanup:
     producer.close()
     consumer.close()
+
     where:
-    destination                      | jmsResourceName   | queue       | topic       | expected
-    session.createQueue("someQueue") | "Queue someQueue" | "someQueue" | "someTopic" | false
-    session.createTopic("someTopic") | "Topic someTopic" | ""          | "someTopic" | false
-    session.createTemporaryQueue()   | "Temporary Queue" | ""          | ""          | true
-    session.createTemporaryTopic()   | "Temporary Topic" | "random"    | ""          | true
+    destinationType                 | expected
+    DestinationType.QUEUE           | false
+    DestinationType.TOPIC           | false
+    DestinationType.TEMPORARY_QUEUE | true
+    DestinationType.TEMPORARY_TOPIC | true
   }
 
-  def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation in listener"() {
+  def "sending a message to #destinationType with given disabled topic or queue disables propagation in listener"() {
     setup:
+    def destination = destinationType.create(session)
     // create consumer while propagation is disabled for given topic/queue (state will be cached)
-    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
-    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, toName(destination))
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, toName(destination))
     def consumer = session.createConsumer(destination)
     // now enable propagation for the producer and any messages produced
     removeSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS)
@@ -691,18 +735,18 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     expect:
     if (expected) {
       assertTraces(2) {
-        producerTraceWithNaming(it, jmsResourceName)
-        consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
+        producerTraceWithNaming(it, destination)
+        consumerTraceWithNaming(it, destination, trace(0)[0])
       }
     } else {
       assertTraces(2) {
-        producerTraceWithNaming(it, jmsResourceName)
+        producerTraceWithNaming(it, destination)
         trace(1) {
           span {
             parentSpanId(0 as BigInteger)
             serviceName service()
             operationName operationForConsumer()
-            resourceName "Consumed from $jmsResourceName"
+            resourceName "Consumed from ${toJmsResourceName(destination)}"
             spanType DDSpanTypes.MESSAGE_CONSUMER
             errored false
             tags {
@@ -723,15 +767,16 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     consumer.close()
 
     where:
-    destination                      | jmsResourceName   | queue       | topic       | expected
-    session.createQueue("someQueue") | "Queue someQueue" | "someQueue" | "someTopic" | false
-    session.createTopic("someTopic") | "Topic someTopic" | ""          | "someTopic" | false
-    session.createTemporaryQueue()   | "Temporary Queue" | ""          | ""          | true
-    session.createTemporaryTopic()   | "Temporary Topic" | "random"    | ""          | true
+    destinationType                 | expected
+    DestinationType.QUEUE           | false
+    DestinationType.TOPIC           | false
+    DestinationType.TEMPORARY_QUEUE | true
+    DestinationType.TEMPORARY_TOPIC | true
   }
 
-  def "queue session with #jmsResourceName generates spans"() {
+  def "queue session with #destinationType generates spans"() {
     setup:
+    def destination = destinationType.create(queueSession)
     def sender = queueSession.createSender(destination)
     def receiver = queueSession.createReceiver(destination)
 
@@ -750,11 +795,11 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
     }
 
     when:
@@ -763,12 +808,12 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
+      consumerTraceWithNaming(it, destination, trace(2)[0])
     }
 
     cleanup:
@@ -776,13 +821,14 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receiver.close()
 
     where:
-    destination                           | jmsResourceName
-    queueSession.createQueue("someQueue") | "Queue someQueue"
-    queueSession.createTemporaryQueue()   | "Temporary Queue"
+    destinationType                 | _
+    DestinationType.QUEUE           | _
+    DestinationType.TEMPORARY_QUEUE | _
   }
 
-  def "topic session with #jmsResourceName generates spans"() {
+  def "topic session with #destinationType generates spans"() {
     setup:
+    def destination = destinationType.create(topicSession)
     def publisher = topicSession.createPublisher(destination)
     def subscriber = topicSession.createSubscriber(destination)
 
@@ -801,11 +847,11 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
     }
 
     when:
@@ -814,12 +860,12 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
+      consumerTraceWithNaming(it, destination, trace(2)[0])
     }
 
     cleanup:
@@ -827,13 +873,14 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     subscriber.close()
 
     where:
-    destination                           | jmsResourceName
-    topicSession.createTopic("someTopic") | "Topic someTopic"
-    topicSession.createTemporaryTopic()   | "Temporary Topic"
+    destinationType                 | _
+    DestinationType.TOPIC           | _
+    DestinationType.TEMPORARY_TOPIC | _
   }
 
-  def "durable topic session with #jmsResourceName generates spans"() {
+  def "durable topic session generates spans"() {
     setup:
+    def destination = DestinationType.TOPIC.create(topicSession)
     def publisher = topicSession.createPublisher(destination)
     def subscriber = topicSession.createDurableSubscriber(destination, 'test')
 
@@ -852,11 +899,11 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage3.text == messageText3
     // only two consume traces will be finished at this point
     assertTraces(5) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
     }
 
     when:
@@ -865,25 +912,47 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     then:
     // now the last consume trace will also be finished
     assertTraces(6) {
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      producerTraceWithNaming(it, jmsResourceName)
-      consumerTraceWithNaming(it, jmsResourceName, trace(0)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(1)[0])
-      consumerTraceWithNaming(it, jmsResourceName, trace(2)[0])
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
+      consumerTraceWithNaming(it, destination, trace(2)[0])
     }
 
     cleanup:
     publisher.close()
     subscriber.close()
-
-    where:
-    destination                           | jmsResourceName
-    topicSession.createTopic("someTopic") | "Topic someTopic"
   }
 
-  def producerTraceWithNaming(ListWriterAssert writer, String jmsResourceName) {
-    producerTrace(writer, jmsResourceName, service(), operationForProducer())
+  String toJmsResourceName(Destination destination) {
+    if (destination instanceof TemporaryQueue) {
+      return "Temporary Queue"
+    } else if (destination instanceof TemporaryTopic) {
+      return "Temporary Topic"
+    } else if (destination instanceof Queue) {
+      return "Queue ${((Queue) destination).getQueueName()}"
+    } else if (destination instanceof Topic) {
+      return "Topic ${((Topic) destination).getTopicName()}"
+    }
+    throw new IllegalArgumentException("Unknown destination type: $destination")
+  }
+
+  String toName(Destination destination) {
+    if (destination instanceof TemporaryQueue) {
+      return ""
+    } else if (destination instanceof TemporaryTopic) {
+      return ""
+    } else if (destination instanceof Queue) {
+      return ((Queue) destination).getQueueName()
+    } else if (destination instanceof Topic) {
+      return ((Topic) destination).getTopicName()
+    }
+    throw new IllegalArgumentException("Unknown destination type: $destination")
+  }
+
+  def producerTraceWithNaming(ListWriterAssert writer, Destination destination) {
+    producerTrace(writer, toJmsResourceName(destination), service(), operationForProducer())
   }
 
   static producerTrace(ListWriterAssert writer, String jmsResourceName, String producerService = "jms", String producerOperation = "jms.produce") {
@@ -910,8 +979,8 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     }
   }
 
-  def consumerTraceWithNaming(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
-    consumerTrace(writer, jmsResourceName, parentSpan, isTimestampDisabled, service(), operationForConsumer())
+  def consumerTraceWithNaming(ListWriterAssert writer, Destination destination, DDSpan parentSpan, boolean isTimestampDisabled = false) {
+    consumerTrace(writer, toJmsResourceName(destination), parentSpan, isTimestampDisabled, service(), operationForConsumer())
   }
 
   static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false,

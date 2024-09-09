@@ -141,6 +141,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
   void addLink(AgentSpanLink link);
 
+  boolean isRequiresPostProcessing();
+
   @Override
   default ScopedContext storeInto(ScopedContext context) {
     return context.with(ScopedContextKey.SPAN_KEY, this);
@@ -227,5 +229,21 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo, ImplicitContextKeyed
 
       String getCustomIpHeader();
     }
+  }
+
+  interface Attributes {
+    /**
+     * Gets the attributes as an immutable map.
+     *
+     * @return The attributes as an immutable map.
+     */
+    Map<String, String> asMap();
+
+    /**
+     * Checks whether the attributes are empty.
+     *
+     * @return {@code true} if the attributes are empty, {@code false} otherwise.
+     */
+    boolean isEmpty();
   }
 }
