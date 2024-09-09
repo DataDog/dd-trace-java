@@ -15,6 +15,7 @@ type Book {
   cover: String
   isbn: ID!
   bookHash: Int!
+  year: Int
 }
 
 type Author {
