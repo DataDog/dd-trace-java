@@ -5,6 +5,8 @@ import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector;
 import datadog.trace.bootstrap.ContextStore;
+import java.net.URL;
+import java.util.BitSet;
 
 public abstract class InstrumentationBridge {
 
@@ -15,6 +17,7 @@ public abstract class InstrumentationBridge {
   private static volatile BuildEventsHandler.Factory BUILD_EVENTS_HANDLER_FACTORY;
   private static volatile CiVisibilityMetricCollector METRIC_COLLECTOR =
       NoOpMetricCollector.INSTANCE;
+  private static volatile ClassMatchingCache CLASS_MATCHING_CACHE = ClassMatchingCache.NO_OP;
 
   public static void registerTestEventsHandlerFactory(
       TestEventsHandler.Factory testEventsHandlerFactory) {
@@ -43,5 +46,17 @@ public abstract class InstrumentationBridge {
 
   public static CiVisibilityMetricCollector getMetricCollector() {
     return METRIC_COLLECTOR;
+  }
+
+  public static void recordMatchingResult(String name, URL classFile, BitSet ids) {
+    CLASS_MATCHING_CACHE.recordMatchingResult(name, classFile, ids);
+  }
+
+  public static BitSet getRecordedMatchingResult(String name, URL classFile) {
+    return CLASS_MATCHING_CACHE.getRecordedMatchingResult(name, classFile);
+  }
+
+  public static void registerClassMatchingCache(ClassMatchingCache cache) {
+    CLASS_MATCHING_CACHE = cache;
   }
 }

@@ -287,6 +287,8 @@ public class Agent {
       startCwsAgent();
     }
 
+    preStartCiVisibility(inst); // FIXME nikita: is this the right place?
+
     /*
      * Force the task scheduler init early. The exception profiling instrumentation may get in way of the initialization
      * when it will happen after the class transformers were added.
@@ -853,6 +855,23 @@ public class Agent {
       }
 
       StaticEventLogger.end("CI Visibility");
+    }
+  }
+
+  private static void preStartCiVisibility(Instrumentation inst) {
+    if (ciVisibilityEnabled) {
+      StaticEventLogger.begin("CI Visibility pre-start");
+      try {
+        final Class<?> ciVisibilitySysClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
+        final Method ciVisibilityPreStartMethod =
+            ciVisibilitySysClass.getMethod("preStart", Instrumentation.class);
+        ciVisibilityPreStartMethod.invoke(null, inst);
+      } catch (final Throwable e) {
+        log.warn("Could not pre-start CI Visibility subsystem", e);
+      }
+
+      StaticEventLogger.end("CI Visibility pre-start");
     }
   }
 

@@ -29,13 +29,16 @@ import datadog.trace.civisibility.domain.headless.HeadlessTestSession;
 import datadog.trace.civisibility.domain.manualapi.ManualApiTestSession;
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl;
 import datadog.trace.civisibility.events.TestEventsHandlerImpl;
+import datadog.trace.civisibility.ipc.SignalClient;
 import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
 import datadog.trace.civisibility.test.ExecutionStrategy;
+import datadog.trace.civisibility.transform.ParentClassMatchingCache;
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
 import datadog.trace.civisibility.utils.ProcessHierarchyUtils;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Predicate;
@@ -46,6 +49,21 @@ import org.slf4j.LoggerFactory;
 public class CiVisibilitySystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilitySystem.class);
+
+  public static void preStart(Instrumentation inst) {
+    Config config = Config.get();
+    if (!config.isCiVisibilityEnabled()) {
+      LOGGER.debug("CI Visibility is disabled");
+      return;
+    }
+
+    if (ProcessHierarchyUtils.isChild()) {
+      // FIXME nikita: add a config switch to disable this feature
+      InetSocketAddress signalServerAddress = ProcessHierarchyUtils.getSignalServerAddress();
+      SignalClient.Factory factory = new SignalClient.Factory(signalServerAddress, config);
+      InstrumentationBridge.registerClassMatchingCache(new ParentClassMatchingCache(factory));
+    }
+  }
 
   public static void start(Instrumentation inst, SharedCommunicationObjects sco) {
     Config config = Config.get();

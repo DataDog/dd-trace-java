@@ -5,10 +5,13 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.RETRANSFORMER;
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.CustomExcludes;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ProxyClassIgnores;
+import datadog.trace.agent.tooling.bytebuddy.outline.WithLocation;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.time.TimeUtils;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.instrument.Instrumentation;
+import java.net.URL;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -71,6 +74,19 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
       return false;
     }
 
+    // FIXME nikita: try to move this into a matcher wrapper that is only created if CI Vis is
+    // enabled and this is a child process (and not headless)
+    if (target instanceof WithLocation) {
+      WithLocation targetWithLocation = (WithLocation) target;
+      URL classFile = targetWithLocation.getClassFile();
+      String name = target.getName();
+      BitSet recordedIds = InstrumentationBridge.getRecordedMatchingResult(name, classFile);
+      if (recordedIds != null) {
+        recordedMatches.set(recordedIds);
+        return !recordedIds.isEmpty();
+      }
+    }
+
     BitSet ids = recordedMatches.get();
     ids.clear();
 
@@ -90,6 +106,13 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
           log.debug("Instrumentation matcher unexpected exception - {}", matcher.describe(), e);
         }
       }
+    }
+
+    if (target instanceof WithLocation) {
+      WithLocation targetWithLocation = (WithLocation) target;
+      URL classFile = targetWithLocation.getClassFile();
+      String name = target.getName();
+      InstrumentationBridge.recordMatchingResult(name, classFile, ids);
     }
 
     InstrumenterMetrics.matchType(fromTick);

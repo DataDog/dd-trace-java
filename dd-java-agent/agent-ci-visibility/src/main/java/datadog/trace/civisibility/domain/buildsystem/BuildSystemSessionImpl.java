@@ -2,6 +2,7 @@ package datadog.trace.civisibility.domain.buildsystem;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Pair;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
@@ -21,6 +22,9 @@ import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.BuildSystemSession;
 import datadog.trace.civisibility.domain.InstrumentationType;
+import datadog.trace.civisibility.ipc.AckResponse;
+import datadog.trace.civisibility.ipc.ClassMatchingRecord;
+import datadog.trace.civisibility.ipc.ClassMatchingResponse;
 import datadog.trace.civisibility.ipc.ErrorResponse;
 import datadog.trace.civisibility.ipc.ExecutionSettingsRequest;
 import datadog.trace.civisibility.ipc.ExecutionSettingsResponse;
@@ -33,13 +37,18 @@ import datadog.trace.civisibility.source.MethodLinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
+import datadog.trace.civisibility.transform.ClassMatchingRequest;
 import datadog.trace.civisibility.utils.SpanUtils;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -100,9 +109,29 @@ public class BuildSystemSessionImpl<T extends CoverageCalculator> extends Abstra
         SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
     signalServer.registerSignalHandler(
         SignalType.EXECUTION_SETTINGS_REQUEST, this::onExecutionSettingsRequestReceived);
+    signalServer.registerSignalHandler(
+        SignalType.CLASS_MATCHING_RECORD, this::onClassMatchingRecordReceived);
+    signalServer.registerSignalHandler(
+        SignalType.CLASS_MATCHING_REQUEST, this::onClassMatchingRequestReceived);
     signalServer.start();
 
     setTag(Tags.TEST_COMMAND, startCommand);
+  }
+
+  // FIXME nikita: reorg code, see if fixed size cache can be used
+  private final ConcurrentMap<Pair<String, URL>, BitSet> classMatchingCache =
+      new ConcurrentHashMap<>();
+
+  private SignalResponse onClassMatchingRecordReceived(ClassMatchingRecord record) {
+    classMatchingCache.put(Pair.of(record.getName(), record.getClassFile()), record.getIds());
+    return AckResponse.INSTANCE;
+  }
+
+  // FIXME nikita: do a batch load on fork start??? And batch record (when? On finish or after
+  // instrumentation?)
+  private SignalResponse onClassMatchingRequestReceived(ClassMatchingRequest request) {
+    BitSet ids = classMatchingCache.get(Pair.of(request.getName(), request.getClassFile()));
+    return new ClassMatchingResponse(ids);
   }
 
   private static List<String> getCoverageEnabledPackages(

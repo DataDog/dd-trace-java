@@ -7,8 +7,11 @@ public enum SignalType {
   REPO_INDEX_REQUEST((byte) 3),
   REPO_INDEX_RESPONSE((byte) 4),
   EXECUTION_SETTINGS_REQUEST((byte) 5),
-  MODULE_SETTINGS_RESPONSE((byte) 6),
-  MODULE_COVERAGE_DATA_JACOCO((byte) 7);
+  EXECUTION_SETTINGS_RESPONSE((byte) 6),
+  MODULE_COVERAGE_DATA_JACOCO((byte) 7),
+  CLASS_MATCHING_RECORD((byte) 8),
+  CLASS_MATCHING_REQUEST((byte) 9),
+  CLASS_MATCHING_RESPONSE((byte) 10);
 
   private static final SignalType[] VALUES = SignalType.values();
 

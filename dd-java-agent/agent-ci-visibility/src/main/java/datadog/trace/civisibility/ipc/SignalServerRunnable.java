@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.ipc;
 
+import datadog.trace.civisibility.transform.ClassMatchingRequest;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -27,6 +28,8 @@ class SignalServerRunnable implements Runnable {
         SignalType.MODULE_COVERAGE_DATA_JACOCO, ModuleCoverageDataJacoco::deserialize);
     DESERIALIZERS.put(SignalType.REPO_INDEX_REQUEST, b -> RepoIndexRequest.INSTANCE);
     DESERIALIZERS.put(SignalType.EXECUTION_SETTINGS_REQUEST, ExecutionSettingsRequest::deserialize);
+    DESERIALIZERS.put(SignalType.CLASS_MATCHING_RECORD, ClassMatchingRecord::deserialize);
+    DESERIALIZERS.put(SignalType.CLASS_MATCHING_REQUEST, ClassMatchingRequest::deserialize);
   }
 
   private final Selector selector;
