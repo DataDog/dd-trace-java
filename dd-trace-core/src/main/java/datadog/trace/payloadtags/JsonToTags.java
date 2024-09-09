@@ -161,9 +161,9 @@ public final class JsonToTags {
     boolean visitedAll =
         traverse(
             dc.json(),
-            new StringBuilder(),
+            new StringBuilder(tagPrefix),
             (path, value) -> {
-              tags.put(tagPrefix + path, value);
+              tags.put(path.toString(), value);
               return tags.size() < limitTags;
             },
             0);
@@ -196,7 +196,7 @@ public final class JsonToTags {
 
   private interface JsonVisitor {
     /* return true to continue or false to stop visiting */
-    boolean visit(String path, Object value);
+    boolean visit(CharSequence path, Object value);
   }
 
   private boolean traverse(Object json, StringBuilder pathBuf, JsonVisitor visitor, int depth) {
@@ -230,7 +230,7 @@ public final class JsonToTags {
         index += 1;
       }
     } else {
-      return visitor.visit(pathBuf.toString(), json);
+      return visitor.visit(pathBuf, json);
     }
     return true;
   }
