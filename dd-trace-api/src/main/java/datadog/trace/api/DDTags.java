@@ -4,10 +4,10 @@ public class DDTags {
 
   private static final String DD_LD_PREFIX = "_dd.ld.";
 
-  public static final String DD_STACK_CODE_ORIGIN = "_dd.stack.code_origin";
-  public static final String DD_STACK_CODE_ORIGIN_TYPE = "_dd.stack.code_origin.type";
+  public static final String DD_STACK_CODE_ORIGIN = "_dd.stack.code_origin.%d.";
+  public static final String DD_STACK_CODE_ORIGIN_TYPE = DD_STACK_CODE_ORIGIN + "type";
   // _dd.stack.code_origin.frame.%d.file|line|method|type|snapshot_id
-  public static final String DD_STACK_CODE_ORIGIN_FRAME = "_dd.stack.code_origin.frame.%d.%s";
+  public static final String DD_STACK_CODE_ORIGIN_FRAME = DD_STACK_CODE_ORIGIN + "frame.%d.%s";
 
   public static final String DD_CODE_ORIGIN_FILE = DD_LD_PREFIX + "code_origin.file";
   public static final String DD_CODE_ORIGIN_METHOD = DD_LD_PREFIX + "code_origin.method";

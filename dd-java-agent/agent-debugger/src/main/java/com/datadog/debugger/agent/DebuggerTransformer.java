@@ -527,7 +527,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
 
   private InstrumentationResult applyInstrumentation(
       MethodInfo methodInfo, List<ProbeDefinition> definitions) {
-
     Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
     definitions.forEach(
         probeDefinition -> diagnostics.put(probeDefinition.getProbeId(), new ArrayList<>()));

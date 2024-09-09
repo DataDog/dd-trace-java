@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.debugger.spanorigin;
 
+import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
 import static java.util.Arrays.stream;
 
 import datadog.trace.api.InstrumenterConfig;
@@ -13,13 +14,13 @@ public class CodeOriginInfo {
           stream(method.getParameterTypes())
               .map(Class::getName)
               .collect(Collectors.joining(",", "(", ")"));
-      //      captureCodeOrigin(signature);
+      captureCodeOrigin(signature);
     }
   }
 
   public static void exit() {
     if (InstrumenterConfig.get().isCodeOriginEnabled()) {
-      //      captureCodeOrigin(null);
+      captureCodeOrigin(null);
     }
   }
 }

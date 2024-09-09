@@ -1,6 +1,7 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.codeorigin.DebuggerConfiguration.isDebuggerEnabled;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_SNAPSHOT_ID;
 import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
@@ -74,32 +75,34 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       LOGGER.debug("Could not find the exit span for probeId {}", id);
       return;
     }
-    applySpanOriginTags(span);
+    String snapshotId = null;
     if (isDebuggerEnabled(span)) {
       Snapshot snapshot = createSnapshot();
       if (fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot)) {
+        snapshotId = snapshot.getId();
         LOGGER.debug(
             "committing exception probe id={}, snapshot id={}, exception id={}",
             id,
-            snapshot.getId(),
+            snapshotId,
             snapshot.getExceptionId());
 
-        addSnapshotId(span, snapshot.getId());
         commitSnapshot(snapshot, DebuggerAgent.getSink());
       }
     }
+    applySpanOriginTags(span, snapshotId);
   }
 
-  private void applySpanOriginTags(AgentSpan span) {
+  private void applySpanOriginTags(AgentSpan span, String snapshotId) {
     List<StackTraceElement> entries = getUserStackFrames();
     if (!entries.isEmpty()) {
       Set<AgentSpan> spans = new LinkedHashSet<>();
-      spans.add(span);
+      AgentSpan rootSpan = span.getLocalRootSpan() != null ? span.getLocalRootSpan() : span;
+      if (rootSpan != null) {
+        spans.add(rootSpan);
+      }
+      int stackIndex = countExistingStacks(span);
       if (entrySpanProbe) {
-        AgentSpan rootSpan = span.getLocalRootSpan() != null ? span.getLocalRootSpan() : span;
-        if (rootSpan != null) {
-          spans.add(rootSpan);
-        }
+        spans.add(span);
         StackTraceElement entry = entries.get(0);
         for (AgentSpan s : spans) {
           s.setTag(DDTags.DD_CODE_ORIGIN_FILE, toFileName(entry.getClassName()));
@@ -107,28 +110,37 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
           s.setTag(DDTags.DD_CODE_ORIGIN_LINE, entry.getLineNumber());
           s.setTag(DDTags.DD_CODE_ORIGIN_TYPE, entry.getClassName());
           s.setTag(DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE, signature);
+          if (snapshotId != null) {
+            s.setTag(DD_CODE_ORIGIN_SNAPSHOT_ID, snapshotId);
+          }
         }
       }
       for (AgentSpan s : spans) {
-        s.setTag(format(DD_STACK_CODE_ORIGIN_TYPE), entrySpanProbe ? "entry" : "exit");
+        s.setTag(format(DD_STACK_CODE_ORIGIN_TYPE, stackIndex), entrySpanProbe ? "entry" : "exit");
 
         for (int i = 0; i < entries.size(); i++) {
           StackTraceElement info = entries.get(i);
-          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "file"), info.getFileName());
-          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
-          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
-          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
+          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "file"), info.getFileName());
+          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "line"), info.getLineNumber());
+          s.setTag(
+              format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "method"), info.getMethodName());
+          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "type"), info.getClassName());
+          if (i == 0 && snapshotId != null) {
+            s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "snapshot_id"), snapshotId);
+          }
         }
       }
     }
   }
 
-  private void addSnapshotId(AgentSpan span, String snapshotId) {
-    span.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, 0, "snapshot_id"), snapshotId);
-    if (entrySpanProbe) {
-      span.getLocalRootSpan()
-          .setTag(format(DD_STACK_CODE_ORIGIN_FRAME, 0, "snapshot_id"), snapshotId);
+  private int countExistingStacks(AgentSpan span) {
+    Set<String> keys = span.getLocalRootSpan().getTags().keySet();
+    int count = 0;
+    while (keys.contains(format(DD_STACK_CODE_ORIGIN_FRAME, count, 0, "file"))) {
+      count++;
     }
+
+    return count;
   }
 
   @Override

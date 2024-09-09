@@ -81,14 +81,15 @@ public class CodeOriginProbeManager {
       addFingerprint(fingerprint, probe);
 
       installProbe(probe);
+      if (AgentTracer.get().activeSpan() != null) {
+        probe.commit(
+            CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+      }
+
     } else {
       probe = fingerprints.get(fingerprint);
     }
 
-    if (AgentTracer.get().activeSpan() != null) {
-      probe.commit(
-          CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
-    }
     return probe.getId();
   }
 
