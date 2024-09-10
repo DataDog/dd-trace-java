@@ -53,15 +53,13 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   }
 
   def setup() {
-    def cleanupSpan = runUnderTrace("cleanup") {
-      activeSpan()
-    }
-    TEST_WRITER.waitUntilReported(cleanupSpan)
     TEST_WRITER.start()
   }
 
   def cleanup() {
-    redissonClient.getKeys().flushdb()
+    try (def suppressScope = TEST_TRACER.muteTracing()) {
+      redissonClient.getKeys().flushdb()
+    }
   }
 
   def "bucket set command"() {
