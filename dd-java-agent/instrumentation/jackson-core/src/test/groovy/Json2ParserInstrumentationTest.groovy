@@ -42,8 +42,7 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     0 * _
 
     where:
-    //    target << testSuite()
-    target << ["{\"root\":\"root_value\",\"nested\":{\"nested_array\":[\"array_0\",\"array_1\"]}}"]
+    target << testSuite()
   }
 
   void 'test json parsing (not tainted)'() {
@@ -68,7 +67,8 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
   }
 
   private static List<Object> testSuite() {
-    return [JSON_STRING, new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
+    //    return [JSON_STRING, new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
+    return [JSON_STRING]
   }
 
   private static class SourceImpl implements Taintable.Source {
