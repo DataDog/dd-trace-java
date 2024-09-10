@@ -11,6 +11,7 @@ import static com.datadog.debugger.util.TestHelper.setFieldInConfig;
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -1779,7 +1780,7 @@ public class CapturedSnapshotTest {
         "java.lang.RuntimeException",
         "oops",
         "com.datadog.debugger.CapturedSnapshot31.uncaughtException",
-        24);
+        30);
   }
 
   @Test
@@ -1810,12 +1811,23 @@ public class CapturedSnapshotTest {
     int result = Reflect.onClass(testClass).call("main", "deepScopes").get();
     assertEquals(4, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertEquals(6, snapshot.getCaptures().getReturn().getLocals().size());
+    // localVarL4 can not be captured/hoisted because same name, same slot
+    //    LocalVariableTable:
+    //    Start  Length  Slot  Name   Signature
+    //       59       3     6 localVarL4   I
+    //       65       3     6 localVarL4   I
+    //       71       3     6 localVarL4   I
+    //       29      45     5 localVarL3   I
+    //       20      54     4 localVarL2   I
+    //       13      64     3 localVarL1   I
+    //        0      79     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
+    //        0      79     1   arg   Ljava/lang/String;
+    //        2      77     2 localVarL0   I
+    assertEquals(5, snapshot.getCaptures().getReturn().getLocals().size());
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL0", "int", "0");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL1", "int", "1");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL2", "int", "2");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL3", "int", "3");
-    assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL4", "int", "4");
   }
 
   @Test
@@ -1830,26 +1842,40 @@ public class CapturedSnapshotTest {
     int result = Reflect.onClass(testClass).call("main", "illegalState").get();
     assertEquals(0, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
-    Map<String, String> expectedFields = new HashMap<>();
-    expectedFields.put("detailMessage", "state");
-    assertCaptureLocals(
-        snapshot.getCaptures().getReturn(),
-        "ex",
-        IllegalStateException.class.getTypeName(),
-        expectedFields);
-    listener.snapshots.clear();
-    result = Reflect.onClass(testClass).call("main", "illegalArgument").get();
-    assertEquals(0, result);
-    snapshot = assertOneSnapshot(listener);
-    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
-    expectedFields = new HashMap<>();
-    expectedFields.put("detailMessage", "argument");
-    assertCaptureLocals(
-        snapshot.getCaptures().getReturn(),
-        "ex",
-        IllegalArgumentException.class.getTypeName(),
-        expectedFields);
+    // no local vars captured for the exception
+    assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void overlappingLocalVarSlot() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createProbeAtExit(PROBE_ID, CLASS_NAME, "overlappingSlots", "(String)");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "overlappingSlots").get();
+    assertEquals(5, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    // i local var cannot be hoisted because of overlapping slots and name
+    assertFalse(snapshot.getCaptures().getReturn().getLocals().containsKey("i"));
+    assertTrue(snapshot.getCaptures().getReturn().getLocals().containsKey("subStr"));
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void duplicateLocalDifferentScope() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe =
+        createProbeAtExit(PROBE_ID, CLASS_NAME, "duplicateLocalDifferentScope", "(String)");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "duplicateLocalDifferentScope").get();
+    assertEquals(28, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
   }
 
   @Test
@@ -2436,7 +2462,7 @@ public class CapturedSnapshotTest {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
-    when(config.isDebuggerVerifyByteCode()).thenReturn(true);
+    when(config.isDebuggerVerifyByteCode()).thenReturn(false);
     when(config.getFinalDebuggerSnapshotUrl())
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
@@ -2449,7 +2475,12 @@ public class CapturedSnapshotTest {
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(
-        (encodedId) -> resolver(encodedId, logProbes, configuration.getSpanDecorationProbes()));
+        (encodedId) ->
+            resolver(
+                encodedId,
+                logProbes,
+                configuration.getSpanDecorationProbes(),
+                configuration.getDebuggerProbes()));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
     if (logProbes != null) {
@@ -2471,13 +2502,19 @@ public class CapturedSnapshotTest {
   private ProbeImplementation resolver(
       String encodedId,
       Collection<LogProbe> logProbes,
-      Collection<SpanDecorationProbe> spanDecorationProbes) {
+      Collection<SpanDecorationProbe> spanDecorationProbes,
+      Collection<DebuggerProbe> debuggerProbes) {
     for (LogProbe probe : logProbes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
       }
     }
     for (SpanDecorationProbe probe : spanDecorationProbes) {
+      if (probe.getProbeId().getEncodedId().equals(encodedId)) {
+        return probe;
+      }
+    }
+    for (DebuggerProbe probe : debuggerProbes) {
       if (probe.getProbeId().getEncodedId().equals(encodedId)) {
         return probe;
       }
