@@ -2,6 +2,7 @@ import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.grizzly.GrizzlyDecorator
 import org.glassfish.grizzly.http.server.HttpServer
+import org.glassfish.grizzly.http.server.Request
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory
 import org.glassfish.jersey.server.ResourceConfig
 
@@ -14,6 +15,7 @@ import javax.ws.rs.container.ContainerRequestContext
 import javax.ws.rs.container.ContainerRequestFilter
 import javax.ws.rs.container.ContainerResponseContext
 import javax.ws.rs.container.ContainerResponseFilter
+import javax.ws.rs.core.Context
 import javax.ws.rs.core.Response
 import javax.ws.rs.ext.ExceptionMapper
 import javax.ws.rs.ext.Provider
@@ -26,6 +28,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 
@@ -113,6 +116,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     false
   }
 
+  @Override
+  boolean testSessionId() {
+    return true
+  }
+
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
 
     @Override
@@ -133,6 +141,9 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
 
   @Path("/")
   static class ServiceResource {
+
+    @Context
+    Request request
 
     @GET
     @Path("success")
@@ -208,6 +219,15 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
         throw new Exception(EXCEPTION.body)
       }
       return null
+    }
+
+    @GET
+    @Path("session")
+    Response session() {
+      controller(SESSION_ID) {
+        final session = request.getSession(true)
+        Response.status(SESSION_ID.status).entity(session.idInternal).build()
+      }
     }
   }
 

@@ -111,6 +111,8 @@ public interface KnownAddresses {
 
   Address<String> USER_ID = new Address<>("usr.id");
 
+  Address<String> SESSION_ID = new Address<>("usr.session_id");
+
   /** The URL of a network resource being requested (outgoing request) */
   Address<String> IO_NET_URL = new Address<>("server.io.net.url");
 
@@ -124,6 +126,12 @@ public interface KnownAddresses {
   Address<String> DB_SQL_QUERY = new Address<>("server.db.statement");
 
   Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
+
+  /** Login failure business event */
+  Address<String> LOGIN_FAILURE = new Address<>("server.business_logic.users.login.failure");
+
+  /** Login success business event */
+  Address<String> LOGIN_SUCCESS = new Address<>("server.business_logic.users.login.success");
 
   static Address<?> forName(String name) {
     switch (name) {
@@ -181,6 +189,8 @@ public interface KnownAddresses {
         return SERVER_GRAPHQL_ALL_RESOLVERS;
       case "usr.id":
         return USER_ID;
+      case "usr.session_id":
+        return SESSION_ID;
       case "server.io.net.url":
         return IO_NET_URL;
       case "server.io.fs.file":
@@ -191,6 +201,10 @@ public interface KnownAddresses {
         return DB_SQL_QUERY;
       case "waf.context.processor":
         return WAF_CONTEXT_PROCESSOR;
+      case "server.business_logic.users.login.success":
+        return LOGIN_SUCCESS;
+      case "server.business_logic.users.login.failure":
+        return LOGIN_FAILURE;
       default:
         return null;
     }
