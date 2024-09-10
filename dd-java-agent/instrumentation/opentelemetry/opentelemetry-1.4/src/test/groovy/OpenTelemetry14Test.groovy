@@ -268,12 +268,13 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  def "test multiple span links"() {
+  def "test multiple span links via SpanBuilder and Span"() {
     setup:
     def spanBuilder = tracer.spanBuilder("some-name")
 
     when:
     def links = []
+    // Add links on SpanBuilder
     0..9.each {
       def traceId = "1234567890abcdef1234567890abcde$it" as String
       def spanId = "fedcba098765432$it" as String
@@ -285,9 +286,10 @@ class OpenTelemetry14Test extends AgentTestRunner {
       spanBuilder.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
     }
     def span1 = spanBuilder.startSpan()
+    // Add links on Span
     10..19.each {
-      def traceId = "1234567890abcdef1234567890abcde$it" as String
-      def spanId = "fedcba098765432$it" as String
+      def traceId = "234567890abcdef1234567890abcde$it" as String
+      def spanId = "edcba098765432$it" as String
       def traceState = TraceState.builder().put('string-key', 'string-value'+it).build()
       links << """{ trace_id: "${traceId}",
         span_id: "${spanId}",
@@ -295,9 +297,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
         tracestate: "string-key=string-value$it"}"""
       span1.addLink(SpanContext.create(traceId, spanId, TraceFlags.getSampled(), traceState))
     }
-    def expectedLinksTag = "[${links.join(',')}]" as String
-
     span1.end()
+    def expectedLinksTag = "[${links.join(',')}]" as String
 
     then:
     assertTraces(1) {
