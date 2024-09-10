@@ -11,7 +11,6 @@ import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.GraphQLOutputType;
 import graphql.schema.GraphQLTypeUtil;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 public class InstrumentedDataFetcher implements DataFetcher<Object> {
@@ -54,21 +53,6 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
         throw e;
       }
       if (dataValue instanceof CompletionStage<?>) {
-        if (dataValue instanceof CompletableFuture<?>) {
-          CompletableFuture<?> completableFuture = (CompletableFuture<?>) dataValue;
-          if (completableFuture.isDone()) {
-            if (completableFuture.isCompletedExceptionally()) {
-              try {
-                completableFuture.get();
-              } catch (Exception expected) {
-                DECORATE.onError(fieldSpan, expected);
-              }
-            }
-            DECORATE.beforeFinish(fieldSpan);
-            fieldSpan.finish();
-            return dataValue;
-          }
-        }
         return ((CompletionStage<?>) dataValue)
             .whenComplete(
                 (result, throwable) -> {

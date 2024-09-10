@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
@@ -153,6 +154,24 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(10, traceInterceptor.getAllTraces().size());
     MutableSpan span = traceInterceptor.getAllTraces().get(5).get(0);
     assertEquals("5", span.getTags().get("tag1"));
+  }
+
+  @Test
+  public void methodActiveSpanConditionFalse() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    SpanDecorationProbe.Decoration decoration =
+        createDecoration(eq(ref("arg"), value("5")), "arg == '5'", "tag1", "{arg}");
+    installSingleSpanDecoration(
+        CLASS_NAME, ACTIVE, decoration, "process", "int (java.lang.String)");
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "0").get();
+    assertEquals(84, result);
+    assertEquals(1, traceInterceptor.getAllTraces().size());
+    MutableSpan span = traceInterceptor.getAllTraces().get(0).get(0);
+    // probe executed, but no tag set
+    assertFalse(span.getTags().containsKey("tag1"));
+    // EMITTING status is not sent
+    verify(probeStatusSink, times(0)).addEmitting(ArgumentMatchers.eq(PROBE_ID));
   }
 
   @Test
