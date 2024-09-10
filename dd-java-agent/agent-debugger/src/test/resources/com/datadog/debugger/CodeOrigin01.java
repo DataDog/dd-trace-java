@@ -21,10 +21,10 @@ public class CodeOrigin01 {
       if (arg.equals("fullTrace")) {
         return new CodeOrigin01().fullTrace();
       } else if (arg.equals("debug_1")) {
-        span.setTag(Tags.PROPAGATED_DEBUG, "1");
+        span.getLocalRootSpan().setTag(Tags.PROPAGATED_DEBUG, "1");
         return new CodeOrigin01().fullTrace();
       } else if (arg.equals("debug_0")) {
-        span.setTag(Tags.PROPAGATED_DEBUG, "0");
+        span.getLocalRootSpan().setTag(Tags.PROPAGATED_DEBUG, "0");
         return new CodeOrigin01().fullTrace();
       }
     } finally {

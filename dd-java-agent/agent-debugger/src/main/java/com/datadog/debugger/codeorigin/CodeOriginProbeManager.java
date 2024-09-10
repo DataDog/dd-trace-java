@@ -9,6 +9,7 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
@@ -26,7 +27,7 @@ import org.slf4j.LoggerFactory;
 public class CodeOriginProbeManager {
   private static final Logger LOG = LoggerFactory.getLogger(CodeOriginProbeManager.class);
 
-  private Map<String, CodeOriginProbe> fingerprints = new HashMap<>();
+  private final Map<String, CodeOriginProbe> fingerprints = new HashMap<>();
 
   private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
 
@@ -50,10 +51,6 @@ public class CodeOriginProbeManager {
     fingerprints.putIfAbsent(fingerprint, probe);
   }
 
-  String getProbeId(String fingerprint) {
-    return fingerprints.get(fingerprint).getProbeId().getId();
-  }
-
   public ClassNameFiltering getClassNameFiltering() {
     return classNameFiltering;
   }
@@ -67,6 +64,7 @@ public class CodeOriginProbeManager {
     }
     CodeOriginProbe probe;
 
+    AgentSpan span = AgentTracer.activeSpan();
     if (!isAlreadyInstrumented(fingerprint)) {
       Where where =
           Where.convertLineToMethod(
@@ -81,7 +79,7 @@ public class CodeOriginProbeManager {
       addFingerprint(fingerprint, probe);
 
       installProbe(probe);
-      if (AgentTracer.get().activeSpan() != null) {
+      if (span != null) {
         //  committing here manually so that first run probe encounters decorate the span until the
         // instrumentation gets installed
         probe.commit(
@@ -90,6 +88,9 @@ public class CodeOriginProbeManager {
 
     } else {
       probe = fingerprints.get(fingerprint);
+      if (span != null && !probe.isEntrySpanProbe()) {
+        span.getLocalRootSpan().setTag(probe.getId(), span);
+      }
     }
 
     return probe.getId();
@@ -98,30 +99,14 @@ public class CodeOriginProbeManager {
   public String installProbe(CodeOriginProbe probe) {
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
     if (installed == null) {
-      taskScheduler.execute(
-          () -> {
-            configurationUpdater.accept(SPAN_DEBUG, getProbes());
-          });
+      taskScheduler.execute(() -> configurationUpdater.accept(SPAN_DEBUG, getProbes()));
       return probe.getId();
     }
     return installed.getId();
   }
 
-  public ClassNameFiltering classNameFiltering() {
-    return classNameFiltering;
-  }
-
   public boolean isAlreadyInstrumented(String fingerprint) {
     return fingerprints.containsKey(fingerprint);
-  }
-
-  public AgentTaskScheduler taskScheduler() {
-    return taskScheduler;
-  }
-
-  public CodeOriginProbeManager taskScheduler(AgentTaskScheduler taskScheduler) {
-    this.taskScheduler = taskScheduler;
-    return this;
   }
 
   private StackTraceElement findPlaceInStack() {

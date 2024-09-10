@@ -6,7 +6,6 @@ import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -37,49 +36,25 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
-import datadog.trace.bootstrap.debugger.DebuggerContext.CodeOriginRecorder;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.SpanBuilder;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.core.CoreTracer;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
-import org.junit.Assert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class CodeOriginTest {
-
-  private static final List<String> CODE_ORIGIN_TAGS =
-      asList(
-          DDTags.DD_CODE_ORIGIN_FILE,
-          DDTags.DD_CODE_ORIGIN_LINE,
-          DDTags.DD_CODE_ORIGIN_METHOD,
-          DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE);
-  private static final List<String> STACK_FRAME_TAGS =
-      asList(
-          format(DD_STACK_CODE_ORIGIN_FRAME, 0, 0, "file"),
-          format(DD_STACK_CODE_ORIGIN_FRAME, 0, 0, "line"),
-          format(DD_STACK_CODE_ORIGIN_FRAME, 0, 0, "method"),
-          format(DD_STACK_CODE_ORIGIN_FRAME, 0, 0, "type"));
-  private static final List<String> COMBO_TAGS = new ArrayList<>();
-
   private final Instrumentation instr = ByteBuddyAgent.install();
   private final TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
-
   public static ClassNameFiltering classNameFiltering =
       new ClassNameFiltering(
           new HashSet<>(
@@ -97,40 +72,10 @@ public class CodeOriginTest {
   private CodeOriginProbeManager probeManager;
 
   private MockSampler probeSampler;
+
   private MockSampler globalSampler;
 
   private ConfigurationUpdater configurationUpdater;
-
-  private TracerAPI tracerAPI;
-
-  static {
-    COMBO_TAGS.addAll(CODE_ORIGIN_TAGS);
-    COMBO_TAGS.addAll(STACK_FRAME_TAGS);
-
-    System.out.println("****** CodeOriginTest.static initializer COMBO_TAGS = " + COMBO_TAGS);
-  }
-
-  @Test
-  public void testParents() {
-    AgentSpan top = newSpan("root");
-
-    try (AgentScope ignored = tracerAPI.activateSpan(top, ScopeSource.MANUAL)) {
-      AgentSpan entry = newSpan("entry");
-
-      assertEquals("root", top.getLocalRootSpan().getOperationName());
-      assertEquals("root", entry.getLocalRootSpan().getOperationName());
-      Assert.assertNotEquals(entry, entry.getLocalRootSpan());
-    }
-  }
-
-  private AgentSpan newSpan(String name) {
-    tracerAPI = AgentTracer.get();
-    SpanBuilder span = tracerAPI.buildSpan("code origin tests", name);
-    if (tracerAPI.activeSpan() != null) {
-      span.asChildOf(tracerAPI.activeSpan().context());
-    }
-    return span.start();
-  }
 
   @BeforeEach
   public void before() {
@@ -161,14 +106,13 @@ public class CodeOriginTest {
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(configurationUpdater);
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
-    CodeOriginRecorder originRecorder = new DefaultCodeOriginRecorder(probeManager);
-    DebuggerContext.initCodeOrigin(originRecorder);
+    DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(probeManager));
     configurationUpdater.accept(REMOTE_CONFIG, null);
     return listener;
   }
 
   @Test
-  public void onlyInstrument() throws Exception {
+  public void basicInstrumentation() throws Exception {
     Config config = createConfig();
     TestSnapshotListener listener = setupCodeOrigin(config);
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin01";
@@ -188,48 +132,133 @@ public class CodeOriginTest {
             .collect(Collectors.toList());
 
     for (MutableSpan span : list) {
-      checkForTags(span, "entry", COMBO_TAGS, emptyList());
+      checkEntrySpanTags(span, false);
     }
     Optional<? extends MutableSpan> exit =
         spans.stream().filter(span -> span.getOperationName().equals("exit")).findFirst();
     assertTrue(exit.isPresent());
-    exit.ifPresent(CodeOriginTest::checkExitSpanTags);
+    exit.ifPresent(span -> checkExitSpanTags(span, false));
   }
 
-  private static void checkForTags(
-      MutableSpan span, String spanType, List<String> included, List<String> excluded) {
-    String keys =
-        format(
-            "Existing keys for %s: %s",
-            span.getOperationName(), new TreeSet<>(span.getTags().keySet()));
-    assertEquals(span.getTag(format(DD_STACK_CODE_ORIGIN_TYPE, 0)), spanType, keys);
-    for (String tag : included) {
-      assertNotNull(span.getTag(tag), tag + " not found.  " + keys);
+  @Test
+  public void postInstrumentation() throws Exception {
+    Config config = createConfig();
+    TestSnapshotListener listener = setupCodeOrigin(config);
+    final String CLASS_NAME = "com.datadog.debugger.CodeOrigin01";
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    Reflect.onClass(testClass).call("main", "fullTrace").get();
+    waitForInstrumentation();
+
+    int result = Reflect.onClass(testClass).call("main", "debug_1").get();
+    assertEquals(0, result);
+    Collection<CodeOriginProbe> probes = probeManager.getProbes();
+    assertEquals(2, probes.size());
+    assertEquals(2, listener.snapshots.size());
+    List<? extends MutableSpan> spans = traceInterceptor.getTrace();
+    assertEquals(3, spans.size());
+    assertEquals("main", spans.get(2).getLocalRootSpan().getOperationName());
+
+    List<? extends MutableSpan> list =
+        spans.stream()
+            .filter(span -> !span.getOperationName().equals("exit"))
+            .collect(Collectors.toList());
+
+    for (MutableSpan span : list) {
+      checkEntrySpanTags(span, true);
     }
-    for (String tag : excluded) {
-      assertNull(span.getTag(tag), tag + " not found.  " + keys);
+    Optional<? extends MutableSpan> exit =
+        spans.stream().filter(span -> span.getOperationName().equals("exit")).findFirst();
+    assertTrue(exit.isPresent());
+    exit.ifPresent(span -> checkExitSpanTags(span, true));
+  }
+
+  private void waitForInstrumentation() {
+    long end = System.currentTimeMillis() + 30_000;
+    try {
+      while (System.currentTimeMillis() < end) {
+        if (probeManager.getProbes().size() == 2) {
+          Thread.sleep(1000);
+          return;
+        }
+
+        Thread.sleep(500);
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+    throw new IllegalStateException("Some probes failed to instrument");
+  }
+
+  private static void checkEntrySpanTags(MutableSpan span, boolean includeSnapshot) {
+    String keys = format("Existing keys for %s: %s", span.getOperationName(), ldKeys(span));
+    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_FILE);
+    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_LINE);
+    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_METHOD);
+    assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE);
+
+    assertEquals(span.getTag(DD_STACK_CODE_ORIGIN_TYPE), "entry", keys);
+    assertKeyPresent(span, DD_STACK_CODE_ORIGIN_TYPE);
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file"));
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "line"));
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "method"));
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "type"));
+
+    if (includeSnapshot) {
+      assertKeyPresent(span, DDTags.DD_CODE_ORIGIN_SNAPSHOT_ID);
+      assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
     }
   }
 
-  private static void checkExitSpanTags(MutableSpan span) {
-    String keys =
+  private static void assertKeyPresent(MutableSpan span, String key) {
+    assertNotNull(
+        span.getTag(key),
         format(
-            "Existing keys for %s: %s",
-            span.getOperationName(), new TreeSet<>(span.getTags().keySet()));
-
-    assertNull(span.getTag(DDTags.DD_CODE_ORIGIN_FILE), keys);
-    assertNull(span.getTag(DDTags.DD_CODE_ORIGIN_LINE), keys);
-    assertNull(span.getTag(DDTags.DD_CODE_ORIGIN_METHOD), keys);
-    assertNull(span.getTag(DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE), keys);
-
-    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_TYPE, 1)), keys);
-    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, 0, "file")));
-    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, 0, "line")));
-    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, 0, "method")));
-    assertNull(span.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, 0, "type")));
+            "'%s' key missing in '%s' span.  Existing LD keys: %s",
+            key, span.getOperationName(), ldKeys(span)));
   }
 
-  public static Config createConfig() {
+  private static void assertKeyNotPresent(MutableSpan span, String key) {
+    assertNull(
+        span.getTag(key),
+        format(
+            "'%s' key missing in '%s' span.  Existing LD keys: %s",
+            key, span.getOperationName(), ldKeys(span)));
+  }
+
+  private static void checkExitSpanTags(MutableSpan span, boolean includeSnapshot) {
+    String keys =
+        format("Existing keys for %s: %s", span.getOperationName(), new TreeSet<>(ldKeys(span)));
+
+    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_FILE);
+    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_LINE);
+    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_METHOD);
+    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE);
+    assertKeyNotPresent(span, DDTags.DD_CODE_ORIGIN_SNAPSHOT_ID);
+
+    assertKeyPresent(span, DD_STACK_CODE_ORIGIN_TYPE);
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file"));
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "line"));
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "method"));
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "type"));
+    if (includeSnapshot) {
+      assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "snapshot_id"));
+    }
+
+    MutableSpan rootSpan = span.getLocalRootSpan();
+    assertEquals(rootSpan.getTag(DD_STACK_CODE_ORIGIN_TYPE), "entry", keys);
+    assertNotNull(rootSpan.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, "file")));
+    assertNotNull(rootSpan.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, "line")));
+    assertNotNull(rootSpan.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, "method")));
+    assertNotNull(rootSpan.getTag(format(DD_STACK_CODE_ORIGIN_FRAME, 1, "type")));
+  }
+
+  private static Set<String> ldKeys(MutableSpan span) {
+    return span.getTags().keySet().stream()
+        .filter(key -> key.startsWith("_dd.ld") || key.startsWith("_dd.stack"))
+        .collect(Collectors.toCollection(TreeSet::new));
+  }
+
+  private static Config createConfig() {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
     when(config.isDebuggerClassFileDumpEnabled()).thenReturn(true);
@@ -249,7 +278,7 @@ public class CodeOriginTest {
     return new DebuggerTransformer(config, configuration, listener, debuggerSink);
   }
 
-  public void setFieldInInstrumenterConfig(
+  private void setFieldInInstrumenterConfig(
       InstrumenterConfig config, String fieldName, Object value) {
     try {
       Field field = config.getClass().getDeclaredField(fieldName);

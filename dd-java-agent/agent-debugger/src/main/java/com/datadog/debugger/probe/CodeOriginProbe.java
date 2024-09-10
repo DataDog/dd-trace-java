@@ -5,6 +5,8 @@ import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_SNAPSHOT_ID;
 import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_FRAME;
 import static datadog.trace.api.DDTags.DD_STACK_CODE_ORIGIN_TYPE;
 import static java.lang.String.format;
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.codeorigin.CodeOriginProbeManager;
@@ -19,9 +21,7 @@ import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,57 +86,62 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
     }
     applySpanOriginTags(span, snapshotId);
     DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
+    span.getLocalRootSpan().setTag(getId(), (String) null); // clear possible span reference
   }
 
-  private void applySpanOriginTags(AgentSpan span, String snapshotId) {
+  private void applySpanOriginTags(AgentSpan candidate, String snapshotId) {
+    AgentSpan span = findSpan(candidate);
+
     List<StackTraceElement> entries = getUserStackFrames();
-    if (!entries.isEmpty()) {
-      Set<AgentSpan> spans = new LinkedHashSet<>();
-      AgentSpan rootSpan = span.getLocalRootSpan() != null ? span.getLocalRootSpan() : span;
-      if (rootSpan != null) {
-        spans.add(rootSpan);
-      }
-      int stackIndex = countExistingStacks(span);
-      if (entrySpanProbe) {
-        spans.add(span);
-        StackTraceElement entry = entries.get(0);
-        for (AgentSpan s : spans) {
-          s.setTag(DDTags.DD_CODE_ORIGIN_FILE, toFileName(entry.getClassName()));
-          s.setTag(DDTags.DD_CODE_ORIGIN_METHOD, entry.getMethodName());
-          s.setTag(DDTags.DD_CODE_ORIGIN_LINE, entry.getLineNumber());
-          s.setTag(DDTags.DD_CODE_ORIGIN_TYPE, entry.getClassName());
-          s.setTag(DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE, signature);
-          if (snapshotId != null) {
-            s.setTag(DD_CODE_ORIGIN_SNAPSHOT_ID, snapshotId);
-          }
-        }
-      }
-      for (AgentSpan s : spans) {
-        s.setTag(format(DD_STACK_CODE_ORIGIN_TYPE, stackIndex), entrySpanProbe ? "entry" : "exit");
+    recordCodeOrigin(span, entries, snapshotId);
+    recordStackFrames(span, entries, snapshotId);
+  }
 
-        for (int i = 0; i < entries.size(); i++) {
-          StackTraceElement info = entries.get(i);
-          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "file"), info.getFileName());
-          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "line"), info.getLineNumber());
-          s.setTag(
-              format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "method"), info.getMethodName());
-          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "type"), info.getClassName());
-          if (i == 0 && snapshotId != null) {
-            s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, stackIndex, i, "snapshot_id"), snapshotId);
-          }
+  private void recordCodeOrigin(
+      AgentSpan span, List<StackTraceElement> entries, String snapshotId) {
+    if (entrySpanProbe && !entries.isEmpty()) {
+      StackTraceElement entry = entries.get(0);
+      List<AgentSpan> list = asList(span, span.getLocalRootSpan());
+      for (AgentSpan s : list) {
+        s.setTag(DDTags.DD_CODE_ORIGIN_FILE, toFileName(entry.getClassName()));
+        s.setTag(DDTags.DD_CODE_ORIGIN_METHOD, entry.getMethodName());
+        s.setTag(DDTags.DD_CODE_ORIGIN_LINE, entry.getLineNumber());
+        s.setTag(DDTags.DD_CODE_ORIGIN_TYPE, entry.getClassName());
+        s.setTag(DDTags.DD_CODE_ORIGIN_METHOD_SIGNATURE, signature);
+        if (snapshotId != null) {
+          s.setTag(DD_CODE_ORIGIN_SNAPSHOT_ID, snapshotId);
         }
       }
     }
   }
 
-  private int countExistingStacks(AgentSpan span) {
-    Set<String> keys = span.getLocalRootSpan().getTags().keySet();
-    int count = 0;
-    while (keys.contains(format(DD_STACK_CODE_ORIGIN_FRAME, count, 0, "file"))) {
-      count++;
-    }
+  private void recordStackFrames(
+      AgentSpan span, List<StackTraceElement> entries, String snapshotId) {
+    for (AgentSpan s :
+        entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span)) {
+      s.setTag(format(DD_STACK_CODE_ORIGIN_TYPE), entrySpanProbe ? "entry" : "exit");
 
-    return count;
+      for (int i = 0; i < entries.size(); i++) {
+        StackTraceElement info = entries.get(i);
+        s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "file"), info.getFileName());
+        s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "method"), info.getMethodName());
+        s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "line"), info.getLineNumber());
+        s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "type"), info.getClassName());
+        if (i == 0 && snapshotId != null) {
+          s.setTag(format(DD_STACK_CODE_ORIGIN_FRAME, i, "snapshot_id"), snapshotId);
+        }
+      }
+    }
+  }
+
+  /** look "back" to find exit spans that may have already come and gone */
+  private AgentSpan findSpan(AgentSpan candidate) {
+    AgentSpan span = candidate;
+    AgentSpan localRootSpan = candidate.getLocalRootSpan();
+    if (localRootSpan.getTag(getId()) != null) {
+      span = (AgentSpan) localRootSpan.getTag(getId());
+    }
+    return span;
   }
 
   @Override
