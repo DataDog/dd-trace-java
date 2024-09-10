@@ -30,7 +30,9 @@ public class SignalClient implements AutoCloseable {
     DESERIALIZERS.put(SignalType.ERROR, ErrorResponse::deserialize);
     DESERIALIZERS.put(SignalType.ACK, b -> AckResponse.INSTANCE);
     DESERIALIZERS.put(SignalType.REPO_INDEX_RESPONSE, RepoIndexResponse::deserialize);
-    DESERIALIZERS.put(SignalType.MODULE_SETTINGS_RESPONSE, ExecutionSettingsResponse::deserialize);
+    DESERIALIZERS.put(
+        SignalType.EXECUTION_SETTINGS_RESPONSE, ExecutionSettingsResponse::deserialize);
+    DESERIALIZERS.put(SignalType.CLASS_MATCHING_RESPONSE, ClassMatchingResponse::deserialize);
   }
 
   private final SocketChannel socketChannel;
@@ -55,7 +57,7 @@ public class SignalClient implements AutoCloseable {
     socketChannel.close();
   }
 
-  public SignalResponse send(Signal signal) throws IOException {
+  public <T extends SignalResponse> T send(Signal signal) throws IOException {
     ByteBuffer message = signal.serialize();
     LOGGER.debug(
         "Sending signal of type {} and size {} bytes", signal.getType(), message.remaining());
@@ -110,7 +112,7 @@ public class SignalClient implements AutoCloseable {
     if (response instanceof ErrorResponse) {
       throw new IOException(getErrorMessage((ErrorResponse) response));
     }
-    return response;
+    return (T) response;
   }
 
   static String getErrorMessage(ErrorResponse response) {

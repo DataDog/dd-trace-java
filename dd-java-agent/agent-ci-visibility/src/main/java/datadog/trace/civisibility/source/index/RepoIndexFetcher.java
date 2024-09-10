@@ -32,7 +32,7 @@ public class RepoIndexFetcher implements RepoIndexProvider {
 
   private RepoIndex doGetIndex() {
     try (SignalClient signalClient = signalClientFactory.create()) {
-      RepoIndexResponse response = (RepoIndexResponse) signalClient.send(RepoIndexRequest.INSTANCE);
+      RepoIndexResponse response = signalClient.send(RepoIndexRequest.INSTANCE);
       return response.getIndex();
     } catch (Exception e) {
       log.error("Could not fetch repo index", e);

@@ -14,7 +14,7 @@ public class ExecutionSettingsResponse implements SignalResponse {
 
   @Override
   public SignalType getType() {
-    return SignalType.MODULE_SETTINGS_RESPONSE;
+    return SignalType.EXECUTION_SETTINGS_RESPONSE;
   }
 
   public ExecutionSettings getSettings() {

@@ -287,6 +287,8 @@ public class Agent {
       startCwsAgent();
     }
 
+    preStartCiVisibility(inst); // FIXME nikita: is this the right place?
+
     /*
      * Force the task scheduler init early. The exception profiling instrumentation may get in way of the initialization
      * when it will happen after the class transformers were added.
@@ -385,6 +387,9 @@ public class Agent {
     StaticEventLogger.end("Agent");
     StaticEventLogger.stop();
 
+    if (ciVisibilityEnabled) {
+      shutdownCiVisibility();
+    }
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
@@ -856,6 +861,23 @@ public class Agent {
     }
   }
 
+  private static void preStartCiVisibility(Instrumentation inst) {
+    if (ciVisibilityEnabled) {
+      StaticEventLogger.begin("CI Visibility pre-start");
+      try {
+        final Class<?> ciVisibilitySysClass =
+            AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
+        final Method ciVisibilityPreStartMethod =
+            ciVisibilitySysClass.getMethod("preStart", Instrumentation.class);
+        ciVisibilityPreStartMethod.invoke(null, inst);
+      } catch (final Throwable e) {
+        log.warn("Could not pre-start CI Visibility subsystem", e);
+      }
+
+      StaticEventLogger.end("CI Visibility pre-start");
+    }
+  }
+
   private static void maybeStartLogsIntake(Class<?> scoClass, Object sco) {
     if (agentlessLogSubmissionEnabled) {
       StaticEventLogger.begin("Logs Intake");
@@ -1045,6 +1067,26 @@ public class Agent {
   private static ScopeListener createScopeListener(String className) throws Throwable {
     return (ScopeListener)
         AGENT_CLASSLOADER.loadClass(className).getDeclaredConstructor().newInstance();
+  }
+
+  private static void shutdownCiVisibility() {
+    if (AGENT_CLASSLOADER == null) {
+      // It wasn't started, so no need to shut it down
+      return;
+    }
+
+    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+      final Class<?> ciVisibilitySystem =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.civisibility.CiVisibilitySystem");
+      final Method shutdownMethod = ciVisibilitySystem.getMethod("shutdown");
+      shutdownMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while shutting down CI Visibility", ex);
+    } finally {
+      Thread.currentThread().setContextClassLoader(contextLoader);
+    }
   }
 
   private static void shutdownProfilingAgent(final boolean sync) {

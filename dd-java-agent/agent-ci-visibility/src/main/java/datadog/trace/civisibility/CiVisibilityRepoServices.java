@@ -111,7 +111,7 @@ public class CiVisibilityRepoServices {
       try (SignalClient signalClient = signalClientFactory.create()) {
         ExecutionSettingsRequest request =
             new ExecutionSettingsRequest(moduleName, JvmInfo.CURRENT_JVM);
-        ExecutionSettingsResponse response = (ExecutionSettingsResponse) signalClient.send(request);
+        ExecutionSettingsResponse response = signalClient.send(request);
         return response.getSettings();
 
       } catch (Exception e) {

@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -57,6 +58,7 @@ public final class CombiningTransformerBuilder
 
   private final AgentBuilder agentBuilder;
   private final InstrumenterIndex instrumenterIndex;
+  private final Set<InstrumenterModule.TargetSystem> enabledSystems;
   private final int knownTransformationCount;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
@@ -85,9 +87,12 @@ public final class CombiningTransformerBuilder
   private Advice.PostProcessor.Factory postProcessor;
 
   public CombiningTransformerBuilder(
-      AgentBuilder agentBuilder, InstrumenterIndex instrumenterIndex) {
+      AgentBuilder agentBuilder,
+      InstrumenterIndex instrumenterIndex,
+      Set<InstrumenterModule.TargetSystem> enabledSystems) {
     this.agentBuilder = agentBuilder;
     this.instrumenterIndex = instrumenterIndex;
+    this.enabledSystems = enabledSystems;
     int knownInstrumentationCount = instrumenterIndex.instrumentationCount();
     this.knownTransformationCount = instrumenterIndex.transformationCount();
     this.knownTypesMask = new BitSet(knownTransformationCount);
@@ -257,8 +262,15 @@ public final class CombiningTransformerBuilder
       applyContextStoreInjection();
     }
 
+    AgentBuilder.RawMatcher matcher =
+        new CombiningMatcher(instrumentation, knownTypesMask, matchers);
+    // FIXME nikita: add a config switch
+    if (enabledSystems.contains(InstrumenterModule.TargetSystem.CIVISIBILITY)) {
+      matcher = new CiVisibilityMatcher(matcher);
+    }
+
     return agentBuilder
-        .type(new CombiningMatcher(instrumentation, knownTypesMask, matchers))
+        .type(matcher)
         .and(NOT_DECORATOR_MATCHER)
         .transform(defaultTransformers())
         .transform(new SplittingTransformer(transformers))

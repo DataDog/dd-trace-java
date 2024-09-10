@@ -196,7 +196,7 @@ public class AgentInstaller {
     }
 
     CombiningTransformerBuilder transformerBuilder =
-        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex);
+        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex, enabledSystems);
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
