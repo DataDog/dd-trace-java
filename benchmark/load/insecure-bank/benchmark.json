@@ -30,6 +30,12 @@
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.context.mode=GLOBAL"
       }
     },
+    "iast_NO_SAMPLING": {
+      "env": {
+        "VARIANT": "iast_NO_SAMPLING",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.request-sampling=100 -Ddd.iast.max-concurrent-requests=-2147483648"
+      }
+    },
     "iast_FULL": {
       "env": {
         "VARIANT": "iast_FULL",

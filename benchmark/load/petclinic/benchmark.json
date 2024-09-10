@@ -36,6 +36,12 @@
         "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.appsec.enabled=true -Ddd.iast.enabled=false"
       }
     },
+    "iast_no_sampling": {
+      "env": {
+        "VARIANT": "iast_no-sampling",
+        "JAVA_OPTS": "-javaagent:${TRACER} -Ddd.iast.enabled=true -Ddd.iast.request-sampling=100 -Ddd.iast.max-concurrent-requests=-2147483648"
+      }
+    },
     "iast": {
       "env": {
         "VARIANT": "iast",
