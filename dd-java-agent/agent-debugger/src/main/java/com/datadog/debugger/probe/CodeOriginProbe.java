@@ -72,7 +72,7 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
     AgentSpan span = AgentTracer.activeSpan();
 
     if (span == null) {
-      LOGGER.debug("Could not find the exit span for probeId {}", id);
+      LOGGER.debug("Could not find the span for probeId {}", id);
       return;
     }
     String snapshotId = null;
@@ -80,16 +80,12 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       Snapshot snapshot = createSnapshot();
       if (fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot)) {
         snapshotId = snapshot.getId();
-        LOGGER.debug(
-            "committing exception probe id={}, snapshot id={}, exception id={}",
-            id,
-            snapshotId,
-            snapshot.getExceptionId());
-
+        LOGGER.debug("committing code origin probe id={}, snapshot id={}", id, snapshotId);
         commitSnapshot(snapshot, DebuggerAgent.getSink());
       }
     }
     applySpanOriginTags(span, snapshotId);
+    DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
   }
 
   private void applySpanOriginTags(AgentSpan span, String snapshotId) {
@@ -151,7 +147,7 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       type = result.getTypeName();
       method = result.getMethodName();
     }
-    // drop line number for exception probe
+    // drop line number for code origin probe
     this.location = new ProbeLocation(type, method, where.getSourceFile(), null);
   }
 

@@ -62,7 +62,7 @@ public class CodeOriginProbeManager {
     StackTraceElement element = findPlaceInStack();
     String fingerprint = Fingerprinter.fingerprint(element);
     if (fingerprint == null) {
-      LOG.debug("Unable to fingerprint snapshot");
+      LOG.debug("Unable to fingerprint stack trace");
       return null;
     }
     CodeOriginProbe probe;
@@ -82,6 +82,8 @@ public class CodeOriginProbeManager {
 
       installProbe(probe);
       if (AgentTracer.get().activeSpan() != null) {
+        //  committing here manually so that first run probe encounters decorate the span until the
+        // instrumentation gets installed
         probe.commit(
             CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
       }
