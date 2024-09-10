@@ -778,12 +778,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         new JsonToTags.Builder()
             // TODO add common expansion / redaction rules
             .parseRedactionRules(config.getCloudRequestPayloadTagging())
+            //            .parseExpansionRules(config.getCloudRequestPayloadTagging())
+            //            .limitDeepness()
+            //            .limitTags()
             .build();
 
     responseJsonToTags =
         new JsonToTags.Builder()
             // TODO add common expansion / redaction rules
             .parseRedactionRules(config.getCloudResponsePayloadTagging())
+            //            .parseExpansionRules(config.getCloudRequestPayloadTagging())
+            //            .limitDeepness()
+            //            .limitTags()
             .build();
   }
 

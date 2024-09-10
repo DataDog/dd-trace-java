@@ -105,11 +105,14 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   public Optional<InputStream> modifyHttpResponseContent(
       Context.ModifyHttpResponse context, ExecutionAttributes executionAttributes) {
-    // Wrap the response so that it can be read again for tag extraction.
-    // TODO wrap only if tag extraction is enabled
-    return ExecutionInterceptor.super
-        .modifyHttpResponseContent(context, executionAttributes)
-        .map(ResponseBodyStreamWrapper::new);
+    Optional<InputStream> is =
+        ExecutionInterceptor.super.modifyHttpResponseContent(context, executionAttributes);
+    if (Config.get().isCloudResponsePayloadTaggingEnabled()) {
+      // Wrap the response so that it can be read again for tag extraction
+      return is.map(ResponseBodyStreamWrapper::new);
+    }
+    // Do nothing if no rules defined
+    return is;
   }
 
   @Override

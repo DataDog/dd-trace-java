@@ -553,6 +553,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1016,8 +1017,8 @@ public class Config {
   private final String agentlessLogSubmissionUrl;
   private final String agentlessLogSubmissionProduct;
 
-  private final List<String> cloudRequestPayloadTagging;
-  private final List<String> cloudResponsePayloadTagging;
+  @Nullable private final List<String> cloudRequestPayloadTagging;
+  @Nullable private final List<String> cloudResponsePayloadTagging;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -2242,9 +2243,9 @@ public class Config {
     this.agentlessLogSubmissionProduct = isCiVisibilityEnabled() ? "citest" : "apm";
 
     this.cloudRequestPayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING);
+        configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
     this.cloudResponsePayloadTagging =
-        configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING);
+        configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -4233,11 +4234,23 @@ public class Config {
   }
 
   public List<String> getCloudRequestPayloadTagging() {
-    return cloudRequestPayloadTagging;
+    return cloudRequestPayloadTagging == null
+        ? Collections.emptyList()
+        : cloudRequestPayloadTagging;
+  }
+
+  public boolean isCloudRequestPayloadTaggingEnabled() {
+    return cloudRequestPayloadTagging != null;
   }
 
   public List<String> getCloudResponsePayloadTagging() {
-    return cloudResponsePayloadTagging;
+    return cloudResponsePayloadTagging == null
+        ? Collections.emptyList()
+        : cloudResponsePayloadTagging;
+  }
+
+  public boolean isCloudResponsePayloadTaggingEnabled() {
+    return cloudResponsePayloadTagging != null;
   }
 
   private <T> Set<T> getSettingsSetFromEnvironment(

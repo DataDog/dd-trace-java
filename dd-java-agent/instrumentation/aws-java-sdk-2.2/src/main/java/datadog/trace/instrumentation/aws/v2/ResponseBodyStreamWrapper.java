@@ -30,6 +30,7 @@ public class ResponseBodyStreamWrapper extends InputStream {
     if (!hasBeenRead) {
       if (value == '{') {
         // Start buffering only if it starts with '{' to avoid buffering non-json data
+        // TODO maybe add a debug statement?
         buffer = new ByteArrayOutputStream();
       }
       hasBeenRead = true;

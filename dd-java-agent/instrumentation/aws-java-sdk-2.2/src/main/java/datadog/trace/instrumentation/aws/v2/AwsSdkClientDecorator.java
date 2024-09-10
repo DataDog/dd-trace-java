@@ -119,7 +119,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
     onOperation(span, awsServiceName, awsOperationName);
 
-    if (requestBody.isPresent()) {
+    if (Config.get().isCloudRequestPayloadTaggingEnabled() && requestBody.isPresent()) {
       InputStream body = requestBody.get().contentStreamProvider().newStream();
       AgentTracer.get().addTagsFromRequestBody(span, body, "aws.request.body");
     }
@@ -311,6 +311,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       if (body instanceof ResponseBodyStreamWrapper) {
         Optional<ByteArrayInputStream> bodyStream =
             ((ResponseBodyStreamWrapper) body).toByteArrayInputStream();
+        // TODO log.debug if bodyStream is empty
         bodyStream.ifPresent(
             bs -> AgentTracer.get().addTagsFromResponseBody(span, bs, "aws.response.body"));
       }

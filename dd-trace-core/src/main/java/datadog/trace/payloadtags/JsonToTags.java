@@ -43,7 +43,7 @@ public final class JsonToTags {
     }
 
     private static List<JsonPath> parseRules(List<String> rules) {
-      if (rules == null || rules.isEmpty()) {
+      if (rules.isEmpty() || rules.size() == 1 && rules.get(0).equalsIgnoreCase("all")) {
         return Collections.emptyList();
       }
       List<JsonPath> result = new ArrayList<>(rules.size());
