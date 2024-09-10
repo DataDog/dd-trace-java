@@ -295,7 +295,7 @@ public abstract class JUnit4Utils {
     String suite = description.getClassName();
     String name = JUnit4Utils.getTestName(description, testMethod);
     String parameters = JUnit4Utils.getParameters(description);
-    return new TestIdentifier(suite, name, parameters, null);
+    return new TestIdentifier(suite, name, parameters);
   }
 
   public static TestDescriptor toTestDescriptor(Description description) {

@@ -81,7 +81,7 @@ public class RunContext {
     }
 
     String testName = testNameAndSkipStatus._1();
-    TestIdentifier test = new TestIdentifier(suiteId, testName, null, null);
+    TestIdentifier test = new TestIdentifier(suiteId, testName, null);
     if (isUnskippable(test, tags)) {
       unskippableTests.add(test);
       return testNameAndSkipStatus;

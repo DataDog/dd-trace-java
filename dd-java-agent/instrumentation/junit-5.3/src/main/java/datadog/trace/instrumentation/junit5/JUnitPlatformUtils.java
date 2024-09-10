@@ -100,7 +100,7 @@ public abstract class JUnitPlatformUtils {
       String testName = methodSource.getMethodName();
       String displayName = testDescriptor.getDisplayName();
       String testParameters = getParameters(methodSource, displayName);
-      return new TestIdentifier(testSuiteName, testName, testParameters, null);
+      return new TestIdentifier(testSuiteName, testName, testParameters);
 
     } else {
       return null;

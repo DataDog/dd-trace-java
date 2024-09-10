@@ -84,7 +84,7 @@ public abstract class KarateUtils {
     String featureName = feature.getNameForReport();
     String scenarioName = KarateUtils.getScenarioName(scenario);
     String parameters = KarateUtils.getParameters(scenario);
-    return new TestIdentifier(featureName, scenarioName, parameters, null);
+    return new TestIdentifier(featureName, scenarioName, parameters);
   }
 
   public static TestDescriptor toTestDescriptor(ScenarioRuntime scenarioRuntime) {
