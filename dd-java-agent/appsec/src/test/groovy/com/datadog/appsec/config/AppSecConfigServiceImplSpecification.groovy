@@ -27,6 +27,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRIN
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING
@@ -265,6 +266,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ENDPOINT_FINGERPRINT
       // | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -414,6 +416,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ENDPOINT_FINGERPRINT
       // | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -485,6 +488,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
       | CAPABILITY_ASM_RASP_SQLI
+      | CAPABILITY_ASM_RASP_SSRF
       | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
       | CAPABILITY_ENDPOINT_FINGERPRINT
       // | CAPABILITY_ASM_SESSION_FINGERPRINT
