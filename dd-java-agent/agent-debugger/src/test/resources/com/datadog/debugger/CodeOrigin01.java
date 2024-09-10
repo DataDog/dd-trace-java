@@ -1,11 +1,9 @@
 package com.datadog.debugger;
 
-import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.debugger.spanorigin.CodeOriginInfo;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.SpanBuilder;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -62,7 +60,7 @@ public class CodeOrigin01 {
   private int exit() {
     AgentSpan span = newSpan("exit");
     try(AgentScope scope = tracerAPI.activateSpan(span, ScopeSource.MANUAL)) {
-      CodeOriginInfo.exit();
+      CodeOriginInfo.exit(span);
       return 42;
     } finally {
       span.finish();

@@ -69,7 +69,7 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
 
-    AgentSpan span = AgentTracer.activeSpan();
+    AgentSpan span = findSpan(AgentTracer.activeSpan());
 
     if (span == null) {
       LOGGER.debug("Could not find the span for probeId {}", id);
@@ -89,9 +89,7 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
     span.getLocalRootSpan().setTag(getId(), (String) null); // clear possible span reference
   }
 
-  private void applySpanOriginTags(AgentSpan candidate, String snapshotId) {
-    AgentSpan span = findSpan(candidate);
-
+  private void applySpanOriginTags(AgentSpan span, String snapshotId) {
     List<StackTraceElement> entries = getUserStackFrames();
     recordCodeOrigin(span, entries, snapshotId);
     recordStackFrames(span, entries, snapshotId);
@@ -117,9 +115,11 @@ public class CodeOriginProbe extends LogProbe implements ForceMethodInstrumentat
 
   private void recordStackFrames(
       AgentSpan span, List<StackTraceElement> entries, String snapshotId) {
-    for (AgentSpan s :
-        entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span)) {
-      s.setTag(format(DD_STACK_CODE_ORIGIN_TYPE), entrySpanProbe ? "entry" : "exit");
+    List<AgentSpan> agentSpans =
+        entrySpanProbe ? asList(span, span.getLocalRootSpan()) : singletonList(span);
+
+    for (AgentSpan s : agentSpans) {
+      s.setTag(DD_STACK_CODE_ORIGIN_TYPE, entrySpanProbe ? "entry" : "exit");
 
       for (int i = 0; i < entries.size(); i++) {
         StackTraceElement info = entries.get(i);

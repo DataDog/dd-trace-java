@@ -88,9 +88,6 @@ public class CodeOriginProbeManager {
 
     } else {
       probe = fingerprints.get(fingerprint);
-      if (span != null && !probe.isEntrySpanProbe()) {
-        span.getLocalRootSpan().setTag(probe.getId(), span);
-      }
     }
 
     return probe.getId();
