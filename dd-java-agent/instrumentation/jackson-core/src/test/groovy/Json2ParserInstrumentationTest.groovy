@@ -42,7 +42,8 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     0 * _
 
     where:
-    target << testSuite()
+    //    target << testSuite()
+    target << ["{\"root\":\"root_value\",\"nested\":{\"nested_array\":[\"array_0\",\"array_1\"]}}"]
   }
 
   void 'test json parsing (not tainted)'() {

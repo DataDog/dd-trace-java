@@ -10,6 +10,8 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.json.Json2ParserHelper;
+import com.fasterxml.jackson.core.json.UTF8StreamJsonParser;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -68,6 +70,14 @@ public class Json2ParserInstrumentation extends InstrumenterModule.Iast
     return singletonMap(TARGET_TYPE, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
   }
 
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "com.fasterxml.jackson.core.json" + ".Json2ParserHelper",
+      "com.fasterxml.jackson.core.sym" + ".ByteQuadsCanonicalizerHelper",
+    };
+  }
+
   public static class TextAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
@@ -102,6 +112,10 @@ public class Json2ParserInstrumentation extends InstrumenterModule.Iast
       if (jsonParser != null
           && result != null
           && jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
+        if (jsonParser instanceof UTF8StreamJsonParser
+            && Json2ParserHelper.fetchInterned((UTF8StreamJsonParser) jsonParser)) {
+          return;
+        }
         final ContextStore<JsonParser, NamedContext> store =
             InstrumentationContext.get(JsonParser.class, NamedContext.class);
         final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
