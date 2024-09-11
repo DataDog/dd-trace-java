@@ -178,7 +178,7 @@ public class GatewayBridge {
       DataBundle bundle =
           new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.IO_FS_FILE, path).build();
       try {
-        GatewayContext gwCtx = new GatewayContext(false, RuleType.LFI);
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.LFI);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         ioFileSubInfo = null;
