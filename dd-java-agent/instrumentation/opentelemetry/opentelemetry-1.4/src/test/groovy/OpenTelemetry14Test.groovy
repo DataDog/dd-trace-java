@@ -706,9 +706,9 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     where:
     exception                                            | attributes                                                              | expectedAttributes
-    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
-    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | """{exception.message: "something-else", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${Arrays.toString(exception.getStackTrace())}"}"""
-    new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | """{"key": "value","exception.message": "${exception.getMessage()}"}"""
+    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${final StringWriter errorString = new StringWriter(); exception.printStackTrace(new PrintWriter(errorString)); return errorString.toString()}"}"""
+    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | """{exception.message: "something-else", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${final StringWriter errorString = new StringWriter(); exception.printStackTrace(new PrintWriter(errorString)); return errorString.toString()}"}"""
+    new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | """{"key": "value", exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${final StringWriter errorString = new StringWriter(); exception.printStackTrace(new PrintWriter(errorString)); return errorString.toString()}"}"""
   }
 
   def "test span name update"() {

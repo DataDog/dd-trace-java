@@ -22,7 +22,8 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.trace.SpanKind;
-import java.util.Arrays;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -336,7 +337,9 @@ public final class OtelConventions {
       {
         put("exception.message", exception.getMessage());
         put("exception.type", exception.getClass().getName());
-        put("exception.stacktrace", Arrays.toString(exception.getStackTrace()));
+        final StringWriter errorString = new StringWriter();
+        exception.printStackTrace(new PrintWriter(errorString));
+        put("exception.stacktrace", errorString.toString());
       }
     };
   }

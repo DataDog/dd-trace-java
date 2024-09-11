@@ -4,9 +4,9 @@ import static java.util.Objects.requireNonNull;
 
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import io.opentelemetry.api.common.Attributes;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -18,7 +18,7 @@ public class OtelSpanEvent {
 
   private final long timestamp;
   private final String name;
-  private final Attributes attributes;
+  private final AgentSpan.Attributes attributes;
   private static TimeSource timeSource = SystemTimeSource.INSTANCE;
 
   public OtelSpanEvent(String name, io.opentelemetry.api.common.Attributes attributes) {
@@ -75,7 +75,7 @@ public class OtelSpanEvent {
     return builder.append(']').toString();
   }
 
-  private static class Attributes {
+  private static class Attributes implements AgentSpan.Attributes {
     /** Represent an empty attributes. */
     public static final Attributes EMPTY = new Attributes(Collections.emptyMap());
 
