@@ -327,7 +327,7 @@ public final class OtelConventions {
   }
 
   /**
-   * generate default list of attribtues about a Throwable
+   * generate default list of attributes about a Throwable
    *
    * @param exception the Throwable about which to generate attribtues
    * @return Map of attributes about the Throwable
@@ -337,9 +337,10 @@ public final class OtelConventions {
       {
         put("exception.message", exception.getMessage());
         put("exception.type", exception.getClass().getName());
+        // "stringify" error stack
         final StringWriter errorString = new StringWriter();
         exception.printStackTrace(new PrintWriter(errorString));
-        put("exception.stacktrace", errorString.toString());
+        put("exception.stacktrace", exception.toString());
       }
     };
   }

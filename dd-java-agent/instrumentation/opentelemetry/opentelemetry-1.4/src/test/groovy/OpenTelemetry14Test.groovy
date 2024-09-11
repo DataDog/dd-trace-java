@@ -711,6 +711,29 @@ class OpenTelemetry14Test extends AgentTestRunner {
     new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | """{"key": "value", exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${final StringWriter errorString = new StringWriter(); exception.printStackTrace(new PrintWriter(errorString)); return errorString.toString()}"}"""
   }
 
+  def "test span error meta on record multiple exceptions"() {
+    // Span's error tags should reflect the last recorded exception
+    setup:
+    def result = tracer.spanBuilder("some-name").startSpan()
+    def timeSource = new ControllableTimeSource()
+    timeSource.set(1000)
+    OtelSpanEvent.setTimeSource(timeSource)
+    def exception1 = new NullPointerException("Null pointer")
+    def exception2 = new NumberFormatException("Number format exception")
+
+    when:
+    result.recordException(exception1)
+    result.recordException(exception2)
+
+    then:
+    result.delegate.getTag(ERROR_MSG) == exception2.getMessage()
+    result.delegate.getTag(DDTags.ERROR_TYPE) == exception2.getClass().getName()
+    final StringWriter errorString = new StringWriter()
+    exception2.printStackTrace(new PrintWriter(errorString))
+    result.delegate.getTag(DDTags.ERROR_STACK) == errorString.toString()
+    !result.delegate.isError()
+  }
+
   def "test span name update"() {
     setup:
     def result = tracer.spanBuilder("some-name")
