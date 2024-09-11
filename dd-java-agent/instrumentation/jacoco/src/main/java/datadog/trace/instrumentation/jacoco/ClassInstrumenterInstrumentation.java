@@ -9,7 +9,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.coverage.CoverageBridge;
+import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -24,9 +24,7 @@ public class ClassInstrumenterInstrumentation extends InstrumenterModule.CiVisib
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityCodeCoverageEnabled()
-        && Config.get().isCiVisibilityCoverageSegmentsEnabled();
+    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityCoverageLinesEnabled();
   }
 
   @Override
@@ -54,7 +52,7 @@ public class ClassInstrumenterInstrumentation extends InstrumenterModule.CiVisib
     static void enter(
         @Advice.FieldValue(value = "className") final String className,
         @Advice.Argument(0) int count) {
-      CoverageBridge.getCoverageStoreRegistry().setTotalProbeCount(className, count);
+      CoveragePerTestBridge.getCoverageStoreRegistry().setTotalProbeCount(className, count);
     }
   }
 }

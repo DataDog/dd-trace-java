@@ -1,6 +1,4 @@
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import com.redis.testcontainers.RedisContainer
 import com.redis.testcontainers.RedisServer
@@ -54,17 +52,15 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   }
 
   def setup() {
-    def cleanupSpan = runUnderTrace("cleanup") {
-      activeSpan()
-    }
-    TEST_WRITER.waitUntilReported(cleanupSpan)
     TEST_WRITER.start()
   }
 
   def cleanup() {
-    RedisConnection conn = lowLevelRedisClient.connect()
-    conn.sync(RedisCommands.FLUSHDB)
-    conn.closeAsync().await()
+    try (def suppressScope = TEST_TRACER.muteTracing()) {
+      RedisConnection conn = lowLevelRedisClient.connect()
+      conn.sync(RedisCommands.FLUSHDB)
+      conn.closeAsync().await()
+    }
   }
 
   def "bucket set command"() {

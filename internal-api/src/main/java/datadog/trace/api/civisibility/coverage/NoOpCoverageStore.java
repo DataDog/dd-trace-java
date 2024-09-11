@@ -27,7 +27,7 @@ public class NoOpCoverageStore implements CoverageStore {
 
   public static final class Factory implements CoverageStore.Factory {
     @Override
-    public CoverageStore create(TestIdentifier testIdentifier) {
+    public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
       return INSTANCE;
     }
 

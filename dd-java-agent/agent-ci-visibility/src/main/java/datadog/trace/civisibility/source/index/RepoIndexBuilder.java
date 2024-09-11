@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.source.index;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.domain.Language;
 import datadog.trace.civisibility.source.Utils;
 import datadog.trace.util.ClassNameTrie;
 import java.io.IOException;
@@ -60,7 +61,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   private RepoIndex doGetIndex() {
     log.debug("Building index of source files in {}", repoRoot);
 
-    Path repoRootPath = toRealPath(fileSystem.getPath(repoRoot));
+    Path repoRootPath = fileSystem.getPath(repoRoot);
     RepoIndexingFileVisitor fileVisitor =
         new RepoIndexingFileVisitor(config, packageResolver, resourceResolver, repoRootPath);
 
@@ -84,15 +85,6 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         fileVisitor.sourceRoots.size(),
         index.getRootPackages());
     return index;
-  }
-
-  private Path toRealPath(Path path) {
-    try {
-      return path.toRealPath();
-    } catch (Exception e) {
-      log.debug("Could not determine real path for {}", path, e);
-      return path;
-    }
   }
 
   private static final class RepoIndexingFileVisitor implements FileVisitor<Path> {
