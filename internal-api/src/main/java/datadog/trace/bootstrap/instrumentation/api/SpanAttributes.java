@@ -54,7 +54,6 @@ public class SpanAttributes implements Attributes {
   }
 
   public static class Builder {
-
     private final Map<String, String> attributes;
 
     protected Builder() {

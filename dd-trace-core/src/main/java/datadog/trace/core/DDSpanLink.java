@@ -140,6 +140,6 @@ public class DDSpanLink extends SpanLink {
     String span_id;
     Byte flags;
     String tracestate;
-    Map<String, Object> attributes;
+    Map<String, String> attributes;
   }
 }
