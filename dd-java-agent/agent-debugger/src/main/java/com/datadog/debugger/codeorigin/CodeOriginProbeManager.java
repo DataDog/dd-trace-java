@@ -1,6 +1,6 @@
 package com.datadog.debugger.codeorigin;
 
-import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.SPAN_DEBUG;
+import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.CODE_ORIGIN;
 
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.exception.Fingerprinter;
@@ -16,11 +16,9 @@ import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,7 +94,7 @@ public class CodeOriginProbeManager {
   public String installProbe(CodeOriginProbe probe) {
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
     if (installed == null) {
-      taskScheduler.execute(() -> configurationUpdater.accept(SPAN_DEBUG, getProbes()));
+      taskScheduler.execute(() -> configurationUpdater.accept(CODE_ORIGIN, getProbes()));
       return probe.getId();
     }
     return installed.getId();
@@ -108,14 +106,10 @@ public class CodeOriginProbeManager {
 
   private StackTraceElement findPlaceInStack() {
     return StackWalkerFactory.INSTANCE.walk(
-        stream -> {
-          List<StackTraceElement> list = stream.collect(Collectors.toList());
-          list =
-              list.stream()
-                  .filter(element -> !classNameFiltering.isExcluded(element.getClassName()))
-                  .collect(Collectors.toList());
-
-          return list.stream().findFirst().orElse(null);
-        });
+        stream ->
+            stream
+                .filter(element -> !classNameFiltering.isExcluded(element.getClassName()))
+                .findFirst()
+                .orElse(null));
   }
 }
