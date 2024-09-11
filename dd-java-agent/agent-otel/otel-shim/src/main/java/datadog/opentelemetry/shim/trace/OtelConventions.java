@@ -27,6 +27,7 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,22 @@ public final class OtelConventions {
   static final String OPERATION_NAME_SPECIFIC_ATTRIBUTE = "operation.name";
   static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
   static final String HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE = "http.response.status_code";
+  // map of default attribute keys to apply to all SpanEvents generated with recordException, along
+  // with the function for getting the expected value from the provided Throwable
+  static final Map<String, Function<Throwable, String>> defaultExceptionAttributes =
+      new HashMap<String, Function<Throwable, String>>() {
+        {
+          put("exception.message", exception -> exception.getMessage());
+          put("exception.type", exception -> exception.getClass().getName());
+          put(
+              "exception.stacktrace",
+              exception -> {
+                final StringWriter errorString = new StringWriter();
+                exception.printStackTrace(new PrintWriter(errorString));
+                return errorString.toString();
+              });
+        }
+      };
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
 
@@ -246,16 +263,13 @@ public final class OtelConventions {
    * AgentSpan.Attributes based on the AttributeKey type
    *
    * @param attributes the Attributes to convert
-   * @param format the format to convert the Attributes to, given attributes are handled differently
-   *     for SpanLinks and SpanEvents
    * @return the converted AgentSpan.Attributes
    */
-  public static AgentSpan.Attributes convertAttributes(
-      Attributes attributes, SpanAttributes.Builder.Format format) {
+  public static AgentSpan.Attributes convertAttributes(Attributes attributes) {
     if (attributes == null || attributes.isEmpty()) {
       return SpanAttributes.EMPTY;
     }
-    SpanAttributes.Builder builder = SpanAttributes.builder(format);
+    SpanAttributes.Builder builder = SpanAttributes.builder();
     attributes.forEach(
         (attributeKey, value) -> {
           String key = attributeKey.getKey();
@@ -302,46 +316,21 @@ public final class OtelConventions {
    *
    * @param exception The Throwable from which to build default attributes
    * @param additionalAttributes Attributes provided by the user
-   * @return Attributes collection that combines defaultAttributes and additionalAttributes
+   * @return Attributes collection that combines defaultExceptionAttributes with
+   *     additionalAttributes
    */
   public static Attributes processExceptionAttributes(
       Throwable exception, Attributes additionalAttributes) {
-    Map<String, Object> defaultAttributes = getAttributesFromException(exception);
     // Create an AttributesBuilder with the additionalAttributes provided
     AttributesBuilder attrsBuilder = additionalAttributes.toBuilder();
-    for (String key : defaultAttributes.keySet()) {
+    for (String key : defaultExceptionAttributes.keySet()) {
       // Add defaultAttributes onto the builder iff an equivalent key was not provided in
       // additionalAttributes
       if (additionalAttributes.get(AttributeKey.stringKey(key)) == null) {
-        Object value = defaultAttributes.get(key);
-        // Currently we only have Strings and booleans in defaultAttributes, but this could change.
-        if (value instanceof String) {
-          attrsBuilder.put(key, (String) defaultAttributes.get(key));
-        } else if (value instanceof Boolean) {
-          attrsBuilder.put(key, (Boolean) defaultAttributes.get(key));
-        }
-        // Need a catchall else here?
+        String value = defaultExceptionAttributes.get(key).apply(exception);
+        attrsBuilder.put(key, value);
       }
     }
     return attrsBuilder.build();
-  }
-
-  /**
-   * generate default list of attributes about a Throwable
-   *
-   * @param exception the Throwable about which to generate attribtues
-   * @return Map of attributes about the Throwable
-   */
-  private static Map<String, Object> getAttributesFromException(Throwable exception) {
-    return new HashMap<String, Object>() {
-      {
-        put("exception.message", exception.getMessage());
-        put("exception.type", exception.getClass().getName());
-        // "stringify" error stack
-        final StringWriter errorString = new StringWriter();
-        exception.printStackTrace(new PrintWriter(errorString));
-        put("exception.stacktrace", exception.toString());
-      }
-    };
   }
 }
