@@ -1,7 +1,6 @@
 package com.fasterxml.jackson.core.sym;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.UndeclaredThrowableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +35,8 @@ public final class ByteQuadsCanonicalizerHelper {
       try {
         return (boolean) INTERN.get(symbols);
       } catch (IllegalAccessException e) {
-        throw new UndeclaredThrowableException(e);
+        log.debug("Failed fetching ByteQuadsCanonicalizer _intern field", e);
+        return false;
       }
     } else {
       if (INTERNER == null) {
@@ -45,7 +45,8 @@ public final class ByteQuadsCanonicalizerHelper {
       try {
         return INTERNER.get(symbols) != null;
       } catch (IllegalAccessException e) {
-        throw new UndeclaredThrowableException(e);
+        log.debug("Failed fetching ByteQuadsCanonicalizer _interner field", e);
+        return false;
       }
     }
   }
