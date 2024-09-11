@@ -38,7 +38,7 @@ public final class OtelConventions {
   static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
   static final String HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE = "http.response.status_code";
   // map of default attribute keys to apply to all SpanEvents generated with recordException, along
-  // with the function for getting the expected value from the provided Throwable
+  // with the logic to generate the expected value from the provided Throwable
   static final Map<String, Function<Throwable, String>> defaultExceptionAttributes =
       new HashMap<String, Function<Throwable, String>>() {
         {
@@ -327,6 +327,7 @@ public final class OtelConventions {
       // Add defaultAttributes onto the builder iff an equivalent key was not provided in
       // additionalAttributes
       if (additionalAttributes.get(AttributeKey.stringKey(key)) == null) {
+        // get the value using the function found at `key` in defaultExceptionAttributes
         String value = defaultExceptionAttributes.get(key).apply(exception);
         attrsBuilder.put(key, value);
       }

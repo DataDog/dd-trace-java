@@ -32,9 +32,7 @@ public class OtelSpanEvent {
     this.timestamp = convertNano(timestamp, unit);
   }
 
-  // JSONParser is a helper class for turning the Map<String,String> that holds the attributes
-  // into
-  // a JSON string
+  // JSONParser is a helper class for JSON-encoding OtelSpanEvent attributes
   public static class AttributesJSONParser {
     public static String toJson(io.opentelemetry.api.common.Attributes attributes) {
       if (attributes == null) {

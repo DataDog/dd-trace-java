@@ -13,14 +13,14 @@ public class SpanAttributes implements Attributes {
   /** Represent an empty attributes. */
   public static final Attributes EMPTY = new SpanAttributes(Collections.emptyMap());
 
-  private final Map<String, Object> attributes;
+  private final Map<String, String> attributes;
 
-  protected SpanAttributes(Map<String, Object> attributes) {
+  protected SpanAttributes(Map<String, String> attributes) {
     this.attributes = attributes;
   }
 
   /**
-   * Gets a builder of the specified format to create attributes.
+   * Gets a builder to create attributes.
    *
    * @return A builder to create attributes.
    */
@@ -34,12 +34,12 @@ public class SpanAttributes implements Attributes {
    * @param map A map representing the attributes.
    * @return The related attributes.
    */
-  public static SpanAttributes fromMap(Map<String, Object> map) {
+  public static SpanAttributes fromMap(Map<String, String> map) {
     return new SpanAttributes(new HashMap<>(map));
   }
 
   @Override
-  public Map<String, Object> asMap() {
+  public Map<String, String> asMap() {
     return this.attributes;
   }
 
@@ -55,7 +55,7 @@ public class SpanAttributes implements Attributes {
 
   public static class Builder {
 
-    private final Map<String, Object> attributes;
+    private final Map<String, String> attributes;
 
     protected Builder() {
       this.attributes = new HashMap<>();
@@ -105,10 +105,12 @@ public class SpanAttributes implements Attributes {
 
     protected <T> Builder putArray(String key, List<T> array) {
       requireNonNull(key, "key must not be null");
-      for (int index = 0; index < array.size(); index++) {
-        Object value = array.get(index);
-        if (value != null) {
-          this.attributes.put(key + "." + index, value.toString());
+      if (array != null) {
+        for (int index = 0; index < array.size(); index++) {
+          Object value = array.get(index);
+          if (value != null) {
+            this.attributes.put(key + "." + index, value.toString());
+          }
         }
       }
       return this;

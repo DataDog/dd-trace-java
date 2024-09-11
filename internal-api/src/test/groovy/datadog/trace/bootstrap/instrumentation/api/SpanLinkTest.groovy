@@ -53,13 +53,13 @@ class SpanLinkTest extends DDSpecification {
 
   def "test span link attributes api"() {
     when:
-    def attributes = SpanAttributes.builder(SpanAttributes.Builder.Format.LINKS).build()
+    def attributes = SpanAttributes.builder().build()
 
     then:
     attributes.isEmpty()
 
     when:
-    attributes = SpanAttributes.builder(SpanAttributes.Builder.Format.LINKS).put('key', 'value').build()
+    attributes = SpanAttributes.builder().put('key', 'value').build()
 
     then:
     !attributes.isEmpty()
@@ -67,7 +67,7 @@ class SpanLinkTest extends DDSpecification {
 
   def "test span link attributes encoding"() {
     setup:
-    def builder = SpanAttributes.builder(SpanAttributes.Builder.Format.LINKS)
+    def builder = SpanAttributes.builder()
 
     when:
     builder.put('string', 'value')
@@ -137,7 +137,7 @@ class SpanLinkTest extends DDSpecification {
 
   def "test span link attributes toString"() {
     when:
-    SpanAttributes.builder(SpanAttributes.Builder.Format.LINKS).build().toString()
+    SpanAttributes.builder().build().toString()
 
     then:
     notThrown(NullPointerException)
