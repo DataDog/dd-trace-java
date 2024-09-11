@@ -112,13 +112,14 @@ public class Json2ParserInstrumentation extends InstrumenterModule.Iast
       if (jsonParser != null
           && result != null
           && jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
-        if (jsonParser instanceof UTF8StreamJsonParser
-            && Json2ParserHelper.fetchInterned((UTF8StreamJsonParser) jsonParser)) {
-          return;
-        }
         final ContextStore<JsonParser, NamedContext> store =
             InstrumentationContext.get(JsonParser.class, NamedContext.class);
         final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
+        if (jsonParser instanceof UTF8StreamJsonParser
+            && Json2ParserHelper.fetchInterned((UTF8StreamJsonParser) jsonParser)) {
+          context.setCurrentName(result);
+          return;
+        }
         context.taintName(result);
       }
     }

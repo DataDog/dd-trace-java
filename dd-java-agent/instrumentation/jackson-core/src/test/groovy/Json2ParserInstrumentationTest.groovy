@@ -42,7 +42,32 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     0 * _
 
     where:
-    target << testSuite()
+    target << [JSON_STRING]
+  }
+
+  void 'test json parsing (tainted but field names)'() {
+    given:
+    final source = new SourceImpl(origin: SourceTypes.REQUEST_BODY, name: 'body', value: JSON_STRING)
+    final module = Mock(PropagationModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    and:
+    final reader = new ObjectMapper().readerFor(Map)
+
+    when:
+    final taintedResult = reader.readValue(target) as Map
+
+    then:
+    JsonOutput.toJson(taintedResult) == JSON_STRING
+    _ * module.taintObjectIfTainted(_, _)
+    _ * module.findSource(_) >> source
+    1 * module.taintString(_, 'root_value', source.origin, 'root', JSON_STRING)
+    1 * module.taintString(_, 'array_0', source.origin, 'nested_array', JSON_STRING)
+    1 * module.taintString(_, 'array_1', source.origin, 'nested_array', JSON_STRING)
+    0 * _
+
+    where:
+    target << [new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
   }
 
   void 'test json parsing (not tainted)'() {
@@ -67,9 +92,7 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
   }
 
   private static List<Object> testSuite() {
-    //    return [JSON_STRING, new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
-    return [JSON_STRING]
-    //    return [new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
+    return [JSON_STRING, new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
   }
 
   private static class SourceImpl implements Taintable.Source {
