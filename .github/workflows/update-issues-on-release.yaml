@@ -10,6 +10,8 @@ on:
 
 jobs:
   update_issues:
+    permissions:
+      issues: write # Required to update issues
     runs-on: ubuntu-latest
     steps:
       - name: Get milestone for release

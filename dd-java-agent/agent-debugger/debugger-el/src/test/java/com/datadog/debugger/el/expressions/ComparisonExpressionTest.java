@@ -16,6 +16,7 @@ import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.math.BigDecimal;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.stream.Stream;
@@ -164,7 +165,37 @@ class ComparisonExpressionTest {
             new StringValue("java.lang.Double"),
             INSTANCEOF,
             true,
-            "1.0 instanceof \"java.lang.Double\""));
+            "1.0 instanceof \"java.lang.Double\""),
+        Arguments.of(
+            new ObjectValue(StandardOpenOption.READ),
+            new StringValue("READ"),
+            EQ,
+            true,
+            "java.nio.file.StandardOpenOption == \"READ\""),
+        Arguments.of(
+            new ObjectValue(StandardOpenOption.READ),
+            new StringValue("StandardOpenOption.READ"),
+            EQ,
+            true,
+            "java.nio.file.StandardOpenOption == \"StandardOpenOption.READ\""),
+        Arguments.of(
+            new ObjectValue(StandardOpenOption.READ),
+            new StringValue("java.nio.file.StandardOpenOption.READ"),
+            EQ,
+            true,
+            "java.nio.file.StandardOpenOption == \"java.nio.file.StandardOpenOption.READ\""),
+        Arguments.of(
+            new ObjectValue(StandardOpenOption.CREATE),
+            new StringValue("READ"),
+            EQ,
+            false,
+            "java.nio.file.StandardOpenOption == \"READ\""),
+        Arguments.of(
+            new StringValue("READ"),
+            new ObjectValue(StandardOpenOption.READ),
+            EQ,
+            true,
+            "\"READ\" == java.nio.file.StandardOpenOption"));
   }
 
   @ParameterizedTest

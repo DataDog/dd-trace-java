@@ -657,7 +657,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * segment.setTagTop('_dd.appsec.waf.version', _ as String)
-    1 * segment.setTagTop('_dd.appsec.event_rules.loaded', 115)
+    1 * segment.setTagTop('_dd.appsec.event_rules.loaded', 116)
     1 * segment.setTagTop('_dd.appsec.event_rules.error_count', 1)
     1 * segment.setTagTop('_dd.appsec.event_rules.errors', { it =~ /\{"[^"]+":\["bad rule"\]\}/})
     1 * segment.setTagTop('asm.keep', true)
@@ -777,11 +777,12 @@ class PowerWAFModuleSpecification extends DDSpecification {
     setupWithStubConfigService()
     AppSecEvent event
     StackTraceEvent stackTrace
-    injectSysConfig('appsec.stacktrace.enabled', 'true')
     pwafModule = new PowerWAFModule() // replace the one created too soon
+    def attackBundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+      new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/generate-stacktrace']))
 
     when:
-    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, ATTACK_BUNDLE, gwCtx)
+    dataListener.onDataAvailable(Stub(ChangeableFlow), ctx, attackBundle, gwCtx)
     ctx.closeAdditive()
 
     then:
@@ -791,16 +792,16 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.reportEvents(_ as Collection<AppSecEvent>) >> { event = it[0].iterator().next() }
     ctx.reportStackTrace(_ as StackTraceEvent) >> { stackTrace = it[0] }
 
-    event.rule.id == 'ua0-600-12x'
+    event.rule.id == 'generate-stacktrace-on-scanner'
     event.rule.name == 'Arachni'
     event.rule.tags == [type: 'security_scanner', category: 'attack_attempt']
 
     event.ruleMatches[0].operator == 'match_regex'
-    event.ruleMatches[0].operator_value == '^Arachni\\/v'
+    event.ruleMatches[0].operator_value == '^Arachni\\/generate-stacktrace'
     event.ruleMatches[0].parameters[0].address == 'server.request.headers.no_cookies'
-    event.ruleMatches[0].parameters[0].highlight == ['Arachni/v']
+    event.ruleMatches[0].parameters[0].highlight == ['Arachni/generate-stacktrace']
     event.ruleMatches[0].parameters[0].key_path == ['user-agent']
-    event.ruleMatches[0].parameters[0].value == 'Arachni/v0'
+    event.ruleMatches[0].parameters[0].value == 'Arachni/generate-stacktrace'
 
     event.spanId == 777
 
@@ -1484,6 +1485,30 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 402 && rba.blockingContentType == BlockingContentType.AUTO
     })
+  }
+
+  void 'fingerprint support'() {
+    given:
+    final flow = Mock(ChangeableFlow)
+    setupWithStubConfigService 'fingerprint_config.json'
+    dataListener = pwafModule.dataSubscriptions.first()
+    ctx.closeAdditive()
+    final bundle = MapDataBundle.ofDelegate([
+      (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
+      (KnownAddresses.REQUEST_METHOD): 'GET',
+      (KnownAddresses.REQUEST_URI_RAW): 'http://localhost:8080/test',
+      (KnownAddresses.REQUEST_BODY_OBJECT): [:],
+      (KnownAddresses.REQUEST_QUERY): [name: ['test']],
+      (KnownAddresses.HEADERS_NO_COOKIES): new CaseInsensitiveMap<List<String>>(['user-agent': ['Arachni/v1.5.1']])
+    ])
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeAdditive()
+
+    then:
+    1 * flow.setAction({ it.blocking })
+    ctx.derivativeKeys.contains('_dd.appsec.fp.http.endpoint')
   }
 
   private Map<String, Object> getDefaultConfig() {

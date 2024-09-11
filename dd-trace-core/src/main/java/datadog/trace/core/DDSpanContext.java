@@ -515,7 +515,7 @@ public class DDSpanContext
     propagationTags.updateAppsecPropagation(value);
   }
 
-  public void updateDebugPropagation(int value) {
+  public void updateDebugPropagation(String value) {
     propagationTags.updateDebugPropagation(value);
   }
 

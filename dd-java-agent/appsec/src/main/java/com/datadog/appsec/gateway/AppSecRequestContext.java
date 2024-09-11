@@ -1,5 +1,7 @@
 package com.datadog.appsec.gateway;
 
+import static java.util.Collections.emptySet;
+
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.report.AppSecEvent;
@@ -9,6 +11,8 @@ import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.sqreen.powerwaf.Additive;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.PowerwafMetrics;
@@ -87,7 +91,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String savedRawURI;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
-  private Map<String, List<String>> collectedCookies;
+  private volatile Map<String, List<String>> collectedCookies;
   private boolean finishedRequestHeaders;
   private boolean finishedResponseHeaders;
   private String peerAddress;
@@ -104,13 +108,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean convertedReqBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-  private Map<String, String> apiSchemas;
+  private volatile Map<String, String> derivatives;
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
 
   // should be guarded by this
-  private Additive additive;
+  private volatile Additive additive;
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
   private volatile PowerwafMetrics raspMetrics;
@@ -195,12 +199,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public void closeAdditive() {
-    synchronized (this) {
-      if (additive != null) {
-        try {
-          additive.close();
-        } finally {
-          additive = null;
+    if (additive != null) {
+      synchronized (this) {
+        if (additive != null) {
+          try {
+            additive.close();
+          } finally {
+            additive = null;
+          }
         }
       }
     }
@@ -417,19 +423,32 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   @Override
   public void close() {
-    synchronized (this) {
-      if (additive == null) {
-        return;
-      }
-    }
-
-    log.warn("WAF object had not been closed (probably missed request-end event)");
-    closeAdditive();
+    final AgentSpan span = AgentTracer.activeSpan();
+    close(span != null && span.isRequiresPostProcessing());
   }
 
   /* end interface for GatewayBridge */
 
   /* Should be accessible from the modules */
+
+  public void close(boolean requiresPostProcessing) {
+    if (additive != null || derivatives != null) {
+      log.warn("WAF object had not been closed (probably missed request-end event)");
+      closeAdditive();
+      derivatives = null;
+    }
+
+    // check if we might need to further post process data related to the span in order to not free
+    // related data
+    if (requiresPostProcessing) {
+      return;
+    }
+
+    collectedCookies = null;
+    requestHeaders.clear();
+    responseHeaders.clear();
+    persistentData.clear();
+  }
 
   /** @return the portion of the body read so far, if any */
   public CharSequence getStoredRequestBody() {
@@ -499,22 +518,28 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  public void reportApiSchemas(Map<String, String> schemas) {
-    if (schemas == null || schemas.isEmpty()) return;
+  public void reportDerivatives(Map<String, String> data) {
+    if (data == null || data.isEmpty()) return;
 
-    if (apiSchemas == null) {
-      apiSchemas = schemas;
+    if (derivatives == null) {
+      derivatives = data;
     } else {
-      apiSchemas.putAll(schemas);
+      derivatives.putAll(data);
     }
   }
 
-  boolean commitApiSchemas(TraceSegment traceSegment) {
-    if (traceSegment == null || apiSchemas == null) {
+  boolean commitDerivatives(TraceSegment traceSegment) {
+    if (traceSegment == null || derivatives == null) {
       return false;
     }
-    apiSchemas.forEach(traceSegment::setTagTop);
+    derivatives.forEach(traceSegment::setTagTop);
+    derivatives = null;
     return true;
+  }
+
+  // Mainly used for testing and logging
+  Set<String> getDerivativeKeys() {
+    return derivatives == null ? emptySet() : new HashSet<>(derivatives.keySet());
   }
 
   public boolean isThrottled(RateLimiter rateLimiter) {

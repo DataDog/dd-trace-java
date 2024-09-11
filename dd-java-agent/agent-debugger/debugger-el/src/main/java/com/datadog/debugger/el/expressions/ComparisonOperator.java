@@ -21,8 +21,49 @@ public enum ComparisonOperator {
         }
         return compare(leftNumber, rightNumber) == 0;
       }
+      if (left.getValue() instanceof Enum || right.getValue() instanceof Enum) {
+        return applyEqualityForEnum(left, right);
+      }
       if (left.getValue().getClass() == right.getValue().getClass()) {
         return Objects.equals(left.getValue(), right.getValue());
+      }
+      return Boolean.FALSE;
+    }
+
+    private Boolean applyEqualityForEnum(Value<?> left, Value<?> right) {
+      if (left.getValue() instanceof Enum && right instanceof StringValue) {
+        return doApplyEqualityForEnum(left, right);
+      }
+      if (left instanceof StringValue && right.getValue() instanceof Enum) {
+        return doApplyEqualityForEnum(right, left);
+      }
+      throw new EvaluationException(
+          "Equality operator is not supported for the given types: "
+              + left.getValue().getClass().getName()
+              + " and "
+              + right.getValue().getClass().getName(),
+          null);
+    }
+
+    private Boolean doApplyEqualityForEnum(Value<?> enumExpr, Value<?> enumValueExpr) {
+      Enum<?> enumValue = (Enum<?>) enumExpr.getValue();
+      String enumValueStr = (String) enumValueExpr.getValue();
+      Class<? extends Enum> enumClass = enumValue.getClass();
+      Enum[] enumConstants = enumClass.getEnumConstants();
+      for (Enum<?> enumConstant : enumConstants) {
+        // Check if string constant as value expression matches for enum constant
+        // the endsWith allow to match either:
+        // - the full enum constant name (com.datadog.debugger.MyEnum.ONE)
+        // - the simple name with enum class name (MyEnum.ONE)
+        // - the simple name (ONE)
+        // The second check against enumValue is to ensure the instance filtered based on the
+        // name is still correct because the name can partially match (CLOSE in OPENCLOSE)
+        // with an enum defined like (OPEN, CLOSE, OPENCLOSE)
+        if (enumValueStr.endsWith(enumConstant.name())) {
+          if (enumValue.equals(enumConstant)) {
+            return Boolean.TRUE;
+          }
+        }
       }
       return Boolean.FALSE;
     }

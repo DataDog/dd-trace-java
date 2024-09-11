@@ -3,6 +3,7 @@ package com.datadog.profiling.controller;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
@@ -13,10 +14,49 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /** Capture the profiler config first and allow emitting the setting events per each recording. */
 public abstract class ProfilerSettingsSupport {
+  protected static final class ProfilerActivationSetting {
+    public enum Ssi {
+      INJECTED_AGENT,
+      NONE
+    }
+
+    public final ProfilingEnablement enablement;
+    public final Ssi ssiMechanism;
+
+    public ProfilerActivationSetting(ProfilingEnablement enablement, Ssi ssiMechanism) {
+      this.enablement = enablement;
+      this.ssiMechanism = ssiMechanism;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      ProfilerActivationSetting that = (ProfilerActivationSetting) o;
+      return enablement == that.enablement && ssiMechanism == that.ssiMechanism;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(enablement, ssiMechanism);
+    }
+
+    @Override
+    public String toString() {
+      return "ProfilerActivationSetting{"
+          + "enablement="
+          + enablement
+          + ", ssiMechanism="
+          + ssiMechanism
+          + '}';
+    }
+  }
+
   protected static final String JFR_IMPLEMENTATION_KEY = "JFR Implementation";
   protected static final String UPLOAD_PERIOD_KEY = "Upload Period";
   protected static final String UPLOAD_TIMEOUT_KEY = "Upload Timeout";
@@ -31,10 +71,13 @@ public abstract class ProfilerSettingsSupport {
   protected static final String NATIVE_STACKS_KEY = "Native Stacks";
   protected static final String STACK_DEPTH_KEY = "Stack Depth";
   protected static final String SELINUX_STATUS_KEY = "SELinux Status";
-  protected static final String SERVICE_INSTRUMENTATION_TYPE = "Service Instrumentation Type";
-  protected static final String SERVICE_INJECTION = "Service Injection";
 
   protected static final String DDPROF_UNAVAILABLE_REASON_KEY = "DDProf Unavailable Reason";
+
+  protected static final String SERVICE_INSTRUMENTATION_TYPE = "Service Instrumentation Type";
+  protected static final String SERVICE_INJECTION = "Service Injection";
+  protected static final String PROFILER_ACTIVATION = "Profiler Activation";
+  protected static final String SSI_MECHANISM = "SSI Mechanism";
 
   protected final int uploadPeriod;
   protected final int uploadTimeout;
@@ -56,6 +99,8 @@ public abstract class ProfilerSettingsSupport {
   protected final String serviceInjection;
 
   protected final String ddprofUnavailableReason;
+
+  protected final ProfilerActivationSetting profilerActivationSetting;
 
   protected final int stackDepth;
   protected final boolean hasJfrStackDepthApplied;
@@ -127,12 +172,24 @@ public abstract class ProfilerSettingsSupport {
     this.ddprofUnavailableReason = ddprofUnavailableReason;
     this.hasJfrStackDepthApplied = hasJfrStackDepthApplied;
 
-    serviceInjection =
-        configProvider.getString(
-            "injection.enabled"); // usually set via DD_INJECTION_ENABLED env var
+    serviceInjection = getServiceInjection(configProvider);
     serviceInstrumentationType =
         // usually set via DD_INSTRUMENTATION_INSTALL_TYPE env var
         configProvider.getString("instrumentation.install.type");
+    this.profilerActivationSetting = getProfilerActivation(configProvider);
+  }
+
+  private static String getServiceInjection(ConfigProvider configProvider) {
+    // usually set via DD_INJECTION_ENABLED env var
+    return configProvider.getString("injection.enabled");
+  }
+
+  static ProfilerActivationSetting getProfilerActivation(ConfigProvider configProvider) {
+    return new ProfilerActivationSetting(
+        ProfilingEnablement.from(configProvider),
+        getServiceInjection(configProvider) != null
+            ? ProfilerActivationSetting.Ssi.INJECTED_AGENT
+            : ProfilerActivationSetting.Ssi.NONE);
   }
 
   private String getSELinuxStatus() {

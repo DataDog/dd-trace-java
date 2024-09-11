@@ -106,6 +106,12 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/Source",
           Type.getInternalName(OtelMuzzleRefBuilder.Source.class));
+      RENAMED_TYPES.put(
+          "io/opentelemetry/instrumentation/CallDepth",
+          "datadog/trace/bootstrap/otel/instrumentation/CallDepth");
+      RENAMED_TYPES.put(
+          "io/opentelemetry/instrumentation/Java8BytecodeBridge",
+          "datadog/trace/bootstrap/otel/instrumentation/Java8BytecodeBridge");
     }
 
     /** OpenTelemetry and related packages shaded inside the tracer. */
@@ -120,7 +126,18 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       RENAMED_PACKAGES.put("io/opentelemetry/semconv/", "datadog/trace/bootstrap/otel/semconv/");
 
       RENAMED_PACKAGES.put(
-          "io/opentelemetry/instrumentation/", "datadog/trace/bootstrap/otel/instrumentation/");
+          "io/opentelemetry/instrumentation/api/",
+          "datadog/trace/bootstrap/otel/instrumentation/api/");
+      RENAMED_PACKAGES.put(
+          "io/opentelemetry/instrumentation/http/",
+          "datadog/trace/bootstrap/otel/instrumentation/http/");
+      RENAMED_PACKAGES.put(
+          "io/opentelemetry/instrumentation/servlet/",
+          "datadog/trace/bootstrap/otel/instrumentation/servlet/");
+      RENAMED_PACKAGES.put(
+          "io/opentelemetry/instrumentation/internal/",
+          "datadog/trace/bootstrap/otel/instrumentation/internal/");
+
       RENAMED_PACKAGES.put(
           "io/opentelemetry/javaagent/bootstrap/", "datadog/trace/bootstrap/otel/instrumentation/");
 

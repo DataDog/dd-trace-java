@@ -28,6 +28,8 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
       "org/example/cucumber/calculator/basic_arithmetic.feature",
       "org/example/cucumber/calculator/basic_arithmetic_failed.feature"
     ]                                                                                                                  | 3
+    "test-name-with-brackets"             | ["org/example/cucumber/calculator/name_with_brackets.feature"]             | 2
+    "test-empty-name-${version()}"        | ["org/example/cucumber/calculator/empty_scenario_name.feature"]            | 2
   }
 
   def "test ITR #testcaseName"() {
@@ -40,13 +42,13 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                 | features                                                                       | expectedTracesCount | skippedTests
     "test-itr-skipping"          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                   | 2                   | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null, null)
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null)
     ]
     "test-itr-unskippable"       | ["org/example/cucumber/calculator/basic_arithmetic_unskippable.feature"]       | 2                   | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_unskippable.feature:Basic Arithmetic", "Addition", null, null)
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_unskippable.feature:Basic Arithmetic", "Addition", null)
     ]
     "test-itr-unskippable-suite" | ["org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature"] | 2                   | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature:Basic Arithmetic", "Addition", null, null)
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_unskippable_suite.feature:Basic Arithmetic", "Addition", null)
     ]
   }
 
@@ -61,10 +63,10 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     testcaseName                               | features                                                                          | expectedTracesCount | retriedTests
     "test-failure"                             | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | 2                   | []
     "test-retry-failure"                       | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"]               | 6                   | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null, null)
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition", null)
     ]
     "test-retry-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature"] | 5                   | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples", "Many additions", null, null)
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic_with_examples_failed.feature:Basic Arithmetic With Examples", "Many additions", null)
     ]
   }
 
@@ -78,7 +80,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                                 | features                                                                   | expectedTracesCount | knownTestsList
     "test-efd-known-test"                        | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | 2                   | [
-      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null, null)
+      new TestIdentifier("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition", null)
     ]
     "test-efd-new-test"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | 4                   | []
     "test-efd-new-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | 9                   | []

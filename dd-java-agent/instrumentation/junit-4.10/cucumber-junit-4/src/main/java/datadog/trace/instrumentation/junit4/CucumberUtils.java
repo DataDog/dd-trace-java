@@ -50,6 +50,8 @@ public abstract class CucumberUtils {
       REFLECTION.constructor("io.cucumber.junit.PickleRunners$PickleId", Pickle.class);
   private static final MethodHandle PICKLE_ID_URI_GETTER =
       REFLECTION.privateFieldGetter("io.cucumber.junit.PickleRunners$PickleId", "uri");
+  private static final MethodHandle PICKLE_ID_LINE_GETTER =
+      REFLECTION.privateFieldGetter("io.cucumber.junit.PickleRunners$PickleId", "pickleLine");
   private static final MethodHandle PICKLE_RUNNER_GET_DESCRIPTION =
       REFLECTION.method("io.cucumber.junit.PickleRunners$PickleRunner", "getDescription");
 
@@ -72,6 +74,11 @@ public abstract class CucumberUtils {
     return REFLECTION.invoke(PICKLE_ID_URI_GETTER, pickleId);
   }
 
+  public static Integer getPickleLine(Description scenarioDescription) {
+    Object pickleId = JUnit4Utils.getUniqueId(scenarioDescription);
+    return REFLECTION.invoke(PICKLE_ID_LINE_GETTER, pickleId);
+  }
+
   public static String getTestSuiteNameForFeature(Description featureDescription) {
     Object uniqueId = JUnit4Utils.getUniqueId(featureDescription);
     return (uniqueId != null ? uniqueId + ":" : "") + featureDescription.getClassName();
@@ -79,7 +86,63 @@ public abstract class CucumberUtils {
 
   public static String getTestSuiteNameForScenario(Description scenarioDescription) {
     URI featureUri = getFeatureUri(scenarioDescription);
-    return (featureUri != null ? featureUri + ":" : "") + scenarioDescription.getClassName();
+    return (featureUri != null ? featureUri + ":" : "")
+        + getFeatureNameForScenario(scenarioDescription);
+  }
+
+  private static String getFeatureNameForScenario(Description scenarioDescription) {
+    String scenarioDescriptionString = scenarioDescription.toString();
+    int featureNameStart = getFeatureNameStartIdx(scenarioDescriptionString);
+    if (featureNameStart >= 0) {
+      int descriptionLength = scenarioDescriptionString.length();
+      // feature name is wrapped in brackets, hence the +1/-1
+      return scenarioDescriptionString.substring(featureNameStart + 1, descriptionLength - 1);
+    } else {
+      // fallback to default method
+      return scenarioDescription.getClassName();
+    }
+  }
+
+  public static String getTestNameForScenario(Description scenarioDescription) {
+    String scenarioDescriptionString = scenarioDescription.toString();
+    int featureNameStart = getFeatureNameStartIdx(scenarioDescriptionString);
+    if (featureNameStart > 0) { // if featureNameStart == 0, then test name is empty and of no use
+      return scenarioDescriptionString.substring(0, featureNameStart);
+    }
+
+    // fallback to default method
+    String methodName = scenarioDescription.getMethodName();
+    if (Strings.isNotBlank(methodName)) {
+      return methodName;
+    }
+
+    Integer pickleLine = getPickleLine(scenarioDescription);
+    if (pickleLine != null) {
+      return "LINE:" + pickleLine + "";
+    }
+
+    return "EMPTY_NAME";
+  }
+
+  /**
+   * JUnit 4 expects description string to have the form {@code "Scenario Name(Feature Name)"} The
+   * standard {@link Description#getClassName()} and {@link Description#getMethodName()} methods use
+   * a regex to split the name parts. This does not work correctly when feature or scenario names
+   * have bracket characters in them.
+   */
+  private static int getFeatureNameStartIdx(String scenarioDescriptionString) {
+    int openBrackets = 0;
+    for (int i = scenarioDescriptionString.length() - 1; i >= 0; i--) {
+      char c = scenarioDescriptionString.charAt(i);
+      if (c == ')') {
+        openBrackets++;
+      } else if (c == '(') {
+        if (--openBrackets == 0) {
+          return i;
+        }
+      }
+    }
+    return -1;
   }
 
   private static URI getFeatureUri(Description scenarioDescription) {
@@ -100,13 +163,13 @@ public abstract class CucumberUtils {
 
   public static TestIdentifier toTestIdentifier(Description description) {
     String suite = getTestSuiteNameForScenario(description);
-    String name = description.getMethodName();
-    return new TestIdentifier(suite, name, null, null);
+    String name = getTestNameForScenario(description);
+    return new TestIdentifier(suite, name, null);
   }
 
   public static TestDescriptor toTestDescriptor(Description description) {
     String suite = getTestSuiteNameForScenario(description);
-    String name = description.getMethodName();
+    String name = getTestNameForScenario(description);
     return new TestDescriptor(suite, null, name, null, null);
   }
 

@@ -86,6 +86,10 @@ public final class Strings {
     return string.replace('.', '_').replace('-', '_').toUpperCase();
   }
 
+  public static String toEnvVarLowerCase(String string) {
+    return string.replace('.', '_').replace('-', '_').toLowerCase();
+  }
+
   /** com.foo.Bar -> com/foo/Bar.class */
   public static String getResourceName(final String className) {
     if (!className.endsWith(".class")) {

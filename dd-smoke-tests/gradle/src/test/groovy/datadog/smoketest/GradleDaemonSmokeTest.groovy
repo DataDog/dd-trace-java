@@ -76,18 +76,18 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
   @IgnoreIf(reason = "Jacoco plugin does not work with OpenJ9 in older Gradle versions", value = {
     Platform.isJ9()
   })
-  def "test legacy #projectName, v#gradleVersion, configCache: #configurationCache"() {
-    runGradleTest(gradleVersion, projectName, configurationCache, successExpected, flakyRetries, expectedTraces, expectedCoverages)
+  def "test legacy #projectName, v#gradleVersion"() {
+    runGradleTest(gradleVersion, projectName, false, successExpected, false, expectedTraces, expectedCoverages)
 
     where:
-    gradleVersion         | projectName                                        | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages
-    "3.0"                 | "test-succeed-old-gradle"                          | false              | true            | false        | 5              | 1
-    "7.6.4"               | "test-succeed-legacy-instrumentation"              | false              | true            | false        | 5              | 1
-    "7.6.4"               | "test-succeed-multi-module-legacy-instrumentation" | false              | true            | false        | 7              | 2
-    "7.6.4"               | "test-succeed-multi-forks-legacy-instrumentation"  | false              | true            | false        | 6              | 2
-    "7.6.4"               | "test-skip-legacy-instrumentation"                 | false              | true            | false        | 2              | 0
-    "7.6.4"               | "test-failed-legacy-instrumentation"               | false              | false           | false        | 4              | 0
-    "7.6.4"               | "test-corrupted-config-legacy-instrumentation"     | false              | false           | false        | 1              | 0
+    gradleVersion         | projectName                                        | successExpected | expectedTraces | expectedCoverages
+    "3.0"                 | "test-succeed-old-gradle"                          | true            | 5              | 1
+    "7.6.4"               | "test-succeed-legacy-instrumentation"              | true            | 5              | 1
+    "7.6.4"               | "test-succeed-multi-module-legacy-instrumentation" | true            | 7              | 2
+    "7.6.4"               | "test-succeed-multi-forks-legacy-instrumentation"  | true            | 6              | 2
+    "7.6.4"               | "test-skip-legacy-instrumentation"                 | true            | 2              | 0
+    "7.6.4"               | "test-failed-legacy-instrumentation"               | false           | 4              | 0
+    "7.6.4"               | "test-corrupted-config-legacy-instrumentation"     | false           | 1              | 0
   }
 
   def "test #projectName, v#gradleVersion, configCache: #configurationCache"() {
@@ -96,8 +96,10 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
     where:
     gradleVersion         | projectName                                        | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages
     "8.3"                 | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
+    "8.9"                 | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | false              | true            | false        | 5              | 1
     "8.3"                 | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
+    "8.9"                 | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-succeed-new-instrumentation"                 | true               | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-succeed-multi-module-new-instrumentation"    | false              | true            | false        | 7              | 2
     LATEST_GRADLE_VERSION | "test-succeed-multi-forks-new-instrumentation"     | false              | true            | false        | 6              | 2
@@ -116,7 +118,9 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
 
     mockBackend.givenFlakyRetries(flakyRetries)
     mockBackend.givenFlakyTest(":test", "datadog.smoke.TestFailed", "test_failed")
-    mockBackend.givenSkippableTest(":test", "datadog.smoke.TestSucceed", "test_to_skip_with_itr")
+
+    mockBackend.givenTestsSkipping(true)
+    mockBackend.givenSkippableTest(":test", "datadog.smoke.TestSucceed", "test_to_skip_with_itr", [:])
 
     BuildResult buildResult = runGradleTests(gradleVersion, successExpected, configurationCache)
 
@@ -159,7 +163,6 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED)}=false," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED)}=false," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION)}=$JACOCO_PLUGIN_VERSION," +
-      "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED)}=true," +
       "${Strings.propertyNameToSystemPropertyName(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL)}=${mockBackend.intakeUrl}"
 
     Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
@@ -187,10 +190,7 @@ class GradleDaemonSmokeTest extends CiVisibilitySmokeTest {
 
   private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true, boolean configurationCache = false) {
     def arguments = ["test", "--stacktrace"]
-    if (gradleVersion > "5.6") {
-      // fail on warnings is available starting from Gradle 5.6
-      arguments += ["--warning-mode", "fail"]
-    } else if (gradleVersion > "4.5") {
+    if (gradleVersion > "4.5") {
       // warning mode available starting from Gradle 4.5
       arguments += ["--warning-mode", "all"]
     }

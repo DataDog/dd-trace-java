@@ -24,13 +24,15 @@ public final class DebuggerConfig {
   public static final String DEBUGGER_CAPTURE_TIMEOUT = "dynamic.instrumentation.capture.timeout";
   public static final String DEBUGGER_REDACTED_IDENTIFIERS =
       "dynamic.instrumentation.redacted.identifiers";
+  public static final String DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS =
+      "dynamic.instrumentation.redaction.excluded.identifiers";
   public static final String DEBUGGER_REDACTED_TYPES = "dynamic.instrumentation.redacted.types";
   public static final String DEBUGGER_SYMBOL_ENABLED = "symbol.database.upload.enabled";
   public static final String DEBUGGER_SYMBOL_FORCE_UPLOAD = "internal.force.symbol.database.upload";
   public static final String DEBUGGER_SYMBOL_INCLUDES = "symbol.database.includes";
   public static final String DEBUGGER_SYMBOL_FLUSH_THRESHOLD = "symbol.database.flush.threshold";
   public static final String DEBUGGER_EXCEPTION_ENABLED = "exception.debugging.enabled";
-  public static final String DEBUGGER_SPAN_DEBUG_ENABLED = "span.debug.enabled";
+  public static final String DEBUGGER_CODE_ORIGIN_ENABLED = "code.origin.enabled";
   public static final String EXCEPTION_REPLAY_ENABLED = "exception.replay.enabled";
   public static final String DEBUGGER_MAX_EXCEPTION_PER_SECOND =
       "exception.replay.max.exception.analysis.limit";

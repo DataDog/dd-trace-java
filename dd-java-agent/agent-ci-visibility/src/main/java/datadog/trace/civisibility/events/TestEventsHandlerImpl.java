@@ -132,9 +132,17 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
     }
 
     TestSuiteImpl testSuite = inProgressTestSuites.get(suiteDescriptor);
+    if (testSuite == null) {
+      throw new IllegalStateException(
+          "Could not find test suite with descriptor "
+              + suiteDescriptor
+              + "; test descriptor: "
+              + descriptor);
+    }
+
     TestImpl test = testSuite.testStart(testName, testParameters, testMethod, null);
 
-    TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters, null);
+    TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters);
     if (testModule.isNew(thisTest)) {
       test.setTag(Tags.TEST_IS_NEW, true);
     }

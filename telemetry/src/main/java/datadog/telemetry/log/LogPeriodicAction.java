@@ -105,9 +105,9 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
 
   private static void writePendingRedacted(final StringBuilder result, final int pendingRedacted) {
     if (pendingRedacted == 1) {
-      result.append("  at ").append("[redacted]\n");
+      result.append("  at ").append("(redacted)\n");
     } else if (pendingRedacted > 1) {
-      result.append("  at [redacted: ").append(pendingRedacted).append(" frames]\n");
+      result.append("  at (redacted: ").append(pendingRedacted).append(" frames)\n");
     }
   }
 }

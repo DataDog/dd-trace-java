@@ -30,6 +30,7 @@ import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -48,7 +49,15 @@ import com.squareup.moshi.JsonAdapter;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.bootstrap.debugger.*;
+import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CorrelationAccess;
+import datadog.trace.bootstrap.debugger.DebuggerContext;
+import datadog.trace.bootstrap.debugger.EvaluationError;
+import datadog.trace.bootstrap.debugger.Limits;
+import datadog.trace.bootstrap.debugger.MethodLocation;
+import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.core.CoreTracer;
@@ -90,6 +99,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
@@ -104,6 +114,7 @@ public class CapturedSnapshotTest {
   private static final ProbeId PROBE_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
   private static final ProbeId PROBE_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
   private static final ProbeId PROBE_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
+  private static final ProbeId PROBE_ID4 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f9", 0);
   private static final String SERVICE_NAME = "service-name";
   private static final JsonAdapter<Map<String, Object>> GENERIC_ADAPTER =
       MoshiHelper.createGenericAdapter();
@@ -253,7 +264,8 @@ public class CapturedSnapshotTest {
     assertNotNull(testClass);
     int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(45, result);
-    assertEquals(0, listener.snapshots.size());
+    // with local var hoisting and initialization at the beginning of the method, issue is resolved
+    assertEquals(1, listener.snapshots.size());
   }
 
   @Test
@@ -1714,11 +1726,15 @@ public class CapturedSnapshotTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
   public void uncaughtExceptionConditionLocalVar() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot05";
     LogProbe probe =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "main", "(String)")
-            .when(new ProbeCondition(DSL.when(DSL.gt(DSL.ref("after"), DSL.value(0))), "after > 0"))
+            .when(
+                new ProbeCondition(DSL.when(DSL.ge(DSL.ref("after"), DSL.value(0))), "after >= 0"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
     TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
@@ -1736,11 +1752,104 @@ public class CapturedSnapshotTest {
         "oops",
         "CapturedSnapshot05.triggerUncaughtException",
         8);
-    assertEquals(2, snapshot.getEvaluationErrors().size());
-    assertEquals("Cannot find symbol: after", snapshot.getEvaluationErrors().get(0).getMessage());
-    assertEquals(
-        "CapturedSnapshot05$CustomException: oops",
-        snapshot.getEvaluationErrors().get(1).getMessage());
+    assertNull(snapshot.getEvaluationErrors());
+    // after is 0 because the exception is thrown before the assignment and local var initialized
+    // at the beginning of the method by instrumentation
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "after", "long", "0");
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void uncaughtExceptionCaptureLocalVars() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createProbeAtExit(PROBE_ID, CLASS_NAME, "uncaughtException", null);
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    try {
+      Reflect.onClass(testClass).call("main", "uncaughtException").get();
+      Assertions.fail("should not reach this code");
+    } catch (ReflectException ex) {
+      assertEquals("oops", ex.getCause().getCause().getMessage());
+    }
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureThrowable(
+        snapshot.getCaptures().getReturn(),
+        "java.lang.RuntimeException",
+        "oops",
+        "com.datadog.debugger.CapturedSnapshot31.uncaughtException",
+        24);
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void methodProbeLocalVarsLocalScopes() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createProbeAtExit(PROBE_ID, CLASS_NAME, "localScopes", "(String)");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "localScopes").get();
+    assertEquals(42, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "@return", "int", "42");
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void methodProbeLocalVarsDeepScopes() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createProbeAtExit(PROBE_ID, CLASS_NAME, "deepScopes", "(String)");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "deepScopes").get();
+    assertEquals(4, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(6, snapshot.getCaptures().getReturn().getLocals().size());
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL0", "int", "0");
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL1", "int", "1");
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL2", "int", "2");
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL3", "int", "3");
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL4", "int", "4");
+  }
+
+  @Test
+  @DisabledIf(
+      value = "datadog.trace.api.Platform#isJ9",
+      disabledReason = "we cannot get local variable debug info")
+  public void methodProbeExceptionLocalVars() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot31";
+    LogProbe probe = createProbeAtExit(PROBE_ID, CLASS_NAME, "caughtException", "(String)");
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "illegalState").get();
+    assertEquals(0, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    Map<String, String> expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "state");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(),
+        "ex",
+        IllegalStateException.class.getTypeName(),
+        expectedFields);
+    listener.snapshots.clear();
+    result = Reflect.onClass(testClass).call("main", "illegalArgument").get();
+    assertEquals(0, result);
+    snapshot = assertOneSnapshot(listener);
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "argument");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(),
+        "ex",
+        IllegalArgumentException.class.getTypeName(),
+        expectedFields);
   }
 
   @Test
@@ -1766,6 +1875,34 @@ public class CapturedSnapshotTest {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
     TestSnapshotListener listener =
         installProbes(CLASS_NAME, createProbe(PROBE_ID, CLASS_NAME, "convert", null));
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "2").get();
+    assertEquals(2, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureReturnValue(
+        snapshot.getCaptures().getReturn(),
+        "com.datadog.debugger.CapturedSnapshot23$MyEnum",
+        "TWO");
+  }
+
+  @Test
+  public void enumCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "convert", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.and(
+                            DSL.eq(DSL.ref("@return"), DSL.value("TWO")),
+                            DSL.eq(DSL.ref("@return"), DSL.value("MyEnum.TWO")),
+                            DSL.eq(
+                                DSL.ref("@return"),
+                                DSL.value("com.datadog.debugger.CapturedSnapshot23$MyEnum.TWO")))),
+                    "@return == 'TWO' && @return == 'MyEnum.TWO' && @return == 'com.datadog.debugger.CapturedSnapshot23$MyEnum.TWO'"))
+            .build();
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "2").get();
     assertEquals(2, result);
@@ -2200,6 +2337,7 @@ public class CapturedSnapshotTest {
                     .where(where)
                     .build())
             .add(LogProbe.builder().probeId(PROBE_ID3).where(where).build())
+            .add(DebuggerProbe.builder().probeId(PROBE_ID4).where(where).build())
             .build();
 
     CoreTracer tracer = CoreTracer.builder().build();

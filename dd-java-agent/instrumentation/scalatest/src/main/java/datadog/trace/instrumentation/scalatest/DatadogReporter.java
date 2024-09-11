@@ -136,7 +136,7 @@ public class DatadogReporter {
     Object testQualifier = null;
     String testParameters = null;
     Collection<String> categories;
-    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null, null);
+    TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
     if (context.unskippable(testIdentifier)) {
       categories = Collections.singletonList(InstrumentationBridge.ITR_UNSKIPPABLE_TAG);
     } else {
@@ -209,7 +209,7 @@ public class DatadogReporter {
     Method testMethod = null;
 
     String reason;
-    TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null, null);
+    TestIdentifier skippableTest = new TestIdentifier(testSuiteName, testName, null);
     if (context.skipped(skippableTest)) {
       reason = InstrumentationBridge.ITR_SKIP_REASON;
     } else {

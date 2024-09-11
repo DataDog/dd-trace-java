@@ -244,4 +244,32 @@ class AppSecRequestContextSpecification extends DDSpecification {
     0 * rateLimiter.isThrottled()
     result == result2
   }
+
+
+  void 'test that internal data is cleared on close'() {
+    setup:
+    final ctx = new AppSecRequestContext()
+    final fullCleanup = !postProcessing
+
+    when:
+    ctx.requestHeaders.put('Accept', ['*'])
+    ctx.responseHeaders.put('Content-Type', ['text/plain'])
+    ctx.collectedCookies = [cookie : ['test']]
+    ctx.persistentData.put(KnownAddresses.REQUEST_METHOD, 'GET')
+    ctx.derivatives = ['a': 'b']
+    ctx.additive = createAdditive()
+    ctx.close(postProcessing)
+
+    then:
+    ctx.additive == null
+    ctx.derivatives == null
+
+    ctx.requestHeaders.isEmpty() == fullCleanup
+    ctx.responseHeaders.isEmpty() == fullCleanup
+    ctx.cookies.isEmpty() == fullCleanup
+    ctx.persistentData.isEmpty() == fullCleanup
+
+    where:
+    postProcessing << [true, false]
+  }
 }

@@ -47,7 +47,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
-  static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENABLED = false;
+  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = false;
   static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED = false;
   static final boolean DEFAULT_TRACE_ENABLED = true;
   public static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
@@ -102,8 +102,8 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
   static final boolean DEFAULT_API_SECURITY_ENABLED = false;
   static final float DEFAULT_API_SECURITY_REQUEST_SAMPLE_RATE = 0.1f; // 10 %
-  static final boolean DEFAULT_APPSEC_RASP_ENABLED = false;
-  static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = false;
+  static final boolean DEFAULT_APPSEC_RASP_ENABLED = true;
+  static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACES = 2;
   static final int DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH = 32;
   static final String DEFAULT_IAST_ENABLED = "false";
@@ -180,7 +180,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND = 100;
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = true;
   static final int DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES = 3;
-  static final boolean DEFAULT_DEBUGGER_SPAN_DEBUG_ENABLED = false;
+  static final boolean DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;

@@ -115,10 +115,7 @@ public class GrpcClientDecorator extends ClientDecorator {
 
     // TODO why is there a mismatch between client / server for calling the onError method?
     onError(span, status.getCause());
-    if (CLIENT_ERROR_STATUSES.get(status.getCode().value())) {
-      span.setError(true);
-    }
-
+    span.setError(CLIENT_ERROR_STATUSES.get(status.getCode().value()));
     return span;
   }
 }

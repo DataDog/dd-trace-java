@@ -1,0 +1,155 @@
+name: Analyze changes
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ master ]
+
+jobs:
+  datadog-static-analyzer:
+    name: Analyze changes with DataDog Static Analyzer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
+        with:
+          submodules: 'recursive'
+      - name: Check code meets quality standards
+        id: datadog-static-analysis
+        uses: DataDog/datadog-static-analyzer-github-action@c74aff158c8cc1c3e285660713bcaa5f9c6d696e # v1
+        with:
+          dd_app_key: ${{ secrets.DD_APP_KEY }}
+          dd_api_key: ${{ secrets.DD_API_KEY }}
+          dd_site: datad0g.com
+          dd_service: "dd-trace-java"
+          dd_env: "ci"
+          cpu_count: 2
+          enable_performance_statistics: false
+
+  codeql:
+    name: Analyze changes with GitHub CodeQL
+    # Don’t run on PR, only when pushing to master
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write # Required to upload the results to the Security tab
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
+        with:
+          submodules: 'recursive'
+
+      - uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+        
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@4dd16135b69a43b6c8efb853346f8437d92d3c93 # v3.26.6
+        with:
+          languages: 'java'
+          build-mode: 'manual'
+      
+      - name: Build dd-trace-java for creating the CodeQL database
+        run: |
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
+          JAVA_HOME=$JAVA_HOME_8_X64 \
+          JAVA_8_HOME=$JAVA_HOME_8_X64 \
+          JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_17_HOME=$JAVA_HOME_17_X64 \
+          JAVA_21_HOME=$JAVA_HOME_21_X64 \
+          ./gradlew clean :dd-java-agent:shadowJar \
+            --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+
+      - name: Perform CodeQL Analysis and upload results to GitHub Security tab
+        uses: github/codeql-action/analyze@4dd16135b69a43b6c8efb853346f8437d92d3c93 # v3.26.6
+
+      # For now, CodeQL SARIF results are not supported by Datadog CI
+      # - name: Upload results to Datadog CI Static Analysis
+      #   run: |
+      #     wget --no-verbose https://github.com/DataDog/datadog-ci/releases/download/v2.42.0/datadog-ci_linux-x64 -O datadog-ci
+      #     chmod +x datadog-ci
+      #     ./datadog-ci sarif upload /home/runner/work/dd-trace-java/results/java.sarif --service dd-trace-java --env ci
+      #   env:
+      #     DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      #     DD_SITE: datad0g.com
+
+  trivy:
+    name: Analyze changes with Trivy
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write # Required to upload the results to the Security tab
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # 4.1.6
+        with:
+          submodules: 'recursive'
+      
+      - uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Remove old artifacts
+        run: |
+          MVN_LOCAL_REPO=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
+          echo "MVN_LOCAL_REPO=${MVN_LOCAL_REPO}" >> "$GITHUB_ENV"
+          rm -rf "${MVN_LOCAL_REPO}/com/datadoghq"
+
+      - name: Build and publish artifacts locally
+        run: |
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms2G'" \
+          JAVA_HOME=$JAVA_HOME_8_X64 \
+          JAVA_8_HOME=$JAVA_HOME_8_X64 \
+          JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_17_HOME=$JAVA_HOME_17_X64 \
+          JAVA_21_HOME=$JAVA_HOME_21_X64 \
+          ./gradlew clean publishToMavenLocal \
+            --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+
+      - name: Copy published artifacts
+        run: |
+          mkdir -p ./workspace/.trivy
+          cp -RP "${MVN_LOCAL_REPO}/com/datadoghq" ./workspace/.trivy/
+          ls -laR "./workspace/.trivy"
+
+      - name: Run Trivy security scanner
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # v0.24.0
+        with:
+          scan-type: rootfs
+          scan-ref: './workspace/.trivy/'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          limit-severities-for-sarif: true
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@4dd16135b69a43b6c8efb853346f8437d92d3c93 # v3.26.6
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Upload results to Datadog CI Static Analysis
+        run: |
+          wget --no-verbose https://github.com/DataDog/datadog-ci/releases/download/v2.42.0/datadog-ci_linux-x64 -O datadog-ci
+          chmod +x datadog-ci
+          ./datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: datad0g.com

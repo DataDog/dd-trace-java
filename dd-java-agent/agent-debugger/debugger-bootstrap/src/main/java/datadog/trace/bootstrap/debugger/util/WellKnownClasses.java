@@ -9,6 +9,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.Function;
 import org.slf4j.Logger;
@@ -116,14 +119,26 @@ public class WellKnownClasses {
 
   private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
       OPTIONAL_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
+      OPTIONALINT_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
+      OPTIONALDOUBLE_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
+      OPTIONALLONG_SPECIAL_FIELDS = new HashMap<>();
 
   static {
     OPTIONAL_SPECIAL_FIELDS.put("value", OptionalFields::value);
+    OPTIONALINT_SPECIAL_FIELDS.put("value", OptionalFields::valueInt);
+    OPTIONALDOUBLE_SPECIAL_FIELDS.put("value", OptionalFields::valueDouble);
+    OPTIONALLONG_SPECIAL_FIELDS.put("value", OptionalFields::valueLong);
   }
 
   static {
     SPECIAL_TYPE_ACCESS.put(StackTraceElement.class, STACKTRACEELEMENT_SPECIAL_FIELDS);
     SPECIAL_TYPE_ACCESS.put(Optional.class, OPTIONAL_SPECIAL_FIELDS);
+    SPECIAL_TYPE_ACCESS.put(OptionalInt.class, OPTIONALINT_SPECIAL_FIELDS);
+    SPECIAL_TYPE_ACCESS.put(OptionalDouble.class, OPTIONALDOUBLE_SPECIAL_FIELDS);
+    SPECIAL_TYPE_ACCESS.put(OptionalLong.class, OPTIONALLONG_SPECIAL_FIELDS);
   }
 
   private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
@@ -160,6 +175,10 @@ public class WellKnownClasses {
       // All Collection implementations from JDK base module are considered as safe
       return true;
     }
+    if (className.startsWith("com.google.protobuf.")) {
+      // All Collection implementations from Google ProtoBuf are considered as safe
+      return true;
+    }
     return false;
   }
 
@@ -168,6 +187,10 @@ public class WellKnownClasses {
     String className = map.getClass().getTypeName();
     if (className.startsWith("java.")) {
       // All Map implementations from JDK base module are considered as safe
+      return true;
+    }
+    if (className.startsWith("com.google.protobuf.")) {
+      // All Map implementations from Google ProtoBuf are considered as safe
       return true;
     }
     return false;
@@ -328,6 +351,21 @@ public class WellKnownClasses {
     public static CapturedContext.CapturedValue value(Object o) {
       return CapturedContext.CapturedValue.of(
           "value", Object.class.getTypeName(), ((Optional<?>) o).orElse(null));
+    }
+
+    public static CapturedContext.CapturedValue valueInt(Object o) {
+      return CapturedContext.CapturedValue.of(
+          "value", Integer.TYPE.getTypeName(), ((OptionalInt) o).orElse(0));
+    }
+
+    public static CapturedContext.CapturedValue valueDouble(Object o) {
+      return CapturedContext.CapturedValue.of(
+          "value", Double.TYPE.getTypeName(), ((OptionalDouble) o).orElse(0.0));
+    }
+
+    public static CapturedContext.CapturedValue valueLong(Object o) {
+      return CapturedContext.CapturedValue.of(
+          "value", Long.TYPE.getTypeName(), ((OptionalLong) o).orElse(0L));
     }
   }
 }
