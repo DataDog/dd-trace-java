@@ -102,7 +102,11 @@ public class ServerDebuggerTestApplication {
       throw new RuntimeException("cannot find method: " + methodName);
     }
     System.out.println("Executing method: " + methodName);
-    method.accept(arg);
+    try {
+      method.accept(arg);
+    } catch (Throwable ex) {
+      ex.printStackTrace();
+    }
     System.out.println("Executed");
   }
 
@@ -130,7 +134,13 @@ public class ServerDebuggerTestApplication {
     map.put("key1", "val1");
     map.put("key2", "val2");
     map.put("key3", "val3");
-    tracedMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
+    if ("oops".equals(arg)) {
+      tracedMethodWithException(42, "foobar", 3.42, map, "var1", "var2", "var3");
+    } else if ("deepOops".equals(arg)) {
+      tracedMethodWithDeepException1(42, "foobar", 3.42, map, "var1", "var2", "var3");
+    } else {
+      tracedMethod(42, "foobar", 3.42, map, "var1", "var2", "var3");
+    }
   }
 
   private static void runLoopingTracedMethod(String arg) {
@@ -173,6 +183,36 @@ public class ServerDebuggerTestApplication {
       ex.printStackTrace();
       return null;
     }
+  }
+
+  private static void tracedMethodWithException(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    throw new RuntimeException("oops");
+  }
+
+  private static void tracedMethodWithDeepException1(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    tracedMethodWithDeepException2(argInt, argStr, argDouble, argMap, argVar);
+  }
+
+  private static void tracedMethodWithDeepException2(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    tracedMethodWithDeepException3(argInt, argStr, argDouble, argMap, argVar);
+  }
+
+  private static void tracedMethodWithDeepException3(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    tracedMethodWithDeepException4(argInt, argStr, argDouble, argMap, argVar);
+  }
+
+  private static void tracedMethodWithDeepException4(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    tracedMethodWithDeepException5(argInt, argStr, argDouble, argMap, argVar);
+  }
+
+  private static void tracedMethodWithDeepException5(
+      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+    tracedMethodWithException(argInt, argStr, argDouble, argMap, argVar);
   }
 
   private static class AppDispatcher extends Dispatcher {

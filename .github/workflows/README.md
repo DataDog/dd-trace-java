@@ -1,6 +1,6 @@
 # GitHub Actions Documentation
 
-This lists and describes the repository GitHub actions.
+This lists and describes the repository GitHub actions, how to maintain and test them.
 
 ## Release Management
 
@@ -18,7 +18,7 @@ _Trigger:_ When a release is published.
 
 _Action:_ Append the new release to the Cloud Foundry repository.
 
-_Recovery:_ Manually edit and push the `index.yml` file from [the cloudfoundry branch](https://github.com/DataDog/dd-trace-java/tree/cloudfoundry).
+_Recovery:_ Manually edit and push the `index.yml` file from [the cloudfoundry branch](https://github.com/DataDog/dd-trace-java/tree/cloudfoundry).
 
 ### create-next-milestone [🔗](create-next-milestone.yaml)
 
@@ -26,7 +26,8 @@ _Trigger:_ When closing a milestone.
 
 _Action:_ Create a new milestone by incrementing minor version.
 
-_Comment:_ Already done when closing a tag. To delete?
+_Comment:_ Disabled as also covered by increment-milestone-on-tag.
+This will be removed after some testing.  
 
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
@@ -40,18 +41,17 @@ _Actions:_
 
 _Recovery:_ Manually trigger the action again on the relevant tag.
 
-### increment-milestones-on-tag [🔗](increment-milestones-on-tag.yaml)
+### increment-milestone-on-tag [🔗](increment-milestone-on-tag.yaml)
 
-_Trigger:_ When creating a tag. Release Candidate tags containing "-RC" or "-rc" will skip this.
+_Trigger:_ When creating a minor or major version tag.
 
 _Actions:_
 * Close the milestone related to the tag,
 * Create a new milestone by incrementing minor version.
 
-_Recovery:_ Manually close the related milestone and create a new one.
+_Recovery:_ Manually [close the related milestone and create a new one](https://github.com/DataDog/dd-trace-java/milestones).
 
-_Notes:_ This actions will handle _minor_ releases only.
-As there is no milestone for _patch_ releases, it won't close and create _patch_ releated milestone.
+_Notes:_ This action will not apply to release candidate versions using `-RC` tags.
 
 ### update-download-releases [🔗](update-download-releases.yaml)
 
@@ -74,13 +74,24 @@ _Action:_
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
 
+### prune-github-container-registry [🔗](prune-github-container-registry.yaml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Clean up old lib-injection OCI images from GitHub Container Registry.
+
+_Recovery:_ Manually trigger the action again.
+
 ## Code Quality and Security
 
-### ci-static-analysis [🔗](ci-static-analysis.yml)
+### analyze-changes [🔗](analyze-changes-with-github-codeql.yaml)
 
-_Trigger:_ When pushing commits to `master` or any pull request to `master`.
+_Trigger:_ When pushing commits to `master` or any pull request targeting `master`.
 
-_Actions:_ Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis.
+_Action:_ 
+* Run [DataDog Static Analysis](https://docs.datadoghq.com/static_analysis/) and upload result to DataDog Code Analysis,
+* Run [GitHub CodeQL](https://codeql.github.com/) action, upload result to GitHub security tab and DataDog Code Analysis -- do not apply to pull request, only when pushing to `master`,
+* Run [Trivy security scanner](https://github.com/aquasecurity/trivy) on built artifacts and upload result to GitHub security tab.
 
 ### comment-on-submodule-update [🔗](comment-on-submodule-update.yaml)
 
@@ -88,13 +99,7 @@ _Trigger:_ When creating a PR commits to `master` or a `release/*` branch with a
 
 _Action:_ Notify the PR author through comments that about the Git Submodule update.
 
-### codeql-analysis [🔗](codeql-analysis.yml)
-
-_Trigger:_ When pushing commits to `master`.
-
-_Action:_ Run GitHub CodeQL action, upload result to GitHub security tab and DataDog Code Analysis.
-
-### update-gradle-dependencies [🔗](trivy-analysis.yml)
+### update-gradle-dependencies [🔗](update-gradle-dependencies.yml)
 
 _Trigger:_ Every week or manually.
 
@@ -102,24 +107,22 @@ _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
 
-### trivy-analysis [🔗](trivy-analysis.yml)
 
-_Trigger:_ When pushing commits to `master` or any pull request to `master`.
+## Maintenance
 
-_Action:_ Run Trivy security scanner on built artifacts and upload result to GitHub security tab.
+GitHub actions should be part of the [repository allowed actions to run](https://github.com/DataDog/dd-trace-java/settings/actions).
+While GitHub owned actions are allowed by default, the other ones must be declared.
 
-### gradle-wrapper-validation [🔗](gradle-wrapper-validation.yaml.disabled)
+Run the following script to get the list of actions to declare according the state of your working copy:
+```bash
+find .github/workflows -name "*.yaml" -exec  awk '/uses:/{print $2 ","}' {} \; | grep -vE '^(actions|github)/' | sort | uniq
+```
 
-**DISABLED** - GitHub provides a way to disable actions rather than changing their extensions.
+## Testing
 
-_Comment:_ To delete?
+Workflows can be locally tested using the [`act` CLI](https://github.com/nektos/act/).
+The [.github/workflows/tests/](./tests) folder contains test scripts and event payloads to locally trigger workflows.
 
-## Lib Injection
-
-### lib-injection-prune-registry [🔗](lib-injection-prune-registry.yaml)
-
-_Trigger:_ Every week or manually.
-
-_Action:_ Clean up old lib-injection Docker images from GHCR.
-
-_Recovery:_ Manually trigger the action again.
+> [!WARNING]
+> Locally running workflows will still query GitHub backend and will update the GitHub project accordingly.
+> Pay extra attention to the workflow jobs you trigger to not create development disruption.

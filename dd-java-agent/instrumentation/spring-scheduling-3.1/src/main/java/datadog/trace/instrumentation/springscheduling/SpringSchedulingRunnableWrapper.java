@@ -7,10 +7,13 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.DECORATE;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.SCHEDULED_CALL;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class SpringSchedulingRunnableWrapper implements Runnable {
+  private static final boolean LEGACY_TRACING =
+      Config.get().isLegacyTracingEnabled(false, "spring-scheduling");
   private final Runnable runnable;
 
   private SpringSchedulingRunnableWrapper(final Runnable runnable) {
@@ -19,7 +22,8 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
 
   @Override
   public void run() {
-    final AgentSpan span = startSpan(SCHEDULED_CALL);
+    final AgentSpan span =
+        LEGACY_TRACING ? startSpan(SCHEDULED_CALL) : startSpan(SCHEDULED_CALL, null);
     DECORATE.afterStart(span);
 
     try (final AgentScope scope = activateSpan(span)) {

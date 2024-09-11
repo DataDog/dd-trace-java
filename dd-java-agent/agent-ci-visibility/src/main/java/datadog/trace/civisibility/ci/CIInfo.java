@@ -2,6 +2,8 @@ package datadog.trace.civisibility.ci;
 
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 
+import datadog.trace.civisibility.utils.FileUtils;
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -190,8 +192,20 @@ public class CIInfo {
     return ciJobUrl;
   }
 
+  /**
+   * @deprecated This method is here only to satisfy CI spec tests. Use {@link
+   *     #getNormalizedCiWorkspace()}
+   */
+  @Deprecated
   public String getCiWorkspace() {
     return ciWorkspace;
+  }
+
+  public String getNormalizedCiWorkspace() {
+    String realCiWorkspace = FileUtils.toRealPath(ciWorkspace);
+    return (realCiWorkspace == null || realCiWorkspace.endsWith(File.separator))
+        ? realCiWorkspace
+        : (realCiWorkspace + File.separator);
   }
 
   public String getCiNodeName() {

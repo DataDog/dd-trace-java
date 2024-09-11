@@ -14,7 +14,7 @@
       "test.itr.tests_skipping.count" : 1,
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
-      "test.code_coverage.lines_pct" : 57
+      "test.code_coverage.lines_pct" : 67
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
@@ -30,6 +30,7 @@
       "span.kind" : "test_session_end",
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
+      "test.code_coverage.backfilled" : "true",
       "test.itr.tests_skipping.enabled" : "true",
       "test.type" : "test",
       "env" : "integration-test",
@@ -57,7 +58,7 @@
     "error" : 0,
     "metrics" : {
       "test.itr.tests_skipping.count" : 1,
-      "test.code_coverage.lines_pct" : 57
+      "test.code_coverage.lines_pct" : 67
     },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
@@ -77,6 +78,7 @@
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "maven",
+      "test.code_coverage.backfilled" : "true",
       "test.code_coverage.enabled" : "true",
       "test.execution" : "maven-surefire-plugin:test:default-test",
       "test.itr.tests_skipping.type" : "test",

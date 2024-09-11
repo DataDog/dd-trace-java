@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.TIBCO_ACTIVI
 
 import com.google.auto.service.AutoService;
 import com.tibco.pe.core.ActivityGroup;
+import com.tibco.pe.core.ProcessGroup;
 import com.tibco.pe.core.Task;
 import com.tibco.pe.plugin.ProcessContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -90,7 +91,9 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
         }
 
         if ("STAY_HERE".equals(ret)
-            || (self.getActivity() instanceof ActivityGroup && "DEAD".equals(ret))) {
+            || ("DEAD".equals(ret)
+                && self.getActivity() instanceof ActivityGroup
+                && !(self.getActivity() instanceof ProcessGroup))) {
           return;
         }
 

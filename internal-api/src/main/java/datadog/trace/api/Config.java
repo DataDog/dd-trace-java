@@ -45,6 +45,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_I
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
@@ -55,7 +56,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_EXCEPTION_PE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_POLL_INTERVAL;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SPAN_DEBUG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SYMBOL_FORCE_UPLOAD;
@@ -176,15 +176,15 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CIPROVIDE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES;
@@ -194,12 +194,11 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_CACHE_SIZE;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_ID;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NAME;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_SHARING_ENABLED;
@@ -221,6 +220,7 @@ import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CODE_ORIGIN_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED;
@@ -236,7 +236,6 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_PROBE_FILE_LOCATI
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_REDACTION_EXCLUDED_IDENTIFIERS;
-import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SPAN_DEBUG_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FLUSH_THRESHOLD;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYMBOL_FORCE_UPLOAD;
@@ -804,7 +803,7 @@ public class Config {
   private final String ciVisibilityAdditionalChildProcessJvmArgs;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
   private final boolean ciVisibilityCodeCoverageEnabled;
-  private final boolean ciVisibilityCodeCoveragePercentageCalculationEnabled;
+  private final Boolean ciVisibilityCoverageLinesEnabled;
   private final String ciVisibilityCodeCoverageReportDumpDir;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
@@ -829,9 +828,8 @@ public class Config {
   private final boolean ciVisibilityTestSkippingEnabled;
   private final boolean ciVisibilityCiProviderIntegrationEnabled;
   private final boolean ciVisibilityRepoIndexSharingEnabled;
-  private final int ciVisibilityModuleExecutionSettingsCacheSize;
+  private final int ciVisibilityExecutionSettingsCacheSize;
   private final int ciVisibilityJvmInfoCacheSize;
-  private final boolean ciVisibilityCoverageSegmentsEnabled;
   private final int ciVisibilityCoverageRootPackagesLimit;
   private final String ciVisibilityInjectedTracerVersion;
   private final List<String> ciVisibilityResourceFolderNames;
@@ -883,7 +881,7 @@ public class Config {
   private final int debuggerMaxExceptionPerSecond;
   private final boolean debuggerExceptionOnlyLocalRoot;
   private final int debuggerExceptionMaxCapturedFrames;
-  private final boolean debuggerSpanDebugEnabled;
+  private final boolean debuggerCodeOriginEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -1819,8 +1817,8 @@ public class Config {
             DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
     ciVisibilityCodeCoverageEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
-    ciVisibilityCodeCoveragePercentageCalculationEnabled =
-        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED, true);
+    ciVisibilityCoverageLinesEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED);
     ciVisibilityCodeCoverageReportDumpDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
     ciVisibilityCompilerPluginVersion =
@@ -1845,8 +1843,7 @@ public class Config {
     ciVisibilityCodeCoverageExcludedPackages =
         convertJacocoExclusionFormatToPackagePrefixes(ciVisibilityCodeCoverageExcludes);
     ciVisibilityJacocoGradleSourceSets =
-        configProvider.getList(
-            CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS, Collections.singletonList("main"));
+        configProvider.getList(CIVISIBILITY_GRADLE_SOURCE_SETS, Arrays.asList("main", "test"));
     ciVisibilityDebugPort = configProvider.getInteger(CIVISIBILITY_DEBUG_PORT);
     ciVisibilityGitUploadEnabled =
         configProvider.getBoolean(
@@ -1885,11 +1882,9 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, true);
     ciVisibilityRepoIndexSharingEnabled =
         configProvider.getBoolean(CIVISIBILITY_REPO_INDEX_SHARING_ENABLED, true);
-    ciVisibilityModuleExecutionSettingsCacheSize =
-        configProvider.getInteger(CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE, 16);
+    ciVisibilityExecutionSettingsCacheSize =
+        configProvider.getInteger(CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE, 16);
     ciVisibilityJvmInfoCacheSize = configProvider.getInteger(CIVISIBILITY_JVM_INFO_CACHE_SIZE, 8);
-    ciVisibilityCoverageSegmentsEnabled =
-        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED, false);
     ciVisibilityCoverageRootPackagesLimit =
         configProvider.getInteger(CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT, 50);
     ciVisibilityInjectedTracerVersion =
@@ -1989,8 +1984,9 @@ public class Config {
             DEBUGGER_EXCEPTION_ENABLED,
             DEFAULT_DEBUGGER_EXCEPTION_ENABLED,
             EXCEPTION_REPLAY_ENABLED);
-    debuggerSpanDebugEnabled =
-        configProvider.getBoolean(DEBUGGER_SPAN_DEBUG_ENABLED, DEFAULT_DEBUGGER_SPAN_DEBUG_ENABLED);
+    debuggerCodeOriginEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_CODE_ORIGIN_ENABLED, DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED);
     debuggerMaxExceptionPerSecond =
         configProvider.getInteger(
             DEBUGGER_MAX_EXCEPTION_PER_SECOND, DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND);
@@ -2012,7 +2008,8 @@ public class Config {
     // together with the rest of telemetry config.
     final boolean telemetryLogCollectionEnabledDefault =
         instrumenterConfig.isTelemetryEnabled()
-                && (instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
+                && (instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED
+                    || instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
                     || instrumenterConfig.isCiVisibilityEnabled()
                     || debuggerEnabled
                     || !Platform.isJavaVersionAtLeast(11))
@@ -3103,8 +3100,14 @@ public class Config {
     return ciVisibilityCodeCoverageEnabled;
   }
 
-  public boolean isCiVisibilityCodeCoveragePercentageCalculationEnabled() {
-    return ciVisibilityCodeCoveragePercentageCalculationEnabled;
+  /** @return {@code true} if code coverage line-granularity is explicitly enabled */
+  public boolean isCiVisibilityCoverageLinesEnabled() {
+    return ciVisibilityCoverageLinesEnabled != null && ciVisibilityCoverageLinesEnabled;
+  }
+
+  /** @return {@code true} if code coverage line-granularity is explicitly disabled */
+  public boolean isCiVisibilityCoverageLinesDisabled() {
+    return ciVisibilityCoverageLinesEnabled != null && !ciVisibilityCoverageLinesEnabled;
   }
 
   public String getCiVisibilityCodeCoverageReportDumpDir() {
@@ -3132,11 +3135,13 @@ public class Config {
   }
 
   public String[] getCiVisibilityCodeCoverageIncludedPackages() {
-    return ciVisibilityCodeCoverageIncludedPackages;
+    return Arrays.copyOf(
+        ciVisibilityCodeCoverageIncludedPackages, ciVisibilityCodeCoverageIncludedPackages.length);
   }
 
   public String[] getCiVisibilityCodeCoverageExcludedPackages() {
-    return ciVisibilityCodeCoverageExcludedPackages;
+    return Arrays.copyOf(
+        ciVisibilityCodeCoverageExcludedPackages, ciVisibilityCodeCoverageExcludedPackages.length);
   }
 
   public List<String> getCiVisibilityJacocoGradleSourceSets() {
@@ -3203,16 +3208,12 @@ public class Config {
     return ciVisibilityRepoIndexSharingEnabled;
   }
 
-  public int getCiVisibilityModuleExecutionSettingsCacheSize() {
-    return ciVisibilityModuleExecutionSettingsCacheSize;
+  public int getCiVisibilityExecutionSettingsCacheSize() {
+    return ciVisibilityExecutionSettingsCacheSize;
   }
 
   public int getCiVisibilityJvmInfoCacheSize() {
     return ciVisibilityJvmInfoCacheSize;
-  }
-
-  public boolean isCiVisibilityCoverageSegmentsEnabled() {
-    return ciVisibilityCoverageSegmentsEnabled;
   }
 
   public int getCiVisibilityCoverageRootPackagesLimit() {
@@ -3391,8 +3392,8 @@ public class Config {
     return debuggerExceptionMaxCapturedFrames;
   }
 
-  public boolean isDebuggerSpanDebugEnabled() {
-    return debuggerSpanDebugEnabled;
+  public boolean isDebuggerCodeOriginEnabled() {
+    return debuggerCodeOriginEnabled;
   }
 
   public Set<String> getThirdPartyIncludes() {
@@ -4043,6 +4044,11 @@ public class Config {
   public boolean isKafkaLegacyTracingEnabled() {
     return SpanNaming.instance().namingSchema().allowInferredServices()
         && isLegacyTracingEnabled(true, "kafka");
+  }
+
+  public boolean isGooglePubSubLegacyTracingEnabled() {
+    return SpanNaming.instance().namingSchema().allowInferredServices()
+        && isLegacyTracingEnabled(true, "google-pubsub");
   }
 
   public boolean isTimeInQueueEnabled(
