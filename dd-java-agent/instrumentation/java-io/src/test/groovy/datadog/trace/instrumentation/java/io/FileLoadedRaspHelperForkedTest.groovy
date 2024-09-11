@@ -9,9 +9,9 @@ import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class FileLoadedRaspHelperForkedTest extends  BaseIoRaspCallSiteTest {
+class FileLoadedRaspHelperForkedTest extends BaseIoRaspCallSiteTest {
 
-  void 'test Helper'(){
+  void 'test Helper'() {
     setup:
     final callbackProvider = Mock(CallbackProvider)
     final listener = Mock(BiFunction)
@@ -26,12 +26,12 @@ class FileLoadedRaspHelperForkedTest extends  BaseIoRaspCallSiteTest {
     1 * listener.apply(reqCtx, expected) >> flow
 
     where:
-    args                                                      |  expected
-    ['test.txt']                                            |  'test.txt'
-    ['/home/test', 'test.txt']                      |  '/home/test/test.txt'
-    [new File('/home/test'), 'test.txt']     |  '/home/test/test.txt'
-    [new URI('file:/test.txt')]                    |  'file:/test.txt'
-    ['/tmp', ['log', 'test.txt'] as String[]] |  '/tmp/log/test.txt'
-    ['test.txt', [] as String[]]                    |  'test.txt'
+    args                                      | expected
+    ['test.txt']                              | 'test.txt'
+    ['/home/test', 'test.txt']                | '/home/test/test.txt'
+    [new File('/home/test'), 'test.txt']      | '/home/test/test.txt'
+    [new URI('file:/test.txt')]               | 'file:/test.txt'
+    ['/tmp', ['log', 'test.txt'] as String[]] | '/tmp/log/test.txt'
+    ['test.txt', [] as String[]]              | 'test.txt'
   }
 }
