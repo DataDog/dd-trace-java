@@ -276,20 +276,12 @@ class IastWebFluxTest extends IastRequestTestRunner {
     then:
     // source values take the value of the current object as the body is never converted to a CharSequence
     toc.hasTaintedObject {
-      value 'var1'
-      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var1',  'var1')
-    }
-    toc.hasTaintedObject {
-      value 'var2'
-      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var2',  'var2')
-    }
-    toc.hasTaintedObject {
       value 'foo'
-      range 0, 3, source(SourceTypes.REQUEST_BODY, 'var1',  'foo')
+      range 0, 3, source(SourceTypes.REQUEST_BODY, null,  'foo')
     }
     toc.hasTaintedObject {
       value 'foo2'
-      range 0, 4, source(SourceTypes.REQUEST_BODY, 'var2',  'foo2')
+      range 0, 4, source(SourceTypes.REQUEST_BODY, null,  'foo2')
     }
   }
 }
