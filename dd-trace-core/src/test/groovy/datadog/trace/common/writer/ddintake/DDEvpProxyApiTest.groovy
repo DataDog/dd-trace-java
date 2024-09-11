@@ -8,6 +8,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
@@ -136,9 +137,15 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
       "version" : 1,
       "metadata": new TreeMap<>([
         "*": new TreeMap<>([
-          "env"       : "my-env",
-          "runtime-id": "my-runtime-id",
-          "language"  : "my-language"
+          "env"                 : "my-env",
+          "runtime-id"          : "my-runtime-id",
+          "language"            : "my-language",
+          (Tags.RUNTIME_NAME)   : "my-runtime-name",
+          (Tags.RUNTIME_VERSION): "my-runtime-version",
+          (Tags.RUNTIME_VENDOR) : "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE): "my-os-arch",
+          (Tags.OS_PLATFORM)    : "my-os-platform",
+          (Tags.OS_VERSION)     : "my-os-version"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "span",
@@ -164,7 +171,13 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
         "*": new TreeMap<>([
           "env"       : "my-env",
           "runtime-id": "my-runtime-id",
-          "language"  : "my-language"
+          "language"  : "my-language",
+          (Tags.RUNTIME_NAME): "my-runtime-name",
+          (Tags.RUNTIME_VERSION): "my-runtime-version",
+          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE): "my-os-arch",
+          (Tags.OS_PLATFORM): "my-os-platform",
+          (Tags.OS_VERSION): "my-os-version"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test",
@@ -192,7 +205,13 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
         "*": new TreeMap<>([
           "env"       : "my-env",
           "runtime-id": "my-runtime-id",
-          "language"  : "my-language"
+          "language"  : "my-language",
+          (Tags.RUNTIME_NAME): "my-runtime-name",
+          (Tags.RUNTIME_VERSION): "my-runtime-version",
+          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE): "my-os-arch",
+          (Tags.OS_PLATFORM): "my-os-platform",
+          (Tags.OS_VERSION): "my-os-version"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test_suite_end",
@@ -217,7 +236,13 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
         "*": new TreeMap<>([
           "env"       : "my-env",
           "runtime-id": "my-runtime-id",
-          "language"  : "my-language"
+          "language"  : "my-language",
+          (Tags.RUNTIME_NAME): "my-runtime-name",
+          (Tags.RUNTIME_VERSION): "my-runtime-version",
+          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE): "my-os-arch",
+          (Tags.OS_PLATFORM): "my-os-platform",
+          (Tags.OS_VERSION): "my-os-version"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test_module_end",
