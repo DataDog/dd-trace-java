@@ -69,6 +69,7 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
   private static List<Object> testSuite() {
     //    return [JSON_STRING, new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
     return [JSON_STRING]
+    //    return [new ByteArrayInputStream(JSON_STRING.getBytes(Charset.defaultCharset()))]
   }
 
   private static class SourceImpl implements Taintable.Source {
