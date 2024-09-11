@@ -126,7 +126,7 @@ class KafkaIastDeserializerTest extends IastAgentTestRunner {
     }
     to.hasTaintedObject {
       value('Mr Bean')
-      range(0, 7, source(origin as byte, null, 'Mr Bean'))
+      range(0, 7, source(origin as byte, 'name', 'Mr Bean'))
     }
 
     where:
