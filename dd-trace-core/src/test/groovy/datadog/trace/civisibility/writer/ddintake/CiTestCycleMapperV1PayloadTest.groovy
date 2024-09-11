@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.WellKnownTags
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
@@ -43,10 +43,15 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
 
   def "test traces written correctly with bufferSize=#bufferSize, traceCount=#traceCount, lowCardinality=#lowCardinality"() {
     setup:
-    List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+    CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
+      "runtimeid", "my-env", "language",
+      "my-runtime-name", "my-runtime-vendor", "my-runtime-version",
+      "my-os-arch", "my-os-platform", "my-os-version")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
+
+    List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     PayloadVerifier verifier = new PayloadVerifier(wellKnownTags, traces, mapper)
+
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier))
     when:
     boolean tracesFitInBuffer = true
@@ -177,7 +182,10 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
   private static Map<String, Object> whenASpanIsWritten(TraceGenerator.PojoSpan span) {
     List<TraceGenerator.PojoSpan> trace = Collections.singletonList(span)
 
-    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "my-env", "service", "version", "language")
+    CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
+      "runtimeid", "my-env", "language",
+      "my-runtime-name", "my-runtime-vendor", "my-runtime-version",
+      "my-os-arch", "my-os-platform", "my-os-version")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
 
     ByteBufferConsumer consumer = new CaptureConsumer()
@@ -204,12 +212,12 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
     private final CiTestCycleMapperV1 mapper
-    private final WellKnownTags wellKnownTags
+    private final CiVisibilityWellKnownTags wellKnownTags
     private ByteBuffer captured = ByteBuffer.allocate(200 << 10)
 
     private int position = 0
 
-    private PayloadVerifier(WellKnownTags wellKnownTags, List<List<TraceGenerator.PojoSpan>> traces, CiTestCycleMapperV1 mapper) {
+    private PayloadVerifier(CiVisibilityWellKnownTags wellKnownTags, List<List<TraceGenerator.PojoSpan>> traces, CiTestCycleMapperV1 mapper) {
       this.expectedTraces = traces
       this.mapper = mapper
       this.wellKnownTags = wellKnownTags
@@ -241,13 +249,27 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
         assertEquals("metadata", unpacker.unpackString())
         assertEquals(1, unpacker.unpackMapHeader())
         assertEquals("*", unpacker.unpackString())
-        assertEquals(3, unpacker.unpackMapHeader())
+
+        assertEquals(9, unpacker.unpackMapHeader())
         assertEquals("env", unpacker.unpackString())
         assertEquals(wellKnownTags.env as String, unpacker.unpackString())
         assertEquals("runtime-id", unpacker.unpackString())
         assertEquals(wellKnownTags.runtimeId as String, unpacker.unpackString())
         assertEquals("language", unpacker.unpackString())
         assertEquals(wellKnownTags.language as String, unpacker.unpackString())
+        assertEquals(Tags.RUNTIME_NAME, unpacker.unpackString())
+        assertEquals(wellKnownTags.runtimeName as String, unpacker.unpackString())
+        assertEquals(Tags.RUNTIME_VENDOR, unpacker.unpackString())
+        assertEquals(wellKnownTags.runtimeVendor as String, unpacker.unpackString())
+        assertEquals(Tags.RUNTIME_VERSION, unpacker.unpackString())
+        assertEquals(wellKnownTags.runtimeVersion as String, unpacker.unpackString())
+        assertEquals(Tags.OS_ARCHITECTURE, unpacker.unpackString())
+        assertEquals(wellKnownTags.osArch as String, unpacker.unpackString())
+        assertEquals(Tags.OS_PLATFORM, unpacker.unpackString())
+        assertEquals(wellKnownTags.osPlatform as String, unpacker.unpackString())
+        assertEquals(Tags.OS_VERSION, unpacker.unpackString())
+        assertEquals(wellKnownTags.osVersion as String, unpacker.unpackString())
+
         assertEquals("events", unpacker.unpackString())
 
         List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++)

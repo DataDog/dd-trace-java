@@ -63,6 +63,7 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT =
       "civisibility.total.flaky.retry.count";
   public static final String CIVISIBILITY_MODULE_NAME = "civisibility.module.name";
+  public static final String CIVISIBILITY_TEST_COMMAND = "civisibility.test.command";
   public static final String CIVISIBILITY_TELEMETRY_ENABLED = "civisibility.telemetry.enabled";
   public static final String CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS =
       "civisibility.rum.flush.wait.millis";
@@ -85,6 +86,8 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
       "civisibility.jacoco.plugin.version";
   public static final String CIVISIBILITY_GRADLE_SOURCE_SETS = "civisibility.gradle.sourcesets";
+
+  public static final String SESSION_NAME = "session.name";
 
   private CiVisibilityConfig() {}
 }

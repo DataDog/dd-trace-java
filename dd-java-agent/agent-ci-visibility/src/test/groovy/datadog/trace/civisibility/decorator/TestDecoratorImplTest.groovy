@@ -12,21 +12,16 @@ class TestDecoratorImplTest extends Specification {
 
   def "test afterStart"() {
     setup:
-    def decorator = newDecorator()
+    def decorator = new TestDecoratorImpl("test-component", "session-name", "test-command", ["ci-tag-1": "value", "ci-tag-2": "another value"])
 
     when:
     decorator.afterStart(span)
 
     then:
+    1 * span.setTag(Tags.TEST_SESSION_NAME, "session-name")
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
-    1 * span.setTag(Tags.RUNTIME_NAME, decorator.runtimeName())
-    1 * span.setTag(Tags.RUNTIME_VENDOR, decorator.runtimeVendor())
-    1 * span.setTag(Tags.RUNTIME_VERSION, decorator.runtimeVersion())
-    1 * span.setTag(Tags.OS_ARCHITECTURE, decorator.osArch())
-    1 * span.setTag(Tags.OS_PLATFORM, decorator.osPlatform())
-    1 * span.setTag(Tags.OS_VERSION, decorator.osVersion())
     1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
     1 * span.setTag("ci-tag-1", "value")
     1 * span.setTag("ci-tag-2", "another value")
@@ -40,7 +35,20 @@ class TestDecoratorImplTest extends Specification {
     serviceName << ["test-service", "other-service", null]
   }
 
-  static newDecorator() {
-    new TestDecoratorImpl("test-component", ["ci-tag-1": "value", "ci-tag-2": "another value"])
+  def "test session name: #sessionName, #ciJobName, #testCommand"() {
+    setup:
+    def decorator = new TestDecoratorImpl("test-component", sessionName, testCommand, [(Tags.CI_JOB_NAME): ciJobName])
+
+    when:
+    decorator.afterStart(span)
+
+    then:
+    1 * span.setTag(Tags.TEST_SESSION_NAME, expectedSessionName)
+
+    where:
+    sessionName    | ciJobName     | testCommand    | expectedSessionName
+    "session-name" | "ci-job-name" | "test-command" | "session-name"
+    null           | "ci-job-name" | "test-command" | "ci-job-name-test-command"
+    null           | null          | "test-command" | "test-command"
   }
 }

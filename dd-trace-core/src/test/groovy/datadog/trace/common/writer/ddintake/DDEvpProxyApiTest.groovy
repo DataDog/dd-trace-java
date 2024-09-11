@@ -5,8 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.WellKnownTags
-import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.common.writer.Payload
@@ -27,7 +26,11 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 @Timeout(20)
 class DDEvpProxyApiTest extends DDCoreSpecification {
 
-  static WellKnownTags wellKnownTags = new WellKnownTags("my-runtime-id", "my-hostname", "my-env", "my-service", "my-version", "my-language")
+  static CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
+  "my-runtime-id", "my-env", "my-language",
+  "my-runtime-name", "my-runtime-vendor", "my-runtime-version",
+  "my-os-arch", "my-os-platform", "my-os-version")
+
   static String intakeSubdomain = "citestcycle-intake"
   static msgPackMapper = new ObjectMapper(new MessagePackFactory())
 

@@ -210,9 +210,11 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TELEMETRY_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_COMMAND;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.SESSION_NAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
@@ -494,6 +496,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
@@ -839,7 +842,9 @@ public class Config {
   private final int ciVisibilityTotalFlakyRetryCount;
   private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
   private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
+  private final String ciVisibilitySessionName;
   private final String ciVisibilityModuleName;
+  private final String ciVisibilityTestCommand;
   private final boolean ciVisibilityTelemetryEnabled;
   private final long ciVisibilityRumFlushWaitMillis;
   private final boolean ciVisibilityAutoInjected;
@@ -1903,7 +1908,9 @@ public class Config {
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityTotalFlakyRetryCount =
         configProvider.getInteger(CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT, 1000);
+    ciVisibilitySessionName = configProvider.getString(SESSION_NAME);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
+    ciVisibilityTestCommand = configProvider.getString(CIVISIBILITY_TEST_COMMAND);
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
     ciVisibilityRumFlushWaitMillis =
         configProvider.getLong(CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS, 500);
@@ -3255,8 +3262,16 @@ public class Config {
     return ciVisibilityTotalFlakyRetryCount;
   }
 
+  public String getCiVisibilitySessionName() {
+    return ciVisibilitySessionName;
+  }
+
   public String getCiVisibilityModuleName() {
     return ciVisibilityModuleName;
+  }
+
+  public String getCiVisibilityTestCommand() {
+    return ciVisibilityTestCommand;
   }
 
   public boolean isCiVisibilityTelemetryEnabled() {
@@ -3702,6 +3717,19 @@ public class Config {
         serviceName,
         getVersion(),
         LANGUAGE_TAG_VALUE);
+  }
+
+  public CiVisibilityWellKnownTags getCiVisibilityWellKnownTags() {
+    return new CiVisibilityWellKnownTags(
+        getRuntimeId(),
+        getEnv(),
+        LANGUAGE_TAG_VALUE,
+        System.getProperty("java.runtime.name"),
+        System.getProperty("java.version"),
+        System.getProperty("java.vendor"),
+        System.getProperty("os.arch"),
+        System.getProperty("os.name"),
+        System.getProperty("os.version"));
   }
 
   public String getPrimaryTag() {
