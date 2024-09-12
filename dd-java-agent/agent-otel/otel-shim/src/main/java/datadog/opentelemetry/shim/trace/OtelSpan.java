@@ -8,10 +8,10 @@ import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
 
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
-import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
@@ -20,6 +20,8 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -150,20 +152,50 @@ public class OtelSpan implements Span {
       Throwable exception, Attributes additionalAttributes) {
     // Create an AttributesBuilder with the additionalAttributes provided
     AttributesBuilder attrsBuilder = additionalAttributes.toBuilder();
-    for (String key : OtelSpanEvent.defaultExceptionAttributes.keySet()) {
-      //      if(additionalAttributes.get(AttributeKey.stringKey(key)) != null) {
-      //
-      //      }
-      // Add defaultAttributes onto the builder iff an equivalent key was not provided in
-      // additionalAttributes
-      if (additionalAttributes.get(AttributeKey.stringKey(key)) == null) {
-        // get the value using the function found at `key` in defaultExceptionAttributes
-        String value = OtelSpanEvent.defaultExceptionAttributes.get(key).apply(exception);
-        attrsBuilder.put(key, value);
-      }
+
+    // Check whether additionalAttributes contains any of the reserved exception attributes
+
+    String key = "exception.message";
+    String attrsValue = additionalAttributes.get(AttributeKey.stringKey(key));
+    // reserved attribute "exception.message" found additionalAttributes
+    if (attrsValue != null) {
+      // use provided value to set ERROR_MSG tag
+      this.delegate.setTag(DDTags.ERROR_MSG, attrsValue);
+    } else {
+      // use exception to set ERROR_MSG tag
+      String value = exception.getMessage();
+      this.delegate.setTag(DDTags.ERROR_MSG, value);
+      // and append to the builder
+      attrsBuilder.put(key, value);
     }
-    this.delegate.addThrowable(exception, ErrorPriorities.UNSET);
+
+    key = "exception.type";
+    attrsValue = additionalAttributes.get(AttributeKey.stringKey(key));
+    if (attrsValue != null) {
+      this.delegate.setTag(DDTags.ERROR_TYPE, attrsValue);
+    } else {
+      String value = exception.getClass().getName();
+      this.delegate.setTag(DDTags.ERROR_TYPE, value);
+      attrsBuilder.put(key, value);
+    }
+
+    key = "exception.stacktrace";
+    attrsValue = additionalAttributes.get(AttributeKey.stringKey(key));
+    if (attrsValue != null) {
+      this.delegate.setTag(DDTags.ERROR_STACK, attrsValue);
+    } else {
+      String value = stringifyErrorStack(exception);
+      this.delegate.setTag(DDTags.ERROR_STACK, value);
+      attrsBuilder.put(key, value);
+    }
+
     return attrsBuilder.build();
+  }
+
+  static String stringifyErrorStack(Throwable error) {
+    final StringWriter errorString = new StringWriter();
+    error.printStackTrace(new PrintWriter(errorString));
+    return errorString.toString();
   }
 
   @Override

@@ -1,4 +1,5 @@
 import datadog.opentelemetry.shim.trace.OtelSpanEvent
+import datadog.opentelemetry.shim.trace.OtelSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
@@ -19,6 +20,8 @@ import spock.lang.Subject
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.DDTags.ERROR_MSG
+import static datadog.trace.api.DDTags.ERROR_STACK
+import static datadog.trace.api.DDTags.ERROR_TYPE
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER
@@ -653,29 +656,15 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  def "test span record exception"() {
+  def "test span record exception event tags"() {
     setup:
     def result = tracer.spanBuilder("some-name").startSpan()
     def timeSource = new ControllableTimeSource()
     timeSource.set(1000)
     OtelSpanEvent.setTimeSource(timeSource)
 
-    expect:
-    result.delegate.getTag(ERROR_MSG) == null
-    result.delegate.getTag(DDTags.ERROR_TYPE) == null
-    result.delegate.getTag(DDTags.ERROR_STACK) == null
-    !result.delegate.isError()
-
     when:
     result.recordException(exception, attributes)
-
-    then:
-    result.delegate.getTag(ERROR_MSG) == exception.getMessage()
-    result.delegate.getTag(DDTags.ERROR_TYPE) == exception.getClass().getName()
-    result.delegate.getTag(DDTags.ERROR_STACK) != null
-    !result.delegate.isError()
-
-    when:
     result.end()
 
     then:
@@ -686,6 +675,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
         "attributes": ${expectedAttributes}
       }
     ]"""
+
     assertTraces(1) {
       trace(1) {
         span {
@@ -696,18 +686,20 @@ class OpenTelemetry14Test extends AgentTestRunner {
           tags {
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
-            errorTags(exception)
             tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
+            tag(ERROR_MSG, errorMsg)
+            tag(ERROR_TYPE, errorType)
+            tag(ERROR_STACK, errorStack)
           }
         }
       }
     }
 
     where:
-    exception                                            | attributes                                                              | expectedAttributes
-    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | """{ exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${final StringWriter errorString = new StringWriter(); exception.printStackTrace(new PrintWriter(errorString)); return errorString.toString()}"}"""
-    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | """{exception.message: "something-else", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${final StringWriter errorString = new StringWriter(); exception.printStackTrace(new PrintWriter(errorString)); return errorString.toString()}"}"""
-    new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | """{"key": "value", exception.message: "${exception.getMessage()}", exception.type: "${exception.getClass().getName()}", exception.stacktrace: "${final StringWriter errorString = new StringWriter(); exception.printStackTrace(new PrintWriter(errorString)); return errorString.toString()}"}"""
+    exception                                            | attributes                                                              | errorMsg | errorType | errorStack | expectedAttributes
+    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | exception.getMessage() | exception.getClass().getName() | OtelSpan.stringifyErrorStack(exception) | """{ exception.message: "$errorMsg", exception.type: "$errorType", exception.stacktrace: "$errorStack"}"""
+    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | "something-else" | exception.getClass().getName() | OtelSpan.stringifyErrorStack(exception) | """{exception.message: "$errorMsg", exception.type: "$errorType", exception.stacktrace: "$errorStack"}"""
+    new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | exception.getMessage() | exception.getClass().getName() | OtelSpan.stringifyErrorStack(exception) |  """{"key": "value", exception.message: "$errorMsg", exception.type: "$errorType", exception.stacktrace: "$errorStack"}"""
   }
 
   def "test span error meta on record multiple exceptions"() {
@@ -726,10 +718,10 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     then:
     result.delegate.getTag(ERROR_MSG) == exception2.getMessage()
-    result.delegate.getTag(DDTags.ERROR_TYPE) == exception2.getClass().getName()
+    result.delegate.getTag(ERROR_TYPE) == exception2.getClass().getName()
     final StringWriter errorString = new StringWriter()
     exception2.printStackTrace(new PrintWriter(errorString))
-    result.delegate.getTag(DDTags.ERROR_STACK) == errorString.toString()
+    result.delegate.getTag(ERROR_STACK) == errorString.toString()
     !result.delegate.isError()
   }
 

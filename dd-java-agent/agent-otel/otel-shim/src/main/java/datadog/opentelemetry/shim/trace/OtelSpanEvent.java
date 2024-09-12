@@ -4,14 +4,10 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.opentelemetry.api.common.AttributeKey;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 public class OtelSpanEvent {
 
@@ -142,21 +138,4 @@ public class OtelSpanEvent {
     }
     return builder.append(']').toString();
   }
-
-  // map of default attribute keys to apply to all SpanEvents generated with recordException, along
-  // with the logic to generate the expected value from the provided Throwable
-  static final Map<String, Function<Throwable, String>> defaultExceptionAttributes =
-      new HashMap<String, Function<Throwable, String>>() {
-        {
-          put("exception.message", exception -> exception.getMessage());
-          put("exception.type", exception -> exception.getClass().getName());
-          put(
-              "exception.stacktrace",
-              exception -> {
-                final StringWriter errorString = new StringWriter();
-                exception.printStackTrace(new PrintWriter(errorString));
-                return errorString.toString();
-              });
-        }
-      };
 }
