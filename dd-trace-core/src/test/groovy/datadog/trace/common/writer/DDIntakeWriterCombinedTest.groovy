@@ -45,7 +45,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
   @Shared
   def wellKnownTags = new CiVisibilityWellKnownTags(
   "my-runtime-id", "my-env", "my-language",
-  "my-runtime-name", "my-runtime-vendor", "my-runtime-version",
+  "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
   "my-os-arch", "my-os-platform", "my-os-version")
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)

@@ -45,7 +45,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
     setup:
     CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
       "runtimeid", "my-env", "language",
-      "my-runtime-name", "my-runtime-vendor", "my-runtime-version",
+      "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
       "my-os-arch", "my-os-platform", "my-os-version")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
 
@@ -184,7 +184,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
 
     CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
       "runtimeid", "my-env", "language",
-      "my-runtime-name", "my-runtime-vendor", "my-runtime-version",
+      "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
       "my-os-arch", "my-os-platform", "my-os-version")
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false)
 

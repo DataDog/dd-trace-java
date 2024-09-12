@@ -8,8 +8,8 @@ public class CiVisibilityWellKnownTags {
   private final UTF8BytesString env;
   private final UTF8BytesString language;
   private final UTF8BytesString runtimeName;
-  private final UTF8BytesString runtimeVendor;
   private final UTF8BytesString runtimeVersion;
+  private final UTF8BytesString runtimeVendor;
   private final UTF8BytesString osArch;
   private final UTF8BytesString osPlatform;
   private final UTF8BytesString osVersion;
@@ -19,8 +19,8 @@ public class CiVisibilityWellKnownTags {
       CharSequence env,
       CharSequence language,
       CharSequence runtimeName,
-      CharSequence runtimeVendor,
       CharSequence runtimeVersion,
+      CharSequence runtimeVendor,
       CharSequence osArch,
       CharSequence osPlatform,
       CharSequence osVersion) {
@@ -28,8 +28,8 @@ public class CiVisibilityWellKnownTags {
     this.env = UTF8BytesString.create(env);
     this.language = UTF8BytesString.create(language);
     this.runtimeName = UTF8BytesString.create(runtimeName);
-    this.runtimeVendor = UTF8BytesString.create(runtimeVendor);
     this.runtimeVersion = UTF8BytesString.create(runtimeVersion);
+    this.runtimeVendor = UTF8BytesString.create(runtimeVendor);
     this.osArch = UTF8BytesString.create(osArch);
     this.osPlatform = UTF8BytesString.create(osPlatform);
     this.osVersion = UTF8BytesString.create(osVersion);
@@ -63,11 +63,11 @@ public class CiVisibilityWellKnownTags {
     return runtimeName;
   }
 
-  public UTF8BytesString getRuntimeVendor() {
-    return runtimeVendor;
-  }
-
   public UTF8BytesString getRuntimeVersion() {
     return runtimeVersion;
+  }
+
+  public UTF8BytesString getRuntimeVendor() {
+    return runtimeVendor;
   }
 }

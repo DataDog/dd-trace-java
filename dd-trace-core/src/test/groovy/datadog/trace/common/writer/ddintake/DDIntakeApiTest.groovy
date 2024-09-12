@@ -29,7 +29,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
 
   static CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
   "my-runtime-id", "my-env", "my-language",
-  "my-runtime-name", "my-runtime-vendor", "my-runtime-version",
+  "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
   "my-os-arch", "my-os-platform", "my-os-version")
 
   static String apiKey = "my-secret-apikey"
