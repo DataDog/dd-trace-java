@@ -236,15 +236,8 @@ public final class OtelConventions {
     return (String) tag;
   }
 
-  /**
-   * convertAttributes is a helper function for converting opentelemetry Attributes to
-   * AgentSpan.Attributes based on the AttributeKey type
-   *
-   * @param attributes the Attributes to convert
-   * @return the converted AgentSpan.Attributes
-   */
   public static AgentSpan.Attributes convertAttributes(Attributes attributes) {
-    if (attributes == null || attributes.isEmpty()) {
+    if (attributes.isEmpty()) {
       return SpanAttributes.EMPTY;
     }
     SpanAttributes.Builder builder = SpanAttributes.builder();

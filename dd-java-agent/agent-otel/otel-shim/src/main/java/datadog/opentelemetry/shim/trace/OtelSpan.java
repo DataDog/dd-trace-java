@@ -136,12 +136,12 @@ public class OtelSpan implements Span {
   }
 
   /**
-   * processExceptionAttributes generates Attributes about the exception using a default list + the
-   * additionalAttributes provided by the user. These attributes are also used to populate Span
-   * error tags.
+   * processExceptionAttributes generates Attributes about the exception and sets Span error tags
+   * using the processed information.
    *
-   * <p>If the same key exists in defaultAttributes and additionalAttributes, the latter always
-   * wins.
+   * <p>If additionalAttributes contains a key from defaultAttributes, the value set in
+   * additionalAttributes will be used in Attributes and in error tag Else, the value is determined
+   * from the exception itself.
    *
    * @param exception The Throwable from which to build default attributes
    * @param additionalAttributes Attributes provided by the user
@@ -153,19 +153,17 @@ public class OtelSpan implements Span {
     // Create an AttributesBuilder with the additionalAttributes provided
     AttributesBuilder attrsBuilder = additionalAttributes.toBuilder();
 
-    // Check whether additionalAttributes contains any of the reserved exception attributes
+    // Check whether additionalAttributes contains any of the reserved exception attribute keys
 
     String key = "exception.message";
     String attrsValue = additionalAttributes.get(AttributeKey.stringKey(key));
-    // reserved attribute "exception.message" found additionalAttributes
-    if (attrsValue != null) {
-      // use provided value to set ERROR_MSG tag
-      this.delegate.setTag(DDTags.ERROR_MSG, attrsValue);
+    if (attrsValue != null) { // additionalAttributes contains "exception.message"
+      this.delegate.setTag(
+          DDTags.ERROR_MSG,
+          attrsValue); // use the value provided in additionalAttributes to set ERROR_MSG tag
     } else {
-      // use exception to set ERROR_MSG tag
-      String value = exception.getMessage();
-      this.delegate.setTag(DDTags.ERROR_MSG, value);
-      // and append to the builder
+      String value = exception.getMessage(); // use exception to set ERROR_MSG tag
+      this.delegate.setTag(DDTags.ERROR_MSG, value); // and append to the builder
       attrsBuilder.put(key, value);
     }
 
