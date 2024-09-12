@@ -39,12 +39,15 @@ public class CiVisibilityApmProtocolInterceptor extends AbstractTraceInterceptor
       span.setTag(Tags.TEST_MODULE_ID, (Number) null);
       span.setTag(Tags.TEST_SUITE_ID, (Number) null);
 
-      span.setTag(Tags.RUNTIME_NAME, wellKnownTags.getRuntimeName().toString());
-      span.setTag(Tags.RUNTIME_VENDOR, wellKnownTags.getRuntimeVendor().toString());
-      span.setTag(Tags.RUNTIME_VERSION, wellKnownTags.getRuntimeVersion().toString());
-      span.setTag(Tags.OS_ARCHITECTURE, wellKnownTags.getOsArch().toString());
-      span.setTag(Tags.OS_PLATFORM, wellKnownTags.getOsPlatform().toString());
-      span.setTag(Tags.OS_VERSION, wellKnownTags.getOsVersion().toString());
+      String spanType = span.getSpanType();
+      if (DDSpanTypes.TEST.equals(spanType)) {
+        span.setTag(Tags.RUNTIME_NAME, wellKnownTags.getRuntimeName().toString());
+        span.setTag(Tags.RUNTIME_VENDOR, wellKnownTags.getRuntimeVendor().toString());
+        span.setTag(Tags.RUNTIME_VERSION, wellKnownTags.getRuntimeVersion().toString());
+        span.setTag(Tags.OS_ARCHITECTURE, wellKnownTags.getOsArch().toString());
+        span.setTag(Tags.OS_PLATFORM, wellKnownTags.getOsPlatform().toString());
+        span.setTag(Tags.OS_VERSION, wellKnownTags.getOsVersion().toString());
+      }
     }
     return filteredTrace;
   }
