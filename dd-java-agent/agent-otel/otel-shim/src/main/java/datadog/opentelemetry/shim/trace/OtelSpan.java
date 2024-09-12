@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.trace;
 
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyNamingConvention;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyReservedAttribute;
-import static datadog.opentelemetry.shim.trace.OtelConventions.processExceptionAttributes;
 import static datadog.opentelemetry.shim.trace.OtelConventions.setEventsAsTag;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
@@ -15,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
@@ -129,9 +129,41 @@ public class OtelSpan implements Span {
       this.events.add(
           new OtelSpanEvent(
               "exception", processExceptionAttributes(exception, additionalAttributes)));
-      this.delegate.addThrowable(exception, ErrorPriorities.UNSET);
     }
     return this;
+  }
+
+  /**
+   * processExceptionAttributes generates Attributes about the exception using a default list + the
+   * additionalAttributes provided by the user. These attributes are also used to populate Span
+   * error tags.
+   *
+   * <p>If the same key exists in defaultAttributes and additionalAttributes, the latter always
+   * wins.
+   *
+   * @param exception The Throwable from which to build default attributes
+   * @param additionalAttributes Attributes provided by the user
+   * @return Attributes collection that combines defaultExceptionAttributes with
+   *     additionalAttributes
+   */
+  private Attributes processExceptionAttributes(
+      Throwable exception, Attributes additionalAttributes) {
+    // Create an AttributesBuilder with the additionalAttributes provided
+    AttributesBuilder attrsBuilder = additionalAttributes.toBuilder();
+    for (String key : OtelSpanEvent.defaultExceptionAttributes.keySet()) {
+      //      if(additionalAttributes.get(AttributeKey.stringKey(key)) != null) {
+      //
+      //      }
+      // Add defaultAttributes onto the builder iff an equivalent key was not provided in
+      // additionalAttributes
+      if (additionalAttributes.get(AttributeKey.stringKey(key)) == null) {
+        // get the value using the function found at `key` in defaultExceptionAttributes
+        String value = OtelSpanEvent.defaultExceptionAttributes.get(key).apply(exception);
+        attrsBuilder.put(key, value);
+      }
+    }
+    this.delegate.addThrowable(exception, ErrorPriorities.UNSET);
+    return attrsBuilder.build();
   }
 
   @Override
