@@ -24,6 +24,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 
 import com.datadog.profiling.controller.ConfigurationException;
@@ -157,6 +161,15 @@ public final class OpenJdkController implements Controller {
         enableEvent(
             recordingSettings, "jdk.ObjectCountAfterGC", "user enabled histogram heap collection");
       }
+    }
+
+    if (configProvider.getBoolean(
+        PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT)) {
+      long threshold =
+          configProvider.getLong(
+              PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
+              PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
+      recordingSettings.put("datadog.QueueTime#threshold", threshold + " ms");
     }
 
     // Toggle settings from override file
