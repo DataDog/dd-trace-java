@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jackson.core;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.*;
@@ -10,6 +11,8 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.json.Json2_6ParserHelper;
+import com.fasterxml.jackson.core.json.UTF8StreamJsonParser;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,24 +26,27 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class Json2ParserInstrumentation extends InstrumenterModule.Iast
+public class Json2_6ParserInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
+  static final ElementMatcher.Junction<ClassLoader> VERSION_POST_2_6_0_AND_PRE_2_16_0 =
+      hasClassNamed("com.fasterxml.jackson.core.sym.ByteQuadsCanonicalizer")
+          .and(not(hasClassNamed("com.fasterxml.jackson.core.StreamWriteConstraints")));
 
-  public Json2ParserInstrumentation() {
-    super("jackson", "jackson-2");
+  public Json2_6ParserInstrumentation() {
+    super("jackson", "jackson-2_6");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    final String className = Json2ParserInstrumentation.class.getName();
+    final String className = Json2_6ParserInstrumentation.class.getName();
     transformer.applyAdvice(
-        namedOneOf("getText", "getValueAsString")
+        namedOneOf("getCurrentName", "nextFieldName")
             .and(isPublic())
             .and(takesNoArguments())
             .and(returns(String.class)),
-        className + "$TextAdvice");
+        className + "$NameAdvice");
   }
 
   @Override
@@ -50,10 +56,15 @@ public class Json2ParserInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return declaresMethod(namedOneOf("getText", "getValueAsString"))
+    return declaresMethod(namedOneOf("getCurrentName", "nextFieldName"))
         .and(
             extendsClass(named(hierarchyMarkerType()))
                 .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return VERSION_POST_2_6_0_AND_PRE_2_16_0;
   }
 
   @Override
@@ -61,21 +72,31 @@ public class Json2ParserInstrumentation extends InstrumenterModule.Iast
     return singletonMap(TARGET_TYPE, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
   }
 
-  public static class TextAdvice {
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "com.fasterxml.jackson.core.json" + ".Json2_6ParserHelper",
+      "com.fasterxml.jackson.core.sym" + ".ByteQuadsCanonicalizer2_6Helper",
+    };
+  }
+
+  public static class NameAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
-      if (jsonParser != null && result != null) {
+      if (jsonParser != null
+          && result != null
+          && jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
         final ContextStore<JsonParser, NamedContext> store =
             InstrumentationContext.get(JsonParser.class, NamedContext.class);
         final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
-        final JsonToken current = jsonParser.getCurrentToken();
-        if (current == JsonToken.FIELD_NAME) {
-          context.taintName(result);
-        } else if (current == JsonToken.VALUE_STRING) {
-          context.taintValue(result);
+        if (jsonParser instanceof UTF8StreamJsonParser
+            && Json2_6ParserHelper.fetchIntern((UTF8StreamJsonParser) jsonParser)) {
+          context.setCurrentName(result);
+          return;
         }
+        context.taintName(result);
       }
     }
   }
