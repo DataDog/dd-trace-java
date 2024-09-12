@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.json.Json2_6ParserHelper;
+import com.fasterxml.jackson.core.json.Json2_12ParserHelper;
 import com.fasterxml.jackson.core.json.UTF8StreamJsonParser;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -26,21 +26,21 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class Json2_6ParserInstrumentation extends InstrumenterModule.Iast
+public class Json2_12ParserInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
-  static final ElementMatcher.Junction<ClassLoader> VERSION_POST_2_6_0_AND_PRE_2_8_0 =
-      hasClassNamed("com.fasterxml.jackson.core.sym.ByteQuadsCanonicalizer")
-          .and(not(hasClassNamed("com.fasterxml.jackson.core.JsonpCharacterEscapes")));
+  static final ElementMatcher.Junction<ClassLoader> VERSION_POST_2_8_0_AND_PRE_2_12_0 =
+      hasClassNamed("com.fasterxml.jackson.core.StreamReadCapability")
+          .and(not(hasClassNamed("com.fasterxml.jackson.core.StreamWriteConstraints")));
 
-  public Json2_6ParserInstrumentation() {
-    super("jackson", "jackson-2_6");
+  public Json2_12ParserInstrumentation() {
+    super("jackson", "jackson-2_12");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    final String className = Json2_6ParserInstrumentation.class.getName();
+    final String className = Json2_12ParserInstrumentation.class.getName();
     transformer.applyAdvice(
         namedOneOf("getCurrentName", "nextFieldName")
             .and(isPublic())
@@ -64,7 +64,7 @@ public class Json2_6ParserInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return VERSION_POST_2_6_0_AND_PRE_2_8_0;
+    return VERSION_POST_2_8_0_AND_PRE_2_12_0;
   }
 
   @Override
@@ -75,8 +75,8 @@ public class Json2_6ParserInstrumentation extends InstrumenterModule.Iast
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "com.fasterxml.jackson.core.json" + ".Json2_6ParserHelper",
-      "com.fasterxml.jackson.core.sym" + ".ByteQuadsCanonicalizer2_6Helper",
+      "com.fasterxml.jackson.core.json" + ".Json2_12ParserHelper",
+      "com.fasterxml.jackson.core.sym" + ".ByteQuadsCanonicalizer2_12Helper",
     };
   }
 
@@ -92,7 +92,7 @@ public class Json2_6ParserInstrumentation extends InstrumenterModule.Iast
             InstrumentationContext.get(JsonParser.class, NamedContext.class);
         final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
         if (jsonParser instanceof UTF8StreamJsonParser
-            && Json2_6ParserHelper.fetchIntern((UTF8StreamJsonParser) jsonParser)) {
+            && Json2_12ParserHelper.fetchIntern((UTF8StreamJsonParser) jsonParser)) {
           context.setCurrentName(result);
           return;
         }
