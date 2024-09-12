@@ -139,9 +139,10 @@ public class OtelSpan implements Span {
    * processExceptionAttributes generates Attributes about the exception and sets Span error tags
    * using the processed information.
    *
-   * <p>If additionalAttributes contains a key from defaultAttributes, the value set in
-   * additionalAttributes will be used in Attributes and in error tag Else, the value is determined
-   * from the exception itself.
+   * <p>All exception span events get the following reserved Attributes: "exception.message",
+   * "exception.type" and "exception.stacktace". If additionalAttributes contains a reserved key,
+   * the value in additionalAttributes is used. Else, the value is determined from the provided
+   * Throwable.
    *
    * @param exception The Throwable from which to build default attributes
    * @param additionalAttributes Attributes provided by the user
