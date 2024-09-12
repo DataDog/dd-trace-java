@@ -232,7 +232,7 @@ class JsonToTagsTest extends Specification {
   }
 
   def "skip invalid rules"() {
-    def invalidRuleWithLeadingSpace = ' $.Message'
+    def invalidRuleWithLeadingSpace = '$$.Message'
     JsonToTags jsonToTags = new JsonToTags.Builder()
       .parseExpansionRules([invalidRuleWithLeadingSpace])
       .parseRedactionRules([invalidRuleWithLeadingSpace])
