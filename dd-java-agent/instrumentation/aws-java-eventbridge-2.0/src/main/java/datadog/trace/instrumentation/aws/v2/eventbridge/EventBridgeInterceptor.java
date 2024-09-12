@@ -11,7 +11,11 @@ import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdap
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
@@ -21,65 +25,89 @@ import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 
 public class EventBridgeInterceptor implements ExecutionInterceptor {
+  private static final Logger log = LoggerFactory.getLogger(EventBridgeInterceptor.class);
+
   public static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
           .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
-  private String getTraceContextToInject(
-      ExecutionAttributes executionAttributes, String eventBusName) {
-    final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
-    StringBuilder jsonBuilder = new StringBuilder();
-    jsonBuilder.append("{");
-    propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
-    if (traceConfig().isDataStreamsEnabled()) {
-      propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(eventBusName));
-    }
-    jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
-    jsonBuilder.append("}");
-    return jsonBuilder.toString();
-  }
+  private static final String DATADOG_KEY = "_datadog";
+  private static final String SENT_TIMESTAMP_KEY = "x-datadog-sent-timestamp";
+  private static final String BUS_NAME_KEY = "x-datadog-bus-name";
 
   @Override
   public SdkRequest modifyRequest(
       Context.ModifyRequest context, ExecutionAttributes executionAttributes) {
-    // Injecting the trace context into EventBridge `detail`
-    if (context.request() instanceof PutEventsRequest) {
-      PutEventsRequest request = (PutEventsRequest) context.request();
-      List<PutEventsRequestEntry> modifiedEntries = new ArrayList<>();
-      long startTime = System.currentTimeMillis();
-
-      for (PutEventsRequestEntry entry : request.entries()) {
-        String eventBusName = entry.eventBusName();
-        String traceContext = getTraceContextToInject(executionAttributes, eventBusName);
-
-        StringBuilder detailBuilder = new StringBuilder(entry.detail());
-        detailBuilder.setLength(detailBuilder.length() - 1); // Remove the last bracket
-        detailBuilder
-            .append(", \"SentTimestamp\": \"")
-            .append(startTime)
-            .append(
-                "\""); // add start trace timestamp, since AWS's current timestamp only has second
-        // resolution
-        detailBuilder
-            .append(", \"BusName\": \"")
-            .append(eventBusName)
-            .append("\""); // add bus name, since AWS currently doesn't include this in the payload
-        detailBuilder
-            .append(", \"_datadog\": ")
-            .append(traceContext)
-            .append("}"); // add trace context
-        String modifiedDetail = detailBuilder.toString();
-
-        PutEventsRequestEntry modifiedEntry = entry.toBuilder().detail(modifiedDetail).build();
-        modifiedEntries.add(modifiedEntry);
-
-        // TODO SQS limit of 10 messageAttributes?
-      }
-
-      return request.toBuilder().entries(modifiedEntries).build();
+    if (!(context.request() instanceof PutEventsRequest)) {
+      return context.request();
     }
 
-    return context.request();
+    PutEventsRequest request = (PutEventsRequest) context.request();
+    List<PutEventsRequestEntry> modifiedEntries = new ArrayList<>(request.entries().size());
+    long startTime = System.currentTimeMillis();
+
+    for (PutEventsRequestEntry entry : request.entries()) {
+      StringBuilder detailBuilder = new StringBuilder(entry.detail().trim());
+      if (detailBuilder.length() == 0) {
+        detailBuilder.append("{}");
+      }
+      if (detailBuilder.charAt(detailBuilder.length() - 1) != '}') {
+        log.debug(
+            "Unable to parse detail JSON. Not injecting trace context into EventBridge payload.");
+        modifiedEntries.add(entry); // Add the original entry without modification
+        continue;
+      }
+
+      String traceContext =
+          getTraceContextToInject(executionAttributes, entry.eventBusName(), startTime);
+      detailBuilder.setLength(detailBuilder.length() - 1); // Remove the last bracket
+      if (detailBuilder.length() > 1) {
+        detailBuilder.append(", "); // Only add a comma if detail is not empty.
+      }
+
+      detailBuilder
+          .append("\"")
+          .append(DATADOG_KEY)
+          .append("\": ")
+          .append(traceContext)
+          .append('}');
+
+      String modifiedDetail = detailBuilder.toString();
+      PutEventsRequestEntry modifiedEntry = entry.toBuilder().detail(modifiedDetail).build();
+      modifiedEntries.add(modifiedEntry);
+    }
+
+    return request.toBuilder().entries(modifiedEntries).build();
+  }
+
+  private String getTraceContextToInject(
+      ExecutionAttributes executionAttributes, String eventBusName, long startTime) {
+    final AgentSpan span = executionAttributes.getAttribute(SPAN_ATTRIBUTE);
+    StringBuilder jsonBuilder = new StringBuilder();
+    jsonBuilder.append('{');
+
+    // Inject trace context
+    propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    if (traceConfig().isDataStreamsEnabled()) {
+      propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(eventBusName));
+    }
+
+    // Add bus name and start time
+    jsonBuilder
+        .append(" \"")
+        .append(SENT_TIMESTAMP_KEY)
+        .append("\": \"")
+        .append(startTime)
+        .append("\", ");
+    jsonBuilder
+        .append(" \"")
+        .append(BUS_NAME_KEY)
+        .append("\": \"")
+        .append(eventBusName)
+        .append("\"");
+
+    jsonBuilder.append('}');
+    return jsonBuilder.toString();
   }
 
   private LinkedHashMap<String, String> getTags(String eventBusName) {
