@@ -23,18 +23,18 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class Json2ParserInstrumentation extends InstrumenterModule.Iast
+public class JsonParserInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy {
 
   static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
 
-  public Json2ParserInstrumentation() {
+  public JsonParserInstrumentation() {
     super("jackson", "jackson-2");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    final String className = Json2ParserInstrumentation.class.getName();
+    final String className = JsonParserInstrumentation.class.getName();
     transformer.applyAdvice(
         namedOneOf("getText", "getValueAsString")
             .and(isPublic())

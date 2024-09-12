@@ -8,7 +8,7 @@ import groovy.json.JsonOutput
 
 import java.nio.charset.Charset
 
-class Json2ParserInstrumentationTest extends AgentTestRunner {
+class JsonParserInstrumentationTest extends AgentTestRunner {
 
   private final static String JSON_STRING = '{"root":"root_value","nested":{"nested_array":["array_0","array_1"]}}'
 
