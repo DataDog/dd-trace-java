@@ -787,7 +787,7 @@ public enum JDBCConnectionUrlParser {
     @Override
     DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
       String url = jdbcUrl;
-      int firstSlash = url.indexOf('/', 13); // after jdbc://iris:/
+      int firstSlash = url.indexOf('/', "jdbc://iris:/".length());
       int nextSlash = url.indexOf('/', firstSlash + 1);
       if (nextSlash > firstSlash) {
         // strip the options and preserve only the url like part
