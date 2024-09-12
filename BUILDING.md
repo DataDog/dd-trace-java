@@ -10,7 +10,7 @@ This documentation is dedicated to developers to setup their environment, and bu
 
 ## Development environment quick check
 
-As a preliminary step, you can quickly check that your development environment is properly set up to build the project running `./setup.sh` from the project root:
+To check that your development environment is properly set up to build the project, you will eventually run `./setup.sh` from the project root and should have its output look something like this:
 
 ```bash
 $ ./setup.sh
@@ -191,3 +191,6 @@ To build the entire project with tests (this can take a very long time) run:
 ```
 
 After building the project, you can find the jar build artifact into the `dd-java-agent/build/libs` folder.
+
+### Build Troubleshooting
+Sometimes, tests during build are flaky and can fail/ stop the build. We don't accept flakiness and actively work to fix flaky tests, but if tests fail during build you can skip tests with `./gradlew build -PskipTests`
