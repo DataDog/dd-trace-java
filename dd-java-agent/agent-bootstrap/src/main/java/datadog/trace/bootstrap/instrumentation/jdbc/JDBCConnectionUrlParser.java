@@ -781,6 +781,20 @@ public enum JDBCConnectionUrlParser {
       }
       return GENERIC_URL_LIKE.doParse(url, builder);
     }
+  },
+
+  IRIS("iris") {
+    @Override
+    DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
+      String url = jdbcUrl;
+      int firstSlash = url.indexOf('/', "jdbc://iris:/".length());
+      int nextSlash = url.indexOf('/', firstSlash + 1);
+      if (nextSlash > firstSlash) {
+        // strip the options and preserve only the url like part
+        url = url.substring(0, nextSlash);
+      }
+      return GENERIC_URL_LIKE.doParse(url, builder);
+    }
   };
 
   private static final Map<String, JDBCConnectionUrlParser> typeParsers = new HashMap<>();
