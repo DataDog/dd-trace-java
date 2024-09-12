@@ -41,6 +41,8 @@ public class DefaultConnectionInstrumentation extends AbstractConnectionInstrume
     "com.sap.db.jdbc.ConnectionSapDB",
     // IBM Informix
     "com.informix.jdbc.IfmxConnection",
+    // Intersystems IRIS
+    "com.intersystems.jdbc.IRISConnection",
     // for testing purposes
     "test.TestConnection"
   };
