@@ -63,6 +63,7 @@ dependencies {
   iastTestImplementation(testFixtures(project(':dd-java-agent:agent-iast')))
   iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.16')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 
   latestDepTestImplementation libs.scala213
