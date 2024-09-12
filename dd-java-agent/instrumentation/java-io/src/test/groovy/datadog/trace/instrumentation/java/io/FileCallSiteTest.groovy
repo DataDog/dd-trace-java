@@ -93,7 +93,7 @@ class FileCallSiteTest extends BaseIoRaspCallSiteTest {
     TestFileSuite.newFile(parent, child)
 
     then:
-    1 *  helper.onFileLoaded(parent, child)
+    1 *  helper.beforeFileLoaded(parent, child)
   }
 
   void 'test RASP new file with parent file and child'() {
@@ -107,7 +107,7 @@ class FileCallSiteTest extends BaseIoRaspCallSiteTest {
     TestFileSuite.newFile(parent, child)
 
     then:
-    1 *  helper.onFileLoaded(parent, child)
+    1 *  helper.beforeFileLoaded(parent, child)
   }
 
   void 'test RASP new file with uri'() {
@@ -120,6 +120,6 @@ class FileCallSiteTest extends BaseIoRaspCallSiteTest {
     TestFileSuite.newFile(file)
 
     then:
-    1 *  helper.onFileLoaded(file)
+    1 *  helper.beforeFileLoaded(file)
   }
 }

@@ -44,7 +44,7 @@ class PathCallSiteTest extends BaseIoRaspCallSiteTest {
     TestPathSuite.resolve(getRootFolder().toPath(), path)
 
     then:
-    1 * helper.onFileLoaded(path)
+    1 * helper.beforeFileLoaded(path)
   }
 
   void 'test RASP resolve sibling'() {
@@ -58,6 +58,6 @@ class PathCallSiteTest extends BaseIoRaspCallSiteTest {
     TestPathSuite.resolveSibling(sibling, path)
 
     then:
-    1 * helper.onFileLoaded(path)
+    1 * helper.beforeFileLoaded(path)
   }
 }

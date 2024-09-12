@@ -45,7 +45,7 @@ class FileOutputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     TestFileOutputStreamSuite.newFileOutputStream(path)
 
     then:
-    1 * helper.onFileLoaded(path)
+    1 * helper.beforeFileLoaded(path)
   }
 
   void 'test RASP new file input stream with path and append'() {
@@ -58,6 +58,6 @@ class FileOutputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     TestFileOutputStreamSuite.newFileOutputStream(path, false)
 
     then:
-    1 * helper.onFileLoaded(path)
+    1 * helper.beforeFileLoaded(path)
   }
 }

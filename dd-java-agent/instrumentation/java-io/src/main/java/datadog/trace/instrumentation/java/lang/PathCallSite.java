@@ -36,6 +36,6 @@ public class PathCallSite {
   }
 
   private static void raspCallback(String other) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(other);
+    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(other);
   }
 }

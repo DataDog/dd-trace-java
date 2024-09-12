@@ -30,6 +30,6 @@ class FileInputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     TestFileInputStreamSuite.newFileInputStream(path)
 
     then:
-    1 * helper.onFileLoaded(path)
+    1 * helper.beforeFileLoaded(path)
   }
 }

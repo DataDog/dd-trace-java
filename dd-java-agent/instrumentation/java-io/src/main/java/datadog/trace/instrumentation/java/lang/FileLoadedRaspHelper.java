@@ -29,14 +29,14 @@ public class FileLoadedRaspHelper {
     // prevent instantiation
   }
 
-  public void onFileLoaded(@Nullable final String parent, @Nonnull final String child) {
+  public void beforeFileLoaded(@Nullable final String parent, @Nonnull final String child) {
     try {
       if (parent == null) {
-        onFileLoaded(child);
+        beforeFileLoaded(child);
         return;
       }
       String s = parent + FileSystems.getDefault().getSeparator() + child;
-      onFileLoaded(s);
+      beforeFileLoaded(s);
     } catch (final BlockingException e) {
       // re-throw blocking exceptions
       throw e;
@@ -46,14 +46,14 @@ public class FileLoadedRaspHelper {
     }
   }
 
-  public void onFileLoaded(@Nonnull final String first, @Nonnull final String[] more) {
+  public void beforeFileLoaded(@Nonnull final String first, @Nonnull final String[] more) {
     try {
       String separator = FileSystems.getDefault().getSeparator();
       String s = first;
       if (more.length > 0) {
         s += separator + String.join(separator, more);
       }
-      onFileLoaded(s);
+      beforeFileLoaded(s);
     } catch (final BlockingException e) {
       // re-throw blocking exceptions
       throw e;
@@ -63,9 +63,9 @@ public class FileLoadedRaspHelper {
     }
   }
 
-  public void onFileLoaded(@Nonnull final URI uri) {
+  public void beforeFileLoaded(@Nonnull final URI uri) {
     try {
-      onFileLoaded(uri.toString());
+      beforeFileLoaded(uri.toString());
     } catch (final BlockingException e) {
       // re-throw blocking exceptions
       throw e;
@@ -75,14 +75,14 @@ public class FileLoadedRaspHelper {
     }
   }
 
-  public void onFileLoaded(@Nullable final File parent, @Nonnull final String child) {
+  public void beforeFileLoaded(@Nullable final File parent, @Nonnull final String child) {
     try {
       if (parent == null) {
-        onFileLoaded(child);
+        beforeFileLoaded(child);
         return;
       }
       String s = parent + FileSystems.getDefault().getSeparator() + child;
-      onFileLoaded(s);
+      beforeFileLoaded(s);
     } catch (final BlockingException e) {
       // re-throw blocking exceptions
       throw e;
@@ -92,7 +92,7 @@ public class FileLoadedRaspHelper {
     }
   }
 
-  public void onFileLoaded(@Nonnull final String path) {
+  public void beforeFileLoaded(@Nonnull final String path) {
     if (!Config.get().isAppSecRaspEnabled()) {
       return;
     }

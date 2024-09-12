@@ -36,6 +36,6 @@ public class FileOutputStreamCallSite {
   }
 
   private static void raspCallback(String path) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(path);
+    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(path);
   }
 }

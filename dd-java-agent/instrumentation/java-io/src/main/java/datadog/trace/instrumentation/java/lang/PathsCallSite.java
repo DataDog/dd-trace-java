@@ -58,10 +58,10 @@ public class PathsCallSite {
   }
 
   private static void raspCallback(String first, String[] more) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(first, more);
+    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(first, more);
   }
 
   private static void raspCallback(URI uri) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(uri);
+    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(uri);
   }
 }

@@ -46,7 +46,7 @@ class PathsCallSiteTest extends BaseIoRaspCallSiteTest {
     TestPathsSuite.get(first, other)
 
     then:
-    1 * helper.onFileLoaded(first, other)
+    1 * helper.beforeFileLoaded(first, other)
 
     where:
     first      | other
@@ -64,6 +64,6 @@ class PathsCallSiteTest extends BaseIoRaspCallSiteTest {
     TestPathsSuite.get(file)
 
     then:
-    1 * helper.onFileLoaded(file)
+    1 * helper.beforeFileLoaded(file)
   }
 }

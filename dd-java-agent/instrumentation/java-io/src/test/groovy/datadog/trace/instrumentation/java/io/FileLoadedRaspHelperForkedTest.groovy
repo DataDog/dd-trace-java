@@ -19,7 +19,7 @@ class FileLoadedRaspHelperForkedTest extends BaseIoRaspCallSiteTest {
     tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
 
     when:
-    FileLoadedRaspHelper.INSTANCE."onFileLoaded"(*args)
+    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(*args)
 
     then:
     1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener

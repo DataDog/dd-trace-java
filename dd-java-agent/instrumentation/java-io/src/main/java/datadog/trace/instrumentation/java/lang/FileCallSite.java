@@ -101,18 +101,18 @@ public class FileCallSite {
   }
 
   private static void raspCallback(File parent, String child) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(parent, child);
+    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(parent, child);
   }
 
   private static void raspCallback(String parent, String file) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(parent, file);
+    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(parent, file);
   }
 
   private static void raspCallback(String s) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(s);
+    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(s);
   }
 
   private static void raspCallback(URI uri) {
-    FileLoadedRaspHelper.INSTANCE.onFileLoaded(uri);
+    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(uri);
   }
 }
