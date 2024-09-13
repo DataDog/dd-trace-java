@@ -78,14 +78,14 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                       | tests                         | expectedTracesCount | skippedTests
     "test-itr-skipping"                | [TestFailedAndSucceed]        | 4                   | [
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null, null),
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null, null)
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_another_succeed", null),
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null)
     ]
     "test-itr-skipping-parameterized"  | [TestParameterized]           | 3                   | [
-      new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", '{"metadata":{"test_name":"parameterized_test_succeed[str1]"}}', null)
+      new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", '{"metadata":{"test_name":"parameterized_test_succeed[str1]"}}')
     ]
-    "test-itr-unskippable"             | [TestSucceedUnskippable]      | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null, null)]
-    "test-itr-unskippable-suite"       | [TestSucceedUnskippableSuite] | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null, null)]
+    "test-itr-unskippable"             | [TestSucceedUnskippable]      | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
+    "test-itr-unskippable-suite"       | [TestSucceedUnskippableSuite] | 2                   | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null)]
     "test-itr-unskippable-not-skipped" | [TestSucceedUnskippable]      | 2                   | []
   }
 
@@ -99,14 +99,14 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                             | tests                          | expectedTracesCount | retriedTests
     "test-failed"                            | [TestFailed]                   | 2                   | []
-    "test-retry-failed"                      | [TestFailed]                   | 6                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null, null)]
-    "test-failed-then-succeed"               | [TestFailedThenSucceed]        | 5                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed_then_succeed", null, null)]
-    "test-assumption-is-not-retried"         | [TestAssumption]               | 2                   | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null, null)]
-    "test-skipped-is-not-retried"            | [TestSkipped]                  | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null, null)]
+    "test-retry-failed"                      | [TestFailed]                   | 6                   | [new TestIdentifier("org.example.TestFailed", "test_failed", null)]
+    "test-failed-then-succeed"               | [TestFailedThenSucceed]        | 5                   | [new TestIdentifier("org.example.TestFailedThenSucceed", "test_failed_then_succeed", null)]
+    "test-assumption-is-not-retried"         | [TestAssumption]               | 2                   | [new TestIdentifier("org.example.TestAssumption", "test_fail_assumption", null)]
+    "test-skipped-is-not-retried"            | [TestSkipped]                  | 2                   | [new TestIdentifier("org.example.TestSkipped", "test_skipped", null)]
     "test-retry-parameterized"               | [TestFailedParameterized]      | 7                   | [
-      new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", /* backend cannot provide parameters for flaky parameterized tests yet */ null, null)
+      new TestIdentifier("org.example.TestFailedParameterized", "test_failed_parameterized", /* backend cannot provide parameters for flaky parameterized tests yet */ null)
     ]
-    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2                   | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null, null)]
+    "test-expected-exception-is-not-retried" | [TestSucceedExpectedException] | 2                   | [new TestIdentifier("org.example.TestSucceedExpectedException", "test_succeed", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -118,13 +118,13 @@ class JUnit4Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null, null)]
-    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null, null)]
+    "test-efd-known-test"               | [TestSucceed]          | 2                   | [new TestIdentifier("org.example.TestSucceed", "test_succeed", null)]
+    "test-efd-known-parameterized-test" | [TestParameterized]    | 3                   | [new TestIdentifier("org.example.TestParameterized", "parameterized_test_succeed", null)]
     "test-efd-new-test"                 | [TestSucceed]          | 4                   | []
     "test-efd-new-parameterized-test"   | [TestParameterized]    | 7                   | []
     "test-efd-known-tests-and-new-test" | [TestFailedAndSucceed] | 6                   | [
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null, null),
-      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null, null)
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_failed", null),
+      new TestIdentifier("org.example.TestFailedAndSucceed", "test_succeed", null)
     ]
     "test-efd-new-slow-test"            | [TestSucceedSlow]      | 3                   | [] // is executed only twice
     "test-efd-new-very-slow-test"       | [TestSucceedVerySlow]  | 2                   | [] // is executed only once

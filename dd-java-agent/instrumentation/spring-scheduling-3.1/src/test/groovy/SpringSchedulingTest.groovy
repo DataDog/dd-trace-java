@@ -1,3 +1,5 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.springframework.boot.actuate.scheduling.ScheduledTasksEndpoint
@@ -7,21 +9,42 @@ import java.util.concurrent.TimeUnit
 
 class SpringSchedulingTest extends AgentTestRunner {
 
+  def legacyTracing() {
+    false
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    if (legacyTracing()) {
+      injectSysConfig("spring-scheduling.legacy.tracing.enabled", "true")
+    }
+  }
+
   def "schedule trigger test according to cron expression"() {
     setup:
-    def context = new AnnotationConfigApplicationContext(TriggerTaskConfig)
+    def context = new AnnotationConfigApplicationContext(TriggerTaskConfig, SchedulingConfig)
     def task = context.getBean(TriggerTask)
 
     task.blockUntilExecute()
 
     expect:
     assert task != null
-    assertTraces(1) {
-      trace(1) {
+    def hasParent = legacyTracing()
+    assertTraces(hasParent ? 1 : 2) {
+      if (!hasParent) {
+        trace(1) {
+          basicSpan(it, "parent")
+        }
+      }
+      trace(hasParent ? 2 : 1) {
+        if (hasParent) {
+          basicSpan(it, "parent")
+        }
         span {
           resourceName "TriggerTask.run"
           operationName "scheduled.call"
-          parent()
+          hasParent ? childOfPrevious() : parent()
           errored false
           tags {
             "$Tags.COMPONENT" "spring-scheduling"
@@ -42,19 +65,29 @@ class SpringSchedulingTest extends AgentTestRunner {
 
   def "schedule interval test"() {
     setup:
-    def context = new AnnotationConfigApplicationContext(IntervalTaskConfig)
+    def context = new AnnotationConfigApplicationContext(IntervalTaskConfig, SchedulingConfig)
     def task = context.getBean(IntervalTask)
 
     task.blockUntilExecute()
 
     expect:
     assert task != null
-    assertTraces(1) {
-      trace(1) {
+    def hasParent = legacyTracing()
+
+    assertTraces(hasParent ? 1 : 2) {
+      if (!hasParent) {
+        trace(1) {
+          basicSpan(it, "parent")
+        }
+      }
+      trace(hasParent ? 2 : 1) {
+        if (hasParent) {
+          basicSpan(it, "parent")
+        }
         span {
           resourceName "IntervalTask.run"
           operationName "scheduled.call"
-          parent()
+          hasParent ? childOfPrevious() : parent()
           errored false
           tags {
             "$Tags.COMPONENT" "spring-scheduling"
@@ -69,18 +102,27 @@ class SpringSchedulingTest extends AgentTestRunner {
 
   def "schedule lambda test"() {
     setup:
-    def context = new AnnotationConfigApplicationContext(LambdaTaskConfig)
+    def context = new AnnotationConfigApplicationContext(LambdaTaskConfig, SchedulingConfig)
     def configurer = context.getBean(LambdaTaskConfigurer)
 
     configurer.singleUseLatch.await(2000, TimeUnit.MILLISECONDS)
 
     expect:
-    assertTraces(1) {
-      trace(1) {
+    def hasParent = legacyTracing()
+    assertTraces(hasParent ? 1 : 2) {
+      if (!hasParent) {
+        trace(1) {
+          basicSpan(it, "parent")
+        }
+      }
+      trace(hasParent ? 2 : 1) {
+        if (hasParent) {
+          basicSpan(it, "parent")
+        }
         span {
           resourceNameContains("LambdaTaskConfigurer\$\$Lambda")
           operationName "scheduled.call"
-          parent()
+          hasParent ? childOfPrevious() : parent()
           errored false
           tags {
             "$Tags.COMPONENT" "spring-scheduling"
@@ -94,3 +136,11 @@ class SpringSchedulingTest extends AgentTestRunner {
     context.close()
   }
 }
+
+class SpringSchedulingLegacyTracingForkedTest extends SpringSchedulingTest {
+  @Override
+  def legacyTracing() {
+    true
+  }
+}
+

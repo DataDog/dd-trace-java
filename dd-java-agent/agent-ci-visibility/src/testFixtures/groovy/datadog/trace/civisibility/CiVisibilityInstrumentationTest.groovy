@@ -8,10 +8,9 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.DDTest
 import datadog.trace.api.civisibility.DDTestSuite
 import datadog.trace.api.civisibility.InstrumentationBridge
-import datadog.trace.api.civisibility.config.EarlyFlakeDetectionSettings
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
-import datadog.trace.api.civisibility.coverage.CoverageBridge
+import datadog.trace.api.civisibility.config.TestMetadata
+import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge
 import datadog.trace.api.civisibility.events.TestEventsHandler
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.api.civisibility.telemetry.tag.Provider
@@ -19,17 +18,20 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.ContextStore
 import datadog.trace.civisibility.codeowners.Codeowners
+import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
+import datadog.trace.civisibility.config.ExecutionSettings
+import datadog.trace.civisibility.config.ExecutionSettingsFactory
 import datadog.trace.civisibility.config.JvmInfo
 import datadog.trace.civisibility.config.JvmInfoFactoryImpl
-import datadog.trace.civisibility.config.ModuleExecutionSettingsFactory
 import datadog.trace.civisibility.coverage.file.FileCoverageStore
+import datadog.trace.civisibility.coverage.percentage.NoOpCoverageCalculator
 import datadog.trace.civisibility.decorator.TestDecorator
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.domain.BuildSystemSession
 import datadog.trace.civisibility.domain.TestFrameworkModule
 import datadog.trace.civisibility.domain.TestFrameworkSession
 import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl
-import datadog.trace.civisibility.domain.buildsystem.TestModuleRegistry
+import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter
 import datadog.trace.civisibility.domain.headless.HeadlessTestSession
 import datadog.trace.civisibility.events.BuildEventsHandlerImpl
 import datadog.trace.civisibility.events.TestEventsHandlerImpl
@@ -38,6 +40,7 @@ import datadog.trace.civisibility.source.MethodLinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
+import datadog.trace.civisibility.test.ExecutionStrategy
 import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
@@ -93,78 +96,80 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     def methodLinesResolver = Stub(MethodLinesResolver)
     methodLinesResolver.getLines(_ as Method) >> new MethodLinesResolver.MethodLines(DUMMY_TEST_METHOD_START, DUMMY_TEST_METHOD_END)
 
-    def moduleExecutionSettingsFactory = Stub(ModuleExecutionSettingsFactory)
-    moduleExecutionSettingsFactory.create(_ as JvmInfo, _ as String) >> {
-      Map<String, String> properties = [
-        (CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED)                  : String.valueOf(itrEnabled),
-        (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED)          : String.valueOf(flakyRetryEnabled),
-        (CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED): String.valueOf(earlyFlakinessDetectionEnabled)
-      ]
-      return new ModuleExecutionSettings(
-      itrEnabled,
-      false,
-      itrEnabled,
-      flakyRetryEnabled,
-      earlyFlakinessDetectionEnabled
-      ? new EarlyFlakeDetectionSettings(true, [
-        new EarlyFlakeDetectionSettings.ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
-        new EarlyFlakeDetectionSettings.ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
-      ], 0)
-      : EarlyFlakeDetectionSettings.DEFAULT,
-      properties,
-      itrEnabled ? "itrCorrelationId" : null,
-      Collections.singletonMap(dummyModule, skippableTests),
-      flakyTests,
-      earlyFlakinessDetectionEnabled
-      ? [(dummyModule): knownTests]
-      : null,
-      Collections.emptyList())
+    def executionSettingsFactory = new ExecutionSettingsFactory() {
+      @Override
+      ExecutionSettings create(JvmInfo jvmInfo, String moduleName) {
+        def earlyFlakinessDetectionSettings = earlyFlakinessDetectionEnabled
+        ? new EarlyFlakeDetectionSettings(true, [
+          new EarlyFlakeDetectionSettings.ExecutionsByDuration(SLOW_TEST_THRESHOLD_MILLIS, 3),
+          new EarlyFlakeDetectionSettings.ExecutionsByDuration(VERY_SLOW_TEST_THRESHOLD_MILLIS, 2)
+        ], 0)
+        : EarlyFlakeDetectionSettings.DEFAULT
+
+        Map<TestIdentifier, TestMetadata> skippableTestsWithMetadata = new HashMap<>()
+        for (TestIdentifier skippableTest : skippableTests) {
+          skippableTestsWithMetadata.put(skippableTest, new TestMetadata(false))
+        }
+
+        return new ExecutionSettings(
+        itrEnabled,
+        false,
+        itrEnabled,
+        flakyRetryEnabled,
+        earlyFlakinessDetectionSettings,
+        itrEnabled ? "itrCorrelationId" : null,
+        skippableTestsWithMetadata,
+        [:],
+        flakyTests,
+        earlyFlakinessDetectionEnabled ? knownTests : null)
+      }
     }
 
     def coverageStoreFactory = new FileCoverageStore.Factory(metricCollector, sourcePathResolver)
     TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
+      def config = Config.get()
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
       return new HeadlessTestSession(
       projectName,
       startTime,
       ciProvider,
-      Config.get(),
+      config,
       metricCollector,
       testDecorator,
       sourcePathResolver,
       codeowners,
       methodLinesResolver,
       coverageStoreFactory,
-      moduleExecutionSettingsFactory.create(JvmInfo.CURRENT_JVM, "")
+      new ExecutionStrategy(config, executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""))
       )
     }
 
     InstrumentationBridge.registerTestEventsHandlerFactory(new TestEventHandlerFactory(testFrameworkSessionFactory, metricCollector))
 
     BuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
+      def config = Config.get()
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
       TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
-      TestModuleRegistry testModuleRegistry = new TestModuleRegistry()
+      ModuleSignalRouter moduleSignalRouter = new ModuleSignalRouter()
       SignalServer signalServer = new SignalServer()
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
       return new BuildSystemSessionImpl(
       projectName,
-      rootPath.toString(),
       startCommand,
       startTime,
       ciProvider,
-      Config.get(),
+      config,
       metricCollector,
-      testModuleRegistry,
+      moduleSignalRouter,
       testDecorator,
       sourcePathResolver,
       codeowners,
       methodLinesResolver,
-      moduleExecutionSettingsFactory,
-      coverageStoreFactory,
+      executionSettingsFactory,
       signalServer,
-      repoIndexBuilder
+      repoIndexBuilder,
+      new NoOpCoverageCalculator.Factory()
       )
     }
 
@@ -172,7 +177,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
       decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactoryImpl())
     }
 
-    CoverageBridge.registerCoverageStoreRegistry(coverageStoreFactory)
+    CoveragePerTestBridge.registerCoverageStoreRegistry(coverageStoreFactory)
   }
 
   private static final class TestEventHandlerFactory implements TestEventsHandler.Factory {
@@ -231,7 +236,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "2")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
   }
 
   def cleanupSpec() {

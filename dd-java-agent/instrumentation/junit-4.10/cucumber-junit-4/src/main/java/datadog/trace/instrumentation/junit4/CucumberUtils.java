@@ -164,7 +164,7 @@ public abstract class CucumberUtils {
   public static TestIdentifier toTestIdentifier(Description description) {
     String suite = getTestSuiteNameForScenario(description);
     String name = getTestNameForScenario(description);
-    return new TestIdentifier(suite, name, null, null);
+    return new TestIdentifier(suite, name, null);
   }
 
   public static TestDescriptor toTestDescriptor(Description description) {

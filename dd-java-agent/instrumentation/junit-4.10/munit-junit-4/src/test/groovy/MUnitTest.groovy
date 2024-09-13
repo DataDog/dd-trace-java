@@ -40,8 +40,8 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName               | tests                        | expectedTracesCount | retriedTests
     "test-failed"              | [TestFailedMUnit]            | 2                   | []
-    "test-retry-failed"        | [TestFailedMUnit]            | 6                   | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null, null)]
-    "test-failed-then-succeed" | [TestFailedThenSucceedMUnit] | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceedMUnit", "Calculator.add", null, null)]
+    "test-retry-failed"        | [TestFailedMUnit]            | 6                   | [new TestIdentifier("org.example.TestFailedMUnit", "Calculator.add", null)]
+    "test-failed-then-succeed" | [TestFailedThenSucceedMUnit] | 4                   | [new TestIdentifier("org.example.TestFailedThenSucceedMUnit", "Calculator.add", null)]
   }
 
   def "test early flakiness detection #testcaseName"() {
@@ -53,7 +53,7 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName             | tests                  | expectedTracesCount | knownTestsList
-    "test-efd-known-test"    | [TestSucceedMUnit]     | 2                   | [new TestIdentifier("org.example.TestSucceedMUnit", "Calculator.add", null, null)]
+    "test-efd-known-test"    | [TestSucceedMUnit]     | 2                   | [new TestIdentifier("org.example.TestSucceedMUnit", "Calculator.add", null)]
     "test-efd-new-test"      | [TestSucceedMUnit]     | 4                   | []
     "test-efd-new-slow-test" | [TestSucceedMUnitSlow] | 3                   | [] // is executed only twice
   }

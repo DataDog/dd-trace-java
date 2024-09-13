@@ -47,10 +47,6 @@ public class Where {
     return new Where(typeName, methodName, signature, lines, null);
   }
 
-  public static Where convertLineToMethod(String sourceFile, int line) {
-    return new Where(null, null, null, new SourceLine[] {new SourceLine(line)}, sourceFile);
-  }
-
   protected static SourceLine[] sourceLines(String[] defs) {
     if (defs == null) {
       return null;

@@ -17,17 +17,18 @@ public interface ConfigurationApi {
 
         @Override
         public SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) {
-          return new SkippableTests(null, Collections.emptyList());
+          return new SkippableTests(null, Collections.emptyMap(), null);
         }
 
         @Override
-        public Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) {
-          return Collections.emptyList();
+        public Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(
+            TracerEnvironment tracerEnvironment) {
+          return Collections.emptyMap();
         }
 
         @Override
-        public Map<String, Collection<TestIdentifier>> getKnownTestsByModuleName(
-            TracerEnvironment tracerEnvironment) throws IOException {
+        public Map<String, Collection<TestIdentifier>> getKnownTestsByModule(
+            TracerEnvironment tracerEnvironment) {
           return Collections.emptyMap();
         }
       };
@@ -36,8 +37,9 @@ public interface ConfigurationApi {
 
   SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) throws IOException;
 
-  Collection<TestIdentifier> getFlakyTests(TracerEnvironment tracerEnvironment) throws IOException;
+  Map<String, Collection<TestIdentifier>> getFlakyTestsByModule(TracerEnvironment tracerEnvironment)
+      throws IOException;
 
-  Map<String, Collection<TestIdentifier>> getKnownTestsByModuleName(
-      TracerEnvironment tracerEnvironment) throws IOException;
+  Map<String, Collection<TestIdentifier>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
+      throws IOException;
 }

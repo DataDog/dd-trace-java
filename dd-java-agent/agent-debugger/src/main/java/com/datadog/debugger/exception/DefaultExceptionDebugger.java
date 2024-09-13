@@ -26,6 +26,8 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultExceptionDebugger.class);
   public static final String DD_DEBUG_ERROR_PREFIX = "_dd.debug.error.";
   public static final String DD_DEBUG_ERROR_EXCEPTION_ID = DD_DEBUG_ERROR_PREFIX + "exception_id";
+  public static final String DD_DEBUG_ERROR_EXCEPTION_HASH =
+      DD_DEBUG_ERROR_PREFIX + "exception_hash";
   public static final String ERROR_DEBUG_INFO_CAPTURED = "error.debug_info_captured";
   public static final String SNAPSHOT_ID_TAG_FMT = DD_DEBUG_ERROR_PREFIX + "%d.snapshot_id";
 
@@ -84,11 +86,13 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
         LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
         return;
       }
-      processSnapshotsAndSetTags(t, span, state, innerMostException);
+      processSnapshotsAndSetTags(t, span, state, innerMostException, fingerprint);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
       if (exceptionProbeManager.createProbesForException(innerMostException.getStackTrace())) {
         AgentTaskScheduler.INSTANCE.execute(() -> applyExceptionConfiguration(fingerprint));
+      } else {
+        LOGGER.debug("No probe created for exception: {}", innerMostException.toString());
       }
     }
   }
@@ -99,7 +103,11 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
   }
 
   private static void processSnapshotsAndSetTags(
-      Throwable t, AgentSpan span, ThrowableState state, Throwable innerMostException) {
+      Throwable t,
+      AgentSpan span,
+      ThrowableState state,
+      Throwable innerMostException,
+      String fingerprint) {
     if (span.getTag(DD_DEBUG_ERROR_EXCEPTION_ID) != null) {
       LOGGER.debug("Clear previous frame tags");
       // already set for this span, clear the frame tags
@@ -139,6 +147,7 @@ public class DefaultExceptionDebugger implements DebuggerContext.ExceptionDebugg
           DD_DEBUG_ERROR_EXCEPTION_ID,
           state.getExceptionId());
       span.setTag(ERROR_DEBUG_INFO_CAPTURED, true);
+      span.setTag(DD_DEBUG_ERROR_EXCEPTION_HASH, fingerprint);
     }
   }
 

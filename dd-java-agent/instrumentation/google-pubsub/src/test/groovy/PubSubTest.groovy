@@ -327,6 +327,19 @@ class PubSubNamingV0Test extends PubSubTest {
   }
 }
 
+class PubSubNamingV0NoLegacyTracingForkedTest extends PubSubNamingV0Test {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.google-pubsub.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  String service() {
+    "A-service"
+  }
+}
+
 
 class PubSubNamingV1ForkedTest extends PubSubTest {
   @Override

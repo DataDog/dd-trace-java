@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
@@ -26,11 +27,12 @@ public class LineProbes implements CoverageProbes {
   private Class<?> lastCoveredClass;
   private ExecutionDataAdapter lastCoveredExecutionData;
 
-  LineProbes(CiVisibilityMetricCollector metrics, Map<String, Integer> probeCounts) {
+  LineProbes(
+      CiVisibilityMetricCollector metrics, Map<String, Integer> probeCounts, boolean isTestThread) {
     this.metrics = metrics;
     this.probeCounts = probeCounts;
-    executionData = new IdentityHashMap<>();
-    nonCodeResources = new HashMap<>();
+    executionData = isTestThread ? new IdentityHashMap<>() : new ConcurrentHashMap<>();
+    nonCodeResources = isTestThread ? new HashMap<>() : new ConcurrentHashMap<>();
   }
 
   @Override
@@ -58,7 +60,7 @@ public class LineProbes implements CoverageProbes {
 
   @Override
   public void recordNonCodeResource(String absolutePath) {
-    nonCodeResources.put(absolutePath, null);
+    nonCodeResources.put(absolutePath, absolutePath);
   }
 
   public Map<Class<?>, ExecutionDataAdapter> getExecutionData() {

@@ -36,7 +36,6 @@
     "error" : 0,
     "metrics" : {
       "process_id" : ${content_metrics_process_id},
-      "test.itr.tests_skipping.count" : 0,
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "test.code_coverage.lines_pct" : 0
@@ -54,14 +53,12 @@
       "span.kind" : "test_session_end",
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
-      "test.itr.tests_skipping.enabled" : "true",
       "test.type" : "test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "maven",
       "test.code_coverage.enabled" : "true",
       "test.toolchain" : ${content_meta_test_toolchain},
-      "test.itr.tests_skipping.type" : "test",
       "test.command" : "mvn -B test",
       "test.framework_version" : "5.4.0",
       "test.framework" : "cucumber"
@@ -80,7 +77,6 @@
     "duration" : ${content_duration_3},
     "error" : 0,
     "metrics" : {
-      "test.itr.tests_skipping.count" : 0,
       "test.code_coverage.lines_pct" : 0
     },
     "meta" : {
@@ -95,14 +91,12 @@
       "library_version" : ${content_meta_library_version},
       "span.kind" : "test_module_end",
       "runtime.version" : ${content_meta_runtime_version},
-      "test.itr.tests_skipping.enabled" : "true",
       "test.type" : "test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "maven",
       "test.code_coverage.enabled" : "true",
       "test.execution" : "maven-surefire-plugin:test:default-test",
-      "test.itr.tests_skipping.type" : "test",
       "test.command" : "mvn -B test",
       "test.framework_version" : "5.4.0",
       "test.framework" : "cucumber"
