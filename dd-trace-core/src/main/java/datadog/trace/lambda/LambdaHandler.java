@@ -45,6 +45,7 @@ public class LambdaHandler {
   private static final String DATADOG_INVOCATION_ERROR_TYPE = "x-datadog-invocation-error-type";
   private static final String DATADOG_INVOCATION_ERROR_STACK = "x-datadog-invocation-error-stack";
   private static final String DATADOG_TAGS_KEY = "x-datadog-tags";
+  private static final String DATADOG_UPPER_64_TRACE_ID_TAG_KEY = "_dd.p.tid";
 
   private static final String START_INVOCATION = "/lambda/start-invocation";
   private static final String END_INVOCATION = "/lambda/end-invocation";
@@ -86,9 +87,20 @@ public class LambdaHandler {
                     .build())
             .execute()) {
       if (response.isSuccessful()) {
-        final String traceID = response.headers().get(DATADOG_TRACE_ID);
+        final String traceIDLower64Long = response.headers().get(DATADOG_TRACE_ID);
         final String priority = response.headers().get(DATADOG_SAMPLING_PRIORITY);
-        if (null != traceID && null != priority) {
+        final String tags = response.headers().get(DATADOG_TAGS_KEY);
+        final String traceIDUpper64BitHex = findUpper64BitTraceId(tags);
+        DDTraceId traceId;
+        if (null != traceIDUpper64BitHex && null != traceIDLower64Long) {
+          long lower64Long = Long.parseUnsignedLong(traceIDLower64Long);
+          String lower64Hex = Long.toHexString(lower64Long);
+          String full128BitHex = traceIDUpper64BitHex + lower64Hex;
+          traceId = DDTraceId.fromHex(full128BitHex);
+        } else {
+          traceId = DDTraceId.from(traceIDLower64Long);
+        }
+        if (null != traceIDLower64Long && null != priority) {
           int samplingPriority = PrioritySampling.UNSET;
           try {
             samplingPriority = Integer.parseInt(priority);
@@ -97,18 +109,12 @@ public class LambdaHandler {
           }
           log.debug(
               "notifyStartInvocation success, found traceID = {} and samplingPriority = {}",
-              traceID,
+              traceIDLower64Long,
               samplingPriority);
           PropagationTags propagationTags =
-              propagationTagsFactory.fromHeaderValue(
-                  PropagationTags.HeaderType.DATADOG, response.headers().get(DATADOG_TAGS_KEY));
+              propagationTagsFactory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, tags);
           return new ExtractedContext(
-              DDTraceId.from(traceID),
-              DDSpanId.ZERO,
-              samplingPriority,
-              null,
-              propagationTags,
-              DATADOG);
+              traceId, DDSpanId.ZERO, samplingPriority, null, propagationTags, DATADOG);
         } else {
           log.debug(
               "could not find traceID or sampling priority in notifyStartInvocation, not injecting the context");
@@ -116,6 +122,21 @@ public class LambdaHandler {
       }
     } catch (Throwable ignored) {
       log.error("could not reach the extension");
+    }
+    return null;
+  }
+
+  private static String findUpper64BitTraceId(String tags)
+      throws NumberFormatException, IndexOutOfBoundsException {
+    if (tags == null) {
+      return null;
+    }
+    String[] tagPairs = tags.split(",");
+    for (String tagPair : tagPairs) {
+      String[] tag = tagPair.trim().split("=");
+      if (tag.length == 2 && tag[0].equals(DATADOG_UPPER_64_TRACE_ID_TAG_KEY)) {
+        return tag[1];
+      }
     }
     return null;
   }
