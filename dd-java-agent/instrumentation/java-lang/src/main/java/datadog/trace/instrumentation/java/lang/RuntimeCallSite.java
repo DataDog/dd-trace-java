@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
+import datadog.trace.api.appsec.RaspCallSites;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
@@ -10,20 +11,16 @@ import java.io.File;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.COMMAND_INJECTION)
-@CallSite(spi = IastCallSites.class)
+@CallSite(
+    spi = {IastCallSites.class, RaspCallSites.class},
+    helpers = ShellCmdRaspHelper.class)
 public class RuntimeCallSite {
 
   @CallSite.Before("java.lang.Process java.lang.Runtime.exec(java.lang.String)")
   public static void beforeStart(@CallSite.Argument @Nullable final String command) {
     if (command != null) { // runtime fails if null
-      final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
-      if (module != null) {
-        try {
-          module.onRuntimeExec(command);
-        } catch (final Throwable e) {
-          module.onUnexpectedException("beforeExec threw", e);
-        }
-      }
+      iastCallback(command);
+      raspCallback(command);
     }
   }
 
@@ -108,5 +105,20 @@ public class RuntimeCallSite {
         }
       }
     }
+  }
+
+  private static void iastCallback(String command) {
+    final CommandInjectionModule module = InstrumentationBridge.COMMAND_INJECTION;
+    if (module != null) {
+      try {
+        module.onRuntimeExec(command);
+      } catch (final Throwable e) {
+        module.onUnexpectedException("beforeExec threw", e);
+      }
+    }
+  }
+
+  private static void raspCallback(String command) {
+    ShellCmdRaspHelper.INSTANCE.beforeShellCmd(command);
   }
 }

@@ -308,6 +308,17 @@ public final class Events<D> {
         LOGIN_FAILURE;
   }
 
+  static final int SHELL_CDM_ID = 25;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType SHELL_CMD = new ET<>("shell.cmd", SHELL_CDM_ID);
+
+  /** A I/O network URL */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> shellCmd() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) SHELL_CMD;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {
