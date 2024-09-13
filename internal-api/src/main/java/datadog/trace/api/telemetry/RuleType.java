@@ -3,7 +3,8 @@ package datadog.trace.api.telemetry;
 public enum RuleType {
   LFI("lfi"),
   SQL_INJECTION("sql_injection"),
-  SSRF("ssrf");
+  SSRF("ssrf"),
+  SHI("shi");
 
   public final String name;
   private static final int numValues = RuleType.values().length;

@@ -150,6 +150,30 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           ],
           transformers: [],
           on_match    : ['block']
+        ],
+        [
+          id          : '__test_shi_block',
+          name        : 'Shell injection exploit',
+          enable      : 'true',
+          tags        : [
+            type: 'command_injection',
+            category: 'vulnerability_trigger',
+            cwe: '77',
+            capec: '1000/152/248/88',
+            confidence: '0',
+            module: 'rasp'
+          ],
+          conditions  : [
+            [
+              parameters: [
+                resource: [[address: 'server.sys.shell.cmd']],
+                params  : [[address: 'server.request.query']],
+              ],
+              operator  : "shi_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
         ]
       ])
   }
@@ -503,4 +527,38 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     assert trigger != null, 'test trigger not found'
   }
+
+  void 'rasp blocks on SHI'() {
+    when:
+    String url = "http://localhost:${httpPort}/shi/cmd?cmd=%0Aid%0A"
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpans = this.rootSpans.toList()
+    rootSpans.size() == 1
+    def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_shi_block') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+  }
+
 }

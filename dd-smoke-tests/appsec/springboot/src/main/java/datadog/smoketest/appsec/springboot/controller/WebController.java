@@ -158,4 +158,27 @@ public class WebController {
     final HttpSession session = request.getSession(true);
     return new ResponseEntity<>(session.getId(), HttpStatus.OK);
   }
+
+  @GetMapping("/shi/cmd")
+  public String shiCmd(@RequestParam("cmd") String cmd) {
+    withProcess(() -> Runtime.getRuntime().exec(cmd));
+    return "EXECUTED";
+  }
+
+  private void withProcess(final Operation<Process> op) {
+    Process process = null;
+    try {
+      process = op.run();
+    } catch (final Throwable e) {
+      // ignore it
+    } finally {
+      if (process != null && process.isAlive()) {
+        process.destroyForcibly();
+      }
+    }
+  }
+
+  private interface Operation<E> {
+    E run() throws Throwable;
+  }
 }
