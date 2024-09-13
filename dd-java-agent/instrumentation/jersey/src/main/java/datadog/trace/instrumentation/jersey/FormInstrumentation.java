@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jersey;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.jersey.JerseyTaintHelper.taintMultiValuedMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -16,48 +17,61 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
+import java.util.List;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class AbstractStringReaderInstrumentation extends InstrumenterModule.Iast
+public class FormInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes {
 
-  public AbstractStringReaderInstrumentation() {
+  public FormInstrumentation() {
     super("jersey");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("fromString").and(isPublic().and(takesArguments(String.class))),
-        getClass().getName() + "$FromStringAdvice");
+        named("asMap").and(isPublic()).and(takesArguments(0)),
+        FormInstrumentation.class.getName() + "$AsMapAdvice");
   }
 
   @Override
   public String[] knownMatchingTypes() {
+    return new String[] {"jakarta.ws.rs.core.Form", "javax.ws.rs.core.Form"};
+  }
+
+  @Override
+  public String[] helperClassNames() {
     return new String[] {
-      "org.glassfish.jersey.internal.inject.ParamConverters$AbstractStringReader",
-      "org.glassfish.jersey.server.internal.inject.ParamConverters$AbstractStringReader"
+      packageName + ".JerseyTaintHelper",
     };
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class FromStringAdvice {
+  public static class AsMapAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
-        @Advice.Argument(0) final String param,
-        @Advice.Return Object result,
+        @Advice.Return Map<String, List<String>> form,
+        @Advice.This Object self,
         @ActiveRequestContext RequestContext reqCtx) {
-      if (!(result instanceof String)) {
+      if (form == null || form.isEmpty()) {
         return;
       }
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module == null) {
         return;
       }
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      module.taintStringIfTainted(ctx, (String) result, param);
+      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      if (!module.isTainted(ctx, self)) {
+        return;
+      }
+      if (module.isTainted(ctx, form)) {
+        return;
+      }
+      module.taintObject(ctx, form, SourceTypes.REQUEST_PARAMETER_VALUE);
+      taintMultiValuedMap(ctx, module, SourceTypes.REQUEST_PARAMETER_VALUE, form);
     }
   }
 }
