@@ -17,6 +17,8 @@ public class TestApplicationHelper {
       "[main] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
   private static final String INSTRUMENTATION_DONE_BCKG_THREAD =
       "[dd-remote-config] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
+  private static final String INSTRUMENTATION_DONE_TASK_THREAD =
+      "[dd-task-scheduler] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
   private static final String RENTRANSFORMATION_CLASS =
       "[dd-remote-config] INFO com.datadog.debugger.agent.ConfigurationUpdater - Re-transforming class: %s";
   private static final String RETRANSFORMATION_DONE =
@@ -55,6 +57,9 @@ public class TestApplicationHelper {
             // instrumentation is done by background thread, need to wait for end of
             // re-transformation
             if (line.contains(String.format(INSTRUMENTATION_DONE_BCKG_THREAD, className))) {
+              generatingByteCode.set(true);
+            }
+            if (line.contains(String.format(INSTRUMENTATION_DONE_TASK_THREAD, className))) {
               generatingByteCode.set(true);
             }
           } else {

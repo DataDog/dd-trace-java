@@ -2,17 +2,21 @@ package datadog.trace.api;
 
 public class DDTags {
 
-  public static final String DD_ENTRY_LOCATION_FILE = "_dd.entry_location.file";
-  public static final String DD_ENTRY_METHOD = "_dd.entry_location.method";
-  public static final String DD_ENTRY_METHOD_SIGNATURE = "_dd.entry_location.signature";
-  public static final String DD_ENTRY_LINE = "_dd.entry_location.line";
-  public static final String DD_ENTRY_LOCATION_SNAPSHOT_ID = "_dd.entry_location.snapshot_id";
-  public static final String DD_ENTRY_TYPE = "_dd.entry_location.type";
-  public static final String DD_EXIT_LOCATION_FILE = "_dd.exit_location.%d.file";
-  public static final String DD_EXIT_LOCATION_LINE = "_dd.exit_location.%d.line";
-  public static final String DD_EXIT_LOCATION_METHOD = "_dd.exit_location.%d.method";
-  public static final String DD_EXIT_LOCATION_SNAPSHOT_ID = "_dd.exit_location.snapshot_id";
-  public static final String DD_EXIT_LOCATION_TYPE = "_dd.exit_location.%d.type";
+  private static final String DD_LD_PREFIX = "_dd.ld.";
+  public static final String DD_STACK_CODE_ORIGIN_PREFIX = "_dd.stack.code_origin.";
+
+  public static final String DD_STACK_CODE_ORIGIN_TYPE = DD_STACK_CODE_ORIGIN_PREFIX + "type";
+  // _dd.stack.code_origin.frame.%d.file|line|method|type|snapshot_id
+  public static final String DD_STACK_CODE_ORIGIN_FRAME =
+      DD_STACK_CODE_ORIGIN_PREFIX + "frame.%d.%s";
+
+  public static final String DD_CODE_ORIGIN_FILE = DD_LD_PREFIX + "code_origin.file";
+  public static final String DD_CODE_ORIGIN_METHOD = DD_LD_PREFIX + "code_origin.method";
+  public static final String DD_CODE_ORIGIN_METHOD_SIGNATURE =
+      DD_LD_PREFIX + "code_origin.signature";
+  public static final String DD_CODE_ORIGIN_LINE = DD_LD_PREFIX + "code_origin.line";
+  public static final String DD_CODE_ORIGIN_SNAPSHOT_ID = DD_LD_PREFIX + "code_origin.snapshot_id";
+  public static final String DD_CODE_ORIGIN_TYPE = DD_LD_PREFIX + "code_origin.type";
 
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";

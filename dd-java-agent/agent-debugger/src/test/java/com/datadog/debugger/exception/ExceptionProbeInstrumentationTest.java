@@ -1,6 +1,7 @@
 package com.datadog.debugger.exception;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
+import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_HASH;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.DD_DEBUG_ERROR_EXCEPTION_ID;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.ERROR_DEBUG_INFO_CAPTURED;
 import static com.datadog.debugger.exception.DefaultExceptionDebugger.SNAPSHOT_ID_TAG_FMT;
@@ -135,6 +136,7 @@ public class ExceptionProbeInstrumentationTest {
         location.getType() + "." + location.getMethod(), snapshot0.getStack().get(0).getFunction());
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals(snapshot0.getExceptionId(), span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
+    assertEquals(fingerprint, span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_HASH));
     assertEquals(Boolean.TRUE, span.getTags().get(ERROR_DEBUG_INFO_CAPTURED));
     assertEquals(snapshot0.getId(), span.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
     assertEquals(1, probeSampler.getCallCount());

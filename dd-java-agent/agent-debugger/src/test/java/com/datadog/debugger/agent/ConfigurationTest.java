@@ -3,6 +3,8 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.COUNT;
 import static com.datadog.debugger.probe.MetricProbe.MetricKind.GAUGE;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
+import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -10,9 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
-import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.util.MoshiHelper;
@@ -23,8 +25,6 @@ import datadog.trace.bootstrap.debugger.MethodLocation;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import utils.TestHelper;
@@ -34,13 +34,14 @@ public class ConfigurationTest {
   @Test
   public void getDefinitions() {
     Configuration config1 = createConfig1();
-    assertEquals(5, config1.getDefinitions().size());
-    Iterator<ProbeDefinition> iterator = config1.getDefinitions().iterator();
-    assertEquals("metric1", iterator.next().getId());
-    assertEquals("probe1", iterator.next().getId());
-    assertEquals("log1", iterator.next().getId());
-    assertEquals("span1", iterator.next().getId());
-    assertEquals("decorateSpan1", iterator.next().getId());
+    List<String> definitions =
+        config1.getDefinitions().stream().map(d -> d.getId()).sorted().collect(toList());
+    List<String> list =
+        asList("metric1", "probe1", "log1", "span1", "debug1", "decorateSpan1").stream()
+            .sorted()
+            .collect(toList());
+
+    assertEquals(list, definitions);
   }
 
   @Test
@@ -197,7 +198,7 @@ public class ConfigurationTest {
   private String serialize() {
     Configuration config1 = createConfig1();
     Configuration config2 = createConfig2();
-    List<Configuration> configs = new ArrayList<>(Arrays.asList(config1, config2));
+    List<Configuration> configs = new ArrayList<>(asList(config1, config2));
     ParameterizedType type = Types.newParameterizedType(List.class, Configuration.class);
     JsonAdapter<List<Configuration>> adapter = MoshiHelper.createMoshiConfig().adapter(type);
     return adapter.toJson(configs);
@@ -265,11 +266,14 @@ public class ConfigurationTest {
         createLog(
             "log1", "this is a log line with arg={arg}", "java.lang.String", "indexOf", "(String)");
     SpanProbe span1 = createSpan("span1", "java.lang.String", "indexOf", "(String)");
+    DebuggerProbe debuggerProbe =
+        createDebuggerProbe("debug1", "java.lang.String", "indexOf", "(String)");
+
     SpanDecorationProbe.Decoration decoration =
         new SpanDecorationProbe.Decoration(
             new ProbeCondition(
                 DSL.when(DSL.eq(DSL.ref("arg1"), DSL.value("foo"))), "arg1 == 'foo'"),
-            Arrays.asList(
+            asList(
                 new SpanDecorationProbe.Tag(
                     "id", new SpanDecorationProbe.TagValue("{id}", parseTemplate("{id}")))));
     SpanDecorationProbe spanDecoration1 =
@@ -281,18 +285,18 @@ public class ConfigurationTest {
             "indexOf",
             "(String)");
     Configuration.FilterList allowList =
-        new Configuration.FilterList(
-            Arrays.asList("java.lang.util"), Arrays.asList("java.lang.String"));
+        new Configuration.FilterList(asList("java.lang.util"), asList("java.lang.String"));
     Configuration.FilterList denyList =
         new Configuration.FilterList(
-            Arrays.asList("java.security"), Arrays.asList("javax.security.auth.AuthPermission"));
+            asList("java.security"), asList("javax.security.auth.AuthPermission"));
     LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service1",
-        Arrays.asList(metric1),
-        Arrays.asList(probe1, log1),
-        Arrays.asList(span1),
-        Arrays.asList(spanDecoration1),
+        asList(metric1),
+        asList(probe1, log1),
+        asList(span1),
+        asList(debuggerProbe),
+        asList(spanDecoration1),
         allowList,
         denyList,
         globalSampling);
@@ -310,10 +314,13 @@ public class ConfigurationTest {
             "indexOf",
             "(String)");
     SpanProbe span2 = createSpan("span2", "String.java", 12, 23);
+    DebuggerProbe debuggerProbe =
+        createDebuggerProbe("debug1", "String.java", "indexOf", "(String)");
+
     SpanDecorationProbe.Decoration decoration =
         new SpanDecorationProbe.Decoration(
             new ProbeCondition(DSL.when(DSL.eq(DSL.ref("arg"), DSL.value("foo"))), "arg == 'foo'"),
-            Arrays.asList(
+            asList(
                 new SpanDecorationProbe.Tag(
                     "tag1", new SpanDecorationProbe.TagValue("{arg1}", parseTemplate("{arg1}"))),
                 new SpanDecorationProbe.Tag(
@@ -327,18 +334,18 @@ public class ConfigurationTest {
             "indexOf",
             "(String)");
     Configuration.FilterList allowList =
-        new Configuration.FilterList(
-            Arrays.asList("java.lang.util"), Arrays.asList("java.lang.String"));
+        new Configuration.FilterList(asList("java.lang.util"), asList("java.lang.String"));
     Configuration.FilterList denyList =
         new Configuration.FilterList(
-            Arrays.asList("java.security"), Arrays.asList("javax.security.auth.AuthPermission"));
+            asList("java.security"), asList("javax.security.auth.AuthPermission"));
     LogProbe.Sampling globalSampling = new LogProbe.Sampling(10.0);
     return new Configuration(
         "service2",
-        Arrays.asList(metric2),
-        Arrays.asList(probe2, log2),
-        Arrays.asList(span2),
-        Arrays.asList(spanDecoration2),
+        asList(metric2),
+        asList(probe2, log2),
+        asList(span2),
+        asList(debuggerProbe),
+        asList(spanDecoration2),
         allowList,
         denyList,
         globalSampling);
@@ -390,6 +397,16 @@ public class ConfigurationTest {
         .evaluateAt(MethodLocation.ENTRY)
         .template(template, parseTemplate(template))
         .tags("tag1:value1", "tag2:value2")
+        .build();
+  }
+
+  private static DebuggerProbe createDebuggerProbe(
+      String id, String typeName, String methodName, String signature) {
+    return DebuggerProbe.builder()
+        .language("java")
+        .probeId(id, 0)
+        .where(typeName, methodName, signature)
+        .evaluateAt(MethodLocation.ENTRY)
         .build();
   }
 

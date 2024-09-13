@@ -46,6 +46,7 @@ dd-java-agent/instrumentation/*appsec* @DataDog/asm-java
 dd-java-agent/instrumentation/json/    @DataDog/asm-java
 dd-java-agent/instrumentation/snakeyaml/    @DataDog/asm-java
 dd-java-agent/instrumentation/velocity/    @DataDog/asm-java
+dd-java-agent/instrumentation/freemarker/    @DataDog/asm-java
 dd-smoke-tests/iast-util/              @DataDog/asm-java
 dd-smoke-tests/spring-security/        @DataDog/asm-java
 dd-java-agent/instrumentation/commons-fileupload/    @DataDog/asm-java

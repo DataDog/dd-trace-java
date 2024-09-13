@@ -82,7 +82,7 @@ public class ScalatestRetryInstrumentation extends InstrumenterModule.CiVisibili
       if (!(invokeWithFixture instanceof TestExecutionWrapper)) {
         int runStamp = args.tracker().nextOrdinal().runStamp();
         RunContext context = RunContext.getOrCreate(runStamp);
-        TestIdentifier testIdentifier = new TestIdentifier(suite.suiteId(), testName, null, null);
+        TestIdentifier testIdentifier = new TestIdentifier(suite.suiteId(), testName, null);
         TestRetryPolicy retryPolicy = context.retryPolicy(testIdentifier);
 
         invokeWithFixture = new TestExecutionWrapper(invokeWithFixture, retryPolicy);

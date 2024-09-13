@@ -33,7 +33,10 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import javax.annotation.Nullable;
 
-/** Services that do not need repository root location to be instantiated */
+/**
+ * Services that do not need repository root location to be instantiated. Can be shared between
+ * multiple sessions.
+ */
 public class CiVisibilityServices {
 
   private static final String GIT_FOLDER_NAME = ".git";

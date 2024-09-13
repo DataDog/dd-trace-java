@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 
+import com.datadog.debugger.probe.DebuggerProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DebuggerProductChangesListener implements ProductListener {
+  public static final int MAX_ALLOWED_DEBUGGER_PROBES = 100;
   public static final int MAX_ALLOWED_METRIC_PROBES = 100;
   public static final int MAX_ALLOWED_LOG_PROBES = 100;
   public static final int MAX_ALLOWED_SPAN_PROBES = 100;
@@ -35,6 +37,7 @@ public class DebuggerProductChangesListener implements ProductListener {
   public static final String LOG_PROBE_PREFIX = "logProbe_";
   public static final String METRIC_PROBE_PREFIX = "metricProbe_";
   public static final String SPAN_PROBE_PREFIX = "spanProbe_";
+  public static final String DEBUGGER_PROBE_PREFIX = "debuggerProbe_";
   public static final String SPAN_DECORATION_PROBE_PREFIX = "spanDecorationProbe_";
   private static final Logger LOGGER =
       LoggerFactory.getLogger(DebuggerProductChangesListener.class);
@@ -51,6 +54,9 @@ public class DebuggerProductChangesListener implements ProductListener {
 
     static final JsonAdapter<SpanProbe> SPAN_PROBE_JSON_ADAPTER =
         MoshiHelper.createMoshiConfig().adapter(SpanProbe.class);
+
+    static final JsonAdapter<DebuggerProbe> DEBUGGER_PROBE_JSON_ADAPTER =
+        MoshiHelper.createMoshiConfig().adapter(DebuggerProbe.class);
 
     static final JsonAdapter<SpanDecorationProbe> SPAN_DECORATION_PROBE_JSON_ADAPTER =
         MoshiHelper.createMoshiConfig().adapter(SpanDecorationProbe.class);
@@ -69,6 +75,10 @@ public class DebuggerProductChangesListener implements ProductListener {
 
     static SpanProbe deserializeSpanProbe(byte[] content) throws IOException {
       return deserialize(SPAN_PROBE_JSON_ADAPTER, content);
+    }
+
+    static DebuggerProbe deserializeDebuggerProbe(byte[] content) throws IOException {
+      return deserialize(DEBUGGER_PROBE_JSON_ADAPTER, content);
     }
 
     static SpanDecorationProbe deserializeSpanDecorationProbe(byte[] content) throws IOException {
@@ -108,6 +118,9 @@ public class DebuggerProductChangesListener implements ProductListener {
       } else if (configId.startsWith(SPAN_PROBE_PREFIX)) {
         SpanProbe spanProbe = Adapter.deserializeSpanProbe(content);
         configChunks.put(configId, definitions -> definitions.add(spanProbe));
+      } else if (configId.startsWith(DEBUGGER_PROBE_PREFIX)) {
+        DebuggerProbe debuggerProbe = Adapter.deserializeDebuggerProbe(content);
+        configChunks.put(configId, definitions -> definitions.add(debuggerProbe));
       } else if (configId.startsWith(SPAN_DECORATION_PROBE_PREFIX)) {
         SpanDecorationProbe spanDecorationProbe = Adapter.deserializeSpanDecorationProbe(content);
         configChunks.put(configId, definitions -> definitions.add(spanDecorationProbe));
@@ -148,6 +161,7 @@ public class DebuggerProductChangesListener implements ProductListener {
 
   static class DefinitionBuilder {
     private final Collection<ProbeDefinition> definitions = new ArrayList<>();
+    private int debuggerProbeCount = 0;
     private int metricProbeCount = 0;
     private int logProbeCount = 0;
     private int spanProbeCount = 0;
@@ -180,6 +194,15 @@ public class DebuggerProductChangesListener implements ProductListener {
       spanProbeCount++;
     }
 
+    void add(DebuggerProbe probe) {
+      if (debuggerProbeCount >= MAX_ALLOWED_DEBUGGER_PROBES) {
+        LOGGER.debug("Max allowed debugger probes reached, ignoring new probe: {}", probe);
+        return;
+      }
+      definitions.add(probe);
+      debuggerProbeCount++;
+    }
+
     void add(SpanDecorationProbe probe) {
       if (spanDecorationProbeCount >= MAX_ALLOWED_SPAN_DECORATION_PROBES) {
         LOGGER.debug("Max allowed span decoration probes reached, ignoring new probe: {}", probe);
@@ -197,6 +220,8 @@ public class DebuggerProductChangesListener implements ProductListener {
           add((LogProbe) definition);
         } else if (definition instanceof SpanProbe) {
           add((SpanProbe) definition);
+        } else if (definition instanceof DebuggerProbe) {
+          add((DebuggerProbe) definition);
         } else if (definition instanceof SpanDecorationProbe) {
           add((SpanDecorationProbe) definition);
         }

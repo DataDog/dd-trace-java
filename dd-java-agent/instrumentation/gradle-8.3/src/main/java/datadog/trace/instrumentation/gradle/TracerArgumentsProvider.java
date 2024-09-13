@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.gradle;
 
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -15,14 +14,11 @@ public abstract class TracerArgumentsProvider implements CommandLineArgumentProv
   private static final Pattern PROJECT_PROPERTY_REFERENCE = Pattern.compile("\\$\\{([^}]+)\\}");
 
   private final String taskPath;
-  private final Path jvmExecutable;
   private final Map<String, String> projectProperties;
 
   @Inject
-  public TracerArgumentsProvider(
-      String taskPath, Path jvmExecutable, Map<String, String> projectProperties) {
+  public TracerArgumentsProvider(String taskPath, Map<String, String> projectProperties) {
     this.taskPath = taskPath;
-    this.jvmExecutable = jvmExecutable;
     this.projectProperties = projectProperties;
   }
 
@@ -31,8 +27,7 @@ public abstract class TracerArgumentsProvider implements CommandLineArgumentProv
 
   @Override
   public Iterable<String> asArguments() {
-    Collection<String> tracerJvmArgs =
-        getCiVisibilityService().get().getTracerJvmArgs(taskPath, jvmExecutable);
+    Collection<String> tracerJvmArgs = getCiVisibilityService().get().getTracerJvmArgs(taskPath);
     return tracerJvmArgs.stream().map(this::replaceProjectProperties).collect(Collectors.toList());
   }
 

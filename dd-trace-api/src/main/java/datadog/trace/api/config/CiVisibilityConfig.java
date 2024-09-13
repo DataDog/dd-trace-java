@@ -45,8 +45,8 @@ public final class CiVisibilityConfig {
       "civisibility.ciprovider.integration.enabled";
   public static final String CIVISIBILITY_REPO_INDEX_SHARING_ENABLED =
       "civisibility.repo.index.sharing.enabled";
-  public static final String CIVISIBILITY_MODULE_EXECUTION_SETTINGS_CACHE_SIZE =
-      "civisibility.module.execution.settings.cache.size";
+  public static final String CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE =
+      "civisibility.execution.settings.cache.size";
   public static final String CIVISIBILITY_JVM_INFO_CACHE_SIZE = "civisibility.jvm.info.cache.size";
   public static final String CIVISIBILITY_INJECTED_TRACER_VERSION =
       "civisibility.injected.tracer.version";
@@ -72,22 +72,19 @@ public final class CiVisibilityConfig {
   /* COVERAGE SETTINGS */
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
       "civisibility.code.coverage.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED =
+      "civisibility.code.coverage.lines.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_INCLUDES =
       "civisibility.code.coverage.includes";
   public static final String CIVISIBILITY_CODE_COVERAGE_EXCLUDES =
       "civisibility.code.coverage.excludes";
-  public static final String CIVISIBILITY_CODE_COVERAGE_SEGMENTS_ENABLED =
-      "civisibility.code.coverage.segments.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT =
       "civisibility.code.coverage.root.packages.limit";
-  public static final String CIVISIBILITY_CODE_COVERAGE_PERCENTAGE_CALCULATION_ENABLED =
-      "civisibility.code.coverage.percentage.calculation.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR =
       "civisibility.code.coverage.report.dump.dir";
   public static final String CIVISIBILITY_JACOCO_PLUGIN_VERSION =
       "civisibility.jacoco.plugin.version";
-  public static final String CIVISIBILITY_JACOCO_GRADLE_SOURCE_SETS =
-      "civisibility.jacoco.gradle.sourcesets";
+  public static final String CIVISIBILITY_GRADLE_SOURCE_SETS = "civisibility.gradle.sourcesets";
 
   private CiVisibilityConfig() {}
 }
