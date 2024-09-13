@@ -15,54 +15,59 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get milestone for release
-        id: milestone
-        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # 7.0.1
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const milestone_name = ("${{github.event_name}}" == "workflow_dispatch") ?
-              "${{github.event.inputs.milestone}}" : "${{github.event.release.name}}"
-
-            const milestones = await github.paginate(github.issues.listMilestones, {
+            // Get release milestone name
+            const milestoneName = "${{github.event_name}}" == "workflow_dispatch" ?
+                "${{github.event.inputs.milestone}}" :
+                "${{github.event.release.name}}"
+            // Get release URL
+            const releaseURL = "${{github.event_name}}" == "workflow_dispatch" ?
+                "${{github.event.repository.html_url}}/releases/tag/v${{github.event.release.name}}" :
+                "${{github.event.release.html_url}}"
+            core.info(`Notify of release availability: v${milestoneName}`)
+            // Get release milestone number
+            const milestoneNumber = await github.paginate(github.rest.issues.listMilestones, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all'
-            })
-
-            return milestones.find( milestone => milestone.title == milestone_name ).number
-      - name: Get issues for milestone
-        id: issues
-        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const issues = await github.paginate(github.issues.listForRepo, {
+            }, (response, done) => {
+              const releaseMilestone = response.data.find(milestone => milestone.title == milestoneName)
+              if (releaseMilestone) {
+                done()
+                return releaseMilestone.number
+              }
+            }).then(milestones => milestones.pop())
+            if (!milestoneNumber) {
+              core.setFailed(`Failed to find milestone: ${milestoneName}`)
+              return
+            }
+            // Get all release milestone issues
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all',
-              milestone: ${{steps.milestone.outputs.result}}
-            })
-
-            // Pull requests are issues so filter them out
-            return issues.filter( issue => !issue["pull_request"] ).map( issue => issue.number )
-      - name: Comment and close issues
-        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            for (let issue_number of ${{ steps.issues.outputs.result }}) {
-              // This can be parallelized better by moving the await but it might trip rate limits
-              await github.issues.createComment({
+              milestone: milestoneNumber
+            }, (response) => response.data.filter(issue => !issue["pull_request"]))
+            // Comment and close issues
+            for (const issue of issues) {
+              core.info(issue.state == 'open' ?
+                `Commenting and closing issue ${issue.number}` :
+                `Commenting on closed issue ${issue.number}`)
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: issue_number,
-                body: ':robot: This issue has been addressed in the latest release.  See full details in the [Release Notes]( ${{ github.event.release.html_url }}).'
+                issue_number: issue.number,
+                body: `:robot: This issue has been addressed in the latest release. Check full details in the [Release Notes](${releaseURL}).`
               })
-
-              await github.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue_number,
-                state: 'closed'
-              })
+              if (issue.state == 'open') {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed'
+                })
+              }
             }
