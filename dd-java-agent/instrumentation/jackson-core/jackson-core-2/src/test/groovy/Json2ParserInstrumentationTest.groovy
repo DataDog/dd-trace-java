@@ -35,7 +35,6 @@ class Json2ParserInstrumentationTest extends AgentTestRunner {
     _ * module.findSource(_) >> source
     1 * module.taintString(_, 'root', source.origin, 'root', JSON_STRING)
     1 * module.taintString(_, 'nested', source.origin, 'nested', JSON_STRING)
-    //    1 * module.taintString(_, 'nested_array', source.origin, 'nested_array', JSON_STRING) --> TODO - CHECK WHY THIS IS NOT TAINTED
     0 * _
 
     where:
