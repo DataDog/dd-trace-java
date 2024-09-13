@@ -26,6 +26,7 @@ import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_DONE_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
 import static datadog.trace.api.gateway.Events.USER_ID;
+import static datadog.trace.api.gateway.Events.SHELL_CDM_ID;
 
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.function.TriConsumer;
@@ -418,6 +419,7 @@ public class InstrumentationGateway {
       case DATABASE_SQL_QUERY_ID:
       case NETWORK_CONNECTION_ID:
       case FILE_LOADED_ID:
+      case SHELL_CDM_ID:
         return (C)
             new BiFunction<RequestContext, String, Flow<Void>>() {
               @Override
