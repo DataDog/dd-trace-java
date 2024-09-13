@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.ExceptionLogger;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.Advice.ExceptionHandler;
@@ -24,6 +25,8 @@ public class ExceptionHandlers {
           new StackManipulation() {
             // Pops one Throwable off the stack. Maxes the stack to at least 3.
             private final Size size = new StackManipulation.Size(-1, 3);
+            private final boolean appSecEnabled =
+                InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED;
 
             @Override
             public boolean isValid() {
@@ -66,13 +69,15 @@ public class ExceptionHandlers {
               final boolean frames =
                   context.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6);
 
-              // rethrow blocking exceptions
-              // stack: (top) throwable
-              mv.visitMethodInsn(
-                  Opcodes.INVOKESTATIC,
-                  "datadog/trace/bootstrap/blocking/BlockingExceptionHandler",
-                  "rethrowIfBlockingException",
-                  "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
+              if (appSecEnabled) {
+                // rethrow blocking exceptions
+                // stack: (top) throwable
+                mv.visitMethodInsn(
+                    Opcodes.INVOKESTATIC,
+                    "datadog/trace/bootstrap/blocking/BlockingExceptionHandler",
+                    "rethrowIfBlockingException",
+                    "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
+              }
 
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
               mv.visitLabel(logStart);
