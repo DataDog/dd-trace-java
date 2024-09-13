@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jersey;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.instrumentation.jersey.JerseyTaintHelper.taintMap;
 import static datadog.trace.instrumentation.jersey.JerseyTaintHelper.taintMultiValuedMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -140,6 +141,9 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
         return;
       }
       module.taintObject(ctx, result, SourceTypes.REQUEST_BODY);
+      if (result instanceof Map) {
+        taintMap(ctx, module, SourceTypes.REQUEST_PARAMETER_VALUE, (Map<?, ?>) result);
+      }
     }
   }
 }

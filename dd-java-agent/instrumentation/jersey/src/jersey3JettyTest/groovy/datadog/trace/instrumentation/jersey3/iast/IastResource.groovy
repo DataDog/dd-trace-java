@@ -98,6 +98,14 @@ class IastResource {
     return "IAST: ${pairList}"
   }
 
+  @Path("/all_form_map")
+  @POST
+  @Produces(MediaType.TEXT_PLAIN)
+  String form(final MultivaluedMap<String, String> form) {
+    def pairList = collectMultiMap(form)
+    return "IAST: ${pairList}"
+  }
+
   private static collectMultiMap(final MultivaluedMap<String, String> map) {
     return map.keySet().sort().collect {key ->
       final values = map[key]

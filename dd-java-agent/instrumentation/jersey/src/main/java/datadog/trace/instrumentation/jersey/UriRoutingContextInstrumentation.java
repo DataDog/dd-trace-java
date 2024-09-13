@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jersey;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.jersey.JerseyTaintHelper.taintMultiValuedMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -70,12 +71,7 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
         return;
       }
       prop.taintObject(ctx, pathParams, SourceTypes.REQUEST_PATH_PARAMETER);
-      for (Map.Entry<String, List<String>> entry : pathParams.entrySet()) {
-        final String name = entry.getKey();
-        for (String value : entry.getValue()) {
-          prop.taintString(ctx, value, SourceTypes.REQUEST_PATH_PARAMETER, name);
-        }
-      }
+      taintMultiValuedMap(ctx, prop, SourceTypes.REQUEST_PATH_PARAMETER, pathParams);
     }
   }
 
@@ -98,13 +94,7 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
         return;
       }
       prop.taintObject(ctx, queryParams, SourceTypes.REQUEST_PARAMETER_VALUE);
-      for (Map.Entry<String, List<String>> entry : queryParams.entrySet()) {
-        final String name = entry.getKey();
-        prop.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
-        for (String value : entry.getValue()) {
-          prop.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
-        }
-      }
+      taintMultiValuedMap(ctx, prop, SourceTypes.REQUEST_PARAMETER_VALUE, queryParams);
     }
   }
 }

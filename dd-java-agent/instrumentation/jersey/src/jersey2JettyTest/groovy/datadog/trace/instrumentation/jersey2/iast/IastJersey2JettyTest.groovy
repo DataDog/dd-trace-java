@@ -150,7 +150,7 @@ class IastJersey2JettyTest extends IastRequestTestRunner {
 
   void 'all form params'() {
     when:
-    String url = buildUrl 'iast/all_form'
+    String url = buildUrl "iast/$variant"
     def body = new FormBody.Builder()
       .add('var1', 'foo')
       .add('var1', 'bar')
@@ -187,6 +187,9 @@ class IastJersey2JettyTest extends IastRequestTestRunner {
       value 'a b c'
       range 0, 5, source(SourceTypes.REQUEST_PARAMETER_VALUE, 'var2', 'a b c')
     }
+
+    where:
+    variant << ['all_form', 'all_form_map']
   }
 
   void 'cookie'() {
