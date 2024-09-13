@@ -36,6 +36,7 @@ public final class GeneralConfig {
   public static final String TRIAGE_REPORT_DIR = "triage.report.dir";
 
   public static final String STARTUP_LOGS_ENABLED = "trace.startup.logs";
+  public static final String JSON_LOGS_ENABLED = "trace.experimental.json.logs";
 
   public static final String DOGSTATSD_START_DELAY = "dogstatsd.start-delay";
   public static final String DOGSTATSD_HOST = "dogstatsd.host";

@@ -1,5 +1,6 @@
 package datadog.trace.logging.simplelogger;
 
+import datadog.trace.api.Config;
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
 import org.slf4j.Marker;
@@ -34,7 +35,11 @@ class SLCompatHelper extends LoggerHelper {
     if (settings.showDateTime) {
       timeMillis = System.currentTimeMillis();
     }
-    log(level, marker, SLCompatFactory.START_TIME, timeMillis, message, t);
+    if (Config.get().isJsonLogsEnabled()) {
+      logJson(level, marker, SLCompatFactory.START_TIME, timeMillis, message, t);
+    } else {
+      log(level, marker, SLCompatFactory.START_TIME, timeMillis, message, t);
+    }
   }
 
   void log(
@@ -49,6 +54,83 @@ class SLCompatHelper extends LoggerHelper {
       threadName = Thread.currentThread().getName();
     }
     log(level, marker, startTimeMillis, timeMillis, threadName, message, t);
+  }
+
+  void logJson(
+      LogLevel level,
+      Marker marker,
+      long startTimeMillis,
+      long timeMillis,
+      String message,
+      Throwable t) {
+    String threadName = null;
+    if (settings.showThreadName) {
+      threadName = Thread.currentThread().getName();
+    }
+    logJson(level, marker, startTimeMillis, timeMillis, threadName, message, t);
+  }
+
+  void logJson(
+      LogLevel level,
+      Marker marker,
+      long startTimeMillis,
+      long timeMillis,
+      String threadName,
+      String message,
+      Throwable t) {
+    StringBuilder buf = new StringBuilder(32);
+
+    buf.append("{");
+
+    if (timeMillis >= 0 && settings.showDateTime) {
+      embedJsonKey(buf, "time");
+      settings.dateTimeFormatter.appendFormattedDate(buf, timeMillis, startTimeMillis);
+      buf.append("\",");
+    }
+
+    if (settings.showThreadName && threadName != null) {
+      embedJson(buf, "threadName", threadName, true);
+    }
+
+    embedJsonKey(buf, "level");
+    if (settings.warnLevelString != null && level == LogLevel.WARN) {
+      embedJsonValue(buf, settings.warnLevelString, true);
+    } else if (marker != null) {
+      embedJsonValue(buf, marker.getName(), true);
+    } else {
+      embedJsonValue(buf, level.name(), true);
+    }
+
+    if (!logName.isEmpty()) {
+      embedJson(buf, "logName", logName, true);
+    }
+
+    if (t != null) {
+      embedExceptionJson(buf, t);
+    }
+
+    embedJson(buf, "message", message, false);
+
+    buf.append("}");
+
+    settings.printStream.println(buf);
+  }
+
+  private void embedJson(StringBuilder buf, String key, String value, boolean withComma) {
+    embedJsonKey(buf, key);
+    embedJsonValue(buf, value, withComma);
+  }
+
+  private void embedJsonKey(StringBuilder buf, String key) {
+    buf.append("\"").append(key).append("\":\"");
+  }
+
+  private void embedJsonValue(StringBuilder buf, String value, boolean withComma) {
+    buf.append(value).append("\"");
+
+    if (withComma) {
+      buf.append(",");
+    }
   }
 
   void log(
@@ -88,32 +170,43 @@ class SLCompatHelper extends LoggerHelper {
     }
     buf.append(' ');
 
-    if (logName.length() > 0) {
+    if (!logName.isEmpty()) {
       buf.append(logName).append(" - ");
     }
 
     buf.append(message);
 
-    if (settings.embedException) {
+    if (settings.embedException && t != null) {
       embedException(buf, t);
     }
 
-    settings.printStream.println(buf.toString());
+    settings.printStream.println(buf);
     if (!settings.embedException && t != null) {
       t.printStackTrace(settings.printStream);
     }
   }
 
   private void embedException(StringBuilder buf, Throwable t) {
-    if (t != null) {
-      buf.append(" [exception:");
-      buf.append(t.toString());
-      buf.append(".");
-      for (StackTraceElement element : t.getStackTrace()) {
-        buf.append(" at ");
-        buf.append(element.toString());
-      }
-      buf.append("]");
+    buf.append(" [exception:");
+    buf.append(t.toString());
+    buf.append(".");
+    for (StackTraceElement element : t.getStackTrace()) {
+      buf.append(" at ");
+      buf.append(element.toString());
     }
+    buf.append("]");
+  }
+
+  private void embedExceptionJson(StringBuilder buf, Throwable t) {
+    buf.append("\"exception\":{");
+    embedJson(buf, "message", t.getMessage(), true);
+    buf.append("\"stackTrace\":[\"");
+
+    for (StackTraceElement element : t.getStackTrace()) {
+      buf.append(element.toString());
+      buf.append("\",\"");
+    }
+
+    buf.append("\"]");
   }
 }

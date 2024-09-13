@@ -89,6 +89,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JSON_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
@@ -267,6 +268,7 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
+import static datadog.trace.api.config.GeneralConfig.JSON_LOGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
@@ -599,12 +601,14 @@ public class Config {
   private final String runtimeVersion;
 
   private final String applicationKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting. If CI Visibility is used with agentless mode, api key is used when
    * sending data (including traces) to backend
    */
   private final String apiKey;
+
   /**
    * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
    * affected by this setting.
@@ -932,6 +936,7 @@ public class Config {
   private final String triageReportDir;
 
   private final boolean startupLogsEnabled;
+  private final boolean jsonLogsEnabled;
   private final String configFileStatus;
 
   private final IdGenerationStrategy idGenerationStrategy;
@@ -2104,6 +2109,7 @@ public class Config {
 
     startupLogsEnabled =
         configProvider.getBoolean(STARTUP_LOGS_ENABLED, DEFAULT_STARTUP_LOGS_ENABLED);
+    jsonLogsEnabled = configProvider.getBoolean(JSON_LOGS_ENABLED, DEFAULT_JSON_LOGS_ENABLED);
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
@@ -3553,6 +3559,10 @@ public class Config {
     return startupLogsEnabled;
   }
 
+  public boolean isJsonLogsEnabled() {
+    return jsonLogsEnabled;
+  }
+
   public boolean isCwsEnabled() {
     return cwsEnabled;
   }
@@ -4744,6 +4754,8 @@ public class Config {
         + triageReportDir
         + ", startLogsEnabled="
         + startupLogsEnabled
+        + ", jsonLogsEnabled="
+        + jsonLogsEnabled
         + ", configFile='"
         + configFileStatus
         + '\''

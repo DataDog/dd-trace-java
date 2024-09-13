@@ -43,6 +43,7 @@ public final class ConfigDefaults {
   public static final String DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME = "root-servlet";
   public static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
   public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
+  public static final boolean DEFAULT_JSON_LOGS_ENABLED = false;
 
   static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
