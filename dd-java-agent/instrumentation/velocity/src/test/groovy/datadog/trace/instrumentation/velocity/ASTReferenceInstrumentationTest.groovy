@@ -16,7 +16,7 @@ class ASTReferenceInstrumentationTest extends AgentTestRunner {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  void 'test ASTReference execute'() {
+  void 'test ASTReference execute (insecure)'() {
     given:
     final module = Mock(XssModule)
     InstrumentationBridge.registerIastModule(module)
@@ -26,7 +26,32 @@ class ASTReferenceInstrumentationTest extends AgentTestRunner {
       RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS,
       "org.apache.velocity.runtime.log.NullLogChute")
     velocity.init()
-    Template template = velocity.getTemplate("src/test/resources/velocity-astreference.vm")
+    Template template = velocity.getTemplate("src/test/resources/velocity-astreference-insecure.vm")
+
+    VelocityContext context = new VelocityContext()
+    context.put("param", param)
+
+    when:
+    template.merge(context, Mock(FileWriter))
+
+    then:
+    1 * module.onXss(_, _, _)
+
+    where:
+    param << ["<script>alert(1)</script>", "name"]
+  }
+
+  void 'test ASTReference execute (secure)'() {
+    given:
+    final module = Mock(XssModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    VelocityEngine velocity = new VelocityEngine()
+    velocity.setProperty(
+      RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS,
+      "org.apache.velocity.runtime.log.NullLogChute")
+    velocity.init()
+    Template template = velocity.getTemplate("src/test/resources/velocity-astreference-secure.vm")
 
     VelocityContext context = new VelocityContext()
     context.put("esc", new EscapeTool())
@@ -36,7 +61,7 @@ class ASTReferenceInstrumentationTest extends AgentTestRunner {
     template.merge(context, Mock(FileWriter))
 
     then:
-    1 * module.onXss(_, _, _)
+    0 * module.onXss(_, _, _)
 
     where:
     param << ["<script>alert(1)</script>", "name"]
