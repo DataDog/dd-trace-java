@@ -46,7 +46,7 @@ public class WebApplicationContextInstrumentation extends InstrumenterModule.Tra
       packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
       packageName + ".PathMatchingHttpServletRequestWrapper",
         packageName + ".DataDogHttpServletResponseWrapper",
-        packageName + ".DataDogHttpServletResponseWrapper$WrapperOutputStream"
+        packageName + ".DataDogHttpServletResponseWrapper$CustomServletOutputStream"
     };
   }
 

@@ -252,6 +252,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_REQUEST_BODY_ENABLED = false;
 
+  static final boolean DEFAULT_TRACE_RESPONSE_BODY_ENABLED = false;
   static final String DEFAULT_TRACE_RESPONSE_BODY_ENCODING = "utf-8";
 
   static final boolean DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED = false;

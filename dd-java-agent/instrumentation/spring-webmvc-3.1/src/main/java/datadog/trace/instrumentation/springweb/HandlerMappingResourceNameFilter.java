@@ -3,9 +3,11 @@ package datadog.trace.instrumentation.springweb;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -28,7 +30,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
   @Override
   protected void doFilterInternal(
       final HttpServletRequest request,
-      final HttpServletResponse response,
+      HttpServletResponse response,
       final FilterChain filterChain)
       throws ServletException, IOException {
 
@@ -46,8 +48,34 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
         // mapping.getHandler() threw exception.  Ignore
       }
     }
+    if (!Config.get().isTracerResponseBodyEnabled()) {
+      System.out.println("isTracerResponseBodyEnabled is false");
+      filterChain.doFilter(request, response);
+      return;
+    }
 
-    filterChain.doFilter(request, response);
+    DataDogHttpServletResponseWrapper wrapper = new DataDogHttpServletResponseWrapper(response);
+
+    filterChain.doFilter(request, wrapper);
+    if (wrapper.getUseOutput()) {
+      System.out.println("ResponseFilter use output");
+      String responseStr = wrapper.flushStreamBuffer();
+      if (!Objects.equals(responseStr, "")) {
+        ((AgentSpan) parentSpan).setTag("response_body", responseStr);
+      }
+
+      return;
+    }
+
+    if (wrapper.getUseWrite()) {
+      System.out.println("ResponseFilter use getWrite");
+      wrapper.flushBuffer();
+      String responseStr = wrapper.getWriteJsonString();
+      if (!Objects.equals(responseStr, "")) {
+        ((AgentSpan) parentSpan).setTag("response_body", responseStr);
+      }
+      return;
+    }
   }
 
   /**
