@@ -85,6 +85,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo requestEndSubInfo;
   private volatile DataSubscriberInfo dbSqlQuerySubInfo;
   private volatile DataSubscriberInfo ioNetUrlSubInfo;
+  private volatile DataSubscriberInfo shellCmdSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -124,6 +125,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.databaseConnection(), this::onDatabaseConnection);
     subscriptionService.registerCallback(EVENTS.databaseSqlQuery(), this::onDatabaseSqlQuery);
     subscriptionService.registerCallback(EVENTS.networkConnection(), this::onNetworkConnection);
+    subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -155,6 +157,31 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         ioNetUrlSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onShellCmd(RequestContext ctx_, String command) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = shellCmdSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.SHELL_CMD);
+        shellCmdSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.SHELL_CMD, command).build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.SHI);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        shellCmdSubInfo = null;
       }
     }
   }
