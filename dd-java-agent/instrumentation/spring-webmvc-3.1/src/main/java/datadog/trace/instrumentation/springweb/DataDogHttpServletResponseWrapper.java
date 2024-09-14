@@ -32,7 +32,7 @@ public class DataDogHttpServletResponseWrapper extends HttpServletResponseWrappe
 
   @Override
   public PrintWriter getWriter() throws IOException {
-    System.out.println("get write");
+    //System.out.println("get write");
     if (getIsJson()) {
       useWrite = true;
       return writer;
@@ -42,7 +42,7 @@ public class DataDogHttpServletResponseWrapper extends HttpServletResponseWrappe
 
   @Override
   public ServletOutputStream getOutputStream() throws IOException {
-    System.out.println("getOutputStream");
+    // System.out.println("getOutputStream");
     if (getIsJson()) {
       useOutput = true;
       return servletOutputStream;
@@ -54,7 +54,7 @@ public class DataDogHttpServletResponseWrapper extends HttpServletResponseWrappe
   public void flushBuffer() throws IOException {
     if (getIsJson()) {
       // Print the JSON response body
-      System.out.println("JSON Response Body: " + charArrayWriter.toString());
+      // System.out.println("JSON Response Body: " + charArrayWriter.toString());
       PrintWriter responseWriter = super.getWriter();
       responseWriter.write(charArrayWriter.toString());
       responseWriter.flush();
@@ -71,7 +71,7 @@ public class DataDogHttpServletResponseWrapper extends HttpServletResponseWrappe
   @Override
   public void setContentType(String type) {
     if (type.contains("application/json")) {
-      System.out.println("set json");
+      // System.out.println("set json");
       isJson = true;
     }
     super.setContentType(type);
@@ -100,7 +100,7 @@ public class DataDogHttpServletResponseWrapper extends HttpServletResponseWrappe
 
   public Boolean getIsJson() {
     if (this.getContentType().contains("application/json")) {
-      System.out.println("isJson return true");
+      // System.out.println("isJson return true");
       isJson = true;
     }
 
@@ -119,7 +119,7 @@ public class DataDogHttpServletResponseWrapper extends HttpServletResponseWrappe
     if (getIsJson()) {
       byte[] bts = byteArrayOutputStream.toByteArray();
       String str = new String(bts, "UTF-8");
-      System.out.println("----- output and bts toString = " + str);
+      //System.out.println("----- output and bts toString = " + str);
       // 写到客户端
       // Finally, copy the captured data to the actual response
 

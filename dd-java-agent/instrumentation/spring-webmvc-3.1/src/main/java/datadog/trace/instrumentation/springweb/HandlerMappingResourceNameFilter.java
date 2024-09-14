@@ -49,7 +49,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       }
     }
     if (!Config.get().isTracerResponseBodyEnabled()) {
-      System.out.println("isTracerResponseBodyEnabled is false");
+     // System.out.println("isTracerResponseBodyEnabled is false");
       filterChain.doFilter(request, response);
       return;
     }
