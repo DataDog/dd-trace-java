@@ -6,11 +6,25 @@ import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
+import datadog.trace.util.Strings;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class GithubActionsInfo implements CIProviderInfo {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(UnknownCIInfo.class);
 
   // https://docs.github.com/en/free-pro-team@latest/actions/reference/environment-variables#default-environment-variables
   public static final String GHACTIONS = "GITHUB_ACTION";
@@ -26,6 +40,12 @@ class GithubActionsInfo implements CIProviderInfo {
   public static final String GHACTIONS_REF = "GITHUB_REF";
   public static final String GHACTIONS_URL = "GITHUB_SERVER_URL";
   public static final String GHACTIONS_JOB = "GITHUB_JOB";
+  public static final String GITHUB_BASE_REF = "GITHUB_BASE_REF";
+  public static final String GITHUB_EVENT_PATH = "GITHUB_EVENT_PATH";
+
+  public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull_request.base_branch";
+  public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull_request.base_branch_sha";
+  public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head_sha";
 
   @Override
   public GitInfo buildCIGitInfo() {
@@ -51,7 +71,11 @@ class GithubActionsInfo implements CIProviderInfo {
             System.getenv(GHACTIONS_REPOSITORY),
             System.getenv(GHACTIONS_SHA));
 
-    return CIInfo.builder()
+    CIInfo.Builder builder = CIInfo.builder();
+
+    setAdditionalTagsIfApplicable(builder);
+
+    return builder
         .ciProviderName(GHACTIONS_PROVIDER_NAME)
         .ciPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
         .ciPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
@@ -63,6 +87,46 @@ class GithubActionsInfo implements CIProviderInfo {
         .ciEnvVars(
             GHACTIONS_URL, GHACTIONS_REPOSITORY, GHACTIONS_PIPELINE_ID, GHACTIONS_PIPELINE_RETRY)
         .build();
+  }
+
+  private static void setAdditionalTagsIfApplicable(CIInfo.Builder builder) {
+    String baseRef = System.getenv(GITHUB_BASE_REF);
+    if (!Strings.isNotBlank(baseRef)) {
+      return;
+    }
+
+    try {
+      Map<String, String> additionalTags = new HashMap<>();
+      additionalTags.put(GIT_PULL_REQUEST_BASE_BRANCH, baseRef);
+
+      Path eventPath = Paths.get(System.getenv(GITHUB_EVENT_PATH));
+      String event = new String(Files.readAllBytes(eventPath), StandardCharsets.UTF_8);
+
+      Moshi moshi = new Moshi.Builder().build();
+      JsonAdapter<Map<String, Object>> mapJsonAdapter =
+          moshi.adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+      Map<String, Object> eventJson = mapJsonAdapter.fromJson(event);
+
+      Map<String, Object> pullRequest = (Map<String, Object>) eventJson.get("pull_request");
+      if (pullRequest != null) {
+        Map<String, Object> head = (Map<String, Object>) pullRequest.get("head");
+        if (head != null) {
+          String headSha = (String) head.get("sha");
+          additionalTags.put(GIT_COMMIT_HEAD_SHA, headSha);
+        }
+
+        Map<String, Object> base = (Map<String, Object>) pullRequest.get("base");
+        if (base != null) {
+          String baseSha = (String) base.get("sha");
+          additionalTags.put(GIT_PULL_REQUEST_BASE_BRANCH_SHA, baseSha);
+        }
+      }
+
+      builder.additionalTags(additionalTags);
+
+    } catch (Exception e) {
+      LOGGER.warn("Error while parsing GitHub event", e);
+    }
   }
 
   private String buildGitBranch() {

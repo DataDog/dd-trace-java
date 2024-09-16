@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.span_origin;
+package datadog.trace.instrumentation.codeorigin;
 
 import datadog.trace.agent.tooling.Instrumenter.ForTypeHierarchy;
 import datadog.trace.agent.tooling.InstrumenterModule.Tracing;
@@ -12,19 +12,19 @@ import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class EntrySpanOriginInstrumentation extends Tracing implements ForTypeHierarchy {
+public abstract class CodeOriginInstrumentation extends Tracing implements ForTypeHierarchy {
 
   private final OneOf<NamedElement> matcher;
 
   @SuppressForbidden
-  public EntrySpanOriginInstrumentation(String instrumentationName) {
+  public CodeOriginInstrumentation(String instrumentationName) {
     super(instrumentationName);
     this.matcher = NameMatchers.namedOneOf(getAnnotations());
   }
 
   @Override
   public boolean isEnabled() {
-    return InstrumenterConfig.get().isSpanOriginEnabled() && super.isEnabled();
+    return InstrumenterConfig.get().isCodeOriginEnabled() && super.isEnabled();
   }
 
   protected abstract Set<String> getAnnotations();
@@ -43,6 +43,6 @@ public abstract class EntrySpanOriginInstrumentation extends Tracing implements 
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         HierarchyMatchers.isAnnotatedWith(matcher),
-        "datadog.trace.instrumentation.span_origin.EntrySpanOriginAdvice");
+        "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
   }
 }
