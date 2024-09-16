@@ -26,18 +26,19 @@ public class OtelSpanEvent {
   private final long timestamp;
   private final String name;
   private final String attributes;
+  // TODO TimeSource instance is not retrieved from CoreTracer
   private static TimeSource timeSource = SystemTimeSource.INSTANCE;
 
   public OtelSpanEvent(String name, Attributes attributes) {
     this.name = name;
     this.attributes = AttributesJsonParser.toJson(attributes);
-    this.timestamp = getNanosFromTimeSource();
+    this.timestamp = OtelSpanEvent.timeSource.getCurrentTimeNanos();
   }
 
   public OtelSpanEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     this.name = name;
     this.attributes = AttributesJsonParser.toJson(attributes);
-    this.timestamp = convertNano(timestamp, unit);
+    this.timestamp = unit.toNanos(timestamp);
   }
 
   @NonNull
@@ -160,14 +161,6 @@ public class OtelSpanEvent {
           .replace("\r", "\\r")
           .replace("\t", "\\t");
     }
-  }
-
-  private static long convertNano(long timestamp, TimeUnit unit) {
-    return TimeUnit.NANOSECONDS.convert(timestamp, unit);
-  }
-
-  private long getNanosFromTimeSource() {
-    return timeSource.getCurrentTimeNanos();
   }
 
   public static void setTimeSource(TimeSource newTimeSource) {
