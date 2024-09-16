@@ -269,7 +269,7 @@ commands:
           command: |
             git init system-tests
             cd system-tests
-            git remote add origin https://github.com/DataDog/system-tests.git
+            git remote add origin https://github.com/DataDog/system-tests.git && git checkout conti/fix-php-errors
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
 
