@@ -54,7 +54,7 @@ parameters:
   global_pattern:
     # Pattern for files that should always trigger a test jobs
     type: string
-    default: "^build.gradle$|^settings.gradle$|^gradle.properties$|^buildSrc/|^gradle/|.circleci"
+    default: "^build.gradle$|^settings.gradle$|^gradle.properties$|^buildSrc/|^gradle/|.circleci|^gradlew|^mvnw|^.mvn/"
 
   docker_image:
     type: string

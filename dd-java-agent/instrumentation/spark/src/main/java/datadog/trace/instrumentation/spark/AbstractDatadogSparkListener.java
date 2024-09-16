@@ -500,7 +500,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
                 "parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
             .withTag("task_count", stageSubmitted.stageInfo().numTasks())
             .withTag("attempt_id", stageAttemptId)
-            .withTag("details", stageSubmitted.stageInfo().details())
             .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
             .start();
 
@@ -527,6 +526,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
+    span.setTag("details", stageCompleted.stageInfo().details());
     if (stageInfo.failureReason().isDefined()) {
       span.setError(true);
       span.setErrorMessage(getErrorMessageWithoutStackTrace(stageInfo.failureReason().get()));

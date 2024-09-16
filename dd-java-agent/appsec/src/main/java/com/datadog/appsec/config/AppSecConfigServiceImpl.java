@@ -12,6 +12,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
@@ -116,6 +117,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     if (tracerConfig.isAppSecRaspEnabled()) {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
+      capabilities |= CAPABILITY_ASM_RASP_LFI;
     }
     this.configurationPoller.addCapabilities(capabilities);
   }
@@ -359,6 +361,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
             | CAPABILITY_ASM_RASP_SQLI
             | CAPABILITY_ASM_RASP_SSRF
+            | CAPABILITY_ASM_RASP_LFI
             | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
             | CAPABILITY_ENDPOINT_FINGERPRINT
             // TODO enable when usr.id and usr.session_id addresses are added

@@ -187,7 +187,9 @@ public class CiVisibilitySystem {
 
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
-      TestDecorator testDecorator = new TestDecoratorImpl(buildSystemName, repoServices.ciTags);
+      String sessionName = services.config.getCiVisibilitySessionName();
+      TestDecorator testDecorator =
+          new TestDecoratorImpl(buildSystemName, sessionName, startCommand, repoServices.ciTags);
 
       String signalServerHost = services.config.getCiVisibilitySignalServerHost();
       int signalServerPort = services.config.getCiVisibilitySignalServerPort();
@@ -223,7 +225,11 @@ public class CiVisibilitySystem {
       long parentProcessSessionId = ProcessHierarchyUtils.getParentSessionId();
       long parentProcessModuleId = ProcessHierarchyUtils.getParentModuleId();
 
-      TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
+      String sessionName = services.config.getCiVisibilitySessionName();
+      String testCommand = services.config.getCiVisibilityTestCommand();
+      TestDecorator testDecorator =
+          new TestDecoratorImpl(component, sessionName, testCommand, repoServices.ciTags);
+
       ExecutionStrategy executionStrategy =
           new ExecutionStrategy(services.config, executionSettings);
       return new ProxyTestSession(
@@ -250,7 +256,10 @@ public class CiVisibilitySystem {
     return (String projectName, String component, Long startTime) -> {
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
-      TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
+      String sessionName = services.config.getCiVisibilitySessionName();
+      TestDecorator testDecorator =
+          new TestDecoratorImpl(component, sessionName, projectName, repoServices.ciTags);
+
       ExecutionStrategy executionStrategy =
           new ExecutionStrategy(services.config, executionSettings);
       return new HeadlessTestSession(
@@ -272,7 +281,11 @@ public class CiVisibilitySystem {
       CiVisibilityServices services) {
     return (String projectName, Path projectRoot, String component, Long startTime) -> {
       CiVisibilityRepoServices repoServices = services.repoServices(projectRoot);
-      TestDecorator testDecorator = new TestDecoratorImpl(component, repoServices.ciTags);
+
+      String sessionName = services.config.getCiVisibilitySessionName();
+      TestDecorator testDecorator =
+          new TestDecoratorImpl(component, sessionName, projectName, repoServices.ciTags);
+
       ExecutionSettings executionSettings =
           repoServices.executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
       CiVisibilityCoverageServices.Child coverageServices =

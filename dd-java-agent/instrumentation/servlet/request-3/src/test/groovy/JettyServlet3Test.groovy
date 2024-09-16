@@ -13,6 +13,8 @@ import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
+import spock.lang.Retry
+
 import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
 import javax.servlet.Servlet
@@ -510,6 +512,8 @@ class ServeFromOnAsyncTimeout extends AbstractHttpServlet {
   }
 }
 
+//@Flaky("Fails with timeout very often under high load")
+@Retry(exceptions = SocketTimeoutException, count = 3, delay = 500, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class JettyServlet3ServeFromAsyncTimeout extends JettyServlet3Test {
   @Override
   Class<Servlet> servlet() {

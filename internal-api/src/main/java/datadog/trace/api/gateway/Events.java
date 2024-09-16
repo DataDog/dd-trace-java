@@ -248,6 +248,17 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) NETWORK_CONNECTION;
   }
 
+  static final int FILE_LOADED_ID = 20;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType FILE_LOADED = new ET<>("file.loaded", FILE_LOADED_ID);
+
+  /** A I/O file loaded */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> fileLoaded() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) FILE_LOADED;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {
