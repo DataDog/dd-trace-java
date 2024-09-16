@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "software.amazon.awssdk"
     module = "sfn"
-    versions = "[2.0.0,)"
+    versions = "[2.15.35,)"
     assertInverse = true
   }
 }
@@ -13,7 +13,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
-  compileOnly group: 'software.amazon.awssdk', name: 'sfn', version: '2.27.2'
+  compileOnly group: 'software.amazon.awssdk', name: 'sfn', version: '2.15.35'
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
