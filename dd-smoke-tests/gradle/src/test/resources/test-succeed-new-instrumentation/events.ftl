@@ -19,6 +19,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "pass",
       "_dd.ci.itr.tests_skipped" : "true",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
@@ -30,8 +31,10 @@
       "span.kind" : "test_session_end",
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
+      "test.code_coverage.backfilled" : "true",
       "test.itr.tests_skipping.enabled" : "true",
       "test.type" : "test",
+      "test_session.name" : "gradle test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "gradle",
@@ -72,8 +75,10 @@
       "library_version" : ${content_meta_library_version},
       "span.kind" : "test_module_end",
       "runtime.version" : ${content_meta_runtime_version},
+      "test.code_coverage.backfilled" : "true",
       "test.itr.tests_skipping.enabled" : "true",
       "test.type" : "test",
+      "test_session.name" : "gradle test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "gradle",
@@ -81,7 +86,9 @@
       "test.itr.tests_skipping.type" : "test",
       "test.command" : "gradle test",
       "test.framework_version" : "4.10",
-      "test.framework" : "junit4"
+      "test.framework" : "junit4",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm"
     }
   }
 }, {
@@ -105,6 +112,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "src/test/java/datadog/smoke/TestSucceed.java",
       "test.module" : ":test",
       "test.status" : "pass",
@@ -119,6 +127,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "gradle test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
@@ -152,6 +161,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_4},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "src/test/java/datadog/smoke/TestSucceed.java",
       "test.source.method" : "test_succeed()V",
       "test.module" : ":test",
@@ -168,6 +178,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "gradle test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
@@ -201,6 +212,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_5},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "src/test/java/datadog/smoke/TestSucceed.java",
       "test.source.method" : "test_to_skip_with_itr()V",
       "test.module" : ":test",
@@ -218,6 +230,7 @@
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
       "test.skip_reason" : "Skipped by Datadog Intelligent Test Runner",
+      "test_session.name" : "gradle test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",

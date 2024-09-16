@@ -129,7 +129,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     TestFrameworkSession.Factory testFrameworkSessionFactory = (String projectName, String component, Long startTime) -> {
       def config = Config.get()
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
-      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
+      TestDecorator testDecorator = new TestDecoratorImpl(component, "session-name", "test-command", ciTags)
       return new HeadlessTestSession(
       projectName,
       startTime,
@@ -150,7 +150,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
     BuildSystemSession.Factory buildSystemSessionFactory = (String projectName, Path projectRoot, String startCommand, String component, Long startTime) -> {
       def config = Config.get()
       def ciTags = [(DUMMY_CI_TAG): DUMMY_CI_TAG_VALUE]
-      TestDecorator testDecorator = new TestDecoratorImpl(component, ciTags)
+      TestDecorator testDecorator = new TestDecoratorImpl(component, "session-name", "test-command", ciTags)
       ModuleSignalRouter moduleSignalRouter = new ModuleSignalRouter()
       SignalServer signalServer = new SignalServer()
       RepoIndexBuilder repoIndexBuilder = Stub(RepoIndexBuilder)
@@ -269,7 +269,7 @@ abstract class CiVisibilityInstrumentationTest extends AgentTestRunner {
   }
 
   def getEventsAsJson(List<List<DDSpan>> traces) {
-    return getSpansAsJson(new CiTestCycleMapperV1(Config.get().getWellKnownTags(), false), traces)
+    return getSpansAsJson(new CiTestCycleMapperV1(Config.get().getCiVisibilityWellKnownTags(), false), traces)
   }
 
   def getCoveragesAsJson(List<List<DDSpan>> traces) {

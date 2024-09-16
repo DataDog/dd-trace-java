@@ -18,6 +18,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "fail",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
@@ -29,11 +30,12 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "maven",
-      "error.type" : "org.apache.maven.lifecycle.LifecycleExecutionException",
       "test.code_coverage.enabled" : "true",
+      "error.type" : "org.apache.maven.lifecycle.LifecycleExecutionException",
       "test.toolchain" : ${content_meta_test_toolchain},
       "error.message" : ${content_meta_error_message},
       "error.stack" : ${content_meta_error_stack},
@@ -70,6 +72,7 @@
       "span.kind" : "test_module_end",
       "runtime.version" : ${content_meta_runtime_version},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "maven",
@@ -80,7 +83,9 @@
       "error.stack" : ${content_meta_error_stack_2},
       "test.command" : "mvn -B test",
       "test.framework_version" : "4.13.2",
-      "test.framework" : "junit4"
+      "test.framework" : "junit4",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm"
     }
   }
 }, {
@@ -104,6 +109,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "fail",
@@ -118,6 +124,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
@@ -151,6 +158,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_4},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
@@ -167,6 +175,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
@@ -202,6 +211,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_5},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
@@ -218,6 +228,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "test.is_retry" : "true",
@@ -254,6 +265,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_6},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
@@ -270,6 +282,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "test.is_retry" : "true",
@@ -306,6 +319,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_7},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
@@ -322,6 +336,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "test.is_retry" : "true",
@@ -358,6 +373,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_8},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",
       "test.source.method" : "test_failed()V",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
@@ -374,6 +390,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "test.is_retry" : "true",

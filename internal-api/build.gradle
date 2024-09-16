@@ -119,6 +119,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityMetricData",
   "datadog.trace.api.civisibility.telemetry.NoOpMetricCollector",
+  "datadog.trace.api.civisibility.CiVisibilityWellKnownTags",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.InstrumentationTestBridge",
   // POJO
