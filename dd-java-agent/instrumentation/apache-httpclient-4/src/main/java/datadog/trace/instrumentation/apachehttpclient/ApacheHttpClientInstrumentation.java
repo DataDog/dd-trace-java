@@ -7,8 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ExceptionLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -151,9 +153,20 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class UriRequestAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope methodEnter(@Advice.Argument(0) final HttpUriRequest request) {
-      return HelperMethods.doMethodEnter(request);
+      try{
+        return HelperMethods.doMethodEnter(request);
+      } catch (BlockingException e) {
+      HelperMethods.onBlockingRequest();
+      // re-throw blocking exceptions
+      throw e;
+    } catch (Throwable e) {
+      // suppress anything else
+      ExceptionLogger.LOGGER.debug(
+          "datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientInstrumentation", e);
+      return null;
+    }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -167,7 +180,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   public static class UriRequestWithHandlerAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpUriRequest request,
         @Advice.Argument(
@@ -176,12 +189,25 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
                 typing = Assigner.Typing.DYNAMIC,
                 readOnly = false)
             Object handler) {
-      final AgentScope scope = HelperMethods.doMethodEnter(request);
-      // Wrap the handler so we capture the status code
-      if (null != scope && handler instanceof ResponseHandler) {
-        handler = new WrappingStatusSettingResponseHandler(scope.span(), (ResponseHandler) handler);
+
+      try{
+        final AgentScope scope = HelperMethods.doMethodEnter(request);
+        // Wrap the handler so we capture the status code
+        if (null != scope && handler instanceof ResponseHandler) {
+          handler = new WrappingStatusSettingResponseHandler(scope.span(), (ResponseHandler) handler);
+        }
+        return scope;
+      } catch (BlockingException e) {
+        HelperMethods.onBlockingRequest();
+        // re-throw blocking exceptions
+        throw e;
+      } catch (Throwable e) {
+        // suppress anything else
+        ExceptionLogger.LOGGER.debug(
+            "datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientInstrumentation", e);
+        return null;
       }
-      return scope;
+
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -194,14 +220,25 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class RequestAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpHost host, @Advice.Argument(1) final HttpRequest request) {
-      if (request instanceof HttpUriRequest) {
-        return HelperMethods.doMethodEnter((HttpUriRequest) request);
-      } else {
-        return HelperMethods.doMethodEnter(host, request);
-      }
+      try{
+        if (request instanceof HttpUriRequest) {
+          return HelperMethods.doMethodEnter((HttpUriRequest) request);
+        } else {
+          return HelperMethods.doMethodEnter(host, request);
+        }
+      } catch (BlockingException e) {
+      HelperMethods.onBlockingRequest();
+      // re-throw blocking exceptions
+      throw e;
+    } catch (Throwable e) {
+       // suppress anything else
+        ExceptionLogger.LOGGER.debug(
+          "datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientInstrumentation", e);
+      return null;
+    }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -215,7 +252,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   public static class RequestWithHandlerAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpHost host,
         @Advice.Argument(1) final HttpRequest request,
@@ -225,17 +262,28 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
                 typing = Assigner.Typing.DYNAMIC,
                 readOnly = false)
             Object handler) {
-      final AgentScope scope;
-      if (request instanceof HttpUriRequest) {
-        scope = HelperMethods.doMethodEnter((HttpUriRequest) request);
-      } else {
-        scope = HelperMethods.doMethodEnter(host, request);
+      try{
+        final AgentScope scope;
+        if (request instanceof HttpUriRequest) {
+          scope = HelperMethods.doMethodEnter((HttpUriRequest) request);
+        } else {
+          scope = HelperMethods.doMethodEnter(host, request);
+        }
+        // Wrap the handler so we capture the status code
+        if (null != scope && handler instanceof ResponseHandler) {
+          handler = new WrappingStatusSettingResponseHandler(scope.span(), (ResponseHandler) handler);
+        }
+        return scope;
+      } catch (BlockingException e) {
+        HelperMethods.onBlockingRequest();
+        // re-throw blocking exceptions
+        throw e;
+      } catch (Throwable e) {
+        // suppress anything else
+        ExceptionLogger.LOGGER.debug(
+            "datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientInstrumentation", e);
+        return null;
       }
-      // Wrap the handler so we capture the status code
-      if (null != scope && handler instanceof ResponseHandler) {
-        handler = new WrappingStatusSettingResponseHandler(scope.span(), (ResponseHandler) handler);
-      }
-      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

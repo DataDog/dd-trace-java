@@ -12,6 +12,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.bootstrap.ExceptionLogger;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -53,24 +55,35 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class ExecAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-      if (callDepth > 0) {
+
+      try{
+        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+        if (callDepth > 0) {
+          return null;
+        }
+
+        final AgentSpan span = startSpan(HTTP_REQUEST);
+        final AgentScope scope = activateSpan(span);
+
+        DECORATE.afterStart(span);
+        DECORATE.onRequest(span, httpMethod);
+        propagate().inject(span, httpMethod, SETTER);
+        propagate()
+            .injectPathwayContext(
+                span, httpMethod, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
+
+        return scope;
+      } catch (BlockingException e) {
+        CallDepthThreadLocalMap.reset(HttpClient.class);
+        // re-throw blocking exceptions
+        throw e;
+      } catch (Throwable e) {
+        // suppress anything else
+        ExceptionLogger.LOGGER.debug("datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientInstrumentation", e);
         return null;
       }
-
-      final AgentSpan span = startSpan(HTTP_REQUEST);
-      final AgentScope scope = activateSpan(span);
-
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, httpMethod);
-      propagate().inject(span, httpMethod, SETTER);
-      propagate()
-          .injectPathwayContext(
-              span, httpMethod, SETTER, HttpClientDecorator.CLIENT_PATHWAY_EDGE_TAGS);
-
-      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
