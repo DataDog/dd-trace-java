@@ -117,7 +117,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class RequestAdvice {
     @Advice.OnMethodEnter()
     public static AgentScope methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
-      try{
+      try {
         return HelperMethods.doMethodEnter(request);
       } catch (BlockingException e) {
         HelperMethods.onBlockingRequest();
@@ -145,8 +145,8 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpHost host,
         @Advice.Argument(1) final ClassicHttpRequest request) {
-      try{
-        return HelperMethods.doMethodEnter(host,request);
+      try {
+        return HelperMethods.doMethodEnter(host, request);
       } catch (BlockingException e) {
         HelperMethods.onBlockingRequest();
         // re-throw blocking exceptions
@@ -181,7 +181,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
                 typing = Assigner.Typing.DYNAMIC,
                 readOnly = false)
             Object handler) {
-      try{
+      try {
         final AgentScope scope = HelperMethods.doMethodEnter(host, request);
         // Wrap the handler so we capture the status code
         if (null != scope && handler instanceof HttpClientResponseHandler) {

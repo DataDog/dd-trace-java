@@ -74,7 +74,7 @@ public class HelperMethods {
     }
   }
 
-  public static void onBlockingRequest(){
+  public static void onBlockingRequest() {
     CallDepthThreadLocalMap.reset(HttpClient.class);
   }
 }

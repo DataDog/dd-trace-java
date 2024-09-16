@@ -12,11 +12,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.bootstrap.ExceptionLogger;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.ExceptionLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -58,7 +58,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter()
     public static AgentScope methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
 
-      try{
+      try {
         final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
         if (callDepth > 0) {
           return null;
@@ -81,7 +81,8 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         throw e;
       } catch (Throwable e) {
         // suppress anything else
-        ExceptionLogger.LOGGER.debug("datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientInstrumentation", e);
+        ExceptionLogger.LOGGER.debug(
+            "datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientInstrumentation", e);
         return null;
       }
     }

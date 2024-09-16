@@ -5,8 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpa
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.trace.bootstrap.ExceptionLogger;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.ExceptionLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -21,8 +21,9 @@ public class SendAsyncAdvice {
   public static AgentScope methodEnter(
       @Advice.Argument(value = 0) final HttpRequest httpRequest,
       @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler) {
-    try{
-      // Here we avoid having the advice applied twice in case we have nested call of this intercepted
+    try {
+      // Here we avoid having the advice applied twice in case we have nested call of this
+      // intercepted
       // method.
       // In this particular case, in HttpClientImpl the send method is calling sendAsync under the
       // hood and we do not want to instrument twice.
@@ -50,7 +51,6 @@ public class SendAsyncAdvice {
       ExceptionLogger.LOGGER.debug("datadog.trace.instrumentation.httpclient.SendAsyncAdvice", e);
       return null;
     }
-
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
