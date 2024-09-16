@@ -82,6 +82,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiConsumer<RequestContext, String> databaseConnectionCB
   BiFunction<RequestContext, String, Flow<Void>> databaseSqlQueryCB
   BiFunction<RequestContext, String, Flow<Void>> networkConnectionCB
+  BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -416,6 +417,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.databaseConnection(), _) >> { databaseConnectionCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.databaseSqlQuery(), _) >> { databaseSqlQueryCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.networkConnection(), _) >> { networkConnectionCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.shellCmd(), _) >> { shellCmdCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -792,6 +794,26 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
     { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
     bundle.get(KnownAddresses.IO_NET_URL) == url
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == true
+    gatewayContext.isRasp == true
+  }
+
+  void 'process shell cmd'() {
+    setup:
+    final cmd = '&lt;!--#exec%20cmd=&quot;/bin/cat%20/etc/passwd&quot;--&gt;'
+    eventDispatcher.getDataSubscribers({ KnownAddresses.SHELL_CMD in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = shellCmdCB.apply(ctx, cmd)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.SHELL_CMD) == cmd
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true

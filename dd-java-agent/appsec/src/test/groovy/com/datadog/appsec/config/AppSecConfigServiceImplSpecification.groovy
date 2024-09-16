@@ -3,6 +3,7 @@ package com.datadog.appsec.config
 import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.api.security.ApiSecurityRequestSampler
 import com.datadog.appsec.util.AbortStartupException
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SHI
 import datadog.remoteconfig.ConfigurationChangesTypedListener
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationEndListener
@@ -269,6 +270,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_RASP_SQLI
       | CAPABILITY_ASM_RASP_SSRF
+      | CAPABILITY_ASM_RASP_SHI
       | CAPABILITY_ENDPOINT_FINGERPRINT
       // | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -420,6 +422,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_TRUSTED_IPS
       | CAPABILITY_ASM_RASP_SQLI
       | CAPABILITY_ASM_RASP_SSRF
+      | CAPABILITY_ASM_RASP_SHI
       | CAPABILITY_ENDPOINT_FINGERPRINT
       // | CAPABILITY_ASM_SESSION_FINGERPRINT
       | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -492,6 +495,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
       | CAPABILITY_ASM_RASP_SQLI
       | CAPABILITY_ASM_RASP_SSRF
+      | CAPABILITY_ASM_RASP_SHI
       | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
       | CAPABILITY_ENDPOINT_FINGERPRINT
       // | CAPABILITY_ASM_SESSION_FINGERPRINT
