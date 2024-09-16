@@ -2,26 +2,25 @@ package datadog.opentelemetry.shim.trace;
 
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyNamingConvention;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyReservedAttribute;
+import static datadog.opentelemetry.shim.trace.OtelConventions.applySpanEventExceptionAttributesAsTags;
 import static datadog.opentelemetry.shim.trace.OtelConventions.setEventsAsTag;
+import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_SPAN_EVENT_NAME;
+import static datadog.opentelemetry.shim.trace.OtelSpanEvent.initializeExceptionAttributes;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.api.trace.StatusCode.OK;
 import static io.opentelemetry.api.trace.StatusCode.UNSET;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +31,7 @@ public class OtelSpan implements Span {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
+  /** Span events ({@code null} until an event is added). */
   private List<OtelSpanEvent> events;
 
   public OtelSpan(AgentSpan delegate) {
@@ -113,88 +113,17 @@ public class OtelSpan implements Span {
     return this;
   }
 
-  /**
-   * Records information about the Throwable as a span event. `exception.escaped` cannot be
-   * determined by this function and therefore is not automatically recorded. Record it manually
-   * using additionalAttributes See: <a
-   * href="https://javadoc.io/doc/io.opentelemetry/opentelemetry-api-trace/latest/io/opentelemetry/api/trace/Span.html#recordException(java.lang.Throwable)">...</a>
-   *
-   * @param exception the Throwable to record
-   * @param additionalAttributes the additional attributes to record on this span event
-   */
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {
     if (this.recording) {
       if (this.events == null) {
         this.events = new ArrayList<>();
       }
-      this.events.add(
-          new OtelSpanEvent(
-              "exception", processExceptionAttributes(exception, additionalAttributes)));
+      additionalAttributes = initializeExceptionAttributes(exception, additionalAttributes);
+      applySpanEventExceptionAttributesAsTags(this.delegate, additionalAttributes);
+      this.events.add(new OtelSpanEvent(EXCEPTION_SPAN_EVENT_NAME, additionalAttributes));
     }
     return this;
-  }
-
-  /**
-   * processExceptionAttributes generates Attributes about the exception and sets Span error tags.
-   *
-   * <p>All exception span events get the following reserved Attributes: "exception.message",
-   * "exception.type" and "exception.stacktace". If additionalAttributes contains a reserved key,
-   * the value in additionalAttributes is used. Else, the value is determined from the provided
-   * Throwable.
-   *
-   * @param exception The Throwable from which to build reserved attributes
-   * @param additionalAttributes Attributes provided by the user
-   * @return Attributes collection that combines defaultExceptionAttributes with
-   *     additionalAttributes
-   */
-  private Attributes processExceptionAttributes(
-      Throwable exception, Attributes additionalAttributes) {
-    // Create an AttributesBuilder with the additionalAttributes provided
-    AttributesBuilder attrsBuilder = additionalAttributes.toBuilder();
-
-    // Check whether additionalAttributes contains any of the reserved exception attribute keys. If
-    // not, append the newly created Attribute.
-
-    String key = "exception.message";
-    String attrsValue = additionalAttributes.get(AttributeKey.stringKey(key));
-    if (attrsValue != null) { // additionalAttributes contains "exception.message"
-      this.delegate.setTag(
-          DDTags.ERROR_MSG,
-          attrsValue); // use the value provided in additionalAttributes to set ERROR_MSG span tag
-    } else {
-      String value = exception.getMessage(); // use exception to set ERROR_MSG tag
-      this.delegate.setTag(DDTags.ERROR_MSG, value); // and append to the Attributes builder
-      attrsBuilder.put(key, value);
-    }
-
-    key = "exception.type";
-    attrsValue = additionalAttributes.get(AttributeKey.stringKey(key));
-    if (attrsValue != null) {
-      this.delegate.setTag(DDTags.ERROR_TYPE, attrsValue);
-    } else {
-      String value = exception.getClass().getName();
-      this.delegate.setTag(DDTags.ERROR_TYPE, value);
-      attrsBuilder.put(key, value);
-    }
-
-    key = "exception.stacktrace";
-    attrsValue = additionalAttributes.get(AttributeKey.stringKey(key));
-    if (attrsValue != null) {
-      this.delegate.setTag(DDTags.ERROR_STACK, attrsValue);
-    } else {
-      String value = stringifyErrorStack(exception);
-      this.delegate.setTag(DDTags.ERROR_STACK, value);
-      attrsBuilder.put(key, value);
-    }
-
-    return attrsBuilder.build();
-  }
-
-  static String stringifyErrorStack(Throwable error) {
-    final StringWriter errorString = new StringWriter();
-    error.printStackTrace(new PrintWriter(errorString));
-    return errorString.toString();
   }
 
   @Override

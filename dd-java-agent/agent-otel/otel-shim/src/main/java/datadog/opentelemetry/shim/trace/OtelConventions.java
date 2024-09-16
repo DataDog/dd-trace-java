@@ -1,6 +1,13 @@
 package datadog.opentelemetry.shim.trace;
 
+import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_MESSAGE_ATTRIBUTE_KEY;
+import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_STACK_TRACE_ATTRIBUTE_KEY;
+import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_TYPE_ATTRIBUTE_KEY;
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.DDTags.ERROR_MSG;
+import static datadog.trace.api.DDTags.ERROR_STACK;
+import static datadog.trace.api.DDTags.ERROR_TYPE;
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -14,7 +21,6 @@ import static io.opentelemetry.api.trace.SpanKind.SERVER;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -130,7 +136,14 @@ public final class OtelConventions {
     if (events == null || events.isEmpty()) {
       return;
     }
-    span.setTag(DDTags.SPAN_EVENTS, OtelSpanEvent.toTag(events));
+    span.setTag(SPAN_EVENTS, OtelSpanEvent.toTag(events));
+  }
+
+  public static void applySpanEventExceptionAttributesAsTags(
+      AgentSpan span, Attributes exceptionAttributes) {
+    span.setTag(ERROR_MSG, exceptionAttributes.get(EXCEPTION_MESSAGE_ATTRIBUTE_KEY));
+    span.setTag(ERROR_TYPE, exceptionAttributes.get(EXCEPTION_TYPE_ATTRIBUTE_KEY));
+    span.setTag(ERROR_STACK, exceptionAttributes.get(EXCEPTION_STACK_TRACE_ATTRIBUTE_KEY));
   }
 
   private static String computeOperationName(AgentSpan span) {

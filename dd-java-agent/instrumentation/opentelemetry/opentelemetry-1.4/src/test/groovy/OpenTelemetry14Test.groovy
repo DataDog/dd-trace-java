@@ -1,5 +1,4 @@
 import datadog.opentelemetry.shim.trace.OtelSpanEvent
-import datadog.opentelemetry.shim.trace.OtelSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
@@ -19,6 +18,7 @@ import spock.lang.Subject
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
 import static datadog.trace.api.DDTags.ERROR_MSG
 import static datadog.trace.api.DDTags.ERROR_STACK
 import static datadog.trace.api.DDTags.ERROR_TYPE
@@ -27,7 +27,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER
-import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
 import static io.opentelemetry.api.trace.SpanKind.CLIENT
 import static io.opentelemetry.api.trace.SpanKind.CONSUMER
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL
@@ -662,6 +661,16 @@ class OpenTelemetry14Test extends AgentTestRunner {
     def timeSource = new ControllableTimeSource()
     timeSource.set(1000)
     OtelSpanEvent.setTimeSource(timeSource)
+    def errorMessage = overridenMessage?:exception.getMessage()
+    def errorType = overridenType?:exception.getClass().getName()
+    def errorStackTrace = overridenStacktrace?:OtelSpanEvent.stringifyErrorStack(exception)
+    def expectedAttributes =
+    """{
+        "exception.message": "${errorMessage}",
+        "exception.type": "${errorType}",
+        "exception.stacktrace": "${errorStackTrace}"
+        ${extraJson?:''}
+      }"""
 
     when:
     result.recordException(exception, attributes)
@@ -687,19 +696,21 @@ class OpenTelemetry14Test extends AgentTestRunner {
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
             tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
-            tag(ERROR_MSG, errorMsg)
+            tag(ERROR_MSG, errorMessage)
             tag(ERROR_TYPE, errorType)
-            tag(ERROR_STACK, errorStack)
+            tag(ERROR_STACK, errorStackTrace)
           }
         }
       }
     }
 
     where:
-    exception                                            | attributes                                                              | errorMsg | errorType | errorStack | expectedAttributes
-    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | exception.getMessage() | exception.getClass().getName() | OtelSpan.stringifyErrorStack(exception) | """{ exception.message: "$errorMsg", exception.type: "$errorType", exception.stacktrace: "$errorStack"}"""
-    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | "something-else" | exception.getClass().getName() | OtelSpan.stringifyErrorStack(exception) | """{exception.message: "$errorMsg", exception.type: "$errorType", exception.stacktrace: "$errorStack"}"""
-    new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | exception.getMessage() | exception.getClass().getName() | OtelSpan.stringifyErrorStack(exception) |  """{"key": "value", exception.message: "$errorMsg", exception.type: "$errorType", exception.stacktrace: "$errorStack"}"""
+    exception                                            | attributes                                                              | overridenMessage | overridenType | overridenStacktrace | extraJson
+    new NullPointerException("Null pointer")             | Attributes.empty()                                                      | null             | null          | null                | null
+    new NumberFormatException("Number format exception") | Attributes.builder().put("exception.message", "something-else").build() | "something-else" | null          | null                | null
+    new NullPointerException("Null pointer")             | Attributes.builder().put("exception.type", "CustomType").build()        | null             | "CustomType"  | null                | null
+    new NullPointerException("Null pointer")             | Attributes.builder().put("exception.stacktrace", "CustomTrace").build() | null             | null          | "CustomTrace"       | null
+    new NullPointerException("Null pointer")             | Attributes.builder().put("key", "value").build()                        | null             | null          | null                | ', "key": "value"'
   }
 
   def "test span error meta on record multiple exceptions"() {
