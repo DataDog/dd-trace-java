@@ -59,6 +59,10 @@ jobs:
               COUNT=0
             fi
           done
+          # Check at uncommited files
+          echo "Checking uncommited files"
+          git status
+          # Create a PR from the created branch
           if [ $COUNT -gt 0 ]; then
             echo "Creating a commit to $BRANCH_NAME@$BRANCH_HEAD with $GH_ADD_ARGS"
             ghcommit --repository ${{ github.repository }} --branch $BRANCH_NAME --sha $BRANCH_HEAD $GH_ADD_ARGS --message "chore: Update Gradle dependencies"

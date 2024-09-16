@@ -41,7 +41,6 @@ public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVis
       packageName + ".GradleProjectConfigurator$_configureJacoco_closure2",
       packageName + ".GradleProjectConfigurator$_configureJacoco_closure3",
       packageName + ".GradleProjectConfigurator$_forEveryTestTask_closure4",
-      packageName + ".GradleProjectConfigurator$_configureProject_closure5",
       packageName + ".GradleBuildListener",
       packageName + ".GradleBuildListener$TestTaskExecutionListener"
     };

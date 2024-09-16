@@ -373,7 +373,7 @@ class ReactorCoreTest extends AgentTestRunner {
     where:
     schedulerName | scheduler
     "parallel"    | Schedulers.parallel()
-    "elastic"     | Schedulers.elastic()
+    "elastic"     | (isLatestDepTest ? Schedulers."boundedElastic"() : Schedulers."elastic"())
     "single"      | Schedulers.single()
     "immediate"   | Schedulers.immediate()
   }

@@ -1,6 +1,8 @@
 package datadog.smoketest.appsec.springboot.controller;
 
+import java.io.File;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,6 +56,24 @@ public class WebController {
     } catch (Throwable e) {
       // ignore errors opening connection
     }
+    return "EXECUTED";
+  }
+
+  @GetMapping("/lfi/file")
+  public String lfiFile(@RequestParam("path") String path) {
+    new File(path);
+    return "EXECUTED";
+  }
+
+  @GetMapping("/lfi/paths")
+  public String lfiPaths(@RequestParam("path") String path) {
+    Paths.get(path);
+    return "EXECUTED";
+  }
+
+  @GetMapping("/lfi/path")
+  public String lfiPath(@RequestParam("path") String path) {
+    new File(System.getProperty("user.dir")).toPath().resolve(path);
     return "EXECUTED";
   }
 }

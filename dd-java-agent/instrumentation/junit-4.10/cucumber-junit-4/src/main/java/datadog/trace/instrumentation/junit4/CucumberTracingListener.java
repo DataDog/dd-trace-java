@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.junit4;
 
-import datadog.trace.api.civisibility.coverage.CoverageBridge;
+import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.civisibility.retry.TestRetryPolicy;
@@ -91,7 +91,7 @@ public class CucumberTracingListener extends TracingListener {
     try {
       URI pickleUri = CucumberUtils.getPickleUri(scenarioDescription);
       String featureRelativePath = pickleUri.getSchemeSpecificPart();
-      CoverageBridge.recordCoverage(featureRelativePath);
+      CoveragePerTestBridge.recordCoverage(featureRelativePath);
     } catch (Exception e) {
       LOGGER.error("Could not record feature file coverage for {}", scenarioDescription, e);
     }

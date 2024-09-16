@@ -6,6 +6,8 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import spock.lang.Shared
 
+import java.nio.charset.StandardCharsets
+
 class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
   @Shared
@@ -99,6 +101,30 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
                 params  : [[address: 'server.request.query']],
               ],
               operator  : "ssrf_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
+          id          : '__test_lfi_block',
+          name        : 'Local File Inclusion  exploit',
+          enable      : 'true',
+          tags        : [
+            type      : 'lfi',
+            category  : 'vulnerability_trigger',
+            cwe       : '98',
+            capec     : '252',
+            confidence: '0',
+            module    : 'rasp'
+          ],
+          conditions  : [
+            [
+              parameters: [
+                resource: [[address: 'server.io.fs.file']],
+                params  : [[address: 'server.request.query']],
+              ],
+              operator  : "lfi_detector",
             ],
           ],
           transformers: [],
@@ -366,4 +392,47 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     assert trigger != null, 'test trigger not found'
   }
+
+  void 'rasp blocks on LFI for #variant'() {
+    when:
+    String url = "http://localhost:${httpPort}/lfi/"+variant+"?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpan = findFirstMatchingSpan(variant)
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == '__test_lfi_block') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+
+    where:
+    variant | _
+    'paths'    | _
+    'file'    | _
+    'path'    | _
+
+  }
+
+  def findFirstMatchingSpan(String resource) {
+    return this.rootSpans.toList().find { (it.span.resource == 'GET /lfi/' + resource) }
+  }
+
 }

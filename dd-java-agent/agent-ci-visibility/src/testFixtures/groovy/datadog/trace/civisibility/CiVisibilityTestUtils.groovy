@@ -36,6 +36,7 @@ abstract class CiVisibilityTestUtils {
     path("content.meta.['error.message']"),
     path("content.meta.library_version"),
     path("content.meta.runtime-id"),
+    path("content.meta.['_dd.tracer_host']"),
     // Different events might or might not have the same start or duration.
     // Regardless, the values of these fields should be treated as different
     path("content.start", false),

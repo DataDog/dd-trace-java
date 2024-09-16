@@ -2,6 +2,7 @@ package datadog.trace.api.gateway;
 
 import static datadog.trace.api.gateway.Events.DATABASE_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.DATABASE_SQL_QUERY_ID;
+import static datadog.trace.api.gateway.Events.FILE_LOADED_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
@@ -380,6 +381,7 @@ public class InstrumentationGateway {
             };
       case DATABASE_SQL_QUERY_ID:
       case NETWORK_CONNECTION_ID:
+      case FILE_LOADED_ID:
         return (C)
             new BiFunction<RequestContext, String, Flow<Void>>() {
               @Override

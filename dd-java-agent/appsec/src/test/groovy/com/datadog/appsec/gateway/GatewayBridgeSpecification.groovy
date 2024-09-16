@@ -82,6 +82,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiConsumer<RequestContext, String> databaseConnectionCB
   BiFunction<RequestContext, String, Flow<Void>> databaseSqlQueryCB
   BiFunction<RequestContext, String, Flow<Void>> networkConnectionCB
+  BiFunction<RequestContext, String, Flow<Void>> fileLoadedCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -416,6 +417,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.databaseConnection(), _) >> { databaseConnectionCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.databaseSqlQuery(), _) >> { databaseSqlQueryCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.networkConnection(), _) >> { networkConnectionCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.fileLoaded(), _) >> { fileLoadedCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -792,6 +794,26 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
     { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
     bundle.get(KnownAddresses.IO_NET_URL) == url
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == true
+    gatewayContext.isRasp == true
+  }
+
+  void 'process file loaded'() {
+    setup:
+    final path = 'https://www.datadoghq.com/demo/file.txt'
+    eventDispatcher.getDataSubscribers({ KnownAddresses.IO_FS_FILE in it }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = fileLoadedCB.apply(ctx, path)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.IO_FS_FILE) == path
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true
