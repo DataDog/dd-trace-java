@@ -112,7 +112,7 @@ public class DDSpan
    */
   private volatile int longRunningVersion = 0;
 
-  private final List<AgentSpanLink> links;
+  private List<AgentSpanLink> links;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.

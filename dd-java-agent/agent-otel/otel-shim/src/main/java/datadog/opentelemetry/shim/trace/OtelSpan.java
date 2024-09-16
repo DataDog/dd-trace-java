@@ -81,6 +81,20 @@ public class OtelSpan implements Span {
     return this;
   }
 
+  public Span addLink(SpanContext spanContext) {
+    if (spanContext != null && spanContext.isValid() && this.recording) {
+      this.delegate.addLink(new OtelSpanLink(spanContext));
+    }
+    return this;
+  }
+
+  public Span addLink(SpanContext spanContext, Attributes attributes) {
+    if (spanContext != null && spanContext.isValid() && this.recording) {
+      this.delegate.addLink(new OtelSpanLink(spanContext, attributes));
+    }
+    return this;
+  }
+
   @Override
   public Span setStatus(StatusCode statusCode, String description) {
     if (this.recording) {
