@@ -12,7 +12,7 @@ import java.nio.charset.Charset
 
 class JsonParserInstrumentationTest extends AgentTestRunner {
 
-  private final static String JSON_STRING = '{"root":"root_value","nested":{"nested_array":["array_0","array_1"]}}'
+  private final static String JSON_STRING = '{"root":"root_value","nested":["array_0","array_1"]}'
 
   @Override
   protected void configurePreAgent() {
