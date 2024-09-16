@@ -7,8 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ExceptionLogger;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -113,9 +115,20 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class RequestAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
-      return HelperMethods.doMethodEnter(request);
+      try {
+        return HelperMethods.doMethodEnter(request);
+      } catch (BlockingException e) {
+        HelperMethods.onBlockingRequest();
+        // re-throw blocking exceptions
+        throw e;
+      } catch (Throwable e) {
+        // suppress anything else
+        ExceptionLogger.LOGGER.debug(
+            "datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientInstrumentation", e);
+        return null;
+      }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -128,11 +141,22 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class HostRequestAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpHost host,
         @Advice.Argument(1) final ClassicHttpRequest request) {
-      return HelperMethods.doMethodEnter(host, request);
+      try {
+        return HelperMethods.doMethodEnter(host, request);
+      } catch (BlockingException e) {
+        HelperMethods.onBlockingRequest();
+        // re-throw blocking exceptions
+        throw e;
+      } catch (Throwable e) {
+        // suppress anything else
+        ExceptionLogger.LOGGER.debug(
+            "datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientInstrumentation", e);
+        return null;
+      }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -146,7 +170,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   public static class ResponseHandlerAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpHost host,
         @Advice.Argument(1) final ClassicHttpRequest request,
@@ -157,14 +181,25 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
                 typing = Assigner.Typing.DYNAMIC,
                 readOnly = false)
             Object handler) {
-      final AgentScope scope = HelperMethods.doMethodEnter(host, request);
-      // Wrap the handler so we capture the status code
-      if (null != scope && handler instanceof HttpClientResponseHandler) {
-        handler =
-            new WrappingStatusSettingResponseHandler(
-                scope.span(), (HttpClientResponseHandler) handler);
+      try {
+        final AgentScope scope = HelperMethods.doMethodEnter(host, request);
+        // Wrap the handler so we capture the status code
+        if (null != scope && handler instanceof HttpClientResponseHandler) {
+          handler =
+              new WrappingStatusSettingResponseHandler(
+                  scope.span(), (HttpClientResponseHandler) handler);
+        }
+        return scope;
+      } catch (BlockingException e) {
+        HelperMethods.onBlockingRequest();
+        // re-throw blocking exceptions
+        throw e;
+      } catch (Throwable e) {
+        // suppress anything else
+        ExceptionLogger.LOGGER.debug(
+            "datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientInstrumentation", e);
+        return null;
       }
-      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
