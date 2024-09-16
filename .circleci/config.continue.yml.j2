@@ -269,7 +269,9 @@ commands:
           command: |
             git init system-tests
             cd system-tests
-            git remote add origin https://github.com/DataDog/system-tests.git && git checkout conti/fix-php-errors
+            git remote add origin https://github.com/DataDog/system-tests.git
+            git fetch origin
+            git checkout conti/fix-php-errors
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
 
@@ -831,6 +833,12 @@ jobs:
 
       - run:
           name: Run
+          command: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+
+      - run:
+          name: Run IDM Integrations tests
           environment:
             - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
             - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
@@ -838,8 +846,18 @@ jobs:
             - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
           command: |
             cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh INTEGRATIONS
 
+      - run:
+          name: Run IDM Crossed Tracing Libraries propagation tests for messaging
+          environment:
+            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            - AWS_REGION: us-east-1
+            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
+          command: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
 
       - run:
           name: Run APM E2E default tests
