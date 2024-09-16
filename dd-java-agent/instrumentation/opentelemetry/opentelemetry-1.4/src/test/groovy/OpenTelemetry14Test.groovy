@@ -16,12 +16,11 @@ import opentelemetry14.context.propagation.TextMap
 import org.skyscreamer.jsonassert.JSONAssert
 import spock.lang.Subject
 
-import java.util.concurrent.TimeUnit
-
 import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL
 import static datadog.trace.api.DDTags.ERROR_MSG
 import static datadog.trace.api.DDTags.ERROR_STACK
 import static datadog.trace.api.DDTags.ERROR_TYPE
+import static datadog.trace.api.DDTags.SPAN_EVENTS
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER
@@ -35,6 +34,8 @@ import static io.opentelemetry.api.trace.SpanKind.SERVER
 import static io.opentelemetry.api.trace.StatusCode.ERROR
 import static io.opentelemetry.api.trace.StatusCode.OK
 import static io.opentelemetry.api.trace.StatusCode.UNSET
+import static java.util.concurrent.TimeUnit.MILLISECONDS
+import static java.util.concurrent.TimeUnit.NANOSECONDS
 
 class OpenTelemetry14Test extends AgentTestRunner {
   static final TIME_MILLIS = 1723220824705
@@ -182,83 +183,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  def "test add single event"() {
-    setup:
-    def builder = tracer.spanBuilder("some-name")
-
-    when:
-    def result = builder.startSpan()
-    result.addEvent(name, attributes, timestamp, unit)
-    result.end()
-
-    then:
-    long expectTime = timestamp
-    if (unit == TimeUnit.MILLISECONDS) {
-      expectTime *= 1_000_000L
-    }
-
-    def expectedEventTag = """
-    [
-      { "time_unix_nano": ${expectTime},
-        "name": "${name}"
-        ${ expectedAttributes == null ? "" : ", attributes: " + expectedAttributes }
-      }
-    ]"""
-    assertTraces(1) {
-      trace(1) {
-        span {
-          tags {
-            defaultTags()
-            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
-            tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
-          }
-        }
-      }
-    }
-
-    where:
-    name   | timestamp   | unit                  | attributes         | expectedAttributes
-    "evt1" | TIME_MILLIS | TimeUnit.MILLISECONDS | Attributes.empty() | null
-    "evt2" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678).put("boolean-key-true", true).put("boolean-key-false", false).build() | '{ string-key: "string-value", long-key: 123456789, double-key: 1234.5678, boolean-key-true: true, boolean-key-false: false }'
-    "evt3" | TIME_NANO   | TimeUnit.NANOSECONDS  | Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{ string-key-array: [ "string-value1", "string-value2", "string-value3" ], long-key-array: [ 123456, 1234567, 12345678 ], double-key-array: [ 1234.5, 1234.56, 1234.567], boolean-key-array: [true, false, true] }'
-  }
-
-  def "test multiple span events"() {
-    setup:
-    def builder = tracer.spanBuilder("some-name")
-
-    when:
-    def result = builder.startSpan()
-    result.addEvent("evt1", null, TIME_NANO, TimeUnit.NANOSECONDS)
-    result.addEvent("evt2", Attributes.builder().put("string-key", "string-value").build(), TIME_NANO, TimeUnit.NANOSECONDS)
-    result.end()
-
-    then:
-    def expectedAttributes = '{"string-key": "string-value"}'
-    def expectedEventTag = """
-    [
-      { "time_unix_nano": ${TIME_NANO},
-        "name": "evt1"
-      },
-      { "time_unix_nano": ${TIME_NANO},
-        "name": "evt2",
-        ${"attributes: " + expectedAttributes}
-      }
-    ]"""
-    assertTraces(1) {
-      trace(1) {
-        span {
-          tags {
-            defaultTags()
-            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
-            tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
-          }
-        }
-      }
-    }
-  }
-
-  def "test add event no timestamp"() {
+  def "test add event"() {
     setup:
     def builder = tracer.spanBuilder("some-name")
     def timeSource = new ControllableTimeSource()
@@ -267,14 +192,14 @@ class OpenTelemetry14Test extends AgentTestRunner {
 
     when:
     def result = builder.startSpan()
-    result.addEvent("evt", null, )
+    result.addEvent("event")
     result.end()
 
     then:
     def expectedEventTag = """
         [
           { "time_unix_nano": ${timeSource.getCurrentTimeNanos()},
-            "name": "evt"
+            "name": "event"
           }
         ]"""
     assertTraces(1) {
@@ -283,7 +208,78 @@ class OpenTelemetry14Test extends AgentTestRunner {
           tags {
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
-            tag("events", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
+            tag("$SPAN_EVENTS", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
+          }
+        }
+      }
+    }
+  }
+
+  def "test add single event"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+    def expectedEventTag = """
+    [
+      { "time_unix_nano": ${unit.toNanos(timestamp)},
+        "name": "${name}"
+        ${expectedAttributes == null ? "" : ", attributes: " + expectedAttributes}
+      }
+    ]"""
+
+    when:
+    def result = builder.startSpan()
+    result.addEvent(name, attributes, timestamp, unit)
+    result.end()
+
+    then:
+
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("$SPAN_EVENTS", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
+          }
+        }
+      }
+    }
+
+    where:
+    name   | timestamp   | unit         | attributes                                                                                                                                                                                                                                                    | expectedAttributes
+    "event1" | TIME_MILLIS | MILLISECONDS | Attributes.empty()                                                                                                                                                                                                                                            | null
+    "event2" | TIME_NANO   | NANOSECONDS  | Attributes.builder().put("string-key", "string-value").put("long-key", 123456789L).put("double-key", 1234.5678).put("boolean-key-true", true).put("boolean-key-false", false).build()                                                                         | '{"string-key": "string-value", "long-key": 123456789, "double-key": 1234.5678, "boolean-key-true": true, "boolean-key-false": false }'
+    "event3" | TIME_NANO   | NANOSECONDS  | Attributes.builder().put("string-key-array", "string-value1", "string-value2", "string-value3").put("long-key-array", 123456L, 1234567L, 12345678L).put("double-key-array", 1234.5D, 1234.56D, 1234.567D).put("boolean-key-array", true, false, true).build() | '{"string-key-array": [ "string-value1", "string-value2", "string-value3" ], "long-key-array": [ 123456, 1234567, 12345678 ], "double-key-array": [ 1234.5, 1234.56, 1234.567], "boolean-key-array": [true, false, true] }'
+  }
+
+  def "test add multiple span events"() {
+    setup:
+    def builder = tracer.spanBuilder("some-name")
+
+    when:
+    def result = builder.startSpan()
+    result.addEvent("event1", null, TIME_NANO, NANOSECONDS)
+    result.addEvent("event2", Attributes.builder().put("string-key", "string-value").build(), TIME_NANO, NANOSECONDS)
+    result.end()
+
+    then:
+    def expectedEventTag = """
+    [
+      { "time_unix_nano": ${TIME_NANO},
+        "name": "event1"
+      },
+      { "time_unix_nano": ${TIME_NANO},
+        "name": "event2",
+        "attributes": {"string-key": "string-value"}
+      }
+    ]"""
+    assertTraces(1) {
+      trace(1) {
+        span {
+          tags {
+            defaultTags()
+            "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
+            tag("$SPAN_EVENTS", { JSONAssert.assertEquals(expectedEventTag, it as String, false); return true })
           }
         }
       }
@@ -655,7 +651,7 @@ class OpenTelemetry14Test extends AgentTestRunner {
     }
   }
 
-  def "test span record exception event tags"() {
+  def "test span record exception"() {
     setup:
     def result = tracer.spanBuilder("some-name").startSpan()
     def timeSource = new ControllableTimeSource()
@@ -717,22 +713,19 @@ class OpenTelemetry14Test extends AgentTestRunner {
     // Span's "error" tags should reflect the last recorded exception
     setup:
     def result = tracer.spanBuilder("some-name").startSpan()
-    def timeSource = new ControllableTimeSource()
-    timeSource.set(1000)
-    OtelSpanEvent.setTimeSource(timeSource)
     def exception1 = new NullPointerException("Null pointer")
     def exception2 = new NumberFormatException("Number format exception")
+    def expectedStackTrace = OtelSpanEvent.stringifyErrorStack(exception2)
 
     when:
     result.recordException(exception1)
     result.recordException(exception2)
+    result.end()
 
     then:
     result.delegate.getTag(ERROR_MSG) == exception2.getMessage()
     result.delegate.getTag(ERROR_TYPE) == exception2.getClass().getName()
-    final StringWriter errorString = new StringWriter()
-    exception2.printStackTrace(new PrintWriter(errorString))
-    result.delegate.getTag(ERROR_STACK) == errorString.toString()
+    result.delegate.getTag(ERROR_STACK) == expectedStackTrace
     !result.delegate.isError()
   }
 
@@ -779,6 +772,8 @@ class OpenTelemetry14Test extends AgentTestRunner {
     result.updateName("other-name")
     result.setAttribute("string", "other-value")
     result.setStatus(OK)
+    result.addEvent("event")
+    result.recordException(new Throwable())
 
     then:
     assertTraces(1) {

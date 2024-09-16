@@ -22,12 +22,13 @@ public class OtelSpanEvent {
   public static final AttributeKey<String> EXCEPTION_STACK_TRACE_ATTRIBUTE_KEY =
       AttributeKey.stringKey("exception.stacktrace");
 
-  /** Event timestamp in nanoseconds. */
-  private final long timestamp;
-  private final String name;
-  private final String attributes;
   // TODO TimeSource instance is not retrieved from CoreTracer
   private static TimeSource timeSource = SystemTimeSource.INSTANCE;
+
+  private final String name;
+  private final String attributes;
+  /** Event timestamp in nanoseconds. */
+  private final long timestamp;
 
   public OtelSpanEvent(String name, Attributes attributes) {
     this.name = name;
