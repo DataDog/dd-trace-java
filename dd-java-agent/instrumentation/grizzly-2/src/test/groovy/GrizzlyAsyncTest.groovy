@@ -1,4 +1,5 @@
 import datadog.appsec.api.blocking.Blocking
+import org.glassfish.grizzly.http.server.Request
 
 import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
@@ -6,11 +7,13 @@ import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.AsyncResponse
 import javax.ws.rs.container.Suspended
+import javax.ws.rs.core.Context
 import javax.ws.rs.core.Response
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -115,6 +118,21 @@ class GrizzlyAsyncTest extends GrizzlyTest {
         try {
           controller(EXCEPTION) {
             throw new Exception(EXCEPTION.body)
+          }
+        } catch (Exception e) {
+          ar.resume(e)
+        }
+      }
+    }
+
+    @GET
+    @Path("session")
+    Response session(@Context Request request, @Suspended AsyncResponse ar) {
+      executor.execute {
+        try {
+          controller(SESSION_ID) {
+            final session = request.getSession(true)
+            ar.resume(Response.status(SESSION_ID.status).entity(session.idInternal).build())
           }
         } catch (Exception e) {
           ar.resume(e)

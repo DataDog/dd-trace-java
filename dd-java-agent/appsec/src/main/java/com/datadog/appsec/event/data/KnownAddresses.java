@@ -125,13 +125,13 @@ public interface KnownAddresses {
   /** The SQL query being executed */
   Address<String> DB_SQL_QUERY = new Address<>("server.db.statement");
 
-  Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
-
   /** Login failure business event */
   Address<String> LOGIN_FAILURE = new Address<>("server.business_logic.users.login.failure");
 
   /** Login success business event */
   Address<String> LOGIN_SUCCESS = new Address<>("server.business_logic.users.login.success");
+
+  Address<Map<String, Object>> WAF_CONTEXT_PROCESSOR = new Address<>("waf.context.processor");
 
   static Address<?> forName(String name) {
     switch (name) {
