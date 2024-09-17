@@ -563,20 +563,6 @@ public class CapturedContextInstrumentor extends Instrumentor {
     LocalVariableNode previousVarBySlot = localVarsBySlot.putIfAbsent(localVar.index, localVar);
     LocalVariableNode previousVarByName = localVarsByName.putIfAbsent(localVar.name, localVar);
     if (previousVarBySlot != null) {
-      if (previousVarBySlot.name.equals(localVar.name)) {
-        // there are multiple local variables with the same name and slot
-        // we cannot hoist the 2 variables
-        reportWarning(
-            "Local variable "
-                + localVar.name
-                + " has multiple definitions with the same name and slot: "
-                + previousVarBySlot.name
-                + " and "
-                + localVar.name);
-        // remove name from hoistable
-        hoistableVarByName.remove(localVar.name);
-        return; // no need to test previousVarByName, we know it is the same
-      }
       // there are multiple local variables with the same slot but different names
       // by hoisting in a new slot, we can avoid the conflict
       hoistableVarByName.computeIfAbsent(localVar.name, k -> new ArrayList<>()).add(localVar);

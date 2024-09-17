@@ -1823,11 +1823,12 @@ public class CapturedSnapshotTest {
     //        0      79     0  this   Lcom/datadog/debugger/CapturedSnapshot31;
     //        0      79     1   arg   Ljava/lang/String;
     //        2      77     2 localVarL0   I
-    assertEquals(5, snapshot.getCaptures().getReturn().getLocals().size());
+    assertEquals(6, snapshot.getCaptures().getReturn().getLocals().size());
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL0", "int", "0");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL1", "int", "1");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL2", "int", "2");
     assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL3", "int", "3");
+    assertCaptureLocals(snapshot.getCaptures().getReturn(), "localVarL4", "int", "4");
   }
 
   @Test
@@ -1842,8 +1843,26 @@ public class CapturedSnapshotTest {
     int result = Reflect.onClass(testClass).call("main", "illegalState").get();
     assertEquals(0, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    // no local vars captured for the exception
-    assertEquals(1, snapshot.getCaptures().getReturn().getLocals().size());
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    Map<String, String> expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "state");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(),
+        "ex",
+        IllegalStateException.class.getTypeName(),
+        expectedFields);
+    listener.snapshots.clear();
+    result = Reflect.onClass(testClass).call("main", "illegalArgument").get();
+    assertEquals(0, result);
+    snapshot = assertOneSnapshot(listener);
+    assertEquals(2, snapshot.getCaptures().getReturn().getLocals().size());
+    expectedFields = new HashMap<>();
+    expectedFields.put("detailMessage", "argument");
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(),
+        "ex",
+        IllegalArgumentException.class.getTypeName(),
+        expectedFields);
   }
 
   @Test
@@ -1876,6 +1895,8 @@ public class CapturedSnapshotTest {
     int result = Reflect.onClass(testClass).call("main", "duplicateLocalDifferentScope").get();
     assertEquals(28, result);
     Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureLocals(
+        snapshot.getCaptures().getReturn(), "ch", Character.TYPE.getTypeName(), "e");
   }
 
   @Test
