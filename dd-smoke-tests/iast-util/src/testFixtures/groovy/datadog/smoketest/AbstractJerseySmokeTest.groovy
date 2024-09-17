@@ -63,7 +63,7 @@ class AbstractJerseySmokeTest extends AbstractIastServerSmokeTest {
     assert response.code() == 200
     hasTainted { tainted ->
       tainted.value == 'pepito' &&
-        tainted.ranges[0].source.name == 'X-Custom-header' &&
+        tainted.ranges[0].source.name.equalsIgnoreCase('X-Custom-header') &&
         tainted.ranges[0].source.origin == 'http.request.header'
     }
   }
