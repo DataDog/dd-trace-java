@@ -5,7 +5,6 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.core.CoreTracer
-import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.core.DDSpan
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
