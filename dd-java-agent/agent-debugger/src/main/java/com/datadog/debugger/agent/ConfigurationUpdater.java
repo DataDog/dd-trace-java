@@ -201,11 +201,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       return;
     }
     instrumentationResults.put(definition.getProbeId().getEncodedId(), instrumentationResult);
-    if (instrumentationResult.isInstalled()) {
-      sink.addInstalled(definition.getProbeId());
-    } else if (instrumentationResult.isBlocked()) {
-      sink.addBlocked(definition.getProbeId());
-    }
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
