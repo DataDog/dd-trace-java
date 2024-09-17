@@ -16,49 +16,60 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import java.util.List;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class AbstractFormProviderInstrumentation extends InstrumenterModule.Iast
+public class ContainerRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType {
 
-  public AbstractFormProviderInstrumentation() {
+  public ContainerRequestInstrumentation() {
     super("jersey");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    String baseName = ContainerRequestInstrumentation.class.getName();
     transformer.applyAdvice(
-        named("readFrom").and(isPublic()).and(takesArguments(4)),
-        AbstractFormProviderInstrumentation.class.getName() + "$InstrumenterAdvice");
+        named("setProperty").and(isPublic()).and(takesArguments(String.class, Object.class)),
+        baseName + "$SetPropertyAdvice");
   }
 
   @Override
   public String instrumentedType() {
-    return "org.glassfish.jersey.message.internal.AbstractFormProvider";
+    return "org.glassfish.jersey.server.ContainerRequest";
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".JerseyTaintHelper",
+    };
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class InstrumenterAdvice {
+  public static class SetPropertyAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
-        @Advice.Return Map<String, List<String>> result,
+        @Advice.Argument(0) String name,
+        @Advice.Argument(1) Object value,
         @ActiveRequestContext RequestContext reqCtx) {
-      final PropagationModule prop = InstrumentationBridge.PROPAGATION;
-      if (prop == null || result == null || result.isEmpty()) {
+
+      if (!"jersey.config.server.representation.decoded.form".equals(name)
+          && !"jersey.config.server.representation.form".equals(name)) {
         return;
       }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      for (Map.Entry<String, List<String>> entry : result.entrySet()) {
-        final String name = entry.getKey();
-        prop.taintString(ctx, name, SourceTypes.REQUEST_PARAMETER_NAME, name);
-        for (String value : entry.getValue()) {
-          prop.taintString(ctx, value, SourceTypes.REQUEST_PARAMETER_VALUE, name);
-        }
+
+      final PropagationModule prop = InstrumentationBridge.PROPAGATION;
+      if (prop == null) {
+        return;
       }
+
+      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+      if (prop.isTainted(ctx, value)) {
+        return;
+      }
+      prop.taintObject(ctx, value, SourceTypes.REQUEST_BODY);
     }
   }
 }
