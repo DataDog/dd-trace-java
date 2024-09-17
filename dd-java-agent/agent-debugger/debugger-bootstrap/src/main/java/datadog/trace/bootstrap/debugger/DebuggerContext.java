@@ -67,8 +67,8 @@ public class DebuggerContext {
     void handleException(Throwable t, AgentSpan span);
   }
 
-  public interface SpanDebugger {
-    String captureSnapshot(String signature);
+  public interface CodeOriginRecorder {
+    String captureCodeOrigin(String signature);
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -77,7 +77,7 @@ public class DebuggerContext {
   private static volatile Tracer tracer;
   private static volatile ValueSerializer valueSerializer;
   private static volatile ExceptionDebugger exceptionDebugger;
-  private static volatile SpanDebugger spanDebugger;
+  private static volatile CodeOriginRecorder codeOriginRecorder;
 
   public static void initProbeResolver(ProbeResolver probeResolver) {
     DebuggerContext.probeResolver = probeResolver;
@@ -103,8 +103,8 @@ public class DebuggerContext {
     DebuggerContext.exceptionDebugger = exceptionDebugger;
   }
 
-  public static void initSpanDebugger(SpanDebugger spanDebugger) {
-    DebuggerContext.spanDebugger = spanDebugger;
+  public static void initCodeOrigin(CodeOriginRecorder codeOriginRecorder) {
+    DebuggerContext.codeOriginRecorder = codeOriginRecorder;
   }
 
   /**
@@ -342,14 +342,14 @@ public class DebuggerContext {
     }
   }
 
-  public static String captureSnapshot(String signature) {
+  public static String captureCodeOrigin(String signature) {
     try {
-      SpanDebugger debugger = spanDebugger;
-      if (debugger != null) {
-        return debugger.captureSnapshot(signature);
+      CodeOriginRecorder recorder = codeOriginRecorder;
+      if (recorder != null) {
+        return recorder.captureCodeOrigin(signature);
       }
     } catch (Exception ex) {
-      LOGGER.debug("Error in addSnapshot: ", ex);
+      LOGGER.debug("Error in captureCodeOrigin: ", ex);
     }
     return null;
   }

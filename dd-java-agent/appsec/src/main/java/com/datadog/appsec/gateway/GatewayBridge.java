@@ -85,6 +85,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo requestEndSubInfo;
   private volatile DataSubscriberInfo dbSqlQuerySubInfo;
   private volatile DataSubscriberInfo ioNetUrlSubInfo;
+  private volatile DataSubscriberInfo ioFileSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -124,6 +125,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.databaseConnection(), this::onDatabaseConnection);
     subscriptionService.registerCallback(EVENTS.databaseSqlQuery(), this::onDatabaseSqlQuery);
     subscriptionService.registerCallback(EVENTS.networkConnection(), this::onNetworkConnection);
+    subscriptionService.registerCallback(EVENTS.fileLoaded(), this::onFileLoaded);
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -155,6 +157,31 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         ioNetUrlSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onFileLoaded(RequestContext ctx_, String path) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = ioFileSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.IO_FS_FILE);
+        ioFileSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.IO_FS_FILE, path).build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.LFI);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        ioFileSubInfo = null;
       }
     }
   }

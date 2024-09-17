@@ -5,7 +5,7 @@ muzzle {
   pass {
     group = 'org.scalameta'
     module = 'munit_2.13'
-    versions = '[0.7.28,1.0.0]'
+    versions = '[0.7.28,)'
   }
 }
 
@@ -28,10 +28,7 @@ dependencies {
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.13.10'
   testImplementation group: 'org.scalameta', name: 'munit_2.13', version: '0.7.28'
 
-  // latest version as of august 2024 is 1.0.1, but that version changes which notifications are sent when a test is skipped,
-  // making the tests fail. See https://github.com/scalameta/munit/issues/813 and https://github.com/DataDog/dd-trace-java/pull/7502/commits/ecda25e
-  // TODO replace the fixed version with '+' once the github issue is resolved OR the code/tests are updated to accept the new behavior.
-  latestDepTestImplementation group: 'org.scalameta', name: 'munit_2.13', version: '1.0.0'
+  latestDepTestImplementation group: 'org.scalameta', name: 'munit_2.13', version: '+'
 }
 
 compileTestGroovy {

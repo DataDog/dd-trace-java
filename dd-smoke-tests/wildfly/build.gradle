@@ -103,6 +103,10 @@ tasks.register("unzip", Copy) {
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
+tasks.withType(Jar).configureEach {
+  dependsOn tasks.unzip
+}
+
 tasks.register("deploy", Copy) {
   dependsOn tasks.unzip
   from "${appBuildDir}/libs/wildfly-spring-ear-smoketest.ear"

@@ -117,6 +117,9 @@ public final class PreparedStatementInstrumentation extends AbstractPreparedStat
     "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.JdbcCallableStatement",
     // IBM Informix
     "com.informix.jdbc.IfxPreparedStatement",
+    // Intersystems IRIS
+    "com.intersystems.jdbc.IRISPreparedStatement",
+    "com.intersystems.jdbc.IRISCallableStatement",
     // for testing purposes
     "test.TestPreparedStatement"
   };

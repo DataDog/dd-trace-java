@@ -403,6 +403,7 @@ public class PowerWAFModule implements AppSecModule {
     addressList.add(KnownAddresses.DB_TYPE);
     addressList.add(KnownAddresses.DB_SQL_QUERY);
     addressList.add(KnownAddresses.IO_NET_URL);
+    addressList.add(KnownAddresses.IO_FS_FILE);
 
     return addressList;
   }

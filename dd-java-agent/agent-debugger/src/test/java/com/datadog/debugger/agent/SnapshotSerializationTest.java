@@ -55,6 +55,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -299,6 +302,9 @@ public class SnapshotSerializationTest {
     URI uri = URI.create("https://www.datadoghq.com");
     Optional<Date> maybeDate = Optional.of(new Date());
     Optional<Object> empty = Optional.empty();
+    OptionalInt maybeInt = OptionalInt.of(42);
+    OptionalDouble maybeDouble = OptionalDouble.of(3.14);
+    OptionalLong maybeLong = OptionalLong.of(84);
     Exception ex = new IllegalArgumentException("invalid arg");
     StackTraceElement element = new StackTraceElement("Foo", "bar", "foo.java", 42);
   }
@@ -335,17 +341,35 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(objLocalFields, "atomicLong", AtomicLong.class.getTypeName(), "123");
     assertPrimitiveValue(
         objLocalFields, "uri", URI.class.getTypeName(), "https://www.datadoghq.com");
+    // maybeDate
     Map<String, Object> maybeDate = (Map<String, Object>) objLocalFields.get("maybeDate");
     assertComplexClass(maybeDate, Optional.class.getTypeName());
-    Map<String, Object> maybeUiidFields = (Map<String, Object>) maybeDate.get(FIELDS);
-    Map<String, Object> value = (Map<String, Object>) maybeUiidFields.get("value");
+    Map<String, Object> maybeDateFields = (Map<String, Object>) maybeDate.get(FIELDS);
+    Map<String, Object> value = (Map<String, Object>) maybeDateFields.get("value");
     assertComplexClass(value, Date.class.getTypeName());
+    // empty
     Map<String, Object> empty = (Map<String, Object>) objLocalFields.get("empty");
     assertComplexClass(empty, Optional.class.getTypeName());
     Map<String, Object> emptyFields = (Map<String, Object>) empty.get(FIELDS);
     value = (Map<String, Object>) emptyFields.get("value");
     assertEquals(Object.class.getTypeName(), value.get(TYPE));
     assertTrue((Boolean) value.get(IS_NULL));
+    // maybeInt
+    Map<String, Object> maybeInt = (Map<String, Object>) objLocalFields.get("maybeInt");
+    assertComplexClass(maybeInt, OptionalInt.class.getTypeName());
+    Map<String, Object> maybeIntFields = (Map<String, Object>) maybeInt.get(FIELDS);
+    assertPrimitiveValue(maybeIntFields, "value", "int", "42");
+    // maybeDouble
+    Map<String, Object> maybeDouble = (Map<String, Object>) objLocalFields.get("maybeDouble");
+    assertComplexClass(maybeDouble, OptionalDouble.class.getTypeName());
+    Map<String, Object> maybeDoubleFields = (Map<String, Object>) maybeDouble.get(FIELDS);
+    assertPrimitiveValue(maybeDoubleFields, "value", "double", "3.14");
+    // maybeLong
+    Map<String, Object> maybeLong = (Map<String, Object>) objLocalFields.get("maybeLong");
+    assertComplexClass(maybeLong, OptionalLong.class.getTypeName());
+    Map<String, Object> maybeLongFields = (Map<String, Object>) maybeLong.get(FIELDS);
+    assertPrimitiveValue(maybeLongFields, "value", "long", "84");
+    // ex
     Map<String, Object> ex = (Map<String, Object>) objLocalFields.get("ex");
     assertComplexClass(ex, IllegalArgumentException.class.getTypeName());
     Map<String, Object> exFields = (Map<String, Object>) ex.get(FIELDS);
