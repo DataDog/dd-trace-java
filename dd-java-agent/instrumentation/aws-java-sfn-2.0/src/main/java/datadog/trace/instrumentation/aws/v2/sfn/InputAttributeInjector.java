@@ -6,7 +6,7 @@ public class InputAttributeInjector {
   public static String buildTraceContext(AgentSpan span) {
     // Extract span tags
     StringBuilder spanTagsJSON = new StringBuilder();
-    spanTagsJSON.append("{");
+    spanTagsJSON.append('{');
     span.getTags()
         .forEach(
             (tagKey, tagValue) ->
@@ -17,7 +17,7 @@ public class InputAttributeInjector {
                     .append(tagValue)
                     .append("\","));
     spanTagsJSON.setLength(spanTagsJSON.length() - 1); // remove trailing comma
-    spanTagsJSON.append("}");
+    spanTagsJSON.append('}');
 
     // Build DD trace context object
     String ddTraceContextJSON =
