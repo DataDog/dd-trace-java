@@ -62,6 +62,41 @@ class LambdaHandlerTest extends DDCoreSpecification {
     "1234"     | 2                     | new TestObject()
   }
 
+  def "test start invocation with 128 bit trace ID"() {
+    given:
+    Config config = Mock(Config)
+    config.getxDatadogTagsMaxLength() >> 512
+    CoreTracer ct = CoreTracer.builder().config(config).build()
+
+    def server = httpServer {
+      handlers {
+        post("/lambda/start-invocation") {
+          response
+            .status(200)
+            .addHeader("x-datadog-trace-id", "5744042798732701615")
+            .addHeader("x-datadog-sampling-priority", "2")
+            .addHeader("x-datadog-tags", "_dd.p.tid=1914fe7789eb32be")
+            .send()
+        }
+      }
+    }
+    LambdaHandler.setExtensionBaseUrl(server.address.toString())
+
+    when:
+    def objTest = LambdaHandler.notifyStartInvocation(ct, obj)
+
+    then:
+    objTest.getTraceId().toString() == traceId
+    objTest.getSamplingPriority() == samplingPriority
+
+    cleanup:
+    server.close()
+
+    where:
+    traceId                                      | samplingPriority      | obj
+    "33339707034668043638992915224308903855"     | 2                     | new TestObject()
+  }
+
   def "test start invocation failure"() {
     given:
     Config config = Mock(Config)
