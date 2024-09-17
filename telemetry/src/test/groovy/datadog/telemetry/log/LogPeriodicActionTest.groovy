@@ -138,14 +138,55 @@ class LogPeriodicActionTest extends DDSpecification {
       "  at (redacted: 2 frames)\n"
   }
 
+  void 'stacktrace with multiple frames and common frames'() {
+    LogMessage logMessage
+
+    given:
+    final t = throwable("exception", stacktrace(
+      frame(""),
+      frame("datadog.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("mycorp.MyClass"),
+      ), throwable("exception 2", stacktrace(
+      frame("java.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("datadog.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("mycorp.MyClass"),
+      )))
+
+    when:
+    LogCollector.get().addLogMessage(LogMessageLevel.ERROR.toString(), "test", t)
+    periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
+    0 * _
+    logMessage.getMessage() == 'test'
+    logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
+      "  at (redacted)\n" +
+      "  at datadog.MyClass.method(file:42)\n" +
+      "  at (redacted: 2 frames)\n" +
+      "Caused by: ${MutableException.canonicalName}\n" +
+      "  at java.MyClass.method(file:42)\n" +
+      "  at (redacted)\n" +
+      "  ... 3 more\n"
+  }
+
   static class MutableException extends Exception {
-    MutableException(String message) {
-      super(message, null, true, true)
+    MutableException(String message, Throwable cause) {
+      super(message, cause, true, true)
     }
   }
 
   static Throwable throwable(String message, StackTraceElement[] stacktrace) {
-    final MutableException t = new MutableException(message)
+    final MutableException t = new MutableException(message, null)
+    t.setStackTrace(stacktrace)
+    return t
+  }
+
+  static Throwable throwable(String message, StackTraceElement[] stacktrace, Throwable cause) {
+    final MutableException t = new MutableException(message, cause)
     t.setStackTrace(stacktrace)
     return t
   }

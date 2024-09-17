@@ -15,7 +15,15 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
    * as a filter)
    */
   static final String[] PACKAGE_ALLOW_LIST = {
-    "datadog.", "com.datadog.", "java.", "javax.", "jakarta.", "jdk.", "sun.", "com.sun."
+    "datadog.",
+    "com.datadog.",
+    "java.",
+    "javax.",
+    "jakarta.",
+    "jdk.",
+    "sun.",
+    "com.sun.",
+    "io.sqreen.powerwaf."
   };
 
   private static final String UNKNOWN = "<unknown>";
@@ -45,41 +53,77 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
   private static String renderStackTrace(Throwable t) {
     StringBuilder result = new StringBuilder();
 
-    String name = t.getClass().getCanonicalName();
-    if (name == null || name.isEmpty()) {
-      result.append(UNKNOWN);
-    } else {
-      result.append(name);
-    }
+    StackTraceElement[] previousStackTrace = null;
 
-    if (isDataDogCode(t)) {
-      String msg = t.getMessage();
-      result.append(": ");
-      if (msg == null || msg.isEmpty()) {
+    while (t != null) {
+      String name = t.getClass().getCanonicalName();
+      if (name == null || name.isEmpty()) {
         result.append(UNKNOWN);
       } else {
-        result.append(msg);
+        result.append(name);
       }
-    }
-    result.append('\n');
 
-    final StackTraceElement[] stacktrace = t.getStackTrace();
-    int pendingRedacted = 0;
-    if (stacktrace != null) {
-      for (final StackTraceElement frame : t.getStackTrace()) {
-        final String className = frame.getClassName();
-        if (shouldRedactClass(className)) {
-          pendingRedacted++;
+      if (isDataDogCode(t)) {
+        String msg = t.getMessage();
+        result.append(": ");
+        if (msg == null || msg.isEmpty()) {
+          result.append(UNKNOWN);
         } else {
-          writePendingRedacted(result, pendingRedacted);
-          pendingRedacted = 0;
-          result.append("  at ").append(frame).append('\n');
+          result.append(msg);
         }
       }
+      result.append('\n');
+
+      final StackTraceElement[] stacktrace = t.getStackTrace();
+      int pendingRedacted = 0;
+      if (stacktrace != null) {
+        int commonFrames = 0;
+        if (previousStackTrace != null) {
+          commonFrames = countCommonFrames(previousStackTrace, stacktrace);
+        }
+        int maxIndex = stacktrace.length - commonFrames;
+
+        for (int i = 0; i < maxIndex; i++) {
+          final StackTraceElement frame = stacktrace[i];
+          final String className = frame.getClassName();
+          if (shouldRedactClass(className)) {
+            pendingRedacted++;
+          } else {
+            writePendingRedacted(result, pendingRedacted);
+            pendingRedacted = 0;
+            result.append("  at ").append(frame).append('\n');
+          }
+        }
+        writePendingRedacted(result, pendingRedacted);
+
+        if (commonFrames > 0) {
+          result.append("  ... ").append(commonFrames).append(" more\n");
+        }
+      }
+
+      previousStackTrace = stacktrace;
+      t = t.getCause();
+      if (t != null) {
+        result.append("Caused by: ");
+      }
     }
-    writePendingRedacted(result, pendingRedacted);
 
     return result.toString();
+  }
+
+  private static int countCommonFrames(
+      StackTraceElement[] previousStackTrace, StackTraceElement[] currentStackTrace) {
+    int previousIndex = previousStackTrace.length - 1;
+    int currentIndex = currentStackTrace.length - 1;
+    int count = 0;
+    while (previousIndex >= 0
+        && currentIndex >= 0
+        && previousStackTrace[previousIndex].equals(currentStackTrace[currentIndex])) {
+      count++;
+      previousIndex--;
+      currentIndex--;
+    }
+    return count;
   }
 
   private static boolean isDataDogCode(Throwable t) {
@@ -91,7 +135,9 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
     if (cn.isEmpty()) {
       return false;
     }
-    return cn.startsWith("datadog.") || cn.startsWith("com.datadog.");
+    return cn.startsWith("datadog.")
+        || cn.startsWith("com.datadog.")
+        || cn.startsWith("io.sqreen.powerwaf.");
   }
 
   private static boolean shouldRedactClass(final String className) {
