@@ -7,8 +7,10 @@ import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.eventbridge.EventBridgeAsyncClient
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry
+import software.amazon.awssdk.services.eventbridge.model.PutEventsResponse
 import software.amazon.awssdk.services.eventbridge.model.Target
 import software.amazon.awssdk.services.sns.SnsClient
 import software.amazon.awssdk.services.sqs.SqsClient
@@ -16,6 +18,7 @@ import software.amazon.awssdk.services.sqs.model.QueueAttributeName
 import spock.lang.Shared
 
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 
 class EventBridgeClientTest extends AgentTestRunner {
   static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack"))
@@ -29,6 +32,7 @@ class EventBridgeClientTest extends AgentTestRunner {
   @Shared String testTopicName
 
   @Shared EventBridgeClient eventBridgeClient
+  @Shared EventBridgeAsyncClient eventBridgeAsyncClient
   @Shared String testBusARN
   @Shared String testBusName
   @Shared String testRuleName
@@ -42,6 +46,12 @@ class EventBridgeClientTest extends AgentTestRunner {
     def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
 
     eventBridgeClient = EventBridgeClient.builder()
+      .endpointOverride(URI.create(endPoint))
+      .region(Region.of("us-east-1"))
+      .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
+      .build()
+
+    eventBridgeAsyncClient = EventBridgeAsyncClient.builder()
       .endpointOverride(URI.create(endPoint))
       .region(Region.of("us-east-1"))
       .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
@@ -92,6 +102,10 @@ class EventBridgeClientTest extends AgentTestRunner {
     }
   }
 
+  def setup() {
+    sqsClient.purgeQueue { it.queueUrl(testQueueURL) }
+  }
+
   def cleanupSpec() {
     LOCALSTACK.stop()
   }
@@ -103,10 +117,7 @@ class EventBridgeClientTest extends AgentTestRunner {
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true")
   }
 
-  def "trace details propagated via EventBridge to SQS"() {
-    setup:
-    sqsClient.purgeQueue { it.queueUrl(testQueueURL) }
-
+  def "trace details propagated via EventBridge to SQS (sync)"() {
     when:
     TEST_WRITER.clear()
     eventBridgeClient.putEvents { req ->
@@ -152,10 +163,52 @@ class EventBridgeClientTest extends AgentTestRunner {
     assert messageBody["detail-type"] == "test"
   }
 
-  def "trace details propagated via EventBridge to SNS"() {
-    setup:
-    sqsClient.purgeQueue { it.queueUrl(testQueueURL) }
+  def "trace details propagated via EventBridge to SQS (async)"() {
+    when:
+    TEST_WRITER.clear()
+    CompletableFuture<PutEventsResponse> futureResponse = eventBridgeAsyncClient.putEvents { req ->
+      req.entries(
+        PutEventsRequestEntry.builder()
+        .source("com.example")
+        .detailType("test-async")
+        .detail('{"message":"async-text"}')
+        .eventBusName(testBusARN)
+        .build()
+        )
+    }
+    futureResponse.get() // Wait for async operation to complete
 
+    def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)
+    def messageBody = new JsonSlurper().parseText(message.body())
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName "java-aws-sdk"
+          operationName "aws.http"
+          resourceName "EventBridge.PutEvents"
+          spanType DDSpanTypes.HTTP_CLIENT
+        }
+      }
+    }
+
+    def detail = messageBody["detail"]
+    assert detail instanceof Map
+    assert detail["message"] == "async-text"
+
+    def traceContext = detail["_datadog"]
+    assert traceContext["x-datadog-trace-id"].toString().isNumber()
+    assert traceContext["x-datadog-parent-id"].toString().isNumber()
+    assert traceContext["x-datadog-sampling-priority"] == "1"
+    assert traceContext["x-datadog-sent-timestamp"] != null
+    assert traceContext["x-datadog-bus-name"] != null
+
+    assert messageBody["source"] == "com.example"
+    assert messageBody["detail-type"] == "test-async"
+  }
+
+  def "trace details propagated via EventBridge to SNS"() {
     when:
     TEST_WRITER.clear()
     eventBridgeClient.putEvents { req ->
@@ -184,10 +237,7 @@ class EventBridgeClientTest extends AgentTestRunner {
     }
   }
 
-  def "test sending multiple events in a single PutEvents request"() {
-    setup:
-    sqsClient.purgeQueue { it.queueUrl(testQueueURL) }
-
+  def "test sending multiple events in a single PutEvents request (sync)"() {
     when:
     TEST_WRITER.clear()
     eventBridgeClient.putEvents { req ->
@@ -231,10 +281,52 @@ class EventBridgeClientTest extends AgentTestRunner {
     }
   }
 
-  def "test with nested details"() {
-    setup:
-    sqsClient.purgeQueue { it.queueUrl(testQueueURL) }
+  def "test sending multiple events in a single PutEvents request (async)"() {
+    when:
+    TEST_WRITER.clear()
+    CompletableFuture<PutEventsResponse> futureResponse = eventBridgeAsyncClient.putEvents { req ->
+      req.entries(
+        PutEventsRequestEntry.builder()
+        .source("com.example")
+        .detailType("test1-async")
+        .detail('{"message":"event1-async"}')
+        .eventBusName(testBusARN)
+        .build(),
+        PutEventsRequestEntry.builder()
+        .source("com.example")
+        .detailType("test2-async")
+        .detail('{"message":"event2-async"}')
+        .eventBusName(testBusARN)
+        .build()
+        )
+    }
+    futureResponse.get() // Wait for async operation to complete
 
+    def messages = sqsClient.receiveMessage { it.queueUrl(testQueueURL).maxNumberOfMessages(2).waitTimeSeconds(5) }.messages()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName "java-aws-sdk"
+          operationName "aws.http"
+          resourceName "EventBridge.PutEvents"
+          spanType DDSpanTypes.HTTP_CLIENT
+        }
+      }
+    }
+
+    assert messages.size() == 2
+    messages.every { message ->
+      def body = new JsonSlurper().parseText(message.body())
+      body["detail"]["message"].toString().contains("event") &&
+        body["detail"]["_datadog"] != null &&
+        body["detail"]["_datadog"]["x-datadog-trace-id"] != null &&
+        body["detail"]["_datadog"]["x-datadog-parent-id"] != null
+    }
+  }
+
+  def "test with nested details"() {
     when:
     TEST_WRITER.clear()
     eventBridgeClient.putEvents { req ->
@@ -274,7 +366,6 @@ class EventBridgeClientTest extends AgentTestRunner {
 
   def "test behavior when data streams are disabled"() {
     setup:
-    sqsClient.purgeQueue { it.queueUrl(testQueueURL) }
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "false")
 
     when:
@@ -315,9 +406,6 @@ class EventBridgeClientTest extends AgentTestRunner {
   }
 
   def "test behavior with empty detail fields"() {
-    setup:
-    sqsClient.purgeQueue { it.queueUrl(testQueueURL) }
-
     when:
     TEST_WRITER.clear()
     eventBridgeClient.putEvents { req ->

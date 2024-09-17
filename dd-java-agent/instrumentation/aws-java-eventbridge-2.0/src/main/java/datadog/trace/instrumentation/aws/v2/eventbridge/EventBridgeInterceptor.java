@@ -8,7 +8,6 @@ import static datadog.trace.core.datastreams.TagsProcessor.DIRECTION_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
 import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdapter.SETTER;
 
-import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
@@ -87,7 +86,8 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     jsonBuilder.append('{');
 
     // Inject trace context
-    propagate().inject(span, jsonBuilder, SETTER, TracePropagationStyle.DATADOG);
+    propagate().inject(span, jsonBuilder, SETTER);
+
     if (traceConfig().isDataStreamsEnabled()) {
       propagate().injectPathwayContext(span, jsonBuilder, SETTER, getTags(eventBusName));
     }
