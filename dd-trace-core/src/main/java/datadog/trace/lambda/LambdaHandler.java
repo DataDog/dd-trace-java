@@ -10,6 +10,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.core.CoreTracer;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import java.io.ByteArrayInputStream;
@@ -73,6 +74,35 @@ public class LambdaHandler {
           .adapter(Object.class);
 
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
+
+  public static AgentSpan.Context notifyStartInvocation(CoreTracer tracer, Object event) {
+    RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
+    try (Response response =
+        HTTP_CLIENT
+            .newCall(
+                new Request.Builder()
+                    .url(EXTENSION_BASE_URL + START_INVOCATION)
+                    .addHeader(DATADOG_META_LANG, "java")
+                    .post(body)
+                    .build())
+            .execute()) {
+      if (response.isSuccessful()) {
+
+        return tracer
+            .propagate()
+            .extract(
+                response.headers(),
+                (carrier, classifier) -> {
+                  for (String headerName : carrier.names()) {
+                    classifier.accept(headerName, carrier.get(headerName));
+                  }
+                });
+      }
+    } catch (Throwable ignored) {
+      log.error("could not reach the extension");
+    }
+    return null;
+  }
 
   public static AgentSpan.Context notifyStartInvocation(
       Object event, PropagationTags.Factory propagationTagsFactory) {
