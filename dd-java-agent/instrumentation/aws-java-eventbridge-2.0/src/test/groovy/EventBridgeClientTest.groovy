@@ -27,19 +27,30 @@ class EventBridgeClientTest extends AgentTestRunner {
   .withReuse(true)
   .withStartupTimeout(Duration.ofSeconds(120))
 
-  @Shared SnsClient snsClient
-  @Shared String testTopicARN
-  @Shared String testTopicName
+  @Shared
+  SnsClient snsClient
+  @Shared
+  String testTopicARN
+  @Shared
+  String testTopicName
 
-  @Shared EventBridgeClient eventBridgeClient
-  @Shared EventBridgeAsyncClient eventBridgeAsyncClient
-  @Shared String testBusARN
-  @Shared String testBusName
-  @Shared String testRuleName
+  @Shared
+  EventBridgeClient eventBridgeClient
+  @Shared
+  EventBridgeAsyncClient eventBridgeAsyncClient
+  @Shared
+  String testBusARN
+  @Shared
+  String testBusName
+  @Shared
+  String testRuleName
 
-  @Shared SqsClient sqsClient
-  @Shared String testQueueURL
-  @Shared String testQueueARN
+  @Shared
+  SqsClient sqsClient
+  @Shared
+  String testQueueURL
+  @Shared
+  String testQueueARN
 
   def setupSpec() {
     LOCALSTACK.start()
@@ -115,6 +126,9 @@ class EventBridgeClientTest extends AgentTestRunner {
     super.configurePreAgent()
     injectSysConfig(GeneralConfig.SERVICE_NAME, "eventbridge")
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, "true")
+
+    // test propagation styles
+    injectSysConfig('dd.trace.propagation.style', 'datadog,b3single,b3multi,haystack,xray,tracecontext')
   }
 
   def "trace details propagated via EventBridge to SQS (sync)"() {
@@ -442,5 +456,43 @@ class EventBridgeClientTest extends AgentTestRunner {
     assert emptyDetailBody["detail"]["_datadog"]["x-datadog-parent-id"] != null
     assert emptyDetailBody["detail"]["_datadog"]["x-datadog-sent-timestamp"] != null
     assert emptyDetailBody["detail"]["_datadog"]["x-datadog-bus-name"] != null
+  }
+
+  def "test propagation styles"() {
+    when:
+    eventBridgeClient.putEvents { req ->
+      req.entries(
+        PutEventsRequestEntry.builder()
+        .source("com.example")
+        .detailType("test")
+        .detail('{"foo":"bar"}')
+        .eventBusName(testBusARN)
+        .build()
+        )
+    }
+
+    def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)
+    def messageBody = new JsonSlurper().parseText(message.body())
+    def traceContext = messageBody["detail"]["_datadog"]
+
+    then:
+    expectedHeaders.each { header ->
+      assert traceContext[header] != null
+    }
+
+    where:
+    expectedHeaders = [
+      'x-datadog-trace-id',
+      'x-datadog-parent-id',
+      'x-datadog-sampling-priority',
+      'b3',
+      'X-B3-TraceId',
+      'X-B3-SpanId',
+      'Span-ID',
+      'Parent-ID',
+      'X-Amzn-Trace-Id',
+      'traceparent',
+      'tracestate'
+    ]
   }
 }
