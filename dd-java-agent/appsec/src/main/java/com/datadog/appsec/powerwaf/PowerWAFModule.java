@@ -18,6 +18,7 @@ import com.datadog.appsec.gateway.RateLimiter;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.stack_trace.StackTraceEvent;
 import com.datadog.appsec.stack_trace.StackTraceEvent.Frame;
+import com.datadog.appsec.stack_trace.StackTraceEventType;
 import com.datadog.appsec.util.StandardizedLogging;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -576,7 +577,8 @@ public class PowerWAFModule implements AppSecModule {
         return null;
       }
       List<Frame> result = generateUserCodeStackTrace();
-      return new StackTraceEvent(stackId, EXPLOIT_DETECTED_MSG, result);
+      return new StackTraceEvent(
+          stackId, StackTraceEventType.EXPLOIT, EXPLOIT_DETECTED_MSG, result);
     }
 
     /** Function generates stack trace of the user code (excluding datadog classes) */

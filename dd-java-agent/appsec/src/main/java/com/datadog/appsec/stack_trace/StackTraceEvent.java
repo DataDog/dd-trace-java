@@ -5,12 +5,14 @@ import java.util.List;
 public class StackTraceEvent {
 
   public final String id;
+  public final StackTraceEventType type;
   public final String language = "java";
   public final String message;
   public final List<Frame> frames;
 
-  public StackTraceEvent(String id, String message, List<Frame> frames) {
+  public StackTraceEvent(String id, StackTraceEventType type, String message, List<Frame> frames) {
     this.id = id;
+    this.type = type;
     this.message = message;
     this.frames = frames;
   }

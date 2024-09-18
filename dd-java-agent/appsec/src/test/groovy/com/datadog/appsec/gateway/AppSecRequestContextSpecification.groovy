@@ -7,6 +7,7 @@ import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.stack_trace.StackTraceCollection
 import com.datadog.appsec.stack_trace.StackTraceEvent
+import com.datadog.appsec.stack_trace.StackTraceEventType
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
 import io.sqreen.powerwaf.Additive
@@ -126,7 +127,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     setup:
     StackTraceElement element = new StackTraceElement('class', 'method', 'file', 1)
     StackTraceEvent.Frame frame = new StackTraceEvent.Frame(element, 1)
-    StackTraceEvent event = new StackTraceEvent('id', 'message', [frame])
+    StackTraceEvent event = new StackTraceEvent('id', StackTraceEventType.EXPLOIT,'message', [frame])
 
     when:
     ctx.reportStackTrace(event)
@@ -135,6 +136,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     then:
     collection.exploit.size() == 1
     collection.exploit[0].id == 'id'
+    collection.exploit[0].type == StackTraceEventType.EXPLOIT
     collection.exploit[0].message == 'message'
     collection.exploit[0].language == 'java'
     collection.exploit[0].frames.size() == 1
