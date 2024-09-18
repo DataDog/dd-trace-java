@@ -61,17 +61,6 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
   }
 
   @Override
-  protected String requestedSessionId(final Request request) {
-    final String requestedSessionId = request.getRequestedSessionId();
-    if (requestedSessionId != null) {
-      return requestedSessionId;
-    }
-    // this forces the loading of the requested session id
-    request.getSession(false);
-    return request.getRequestedSessionId();
-  }
-
-  @Override
   protected String[] instrumentationNames() {
     return new String[] {"grizzly"};
   }
