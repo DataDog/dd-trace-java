@@ -641,14 +641,18 @@ public class DDSpanContext
   }
 
   public void setBaggageItem(final String key, final String value) {
-    if (baggageItems == EMPTY_BAGGAGE) {
-      synchronized (this) {
-        if (baggageItems == EMPTY_BAGGAGE) {
-          baggageItems = new ConcurrentHashMap<>(4);
+    if (value == null) {
+      baggageItems.remove(key);
+    } else {
+      if (baggageItems == EMPTY_BAGGAGE) {
+        synchronized (this) {
+          if (baggageItems == EMPTY_BAGGAGE) {
+            baggageItems = new ConcurrentHashMap<>(4);
+          }
         }
       }
+      baggageItems.put(key, value);
     }
-    baggageItems.put(key, value);
   }
 
   public String getBaggageItem(final String key) {
