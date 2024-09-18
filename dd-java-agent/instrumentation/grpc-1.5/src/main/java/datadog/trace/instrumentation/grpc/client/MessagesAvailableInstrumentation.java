@@ -26,7 +26,7 @@ public final class MessagesAvailableInstrumentation extends InstrumenterModule.T
     implements Instrumenter.ForKnownTypes {
 
   public MessagesAvailableInstrumentation() {
-    super("grpc", "grpc-client");
+    super("grpc", "grpc-client", "grpc-message");
   }
 
   @Override
