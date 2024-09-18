@@ -68,6 +68,8 @@ public final class TracerConfig {
   public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
   public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
 
+  public static final String HTTP_ERROR_ENABLED = "http.error.enabled";
+
   public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
 
   public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";

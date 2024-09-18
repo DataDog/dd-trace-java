@@ -256,5 +256,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_TRACE_DUBBO_PROVIDER_PROPAGATE_ENABLED = false;
 
+  static final boolean DEFAULT_HTTP_ERROR_ENABLED = false;
+
   private ConfigDefaults() {}
 }
