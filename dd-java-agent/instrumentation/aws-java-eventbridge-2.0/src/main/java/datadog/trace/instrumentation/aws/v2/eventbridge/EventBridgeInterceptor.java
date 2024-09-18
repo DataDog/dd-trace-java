@@ -31,8 +31,8 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
           .putIfAbsent("DatadogSpan", () -> new ExecutionAttribute<>("DatadogSpan"));
 
   private static final String DATADOG_KEY = "_datadog";
-  private static final String SENT_TIMESTAMP_KEY = "x-datadog-sent-timestamp";
-  private static final String BUS_NAME_KEY = "x-datadog-bus-name";
+  private static final String START_TIME_KEY = "x-datadog-start-time";
+  private static final String RESOURCE_NAME_KEY = "x-datadog-resource-name";
 
   @Override
   public SdkRequest modifyRequest(
@@ -95,13 +95,13 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     // Add bus name and start time
     jsonBuilder
         .append(" \"")
-        .append(SENT_TIMESTAMP_KEY)
+        .append(START_TIME_KEY)
         .append("\": \"")
         .append(startTime)
         .append("\", ");
     jsonBuilder
         .append(" \"")
-        .append(BUS_NAME_KEY)
+        .append(RESOURCE_NAME_KEY)
         .append("\": \"")
         .append(eventBusName)
         .append("\"");

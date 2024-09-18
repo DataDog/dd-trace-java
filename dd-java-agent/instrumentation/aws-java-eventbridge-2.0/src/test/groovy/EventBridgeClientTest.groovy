@@ -170,8 +170,8 @@ class EventBridgeClientTest extends AgentTestRunner {
     assert traceContext["x-datadog-parent-id"] != null
     assert traceContext["x-datadog-parent-id"].toString().isNumber()
     assert traceContext["x-datadog-sampling-priority"] == "1"
-    assert traceContext["x-datadog-sent-timestamp"] != null
-    assert traceContext["x-datadog-bus-name"] != null
+    assert traceContext["x-datadog-start-time"] != null
+    assert traceContext["x-datadog-resource-name"] != null
 
     assert messageBody["source"] == "com.example"
     assert messageBody["detail-type"] == "test"
@@ -215,8 +215,8 @@ class EventBridgeClientTest extends AgentTestRunner {
     assert traceContext["x-datadog-trace-id"].toString().isNumber()
     assert traceContext["x-datadog-parent-id"].toString().isNumber()
     assert traceContext["x-datadog-sampling-priority"] == "1"
-    assert traceContext["x-datadog-sent-timestamp"] != null
-    assert traceContext["x-datadog-bus-name"] != null
+    assert traceContext["x-datadog-start-time"] != null
+    assert traceContext["x-datadog-resource-name"] != null
 
     assert messageBody["source"] == "com.example"
     assert messageBody["detail-type"] == "test-async"
@@ -374,8 +374,8 @@ class EventBridgeClientTest extends AgentTestRunner {
     assert detail["nested"]["nested_again"]["key2"] == 42
     assert detail["array"] == [1, 2, 3]
     assert detail["_datadog"] != null
-    assert detail["_datadog"]["x-datadog-sent-timestamp"] != null
-    assert detail["_datadog"]["x-datadog-bus-name"] != null
+    assert detail["_datadog"]["x-datadog-start-time"] != null
+    assert detail["_datadog"]["x-datadog-resource-name"] != null
   }
 
   def "test behavior when data streams are disabled"() {
@@ -454,8 +454,8 @@ class EventBridgeClientTest extends AgentTestRunner {
     assert emptyDetailBody["detail"]["_datadog"] != null  // Datadog context should be injected
     assert emptyDetailBody["detail"]["_datadog"]["x-datadog-trace-id"] != null
     assert emptyDetailBody["detail"]["_datadog"]["x-datadog-parent-id"] != null
-    assert emptyDetailBody["detail"]["_datadog"]["x-datadog-sent-timestamp"] != null
-    assert emptyDetailBody["detail"]["_datadog"]["x-datadog-bus-name"] != null
+    assert emptyDetailBody["detail"]["_datadog"]["x-datadog-start-time"] != null
+    assert emptyDetailBody["detail"]["_datadog"]["x-datadog-resource-name"] != null
   }
 
   def "test propagation styles"() {
