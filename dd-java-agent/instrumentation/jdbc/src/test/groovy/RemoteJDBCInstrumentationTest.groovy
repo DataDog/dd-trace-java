@@ -183,7 +183,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     mysql.start()
     PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MySQLContainer.MYSQL_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put(MYSQL, "${mysql.getJdbcUrl()}")
-    sqlserver = new MSSQLServerContainer().acceptLicense().withPassword(jdbcPasswords.get(SQLSERVER))
+    sqlserver = new MSSQLServerContainer(MSSQLServerContainer.IMAGE).acceptLicense().withPassword(jdbcPasswords.get(SQLSERVER))
     sqlserver.start()
     PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
     jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
