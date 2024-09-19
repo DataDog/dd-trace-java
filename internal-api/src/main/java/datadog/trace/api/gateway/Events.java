@@ -1,5 +1,6 @@
 package datadog.trace.api.gateway;
 
+import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -257,6 +258,54 @@ public final class Events<D> {
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, String, Flow<Void>>> fileLoaded() {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) FILE_LOADED;
+  }
+
+  static final int REQUEST_SESSION_ID = 21;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType REQUEST_SESSION = new ET<>("request.session", REQUEST_SESSION_ID);
+
+  /** The session id of a request */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> requestSession() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) REQUEST_SESSION;
+  }
+
+  static final int USER_ID = 22;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType USER = new ET<>("user", USER_ID);
+
+  /** A user with the mode used for the collection */
+  @SuppressWarnings("unchecked")
+  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>> userId() {
+    return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>) USER;
+  }
+
+  static final int LOGIN_SUCCESS_ID = 23;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType LOGIN_SUCCESS = new ET<>("login.success", LOGIN_SUCCESS_ID);
+
+  /** The logged user with the mode used for the collection */
+  @SuppressWarnings("unchecked")
+  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>
+      loginSuccess() {
+    return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>)
+        LOGIN_SUCCESS;
+  }
+
+  static final int LOGIN_FAILURE_ID = 24;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType LOGIN_FAILURE = new ET<>("login.failure", LOGIN_FAILURE_ID);
+
+  /** The user tha failed to log in with the mode used for the collection */
+  @SuppressWarnings("unchecked")
+  public EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>
+      loginFailure() {
+    return (EventType<TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>>>)
+        LOGIN_FAILURE;
   }
 
   static final int MAX_EVENTS = nextId.get();

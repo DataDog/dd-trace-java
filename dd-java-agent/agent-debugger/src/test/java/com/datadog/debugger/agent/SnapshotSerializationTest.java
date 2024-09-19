@@ -20,6 +20,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.WATCHES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -926,6 +927,35 @@ public class SnapshotSerializationTest {
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> enumValueJson = (Map<String, Object>) locals.get("enumValue");
     assertEquals("TWO", enumValueJson.get("value"));
+  }
+
+  @Test
+  public void watches() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext context = new CapturedContext();
+    Map<String, String> map = new HashMap<>();
+    map.put("foo1", "bar1");
+    map.put("foo2", "bar2");
+    map.put("foo3", "bar3");
+    context.addWatch(CapturedContext.CapturedValue.of("watch1", Map.class.getTypeName(), map));
+    context.addWatch(
+        CapturedContext.CapturedValue.of(
+            "watch2", List.class.getTypeName(), Arrays.asList("1", "2", "3")));
+    context.addWatch(CapturedContext.CapturedValue.of("watch3", Integer.TYPE.getTypeName(), 42));
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
+    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
+    Map<String, Object> watches = (Map<String, Object>) returnJson.get(WATCHES);
+    assertNull(returnJson.get(LOCALS));
+    assertNull(returnJson.get(ARGUMENTS));
+    assertEquals(3, watches.size());
+    assertMapItems(watches, "watch1", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3");
+    assertArrayItem(watches, "watch2", "1", "2", "3");
+    assertPrimitiveValue(watches, "watch3", Integer.TYPE.getTypeName(), "42");
   }
 
   private Map<String, Object> doFieldCount(int maxFieldCount) throws IOException {
