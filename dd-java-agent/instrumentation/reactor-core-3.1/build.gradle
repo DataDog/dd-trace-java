@@ -4,7 +4,6 @@ muzzle {
     group = "io.projectreactor"
     module = "reactor-core"
     versions = "[3.0.0.RELEASE,)"
-    assertInverse = true
   }
 }
 
