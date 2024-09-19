@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -128,9 +129,23 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       if (range != null) {
         writer.name("source");
         sourceAdapter.toJson(writer, range.getSource());
+        writeSecureMarks(writer, range);
       }
       writer.endObject();
     }
+  }
+
+  private void writeSecureMarks(JsonWriter writer, Range range) throws IOException {
+    Set<VulnerabilityType> markedVulnerabilities = range.getMarkedVulnerabilities();
+    if (markedVulnerabilities == null || markedVulnerabilities.isEmpty()) {
+      return;
+    }
+    writer.name("secure_marks");
+    writer.beginArray();
+    for (VulnerabilityType type : markedVulnerabilities) {
+      writer.value(type.name());
+    }
+    writer.endArray();
   }
 
   private class RedactedEvidenceAdapter extends FormattingAdapter<Evidence> {
