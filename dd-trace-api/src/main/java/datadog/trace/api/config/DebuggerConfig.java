@@ -40,6 +40,12 @@ public final class DebuggerConfig {
       "internal.exception.replay.only.local.root";
   public static final String DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES =
       "exception.replay.max.frames.to.capture";
+  public static final String DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES =
+      "exception.replay.capture.max.frames";
+  public static final String DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS =
+      "exception.replay.capture.interval.seconds";
+  public static final String DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED =
+      "exception.replay.capture.intermediate.spans.enabled";
   public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
   public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
 

@@ -48,7 +48,6 @@ import org.slf4j.LoggerFactory;
 /** Debugger agent implementation */
 public class DebuggerAgent {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerAgent.class);
-  public static final Duration EXCEPTION_CAPTURE_INTERVAL = Duration.ofHours(1);
   private static ConfigurationPoller configurationPoller;
   private static DebuggerSink sink;
   private static String agentVersion;
@@ -99,7 +98,7 @@ public class DebuggerAgent {
           new DefaultExceptionDebugger(
               configurationUpdater,
               classNameFiltering,
-              EXCEPTION_CAPTURE_INTERVAL,
+              Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval()),
               config.getDebuggerMaxExceptionPerSecond());
       DebuggerContext.initExceptionDebugger(defaultExceptionDebugger);
     }

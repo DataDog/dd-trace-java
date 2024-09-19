@@ -48,6 +48,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_E
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
@@ -225,6 +227,9 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_EN
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CODE_ORIGIN_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
@@ -884,8 +889,10 @@ public class Config {
   private final int debuggerSymbolFlushThreshold;
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
-  private final boolean debuggerExceptionOnlyLocalRoot;
+  @Deprecated private final boolean debuggerExceptionOnlyLocalRoot;
+  private final boolean debuggerExceptionCaptureIntermediateSpansEnabled;
   private final int debuggerExceptionMaxCapturedFrames;
+  private final int debuggerExceptionCaptureInterval;
   private final boolean debuggerCodeOriginEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
@@ -2000,9 +2007,19 @@ public class Config {
     debuggerExceptionOnlyLocalRoot =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT, DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT);
+    debuggerExceptionCaptureIntermediateSpansEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED,
+            DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED);
     debuggerExceptionMaxCapturedFrames =
         configProvider.getInteger(
-            DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES, DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES);
+            DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES,
+            DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES,
+            DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES);
+    debuggerExceptionCaptureInterval =
+        configProvider.getInteger(
+            DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS,
+            DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS);
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
@@ -3403,8 +3420,16 @@ public class Config {
     return debuggerExceptionOnlyLocalRoot;
   }
 
+  public boolean isDebuggerExceptionCaptureIntermediateSpansEnabled() {
+    return debuggerExceptionCaptureIntermediateSpansEnabled;
+  }
+
   public int getDebuggerExceptionMaxCapturedFrames() {
     return debuggerExceptionMaxCapturedFrames;
+  }
+
+  public int getDebuggerExceptionCaptureInterval() {
+    return debuggerExceptionCaptureInterval;
   }
 
   public boolean isDebuggerCodeOriginEnabled() {
