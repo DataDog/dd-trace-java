@@ -1,40 +1,36 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
 import java.util.Objects;
-import javax.annotation.Nullable;
-import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
+import java.util.Optional;
+import org.apache.kafka.clients.Metadata;
 
 public class KafkaConsumerInfo {
   private final String consumerGroup;
-  private final ConsumerGroupMetadata clientMetadata;
+  private final Metadata metadata;
   private final String bootstrapServers;
 
-  public KafkaConsumerInfo(
-      String consumerGroup, ConsumerGroupMetadata clientMetadata, String bootstrapServers) {
+  public KafkaConsumerInfo(String consumerGroup, Metadata metadata, String bootstrapServers) {
     this.consumerGroup = consumerGroup;
-    this.clientMetadata = clientMetadata;
+    this.metadata = metadata;
     this.bootstrapServers = bootstrapServers;
   }
 
   public KafkaConsumerInfo(String consumerGroup, String bootstrapServers) {
     this.consumerGroup = consumerGroup;
-    this.clientMetadata = null;
+    this.metadata = null;
     this.bootstrapServers = bootstrapServers;
   }
 
-  @Nullable
-  public String getConsumerGroup() {
-    return consumerGroup;
+  public Optional<String> getConsumerGroup() {
+    return Optional.ofNullable(consumerGroup);
   }
 
-  @Nullable
-  public ConsumerGroupMetadata getClientMetadata() {
-    return clientMetadata;
+  public Optional<Metadata> getmetadata() {
+    return Optional.ofNullable(metadata);
   }
 
-  @Nullable
-  public String getBootstrapServers() {
-    return bootstrapServers;
+  public Optional<String> getBootstrapServers() {
+    return Optional.ofNullable(bootstrapServers);
   }
 
   @Override
@@ -43,12 +39,12 @@ public class KafkaConsumerInfo {
     if (o == null || getClass() != o.getClass()) return false;
     KafkaConsumerInfo consumerInfo = (KafkaConsumerInfo) o;
     return Objects.equals(consumerGroup, consumerInfo.consumerGroup)
-        && Objects.equals(clientMetadata, consumerInfo.clientMetadata);
+        && Objects.equals(metadata, consumerInfo.metadata);
   }
 
   @Override
   public int hashCode() {
     return 31 * (null == consumerGroup ? 0 : consumerGroup.hashCode())
-        + (null == clientMetadata ? 0 : clientMetadata.hashCode());
+        + (null == metadata ? 0 : metadata.hashCode());
   }
 }

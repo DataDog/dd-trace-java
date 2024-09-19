@@ -10,13 +10,8 @@ import static datadog.trace.core.datastreams.TagsProcessor.GROUP_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.KAFKA_CLUSTER_ID_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TOPIC_TAG;
 import static datadog.trace.core.datastreams.TagsProcessor.TYPE_TAG;
-import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.BROKER_DECORATE;
-import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_DELIVER;
-import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapInjectAdapter.SETTER;
-import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
-import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
@@ -24,6 +19,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.instrumentation.kafka_common.StreamingContext;
+import datadog.trace.instrumentation.kafka_common.Utils;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -81,15 +78,18 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
           final Context spanContext = propagate().extract(val.headers(), GETTER);
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
-          if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+          if (timeInQueueStart == 0 || !KafkaDecorator.TIME_IN_QUEUE_ENABLED) {
             span = startSpan(operationName, spanContext);
           } else {
             queueSpan =
-                startSpan(KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
-            BROKER_DECORATE.afterStart(queueSpan);
-            BROKER_DECORATE.onTimeInQueue(queueSpan, val);
+                startSpan(
+                    KafkaDecorator.KAFKA_DELIVER,
+                    spanContext,
+                    MILLISECONDS.toMicros(timeInQueueStart));
+            KafkaDecorator.BROKER_DECORATE.afterStart(queueSpan);
+            KafkaDecorator.BROKER_DECORATE.onTimeInQueue(queueSpan, val);
             span = startSpan(operationName, queueSpan.context());
-            BROKER_DECORATE.beforeFinish(queueSpan);
+            KafkaDecorator.BROKER_DECORATE.beforeFinish(queueSpan);
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode
           }
@@ -104,14 +104,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           sortedTags.put(TYPE_TAG, "kafka");
 
           final long payloadSize =
-              span.traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
-          if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
+              span.traceConfig().isDataStreamsEnabled() ? Utils.computePayloadSizeBytes(val) : 0;
+          if (StreamingContext.STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
             AgentTracer.get()
                 .getDataStreamsMonitoring()
                 .setCheckpoint(span, sortedTags, val.timestamp(), payloadSize);
           } else {
             // when we're in a streaming context we want to consume only from source topics
-            if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
+            if (StreamingContext.STREAMING_CONTEXT.isSourceTopic(val.topic())) {
               // We have to inject the context to headers here,
               // since the data received from the source may leave the topology on
               // some other instance of the application, breaking the context propagation

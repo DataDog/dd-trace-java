@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
-import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCED_KEY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.Config;
@@ -58,7 +57,7 @@ public class TextMapExtractAdapter
   }
 
   public long extractTimeInQueueStart(Headers carrier) {
-    Header header = carrier.lastHeader(KAFKA_PRODUCED_KEY);
+    Header header = carrier.lastHeader(KafkaDecorator.KAFKA_PRODUCED_KEY);
     if (null != header) {
       try {
         ByteBuffer buf = ByteBuffer.allocate(8);
