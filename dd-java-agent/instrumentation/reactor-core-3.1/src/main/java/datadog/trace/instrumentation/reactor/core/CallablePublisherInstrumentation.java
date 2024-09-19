@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.reactor.core;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -58,7 +58,7 @@ public class CallablePublisherInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperClass(namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"));
+    return hasSuperType(namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"));
   }
 
   public static class BlockingAdvice {
