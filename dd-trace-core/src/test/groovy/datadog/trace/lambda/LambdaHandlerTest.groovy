@@ -32,7 +32,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     given:
     Config config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    CoreTracer ct = CoreTracer.builder().config(config).build()
+    CoreTracer ct = CoreTracer.builder().build()
 
     def server = httpServer {
       handlers {
@@ -66,7 +66,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     given:
     Config config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    CoreTracer ct = CoreTracer.builder().config(config).build()
+    CoreTracer ct = CoreTracer.builder().build()
 
     def server = httpServer {
       handlers {
@@ -101,7 +101,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     given:
     Config config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    CoreTracer ct = CoreTracer.builder().config(config).build()
+    CoreTracer ct = CoreTracer.builder().build()
 
     def server = httpServer {
       handlers {
