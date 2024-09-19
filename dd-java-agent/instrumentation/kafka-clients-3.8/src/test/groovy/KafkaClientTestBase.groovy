@@ -460,6 +460,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producerFactory.stop()
     container?.stop()
+    kafkaContainer.stop()
   }
 
   def "test pass through tombstone"() {
@@ -529,6 +530,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producerFactory.stop()
     container?.stop()
+    kafkaContainer.stop()
+
   }
 
 
@@ -587,6 +590,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
+    kafkaContainer.stop()
+
 
   }
 
@@ -648,6 +653,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
+    kafkaContainer.stop()
 
   }
   def "test records(TopicPartition).forEach kafka consume"() {
@@ -707,6 +713,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
+    kafkaContainer.stop()
 
   }
 
@@ -820,6 +827,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
+    kafkaContainer.stop()
 
   }
 
@@ -880,6 +888,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producerFactory.stop()
     container?.stop()
+    kafkaContainer.stop()
 
     where:
     value   | expected
