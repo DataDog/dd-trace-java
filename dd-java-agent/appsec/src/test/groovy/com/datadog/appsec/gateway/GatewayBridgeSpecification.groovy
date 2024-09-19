@@ -8,7 +8,7 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.report.AppSecEventWrapper
-import datadog.trace.api.Config
+import datadog.trace.api.UserIdCollectionMode
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.BlockResponseFunction
@@ -83,6 +83,11 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> databaseSqlQueryCB
   BiFunction<RequestContext, String, Flow<Void>> networkConnectionCB
   BiFunction<RequestContext, String, Flow<Void>> fileLoadedCB
+  BiFunction<RequestContext, String, Flow<Void>> requestSessionCB
+  TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> userIdCB
+  TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginSuccessCB
+  TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginFailureCB
+
 
   void setup() {
     callInitAndCaptureCBs()
@@ -418,6 +423,10 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.databaseSqlQuery(), _) >> { databaseSqlQueryCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.networkConnection(), _) >> { networkConnectionCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.fileLoaded(), _) >> { fileLoadedCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestSession(), _) >> { requestSessionCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.userId(), _) >> { userIdCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.loginSuccess(), _) >> { loginSuccessCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.loginFailure(), _) >> { loginFailureCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -962,5 +971,53 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     1 * traceSegment.setTagTop('_dd.appsec.fp.http.endpoint', 'xyz')
+  }
+
+  void 'process session ids'() {
+    setup:
+    DataBundle bundle
+    GatewayContext gatewayContext
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    final sessionId = UUID.randomUUID().toString()
+
+    when:
+    requestSessionCB.apply(ctx, sessionId)
+
+    then:
+    1 * traceSegment.setTagTop('usr.session_id', sessionId)
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.SESSION_ID) == sessionId
+    gatewayContext.isTransient == false
+  }
+
+  void 'process user ids'() {
+    setup:
+    DataBundle bundle
+    GatewayContext gatewayContext
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    final userId = 'admin'
+    final mode = UserIdCollectionMode.SDK
+    final TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> callback = this[callbackField]
+
+    when:
+    callback.apply(ctx, mode, userId)
+
+    then:
+    1 * traceSegment.setTagTop('usr.id', userId)
+    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', mode.shortName())
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >>
+    { a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE }
+    bundle.get(KnownAddresses.USER_ID) == userId
+    if (businessAddress != null) {
+      assert bundle.hasAddress(businessAddress)
+    }
+    gatewayContext.isTransient == false
+
+    where:
+    callbackField    | businessAddress
+    'userIdCB'       | null
+    'loginSuccessCB' | KnownAddresses.LOGIN_SUCCESS
+    'loginFailureCB' | KnownAddresses.LOGIN_FAILURE
   }
 }

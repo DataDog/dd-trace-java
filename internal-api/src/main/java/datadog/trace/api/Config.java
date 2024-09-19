@@ -214,7 +214,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_COMM
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
-import static datadog.trace.api.config.CiVisibilityConfig.SESSION_NAME;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
@@ -1908,7 +1908,7 @@ public class Config {
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityTotalFlakyRetryCount =
         configProvider.getInteger(CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT, 1000);
-    ciVisibilitySessionName = configProvider.getString(SESSION_NAME);
+    ciVisibilitySessionName = configProvider.getString(TEST_SESSION_NAME);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTestCommand = configProvider.getString(CIVISIBILITY_TEST_COMMAND);
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);

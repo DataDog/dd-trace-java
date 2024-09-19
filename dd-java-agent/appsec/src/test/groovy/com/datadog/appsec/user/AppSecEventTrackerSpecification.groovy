@@ -1,13 +1,26 @@
 package com.datadog.appsec.user
 
+import com.datadog.appsec.gateway.NoopFlow
+import datadog.appsec.api.blocking.BlockingContentType
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.api.EventTracker
 import datadog.trace.api.GlobalTracer
 import datadog.trace.api.UserIdCollectionMode
+import datadog.trace.api.function.TriFunction
+import datadog.trace.api.gateway.CallbackProvider
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.ActiveSubsystems
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
+
+import static datadog.trace.api.UserIdCollectionMode.SDK
+import static datadog.trace.api.gateway.Events.EVENTS
 
 class AppSecEventTrackerSpecification extends DDSpecification {
 
@@ -21,13 +34,33 @@ class AppSecEventTrackerSpecification extends DDSpecification {
 
   private AppSecEventTrackerImpl tracker
   private TraceSegment traceSegment
+  private TracerAPI tracer
+  private AgentSpan span
+  private CallbackProvider provider
+  private TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> userCallback
+  private TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginSuccessCallback
+  private TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> loginFailureCallback
 
   void setup() {
     traceSegment = Mock(TraceSegment)
+    span = Stub(AgentSpan)
+    userCallback = Mock(TriFunction)
+    loginSuccessCallback = Mock(TriFunction)
+    loginFailureCallback = Mock(TriFunction)
+    provider = Stub(CallbackProvider) {
+      getCallback(EVENTS.userId()) >> userCallback
+      getCallback(EVENTS.loginSuccess()) >> loginSuccessCallback
+      getCallback(EVENTS.loginFailure()) >> loginFailureCallback
+    }
+    tracer = Stub(TracerAPI) {
+      getTraceSegment() >> traceSegment
+      activeSpan() >> span
+      getCallbackProvider(RequestContextSlot.APPSEC) >> provider
+    }
     tracker = new AppSecEventTrackerImpl() {
         @Override
-        protected TraceSegment getSegment() {
-          return traceSegment
+        protected TracerAPI tracer() {
+          return tracer
         }
       }
     GlobalTracer.setEventTracker(tracker)
@@ -49,11 +82,10 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     then:
     1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true, sanitize)
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.sdk', true, sanitize)
-    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', 'sdk')
-    1 * traceSegment.setTagTop('usr.id', 'user1')
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
     1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1': 'value1', 'key2': 'value2'], sanitize)
+    1 * loginSuccessCallback.apply(_ as RequestContext, SDK, 'user1') >> NoopFlow.INSTANCE
     0 * _
   }
 
@@ -67,13 +99,12 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     then:
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.track', true, sanitize)
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.sdk', true, sanitize)
-    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', 'sdk')
-    1 * traceSegment.setTagTop('usr.id', 'user1')
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', 'user1', sanitize)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.exists', true, sanitize)
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure', ['key1': 'value1', 'key2': 'value2'], sanitize)
+    1 * loginFailureCallback.apply(_ as RequestContext, SDK, 'user1') >> NoopFlow.INSTANCE
     0 * _
   }
 
@@ -142,12 +173,11 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     then:
     1 * traceSegment.setTagTop('_dd.appsec.events.users.signup.auto.mode', modeTag, sanitize)
     1 * traceSegment.getTagTop('_dd.appsec.user.collection_mode') >> null
-    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', mode)
     1 * traceSegment.setTagTop('appsec.events.users.signup.track', true, sanitize)
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
-    1 * traceSegment.setTagTop('usr.id', expectedUserId)
     1 * traceSegment.setTagTop('appsec.events.users.signup', ['key1': 'value1', 'key2': 'value2'], sanitize)
+    1 * userCallback.apply(_ as RequestContext, collectionMode, expectedUserId) >> NoopFlow.INSTANCE
     0 * _
 
     where:
@@ -167,12 +197,11 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     then:
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.success.auto.mode', modeTag, sanitize)
     1 * traceSegment.getTagTop('_dd.appsec.user.collection_mode') >> null
-    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', mode)
     1 * traceSegment.setTagTop('appsec.events.users.login.success.track', true, sanitize)
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
-    1 * traceSegment.setTagTop('usr.id', expectedUserId)
     1 * traceSegment.setTagTop('appsec.events.users.login.success', ['key1': 'value1', 'key2': 'value2'], sanitize)
+    1 * loginSuccessCallback.apply(_ as RequestContext, collectionMode, expectedUserId) >> NoopFlow.INSTANCE
     0 * _
 
     where:
@@ -192,13 +221,12 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     then:
     1 * traceSegment.setTagTop('_dd.appsec.events.users.login.failure.auto.mode', modeTag, sanitize)
     1 * traceSegment.getTagTop('_dd.appsec.user.collection_mode') >> null
-    1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', mode)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.track', true, sanitize)
     1 * traceSegment.setTagTop('asm.keep', true)
     1 * traceSegment.setTagTop('_dd.p.appsec', true)
-    1 * traceSegment.setTagTop('usr.id', expectedUserId)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure.usr.id', expectedUserId, sanitize)
     1 * traceSegment.setTagTop('appsec.events.users.login.failure', ['key1': 'value1', 'key2': 'value2'], sanitize)
+    1 * loginFailureCallback.apply(_ as RequestContext, collectionMode, expectedUserId) >> NoopFlow.INSTANCE
     0 * _
 
     where:
@@ -319,17 +347,43 @@ class AppSecEventTrackerSpecification extends DDSpecification {
     tracker.onLoginSuccessEvent(mode, USER_ID, ['key1': 'value1', 'key2': 'value2'])
 
     then:
-    if (mode == UserIdCollectionMode.SDK) {
+    if (mode == SDK) {
       // the SDK can override itself
-      1 * traceSegment.setTagTop('usr.id', USER_ID)
-      1 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', 'sdk')
+      1 * loginSuccessCallback.apply(_, SDK, USER_ID) >> NoopFlow.INSTANCE
     } else {
       // auto login events should not modify SDK produced ones
-      0 * traceSegment.setTagTop('usr.id', _)
-      0 * traceSegment.setTagTop('_dd.appsec.user.collection_mode', _)
+      0 * loginSuccessCallback.apply(_, _, _, _)
     }
 
     where:
-    mode << [UserIdCollectionMode.SDK, UserIdCollectionMode.IDENTIFICATION]
+    mode << [SDK, UserIdCollectionMode.IDENTIFICATION]
+  }
+
+  void 'test blocking on a userId'() {
+    setup:
+    final action = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    loginSuccessCallback.apply(_ as RequestContext, SDK, USER_ID) >> new ActionFlow<Void>(action: action)
+    traceSegment.getTagTop('_dd.appsec.user.collection_mode') >> 'sdk'
+
+    when:
+    tracker.onLoginSuccessEvent(SDK, USER_ID, ['key1': 'value1', 'key2': 'value2'])
+
+    then:
+    thrown(BlockingException)
+  }
+
+  private static class ActionFlow<T> implements Flow<T> {
+
+    private Action action
+
+    @Override
+    Action getAction() {
+      return action
+    }
+
+    @Override
+    Object getResult() {
+      return null
+    }
   }
 }

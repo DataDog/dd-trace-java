@@ -25,6 +25,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
@@ -117,6 +118,11 @@ class TestServlet3 {
             break
           case CUSTOM_EXCEPTION:
             throw new InputMismatchException(endpoint.body)
+          case SESSION_ID:
+            def session = req.getSession(true)
+            resp.status = endpoint.status
+            resp.writer.print(session.id)
+            break
         }
       }
     }
@@ -197,6 +203,12 @@ class TestServlet3 {
               resp.writer.print('should not be reached')
               context.complete()
               break
+            case SESSION_ID:
+              def session = req.getSession(true)
+              resp.status = endpoint.status
+              resp.writer.print(session.id)
+              context.complete()
+              break
           }
         }
       }
@@ -249,6 +261,11 @@ class TestServlet3 {
             case USER_BLOCK:
               Blocking.forUser('user-to-block').blockIfMatch()
               resp.writer.print('should not be reached')
+              break
+            case SESSION_ID:
+              def session = req.getSession(true)
+              resp.status = endpoint.status
+              resp.writer.print(session.id)
               break
           }
         }

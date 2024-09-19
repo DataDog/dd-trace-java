@@ -476,30 +476,35 @@ class ScopeManagerTest extends DDCoreSpecification {
   def "test activating same span multiple times"() {
     setup:
     def span = tracer.buildSpan("test").start()
+    def state = Mock(Stateful)
 
     when:
     AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then:
     assertEvents([ACTIVATE])
+    1 * profilingContext.newScopeState(_) >> state
 
     when:
     AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
+    0 * profilingContext.newScopeState(_)
 
     when:
     scope2.close()
 
     then: 'Closing a scope once that has been activated multiple times does not close'
     assertEvents([ACTIVATE])
+    0 * state.close()
 
     when:
     scope1.close()
 
     then:
     assertEvents([ACTIVATE, CLOSE])
+    1 * state.close()
   }
 
   def "opening and closing multiple scopes"() {
