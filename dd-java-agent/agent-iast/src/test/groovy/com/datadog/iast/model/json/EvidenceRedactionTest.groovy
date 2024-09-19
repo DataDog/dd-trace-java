@@ -71,8 +71,8 @@ class EvidenceRedactionTest extends DDSpecification {
     new StringValuePart(null)                                  | _
     new StringValuePart('')                                    | _
     new RedactedValuePart(null)                                | _
-    new TaintedValuePart(Stub(JsonAdapter), null, null, true)  | _
-    new TaintedValuePart(Stub(JsonAdapter), null, null, false) | _
+    new TaintedValuePart(Stub(JsonAdapter), null, null, true, null)  | _
+    new TaintedValuePart(Stub(JsonAdapter), null, null, false, null) | _
   }
 
   void 'test #suite'() {
@@ -92,6 +92,25 @@ class EvidenceRedactionTest extends DDSpecification {
 
     where:
     suite << readTestSuite('redaction/evidence-redaction-suite.yml')
+  }
+
+  void 'test secure_marks #suite'() {
+    given:
+    Assume.assumeFalse("Ignored test", suite.ignored)
+    final type =  VulnerabilityBatch
+    final adapter = VulnerabilityEncoding.MOSHI.adapter(type)
+
+    when:
+    final redacted = adapter.toJson(suite.input)
+
+    then:
+    final received = JsonOutput.prettyPrint(redacted)
+    final description = suite.description
+    final expected = suite.expected
+    JSONAssert.assertEquals(description, expected, received, JSONCompareMode.NON_EXTENSIBLE)
+
+    where:
+    suite << readTestSuite('redaction/evidence-redaction-suite-with-marks.yml')
   }
 
   private Iterable<TestSuite> readTestSuite(final String fileName) {

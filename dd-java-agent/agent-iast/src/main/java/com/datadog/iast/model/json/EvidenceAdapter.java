@@ -72,6 +72,20 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
     return value.substring(range.getStart(), end);
   }
 
+  private static void writeSecureMarks(
+      final JsonWriter writer, final @Nullable Set<VulnerabilityType> markedVulnerabilities)
+      throws IOException {
+    if (markedVulnerabilities == null || markedVulnerabilities.isEmpty()) {
+      return;
+    }
+    writer.name("secure_marks");
+    writer.beginArray();
+    for (VulnerabilityType type : markedVulnerabilities) {
+      writer.value(type.name());
+    }
+    writer.endArray();
+  }
+
   private class DefaultEvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Override
@@ -129,23 +143,10 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       if (range != null) {
         writer.name("source");
         sourceAdapter.toJson(writer, range.getSource());
-        writeSecureMarks(writer, range);
+        writeSecureMarks(writer, range.getMarkedVulnerabilities());
       }
       writer.endObject();
     }
-  }
-
-  private void writeSecureMarks(JsonWriter writer, Range range) throws IOException {
-    Set<VulnerabilityType> markedVulnerabilities = range.getMarkedVulnerabilities();
-    if (markedVulnerabilities == null || markedVulnerabilities.isEmpty()) {
-      return;
-    }
-    writer.name("secure_marks");
-    writer.beginArray();
-    for (VulnerabilityType type : markedVulnerabilities) {
-      writer.value(type.name());
-    }
-    writer.endArray();
   }
 
   private class RedactedEvidenceAdapter extends FormattingAdapter<Evidence> {
@@ -404,6 +405,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     private final List<Ranged> sensitiveRanges;
 
+    @Nullable private final Set<VulnerabilityType> markedTypes;
+
     private RedactableTaintedValuePart(
         final JsonAdapter<Source> adapter,
         final Range range,
@@ -418,11 +421,14 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
               .map(it -> shift(it, -range.getStart()))
               .sorted(Comparator.comparing(Ranged::getStart))
               .collect(Collectors.toList());
+
+      this.markedTypes = range.getMarkedVulnerabilities();
     }
 
     @Override
     public void write(final Context ctx, final JsonWriter writer) throws IOException {
       final RedactionContext redaction = ctx.getRedaction(source);
+      redaction.setMarkedTypes(markedTypes);
       if (redaction.shouldRedact()) {
         for (final ValuePart part : split(redaction)) {
           part.write(ctx, writer);
@@ -433,6 +439,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         writeTruncableValue(writer, value);
         writer.name("source");
         adapter.toJson(writer, source);
+        writeSecureMarks(writer, markedTypes);
         writer.endObject();
       }
     }
@@ -469,9 +476,10 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       if (start < end) {
         final Source source = ctx.getSource();
         final String chunk = value.substring(start, end);
+        final Set<VulnerabilityType> markedTypes = ctx.getMarkedTypes();
         if (!redact) {
           // append the value
-          valueParts.add(new TaintedValuePart(adapter, source, chunk, false));
+          valueParts.add(new TaintedValuePart(adapter, source, chunk, false, markedTypes));
         } else {
           final int length = chunk.length();
           final String sourceValue = source.getValue();
@@ -485,7 +493,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
             // otherwise redact the string
             pattern = SensitiveHandler.get().redactString(chunk);
           }
-          valueParts.add(new TaintedValuePart(adapter, source, pattern, true));
+          valueParts.add(new TaintedValuePart(adapter, source, pattern, true, markedTypes));
         }
       }
     }
@@ -504,15 +512,19 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     private final boolean redacted;
 
+    @Nullable private final Set<VulnerabilityType> markedTypes;
+
     private TaintedValuePart(
         final JsonAdapter<Source> adapter,
         final Source source,
         final String value,
-        final boolean redacted) {
+        final boolean redacted,
+        final @Nullable Set<VulnerabilityType> markedTypes) {
       this.adapter = adapter;
       this.source = source;
       this.value = value;
       this.redacted = redacted;
+      this.markedTypes = markedTypes;
     }
 
     @Override
@@ -531,6 +543,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         writer.name("value");
       }
       writeTruncableValue(writer, value);
+      writeSecureMarks(writer, markedTypes);
       writer.endObject();
     }
   }
