@@ -13,7 +13,7 @@ import spock.lang.Shared
 class RangeTest extends DDSpecification {
 
   @Shared
-  int SQL_INJECTION_MARK_AND_XSS_MARK  = SQL_INJECTION_MARK | XSS_MARK
+  int  multipleMarks  = SQL_INJECTION_MARK | XSS_MARK
 
   def 'shift'() {
     given:
@@ -70,6 +70,6 @@ class RangeTest extends DDSpecification {
     marks                           | expected
     NOT_MARKED                      | null
     SQL_INJECTION_MARK              | [SQL_INJECTION] as Set
-    SQL_INJECTION_MARK_AND_XSS_MARK | [SQL_INJECTION, XSS] as Set
+    multipleMarks | [SQL_INJECTION, XSS] as Set
   }
 }
