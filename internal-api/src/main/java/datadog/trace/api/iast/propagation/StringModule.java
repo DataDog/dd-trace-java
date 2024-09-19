@@ -50,4 +50,6 @@ public interface StringModule extends IastModule {
       @Nonnull Iterable<String> literals, @Nonnull Object[] params, @Nonnull String result);
 
   void onSplit(final @Nonnull String self, final @Nonnull String[] result);
+
+  void onStringStrip(@Nonnull String self, @Nonnull String result, boolean trailing);
 }

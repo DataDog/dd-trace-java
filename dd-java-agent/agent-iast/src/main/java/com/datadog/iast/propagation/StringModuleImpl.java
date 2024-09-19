@@ -567,6 +567,42 @@ public class StringModuleImpl implements StringModule {
     }
   }
 
+  @Override
+  public void onStringStrip(@Nonnull String self, @Nonnull String result, boolean trailing) {
+    if (!canBeTainted(result) || self == result) {
+      return;
+    }
+    final IastContext ctx = IastContext.Provider.get();
+    if (ctx == null) {
+      return;
+    }
+    final TaintedObjects taintedObjects = ctx.getTaintedObjects();
+    final TaintedObject taintedSelf = taintedObjects.get(self);
+    if (taintedSelf == null) {
+      return;
+    }
+
+    final Range[] rangesSelf = taintedSelf.getRanges();
+    if (rangesSelf.length == 0) {
+      return;
+    }
+
+    int offset = 0;
+    if (!trailing) {
+      while ((offset < self.length()) && (Character.isWhitespace(self.charAt(offset)))) {
+        offset++;
+      }
+    }
+
+    int resultLength = result.length();
+
+    final Range[] newRanges = Ranges.forSubstring(offset, resultLength, rangesSelf);
+
+    if (newRanges != null) {
+      taintedObjects.taint(result, newRanges);
+    }
+  }
+
   /**
    * Adds the tainted ranges belonging to the current parameter added via placeholder taking care of
    * an optional tainted placeholder.

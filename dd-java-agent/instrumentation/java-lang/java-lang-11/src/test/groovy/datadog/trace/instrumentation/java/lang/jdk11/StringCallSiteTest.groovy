@@ -31,4 +31,41 @@ class StringCallSiteTest extends AgentTestRunner {
     1 * iastModule.onStringRepeat(self, count, expected)
     0 * _
   }
+
+  def 'test string strip call site'() {
+    setup:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final result = TestStringJDK11Suite."$method"(input)
+
+    then:
+    result == output
+    1 * module.onStringStrip(input, output)
+    0 * _
+
+    where:
+    method                | input     | output
+    "stringStrip"         | ' hello ' | 'hello'
+    "stringStripLeading"  | ' hello ' | 'hello '
+  }
+
+  def 'test string strip trailing call site'() {
+    setup:
+    final module = Mock(StringModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    when:
+    final result = TestStringJDK11Suite.stringStripTrailing(input)
+
+    then:
+    result == output
+    1 * module.onStringStrip(input, output)
+    0 * _
+
+    where:
+    input     | output
+    ' hello ' | ' hello'
+  }
 }

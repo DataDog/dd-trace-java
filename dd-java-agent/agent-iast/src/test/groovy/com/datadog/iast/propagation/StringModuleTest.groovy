@@ -984,6 +984,70 @@ class StringModuleTest extends IastModuleImplTestBase {
     '==>testing<== the ==>test<==' | ' '    | ['==>testing<==', '==>the<==', '==>test<=='] as String[]
   }
 
+  void 'test strip and make sure IastRequestContext is called'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self."$method"()
+
+    when:
+    module.onStringStrip(self, result, trailing)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    1 * tracer.activeSpan() >> span
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    method          | trailing | testString        | expected
+    "strip"         | false    | "   ==>123<==   " | "==>123<=="
+    "stripLeading"  | false    | "   ==>123<==   " | "==>123<==   "
+    "stripTrailing" | true     | "   ==>123<==   " | "   ==>123<=="
+  }
+
+  void 'test strip for not empty string cases'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self."$method"()
+
+    when:
+    module.onStringStrip(self, result, trailing)
+    def taintedObject = taintedObjects.get(result)
+
+    then:
+    taintFormat(result, taintedObject.getRanges()) == expected
+
+    where:
+    method          | trailing | testString                                                      | expected
+    "strip"         | false    | " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <== " | "==>456<== ==>ABC<=="
+    "stripLeading"  | false    | " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <== " | "==>456<== ==>ABC<== ==>   <== ==>   <== "
+    "stripTrailing" | true     | " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <== " | " ==>   <== ==>   <== ==>456<== ==>ABC<=="
+  }
+
+  void 'test strip for empty string cases'() {
+    given:
+    final taintedObjects = ctx.getTaintedObjects()
+    def self = addFromTaintFormat(taintedObjects, testString)
+    def result = self."$method"()
+
+    when:
+    module.onStringStrip(self, result, trailing)
+
+    then:
+    null == taintedObjects.get(result)
+    result == expected
+
+    where:
+    method          | trailing | testString              | expected
+    "strip"         | false    | " ==>   <== "           | ""
+    "stripLeading"  | false    | " ==>   <== "           | ""
+    "stripTrailing" | true     | " ==>   <== "           | ""
+    "strip"         | false    | ""                      | ""
+    "stripLeading"  | false    | ""                      | ""
+    "stripTrailing" | true     | ""                      | ""
+  }
+
   private static Date date(final String pattern, final String value) {
     return new SimpleDateFormat(pattern).parse(value)
   }
