@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.springsecurity5
+package datadog.trace.instrumentation.springsecurity6
 
 import custom.CustomAuthenticationFilter
 import custom.CustomAuthenticationProvider
@@ -14,20 +14,18 @@ import org.springframework.security.provisioning.UserDetailsManager
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
-import static datadog.trace.instrumentation.springsecurity5.SecurityConfig.CustomDsl.customDsl
-
 @Configuration
 @EnableWebSecurity
 class SecurityConfig {
 
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http.apply(customDsl())
+    http.apply(CustomDsl.customDsl())
     http
     .csrf().disable()
     .formLogin((form) -> form.loginPage("/login").permitAll())
-    .authorizeRequests()
-    .antMatchers("/", "/success", "/register", "/login", "/custom").permitAll()
+    .authorizeHttpRequests()
+    .requestMatchers("/", "/success", "/register", "/login", "/custom").permitAll()
     .anyRequest().authenticated()
     return http.build()
   }
