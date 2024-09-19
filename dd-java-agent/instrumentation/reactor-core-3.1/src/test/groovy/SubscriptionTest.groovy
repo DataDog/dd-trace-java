@@ -1,4 +1,5 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 import datadog.trace.agent.test.AgentTestRunner
@@ -7,6 +8,7 @@ import reactor.core.publisher.DirectProcessor
 import reactor.core.publisher.EmitterProcessor
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxProcessor
+import reactor.core.publisher.Mono
 import reactor.core.publisher.TopicProcessor
 import reactor.core.publisher.WorkQueueProcessor
 
@@ -84,6 +86,34 @@ class SubscriptionTest extends AgentTestRunner {
         basicSpan(it, "Connection.query", span(0))
       }
     }
+  }
+
+  def 'Mono then()'() {
+    when:
+    runUnderTrace("parent", {
+      Mono.create {
+        def creator = it
+        runUnderTrace("child1", {
+          creator.success()
+        })
+      }
+      .then(Mono.create {
+        def creator = it
+        runUnderTrace("child2", {
+          creator.success()
+        })
+      })
+      .block()
+    })
+    then:
+    assertTraces(1, {
+      trace(3) {
+        sortSpansByStart()
+        basicSpan(it, "parent")
+        basicSpan(it, "child1", span(0))
+        basicSpan(it, "child2", span(0))
+      }
+    })
   }
 
   static class Connection {
