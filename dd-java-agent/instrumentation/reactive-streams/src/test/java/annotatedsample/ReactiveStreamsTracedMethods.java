@@ -20,7 +20,12 @@ public class ReactiveStreamsTracedMethods {
     return TestPublisher.ofFailing(latch, throwable);
   }
 
-  private static class TestPublisher implements Publisher<String> {
+  @WithSpan
+  public static Publisher<String> traceNestedAsyncPublisher(CountDownLatch latch) {
+    return traceAsyncPublisher(latch);
+  }
+
+  public static class TestPublisher implements Publisher<String> {
     private final CountDownLatch latch;
     private final String element;
     private final Throwable error;
@@ -31,11 +36,11 @@ public class ReactiveStreamsTracedMethods {
       this.error = error;
     }
 
-    private static TestPublisher ofComplete(CountDownLatch latch, String element) {
+    public static TestPublisher ofComplete(CountDownLatch latch, String element) {
       return new TestPublisher(latch, element, null);
     }
 
-    private static TestPublisher ofFailing(CountDownLatch latch, Throwable error) {
+    public static TestPublisher ofFailing(CountDownLatch latch, Throwable error) {
       return new TestPublisher(latch, null, error);
     }
 
@@ -57,7 +62,7 @@ public class ReactiveStreamsTracedMethods {
     }
   }
 
-  public static class ConsummerSubscriber<T> implements Subscriber<T> {
+  public static class ConsumerSubscriber<T> implements Subscriber<T> {
     @Override
     public void onSubscribe(Subscription s) {
       s.request(1);
