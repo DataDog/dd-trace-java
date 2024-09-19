@@ -7,6 +7,7 @@ import datadog.appsec.api.blocking.BlockingDetails
 import datadog.appsec.api.blocking.BlockingException
 import datadog.appsec.api.blocking.BlockingService
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -64,6 +65,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
@@ -90,7 +92,8 @@ import static org.junit.Assume.assumeTrue
 abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("http-server")
-  protected static final DSM_EDGE_TAGS = SERVER_PATHWAY_EDGE_TAGS.collect { key, value ->
+  protected static final DSM_EDGE_TAGS = SERVER_PATHWAY_EDGE_TAGS.collect {
+    key, value ->
     return key + ":" + value
   }
   static {
@@ -121,6 +124,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ss.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
     ss.registerCallback(events.responseHeaderDone(), callbacks.responseHeaderDoneCb)
     ss.registerCallback(events.requestPathParams(), callbacks.requestParamsCb)
+    ss.registerCallback(events.requestSession(), callbacks.requestSessionCb)
 
     if (Config.get().getIastActivation() == ProductActivation.FULLY_ENABLED) {
       def iastSubService = get().getSubscriptionService(RequestContextSlot.IAST)
@@ -369,6 +373,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true // bug in armeria-jetty
   }
 
+  boolean testSessionId() {
+    false // not all servers support session ids
+  }
+
   @Override
   int version() {
     return 0
@@ -419,6 +427,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     UNKNOWN("", 451, null), // This needs to have a valid status code
     // should be used to test secure area success (i.e. under access control)
     SECURE_SUCCESS("secure/success", 200, null),
+
+    SESSION_ID("session", 200, null),
 
     private final String path
     private final String rawPath
@@ -492,12 +502,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   Request.Builder request(ServerEndpoint uri, String method, RequestBody body) {
     def url = HttpUrl.get(uri.resolve(address)).newBuilder()
-      .encodedQuery(uri.rawQuery)
-      .fragment(uri.fragment)
-      .build()
+    .encodedQuery(uri.rawQuery)
+    .fragment(uri.fragment)
+    .build()
     return new Request.Builder()
-      .url(url)
-      .method(method, body)
+    .url(url)
+    .method(method, body)
   }
 
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
@@ -607,9 +617,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def traceId = 123G
     def parentId = 456G
     def request = request(SUCCESS, method, body)
-      .header("x-datadog-trace-id", traceId.toString())
-      .header("x-datadog-parent-id", parentId.toString())
-      .build()
+    .header("x-datadog-trace-id", traceId.toString())
+    .header("x-datadog-parent-id", parentId.toString())
+    .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -651,8 +661,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test success with request header #header tag mapping"() {
     setup:
     def request = request(SUCCESS, method, body)
-      .header(header, value)
-      .build()
+    .header(header, value)
+    .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -706,7 +716,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
     injectSysConfig(RESPONSE_HEADER_TAGS, "$header:$mapping")
     def request = request(endpoint, method, body)
-      .build()
+    .build()
     def response = client.newCall(request).execute()
 
     expect:
@@ -891,8 +901,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testPathParam() != null && expectedIGPathParams() != null)
     def request = request(PATH_PARAM, 'GET', null)
-      .header(IG_EXTRA_SPAN_NAME_HEADER, 'appsec-span')
-      .build()
+    .header(IG_EXTRA_SPAN_NAME_HEADER, 'appsec-span')
+    .build()
 
     when:
     def response = client.newCall(request).execute()
@@ -922,10 +932,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def traceId = 123G
     def parentId = 456G
     def request = request(SUCCESS, method, body)
-      .header("x-datadog-trace-id", traceId.toString() + ", " + traceId.toString())
-      .header("x-datadog-parent-id", parentId.toString() + ", " + parentId.toString())
-      .header("x-datadog-sampling-priority", "1, 1")
-      .build()
+    .header("x-datadog-trace-id", traceId.toString() + ", " + traceId.toString())
+    .header("x-datadog-parent-id", parentId.toString() + ", " + parentId.toString())
+    .header("x-datadog-sampling-priority", "1, 1")
+    .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -1283,9 +1293,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testRequestBody())
     def request = request(
-      CREATED, 'POST',
-      RequestBody.create(MediaType.get('text/plain'), 'my body'))
-      .build()
+    CREATED, 'POST',
+    RequestBody.create(MediaType.get('text/plain'), 'my body'))
+    .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -1322,9 +1332,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testRequestBodyISVariant())
     def request = request(
-      CREATED_IS, 'POST',
-      RequestBody.create(MediaType.get('text/plain'), 'my body'))
-      .build()
+    CREATED_IS, 'POST',
+    RequestBody.create(MediaType.get('text/plain'), 'my body'))
+    .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -1355,9 +1365,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testBodyUrlencoded())
     def request = request(
-      BODY_URLENCODED, 'POST',
-      RequestBody.create(MediaType.get('application/x-www-form-urlencoded'), 'a=x'))
-      .build()
+    BODY_URLENCODED, 'POST',
+    RequestBody.create(MediaType.get('application/x-www-form-urlencoded'), 'a=x'))
+    .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -1389,9 +1399,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testBodyMultipart())
     def body = new MultipartBody.Builder()
-      .setType(MultipartBody.FORM)
-      .addFormDataPart('a', 'x')
-      .build()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('a', 'x')
+    .build()
     def request = request(BODY_MULTIPART, 'POST', body).build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
@@ -1423,9 +1433,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     setup:
     assumeTrue(testBodyJson())
     def request = request(
-      BODY_JSON, 'POST',
-      RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
-      .build()
+    BODY_JSON, 'POST',
+    RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
+    .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -1458,12 +1468,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBlocking())
 
     def request = request(SUCCESS, 'GET', null)
-      .addHeader(IG_BLOCK_HEADER, 'auto').with {
-        if (acceptHeader) {
-          it.addHeader('Accept', 'text/html;q=0.9, application/json;q=0.8')
-        }
-        it.build()
+    .addHeader(IG_BLOCK_HEADER, 'auto').with {
+      if (acceptHeader) {
+        it.addHeader('Accept', 'text/html;q=0.9, application/json;q=0.8')
       }
+      it.build()
+    }
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -1513,9 +1523,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBlocking())
 
     def request = request(SUCCESS, 'GET', null)
-      .addHeader(IG_BLOCK_HEADER, 'json')
-      .addHeader('Accept', 'text/html')  // preference for html will be ignored
-      .build()
+    .addHeader(IG_BLOCK_HEADER, 'json')
+    .addHeader('Accept', 'text/html')  // preference for html will be ignored
+    .build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -1553,7 +1563,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBlocking())
 
     def request = request(SUCCESS, 'GET', null)
-      .addHeader(IG_BLOCK_HEADER, 'none').build()
+    .addHeader(IG_BLOCK_HEADER, 'none').build()
     def response = client.newCall(request).execute()
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
@@ -1589,9 +1599,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     def request = new okhttp3.Request.Builder()
-      .url(address.toString() + "success?file=\\abc")
-      .get()
-      .build()
+    .url(address.toString() + "success?file=\\abc")
+    .get()
+    .build()
     client.newCall(request).execute()
 
     then:
@@ -1606,8 +1616,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testPathParam() != null)
 
     def request = request(PATH_PARAM, 'GET', null)
-      .header(IG_PARAMETERS_BLOCK_HEADER, 'true')
-      .build()
+    .header(IG_PARAMETERS_BLOCK_HEADER, 'true')
+    .build()
 
     when:
     def response = client.newCall(request).execute()
@@ -1647,10 +1657,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(executeTest)
 
     def request = request(
-      endpoint, 'POST',
-      RequestBody.create(MediaType.get(contentType), body))
-      .header(header, 'true')
-      .build()
+    endpoint, 'POST',
+    RequestBody.create(MediaType.get(contentType), body))
+    .header(header, 'true')
+    .build()
 
     when:
     def response = client.newCall(request).execute()
@@ -1678,7 +1688,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     spans.find { it.tags['appsec.blocked'] == 'true' } != null
     spans.find {
       it.error &&
-        it.tags['error.type'] == BlockingException.name } != null
+      it.tags['error.type'] == BlockingException.name } != null
 
     and:
     if (isDataStreamsEnabled()) {
@@ -1715,33 +1725,33 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testUserBlocking())
     BlockingService origBlockingService = Blocking.SERVICE
     BlockingService bs = new BlockingService() {
-        @Override
-        BlockingDetails shouldBlockUser(@Nonnull String userId) {
-          userId == 'user-to-block' ?
-            new BlockingDetails(403, BlockingContentType.JSON, ['X-Header': 'X-Header-Value']) :
-            null
-        }
-
-        @Override
-        boolean tryCommitBlockingResponse(int statusCode, @Nonnull BlockingContentType type,
-          @Nonnull Map<String, String> extraHeaders) {
-          RequestContext reqCtx = AgentTracer.get().activeSpan().requestContext
-          if (reqCtx == null) {
-            return false
-          }
-
-          BlockResponseFunction blockResponseFunction = reqCtx.blockResponseFunction
-          if (blockResponseFunction == null) {
-            throw new UnsupportedOperationException("Do not know how to commit blocking response for this server")
-          }
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.traceSegment, statusCode, type, extraHeaders)
-        }
+      @Override
+      BlockingDetails shouldBlockUser(@Nonnull String userId) {
+        userId == 'user-to-block' ?
+        new BlockingDetails(403, BlockingContentType.JSON, ['X-Header': 'X-Header-Value']) :
+        null
       }
+
+      @Override
+      boolean tryCommitBlockingResponse(int statusCode, @Nonnull BlockingContentType type,
+      @Nonnull Map<String, String> extraHeaders) {
+        RequestContext reqCtx = AgentTracer.get().activeSpan().requestContext
+        if (reqCtx == null) {
+          return false
+        }
+
+        BlockResponseFunction blockResponseFunction = reqCtx.blockResponseFunction
+        if (blockResponseFunction == null) {
+          throw new UnsupportedOperationException("Do not know how to commit blocking response for this server")
+        }
+        blockResponseFunction.tryCommitBlockingResponse(reqCtx.traceSegment, statusCode, type, extraHeaders)
+      }
+    }
     Blocking.blockingService = bs
 
     def testRequest = request(USER_BLOCK, 'GET', null)
-      .addHeader('Accept', 'application/json')
-      .build()
+    .addHeader('Accept', 'application/json')
+    .build()
     def response = client.newCall(testRequest).execute()
 
     expect:
@@ -1781,8 +1791,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBlockingOnResponse())
 
     def request = request(SUCCESS, 'GET', null)
-      .header(IG_BLOCK_RESPONSE_HEADER, 'json')
-      .build()
+    .header(IG_BLOCK_RESPONSE_HEADER, 'json')
+    .build()
 
     when:
     def response = client.newCall(request).execute()
@@ -1812,8 +1822,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBlockingOnResponse())
 
     def request = request(SUCCESS, 'GET', null)
-      .header(IG_BLOCK_RESPONSE_HEADER, 'none')
-      .build()
+    .header(IG_BLOCK_RESPONSE_HEADER, 'none')
+    .build()
 
     when:
     def response = client.newCall(request).execute()
@@ -1833,6 +1843,36 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assert rootSpan != null
     rootSpan.tags['http.status_code'] == 301
     rootSpan.tags['appsec.blocked'] == 'true'
+  }
+
+  def 'test session id publishes to IG'() {
+    setup:
+    assumeTrue(testSessionId())
+    def cookieJar = OkHttpUtils.cookieJar()
+    def client = OkHttpUtils.clientBuilder().followRedirects(false).cookieJar(cookieJar).build()
+    def initialRequest = request(SESSION_ID, 'GET', null).build()
+
+    when: 'initial request'
+    def initialResponse = client.newCall(initialRequest).execute()
+
+    then: 'a new session is created'
+    initialResponse.code() == SESSION_ID.status
+
+    when: 'second request with an existing session'
+    def secondRequest = request(SESSION_ID, 'GET', null).build()
+    def secondResponse = client.newCall(secondRequest).execute()
+
+    then: 'the session id is reported to the IG'
+    secondResponse.code() == SESSION_ID.status
+    TEST_WRITER.waitForTraces(2)
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+    DDSpan span = TEST_WRITER.flatten().find {it.operationName =='appsec-span' }
+    span != null
+    final sessionId = span.tags[IG_SESSION_ID_TAG]
+    sessionId != null
+    secondResponse.body().string().contains(sessionId as String)
   }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
@@ -1872,12 +1912,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   // same, but has a slightly different behavior, then please think again, and see if you can't make that part
   // of the integrations very special behavior into something configurable here instead.
   final void serverSpan(TraceAssert trace,
-    BigInteger traceID = null,
-    BigInteger parentID = null,
-    String method = "GET",
-    ServerEndpoint endpoint = SUCCESS,
-    Map<String, Serializable> extraTags = null,
-    String clientIp = null) {
+  BigInteger traceID = null,
+  BigInteger parentID = null,
+  String method = "GET",
+  ServerEndpoint endpoint = SUCCESS,
+  Map<String, Serializable> extraTags = null,
+  String clientIp = null) {
     Object expectedServerSpanRoute = expectedServerSpanRoute(endpoint)
     Map<String, Serializable> expectedExtraErrorInformation = hasExtraErrorInformation() ? expectedExtraErrorInformation(endpoint) : null
     boolean hasPeerInformation = hasPeerInformation()
@@ -1962,6 +2002,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_RESPONSE_HEADER_VALUE = "ig-response-header-value"
   static final String IG_RESPONSE_HEADER_TAG = "ig-response-header"
   static final String IG_PATH_PARAMS_TAG = "ig-path-params"
+  static final String IG_SESSION_ID_TAG = "ig-session-id"
 
   class IGCallbacks {
     static class Context {
@@ -2041,11 +2082,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
       if (context.blockingContentType && context.blockingContentType != 'none') {
         new RbaFlow(
-          new Flow.Action.RequestBlockingAction(418,
-          BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT))))
+        new Flow.Action.RequestBlockingAction(418,
+        BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT))))
       } else if (context.blockingContentType && context.blockingContentType == 'none') {
         new RbaFlow(
-          Flow.Action.RequestBlockingAction.forRedirect(301, 'https://www.google.com/'))
+        Flow.Action.RequestBlockingAction.forRedirect(301, 'https://www.google.com/'))
       } else {
         Flow.ResultFlow.empty()
       }
@@ -2092,8 +2133,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
       if (context.bodyEndBlock) {
         new RbaFlow(
-          new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
-          )
+        new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+        )
       } else {
         Flow.ResultFlow.empty()
       }
@@ -2110,15 +2151,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       } else if (!(obj instanceof String) && !(obj instanceof List)) {
         obj = obj.properties
-          .findAll { it.key != 'class' }
-          .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
+        .findAll { it.key != 'class' }
+        .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
       }
       rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.bodyConvertedBlock) {
         new RbaFlow(
-          new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
-          )
+        new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+        )
       } else {
         Flow.ResultFlow.empty()
       }
@@ -2150,13 +2191,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       if (context.responseBlock == 'none') {
         new RbaFlow(
-          new Flow.Action.RequestBlockingAction(301, BlockingContentType.NONE,
-          [Location: 'https://www.google.com/'])
-          )
+        new Flow.Action.RequestBlockingAction(301, BlockingContentType.NONE,
+        [Location: 'https://www.google.com/'])
+        )
       } else if (context.responseBlock == 'json') {
         new RbaFlow(
-          new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
-          )
+        new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+        )
       } else {
         Flow.ResultFlow.empty()
       }
@@ -2167,8 +2208,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.parametersBlock) {
         return new RbaFlow(
-          new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
-          )
+        new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
+        )
       }
 
       if (map && !map.empty) {
@@ -2176,6 +2217,16 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, Map<String, ?>, Flow<Void>>
+
+    final BiFunction<RequestContext, String, Flow<Void>> requestSessionCb =
+    { RequestContext rqCtxt, String sessionId ->
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (sessionId != null) {
+        context.extraSpanName = 'appsec-span'
+        context.tags.put(IG_SESSION_ID_TAG, sessionId)
+      }
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, String, Flow<Void>>
   }
 
   class IastIGCallbacks {

@@ -23,6 +23,8 @@ import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.stack_trace.StackTraceCollection;
 import com.datadog.appsec.util.ObjectFlattener;
 import datadog.trace.api.Config;
+import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -49,6 +51,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +89,9 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo dbSqlQuerySubInfo;
   private volatile DataSubscriberInfo ioNetUrlSubInfo;
   private volatile DataSubscriberInfo ioFileSubInfo;
+  private volatile DataSubscriberInfo sessionIdSubInfo;
+  private final ConcurrentHashMap<Address<String>, DataSubscriberInfo> userIdSubInfo =
+      new ConcurrentHashMap<>();
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -126,6 +132,12 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.databaseSqlQuery(), this::onDatabaseSqlQuery);
     subscriptionService.registerCallback(EVENTS.networkConnection(), this::onNetworkConnection);
     subscriptionService.registerCallback(EVENTS.fileLoaded(), this::onFileLoaded);
+    subscriptionService.registerCallback(EVENTS.requestSession(), this::onRequestSession);
+    subscriptionService.registerCallback(EVENTS.userId(), this.onUserEvent(KnownAddresses.USER_ID));
+    subscriptionService.registerCallback(
+        EVENTS.loginSuccess(), this.onUserEvent(KnownAddresses.LOGIN_SUCCESS));
+    subscriptionService.registerCallback(
+        EVENTS.loginFailure(), this.onUserEvent(KnownAddresses.LOGIN_FAILURE));
 
     if (additionalIGEvents.contains(EVENTS.requestPathParams())) {
       subscriptionService.registerCallback(EVENTS.requestPathParams(), this::onRequestPathParams);
@@ -133,6 +145,70 @@ public class GatewayBridge {
     if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
       subscriptionService.registerCallback(
           EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
+    }
+  }
+
+  private TriFunction<RequestContext, UserIdCollectionMode, String, Flow<Void>> onUserEvent(
+      final Address<String> address) {
+    return (ctx_, mode, userId) -> {
+      final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+      if (ctx == null) {
+        return NoopFlow.INSTANCE;
+      }
+      final TraceSegment segment = ctx_.getTraceSegment();
+      segment.setTagTop("usr.id", userId);
+      segment.setTagTop("_dd.appsec.user.collection_mode", mode.shortName());
+      final Address<?>[] addresses =
+          address == KnownAddresses.USER_ID
+              ? new Address[] {KnownAddresses.USER_ID}
+              : new Address[] {KnownAddresses.USER_ID, address};
+      while (true) {
+        DataSubscriberInfo subInfo =
+            userIdSubInfo.computeIfAbsent(
+                address, k -> producerService.getDataSubscribers(addresses));
+        if (subInfo == null || subInfo.isEmpty()) {
+          return NoopFlow.INSTANCE;
+        }
+        MapDataBundle.Builder bundle =
+            new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.USER_ID, userId);
+        if (address != KnownAddresses.USER_ID) {
+          // we don't support null values for the address so we use an invalid placeholder here
+          bundle.add(address, "invalid");
+        }
+        try {
+          GatewayContext gwCtx = new GatewayContext(false);
+          return producerService.publishDataEvent(subInfo, ctx, bundle.build(), gwCtx);
+        } catch (ExpiredSubscriberInfoException e) {
+          userIdSubInfo.remove(address);
+        }
+      }
+    };
+  }
+
+  private Flow<Void> onRequestSession(final RequestContext ctx_, final String sessionId) {
+    final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    final TraceSegment segment = ctx_.getTraceSegment();
+    segment.setTagTop("usr.session_id", sessionId);
+    while (true) {
+      DataSubscriberInfo subInfo = sessionIdSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.SESSION_ID);
+        sessionIdSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2).add(KnownAddresses.SESSION_ID, sessionId).build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        sessionIdSubInfo = null;
+      }
     }
   }
 
