@@ -13,9 +13,15 @@ import reactor.core.publisher.Mono
  */
 @Component
 class EchoHandler {
-  @Trace(operationName = "echo", resourceName = "echo")
   Mono<ServerResponse> echo(ServerRequest request) {
+    doSomething()
     return ServerResponse.accepted().contentType(MediaType.TEXT_PLAIN)
       .body(request.bodyToMono(String), String)
+  }
+
+  @Trace(operationName = "echo", resourceName = "echo")
+  private void doSomething() {
+    // we trace here otherwise the span created will stay alive until the mono returned by the handler
+    // is terminated
   }
 }
