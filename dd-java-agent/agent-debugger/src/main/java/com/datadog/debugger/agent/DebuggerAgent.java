@@ -58,11 +58,6 @@ public class DebuggerAgent {
   public static synchronized void run(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     Config config = Config.get();
-    if (!config.isDebuggerEnabled()) {
-      LOGGER.info("Debugger agent disabled");
-      return;
-    }
-    LOGGER.info("Starting Dynamic Instrumentation");
     ClassesToRetransformFinder classesToRetransformFinder = new ClassesToRetransformFinder();
     setupSourceFileTracking(instrumentation, classesToRetransformFinder);
     Redaction.addUserDefinedKeywords(config);
@@ -95,6 +90,7 @@ public class DebuggerAgent {
     DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
     DefaultExceptionDebugger defaultExceptionDebugger = null;
     if (config.isDebuggerExceptionEnabled()) {
+      LOGGER.info("Starting Exception Replay");
       defaultExceptionDebugger =
           new DefaultExceptionDebugger(
               configurationUpdater,
@@ -112,6 +108,36 @@ public class DebuggerAgent {
       setupInstrumentTheWorldTransformer(
           config, instrumentation, debuggerSink, statsdMetricForwarder);
     }
+    // Dynamic Instrumentation
+    if (config.isDebuggerEnabled()) {
+      startDynamicInstrumentation(
+          instrumentation, sco, config, configurationUpdater, debuggerSink, classNameFiltering);
+    }
+    try {
+      /*
+      Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
+      GC for anything that is reachable from it.
+       */
+      Runtime.getRuntime().addShutdownHook(new ShutdownHook(configurationPoller, debuggerSink));
+    } catch (final IllegalStateException ex) {
+      // The JVM is already shutting down.
+    }
+    ExceptionProbeManager exceptionProbeManager =
+        defaultExceptionDebugger != null
+            ? defaultExceptionDebugger.getExceptionProbeManager()
+            : null;
+    TracerFlare.addReporter(
+        new DebuggerReporter(configurationUpdater, sink, exceptionProbeManager));
+  }
+
+  private static void startDynamicInstrumentation(
+      Instrumentation instrumentation,
+      SharedCommunicationObjects sco,
+      Config config,
+      ConfigurationUpdater configurationUpdater,
+      DebuggerSink debuggerSink,
+      ClassNameFiltering classNameFiltering) {
+    LOGGER.info("Starting Dynamic Instrumentation");
     String probeFileLocation = config.getDebuggerProbeFileLocation();
     if (probeFileLocation != null) {
       Path probeFilePath = Paths.get(probeFileLocation);
@@ -133,24 +159,9 @@ public class DebuggerAgent {
         }
       }
       subscribeConfigurationPoller(config, configurationUpdater, symDBEnablement);
-      try {
-        /*
-        Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
-        GC for anything that is reachable from it.
-         */
-        Runtime.getRuntime().addShutdownHook(new ShutdownHook(configurationPoller, debuggerSink));
-      } catch (final IllegalStateException ex) {
-        // The JVM is already shutting down.
-      }
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
-    ExceptionProbeManager exceptionProbeManager =
-        defaultExceptionDebugger != null
-            ? defaultExceptionDebugger.getExceptionProbeManager()
-            : null;
-    TracerFlare.addReporter(
-        new DebuggerReporter(configurationUpdater, sink, exceptionProbeManager));
   }
 
   private static DebuggerSink createDebuggerSink(Config config, ProbeStatusSink probeStatusSink) {
