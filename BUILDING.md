@@ -141,7 +141,7 @@ cp .githooks/pre-commit .git/hooks/
 
 # On Windows
 cd dd-trace-java
-copy .githooks/pre-comit .git/hooks/
+copy .githooks/pre-commit .git/hooks/
 ```
 
 > [!TIP]
