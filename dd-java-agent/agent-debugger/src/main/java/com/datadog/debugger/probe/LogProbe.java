@@ -697,7 +697,7 @@ public class LogProbe extends ProbeDefinition {
     }
 
     public boolean shouldReportError() {
-      return hasConditionErrors || hasLogTemplateErrors;
+      return sampled && (hasConditionErrors || hasLogTemplateErrors);
     }
 
     public boolean getCondition() {
