@@ -42,13 +42,13 @@ class StringCallSiteTest extends AgentTestRunner {
 
     then:
     result == output
-    1 * module.onStringStrip(input, output)
+    1 * module.onStringStrip(input, output, trailing)
     0 * _
 
     where:
-    method                | input     | output
-    "stringStrip"         | ' hello ' | 'hello'
-    "stringStripLeading"  | ' hello ' | 'hello '
-    "stringStripTrailing" | ' hello ' | ' hello'
+    method                | trailing | input     | output
+    "stringStrip"         | false    | ' hello ' | 'hello'
+    "stringStripLeading"  | false    | ' hello ' | 'hello '
+    "stringStripTrailing" | true     | ' hello ' | ' hello'
   }
 }
