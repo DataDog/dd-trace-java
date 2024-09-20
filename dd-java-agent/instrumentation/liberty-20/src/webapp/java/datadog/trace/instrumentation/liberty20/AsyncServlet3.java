@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.liberty20;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID;
 
 import datadog.trace.agent.test.base.HttpServerTest;
 import java.io.ByteArrayOutputStream;
@@ -48,6 +49,7 @@ import javax.servlet.http.HttpServletResponseWrapper;
       "/async/encoded path query",
       "/async/encoded_query",
       "/async/user-block",
+      "/async/session",
     },
     asyncSupported = true)
 @MultipartConfig(
@@ -87,7 +89,9 @@ public class AsyncServlet3 extends HttpServlet {
       if (serverEndpoint == BODY_MULTIPART) {
         // needed to trigger reading the body on openliberty
         ((HttpServletRequest) req).getParts();
-      } else if (serverEndpoint == ERROR || serverEndpoint == QUERY_ENCODED_BOTH) {
+      } else if (serverEndpoint == ERROR
+          || serverEndpoint == QUERY_ENCODED_BOTH
+          || serverEndpoint == SESSION_ID) {
         delegate.service(req, res);
         return;
       }

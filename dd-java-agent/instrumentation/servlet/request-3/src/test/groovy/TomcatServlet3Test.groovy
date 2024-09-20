@@ -40,6 +40,11 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     true
   }
 
+  @Override
+  boolean testSessionId() {
+    true
+  }
+
   class TomcatServer implements HttpServer {
     def port = 0
     final Tomcat server

@@ -125,6 +125,12 @@ abstract class JettyServlet2Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testSessionId() {
+    // TODO enable when session id management is added to Jetty
+    false
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
     ["servlet.path": endpoint.path, "servlet.context": "/$CONTEXT"]
   }
