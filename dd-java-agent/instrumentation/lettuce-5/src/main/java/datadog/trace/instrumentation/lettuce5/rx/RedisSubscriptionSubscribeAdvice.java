@@ -27,19 +27,14 @@ public class RedisSubscriptionSubscribeAdvice {
   }
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static State beforeSubscribe(
+  public static AgentScope beforeSubscribe(
       @Advice.This Subscription subscription,
       @Advice.FieldValue("command") RedisCommand command,
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand) {
 
-    AgentScope parentScope = null;
     RedisSubscriptionState state =
-        InstrumentationContext.get(Subscription.class, RedisSubscriptionState.class)
+        (RedisSubscriptionState) InstrumentationContext.get("io.lettuce.core.RedisPublisher$RedisSubscription", "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState")
             .get(subscription);
-    AgentSpan parentSpan = state != null ? state.parentSpan : null;
-    if (parentSpan != null) {
-      parentScope = activateSpan(parentSpan);
-    }
     AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
     InstrumentationContext.get(RedisCommand.class, AgentSpan.class).put(subscriptionCommand, span);
     DECORATE.afterStart(span);
@@ -50,23 +45,22 @@ public class RedisSubscriptionSubscribeAdvice {
               .get(state.connection));
     }
     DECORATE.onCommand(span, command);
-
-    return new State(parentScope, span);
+    return activateSpan(span);
   }
 
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterSubscribe(
       @Advice.FieldValue("command") RedisCommand command,
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand,
-      @Advice.Enter State state) {
+      @Advice.Enter AgentScope scope) {
+    if (scope != null) {
+      scope.close();
+    }
     if (!expectsResponse(command)) {
-      DECORATE.beforeFinish(state.span);
-      state.span.finish();
+      DECORATE.beforeFinish(scope);
+      scope.span().finish();
       InstrumentationContext.get(RedisCommand.class, AgentSpan.class)
           .put(subscriptionCommand, null);
-    }
-    if (state.parentScope != null) {
-      state.parentScope.close();
     }
   }
 }

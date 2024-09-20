@@ -13,7 +13,7 @@ public class RedisSubscriptionAdvanceAdvice {
       @Advice.This Subscription subscription, @Advice.FieldValue("command") RedisCommand command) {
 
     ContextStore<Subscription, RedisSubscriptionState> store =
-        InstrumentationContext.get(Subscription.class, RedisSubscriptionState.class);
+        InstrumentationContext.get("io.lettuce.core.RedisPublisher$RedisSubscription", "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState");
     RedisSubscriptionState value = store.get(subscription);
     if (value == null) {
       value = new RedisSubscriptionState();
