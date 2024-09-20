@@ -40,12 +40,14 @@ import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.test.util.Flaky;
+import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -308,6 +310,8 @@ public class SnapshotSerializationTest {
     OptionalLong maybeLong = OptionalLong.of(84);
     Exception ex = new IllegalArgumentException("invalid arg");
     StackTraceElement element = new StackTraceElement("Foo", "bar", "foo.java", 42);
+    File file = new File("/tmp/foo");
+    Path path = file.toPath();
   }
 
   @Test
@@ -384,6 +388,10 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(elementFields, "methodName", String.class.getTypeName(), "bar");
     assertPrimitiveValue(elementFields, "fileName", String.class.getTypeName(), "foo.java");
     assertPrimitiveValue(elementFields, "lineNumber", Integer.class.getTypeName(), "42");
+    // file
+    assertPrimitiveValue(objLocalFields, "file", File.class.getTypeName(), "/tmp/foo");
+    // path
+    assertPrimitiveValue(objLocalFields, "path", "sun.nio.fs.UnixPath", "/tmp/foo");
   }
 
   @Test
