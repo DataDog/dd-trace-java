@@ -41,7 +41,7 @@ To build the full project:
 * The JDK-8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
 * The `JAVA_HOME` environment variable may be unset. If set, it must point to the JDK 8 location (same as `JAVA_8_HOME`),
 * The `git` command line must be installed,
-* A container runtime environment must be available to run all tests (usually Docker Desktop). 
+* A container runtime environment must be available to run all tests (usually Docker Desktop).
 
 
 ## Setting up development environment
@@ -50,13 +50,13 @@ To build the full project:
 
 **On MacOS:**
 
-* Install the required JDKs using `brew`:  
+* Install the required JDKs using `brew`:
 `brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 graalvm/tap/graalvm-ce-java17`
-* Fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/):  
+* Fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/):
 `sudo xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-<current version of graalvm>`
 * Add the required environment variables to your shell using the `export` command:
 ```shell
-export JAVA_8_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home  
+export JAVA_8_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home
 export JAVA_11_HOME=/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home
 export JAVA_17_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
 export JAVA_21_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
@@ -64,8 +64,8 @@ export JAVA_GRAALVM17_HOME=/Library/Java/JavaVirtualMachines/graalvm-<current ve
 export JAVA_HOME=$JAVA_8_HOME
 ```
 
-> [!NOTE] 
-> ARM users, there is no Oracle JDK v8 for ARM. 
+> [!NOTE]
+> ARM users, there is no Oracle JDK v8 for ARM.
 > It's recommended to use [Azul's Zulu](https://www.azul.com/downloads/?version=java-8-lts&architecture=arm-64-bit&package=jdk#zulu) builds of Java 8.
 > [Amazon Corretto](https://aws.amazon.com/corretto/) builds have also been proven to work.
 
@@ -171,7 +171,7 @@ git config --local submodule.recurse true
 
 If you properly followed this guide, the `setup.sh` script at the project root should run without issue, confirming everything is properly setup.
 
-> [!NOTE] 
+> [!NOTE]
 > The `setup.sh` script is only available for MacOS and Linux.
 
 ### Build the project
