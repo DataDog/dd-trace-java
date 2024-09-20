@@ -49,23 +49,6 @@ class StringCallSiteTest extends AgentTestRunner {
     method                | input     | output
     "stringStrip"         | ' hello ' | 'hello'
     "stringStripLeading"  | ' hello ' | 'hello '
-  }
-
-  def 'test string strip trailing call site'() {
-    setup:
-    final module = Mock(StringModule)
-    InstrumentationBridge.registerIastModule(module)
-
-    when:
-    final result = TestStringJDK11Suite.stringStripTrailing(input)
-
-    then:
-    result == output
-    1 * module.onStringStrip(input, output)
-    0 * _
-
-    where:
-    input     | output
-    ' hello ' | ' hello'
+    "stringStripTrailing" | ' hello ' | ' hello'
   }
 }

@@ -984,7 +984,7 @@ class StringModuleTest extends IastModuleImplTestBase {
     '==>testing<== the ==>test<==' | ' '    | ['==>testing<==', '==>the<==', '==>test<=='] as String[]
   }
 
-  void 'test strip and make sure IastRequestContext is called'() {
+  void 'test #method and make sure IastRequestContext is called'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
@@ -999,33 +999,25 @@ class StringModuleTest extends IastModuleImplTestBase {
     taintFormat(result, taintedObject.getRanges()) == expected
 
     where:
-    method          | trailing | testString        | expected
-    "strip"         | false    | "   ==>123<==   " | "==>123<=="
-    "stripLeading"  | false    | "   ==>123<==   " | "==>123<==   "
-    "stripTrailing" | true     | "   ==>123<==   " | "   ==>123<=="
-  }
-
-  void 'test strip for not empty string cases'() {
-    given:
-    final taintedObjects = ctx.getTaintedObjects()
-    def self = addFromTaintFormat(taintedObjects, testString)
-    def result = self."$method"()
-
-    when:
-    module.onStringStrip(self, result, trailing)
-    def taintedObject = taintedObjects.get(result)
-
-    then:
-    taintFormat(result, taintedObject.getRanges()) == expected
-
-    where:
     method          | trailing | testString                                                      | expected
+    "strip"         | false    | "   ==>123<==   "                                               | "==>123<=="
+    "stripLeading"  | false    | "   ==>123<==   "                                               | "==>123<==   "
+    "stripTrailing" | true     | "   ==>123<==   "                                               | "   ==>123<=="
     "strip"         | false    | " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <== " | "==>456<== ==>ABC<=="
     "stripLeading"  | false    | " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <== " | "==>456<== ==>ABC<== ==>   <== ==>   <== "
     "stripTrailing" | true     | " ==>   <== ==>   <== ==>456<== ==>ABC<== ==>   <== ==>   <== " | " ==>   <== ==>   <== ==>456<== ==>ABC<=="
+    "strip"         | false    | "   ==>123<==   "                                               | "==>123<=="
+    "stripLeading"  | false    | "   ==>123<==   "                                               | "==>123<==   "
+    "stripTrailing" | true     | "   ==>123<==   "                                               | "   ==>123<=="
+    "strip"         | false    | "==>   123   <=="                                               | "==>123<=="
+    "stripLeading"  | false    | "==>   123   <=="                                               | "==>123   <=="
+    "stripTrailing" | true     | "==>   123   <=="                                               | "==>   123<=="
+    "strip"         | false    | "   a==> b <==c   "                                             | "a==> b <==c"
+    "stripLeading"  | false    | "   a==> b <==c   "                                             | "a==> b <==c   "
+    "stripTrailing" | true     | "   a==> b <==c   "                                             | "   a==> b <==c"
   }
 
-  void 'test strip for empty string cases'() {
+  void 'test #method for empty string cases'() {
     given:
     final taintedObjects = ctx.getTaintedObjects()
     def self = addFromTaintFormat(taintedObjects, testString)
