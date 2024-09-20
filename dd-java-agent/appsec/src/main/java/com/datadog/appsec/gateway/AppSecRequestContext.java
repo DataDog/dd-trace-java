@@ -11,6 +11,7 @@ import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.sqreen.powerwaf.Additive;
@@ -432,7 +433,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void close(boolean requiresPostProcessing) {
     if (additive != null || derivatives != null) {
-      log.warn("WAF object had not been closed (probably missed request-end event)");
+      log.debug(
+          LogCollector.SEND_TELEMETRY,
+          "WAF object had not been closed (probably missed request-end event)");
       closeAdditive();
       derivatives = null;
     }
