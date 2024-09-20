@@ -568,6 +568,7 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
+  @SuppressFBWarnings
   public void onStringStrip(@Nonnull String self, @Nonnull String result, boolean trailing) {
     if (!canBeTainted(result) || self == result) {
       return;
