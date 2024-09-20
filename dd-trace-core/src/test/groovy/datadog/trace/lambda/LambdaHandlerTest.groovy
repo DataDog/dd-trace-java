@@ -32,7 +32,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     given:
     Config config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    CoreTracer ct = CoreTracer.builder().build()
+    CoreTracer ct = tracerBuilder().build()
 
     def server = httpServer {
       handlers {
@@ -56,6 +56,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
     cleanup:
     server.close()
+    ct.close()
 
     where:
     traceId    | samplingPriority      | obj
@@ -66,7 +67,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
     given:
     Config config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    CoreTracer ct = CoreTracer.builder().build()
+    CoreTracer ct = tracerBuilder().build()
 
     def server = httpServer {
       handlers {
@@ -86,22 +87,23 @@ class LambdaHandlerTest extends DDCoreSpecification {
     def objTest = LambdaHandler.notifyStartInvocation(ct, obj)
 
     then:
-    objTest.getTraceId().toString() == traceId
+    objTest.getTraceId().toHexString() == traceId
     objTest.getSamplingPriority() == samplingPriority
 
     cleanup:
     server.close()
+    ct.close()
 
     where:
-    traceId                                      | samplingPriority      | obj
-    "33339707034668043638992915224308903855"     | 2                     | new TestObject()
+    traceId                                | samplingPriority      | obj
+    "1914fe7789eb32be4fb6f07e011a6faf"     | 2                     | new TestObject()
   }
 
   def "test start invocation failure"() {
     given:
     Config config = Mock(Config)
     config.getxDatadogTagsMaxLength() >> 512
-    CoreTracer ct = CoreTracer.builder().build()
+    CoreTracer ct = tracerBuilder().build()
 
     def server = httpServer {
       handlers {
@@ -122,6 +124,7 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
     cleanup:
     server.close()
+    ct.close()
 
     where:
     expected    | obj
