@@ -1147,11 +1147,12 @@ public class CapturedSnapshotTest {
     TestSnapshotListener listener = installProbes(CLASS_NAME, logProbes);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
-    assertEquals(1, listener.snapshots.size());
-    List<EvaluationError> evaluationErrors = listener.snapshots.get(0).getEvaluationErrors();
-    Assertions.assertEquals(1, evaluationErrors.size());
-    Assertions.assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
-    Assertions.assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
+    Snapshot snapshot = assertOneSnapshot(listener);
+    List<EvaluationError> evaluationErrors = snapshot.getEvaluationErrors();
+    assertEquals(1, evaluationErrors.size());
+    assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
+    assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
+    assertEquals("Cannot dereference field: fld", snapshot.getMessage());
   }
 
   @Test
