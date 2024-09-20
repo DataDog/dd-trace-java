@@ -37,7 +37,7 @@ public class StringCallSite {
         module.onStringStrip(self, result, false);
       }
     } catch (final Throwable e) {
-      module.onUnexpectedException("afterRepeat threw", e);
+      module.onUnexpectedException("afterStrip threw", e);
     }
     return result;
   }
@@ -51,7 +51,7 @@ public class StringCallSite {
         module.onStringStrip(self, result, true);
       }
     } catch (final Throwable e) {
-      module.onUnexpectedException("afterRepeat threw", e);
+      module.onUnexpectedException("afterStripTrailing threw", e);
     }
     return result;
   }

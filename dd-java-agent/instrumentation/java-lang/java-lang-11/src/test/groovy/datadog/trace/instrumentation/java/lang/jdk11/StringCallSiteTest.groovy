@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.java.lang.jdk11
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.StringModule
