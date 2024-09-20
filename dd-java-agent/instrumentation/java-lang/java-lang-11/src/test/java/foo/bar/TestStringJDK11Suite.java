@@ -24,16 +24,16 @@ public abstract class TestStringJDK11Suite {
   }
 
   public static String stringStripLeading(final String self) {
-    LOGGER.debug("Before string strip {} ", self);
+    LOGGER.debug("Before string stripLeading {} ", self);
     final String result = self.stripLeading();
-    LOGGER.debug("After string strip {}", result);
+    LOGGER.debug("After string stripLeading {}", result);
     return result;
   }
 
   public static String stringStripTrailing(final String self) {
-    LOGGER.debug("Before string strip {} ", self);
+    LOGGER.debug("Before string stripTrailing {} ", self);
     final String result = self.stripTrailing();
-    LOGGER.debug("After string strip {}", result);
+    LOGGER.debug("After string stripTrailing {}", result);
     return result;
   }
 }

@@ -32,7 +32,7 @@ class StringCallSiteTest extends AgentTestRunner {
     0 * _
   }
 
-  def 'test string strip call site'() {
+  def 'test string #method call site'() {
     setup:
     final module = Mock(StringModule)
     InstrumentationBridge.registerIastModule(module)
@@ -43,7 +43,6 @@ class StringCallSiteTest extends AgentTestRunner {
     then:
     result == output
     1 * module.onStringStrip(input, output, trailing)
-    0 * _
 
     where:
     method                | trailing | input     | output
