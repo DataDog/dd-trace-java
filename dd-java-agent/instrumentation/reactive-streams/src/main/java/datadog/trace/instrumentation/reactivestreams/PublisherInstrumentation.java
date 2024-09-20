@@ -3,7 +3,8 @@ package datadog.trace.instrumentation.reactivestreams;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -15,8 +16,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
 import java.util.HashMap;
 import java.util.Map;
@@ -81,16 +82,27 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
 
   public static class PublisherSubscribeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onSubscribe(
+    public static AgentScope onSubscribe(
         @Advice.This final Publisher self, @Advice.Argument(value = 0) final Subscriber s) {
-      AgentSpan span = AgentTracer.activeSpan();
       PublisherState publisherState =
           InstrumentationContext.get(Publisher.class, PublisherState.class).remove(self);
       if (publisherState == null) {
         publisherState = new PublisherState();
       }
+      AgentSpan span = publisherState.getSubscriptionSpan();
       InstrumentationContext.get(Subscriber.class, PublisherState.class)
-          .put(s, publisherState.withSubscriptionSpan(span == null ? noopSpan() : span));
+          .put(s, publisherState.withSubscriptionSpan(span == null ? activeSpan() : span));
+      if (span != null) {
+        return activateSpan(span);
+      }
+      return null;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void afterSubscribe(@Advice.Enter final AgentScope scope) {
+      if (scope != null) {
+        scope.close();
+      }
     }
   }
 }

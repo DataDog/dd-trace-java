@@ -8,9 +8,7 @@ class ReactiveStreamsAsyncResultSupportExtensionTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-
-    injectSysConfig("dd.integration.opentelemetry-annotations-1.20.enabled", "true")
-    injectSysConfig("dd.integration.reactive-streams-1.enabled", "true")
+    injectSysConfig("trace.otel.enabled", "true")
   }
 
   def "test WithSpan annotated async method (Publisher)"() {

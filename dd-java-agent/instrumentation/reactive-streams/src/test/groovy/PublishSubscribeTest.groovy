@@ -10,6 +10,11 @@ import org.reactivestreams.Subscription
 import java.util.concurrent.CountDownLatch
 
 class PublishSubscribeTest extends AgentTestRunner {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.otel.enabled", "true")
+  }
 
   def "test publish / subscribe with publisher #publisher.class"() {
     when:

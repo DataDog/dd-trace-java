@@ -9,6 +9,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
+import java.util.Collections;
+import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class DispatcherHandlerInstrumentation extends AbstractWebfluxInstrumentation
@@ -17,6 +20,12 @@ public final class DispatcherHandlerInstrumentation extends AbstractWebfluxInstr
   @Override
   public String instrumentedType() {
     return "org.springframework.web.reactive.DispatcherHandler";
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.reactivestreams.Publisher", PublisherState.class.getName());
   }
 
   @Override

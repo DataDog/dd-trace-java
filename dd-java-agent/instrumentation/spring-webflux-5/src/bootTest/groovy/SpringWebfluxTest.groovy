@@ -273,11 +273,11 @@ class SpringWebfluxTest extends AgentTestRunner {
             operationName TestController.getSimpleName() + "." + annotatedMethod
           }
           spanType DDSpanTypes.HTTP_SERVER
-          childOf span(0)
+          childOfPrevious()
         }
         span {
           operationName "trace.annotation"
-          childOf span(annotatedMethod ? 0 : 1)
+          childOfPrevious()
           errored false
         }
       }

@@ -507,15 +507,20 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
     then:
     response.statusCode().value() == 200
     assertTraces(4) {
-      sortSpansByStart()
-      // TODO: why order of spans is different in these traces?
-      def traceParent1, traceParent2
+      System.err.println(trace(0).get(0).localRootSpan.getSpanId())
+      System.err.println(trace(1).get(0).localRootSpan.getSpanId())
+      System.err.println(trace(2).get(0).localRootSpan.getSpanId())
+      System.err.println(trace(3).get(0).localRootSpan.getSpanId())
+
+      def traceParent1, traceParent2, traceParent3
 
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
+        sortSpansByStart()
+        traceParent3 = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
         traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
       trace(2) {
+        sortSpansByStart()
         span {
           resourceName "GET /double-greet-redirect"
           operationName "netty.request"
@@ -554,10 +559,12 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
         }
       }
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
+        sortSpansByStart()
+        clientSpan(it, traceParent3, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
         traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
       }
       trace(2) {
+        sortSpansByStart()
         span {
           resourceName "GET /double-greet"
           operationName "netty.request"

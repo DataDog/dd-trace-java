@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.reactivestreams;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -127,6 +128,11 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
     public static void before(
         @Advice.This final Subscriber self, @Advice.Argument(0) final Subscription subscription) {
       InstrumentationContext.get(Subscription.class, Subscriber.class).put(subscription, self);
+      PublisherState state =
+          InstrumentationContext.get(Subscriber.class, PublisherState.class).get(self);
+      if (state != null && state.getSubscriptionSpan() == null) {
+        state.withSubscriptionSpan(activeSpan());
+      }
     }
   }
 }

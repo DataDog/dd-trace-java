@@ -6,9 +6,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DISPATCHER_HANDLE_HANDLER;
 
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
 import net.bytebuddy.asm.Advice;
+import org.reactivestreams.Publisher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -44,7 +47,9 @@ public class DispatcherHandlerAdvice {
       @Advice.Argument(0) final ServerWebExchange exchange,
       @Advice.Return(readOnly = false) Mono<Void> mono) {
     if (throwable == null && mono != null) {
-      mono = AdviceUtils.setPublisherSpan(mono, scope.span());
+      InstrumentationContext.get(Publisher.class, PublisherState.class)
+          .putIfAbsent(mono, PublisherState::new)
+          .withPartnerSpan(scope.span());
     }
     scope.close();
     // span finished in SpanFinishingSubscriber
