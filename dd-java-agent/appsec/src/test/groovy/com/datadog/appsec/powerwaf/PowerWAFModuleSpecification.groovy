@@ -1533,6 +1533,22 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.derivativeKeys.contains('_dd.appsec.fp.session')
   }
 
+  void 'retrieve used addresses'() {
+    when:
+    setupWithStubConfigService('small_config.json')
+    def ctx0 = pwafModule.ctxAndAddresses.get().ctx
+    def addresses = pwafModule.getUsedAddresses(ctx0)
+
+    then:
+    addresses.size() == 6
+    addresses.contains(KnownAddresses.REQUEST_INFERRED_CLIENT_IP)
+    addresses.contains(KnownAddresses.REQUEST_QUERY)
+    addresses.contains(KnownAddresses.REQUEST_PATH_PARAMS)
+    addresses.contains(KnownAddresses.HEADERS_NO_COOKIES)
+    addresses.contains(KnownAddresses.REQUEST_URI_RAW)
+    addresses.contains(KnownAddresses.REQUEST_BODY_OBJECT)
+  }
+
   private Map<String, Object> getDefaultConfig() {
     def service = new StubAppSecConfigService()
     service.init()
