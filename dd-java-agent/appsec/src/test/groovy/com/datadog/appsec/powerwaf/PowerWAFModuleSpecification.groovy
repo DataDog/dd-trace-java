@@ -1490,6 +1490,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
   void 'http endpoint fingerprint support'() {
     given:
     final flow = Mock(ChangeableFlow)
+    final fingerprint = '_dd.appsec.fp.http.endpoint'
     setupWithStubConfigService 'fingerprint_config.json'
     dataListener = pwafModule.dataSubscriptions.first()
     ctx.closeAdditive()
@@ -1508,12 +1509,15 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * flow.setAction({ it.blocking })
-    ctx.derivativeKeys.contains('_dd.appsec.fp.http.endpoint')
+    1 * ctx.reportDerivatives({ Map<String, String> map ->
+      map.containsKey(fingerprint) && map.get(fingerprint).matches('http-get-.*')
+    })
   }
 
   void 'http session fingerprint support'() {
     given:
     final flow = Mock(ChangeableFlow)
+    final fingerprint = '_dd.appsec.fp.session'
     final sessionId = UUID.randomUUID().toString()
     setupWithStubConfigService 'fingerprint_config.json'
     dataListener = pwafModule.dataSubscriptions.first()
@@ -1530,7 +1534,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     ctx.closeAdditive()
 
     then:
-    ctx.derivativeKeys.contains('_dd.appsec.fp.session')
+    1 * ctx.reportDerivatives({ Map<String, String> map ->
+      map.containsKey(fingerprint) && map.get(fingerprint).matches('ssn-.*')
+    })
   }
 
   private Map<String, Object> getDefaultConfig() {
