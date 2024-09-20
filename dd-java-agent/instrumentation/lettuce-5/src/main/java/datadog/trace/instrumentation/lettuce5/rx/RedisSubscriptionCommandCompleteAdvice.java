@@ -22,7 +22,9 @@ public class RedisSubscriptionCommandCompleteAdvice {
 
     if (span != null) {
       ContextStore<Subscription, RedisSubscriptionState> store =
-          InstrumentationContext.get("io.lettuce.core.RedisPublisher$RedisSubscription", "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState");
+          InstrumentationContext.get(
+              "io.lettuce.core.RedisPublisher$RedisSubscription",
+              "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState");
 
       RedisSubscriptionState state = store.get(subscription);
       if (state != null) {

@@ -33,8 +33,11 @@ public class RedisSubscriptionSubscribeAdvice {
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand) {
 
     RedisSubscriptionState state =
-        (RedisSubscriptionState) InstrumentationContext.get("io.lettuce.core.RedisPublisher$RedisSubscription", "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState")
-            .get(subscription);
+        (RedisSubscriptionState)
+            InstrumentationContext.get(
+                    "io.lettuce.core.RedisPublisher$RedisSubscription",
+                    "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState")
+                .get(subscription);
     AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
     InstrumentationContext.get(RedisCommand.class, AgentSpan.class).put(subscriptionCommand, span);
     DECORATE.afterStart(span);

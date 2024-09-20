@@ -1,14 +1,10 @@
 package datadog.trace.instrumentation.lettuce5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.returns;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -80,7 +76,9 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> store = new HashMap<>(3);
-    store.put("io.lettuce.core.RedisPublisher$RedisSubscription", packageName + ".rx.RedisSubscriptionState");
+    store.put(
+        "io.lettuce.core.RedisPublisher$RedisSubscription",
+        packageName + ".rx.RedisSubscriptionState");
     store.put("io.lettuce.core.protocol.RedisCommand", AgentSpan.class.getName());
     store.put("io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
     return store;
