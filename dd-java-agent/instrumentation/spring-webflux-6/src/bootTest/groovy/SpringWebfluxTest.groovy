@@ -507,16 +507,11 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
     then:
     response.statusCode().value() == 200
     assertTraces(4) {
-      System.err.println(trace(0).get(0).localRootSpan.getSpanId())
-      System.err.println(trace(1).get(0).localRootSpan.getSpanId())
-      System.err.println(trace(2).get(0).localRootSpan.getSpanId())
-      System.err.println(trace(3).get(0).localRootSpan.getSpanId())
-
-      def traceParent1, traceParent2, traceParent3
+      def traceParent1, traceParent2
 
       trace(2) {
         sortSpansByStart()
-        traceParent3 = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
         traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
       trace(2) {
@@ -560,7 +555,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
       }
       trace(2) {
         sortSpansByStart()
-        clientSpan(it, traceParent3, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
         traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
       }
       trace(2) {

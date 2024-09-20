@@ -5,7 +5,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
-import datadog.trace.test.util.Flaky
 import dd.trace.instrumentation.springwebflux.server.EchoHandlerFunction
 import dd.trace.instrumentation.springwebflux.server.FooModel
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
@@ -490,7 +489,6 @@ class SpringWebfluxTest extends AgentTestRunner {
     "annotation API fail Mono" | "/foo-failmono/1"   | "/foo-failmono/{id}"   | "getFooFailMono"
   }
 
-  @Flaky("https://github.com/DataDog/dd-trace-java/issues/6909")
   def "Redirect test"() {
     setup:
     String url = "http://localhost:$port/double-greet-redirect"
@@ -509,24 +507,21 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     response.statusCode().value() == 200
     assertTraces(4) {
-      sortSpansByStart()
-      // TODO: why order of spans is different in these traces?
-      def traceParent1, traceParent2, traceParent3
+      def traceParent1, traceParent2
 
       trace(2) {
-        traceParent1 = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
-        traceParent2 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
+        sortSpansByStart()
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
+        traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
+
       trace(2) {
-        clientSpan(it, traceParent1, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
-        traceParent3 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
-      }
-      trace(2) {
+        sortSpansByStart()
         span {
           resourceName "GET /double-greet-redirect"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          childOf(traceParent2)
+          childOf traceParent1
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -560,11 +555,17 @@ class SpringWebfluxTest extends AgentTestRunner {
         }
       }
       trace(2) {
+        sortSpansByStart()
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
+        traceParent2 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+      }
+      trace(2) {
+        sortSpansByStart()
         span {
           resourceName "GET /double-greet"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          traceParent3
+          childOf traceParent2
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -90,8 +91,9 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
         publisherState = new PublisherState();
       }
       AgentSpan span = publisherState.getSubscriptionSpan();
+      AgentSpan active = activeSpan();
       InstrumentationContext.get(Subscriber.class, PublisherState.class)
-          .put(s, publisherState.withSubscriptionSpan(span == null ? activeSpan() : span));
+          .put(s, publisherState.withSubscriptionSpan(span == null ? (active != null ? active : noopSpan()): span));
       if (span != null) {
         return activateSpan(span);
       }

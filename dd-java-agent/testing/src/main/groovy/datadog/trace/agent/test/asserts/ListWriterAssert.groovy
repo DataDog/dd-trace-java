@@ -128,16 +128,6 @@ class ListWriterAssert {
     assert assertedIndexes.size() == size
   }
 
-  private static DDSpan rootOfTrace(List<DDSpan> trace) {
-    DDSpan ret
-    // we can just take the first span created
-    trace.each {
-      if (ret == null || ret.startTime > it.startTime) {
-        ret = it
-      }}
-    ret
-  }
-
   private static class SortTracesByStart implements Comparator<List<DDSpan>> {
     @Override
     int compare(List<DDSpan> o1, List<DDSpan> o2) {
@@ -146,7 +136,7 @@ class ListWriterAssert {
 
     long traceStart(List<DDSpan> trace) {
       assert !trace.isEmpty()
-      return rootOfTrace(trace).startTime
+      return trace.get(0).localRootSpan.startTime
     }
   }
 
@@ -158,7 +148,7 @@ class ListWriterAssert {
 
     long rootSpanId(List<DDSpan> trace) {
       assert !trace.isEmpty()
-      return rootOfTrace(trace).spanId.toLong()
+      return trace.get(0).localRootSpan.spanId.toLong()
     }
   }
 
@@ -170,7 +160,7 @@ class ListWriterAssert {
 
     String rootSpanTrace(List<DDSpan> trace) {
       assert !trace.isEmpty()
-      def rootSpan = rootOfTrace(trace)
+      def rootSpan = trace.get(0).localRootSpan
       return "${rootSpan.serviceName}/${rootSpan.operationName}/${rootSpan.resourceName}"
     }
   }
