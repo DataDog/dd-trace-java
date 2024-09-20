@@ -56,7 +56,7 @@ Requirements to build the full project:
 `sudo xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-<current version of graalvm>`
 * Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `.bashrc` or other.
 ```shell
-export JAVA_8_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home  
+export JAVA_8_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home
 export JAVA_11_HOME=/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home
 export JAVA_17_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
 export JAVA_21_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
@@ -65,8 +65,8 @@ export JAVA_HOME=$JAVA_8_HOME
 ```
 * Restart your shell after applying the changes if you appended the commands to your shell configuration file.
 
-> [!NOTE] 
-> ARM users: there is no Oracle JDK v8 for ARM. 
+> [!NOTE]
+> ARM users: there is no Oracle JDK v8 for ARM.
 > It's recommended to use [Azul's Zulu](https://www.azul.com/downloads/?version=java-8-lts&architecture=arm-64-bit&package=jdk#zulu) builds of Java 8.
 > [Amazon Corretto](https://aws.amazon.com/corretto/) builds have also been proven to work.
 
@@ -77,7 +77,7 @@ export JAVA_HOME=$JAVA_8_HOME
 
 * Download and extract JDK 8, 11, 17 and 21 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and GraalVM from [Oracle downloads](https://www.graalvm.org/downloads/).
 * Install the GraalVM native image requirements for native builds by following [the GraalVM official documentation](https://www.graalvm.org/latest/reference-manual/native-image/#prerequisites).
-* Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `~/.bashrc` or other. 
+* Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `~/.bashrc` or other.
 ```shell
 export JAVA_8_HOME=/<path to extracted archive>/jdk8u<current version of JDK 8>
 export JAVA_11_HOME=/<path to extracted archive>/jdk-11.<current version of JDK 11>
@@ -101,7 +101,7 @@ export JAVA_HOME=$JAVA_8_HOME
 
 ### Install git
 
-**On MacOS:** 
+**On MacOS:**
 
 You can trigger the installation by running any `git` command from the terminal, e.g. `git --version`.
 If not installed, the terminal will prompt you to install it.
@@ -110,7 +110,7 @@ If not installed, the terminal will prompt you to install it.
 
 Run `apt-get install git`.
 
-**On Windows:** 
+**On Windows:**
 
 Download and install [the installer](https://git-scm.com/download/win) from the official website.
 
@@ -138,7 +138,7 @@ cp .githooks/pre-commit .git/hooks/
 
 # On Windows
 cd dd-trace-java
-copy .githooks/pre-comit .git/hooks/
+copy .githooks/pre-commit .git/hooks/
 ```
 
 > [!TIP]
@@ -168,7 +168,7 @@ git config --local submodule.recurse true
 
 You can confirm that your development environment is properly set up using the [quick check](#development-environment-quick-check) `setup.sh` script.
 
-> [!NOTE] 
+> [!NOTE]
 > The `setup.sh` script is only available for MacOS and Linux.
 
 ### Build the project
