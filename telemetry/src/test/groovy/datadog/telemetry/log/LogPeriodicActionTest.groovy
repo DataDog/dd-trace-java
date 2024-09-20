@@ -173,6 +173,84 @@ class LogPeriodicActionTest extends DDSpecification {
       "  ... 3 more\n"
   }
 
+  void 'stacktrace with common frames only'() {
+    LogMessage logMessage
+
+    given:
+    final t = throwable("exception", stacktrace(
+      frame("java.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("datadog.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("mycorp.MyClass"),
+      ), throwable("exception 2", stacktrace(
+      frame("java.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("datadog.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("mycorp.MyClass"),
+      ), throwable("exception 3", stacktrace(
+      frame("java.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("datadog.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("mycorp.MyClass"),
+      ))))
+
+    when:
+    LogCollector.get().addLogMessage(LogMessageLevel.ERROR.toString(), "test", t)
+    periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
+    0 * _
+    logMessage.getMessage() == 'test'
+    logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
+      "  at java.MyClass.method(file:42)\n" +
+      "  at (redacted)\n" +
+      "  at datadog.MyClass.method(file:42)\n" +
+      "  at (redacted: 2 frames)\n" +
+      "Caused by: ${MutableException.canonicalName}\n" +
+      "  ... 5 more\n" +
+      "Caused by: ${MutableException.canonicalName}\n" +
+      "  ... 5 more\n"
+  }
+
+  void 'stacktrace without common frames'() {
+    LogMessage logMessage
+
+    given:
+    final t = throwable("exception", stacktrace(
+      frame("java.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("datadog.MyClass"),
+      frame("mycorp.MyClass"),
+      frame("mycorp.MyClass"),
+      ), throwable("exception 2", stacktrace(
+      frame("java.MyClass"),
+      frame("org.datadog.Test"),
+      frame("io.DataTest"),
+      frame("dd.MainClass"),
+      )))
+
+    when:
+    LogCollector.get().addLogMessage(LogMessageLevel.ERROR.toString(), "test", t)
+    periodicAction.doIteration(telemetryService)
+
+    then:
+    1 * telemetryService.addLogMessage(_) >> { args -> logMessage = args[0] }
+    0 * _
+    logMessage.getMessage() == 'test'
+    logMessage.getStackTrace() == "${MutableException.canonicalName}\n" +
+      "  at java.MyClass.method(file:42)\n" +
+      "  at (redacted)\n" +
+      "  at datadog.MyClass.method(file:42)\n" +
+      "  at (redacted: 2 frames)\n" +
+      "Caused by: ${MutableException.canonicalName}\n" +
+      "  at java.MyClass.method(file:42)\n" +
+      "  at (redacted: 3 frames)\n"
+  }
+
   static class MutableException extends Exception {
     MutableException(String message, Throwable cause) {
       super(message, cause, true, true)
