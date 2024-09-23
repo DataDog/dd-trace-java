@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -572,21 +573,24 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (entryStatus.shouldReportError()) {
-      fillEvaluationErrors(entryContext, snapshot, entryStatus);
+      populateErrors(entryContext, snapshot, entryStatus, snapshot::setEntry);
       shouldCommit = true;
     }
     if (exitStatus.shouldReportError()) {
-      fillEvaluationErrors(exitContext, snapshot, exitStatus);
+      populateErrors(exitContext, snapshot, exitStatus, snapshot::setExit);
       shouldCommit = true;
     }
     return shouldCommit;
   }
 
-  private static void fillEvaluationErrors(
-      CapturedContext context, Snapshot snapshot, LogStatus status) {
+  private static void populateErrors(
+      CapturedContext context,
+      Snapshot snapshot,
+      LogStatus status,
+      Consumer<CapturedContext> contextSetter) {
     if (context.getCapturedThrowable() != null) {
       // report also uncaught exception
-      snapshot.setEntry(context);
+      contextSetter.accept(context);
     }
     snapshot.addEvaluationErrors(status.getErrors());
     if (status.getMessage() != null) {
