@@ -25,6 +25,7 @@ $ ./setup.sh
 ✅ The git command line is installed.
 ✅ pre-commit hook is installed in repository.
 ✅ git config submodule.recurse is set to true.
+✅ All git submodules are initialized.
 ℹ️ Checking Docker environment:
 ✅ The docker command line is installed.
 ✅ The Docker server is running.

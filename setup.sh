@@ -78,16 +78,26 @@ function check-git-config() {
     fi
 }
 
+function check-submodule-initialization() {
+    if [ -e ".gitmodules" ]; then
+        if git submodule status | grep '^-' > /dev/null; then
+            echo "❌ A git submodule are not initialized. Please run 'git submodule update --init --recursive'."
+        else
+            echo "✅ All git submodules are initialized."
+        fi
+    fi
+}
+
 echo "ℹ️ Checking git configuration:"
 check-command "git"
 look-for-hook "pre-commit"
 check-git-config "submodule.recurse" "true"
+check-submodule-initialization
 
 
 #
 # Check Docker environment.
 #
-
 
 function check-docker-server() {
     if docker info &> /dev/null; then
