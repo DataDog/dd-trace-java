@@ -52,7 +52,7 @@ class EvidenceRedactionTest extends DDSpecification {
       .add(new TestVulnerabilityAdapter())
       .add(new TestSourceIndexAdapter())
       .add(new TestSourceTypeStringAdapter())
-    .add(new TestRangeAdapter())
+      .add(new TestRangeAdapter())
       .build()
     sourcesParser = moshi.adapter(Types.newParameterizedType(List, Source))
     vulnerabilitiesParser = moshi.adapter(Types.newParameterizedType(List, Vulnerability))
@@ -286,7 +286,7 @@ class EvidenceRedactionTest extends DDSpecification {
   static class TestRangeAdapter {
     @FromJson
     Range fromJson(JsonReader reader, final JsonAdapter<Source> adapter) throws IOException {
-      reader.beginObject();
+      reader.beginObject()
       int start = -1
       int length = -1
       Source source = null
@@ -294,30 +294,30 @@ class EvidenceRedactionTest extends DDSpecification {
       while (reader.hasNext()) {
         switch (reader.nextName()) {
           case "start":
-            start = reader.nextInt();
-            break;
+            start = reader.nextInt()
+            break
           case "length":
             length = reader.nextInt()
-            break;
+            break
           case "source":
-            source = adapter.fromJson(reader);
-            break;
+            source = adapter.fromJson(reader)
+            break
           case "secure_marks":
-            List<String> secureMarks = new Moshi.Builder().build().adapter(Types.newParameterizedType(List.class, String.class)).fromJson(reader);
-            mark = calculateMarks(secureMarks);
-            break;
+            List<String> secureMarks = new Moshi.Builder().build().adapter(Types.newParameterizedType(List.class, String.class)).fromJson(reader)
+            mark = calculateMarks(secureMarks)
+            break
           default:
-            reader.skipValue();
-            break;
+            reader.skipValue()
+            break
         }
       }
-      reader.endObject();
+      reader.endObject()
       final range = new Range(start, length, source, mark)
       return range.isValid() ? range : null
     }
 
     static int calculateMarks(List<String> secureMarks) {
-      int marks = 0;
+      int marks = 0
       for (String type : secureMarks) {
         marks |= VulnerabilityType."$type".mark
       }
@@ -328,7 +328,5 @@ class EvidenceRedactionTest extends DDSpecification {
     void toJson(@Nonnull final JsonWriter writer, @Nonnull final Range range) throws IOException {
       throw new UnsupportedOperationException()
     }
-
   }
-
 }

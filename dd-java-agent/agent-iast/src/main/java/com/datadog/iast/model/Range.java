@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public final class Range implements Ranged {
 
