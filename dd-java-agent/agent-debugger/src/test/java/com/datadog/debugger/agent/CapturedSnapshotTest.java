@@ -2422,6 +2422,36 @@ public class CapturedSnapshotTest {
     }
   }
 
+  @Test
+  public void watches() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null, null)
+            .evaluateAt(MethodLocation.EXIT)
+            .tags(
+                "dd_watches_dsl:{typed.fld.fld.msg},{nullTyped.fld}",
+                "dd_watches_json:[{\"dsl\":\"typed.fld.fld.msg_json\",\"json\":{\"getmember\":[{\"getmember\":[{\"getmember\":[{\"ref\":\"typed\"},\"fld\"]},\"fld\"]},\"msg\"]}}]")
+            .build();
+    TestSnapshotListener listener = installProbes(CLASS_NAME, probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals(3, snapshot.getCaptures().getReturn().getWatches().size());
+    assertCaptureWatches(
+        snapshot.getCaptures().getReturn(),
+        "typed.fld.fld.msg",
+        String.class.getTypeName(),
+        "hello");
+    assertCaptureWatches(
+        snapshot.getCaptures().getReturn(), "nullTyped.fld", Object.class.getTypeName(), null);
+    assertCaptureWatches(
+        snapshot.getCaptures().getReturn(),
+        "typed.fld.fld.msg_json",
+        String.class.getTypeName(),
+        "hello");
+  }
+
   private TestSnapshotListener setupInstrumentTheWorldTransformer(String excludeFileName) {
     Config config = mock(Config.class);
     when(config.isDebuggerEnabled()).thenReturn(true);
@@ -2653,6 +2683,13 @@ public class CapturedSnapshotTest {
         assertEquals(entry.getValue(), String.valueOf(fieldCapturedValue.getValue()));
       }
     }
+  }
+
+  private void assertCaptureWatches(
+      CapturedContext context, String name, String typeName, String value) {
+    CapturedContext.CapturedValue watch = context.getWatches().get(name);
+    assertEquals(typeName, watch.getType());
+    assertEquals(value, MoshiSnapshotTestHelper.getValue(watch));
   }
 
   private void assertCaptureThrowable(

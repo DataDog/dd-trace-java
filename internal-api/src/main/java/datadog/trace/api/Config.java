@@ -1676,6 +1676,11 @@ public class Config {
     telemetryMetricsEnabled =
         configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
 
+    isTelemetryLogCollectionEnabled =
+        instrumenterConfig.isTelemetryEnabled()
+            && configProvider.getBoolean(
+                TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
+
     isTelemetryDependencyServiceEnabled =
         configProvider.getBoolean(
             TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
@@ -2006,24 +2011,6 @@ public class Config {
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
-
-    // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
-    // users.
-    // FIXME: For progressive rollout, we include by default Java < 11 hosts as product independent
-    // sample users.
-    // FIXME:This should be removed once we default to true, and then it can also be moved up
-    // together with the rest of telemetry config.
-    final boolean telemetryLogCollectionEnabledDefault =
-        instrumenterConfig.isTelemetryEnabled()
-                && (instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED
-                    || instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
-                    || instrumenterConfig.isCiVisibilityEnabled()
-                    || debuggerEnabled
-                    || !Platform.isJavaVersionAtLeast(11))
-            || DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
-    isTelemetryLogCollectionEnabled =
-        configProvider.getBoolean(
-            TELEMETRY_LOG_COLLECTION_ENABLED, telemetryLogCollectionEnabledDefault);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");

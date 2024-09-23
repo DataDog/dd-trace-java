@@ -71,7 +71,6 @@ include ':remote-config:remote-config-api'
 include ':remote-config:remote-config-core'
 
 include ':dd-java-agent:appsec'
-include ':dd-java-agent:appsec:weblog:weblog-common'
 
 // ci-visibility
 include ':dd-java-agent:agent-ci-visibility'
