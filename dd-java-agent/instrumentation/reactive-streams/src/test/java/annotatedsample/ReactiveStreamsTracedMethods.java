@@ -51,14 +51,25 @@ public class ReactiveStreamsTracedMethods {
           throw new IllegalStateException("Latch still locked");
         }
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
-      if (this.error != null) {
-        s.onError(this.error);
-      } else {
-        s.onNext(this.element);
-        s.onComplete();
-      }
+
+      s.onSubscribe(
+          new Subscription() {
+            @Override
+            public void request(long n) {
+              if (error != null) {
+                s.onError(error);
+              } else {
+                s.onNext(element);
+                s.onComplete();
+              }
+            }
+
+            @Override
+            public void cancel() {}
+          });
     }
   }
 

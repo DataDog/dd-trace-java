@@ -23,6 +23,7 @@ class PublishSubscribeTest extends AgentTestRunner {
           @Override
           void onSubscribe(Subscription subscription) {
             assert TEST_TRACER.activeSpan() != null
+            subscription.request(1)
           }
 
           @Override

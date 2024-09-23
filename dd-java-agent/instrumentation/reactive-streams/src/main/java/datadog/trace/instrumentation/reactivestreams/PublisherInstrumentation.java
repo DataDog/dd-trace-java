@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -28,6 +27,11 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+/**
+ * This instrumentation is responsible for capturing the span when {@link
+ * Publisher#subscribe(Subscriber)} is called. The state is then stored and will be propagated later
+ * to the subscriber when onSubscribe will be called.
+ */
 @AutoService(InstrumenterModule.class)
 public class PublisherInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
@@ -92,14 +96,18 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
       }
       AgentSpan span = publisherState.getSubscriptionSpan();
       AgentSpan active = activeSpan();
-      InstrumentationContext.get(Subscriber.class, PublisherState.class)
-          .put(
-              s,
-              publisherState.withSubscriptionSpan(
-                  span == null ? (active != null ? active : noopSpan()) : span));
+
+      if (span == null) {
+        span = active;
+      }
       if (span != null) {
+        publisherState.withSubscriptionSpan(span);
+      }
+      InstrumentationContext.get(Subscriber.class, PublisherState.class).put(s, publisherState);
+      if (span != active) {
         return activateSpan(span);
       }
+
       return null;
     }
 

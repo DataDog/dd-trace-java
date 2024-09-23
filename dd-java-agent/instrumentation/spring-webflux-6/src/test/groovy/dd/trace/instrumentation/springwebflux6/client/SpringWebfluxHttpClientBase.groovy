@@ -39,15 +39,17 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
     ClientResponse response = client.method(HttpMethod.valueOf(method))
     .uri(uri)
     .headers {
-      h -> headers.forEach({
+      h ->
+      headers.forEach({
         key, value -> h.add(key, value)
       })
     }
-    .exchangeToMono (Mono::just)
+    .exchangeToMono(Mono::just)
     .doFinally {
-      it -> callback?.call()
+      callback?.call()
     }
     .block()
+
 
     if (hasParent) {
       blockUntilChildSpansFinished(callback ? 3 : 2)

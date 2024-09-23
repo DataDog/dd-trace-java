@@ -49,7 +49,8 @@ public class DispatcherHandlerAdvice {
     if (throwable == null && mono != null) {
       InstrumentationContext.get(Publisher.class, PublisherState.class)
           .putIfAbsent(mono, PublisherState::new)
-          .withPartnerSpan(scope.span());
+          .withPartnerSpan(scope.span())
+          .withSubscriptionSpan(scope.span());
     }
     scope.close();
     // span finished in SpanFinishingSubscriber

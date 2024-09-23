@@ -19,6 +19,10 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
+/**
+ * This instrumentation is making sure that partner spans that are sticky to a subscriber are closed
+ * when the subscription is canceled.
+ */
 @AutoService(InstrumenterModule.class)
 public class SubscriptionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy {
@@ -51,7 +55,7 @@ public class SubscriptionInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class CancelAdvice {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onMethod(@Advice.This final Subscription thiz) {
       final Subscriber subscriber =
           InstrumentationContext.get(Subscription.class, Subscriber.class).remove(thiz);
@@ -66,6 +70,7 @@ public class SubscriptionInstrumentation extends InstrumenterModule.Tracing
       for (AgentSpan span : state.getPartnerSpans()) {
         span.finish();
       }
+      // to remove the risk to close them more than once
       state.getPartnerSpans().clear();
     }
   }

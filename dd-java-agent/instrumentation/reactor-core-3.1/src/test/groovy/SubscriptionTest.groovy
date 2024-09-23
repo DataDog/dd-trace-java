@@ -116,6 +116,64 @@ class SubscriptionTest extends AgentTestRunner {
     })
   }
 
+  def 'Mono with lifecycle spans and no parent'() {
+    when:
+    Mono.fromCallable {
+      runUnderTrace("span", {
+        Mono.just("Hello World")
+      })
+    }
+    .doOnNext {
+      runUnderTrace("onNext", {})
+    }
+    .doFinally { runUnderTrace("finally", {}) }
+    .doAfterTerminate { runUnderTrace("after", {}) }
+    .block()
+    then:
+    assertTraces(4, {
+      trace(1) {
+        basicSpan(it, "span")
+      }
+      trace(1) {
+        basicSpan(it, "onNext")
+      }
+      trace(1) {
+        basicSpan(it, "after")
+      }
+      trace(1) {
+        basicSpan(it, "finally")
+      }
+    })
+  }
+
+  def 'Mono with lifecycle spans and parent'() {
+    when:
+    runUnderTrace("parent", {
+      Mono.fromCallable {
+        runUnderTrace("span", {
+          Mono.just("Hello World")
+        })
+      }
+      .doOnNext {
+        runUnderTrace("onNext", {})
+      }
+      .doFinally { runUnderTrace("finally", {}) }
+      .doAfterTerminate { runUnderTrace("after", {}) }
+      .block()
+    })
+    then:
+    assertTraces(1, {
+      trace(5) {
+        sortSpansByStart()
+        basicSpan(it, "parent")
+        basicSpan(it, "span", span(0))
+        basicSpan(it, "onNext", span(0))
+        basicSpan(it, "after", span(0))
+        basicSpan(it, "finally", span(0))
+      }
+    })
+  }
+
   static class Connection {
     static int query() {
       def span = AgentTracer.startSpan("Connection.query")

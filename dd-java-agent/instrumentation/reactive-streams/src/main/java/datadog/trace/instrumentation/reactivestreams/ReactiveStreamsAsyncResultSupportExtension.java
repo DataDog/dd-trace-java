@@ -34,6 +34,7 @@ public class ReactiveStreamsAsyncResultSupportExtension implements AsyncResultSu
   @Override
   public Object apply(Object result, AgentSpan span) {
     if (result instanceof Publisher) {
+      // the span will be closed then the subscriber span will finish.
       contextStore.putIfAbsent((Publisher) result, PublisherState::new).withPartnerSpan(span);
     }
     return result;

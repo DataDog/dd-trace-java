@@ -24,11 +24,17 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 
+/**
+ * This instrumentation is responsible for capturing the right state when Mono or Flux block*
+ * methods are called. This because the mechanism they handle this differs a bit of the standard
+ * {@link Publisher#subscribe(Subscriber)}
+ */
 @AutoService(InstrumenterModule.class)
-public class CallablePublisherInstrumentation extends InstrumenterModule.Tracing
+public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
-  public CallablePublisherInstrumentation() {
+  public BlockingPublisherInstrumentation() {
     super("reactor-core");
   }
 
@@ -59,6 +65,22 @@ public class CallablePublisherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"));
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    // this will loop indefinitely and we do not want to create a continuation for this that will
+    // never be canceled
+    return Collections.singletonMap(
+        ExcludeFilter.ExcludeType.RUNNABLE,
+        Arrays.asList(
+            "reactor.core.publisher.EventLoopProcessor$RequestTask",
+            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner$1",
+            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner",
+            "reactor.core.publisher.EventLoopProcessor",
+            "reactor.core.publisher.WorkQueueProcessor",
+            "reactor.core.publisher.TopicProcessor$TopicInner$1",
+            "reactor.core.publisher.TopicProcessor$TopicInner"));
   }
 
   public static class BlockingAdvice {
@@ -93,21 +115,5 @@ public class CallablePublisherInstrumentation extends InstrumenterModule.Tracing
         span.finish();
       }
     }
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    // this will loop indefinitely and we do not want to create a continuation for this that will
-    // never be canceled
-    return Collections.singletonMap(
-        ExcludeFilter.ExcludeType.RUNNABLE,
-        Arrays.asList(
-            "reactor.core.publisher.EventLoopProcessor$RequestTask",
-            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner$1",
-            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner",
-            "reactor.core.publisher.EventLoopProcessor",
-            "reactor.core.publisher.WorkQueueProcessor",
-            "reactor.core.publisher.TopicProcessor$TopicInner$1",
-            "reactor.core.publisher.TopicProcessor$TopicInner"));
   }
 }

@@ -276,7 +276,7 @@ class SpringWebfluxHttp11Test extends AgentTestRunner {
         }
         span {
           operationName "trace.annotation"
-          childOf span(annotatedMethod ? 0 : 1)
+          childOfPrevious()
           errored false
         }
       }
