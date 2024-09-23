@@ -118,7 +118,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
   private volatile PowerwafMetrics raspMetrics;
-  private AtomicInteger raspMetricsCounter;
+  private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
   private volatile int timeouts;
 
@@ -182,7 +182,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
       if (isRasp && raspMetrics == null) {
         this.raspMetrics = ctx.createMetrics();
-        this.raspMetricsCounter = new AtomicInteger(0);
       }
     }
 
