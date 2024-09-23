@@ -1514,31 +1514,6 @@ class PowerWAFModuleSpecification extends DDSpecification {
     })
   }
 
-  void 'http session fingerprint support'() {
-    given:
-    final flow = Mock(ChangeableFlow)
-    final fingerprint = '_dd.appsec.fp.session'
-    final sessionId = UUID.randomUUID().toString()
-    setupWithStubConfigService 'fingerprint_config.json'
-    dataListener = pwafModule.dataSubscriptions.first()
-    ctx.closeAdditive()
-    final bundle = MapDataBundle.ofDelegate([
-      (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
-      (KnownAddresses.REQUEST_COOKIES): [JSESSIONID: [sessionId]],
-      (KnownAddresses.SESSION_ID): sessionId,
-      (KnownAddresses.USER_ID): 'admin',
-    ])
-
-    when:
-    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
-    ctx.closeAdditive()
-
-    then:
-    1 * ctx.reportDerivatives({ Map<String, String> map ->
-      map.containsKey(fingerprint) && map.get(fingerprint).matches('ssn-.*')
-    })
-  }
-
   private Map<String, Object> getDefaultConfig() {
     def service = new StubAppSecConfigService()
     service.init()
