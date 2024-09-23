@@ -9,7 +9,7 @@ suite:
           "evidence": {
             "value": "select * from users where username = 'john'",
             "ranges": [
-              { "start" : 26, "length" : 17, "source": { "origin": "http.request.parameter", "name": "clause", "value": "username = 'john'" } , "marks": 128}
+              { "start" : 26, "length" : 17, "source": { "origin": "http.request.parameter", "name": "clause", "value": "username = 'john'" } , "secure_marks": ["XSS"]}
             ]
           }
         }
@@ -43,7 +43,7 @@ suite:
           "evidence": {
             "value": "select * from users",
             "ranges": [
-              { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "table", "value": "users" }, "marks": 128  }
+              { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "table", "value": "users" }, "secure_marks": ["XSS"]  }
             ]
           }
         }
@@ -75,7 +75,7 @@ suite:
           "evidence": {
             "value": "select * from users",
             "ranges": [
-              { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "secret", "value": "users" }, "marks" : 128 }
+              { "start" : 14, "length" : 5, "source": { "origin": "http.request.parameter", "name": "secret", "value": "users" }, "secure_marks": ["XSS"] }
             ]
           }
         }
@@ -108,8 +108,8 @@ suite:
             "value": "select id as \"super user id\"\n\tfrom users\n\twhere username = 'john:doe' and password LIKE 'super_secure%' and user_id_123 > 00000",
             "ranges": [
               { "start" : 60, "length" : 4, "source": { "origin": "http.request.parameter", "name": "first_name", "value": "john" } },
-              { "start" : 65, "length" : 3, "source": { "origin": "http.request.parameter", "name": "last_name", "value": "doe" } , "marks": 128},
-              { "start" : 89, "length" : 12, "source": { "origin": "http.request.parameter", "name": "password", "value": "super_secure" }, "marks": 640 }
+              { "start" : 65, "length" : 3, "source": { "origin": "http.request.parameter", "name": "last_name", "value": "doe" } , "secure_marks": ["XSS"]},
+              { "start" : 89, "length" : 12, "source": { "origin": "http.request.parameter", "name": "password", "value": "super_secure" }, "secure_marks": ["XSS", "HEADER_INJECTION"] }
             ]
           }
         }
@@ -150,9 +150,9 @@ suite:
           "evidence": {
             "value": "(cn=Babs Jensen)\n(!(cn=Tim Howes))\n(&(objectClass=Person)(|(sn=Jensen)(cn=Babs J*)))\n(o=univ*of*mich*)\n(seeAlso=)",
             "ranges": [
-              { "start" : 4, "length" : 11, "source": { "origin": "http.request.parameter", "name": "cn", "value": "Babs Jensen" } , "marks": 128},
+              { "start" : 4, "length" : 11, "source": { "origin": "http.request.parameter", "name": "cn", "value": "Babs Jensen" } , "secure_marks": ["XSS"]},
               { "start" : 63, "length" : 6, "source": { "origin": "http.request.parameter", "name": "cn", "value": "Babs Jensen" } },
-              { "start" : 74, "length" : 6, "source": { "origin": "http.request.parameter", "name": "cn", "value": "Babs Jensen" } , "marks": 512}
+              { "start" : 74, "length" : 6, "source": { "origin": "http.request.parameter", "name": "cn", "value": "Babs Jensen" } , "secure_marks": ["HEADER_INJECTION"] }
             ]
           }
         }

@@ -1,5 +1,6 @@
 package com.datadog.iast.model.json
 
+import com.datadog.iast.model.Range
 import com.datadog.iast.model.Source
 import com.datadog.iast.model.Vulnerability
 import com.datadog.iast.model.VulnerabilityBatch
@@ -7,6 +8,7 @@ import com.datadog.iast.model.VulnerabilityType
 import com.squareup.moshi.*
 import datadog.trace.api.config.IastConfig
 import datadog.trace.api.iast.SourceTypes
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
@@ -50,6 +52,7 @@ class EvidenceRedactionTest extends DDSpecification {
       .add(new TestVulnerabilityAdapter())
       .add(new TestSourceIndexAdapter())
       .add(new TestSourceTypeStringAdapter())
+    .add(new TestRangeAdapter())
       .build()
     sourcesParser = moshi.adapter(Types.newParameterizedType(List, Source))
     vulnerabilitiesParser = moshi.adapter(Types.newParameterizedType(List, Vulnerability))
@@ -279,4 +282,53 @@ class EvidenceRedactionTest extends DDSpecification {
       throw new UnsupportedOperationException()
     }
   }
+
+  static class TestRangeAdapter {
+    @FromJson
+    Range fromJson(JsonReader reader, final JsonAdapter<Source> adapter) throws IOException {
+      reader.beginObject();
+      int start = -1
+      int length = -1
+      Source source = null
+      int mark = NOT_MARKED
+      while (reader.hasNext()) {
+        switch (reader.nextName()) {
+          case "start":
+            start = reader.nextInt();
+            break;
+          case "length":
+            length = reader.nextInt()
+            break;
+          case "source":
+            source = adapter.fromJson(reader);
+            break;
+          case "secure_marks":
+            List<String> secureMarks = new Moshi.Builder().build().adapter(Types.newParameterizedType(List.class, String.class)).fromJson(reader);
+            mark = calculateMarks(secureMarks);
+            break;
+          default:
+            reader.skipValue();
+            break;
+        }
+      }
+      reader.endObject();
+      final range = new Range(start, length, source, mark)
+      return range.isValid() ? range : null
+    }
+
+    static int calculateMarks(List<String> secureMarks) {
+      int marks = 0;
+      for (String type : secureMarks) {
+        marks |= VulnerabilityType."$type".mark
+      }
+      return marks
+    }
+
+    @ToJson
+    void toJson(@Nonnull final JsonWriter writer, @Nonnull final Range range) throws IOException {
+      throw new UnsupportedOperationException()
+    }
+
+  }
+
 }
