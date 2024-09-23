@@ -1,6 +1,5 @@
 package datadog.trace.lambda
 
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -30,8 +29,6 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
   def "test start invocation success"() {
     given:
-    Config config = Mock(Config)
-    config.getxDatadogTagsMaxLength() >> 512
     CoreTracer ct = tracerBuilder().build()
 
     def server = httpServer {
@@ -65,8 +62,6 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
   def "test start invocation with 128 bit trace ID"() {
     given:
-    Config config = Mock(Config)
-    config.getxDatadogTagsMaxLength() >> 512
     CoreTracer ct = tracerBuilder().build()
 
     def server = httpServer {
@@ -101,8 +96,6 @@ class LambdaHandlerTest extends DDCoreSpecification {
 
   def "test start invocation failure"() {
     given:
-    Config config = Mock(Config)
-    config.getxDatadogTagsMaxLength() >> 512
     CoreTracer ct = tracerBuilder().build()
 
     def server = httpServer {
