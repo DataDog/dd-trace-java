@@ -11,6 +11,7 @@ import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.sqreen.powerwaf.Additive;
@@ -118,7 +119,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   // set after additive is set
   private volatile PowerwafMetrics wafMetrics;
   private volatile PowerwafMetrics raspMetrics;
-  private AtomicInteger raspMetricsCounter;
+  private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
   private volatile boolean blocked;
   private volatile int timeouts;
 
@@ -182,7 +183,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
       if (isRasp && raspMetrics == null) {
         this.raspMetrics = ctx.createMetrics();
-        this.raspMetricsCounter = new AtomicInteger(0);
       }
     }
 
@@ -433,7 +433,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void close(boolean requiresPostProcessing) {
     if (additive != null || derivatives != null) {
-      log.warn("WAF object had not been closed (probably missed request-end event)");
+      log.debug(
+          LogCollector.SEND_TELEMETRY,
+          "WAF object had not been closed (probably missed request-end event)");
       closeAdditive();
       derivatives = null;
     }
