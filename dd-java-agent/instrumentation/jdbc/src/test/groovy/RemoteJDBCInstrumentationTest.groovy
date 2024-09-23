@@ -202,8 +202,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     postgres?.close()
     mysql?.close()
     sqlserver?.close()
-  }
 
+  }
   def "basic statement with #connection.getClass().getCanonicalName() on #driver generates spans"() {
     setup:
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
@@ -219,6 +219,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     def addDbmTag = dbmTraceInjected()
     resultSet.next()
     resultSet.getInt(1) == 3
+
     if (driver == POSTGRESQL || driver == MYSQL || !addDbmTag) {
       assertTraces(1) {
         trace(2) {
@@ -242,6 +243,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
+
               if (addDbmTag) {
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
               }
