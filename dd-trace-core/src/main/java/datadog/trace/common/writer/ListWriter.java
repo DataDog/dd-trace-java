@@ -49,11 +49,22 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     }
     traceCount.incrementAndGet();
     synchronized (latches) {
-      add(trace);
-      for (final CountDownLatch latch : latches) {
-        if (size() >= latch.getCount()) {
-          while (latch.getCount() > 0) {
-            latch.countDown();
+      int idx = -1;
+      for (int i = 0; i < size(); i++) {
+        if (trace.get(0).getLocalRootSpan() == get(i).get(0).getLocalRootSpan()) {
+          idx = i;
+          break;
+        }
+      }
+      if (idx >= 0) {
+        get(idx).addAll(trace);
+      } else {
+        add(trace);
+        for (final CountDownLatch latch : latches) {
+          if (size() >= latch.getCount()) {
+            while (latch.getCount() > 0) {
+              latch.countDown();
+            }
           }
         }
       }

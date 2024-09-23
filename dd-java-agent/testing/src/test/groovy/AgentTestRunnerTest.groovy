@@ -1,3 +1,5 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+
 import com.google.common.reflect.ClassPath
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.SpockRunner
@@ -176,6 +178,22 @@ class AgentTestRunnerTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def 'should report late span in the same trace'() {
+    when:
+    def first = TEST_TRACER.startSpan("test", "parent")
+    try (def scope = TEST_TRACER.activateSpan(first, ScopeSource.MANUAL)) {
+      first.finish()
+      runUnderTrace("child", {})
+    }
+    then:
+    assertTraces(1, {
+      trace(2, {
+        basicSpan(it, "parent")
+        basicSpan(it, "child", span(0))
+      })
+    })
   }
 
   boolean isJFRSupported() {
