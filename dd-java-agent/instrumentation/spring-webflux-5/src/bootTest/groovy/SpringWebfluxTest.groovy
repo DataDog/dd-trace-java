@@ -42,11 +42,6 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   WebClient client = WebClient.builder().clientConnector (new ReactorClientHttpConnector()).build()
 
-  @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
   def "Basic GET test #testName"() {
     setup:
     String url = "http://localhost:$port$urlPath"
@@ -506,22 +501,27 @@ class SpringWebfluxTest extends AgentTestRunner {
 
     then:
     response.statusCode().value() == 200
-    assertTraces(4) {
-      def traceParent1, traceParent2
+    assertTraces(4, ) {
+      // TODO: why order of spans is different in these traces?
+      def traceParent1, traceParent2, traceParent3
 
       trace(2) {
         sortSpansByStart()
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
-        traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
+        traceParent1 = clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
+        traceParent2 =  clientSpan(it, traceParent1, "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
-
+      trace(2) {
+        sortSpansByStart()
+        clientSpan(it, traceParent1, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
+        traceParent3 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
+      }
       trace(2) {
         sortSpansByStart()
         span {
           resourceName "GET /double-greet-redirect"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          childOf traceParent1
+          childOf(traceParent2)
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -556,16 +556,11 @@ class SpringWebfluxTest extends AgentTestRunner {
       }
       trace(2) {
         sortSpansByStart()
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
-        traceParent2 =  clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
-      }
-      trace(2) {
-        sortSpansByStart()
         span {
           resourceName "GET /double-greet"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
-          childOf traceParent2
+          childOf traceParent3
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

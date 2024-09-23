@@ -22,12 +22,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   abstract WebClient createClient(CharSequence component)
 
   abstract void check()

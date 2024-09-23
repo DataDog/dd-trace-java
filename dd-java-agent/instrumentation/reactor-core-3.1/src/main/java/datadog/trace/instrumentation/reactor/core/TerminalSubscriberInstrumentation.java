@@ -16,7 +16,7 @@ import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscriber;
 
 /**
- * This instrumentation make possible capture the current span (or the absence of it by nopping)
+ * This instrumentation make possible capturing the current span (or the absence of it by nopping)
  * when peek methods are called (doOnXXX, doAfterXX, log, peek, etc...)
  */
 @AutoService(InstrumenterModule.class)
