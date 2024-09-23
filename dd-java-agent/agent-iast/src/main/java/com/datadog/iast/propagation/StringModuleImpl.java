@@ -568,9 +568,9 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  @SuppressFBWarnings
+  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringStrip(@Nonnull String self, @Nonnull String result, boolean trailing) {
-    if (!canBeTainted(result) || self == result) {
+    if (self == result || !canBeTainted(result)) {
       return;
     }
     final IastContext ctx = IastContext.Provider.get();
