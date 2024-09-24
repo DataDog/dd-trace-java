@@ -5,6 +5,10 @@ import spock.lang.Specification
 
 class CodeownersTest extends Specification {
 
+  def "test Circle CI CPU count: #path"() {
+    throw new RuntimeException("CPU count is " + Runtime.runtime.availableProcessors())
+  }
+
   def "test codeowners matching: #path"() {
     setup:
     def codeowners = new InputStreamReader(CodeownersTest.getClassLoader().getResourceAsStream("ci/codeowners/CODEOWNERS_sample"), Charsets.UTF_8).withCloseable { reader ->
