@@ -72,6 +72,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         final URI url = url(request);
         if (url != null) {
           onURI(span, url);
+          System.out.println(url.getPath());
           span.setTag(
               Tags.HTTP_URL,
               URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
