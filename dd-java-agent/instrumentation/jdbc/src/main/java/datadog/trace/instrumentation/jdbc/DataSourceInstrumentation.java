@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DATABASE_CO
 import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DECORATE;
 
 import com.google.auto.service.AutoService;
-import com.zaxxer.hikari.HikariDataSource;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -66,12 +65,6 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
 
       span.setResourceName(DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));
-
-      if (ds instanceof HikariDataSource) {
-        HikariDataSource hikariDatasource = (HikariDataSource) ds;
-        String hikariPoolname = hikariDatasource.getPoolName();
-        span.setTag("hikari.poolname", hikariPoolname);
-      }
 
       final AgentScope agentScope = activateSpan(span);
       agentScope.setAsyncPropagation(true);
