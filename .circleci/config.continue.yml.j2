@@ -270,8 +270,6 @@ commands:
             git init system-tests
             cd system-tests
             git remote add origin https://github.com/DataDog/system-tests.git
-            git fetch origin
-            git checkout conti/fix-php-errors
             git fetch origin << parameters.systemTestsCommit >>
             git reset --hard FETCH_HEAD
 
@@ -839,28 +837,6 @@ jobs:
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
 
       - run:
-          name: Run IDM Integrations tests
-          environment:
-            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
-            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
-            - AWS_REGION: us-east-1
-            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
-          command: |
-            cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh INTEGRATIONS
-
-      - run:
-          name: Run IDM Crossed Tracing Libraries propagation tests for messaging
-          environment:
-            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
-            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
-            - AWS_REGION: us-east-1
-            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
-          command: |
-            cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
-
-      - run:
           name: Run APM E2E default tests
           # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
           no_output_timeout: 5m
@@ -904,11 +880,27 @@ jobs:
 
       - run:
           name: Run APM Integrations tests
+          environment:
+            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            - AWS_REGION: us-east-1
+            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
           # Stop the job after 5m to avoid excessive overhead. Will need adjustment as more tests are added.
           no_output_timeout: 5m
           command: |
             cd system-tests
             DD_SITE=datadoghq.com DD_API_KEY=$SYSTEM_TESTS_E2E_DD_API_KEY DD_APPLICATION_KEY=$SYSTEM_TESTS_E2E_DD_APP_KEY ./run.sh INTEGRATIONS
+        
+      - run:
+          name: Run IDM Crossed Tracing Libraries propagation tests for messaging
+          environment:
+            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            - AWS_REGION: us-east-1
+            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
+          command: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
 
       - store_test_results:
           path: system-tests/logs_integrations
