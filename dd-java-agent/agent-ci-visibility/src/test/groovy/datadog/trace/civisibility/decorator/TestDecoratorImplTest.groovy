@@ -23,6 +23,7 @@ class TestDecoratorImplTest extends Specification {
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
+    1 * span.setTag(DDTags.HOST_VCPU_COUNT, Runtime.runtime.availableProcessors())
     1 * span.setTag("ci-tag-1", "value")
     1 * span.setTag("ci-tag-2", "another value")
 
