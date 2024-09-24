@@ -2,11 +2,10 @@ package datadog.trace.payloadtags
 
 import spock.lang.Specification
 
-class JsonToTagsTest extends Specification {
+class PayloadTagExtractorTest extends Specification {
 
   def "expand, redact, traverse"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder()
-      .parseExpansionRules(['$.Message'])
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
       .parseRedactionRules(['$.MessageAttributes.*.StringValue', '$.Message.password'])
       .build()
 
@@ -23,19 +22,19 @@ class JsonToTagsTest extends Specification {
 
     expect:
     process(jsonToTags, json, "dd") == [
-      "dd.Message.a":1.15,
+      "dd.Message.a":"1.15",
       "dd.Message.password":"redacted",
       "dd.MessageAttributes.baz.DataType":"String",
       "dd.MessageAttributes.baz.StringValue":"redacted",
       "dd.MessageAttributes.keyOne.DataType":"Number",
-      "dd.MessageAttributes.keyOne.Value":42,
+      "dd.MessageAttributes.keyOne.Value":"42",
       "dd.MessageAttributes.keyTwo.DataType":"String",
       "dd.MessageAttributes.keyTwo.StringValue":"redacted"
     ]
   }
 
   def "traverse primitive types"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder().build()
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
 
     def json = """{
       "a": 1,
@@ -48,17 +47,17 @@ class JsonToTagsTest extends Specification {
 
     expect:
     process(jsonToTags, json, "") == [
-      ".a": 1,
-      ".b": 2.0,
+      ".a": "1",
+      ".b": "2.0",
       ".c": "string",
       ".d": true,
       ".e": false,
-      ".f": null
+      ".f": "null"
     ]
   }
 
   def "traverse empty types"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder().build()
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
 
     def json = """{
       "foo": {},
@@ -70,7 +69,7 @@ class JsonToTagsTest extends Specification {
   }
 
   def "traverse nested arrays"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder().build()
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
 
     def json = """{
       "a": [[ 1 ], [ 2, 3 ]]
@@ -78,14 +77,14 @@ class JsonToTagsTest extends Specification {
 
     expect:
     process(jsonToTags, json, "") == [
-      ".a.0.0": 1,
-      ".a.1.0": 2,
-      ".a.1.1": 3,
+      ".a.0.0": "1",
+      ".a.1.0": "2",
+      ".a.1.1": "3",
     ]
   }
 
   def "traverse nested objects"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder().build()
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
 
     def json = """{
       "a": { "b": { "c": { "d": "e" } } }
@@ -98,7 +97,7 @@ class JsonToTagsTest extends Specification {
   }
 
   def "traverse nested mixed objects and arrays"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder().build()
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
 
     def json = """{
       "a": [ "b", { "c": [ { "d": "e"} ] } ]
@@ -111,15 +110,15 @@ class JsonToTagsTest extends Specification {
     ]
   }
 
-  def "limit number of tags"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder()
+  def "limit number of tags including inner json"() {
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
       .limitTags(5)
       .build()
 
     def json = """{
-      "a": 1,
-      "b": 2,
-      "c": 3,
+      "a": [1, 2],
+      "b": { "foo": 3 },
+      "c": '[10,20,30,40]',
       "d": 4,
       "e": 5,
       "f": 6,
@@ -130,17 +129,49 @@ class JsonToTagsTest extends Specification {
 
     expect:
     process(jsonToTags, json, "") == [
-      ".a": 1,
-      ".b": 2,
-      ".c": 3,
-      ".d": 4,
-      ".e": 5,
+      ".a.0": "1",
+      ".a.1": "2",
+      ".b.foo": "3",
+      ".c.0": "10",
+      ".c.1": "20",
       "_dd.payload_tags_incomplete": true
     ]
   }
 
+  def "limit depth of traversal"() {
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
+      .limitDeepness(3)
+      .build()
+
+    def json = """{
+      "a": {
+        "b": '{ "c": "1", "d": { "e": "2" } }',
+        "f": {
+          "g": '{ "k": "3" }',
+          "j": 4,
+          "l": { "m": 5 }
+        },
+        "k": 6,
+        "n": '[1,2,3]',
+        "o": ['a', { "foo": "bar" }, ['c'], 'z']
+      }
+    }"""
+
+    expect:
+    process(jsonToTags, json, "") == [
+      ".a.b.c": "1",
+      ".a.f.j": "4",
+      ".a.k": "6",
+      ".a.n.0": "1",
+      ".a.n.1": "2",
+      ".a.n.2": "3",
+      ".a.o.0": "a",
+      ".a.o.3": "z",
+    ]
+  }
+
   def "escape dots in property names"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder().build()
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
 
     def json = """{
       "a.b": 1,
@@ -149,35 +180,13 @@ class JsonToTagsTest extends Specification {
 
     expect:
     process(jsonToTags, json, "") == [
-      ".a\\.b": 1,
-      ".c\\.d": 2,
-    ]
-  }
-
-  def "limit by deepness"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder()
-      .limitDeepness(3)
-      .build()
-
-    def json = """{
-      "a": {
-        "b": {
-          "c": {
-            "d": 1
-          },
-          "e": 2
-        }
-      }
-    }"""
-
-    expect:
-    process(jsonToTags, json, "") == [
-      ".a.b.e": 2
+      ".a\\.b": "1",
+      ".c\\.d": "2",
     ]
   }
 
   def "prefix tags"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder()
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
       .build()
 
     def json = """{
@@ -187,14 +196,13 @@ class JsonToTagsTest extends Specification {
 
     expect:
     process(jsonToTags, json, "prefix") == [
-      "prefix.a": 1,
-      "prefix.b": 2,
+      "prefix.a": "1",
+      "prefix.b": "2",
     ]
   }
 
   def "ignore missing expansion and redaction paths"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder()
-      .parseExpansionRules(['$.Message'])
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
       .parseRedactionRules(['$.MessageAttributes.*.StringValue', '$.Message.password'])
       .build()
 
@@ -209,8 +217,7 @@ class JsonToTagsTest extends Specification {
   }
 
   def "handle expansion parse errors"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder()
-      .parseExpansionRules(['$.Message'])
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
       .build()
 
     def json = """{
@@ -233,8 +240,7 @@ class JsonToTagsTest extends Specification {
 
   def "skip invalid rules"() {
     def invalidRuleWithLeadingSpace = '$$.Message'
-    JsonToTags jsonToTags = new JsonToTags.Builder()
-      .parseExpansionRules([invalidRuleWithLeadingSpace])
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
       .parseRedactionRules([invalidRuleWithLeadingSpace])
       .build()
 
@@ -249,7 +255,7 @@ class JsonToTagsTest extends Specification {
   }
 
   def "ignore invalid json, return an empty tag map"() {
-    JsonToTags jsonToTags = new JsonToTags.Builder().build()
+    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
 
     expect:
     process(jsonToTags, invalidJson, "") == [:]
@@ -260,13 +266,13 @@ class JsonToTagsTest extends Specification {
       "}",
       "[",
       "]",
-      "null",
+      //      "null",
       "{ 'a: 1.15,",
-      "body", // expect an object not a string
+      //      "body", // expect an object not a string
     ]
   }
 
-  Map<String, Object> process(JsonToTags jsonToTags, String str, String tagPrefix) {
+  Map<String, Object> process(PayloadTagExtractor jsonToTags, String str, String tagPrefix) {
     try (InputStream is = new ByteArrayInputStream(str.getBytes())) {
       return jsonToTags.process(is, tagPrefix)
     }

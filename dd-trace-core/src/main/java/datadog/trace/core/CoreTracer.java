@@ -89,7 +89,7 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
-import datadog.trace.payloadtags.JsonToTags;
+import datadog.trace.payloadtags.PayloadTagExtractor;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -222,8 +222,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final PropagationTags.Factory propagationTagsFactory;
 
-  private final JsonToTags requestJsonToTags;
-  private final JsonToTags responseJsonToTags;
+  private final PayloadTagExtractor requestPayloadTagExtractor;
+  private final PayloadTagExtractor responsePayloadTagExtractor;
 
   @Override
   public ConfigSnapshot captureTraceConfig() {
@@ -774,20 +774,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.localRootSpanTags = localRootSpanTags;
     }
-    requestJsonToTags =
-        new JsonToTags.Builder()
+    requestPayloadTagExtractor =
+        new PayloadTagExtractor.Builder()
             // TODO add common expansion / redaction rules
             .parseRedactionRules(config.getCloudRequestPayloadTagging())
-            //            .parseExpansionRules(config.getCloudRequestPayloadTagging())
             //            .limitDeepness()
             //            .limitTags()
             .build();
 
-    responseJsonToTags =
-        new JsonToTags.Builder()
+    responsePayloadTagExtractor =
+        new PayloadTagExtractor.Builder()
             // TODO add common expansion / redaction rules
             .parseRedactionRules(config.getCloudResponsePayloadTagging())
-            //            .parseExpansionRules(config.getCloudRequestPayloadTagging())
             //            .limitDeepness()
             //            .limitTags()
             .build();
@@ -1212,16 +1210,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void addTagsFromResponseBody(AgentSpan span, InputStream body, String tagPrefix) {
-    if (responseJsonToTags != null) {
-      Map<String, Object> tags = responseJsonToTags.process(body, tagPrefix);
+    if (responsePayloadTagExtractor != null) {
+      Map<String, Object> tags = responsePayloadTagExtractor.process(body, tagPrefix);
       setTags(span, tags);
     }
   }
 
   @Override
   public void addTagsFromRequestBody(AgentSpan span, InputStream body, String tagPrefix) {
-    if (requestJsonToTags != null) {
-      Map<String, Object> tags = requestJsonToTags.process(body, tagPrefix);
+    if (requestPayloadTagExtractor != null) {
+      Map<String, Object> tags = requestPayloadTagExtractor.process(body, tagPrefix);
       setTags(span, tags);
     }
   }
