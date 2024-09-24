@@ -97,7 +97,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     return key + ":" + value
   }
   static {
-    ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+    if (SERVER_LOGGER instanceof ch.qos.logback.classic.Logger) {
+      ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+    }
   }
 
   @Override
