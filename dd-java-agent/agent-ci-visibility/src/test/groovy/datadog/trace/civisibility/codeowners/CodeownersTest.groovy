@@ -6,6 +6,7 @@ import spock.lang.Specification
 class CodeownersTest extends Specification {
 
   def "test Circle CI CPU count: #path"() {
+    expect:
     throw new RuntimeException("CPU count is " + Runtime.runtime.availableProcessors())
   }
 
