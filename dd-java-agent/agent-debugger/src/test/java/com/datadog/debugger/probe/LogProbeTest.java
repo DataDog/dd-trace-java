@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.stream.Stream;
@@ -134,12 +135,35 @@ public class LogProbeTest {
   public void fillSnapshot_shouldSend_exit() {
     LogProbe logProbe = createLog(null).evaluateAt(MethodLocation.EXIT).build();
     CapturedContext entryContext = new CapturedContext();
-    entryContext.evaluate(PROBE_ID.getEncodedId(), logProbe, "", 0, MethodLocation.ENTRY);
-    entryContext.getStatus(PROBE_ID.getEncodedId());
+    prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
     CapturedContext exitContext = new CapturedContext();
-    exitContext.evaluate(PROBE_ID.getEncodedId(), logProbe, "", 0, MethodLocation.EXIT);
+    prepareContext(exitContext, logProbe, MethodLocation.EXIT);
     Snapshot snapshot = new Snapshot(Thread.currentThread(), logProbe, 10);
     assertTrue(logProbe.fillSnapshot(entryContext, exitContext, null, snapshot));
+  }
+
+  @Test
+  public void fillSnapshot_shouldSend_evalErrors() {
+    LogProbe logProbe = createLog(null).evaluateAt(MethodLocation.EXIT).build();
+    CapturedContext entryContext = new CapturedContext();
+    LogProbe.LogStatus logStatus = prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
+    logStatus.addError(new EvaluationError("expr", "msg1"));
+    logStatus.setLogTemplateErrors(true);
+    entryContext.addThrowable(new RuntimeException("errorEntry"));
+    CapturedContext exitContext = new CapturedContext();
+    logStatus = prepareContext(exitContext, logProbe, MethodLocation.EXIT);
+    logStatus.addError(new EvaluationError("expr", "msg2"));
+    logStatus.setLogTemplateErrors(true);
+    exitContext.addThrowable(new RuntimeException("errorExit"));
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), logProbe, 10);
+    assertTrue(logProbe.fillSnapshot(entryContext, exitContext, null, snapshot));
+    assertEquals(2, snapshot.getEvaluationErrors().size());
+    assertEquals("msg1", snapshot.getEvaluationErrors().get(0).getMessage());
+    assertEquals("msg2", snapshot.getEvaluationErrors().get(1).getMessage());
+    assertEquals(
+        "errorEntry", snapshot.getCaptures().getEntry().getCapturedThrowable().getMessage());
+    assertEquals(
+        "errorExit", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
   }
 
   private LogProbe.Builder createLog(String template) {
