@@ -802,11 +802,13 @@ public class Config {
         configProvider.getBoolean(
             HTTP_SERVER_ROUTE_BASED_NAMING, DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING);
 
-    System.out.println("ENV VALUE: ");
+    System.out.println("HTTP_CLIENT_TAG_QUERY_STRING: ");
     System.out.println(HTTP_CLIENT_TAG_QUERY_STRING);
     httpClientTagQueryString =
         configProvider.getBoolean(
-            HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
+            "trace." + HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING, HTTP_CLIENT_TAG_QUERY_STRING);
+    System.out.println("httpClientTagQueryString: ");
+    System.out.println(httpClientTagQueryString);
 
     httpClientTagHeaders = configProvider.getBoolean(HTTP_CLIENT_TAG_HEADERS, true);
 
