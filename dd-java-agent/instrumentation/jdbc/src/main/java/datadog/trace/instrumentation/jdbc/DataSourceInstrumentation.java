@@ -61,6 +61,7 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
         // Don't want to generate a new top-level span
         return null;
       }
+
       final AgentSpan span = startSpan(DATABASE_CONNECTION);
       DECORATE.afterStart(span);
 
