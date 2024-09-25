@@ -196,6 +196,7 @@ public class CodeOriginTest {
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "line"));
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "method"));
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "signature"));
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "type"));
 
     if (includeSnapshot) {
@@ -224,7 +225,7 @@ public class CodeOriginTest {
         format("Existing keys for %s: %s", span.getOperationName(), new TreeSet<>(ldKeys(span)));
 
     assertKeyPresent(span, DD_STACK_CODE_ORIGIN_TYPE);
-    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 3, "file"));
+    assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "file"));
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "line"));
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "method"));
     assertKeyPresent(span, format(DD_STACK_CODE_ORIGIN_FRAME, 0, "type"));

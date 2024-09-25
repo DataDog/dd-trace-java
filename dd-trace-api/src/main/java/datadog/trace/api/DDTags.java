@@ -6,7 +6,7 @@ public class DDTags {
   public static final String DD_STACK_CODE_ORIGIN_PREFIX = DD_LD_PREFIX + "code_origin.";
 
   public static final String DD_STACK_CODE_ORIGIN_TYPE = DD_STACK_CODE_ORIGIN_PREFIX + "type";
-  // _dd.stack.code_origin.frame.%d.file|line|method|type|snapshot_id
+  // _dd.ld.code_origin.frames.%d.file|line|method|type|snapshot_id
   public static final String DD_STACK_CODE_ORIGIN_FRAME =
       DD_STACK_CODE_ORIGIN_PREFIX + "frames.%d.%s";
 
