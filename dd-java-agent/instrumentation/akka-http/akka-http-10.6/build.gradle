@@ -72,6 +72,8 @@ dependencies {
   latestDepTestImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '+'
   latestDepTestImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.13', version: '+'
   latestDepTestImplementation group: 'org.scala-lang.modules', name: 'scala-java8-compat_2.13', version: '1.0.+'
+}
 
-
+configurations.getByName("latestDepTestRuntimeClasspath").resolutionStrategy {
+  it.force libs.slf4j
 }
