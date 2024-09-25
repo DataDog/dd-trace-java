@@ -7,7 +7,7 @@ import org.apache.catalina.connector.Request
 import org.apache.catalina.connector.Response
 import org.apache.catalina.valves.ErrorReportValve
 
-class ErrorReportValueInstrumentationTest extends AgentTestRunner {
+class ErrorReportValueInstrumentationForkedTest extends AgentTestRunner {
 
   void 'test vulnerability detection'() {
     given:
@@ -37,7 +37,7 @@ class ErrorReportValueInstrumentationTest extends AgentTestRunner {
   }
 }
 
-class AppSecErrorReportValueInstrumentationTest extends ErrorReportValueInstrumentationTest {
+class AppSecErrorReportValueInstrumentationForkedTest extends ErrorReportValueInstrumentationForkedTest {
 
   @Override
   protected void configurePreAgent() {
@@ -51,7 +51,7 @@ class AppSecErrorReportValueInstrumentationTest extends ErrorReportValueInstrume
   }
 }
 
-class IastErrorReportValueInstrumentationTest extends ErrorReportValueInstrumentationTest {
+class IastErrorReportValueInstrumentationForkedTest extends ErrorReportValueInstrumentationForkedTest {
 
   @Override
   protected void configurePreAgent() {
@@ -65,7 +65,7 @@ class IastErrorReportValueInstrumentationTest extends ErrorReportValueInstrument
   }
 }
 
-class IastDisabledErrorReportValueInstrumentationTest extends ErrorReportValueInstrumentationTest {
+class IastDisabledErrorReportValueInstrumentationForkedTest extends ErrorReportValueInstrumentationForkedTest {
 
   @Override
   protected void configurePreAgent() {
