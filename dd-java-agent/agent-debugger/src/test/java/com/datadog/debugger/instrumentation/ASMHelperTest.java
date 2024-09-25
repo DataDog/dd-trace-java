@@ -5,7 +5,9 @@ import static com.datadog.debugger.instrumentation.ASMHelper.ensureSafeClassLoad
 import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +40,35 @@ public class ASMHelperTest {
         ensureSafeClassLoad(
             ASMHelperTest.class.getTypeName(), "", ASMHelperTest.class.getClassLoader());
     assertEquals(ASMHelperTest.class, clazz);
+  }
+
+  @Test
+  public void isStoreCompatibleType() {
+    assertTrue(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.INT_TYPE));
+    assertTrue(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.SHORT_TYPE));
+    assertTrue(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.BYTE_TYPE));
+    assertTrue(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.CHAR_TYPE));
+    assertTrue(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.BOOLEAN_TYPE));
+    assertTrue(ASMHelper.isStoreCompatibleType(Type.LONG_TYPE, Type.LONG_TYPE));
+    assertTrue(ASMHelper.isStoreCompatibleType(Type.FLOAT_TYPE, Type.FLOAT_TYPE));
+    assertTrue(ASMHelper.isStoreCompatibleType(Type.DOUBLE_TYPE, Type.DOUBLE_TYPE));
+    assertTrue(ASMHelper.isStoreCompatibleType(Types.OBJECT_TYPE, Type.getType(Object.class)));
+    assertTrue(ASMHelper.isStoreCompatibleType(Type.getType(Object.class), Types.OBJECT_TYPE));
+    assertTrue(
+        ASMHelper.isStoreCompatibleType(Type.getType(Object.class), Type.getType(String.class)));
+    assertTrue(
+        ASMHelper.isStoreCompatibleType(Type.getType(String.class), Type.getType(Object.class)));
+    assertTrue(
+        ASMHelper.isStoreCompatibleType(Type.getType(String.class), Type.getType(String.class)));
+    assertFalse(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.LONG_TYPE));
+    assertFalse(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.FLOAT_TYPE));
+    assertFalse(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.DOUBLE_TYPE));
+    assertFalse(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Types.OBJECT_TYPE));
+    assertFalse(ASMHelper.isStoreCompatibleType(Types.OBJECT_TYPE, Type.INT_TYPE));
+    assertFalse(ASMHelper.isStoreCompatibleType(Types.OBJECT_TYPE, Type.LONG_TYPE));
+    assertFalse(ASMHelper.isStoreCompatibleType(Types.OBJECT_TYPE, Type.FLOAT_TYPE));
+    assertFalse(ASMHelper.isStoreCompatibleType(Types.OBJECT_TYPE, Type.DOUBLE_TYPE));
+    assertFalse(ASMHelper.isStoreCompatibleType(Type.getType(String.class), Type.INT_TYPE));
   }
 
   @Test

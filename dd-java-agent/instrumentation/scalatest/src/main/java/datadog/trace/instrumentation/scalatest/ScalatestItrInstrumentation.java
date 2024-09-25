@@ -118,7 +118,7 @@ public class ScalatestItrInstrumentation extends InstrumenterModule.CiVisibility
       ) {
         return;
       }
-      TestIdentifier test = new TestIdentifier(suiteId, testName, null, null);
+      TestIdentifier test = new TestIdentifier(suiteId, testName, null);
       RunContext runContext =
           InstrumentationContext.get(Filter.class, RunContext.class).get(filter);
       if (runContext.skip(test, tags)) {

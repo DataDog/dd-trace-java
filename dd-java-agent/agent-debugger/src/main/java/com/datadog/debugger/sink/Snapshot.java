@@ -1,8 +1,6 @@
 package com.datadog.debugger.sink;
 
 import com.datadog.debugger.agent.Generated;
-import datadog.trace.api.git.GitInfo;
-import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContext.CapturedThrowable;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
@@ -19,10 +17,6 @@ import java.util.UUID;
 public class Snapshot {
   private static final String LANGUAGE = "java";
   private static final int VERSION = 2;
-
-  private String gitSha;
-
-  private String gitUrl;
 
   private String id;
   private final transient int version;
@@ -48,10 +42,6 @@ public class Snapshot {
     this.thread = new CapturedThread(thread);
     this.probe = probeImplementation;
     this.maxDepth = maxDepth;
-
-    GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
-    gitSha = gitInfo.getCommit().getSha();
-    gitUrl = gitInfo.getRepositoryURL();
   }
 
   public Snapshot(
@@ -81,14 +71,6 @@ public class Snapshot {
     this.maxDepth = maxDepth;
   }
 
-  public String getGitSha() {
-    return gitSha;
-  }
-
-  public String getGitUrl() {
-    return gitUrl;
-  }
-
   public void setEntry(CapturedContext context) {
     captures.setEntry(context);
   }
@@ -99,14 +81,6 @@ public class Snapshot {
 
   public void setDuration(long duration) {
     this.duration = duration;
-  }
-
-  public void setGitSha(String gitSha) {
-    this.gitSha = gitSha;
-  }
-
-  public void setGitUrl(String gitUrl) {
-    this.gitUrl = gitUrl;
   }
 
   public void setMessage(String message) {

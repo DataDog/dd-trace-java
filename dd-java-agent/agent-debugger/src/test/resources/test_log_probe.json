@@ -14,6 +14,7 @@
     "created": "2021-03-31T13:26:52.519150+00:00",
     "active": true,
     "language": "java",
+    "tags": ["dd_watches_dsl:{object.objField.intField}", "env:staging"],
     "where": {
       "typeName": "VetController",
       "methodName": "showVetList"

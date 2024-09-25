@@ -1,18 +1,14 @@
 package datadog.trace.instrumentation.gradle.legacy
 
 import datadog.trace.api.Config
-import datadog.trace.api.civisibility.config.ModuleExecutionSettings
+import datadog.trace.api.civisibility.domain.BuildSessionSettings
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.util.Strings
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.internal.jvm.Jvm
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.regex.Matcher
 import java.util.regex.Pattern
@@ -38,8 +34,6 @@ import java.util.regex.Pattern
  */
 class GradleProjectConfigurator {
 
-  private static final Logger log = LoggerFactory.getLogger(GradleProjectConfigurator.class)
-
   /*
    * Each Groovy Closure in here is a separate class.
    * When adding or removing a closure, be sure to update {@link GradleBuildListenerInstrumentation#helperClassNames()}
@@ -50,6 +44,11 @@ class GradleProjectConfigurator {
   private static final String JACOCO_PLUGIN_ID = 'jacoco'
 
   void configureTracer(Task task, Map<String, String> propagatedSystemProperties) {
+    def config = Config.get()
+    if (!config.isCiVisibilityAutoConfigurationEnabled()) {
+      return
+    }
+
     List<String> jvmArgs = new ArrayList<>(task.jvmArgs != null ? task.jvmArgs : Collections.<String> emptyList())
 
     // propagate to child process all "dd." system properties available in current process
@@ -57,7 +56,6 @@ class GradleProjectConfigurator {
       jvmArgs.add("-D" + e.key + '=' + e.value)
     }
 
-    def config = Config.get()
     def ciVisibilityDebugPort = config.ciVisibilityDebugPort
     if (ciVisibilityDebugPort != null) {
       jvmArgs.add(
@@ -98,7 +96,17 @@ class GradleProjectConfigurator {
     return output.toString()
   }
 
-  void configureCompilerPlugin(Project project, String compilerPluginVersion) {
+  void configureProject(Project project, BuildSessionSettings sessionSettings) {
+    configureCompilerPlugin(project)
+    configureJacoco(project, sessionSettings)
+  }
+
+  private void configureCompilerPlugin(Project project) {
+    def config = Config.get()
+    if (!config.ciVisibilityCompilerPluginAutoConfigurationEnabled) {
+      return
+    }
+
     def moduleName = getModuleName(project)
 
     def closure = { task ->
@@ -117,6 +125,7 @@ class GradleProjectConfigurator {
         return
       }
 
+      String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion()
       def ddJavacPlugin = project.configurations.detachedConfiguration(project.dependencies.create("com.datadoghq:dd-javac-plugin:$compilerPluginVersion"))
       def ddJavacPluginClient = project.configurations.detachedConfiguration(project.dependencies.create("com.datadoghq:dd-javac-plugin-client:$compilerPluginVersion"))
 
@@ -175,13 +184,14 @@ class GradleProjectConfigurator {
     return null
   }
 
-  void configureJacoco(Project project, ModuleExecutionSettings moduleExecutionSettings) {
-    if (!Config.get().isCiVisibilityJacocoPluginVersionProvided() || project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
+  private void configureJacoco(Project project, BuildSessionSettings sessionSettings) {
+    def config = Config.get()
+    if (!config.isCiVisibilityJacocoPluginVersionProvided() || project.plugins.hasPlugin(JACOCO_PLUGIN_ID)) {
       return
     }
 
     project.apply("plugin": JACOCO_PLUGIN_ID)
-    project.jacoco.toolVersion = Config.get().ciVisibilityJacocoPluginVersion
+    project.jacoco.toolVersion = config.ciVisibilityJacocoPluginVersion
 
     // if instrumented project does dependency verification,
     // we need to exclude configurations added by Jacoco
@@ -193,7 +203,7 @@ class GradleProjectConfigurator {
       }
     }
 
-    def coverageEnabledPackages = moduleExecutionSettings.getCoverageEnabledPackages()
+    def coverageEnabledPackages = sessionSettings.getCoverageEnabledPackages()
     forEveryTestTask project, { task ->
       task.jacoco.excludeClassLoaders += [DatadogClassLoader.name]
 
@@ -218,35 +228,5 @@ class GradleProjectConfigurator {
       // for legacy Gradle versions
       project.tasks.all c
     }
-  }
-
-  Map<Path, Collection<Task>> configureProject(Project project) {
-    def config = Config.get()
-    if (config.ciVisibilityCompilerPluginAutoConfigurationEnabled) {
-      String compilerPluginVersion = config.getCiVisibilityCompilerPluginVersion()
-      configureCompilerPlugin(project, compilerPluginVersion)
-    }
-
-    Map<Path, Collection<Task>> testExecutions = new HashMap<>()
-    for (Task task : project.tasks) {
-      if (GradleUtils.isTestTask(task)) {
-        def executable = Paths.get(getEffectiveExecutable(task))
-        testExecutions.computeIfAbsent(executable, k -> new ArrayList<>()).add(task)
-      }
-    }
-    return testExecutions
-  }
-
-  private static String getEffectiveExecutable(Task task) {
-    if (task.hasProperty('javaLauncher') && task.javaLauncher.isPresent()) {
-      try {
-        return task.javaLauncher.get().getExecutablePath().toString()
-      } catch (Exception e) {
-        log.error("Could not get Java launcher for test task", e)
-      }
-    }
-    return task.hasProperty('executable') && task.executable != null
-      ? task.executable
-      : Jvm.current().getJavaExecutable().getAbsolutePath()
   }
 }

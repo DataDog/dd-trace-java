@@ -17,10 +17,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+import jdk.jfr.Category;
 import jdk.jfr.Event;
 import jdk.jfr.Label;
+import jdk.jfr.Name;
+import jdk.jfr.StackTrace;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SmapEntryFactory {
+
+  private static final Logger log = LoggerFactory.getLogger(SmapEntryFactory.class);
 
   private static final AtomicBoolean REGISTERED = new AtomicBoolean();
   private static boolean annotatedMapsAvailable;
@@ -37,12 +44,16 @@ public class SmapEntryFactory {
     VM_MAP_PARSING_ERROR,
   }
 
+  @Category("Datadog")
+  @Name("datadog.SmapParseErrorEvent")
+  @Label("Smap Parsing Error")
+  @StackTrace(false)
   private static class SmapParseErrorEvent extends Event {
     @Label("Reason")
-    private final ErrorReason reason;
+    private final String reason;
 
     public SmapParseErrorEvent(ErrorReason reason) {
-      this.reason = reason;
+      this.reason = reason.toString();
     }
   }
 
@@ -60,6 +71,11 @@ public class SmapEntryFactory {
       } catch (Exception e) {
         annotatedMapsAvailable = false;
       }
+    }
+    if (annotatedMapsAvailable) {
+      log.debug("Smap entry events registered successfully");
+    } else {
+      log.warn("Smap entry events could not be registered due to missing systemMap operation");
     }
   }
 

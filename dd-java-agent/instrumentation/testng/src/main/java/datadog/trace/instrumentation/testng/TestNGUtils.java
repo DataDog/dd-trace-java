@@ -235,7 +235,7 @@ public abstract class TestNGUtils {
     String testSuiteName = testClass.getName();
     String testName = method.getName();
     String testParameters = TestNGUtils.getParameters(parameters);
-    return new TestIdentifier(testSuiteName, testName, testParameters, null);
+    return new TestIdentifier(testSuiteName, testName, testParameters);
   }
 
   public static TestIdentifier toTestIdentifier(ITestResult result) {
@@ -243,7 +243,7 @@ public abstract class TestNGUtils {
     String testName =
         (result.getName() != null) ? result.getName() : result.getMethod().getMethodName();
     String testParameters = TestNGUtils.getParameters(result);
-    return new TestIdentifier(testSuiteName, testName, testParameters, null);
+    return new TestIdentifier(testSuiteName, testName, testParameters);
   }
 
   public static TestSuiteDescriptor toSuiteDescriptor(ITestClass testClass) {

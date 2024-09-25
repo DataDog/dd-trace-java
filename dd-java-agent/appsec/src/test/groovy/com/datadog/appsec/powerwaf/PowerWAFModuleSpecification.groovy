@@ -1487,9 +1487,10 @@ class PowerWAFModuleSpecification extends DDSpecification {
     })
   }
 
-  void 'fingerprint support'() {
+  void 'http endpoint fingerprint support'() {
     given:
     final flow = Mock(ChangeableFlow)
+    final fingerprint = '_dd.appsec.fp.http.endpoint'
     setupWithStubConfigService 'fingerprint_config.json'
     dataListener = pwafModule.dataSubscriptions.first()
     ctx.closeAdditive()
@@ -1508,7 +1509,50 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     1 * flow.setAction({ it.blocking })
-    ctx.derivativeKeys.contains('_dd.appsec.fp.http.endpoint')
+    1 * ctx.reportDerivatives({ Map<String, String> map ->
+      map.containsKey(fingerprint) && map.get(fingerprint).matches('http-get-.*')
+    })
+  }
+
+  void 'http session fingerprint support'() {
+    given:
+    final flow = Mock(ChangeableFlow)
+    final fingerprint = '_dd.appsec.fp.session'
+    final sessionId = UUID.randomUUID().toString()
+    setupWithStubConfigService 'fingerprint_config.json'
+    dataListener = pwafModule.dataSubscriptions.first()
+    ctx.closeAdditive()
+    final bundle = MapDataBundle.ofDelegate([
+      (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
+      (KnownAddresses.REQUEST_COOKIES): [JSESSIONID: [sessionId]],
+      (KnownAddresses.SESSION_ID): sessionId,
+      (KnownAddresses.USER_ID): 'admin',
+    ])
+
+    when:
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeAdditive()
+
+    then:
+    1 * ctx.reportDerivatives({ Map<String, String> map ->
+      map.containsKey(fingerprint) && map.get(fingerprint).matches('ssn-.*')
+    })
+  }
+
+  void 'retrieve used addresses'() {
+    when:
+    setupWithStubConfigService('small_config.json')
+    def ctx0 = pwafModule.ctxAndAddresses.get().ctx
+    def addresses = pwafModule.getUsedAddresses(ctx0)
+
+    then:
+    addresses.size() == 6
+    addresses.contains(KnownAddresses.REQUEST_INFERRED_CLIENT_IP)
+    addresses.contains(KnownAddresses.REQUEST_QUERY)
+    addresses.contains(KnownAddresses.REQUEST_PATH_PARAMS)
+    addresses.contains(KnownAddresses.HEADERS_NO_COOKIES)
+    addresses.contains(KnownAddresses.REQUEST_URI_RAW)
+    addresses.contains(KnownAddresses.REQUEST_BODY_OBJECT)
   }
 
   private Map<String, Object> getDefaultConfig() {

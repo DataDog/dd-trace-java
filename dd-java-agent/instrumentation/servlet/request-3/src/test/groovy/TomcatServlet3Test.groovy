@@ -40,6 +40,11 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     true
   }
 
+  @Override
+  boolean testSessionId() {
+    true
+  }
+
   class TomcatServer implements HttpServer {
     def port = 0
     final Tomcat server
@@ -199,6 +204,8 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
 
     and:
     assertTraces(count) {
+      Set<Tuple2<String, String>> loggedSpanIds = accessLogValue.loggedIds.toSet()
+      assert loggedSpanIds.size() == count
       (1..count).eachWithIndex { val, i ->
         trace(spanCount(SUCCESS)) {
           sortSpansByStart()
@@ -212,9 +219,8 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
           }
         }
 
-        def (String traceId, String spanId) = accessLogValue.loggedIds[i]
-        assert trace(i).get(0).traceId.toString() == traceId
-        assert trace(i).get(0).spanId.toString() == spanId
+        def ids = new Tuple2(trace(i).get(0).localRootSpan.traceId.toString(), trace(i).get(0).localRootSpan.spanId.toString())
+        assert ids in loggedSpanIds
       }
     }
 
@@ -250,8 +256,8 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
       }
 
       def (String traceId, String spanId) = accessLogValue.loggedIds[0]
-      assert trace(0).get(0).traceId.toString() == traceId
-      assert trace(0).get(0).spanId.toString() == spanId
+      assert trace(0).get(0).localRootSpan.traceId.toString() == traceId
+      assert trace(0).get(0).localRootSpan.spanId.toString() == spanId
     }
 
     where:
