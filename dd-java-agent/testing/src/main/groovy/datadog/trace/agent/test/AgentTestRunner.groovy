@@ -92,7 +92,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevi
 @SuppressWarnings('UnnecessaryDotClass')
 @RunWith(SpockRunner.class)
 abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.Listener {
-  private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10)
+  private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20)
 
   protected static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation()
 

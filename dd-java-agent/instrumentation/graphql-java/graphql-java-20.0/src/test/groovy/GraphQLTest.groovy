@@ -15,6 +15,7 @@ import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionStage
 import java.util.concurrent.TimeUnit
 
 import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring
@@ -72,6 +73,12 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             }
             return Integer.valueOf(1231232)
           })
+        }
+      }))
+      .type(newTypeWiring("Book").dataFetcher("year", new DataFetcher<CompletionStage<Integer>>() {
+        @Override
+        CompletionStage<Integer> get(DataFetchingEnvironment environment) throws Exception {
+          return CompletableFuture.completedStage(2015)
         }
       }))
       .build()
@@ -482,6 +489,109 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             "error.type" "java.lang.IllegalStateException"
             "error.message" "TEST"
             "error.stack" String
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "Query.bookById"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "Book"
+            "graphql.coordinates" "Query.bookById"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "getBookById"
+          resourceName "book"
+          childOf(span(2))
+          spanType null
+          errored false
+          measured false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.validation"
+          resourceName "graphql.validation"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.parsing"
+          resourceName "graphql.parsing"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "fetch `year` returning a CompletedStage which is a MinimalStage with most methods throwing UnsupportedOperationException"() {
+    setup:
+    def query = 'query findBookById {\n' +
+    '  bookById(id: "book-1") {\n' +
+    '    id #test\n' +
+    '    year\n' + // returns a completedStage
+    '  }\n' +
+    '}'
+    def expectedQuery = 'query findBookById {\n' +
+    '  bookById(id: {String}) {\n' +
+    '    id\n' +
+    '    year\n' +
+    '  }\n' +
+    '}\n'
+    ExecutionResult result = graphql.execute(query)
+
+    expect:
+    result.getErrors().isEmpty()
+
+    assertTraces(1) {
+      trace(6) {
+        span {
+          operationName operation()
+          resourceName "findBookById"
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.source" expectedQuery
+            "graphql.operation.name" "findBookById"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "Book.year"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "Int"
+            "graphql.coordinates" "Book.year"
             defaultTags()
           }
         }

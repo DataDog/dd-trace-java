@@ -13,7 +13,7 @@ import java.nio.channels.SocketChannel;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Function;
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +30,7 @@ public class SignalClient implements AutoCloseable {
     DESERIALIZERS.put(SignalType.ERROR, ErrorResponse::deserialize);
     DESERIALIZERS.put(SignalType.ACK, b -> AckResponse.INSTANCE);
     DESERIALIZERS.put(SignalType.REPO_INDEX_RESPONSE, RepoIndexResponse::deserialize);
-    DESERIALIZERS.put(SignalType.MODULE_SETTINGS_RESPONSE, ModuleSettingsResponse::deserialize);
+    DESERIALIZERS.put(SignalType.MODULE_SETTINGS_RESPONSE, ExecutionSettingsResponse::deserialize);
   }
 
   private final SocketChannel socketChannel;
@@ -126,9 +126,11 @@ public class SignalClient implements AutoCloseable {
       this.config = config;
     }
 
-    public @Nullable SignalClient create() {
+    @Nonnull
+    public SignalClient create() {
       if (signalServerAddress == null) {
-        return null;
+        throw new IllegalArgumentException(
+            "Cannot create signal client: no signal server address configured");
       }
       try {
         return new SignalClient(

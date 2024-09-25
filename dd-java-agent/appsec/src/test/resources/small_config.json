@@ -1,0 +1,181 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "0.42.0"
+  },
+  "actions": [
+    {
+      "id": "block",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 418,
+        "type": "html"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "ip_match_rule",
+      "name": "rule1",
+      "tags": {
+        "type": "flow1",
+        "category": "category1"
+      },
+      "conditions": [
+        {
+          "operator": "ip_match",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "data": "ip_data"
+          }
+        }
+      ],
+      "on_match": ["block"]
+    },
+    {
+      "id": "crs-913-110",
+      "name": "Found request header associated with Acunetix security scanner",
+      "tags": {
+        "type": "security_scanner",
+        "crs_id": "913110",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "list": [
+              "acunetix-product",
+              "(acunetix web vulnerability scanner",
+              "acunetix-scanning-agreement",
+              "acunetix-user-agreement"
+            ]
+          },
+          "operator": "phrase_match"
+        }
+      ],
+      "transformers": [
+        "lowercase"
+      ]
+    },
+    {
+      "id": "crs-913-120",
+      "name": "Found request filename/argument associated with security scanner",
+      "tags": {
+        "type": "security_scanner",
+        "crs_id": "913120",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.query"
+              },
+              {
+                "address": "server.request.body"
+              },
+              {
+                "address": "server.request.path_params"
+              }
+            ],
+            "list": [
+              "/.adsensepostnottherenonobook",
+              "/<invalid>hello.html",
+              "/actsensepostnottherenonotive",
+              "/acunetix-wvs-test-for-some-inexistent-file",
+              "/antidisestablishmentarianism",
+              "/appscan_fingerprint/mac_address",
+              "/arachni-",
+              "/cybercop",
+              "/nessus_is_probing_you_",
+              "/nessustest",
+              "/netsparker-",
+              "/rfiinc.txt",
+              "/thereisnowaythat-you-canbethere",
+              "/w3af/remotefileinclude.html",
+              "appscan_fingerprint",
+              "w00tw00t.at.isc.sans.dfind",
+              "w00tw00t.at.blackhats.romanian.anti-sec"
+            ]
+          },
+          "operator": "phrase_match"
+        }
+      ],
+      "transformers": [
+        "lowercase"
+      ]
+    },
+    {
+      "id": "crs-920-260",
+      "name": "Unicode Full/Half Width Abuse Attack Attempt",
+      "tags": {
+        "type": "http_protocol_violation",
+        "crs_id": "920260",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.uri.raw"
+              }
+            ],
+            "regex": "\\%u[fF]{2}[0-9a-fA-F]{2}",
+            "options": {
+              "case_sensitive": true,
+              "min_length": 6
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
+    },
+    {
+      "id": "crs-921-110",
+      "name": "HTTP Request Smuggling Attack",
+      "tags": {
+        "type": "http_protocol_violation",
+        "crs_id": "921110",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.query"
+              },
+              {
+                "address": "server.request.body"
+              },
+              {
+                "address": "server.request.path_params"
+              }
+            ],
+            "regex": "(?:get|post|head|options|connect|put|delete|trace|track|patch|propfind|propatch|mkcol|copy|move|lock|unlock)\\s+[^\\s]+\\s+http/\\d",
+            "options": {
+              "case_sensitive": true,
+              "min_length": 12
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [
+        "lowercase"
+      ]
+    }
+  ]
+}

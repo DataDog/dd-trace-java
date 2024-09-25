@@ -28,6 +28,11 @@ public class Servlet2Decorator
   }
 
   @Override
+  protected String requestedSessionId(final HttpServletRequest request) {
+    return request.getRequestedSessionId();
+  }
+
+  @Override
   protected AgentPropagation.ContextVisitor<HttpServletRequest> getter() {
     return GETTER;
   }

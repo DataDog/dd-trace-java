@@ -1,5 +1,7 @@
 package com.datadog.debugger.sink;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.ProbeStatus.Builder;
 import com.datadog.debugger.agent.ProbeStatus.Status;
@@ -9,6 +11,7 @@ import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -18,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +32,7 @@ public class ProbeStatusSink {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProbeStatusSink.class);
   private static final JsonAdapter<ProbeStatus> PROBE_STATUS_ADAPTER =
       MoshiHelper.createMoshiProbeStatus().adapter(ProbeStatus.class);
+  private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
 
   private final BatchUploader diagnosticUploader;
   private final Builder messageBuilder;
@@ -35,6 +40,8 @@ public class ProbeStatusSink {
   private final ArrayBlockingQueue<ProbeStatus> queue;
   private final Duration interval;
   private final int batchSize;
+  private final RatelimitedLogger ratelimitedLogger =
+      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   private final boolean isInstrumentTheWorld;
   private final boolean useMultiPart;
 
@@ -189,6 +196,11 @@ public class ProbeStatusSink {
               : message.getMessage())) {
         message.setLastEmit(now);
       } else {
+        ratelimitedLogger.warn(
+            SEND_TELEMETRY,
+            "Diagnostic message queue is full. Dropping probe status[{}] for probe id: {}",
+            message.getMessage().getDiagnostics().getStatus(),
+            message.getMessage().getDiagnostics().getProbeId().getId());
         return false;
       }
     }

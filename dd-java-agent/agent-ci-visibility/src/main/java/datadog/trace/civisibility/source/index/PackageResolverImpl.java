@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.source.index;
 
+import datadog.trace.api.civisibility.domain.Language;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;

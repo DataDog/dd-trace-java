@@ -112,7 +112,7 @@ public class TagInterceptor {
         span.updateAppsecPropagation(asBoolean(value));
         return true;
       case Tags.PROPAGATED_DEBUG:
-        span.updateDebugPropagation(asInt(value));
+        span.updateDebugPropagation(String.valueOf(value));
         return true;
       case InstrumentationTags.SERVLET_CONTEXT:
         return interceptServletContext(span, value);
@@ -342,18 +342,6 @@ public class TagInterceptor {
     return Boolean.TRUE.equals(value)
         || "1".equals(value)
         || (!Boolean.FALSE.equals(value) && Boolean.parseBoolean(String.valueOf(value)));
-  }
-
-  private static int asInt(Object value) {
-    if (value instanceof Number) {
-      return ((Number) value).intValue();
-    } else if (value instanceof String) {
-      try {
-        return Integer.parseInt((String) value);
-      } catch (NumberFormatException ignore) {
-      }
-    }
-    return -1;
   }
 
   private static Number getOrTryParse(Object value) {

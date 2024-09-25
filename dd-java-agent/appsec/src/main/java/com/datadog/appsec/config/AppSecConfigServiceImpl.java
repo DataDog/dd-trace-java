@@ -12,8 +12,11 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXCLUSION_DATA;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT;
@@ -97,7 +100,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
     this.configurationPoller.addConfigurationEndListener(applyRemoteConfigListener);
 
-    this.configurationPoller.addCapabilities(
+    long capabilities =
         CAPABILITY_ASM_DD_RULES
             | CAPABILITY_ASM_IP_BLOCKING
             | CAPABILITY_ASM_EXCLUSIONS
@@ -107,12 +110,16 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
-            | CAPABILITY_ASM_RASP_SQLI
             | CAPABILITY_ENDPOINT_FINGERPRINT
-            // TODO enable when usr.id and usr.session_id addresses are added
-            // | CAPABILITY_ASM_SESSION_FINGERPRINT
+            | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT);
+            | CAPABILITY_ASM_HEADER_FINGERPRINT;
+    if (tracerConfig.isAppSecRaspEnabled()) {
+      capabilities |= CAPABILITY_ASM_RASP_SQLI;
+      capabilities |= CAPABILITY_ASM_RASP_SSRF;
+      capabilities |= CAPABILITY_ASM_RASP_LFI;
+    }
+    this.configurationPoller.addCapabilities(capabilities);
   }
 
   private void subscribeRulesAndData() {
@@ -353,10 +360,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_TRUSTED_IPS
             | CAPABILITY_ASM_API_SECURITY_SAMPLE_RATE
             | CAPABILITY_ASM_RASP_SQLI
+            | CAPABILITY_ASM_RASP_SSRF
+            | CAPABILITY_ASM_RASP_LFI
             | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
             | CAPABILITY_ENDPOINT_FINGERPRINT
-            // TODO enable when usr.id and usr.session_id addresses are added
-            // | CAPABILITY_ASM_SESSION_FINGERPRINT
+            | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
             | CAPABILITY_ASM_HEADER_FINGERPRINT);
     this.configurationPoller.removeListeners(Product.ASM_DD);

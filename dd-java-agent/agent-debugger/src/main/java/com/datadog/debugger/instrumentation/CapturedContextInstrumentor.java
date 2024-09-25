@@ -40,7 +40,12 @@ import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.util.Strings;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
@@ -49,6 +54,7 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
@@ -67,6 +73,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
   private int exitContextVar = -1;
   private int timestampStartVar = -1;
   private int throwableListVar = -1;
+  private Collection<LocalVariableNode> unscopedLocalVars;
 
   public CapturedContextInstrumentor(
       ProbeDefinition definition,
@@ -386,6 +393,7 @@ public class CapturedContextInstrumentor extends Instrumentor {
     if (methodNode.tryCatchBlocks.size() > 0) {
       throwableListVar = declareThrowableList(insnList);
     }
+    unscopedLocalVars = initAndHoistLocalVars(insnList);
     insnList.add(contextInitLabel);
     if (definition instanceof SpanDecorationProbe
         && definition.getEvaluateAt() == MethodLocation.EXIT) {
@@ -449,6 +457,164 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack []
     insnList.add(gotoNode);
     methodNode.instructions.insert(methodEnterLabel, insnList);
+  }
+
+  // Initialize and hoist local variables to the top of the method
+  // if there is name/slot conflict, do nothing for the conflicting local variable
+  private Collection<LocalVariableNode> initAndHoistLocalVars(InsnList insnList) {
+    if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
+      return Collections.emptyList();
+    }
+    Map<String, LocalVariableNode> localVarsByName = new HashMap<>();
+    Map<Integer, LocalVariableNode> localVarsBySlot = new HashMap<>();
+    Map<String, List<LocalVariableNode>> hoistableVarByName = new HashMap<>();
+    for (LocalVariableNode localVar : methodNode.localVariables) {
+      int idx = localVar.index - localVarBaseOffset;
+      if (idx < argOffset) {
+        // this is an argument
+        continue;
+      }
+      checkHoistableLocalVar(localVar, localVarsByName, localVarsBySlot, hoistableVarByName);
+    }
+    // hoist vars
+    List<LocalVariableNode> results = new ArrayList<>();
+    for (Map.Entry<String, List<LocalVariableNode>> entry : hoistableVarByName.entrySet()) {
+      List<LocalVariableNode> hoistableVars = entry.getValue();
+      LocalVariableNode newVarNode;
+      if (hoistableVars.size() > 1) {
+        // merge variables
+        String name = hoistableVars.get(0).name;
+        String desc = hoistableVars.get(0).desc;
+        Type localVarType = getType(desc);
+        int newSlot = newVar(localVarType); // new slot for the local variable
+        newVarNode = new LocalVariableNode(name, desc, null, null, null, newSlot);
+        Set<LabelNode> endLabels = new HashSet<>();
+        for (LocalVariableNode localVar : hoistableVars) {
+          // rewrite each usage of the old var to the new slot
+          rewriteLocalVarInsn(localVar, localVar.index, newSlot);
+          endLabels.add(localVar.end);
+        }
+        hoistVar(insnList, newVarNode);
+        newVarNode.end = findLatestLabel(methodNode.instructions, endLabels);
+        // remove previous local variables
+        methodNode.localVariables.removeIf(hoistableVars::contains);
+        methodNode.localVariables.add(newVarNode);
+      } else {
+        // hoist the single variable and rewrite all its local var instructions
+        newVarNode = hoistableVars.get(0);
+        int oldIndex = newVarNode.index;
+        newVarNode.index = newVar(getType(newVarNode.desc)); // new slot for the local variable
+        rewriteLocalVarInsn(newVarNode, oldIndex, newVarNode.index);
+        hoistVar(insnList, newVarNode);
+      }
+      results.add(newVarNode);
+    }
+    return results;
+  }
+
+  private LabelNode findLatestLabel(InsnList instructions, Set<LabelNode> endLabels) {
+    for (AbstractInsnNode insn = instructions.getLast(); insn != null; insn = insn.getPrevious()) {
+      if (insn instanceof LabelNode && endLabels.contains(insn)) {
+        return (LabelNode) insn;
+      }
+    }
+    return null;
+  }
+
+  private void hoistVar(InsnList insnList, LocalVariableNode varNode) {
+    LabelNode labelNode = new LabelNode(); // new start label for the local variable
+    insnList.add(labelNode);
+    varNode.start = labelNode; // update the start label of the local variable
+    Type localVarType = getType(varNode.desc);
+    addStore0Insn(insnList, varNode, localVarType);
+  }
+
+  private static void addStore0Insn(
+      InsnList insnList, LocalVariableNode localVar, Type localVarType) {
+    switch (localVarType.getSort()) {
+      case Type.BOOLEAN:
+      case Type.CHAR:
+      case Type.BYTE:
+      case Type.SHORT:
+      case Type.INT:
+        insnList.add(new InsnNode(Opcodes.ICONST_0));
+        break;
+      case Type.LONG:
+        insnList.add(new InsnNode(Opcodes.LCONST_0));
+        break;
+      case Type.FLOAT:
+        insnList.add(new InsnNode(Opcodes.FCONST_0));
+        break;
+      case Type.DOUBLE:
+        insnList.add(new InsnNode(Opcodes.DCONST_0));
+        break;
+      default:
+        insnList.add(new InsnNode(Opcodes.ACONST_NULL));
+        break;
+    }
+    insnList.add(new VarInsnNode(localVarType.getOpcode(Opcodes.ISTORE), localVar.index));
+  }
+
+  private void checkHoistableLocalVar(
+      LocalVariableNode localVar,
+      Map<String, LocalVariableNode> localVarsByName,
+      Map<Integer, LocalVariableNode> localVarsBySlot,
+      Map<String, List<LocalVariableNode>> hoistableVarByName) {
+    LocalVariableNode previousVarBySlot = localVarsBySlot.putIfAbsent(localVar.index, localVar);
+    LocalVariableNode previousVarByName = localVarsByName.putIfAbsent(localVar.name, localVar);
+    if (previousVarBySlot != null) {
+      // there are multiple local variables with the same slot but different names
+      // by hoisting in a new slot, we can avoid the conflict
+      hoistableVarByName.computeIfAbsent(localVar.name, k -> new ArrayList<>()).add(localVar);
+    }
+    if (previousVarByName != null) {
+      // there are multiple local variables with the same name
+      // checking type to see if they are compatible
+      Type previousType = getType(previousVarByName.desc);
+      Type currentType = getType(localVar.desc);
+      if (!ASMHelper.isStoreCompatibleType(previousType, currentType)) {
+        reportWarning(
+            "Local variable "
+                + localVar.name
+                + " has multiple definitions with incompatible types: "
+                + previousVarByName.desc
+                + " and "
+                + localVar.desc);
+        // remove name from hoistable
+        hoistableVarByName.remove(localVar.name);
+        return;
+      }
+      // Merge variables because compatible type
+    }
+    // by default, there is no conflict => hoistable
+    hoistableVarByName.computeIfAbsent(localVar.name, k -> new ArrayList<>()).add(localVar);
+  }
+
+  private void rewriteLocalVarInsn(LocalVariableNode localVar, int oldSlot, int newSlot) {
+    // previous insn could be a store to index that need to be rewritten as well
+    AbstractInsnNode previous = localVar.start.getPrevious();
+    if (previous instanceof VarInsnNode) {
+      VarInsnNode varInsnNode = (VarInsnNode) previous;
+      if (varInsnNode.var == oldSlot) {
+        varInsnNode.var = newSlot;
+      }
+    }
+    for (AbstractInsnNode insn = localVar.start;
+        insn != null && insn != localVar.end;
+        insn = insn.getNext()) {
+      if (insn instanceof VarInsnNode) {
+        VarInsnNode varInsnNode = (VarInsnNode) insn;
+        if (varInsnNode.var == oldSlot) {
+          varInsnNode.var = newSlot;
+        }
+      }
+      if (insn instanceof IincInsnNode) {
+        IincInsnNode iincInsnNode = (IincInsnNode) insn;
+        if (iincInsnNode.var == oldSlot) {
+          iincInsnNode.var = newSlot;
+        }
+      }
+    }
   }
 
   private void createInProbeFinallyHandler(LabelNode inProbeStartLabel, LabelNode inProbeEndLabel) {
@@ -554,15 +720,17 @@ public class CapturedContextInstrumentor extends Instrumentor {
     // stack: [capturedcontext]
     collectCorrelationInfo(insnList);
     // stack: [capturedcontext]
-    if (kind != Snapshot.Kind.UNHANDLED_EXCEPTION) {
-      /*
-       * It makes no sense collecting local variables for exceptions - the ones contributing to the exception
-       * are most likely to be outside of the scope in the exception handler block and there is no way to figure
-       * out the originating location just from bytecode.
-       */
-      collectLocalVariables(location, insnList);
-      // stack: [capturedcontext]
-    }
+    /*
+     * It makes no sense collecting local variables for exceptions - the ones contributing to the exception
+     * are most likely to be outside of the scope in the exception handler block and there is no way to figure
+     * out the originating location just from bytecode.
+     *
+     * However, it is very useful, in particular for Exception Debugging (Replay) to collect local variables.
+     * Thus, we are hoisting the local variable scope by initializing them at the beginning of the method
+     * with the method initLocalVars. It allows us to collect local variables at any point.
+     */
+    collectLocalVariables(location, insnList);
+    // stack: [capturedcontext]
     if (kind == Snapshot.Kind.RETURN) {
       collectReturnValue(location, insnList);
       // stack: [capturedcontext]
@@ -673,13 +841,23 @@ public class CapturedContextInstrumentor extends Instrumentor {
       // no local variables info - bail out
       return;
     }
-
+    Collection<LocalVariableNode> localVarNodes;
+    if (definition.isLineProbe()) {
+      localVarNodes = methodNode.localVariables;
+    } else {
+      localVarNodes = unscopedLocalVars;
+    }
     List<LocalVariableNode> applicableVars = new ArrayList<>();
-    for (LocalVariableNode variableNode : methodNode.localVariables) {
+    boolean isLineProbe = definition.isLineProbe();
+    for (LocalVariableNode variableNode : localVarNodes) {
       int idx = variableNode.index - localVarBaseOffset;
       if (idx >= argOffset) {
         // var is local not arg
-        if (ASMHelper.isInScope(methodNode, variableNode, location)) {
+        if (isLineProbe) {
+          if (ASMHelper.isInScope(methodNode, variableNode, location)) {
+            applicableVars.add(variableNode);
+          }
+        } else {
           applicableVars.add(variableNode);
         }
       }

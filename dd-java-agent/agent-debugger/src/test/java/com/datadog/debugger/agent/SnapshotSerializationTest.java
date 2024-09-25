@@ -20,6 +20,7 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.WATCHES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,12 +40,14 @@ import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.test.util.Flaky;
+import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -55,6 +58,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -299,8 +305,13 @@ public class SnapshotSerializationTest {
     URI uri = URI.create("https://www.datadoghq.com");
     Optional<Date> maybeDate = Optional.of(new Date());
     Optional<Object> empty = Optional.empty();
+    OptionalInt maybeInt = OptionalInt.of(42);
+    OptionalDouble maybeDouble = OptionalDouble.of(3.14);
+    OptionalLong maybeLong = OptionalLong.of(84);
     Exception ex = new IllegalArgumentException("invalid arg");
     StackTraceElement element = new StackTraceElement("Foo", "bar", "foo.java", 42);
+    File file = new File("/tmp/foo");
+    Path path = file.toPath();
   }
 
   @Test
@@ -335,17 +346,35 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(objLocalFields, "atomicLong", AtomicLong.class.getTypeName(), "123");
     assertPrimitiveValue(
         objLocalFields, "uri", URI.class.getTypeName(), "https://www.datadoghq.com");
+    // maybeDate
     Map<String, Object> maybeDate = (Map<String, Object>) objLocalFields.get("maybeDate");
     assertComplexClass(maybeDate, Optional.class.getTypeName());
-    Map<String, Object> maybeUiidFields = (Map<String, Object>) maybeDate.get(FIELDS);
-    Map<String, Object> value = (Map<String, Object>) maybeUiidFields.get("value");
+    Map<String, Object> maybeDateFields = (Map<String, Object>) maybeDate.get(FIELDS);
+    Map<String, Object> value = (Map<String, Object>) maybeDateFields.get("value");
     assertComplexClass(value, Date.class.getTypeName());
+    // empty
     Map<String, Object> empty = (Map<String, Object>) objLocalFields.get("empty");
     assertComplexClass(empty, Optional.class.getTypeName());
     Map<String, Object> emptyFields = (Map<String, Object>) empty.get(FIELDS);
     value = (Map<String, Object>) emptyFields.get("value");
     assertEquals(Object.class.getTypeName(), value.get(TYPE));
     assertTrue((Boolean) value.get(IS_NULL));
+    // maybeInt
+    Map<String, Object> maybeInt = (Map<String, Object>) objLocalFields.get("maybeInt");
+    assertComplexClass(maybeInt, OptionalInt.class.getTypeName());
+    Map<String, Object> maybeIntFields = (Map<String, Object>) maybeInt.get(FIELDS);
+    assertPrimitiveValue(maybeIntFields, "value", "int", "42");
+    // maybeDouble
+    Map<String, Object> maybeDouble = (Map<String, Object>) objLocalFields.get("maybeDouble");
+    assertComplexClass(maybeDouble, OptionalDouble.class.getTypeName());
+    Map<String, Object> maybeDoubleFields = (Map<String, Object>) maybeDouble.get(FIELDS);
+    assertPrimitiveValue(maybeDoubleFields, "value", "double", "3.14");
+    // maybeLong
+    Map<String, Object> maybeLong = (Map<String, Object>) objLocalFields.get("maybeLong");
+    assertComplexClass(maybeLong, OptionalLong.class.getTypeName());
+    Map<String, Object> maybeLongFields = (Map<String, Object>) maybeLong.get(FIELDS);
+    assertPrimitiveValue(maybeLongFields, "value", "long", "84");
+    // ex
     Map<String, Object> ex = (Map<String, Object>) objLocalFields.get("ex");
     assertComplexClass(ex, IllegalArgumentException.class.getTypeName());
     Map<String, Object> exFields = (Map<String, Object>) ex.get(FIELDS);
@@ -359,6 +388,10 @@ public class SnapshotSerializationTest {
     assertPrimitiveValue(elementFields, "methodName", String.class.getTypeName(), "bar");
     assertPrimitiveValue(elementFields, "fileName", String.class.getTypeName(), "foo.java");
     assertPrimitiveValue(elementFields, "lineNumber", Integer.class.getTypeName(), "42");
+    // file
+    assertPrimitiveValue(objLocalFields, "file", File.class.getTypeName(), "/tmp/foo");
+    // path
+    assertPrimitiveValue(objLocalFields, "path", "sun.nio.fs.UnixPath", "/tmp/foo");
   }
 
   @Test
@@ -902,6 +935,35 @@ public class SnapshotSerializationTest {
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> enumValueJson = (Map<String, Object>) locals.get("enumValue");
     assertEquals("TWO", enumValueJson.get("value"));
+  }
+
+  @Test
+  public void watches() throws IOException {
+    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    Snapshot snapshot = createSnapshot();
+    CapturedContext context = new CapturedContext();
+    Map<String, String> map = new HashMap<>();
+    map.put("foo1", "bar1");
+    map.put("foo2", "bar2");
+    map.put("foo3", "bar3");
+    context.addWatch(CapturedContext.CapturedValue.of("watch1", Map.class.getTypeName(), map));
+    context.addWatch(
+        CapturedContext.CapturedValue.of(
+            "watch2", List.class.getTypeName(), Arrays.asList("1", "2", "3")));
+    context.addWatch(CapturedContext.CapturedValue.of("watch3", Integer.TYPE.getTypeName(), 42));
+    snapshot.setExit(context);
+    String buffer = adapter.toJson(snapshot);
+    System.out.println(buffer);
+    Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
+    Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
+    Map<String, Object> returnJson = (Map<String, Object>) capturesJson.get(RETURN);
+    Map<String, Object> watches = (Map<String, Object>) returnJson.get(WATCHES);
+    assertNull(returnJson.get(LOCALS));
+    assertNull(returnJson.get(ARGUMENTS));
+    assertEquals(3, watches.size());
+    assertMapItems(watches, "watch1", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3");
+    assertArrayItem(watches, "watch2", "1", "2", "3");
+    assertPrimitiveValue(watches, "watch3", Integer.TYPE.getTypeName(), "42");
   }
 
   private Map<String, Object> doFieldCount(int maxFieldCount) throws IOException {

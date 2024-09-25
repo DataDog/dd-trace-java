@@ -1,0 +1,25 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Velocity Smoke Tests.'
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
+  implementation group: 'org.apache.velocity', name: 'velocity', version: '1.5'
+  implementation(group: 'org.apache.velocity', name: 'velocity-tools', version: '1.3') {
+    exclude group: 'javax.servlet', module: 'servlet-api'
+  }
+
+  testImplementation project(':dd-smoke-tests')
+  testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn "bootJar"
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
+}

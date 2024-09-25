@@ -142,7 +142,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     TestImpl test = testSuite.testStart(testName, testParameters, testMethod, null);
 
-    TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters, null);
+    TestIdentifier thisTest = new TestIdentifier(testSuiteName, testName, testParameters);
     if (testModule.isNew(thisTest)) {
       test.setTag(Tags.TEST_IS_NEW, true);
     }

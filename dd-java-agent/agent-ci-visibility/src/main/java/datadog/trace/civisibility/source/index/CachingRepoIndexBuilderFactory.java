@@ -26,6 +26,9 @@ public class CachingRepoIndexBuilderFactory implements RepoIndexProvider.Factory
 
   @Override
   public RepoIndexProvider create(String repoRoot) {
+    if (repoRoot == null) {
+      return () -> RepoIndex.EMPTY;
+    }
     return cache.computeIfAbsent(repoRoot, this::doCreate);
   }
 

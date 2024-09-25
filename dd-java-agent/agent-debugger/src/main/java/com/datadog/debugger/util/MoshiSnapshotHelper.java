@@ -37,6 +37,7 @@ public class MoshiSnapshotHelper {
   public static final String CAUGHT_EXCEPTIONS = "caughtExceptions";
   public static final String ARGUMENTS = "arguments";
   public static final String LOCALS = "locals";
+  public static final String WATCHES = "watches";
   public static final String THROWABLE = "throwable";
   public static final String STATIC_FIELDS = "staticFields";
   public static final String THIS = "this";
@@ -152,6 +153,20 @@ public class MoshiSnapshotHelper {
         return;
       }
       jsonWriter.beginObject();
+      if (capturedContext.getWatches() != null) {
+        // only watches are serialized into the snapshot
+        jsonWriter.name(WATCHES);
+        jsonWriter.beginObject();
+        SerializationResult resultWatches =
+            toJsonCapturedValues(
+                jsonWriter,
+                capturedContext.getWatches(),
+                capturedContext.getLimits(),
+                timeoutChecker);
+        jsonWriter.endObject(); // / watches
+        jsonWriter.endObject();
+        return;
+      }
       jsonWriter.name(ARGUMENTS);
       jsonWriter.beginObject();
       SerializationResult resultArgs =
