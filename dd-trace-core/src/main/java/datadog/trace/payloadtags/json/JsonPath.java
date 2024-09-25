@@ -73,13 +73,13 @@ public final class JsonPath {
       }
     }
 
-    public String dotted(StringBuilder tagPrefix) {
-      return jsonPath.dotted(tagPrefix);
-    }
-
     public Builder copy() {
       JsonPath copy = new JsonPath(this.jsonPath);
       return start(copy);
+    }
+
+    public int length() {
+      return jsonPath.size - 1;
     }
   }
 

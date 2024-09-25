@@ -89,7 +89,7 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.lambda.LambdaHandler;
-import datadog.trace.payloadtags.PayloadTagExtractor;
+import datadog.trace.payloadtags.JsonTagsCollector;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -222,8 +222,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final PropagationTags.Factory propagationTagsFactory;
 
-  private final PayloadTagExtractor requestPayloadTagExtractor;
-  private final PayloadTagExtractor responsePayloadTagExtractor;
+  private final JsonTagsCollector requestPayloadTagExtractor;
+  private final JsonTagsCollector responsePayloadTagExtractor;
 
   @Override
   public ConfigSnapshot captureTraceConfig() {
@@ -775,7 +775,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.localRootSpanTags = localRootSpanTags;
     }
     requestPayloadTagExtractor =
-        new PayloadTagExtractor.Builder()
+        new JsonTagsCollector.Builder()
             // TODO add common expansion / redaction rules
             .parseRedactionRules(config.getCloudRequestPayloadTagging())
             //            .limitDeepness()
@@ -783,7 +783,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             .build();
 
     responsePayloadTagExtractor =
-        new PayloadTagExtractor.Builder()
+        new JsonTagsCollector.Builder()
             // TODO add common expansion / redaction rules
             .parseRedactionRules(config.getCloudResponsePayloadTagging())
             //            .limitDeepness()

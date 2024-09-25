@@ -2,10 +2,10 @@ package datadog.trace.payloadtags
 
 import spock.lang.Specification
 
-class PayloadTagExtractorTest extends Specification {
+class JsonTagsCollectorTest extends Specification {
 
   def "expand, redact, traverse"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder()
       .parseRedactionRules(['$.MessageAttributes.*.StringValue', '$.Message.password'])
       .build()
 
@@ -33,8 +33,8 @@ class PayloadTagExtractorTest extends Specification {
     ]
   }
 
-  def "traverse primitive types"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
+  def "traverse primitive values"() {
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder().build()
 
     def json = """{
       "a": 1,
@@ -57,7 +57,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "traverse empty types"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder().build()
 
     def json = """{
       "foo": {},
@@ -69,7 +69,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "traverse nested arrays"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder().build()
 
     def json = """{
       "a": [[ 1 ], [ 2, 3 ]]
@@ -84,7 +84,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "traverse nested objects"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder().build()
 
     def json = """{
       "a": { "b": { "c": { "d": "e" } } }
@@ -97,7 +97,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "traverse nested mixed objects and arrays"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder().build()
 
     def json = """{
       "a": [ "b", { "c": [ { "d": "e"} ] } ]
@@ -111,7 +111,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "limit number of tags including inner json"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder()
       .limitTags(5)
       .build()
 
@@ -139,7 +139,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "limit depth of traversal"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder()
       .limitDeepness(3)
       .build()
 
@@ -171,7 +171,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "escape dots in property names"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder().build()
 
     def json = """{
       "a.b": 1,
@@ -186,7 +186,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "prefix tags"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder()
       .build()
 
     def json = """{
@@ -202,7 +202,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "ignore missing expansion and redaction paths"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder()
       .parseRedactionRules(['$.MessageAttributes.*.StringValue', '$.Message.password'])
       .build()
 
@@ -217,7 +217,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "handle expansion parse errors"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder()
       .build()
 
     def json = """{
@@ -240,7 +240,7 @@ class PayloadTagExtractorTest extends Specification {
 
   def "skip invalid rules"() {
     def invalidRuleWithLeadingSpace = '$$.Message'
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder()
       .parseRedactionRules([invalidRuleWithLeadingSpace])
       .build()
 
@@ -255,7 +255,7 @@ class PayloadTagExtractorTest extends Specification {
   }
 
   def "ignore invalid json, return an empty tag map"() {
-    PayloadTagExtractor jsonToTags = new PayloadTagExtractor.Builder().build()
+    JsonTagsCollector jsonToTags = new JsonTagsCollector.Builder().build()
 
     expect:
     process(jsonToTags, invalidJson, "") == [:]
@@ -272,7 +272,7 @@ class PayloadTagExtractorTest extends Specification {
     ]
   }
 
-  Map<String, Object> process(PayloadTagExtractor jsonToTags, String str, String tagPrefix) {
+  Map<String, Object> process(JsonTagsCollector jsonToTags, String str, String tagPrefix) {
     try (InputStream is = new ByteArrayInputStream(str.getBytes())) {
       return jsonToTags.process(is, tagPrefix)
     }
