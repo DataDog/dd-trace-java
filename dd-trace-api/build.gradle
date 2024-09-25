@@ -11,6 +11,7 @@ excludedClassesCoverage += [
   'datadog.trace.api.DDTags',
   'datadog.trace.api.DDTraceApiInfo',
   'datadog.trace.api.DDTraceId',
+  'datadog.trace.api.EventTracker',
   'datadog.trace.api.GlobalTracer*',
   'datadog.trace.api.PropagationStyle',
   'datadog.trace.api.TracePropagationStyle',

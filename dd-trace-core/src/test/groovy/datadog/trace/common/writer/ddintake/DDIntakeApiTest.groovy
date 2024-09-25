@@ -6,9 +6,11 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.api.intake.TrackType
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
@@ -25,7 +27,11 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 @Timeout(20)
 class DDIntakeApiTest extends DDCoreSpecification {
 
-  static WellKnownTags wellKnownTags = new WellKnownTags("my-runtime-id", "my-hostname", "my-env", "my-service", "my-version", "my-language")
+  static CiVisibilityWellKnownTags wellKnownTags = new CiVisibilityWellKnownTags(
+  "my-runtime-id", "my-env", "my-language",
+  "my-runtime-name", "my-runtime-version", "my-runtime-vendor",
+  "my-os-arch", "my-os-platform", "my-os-version")
+
   static String apiKey = "my-secret-apikey"
   static msgPackMapper = new ObjectMapper(new MessagePackFactory())
 
@@ -164,7 +170,13 @@ class DDIntakeApiTest extends DDCoreSpecification {
         "*": new TreeMap<>([
           "env"       : "my-env",
           "runtime-id": "my-runtime-id",
-          "language"  : "my-language"
+          "language"  : "my-language",
+          (Tags.RUNTIME_NAME): "my-runtime-name",
+          (Tags.RUNTIME_VERSION): "my-runtime-version",
+          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE): "my-os-arch",
+          (Tags.OS_PLATFORM): "my-os-platform",
+          (Tags.OS_VERSION): "my-os-version"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "span",
@@ -190,7 +202,13 @@ class DDIntakeApiTest extends DDCoreSpecification {
         "*": new TreeMap<>([
           "env"       : "my-env",
           "runtime-id": "my-runtime-id",
-          "language"  : "my-language"
+          "language"  : "my-language",
+          (Tags.RUNTIME_NAME): "my-runtime-name",
+          (Tags.RUNTIME_VERSION): "my-runtime-version",
+          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE): "my-os-arch",
+          (Tags.OS_PLATFORM): "my-os-platform",
+          (Tags.OS_VERSION): "my-os-version"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test",
@@ -218,7 +236,13 @@ class DDIntakeApiTest extends DDCoreSpecification {
         "*": new TreeMap<>([
           "env"       : "my-env",
           "runtime-id": "my-runtime-id",
-          "language"  : "my-language"
+          "language"  : "my-language",
+          (Tags.RUNTIME_NAME): "my-runtime-name",
+          (Tags.RUNTIME_VERSION): "my-runtime-version",
+          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE): "my-os-arch",
+          (Tags.OS_PLATFORM): "my-os-platform",
+          (Tags.OS_VERSION): "my-os-version"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test_suite_end",
@@ -243,7 +267,13 @@ class DDIntakeApiTest extends DDCoreSpecification {
         "*": new TreeMap<>([
           "env"       : "my-env",
           "runtime-id": "my-runtime-id",
-          "language"  : "my-language"
+          "language"  : "my-language",
+          (Tags.RUNTIME_NAME): "my-runtime-name",
+          (Tags.RUNTIME_VERSION): "my-runtime-version",
+          (Tags.RUNTIME_VENDOR): "my-runtime-vendor",
+          (Tags.OS_ARCHITECTURE): "my-os-arch",
+          (Tags.OS_PLATFORM): "my-os-platform",
+          (Tags.OS_VERSION): "my-os-version"
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "test_module_end",

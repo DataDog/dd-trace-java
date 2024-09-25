@@ -272,7 +272,18 @@ class MockBackend implements AutoCloseable {
     List<Map<String, Object>> events = new ArrayList<>()
     while (!receivedTraces.isEmpty()) {
       def trace = receivedTraces.poll()
-      events.addAll((List<Map<String, Object>>) trace["events"])
+
+      def traceMetadata = trace["metadata"]
+      Map<String, Object> metadataForAllEvents = (Map<String, Object>) traceMetadata["*"]
+
+      def traceEvents = (List<Map<String, Object>>) trace["events"]
+      for (Map<String, Object> event : traceEvents) {
+        Map<String, Object> eventMetadata = (Map<String, Object>) event["content"]["meta"]
+        eventMetadata.putAll(metadataForAllEvents)
+        eventMetadata.putAll(traceMetadata.getOrDefault(event["type"], Collections.emptyMap()))
+      }
+
+      events.addAll(traceEvents)
     }
     return events
   }

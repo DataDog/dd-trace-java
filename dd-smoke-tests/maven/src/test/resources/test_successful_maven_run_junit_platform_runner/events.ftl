@@ -17,6 +17,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.status" : "pass",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "language" : "jvm",
@@ -28,6 +29,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "maven",
@@ -50,14 +52,14 @@
     "start" : ${content_start_2},
     "duration" : ${content_duration_2},
     "error" : 0,
-    "metrics" : {
-    },
+    "metrics" : { },
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
       "test.type" : "test",
       "os.architecture" : ${content_meta_os_architecture},
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "pass",
+      "test_session.name" : "mvn -B test",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
       "runtime.name" : ${content_meta_runtime_name},
       "env" : "integration-test",
@@ -72,7 +74,9 @@
       "runtime.version" : ${content_meta_runtime_version},
       "test.command" : "mvn -B test",
       "test.framework_version" : "2.4.0-M2-groovy-4.0",
-      "test.framework" : "spock"
+      "test.framework" : "spock",
+      "runtime-id" : ${content_meta_runtime_id},
+      "language" : "jvm"
     }
   }
 }, {
@@ -96,6 +100,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "pass",
       "ci.workspace_path" : ${content_meta_ci_workspace_path},
@@ -109,6 +114,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
@@ -140,6 +146,7 @@
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_4},
       "os.architecture" : ${content_meta_os_architecture},
+      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
       "test.source.method" : "test should pass()V",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.status" : "pass",
@@ -155,6 +162,7 @@
       "runtime.version" : ${content_meta_runtime_version},
       "runtime-id" : ${content_meta_runtime_id_2},
       "test.type" : "test",
+      "test_session.name" : "mvn -B test",
       "env" : "integration-test",
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "component" : "junit",
