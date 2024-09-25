@@ -191,6 +191,3 @@ To build the entire project with tests (this can take a very long time) run:
 ```
 
 After building the project, you can find the jar build artifact into the `dd-java-agent/build/libs` folder.
-
-### Build Troubleshooting
-Sometimes, tests during build are flaky and can fail/ stop the build. We don't accept flakiness and actively work to fix flaky tests, but if tests fail during build you can skip tests with `./gradlew build -PskipTests`
