@@ -1581,6 +1581,26 @@ class PowerWAFModuleSpecification extends DDSpecification {
     addresses.contains(KnownAddresses.REQUEST_BODY_OBJECT)
   }
 
+  void 'waf not used if the context is closed'() {
+    ChangeableFlow flow = Mock()
+
+    when:
+    setupWithStubConfigService('rules_with_data_config.json')
+    dataListener = pwafModule.dataSubscriptions.first()
+
+    def bundle = MapDataBundle.of(
+            KnownAddresses.USER_ID,
+            'legit-user'
+    )
+    ctx.closeAdditive()
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+
+    then:
+    1 * ctx.closeAdditive()
+    1 * ctx.isAdditiveClosed() >> true
+    0 * _
+  }
+
   private Map<String, Object> getDefaultConfig() {
     def service = new StubAppSecConfigService()
     service.init()
