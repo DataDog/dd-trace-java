@@ -71,8 +71,11 @@ public class LogProbeTest {
     LogProbe logProbe = createLog(null).evaluateAt(MethodLocation.valueOf(methodLocation)).build();
     CapturedContext entryContext = new CapturedContext();
     CapturedContext exitContext = new CapturedContext();
-    prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
-    prepareContext(exitContext, logProbe, MethodLocation.EXIT);
+    LogProbe.LogStatus logEntryStatus =
+        prepareContext(entryContext, logProbe, MethodLocation.ENTRY);
+    logEntryStatus.setSampled(true); // force sampled to avoid rate limiting executing tests!
+    LogProbe.LogStatus logExitStatus = prepareContext(exitContext, logProbe, MethodLocation.EXIT);
+    logExitStatus.setSampled(true); // force sampled to avoid rate limiting executing tests!
     Snapshot snapshot = new Snapshot(Thread.currentThread(), logProbe, 10);
     assertTrue(logProbe.fillSnapshot(entryContext, exitContext, null, snapshot));
   }
