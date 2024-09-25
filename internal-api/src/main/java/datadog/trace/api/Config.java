@@ -48,6 +48,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CLASSFILE_DUMP_E
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
@@ -210,9 +212,11 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TELEMETRY_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_COMMAND;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
@@ -223,6 +227,9 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CLASSFILE_DUMP_EN
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_CODE_ORIGIN_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
@@ -494,6 +501,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
@@ -839,7 +847,9 @@ public class Config {
   private final int ciVisibilityTotalFlakyRetryCount;
   private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
   private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
+  private final String ciVisibilitySessionName;
   private final String ciVisibilityModuleName;
+  private final String ciVisibilityTestCommand;
   private final boolean ciVisibilityTelemetryEnabled;
   private final long ciVisibilityRumFlushWaitMillis;
   private final boolean ciVisibilityAutoInjected;
@@ -879,8 +889,10 @@ public class Config {
   private final int debuggerSymbolFlushThreshold;
   private final boolean debuggerExceptionEnabled;
   private final int debuggerMaxExceptionPerSecond;
-  private final boolean debuggerExceptionOnlyLocalRoot;
+  @Deprecated private final boolean debuggerExceptionOnlyLocalRoot;
+  private final boolean debuggerExceptionCaptureIntermediateSpansEnabled;
   private final int debuggerExceptionMaxCapturedFrames;
+  private final int debuggerExceptionCaptureInterval;
   private final boolean debuggerCodeOriginEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
@@ -1671,6 +1683,11 @@ public class Config {
     telemetryMetricsEnabled =
         configProvider.getBoolean(GeneralConfig.TELEMETRY_METRICS_ENABLED, true);
 
+    isTelemetryLogCollectionEnabled =
+        instrumenterConfig.isTelemetryEnabled()
+            && configProvider.getBoolean(
+                TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
+
     isTelemetryDependencyServiceEnabled =
         configProvider.getBoolean(
             TELEMETRY_DEPENDENCY_COLLECTION_ENABLED,
@@ -1903,7 +1920,9 @@ public class Config {
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityTotalFlakyRetryCount =
         configProvider.getInteger(CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT, 1000);
+    ciVisibilitySessionName = configProvider.getString(TEST_SESSION_NAME);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
+    ciVisibilityTestCommand = configProvider.getString(CIVISIBILITY_TEST_COMMAND);
     ciVisibilityTelemetryEnabled = configProvider.getBoolean(CIVISIBILITY_TELEMETRY_ENABLED, true);
     ciVisibilityRumFlushWaitMillis =
         configProvider.getLong(CIVISIBILITY_RUM_FLUSH_WAIT_MILLIS, 500);
@@ -1993,30 +2012,22 @@ public class Config {
     debuggerExceptionOnlyLocalRoot =
         configProvider.getBoolean(
             DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT, DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT);
+    debuggerExceptionCaptureIntermediateSpansEnabled =
+        configProvider.getBoolean(
+            DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED,
+            DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED);
     debuggerExceptionMaxCapturedFrames =
         configProvider.getInteger(
-            DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES, DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES);
+            DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES,
+            DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES,
+            DEBUGGER_EXCEPTION_CAPTURE_MAX_FRAMES);
+    debuggerExceptionCaptureInterval =
+        configProvider.getInteger(
+            DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS,
+            DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS);
 
     debuggerThirdPartyIncludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_INCLUDES));
     debuggerThirdPartyExcludes = tryMakeImmutableSet(configProvider.getList(THIRD_PARTY_EXCLUDES));
-
-    // FIXME: For the initial rollout, we default log collection to true for IAST and CI Visibility
-    // users.
-    // FIXME: For progressive rollout, we include by default Java < 11 hosts as product independent
-    // sample users.
-    // FIXME:This should be removed once we default to true, and then it can also be moved up
-    // together with the rest of telemetry config.
-    final boolean telemetryLogCollectionEnabledDefault =
-        instrumenterConfig.isTelemetryEnabled()
-                && (instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED
-                    || instrumenterConfig.getIastActivation() == ProductActivation.FULLY_ENABLED
-                    || instrumenterConfig.isCiVisibilityEnabled()
-                    || debuggerEnabled
-                    || !Platform.isJavaVersionAtLeast(11))
-            || DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
-    isTelemetryLogCollectionEnabled =
-        configProvider.getBoolean(
-            TELEMETRY_LOG_COLLECTION_ENABLED, telemetryLogCollectionEnabledDefault);
 
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
@@ -3256,8 +3267,16 @@ public class Config {
     return ciVisibilityTotalFlakyRetryCount;
   }
 
+  public String getCiVisibilitySessionName() {
+    return ciVisibilitySessionName;
+  }
+
   public String getCiVisibilityModuleName() {
     return ciVisibilityModuleName;
+  }
+
+  public String getCiVisibilityTestCommand() {
+    return ciVisibilityTestCommand;
   }
 
   public boolean isCiVisibilityTelemetryEnabled() {
@@ -3388,8 +3407,16 @@ public class Config {
     return debuggerExceptionOnlyLocalRoot;
   }
 
+  public boolean isDebuggerExceptionCaptureIntermediateSpansEnabled() {
+    return debuggerExceptionCaptureIntermediateSpansEnabled;
+  }
+
   public int getDebuggerExceptionMaxCapturedFrames() {
     return debuggerExceptionMaxCapturedFrames;
+  }
+
+  public int getDebuggerExceptionCaptureInterval() {
+    return debuggerExceptionCaptureInterval;
   }
 
   public boolean isDebuggerCodeOriginEnabled() {
@@ -3703,6 +3730,19 @@ public class Config {
         serviceName,
         getVersion(),
         LANGUAGE_TAG_VALUE);
+  }
+
+  public CiVisibilityWellKnownTags getCiVisibilityWellKnownTags() {
+    return new CiVisibilityWellKnownTags(
+        getRuntimeId(),
+        getEnv(),
+        LANGUAGE_TAG_VALUE,
+        System.getProperty("java.runtime.name"),
+        System.getProperty("java.version"),
+        System.getProperty("java.vendor"),
+        System.getProperty("os.arch"),
+        System.getProperty("os.name"),
+        System.getProperty("os.version"));
   }
 
   public String getPrimaryTag() {

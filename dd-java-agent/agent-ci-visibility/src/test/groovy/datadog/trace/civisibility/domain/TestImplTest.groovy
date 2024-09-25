@@ -135,7 +135,7 @@ class TestImplTest extends DDSpecification {
     def testFramework = TestFrameworkInstrumentation.OTHER
     def config = Config.get()
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
-    def testDecorator = new TestDecoratorImpl("component", [:])
+    def testDecorator = new TestDecoratorImpl("component", "session-name", "test-command", [:])
     def methodLinesResolver = { it -> MethodLinesResolver.MethodLines.EMPTY }
     def codeowners = NoCodeowners.INSTANCE
     new TestImpl(

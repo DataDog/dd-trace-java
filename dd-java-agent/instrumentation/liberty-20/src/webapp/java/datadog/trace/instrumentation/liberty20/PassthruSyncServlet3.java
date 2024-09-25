@@ -34,6 +34,7 @@ import javax.servlet.http.HttpServletRequest;
       "/encoded path query",
       "/encoded_query",
       "/user-block",
+      "/session",
     })
 @MultipartConfig(
     maxFileSize = 10 * 1024 * 1024,

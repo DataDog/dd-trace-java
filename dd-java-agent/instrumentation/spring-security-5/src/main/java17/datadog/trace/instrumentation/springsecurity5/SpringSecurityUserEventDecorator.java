@@ -3,7 +3,8 @@ package datadog.trace.instrumentation.springsecurity5;
 import static datadog.trace.api.UserIdCollectionMode.IDENTIFICATION;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
-import datadog.trace.bootstrap.instrumentation.decorator.AppSecUserEventDecorator;
+import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.appsec.AppSecEventTracker;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,7 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 
-public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
+public class SpringSecurityUserEventDecorator {
 
   public static final SpringSecurityUserEventDecorator DECORATE =
       new SpringSecurityUserEventDecorator();
@@ -29,17 +30,31 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
   private static final Set<Class<?>> SKIPPED_AUTHS =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-  public void onSignup(UserDetails user, Throwable throwable) {
-    // skip failures while signing up a user, later on, we might want to generate a separate event
-    // for this case
-    if (throwable != null || !isEnabled()) {
+  public void onUserNotFound() {
+    final AppSecEventTracker tracker = AppSecEventTracker.getEventTracker();
+    if (tracker == null) {
       return;
     }
 
+    tracker.onUserNotFound(UserIdCollectionMode.get());
+  }
+
+  public void onSignup(UserDetails user, Throwable throwable) {
+    // skip failures while signing up a user, later on, we might want to generate a separate event
+    // for this case
+    if (throwable != null) {
+      return;
+    }
+
+    final AppSecEventTracker tracker = AppSecEventTracker.getEventTracker();
+    if (tracker == null) {
+      return;
+    }
+
+    UserIdCollectionMode mode = UserIdCollectionMode.get();
     String userId = user.getUsername();
     Map<String, String> metadata = null;
-
-    if (getUserIdCollectionMode() == IDENTIFICATION) {
+    if (mode == IDENTIFICATION) {
       metadata = new HashMap<>();
       metadata.put("enabled", String.valueOf(user.isEnabled()));
       metadata.put(
@@ -47,11 +62,16 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
           user.getAuthorities().stream().map(Object::toString).collect(Collectors.joining(",")));
     }
 
-    onSignup(userId, metadata);
+    tracker.onSignupEvent(mode, userId, metadata);
   }
 
   public void onLogin(Authentication authentication, Throwable throwable, Authentication result) {
-    if (authentication == null || !isEnabled()) {
+    if (authentication == null) {
+      return;
+    }
+
+    final AppSecEventTracker tracker = AppSecEventTracker.getEventTracker();
+    if (tracker == null) {
       return;
     }
 
@@ -59,6 +79,7 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
       return;
     }
 
+    UserIdCollectionMode mode = UserIdCollectionMode.get();
     String userId = result != null ? result.getName() : authentication.getName();
     if (throwable == null && result != null && result.isAuthenticated()) {
       Map<String, String> metadata = null;
@@ -74,7 +95,7 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
         metadata.put("accountNonLocked", String.valueOf(user.isAccountNonLocked()));
         metadata.put("credentialsNonExpired", String.valueOf(user.isCredentialsNonExpired()));
       }
-      onLoginSuccess(userId, metadata);
+      tracker.onLoginSuccessEvent(mode, userId, metadata);
     } else if (throwable != null) {
       // On bad password, throwable would be
       // org.springframework.security.authentication.BadCredentialsException,
@@ -86,7 +107,7 @@ public class SpringSecurityUserEventDecorator extends AppSecUserEventDecorator {
       // This would be the ideal place to check whether the user exists or not, but we cannot do
       // so reliably yet.
       // See UsernameNotFoundExceptionInstrumentation for more details.
-      onLoginFailure(userId, null);
+      tracker.onLoginFailureEvent(mode, userId, null, null);
     }
   }
 

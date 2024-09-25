@@ -48,6 +48,7 @@ public class Tags {
   public static final String DB_SCHEMA = "db.schema";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
 
+  public static final String TEST_SESSION_NAME = "test_session.name";
   public static final String TEST_MODULE = "test.module";
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
