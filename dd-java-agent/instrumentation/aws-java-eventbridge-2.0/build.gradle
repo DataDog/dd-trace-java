@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "software.amazon.awssdk"
     module = "eventbridge"
-    versions = "[2.17.84,3)"
+    versions = "[2.7,3)"
     assertInverse = true
   }
 }
