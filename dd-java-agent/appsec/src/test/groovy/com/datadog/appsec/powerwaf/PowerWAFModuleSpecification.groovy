@@ -1589,9 +1589,9 @@ class PowerWAFModuleSpecification extends DDSpecification {
     dataListener = pwafModule.dataSubscriptions.first()
 
     def bundle = MapDataBundle.of(
-            KnownAddresses.USER_ID,
-            'legit-user'
-    )
+      KnownAddresses.USER_ID,
+      'legit-user'
+      )
     ctx.closeAdditive()
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
 
