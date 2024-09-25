@@ -211,6 +211,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
@@ -244,6 +245,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     2 * ctx.closeAdditive()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
@@ -285,6 +287,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
@@ -309,6 +312,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
@@ -365,6 +369,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
@@ -383,6 +388,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive()
     }
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     0 * _
   }
@@ -441,6 +447,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> { pwafAdditive.close() }
     1 * ctx.setBlocked()
     1 * ctx.isThrottled(null)
@@ -461,6 +468,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive()
     }
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     0 * _
   }
@@ -522,6 +530,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     // we get two events: one for origin rule, and one for the custom one
     1 * ctx.reportEvents(hasSize(2))
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * ctx.setBlocked()
     1 * ctx.isThrottled(null)
@@ -598,6 +607,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
@@ -621,6 +631,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive
     }
     1 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_)
     1 * ctx.setBlocked()
@@ -686,6 +697,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive
     }
     1 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_)
     1 * ctx.setBlocked()
@@ -712,6 +724,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       pwafAdditive = it[0].openAdditive()
     }
     1 * ctx.getWafMetrics() >> null
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * ctx.reportEvents(_)
     1 * ctx.setBlocked()
@@ -768,6 +781,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(*_)
     1 * ctx.setBlocked()
     1 * ctx.isThrottled(null)
+    1 * ctx.isAdditiveClosed() >> false
     0 * ctx._(*_)
     flow.blocking == true
   }
@@ -1032,6 +1046,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
@@ -1086,6 +1101,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> { pwafAdditive.close() }
     _ * ctx.increaseTimeouts()
     0 * _
@@ -1108,6 +1124,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     1 * reconf.reloadSubscriptions()
     _ * ctx.increaseTimeouts()
@@ -1132,6 +1149,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     1 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
@@ -1155,6 +1173,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * reconf.reloadSubscriptions()
     1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     _ * ctx.increaseTimeouts()
     0 * _
@@ -1184,6 +1203,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     // no attack
     1 * ctx.getOrCreateAdditive(_, true, false) >> { pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     _ * ctx.increaseTimeouts()
     0 * _
@@ -1207,6 +1227,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     _ * ctx.increaseTimeouts()
     0 * _
@@ -1234,6 +1255,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * flow.setAction({ it.blocking })
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive() >> {pwafAdditive.close()}
     _ * ctx.increaseTimeouts()
     1 * ctx.isThrottled(null)
@@ -1256,6 +1278,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getOrCreateAdditive(_, true, false) >> {
       pwafAdditive = it[0].openAdditive() }
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     _ * ctx.increaseTimeouts()
     0 * _
@@ -1371,6 +1394,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * ctx.getWafMetrics()
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
+    1 * ctx.isAdditiveClosed() >> false
     0 * _
 
     when:
@@ -1386,6 +1410,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
       it[0].iterator().next().ruleMatches[0].parameters[0].value == 'user-to-block-1'
     }
     1 * ctx.getWafMetrics()
+    1 * ctx.isAdditiveClosed() >> false
     1 * ctx.closeAdditive()
     1 * ctx.isThrottled(null)
     1 * flow.isBlocking()
@@ -1485,6 +1510,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     1 * flow.setAction({ Flow.Action.RequestBlockingAction rba ->
       rba.statusCode == 402 && rba.blockingContentType == BlockingContentType.AUTO
     })
+    1 * ctx.isAdditiveClosed() >> false
   }
 
   void 'http endpoint fingerprint support'() {
