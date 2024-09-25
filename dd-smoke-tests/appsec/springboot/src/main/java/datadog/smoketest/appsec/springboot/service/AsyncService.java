@@ -1,4 +1,4 @@
-package datadog.smoketest.appsec.springboot;
+package datadog.smoketest.appsec.springboot.service;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
-public class MyAsyncService {
+public class AsyncService {
 
   @Async("taskExecutor")
   public void performAsyncTask(String id) {

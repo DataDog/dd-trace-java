@@ -1,6 +1,6 @@
 package datadog.smoketest.appsec.springboot.controller;
 
-import datadog.smoketest.appsec.springboot.MyAsyncService;
+import datadog.smoketest.appsec.springboot.service.AsyncService;
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Paths;
@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class WebController {
 
-  @Autowired private MyAsyncService myAsyncService;
+  @Autowired private AsyncService myAsyncService;
 
   @RequestMapping("/greeting")
   public String greeting() {
