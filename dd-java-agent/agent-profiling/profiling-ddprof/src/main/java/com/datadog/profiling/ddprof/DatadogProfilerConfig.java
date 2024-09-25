@@ -412,11 +412,10 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean useJvmtiWallclockSampler(ConfigProvider configProvider) {
-    return !isWallClockProfilerEnabled(configProvider)
-        && getBoolean(
-            configProvider,
-            PROFILING_DATADOG_PROFILER_WALL_JVMTI,
-            PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT);
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_WALL_JVMTI,
+        PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT);
   }
 
   private static String normalizeKey(String key) {

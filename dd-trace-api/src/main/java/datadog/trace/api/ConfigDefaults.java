@@ -178,8 +178,10 @@ public final class ConfigDefaults {
   static final int DEFAULT_DEBUGGER_SYMBOL_FLUSH_THRESHOLD = 100; // nb of classes
   static final boolean DEFAULT_DEBUGGER_EXCEPTION_ENABLED = false;
   static final int DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND = 100;
-  static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = true;
+  static final boolean DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT = false;
+  static final boolean DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED = true;
   static final int DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES = 3;
+  static final int DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS = 60 * 60;
   static final boolean DEFAULT_DEBUGGER_CODE_ORIGIN_ENABLED = false;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;

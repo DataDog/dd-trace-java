@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -572,22 +573,31 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (entryStatus.shouldReportError()) {
-      if (entryContext.getCapturedThrowable() != null) {
-        // report also uncaught exception
-        snapshot.setEntry(entryContext);
-      }
-      snapshot.addEvaluationErrors(entryStatus.getErrors());
+      populateErrors(entryContext, snapshot, entryStatus, snapshot::setEntry);
       shouldCommit = true;
     }
     if (exitStatus.shouldReportError()) {
-      if (exitContext.getCapturedThrowable() != null) {
-        // report also uncaught exception
-        snapshot.setExit(exitContext);
-      }
-      snapshot.addEvaluationErrors(exitStatus.getErrors());
+      populateErrors(exitContext, snapshot, exitStatus, snapshot::setExit);
       shouldCommit = true;
     }
     return shouldCommit;
+  }
+
+  private static void populateErrors(
+      CapturedContext context,
+      Snapshot snapshot,
+      LogStatus status,
+      Consumer<CapturedContext> contextSetter) {
+    if (context.getCapturedThrowable() != null) {
+      // report also uncaught exception
+      contextSetter.accept(context);
+    }
+    snapshot.addEvaluationErrors(status.getErrors());
+    if (status.getMessage() != null) {
+      snapshot.setMessage(status.getMessage());
+    } else if (!status.getErrors().isEmpty()) {
+      snapshot.setMessage(status.getErrors().get(0).getMessage());
+    }
   }
 
   private LogStatus convertStatus(CapturedContext.Status status) {
@@ -697,7 +707,7 @@ public class LogProbe extends ProbeDefinition {
     }
 
     public boolean shouldReportError() {
-      return hasConditionErrors || hasLogTemplateErrors;
+      return sampled && (hasConditionErrors || hasLogTemplateErrors);
     }
 
     public boolean getCondition() {

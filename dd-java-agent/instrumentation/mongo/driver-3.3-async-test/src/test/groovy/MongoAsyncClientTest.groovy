@@ -39,6 +39,7 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test create collection"() {
     setup:
+    String collectionName = randomCollectionName()
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -50,13 +51,11 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}")
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test create collection no description"() {
     setup:
+    String collectionName = randomCollectionName()
     MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
     when:
@@ -68,13 +67,11 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, databaseName)
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test get collection"() {
     setup:
+    String collectionName = randomCollectionName()
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -88,13 +85,11 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test insert"() {
     setup:
+    String collectionName = randomCollectionName()
     DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
       setupSpan = activeSpan() as DDSpan
@@ -124,13 +119,11 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test update"() {
     setup:
+    String collectionName = randomCollectionName()
     DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
       setupSpan = activeSpan() as DDSpan
@@ -168,13 +161,11 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   def "test delete"() {
     setup:
+    String collectionName = randomCollectionName()
     DDSpan setupSpan = null
     MongoCollection<Document> collection = runUnderTrace("setup") {
       setupSpan = activeSpan() as DDSpan
@@ -210,9 +201,6 @@ abstract class MongoAsyncClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
-
-    where:
-    collectionName = randomCollectionName()
   }
 
   SingleResultCallback toCallback(Closure closure) {
