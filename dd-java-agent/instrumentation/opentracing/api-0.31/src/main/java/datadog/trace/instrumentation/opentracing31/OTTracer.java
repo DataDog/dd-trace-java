@@ -41,7 +41,6 @@ public class OTTracer implements Tracer {
 
   @Override
   public SpanBuilder buildSpan(final String operationName) {
-    System.out.println("BUILDING A SPAN");
     return new OTSpanBuilder(tracer.buildSpan(INSTRUMENTATION_NAME, operationName));
   }
 
