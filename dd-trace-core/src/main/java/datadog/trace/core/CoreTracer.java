@@ -776,7 +776,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
     requestPayloadTagExtractor =
         new JsonTagsCollector.Builder()
-            // TODO add common expansion / redaction rules
+            // TODO add common redaction rules
             .parseRedactionRules(config.getCloudRequestPayloadTagging())
             //            .limitDeepness()
             //            .limitTags()
@@ -784,7 +784,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     responsePayloadTagExtractor =
         new JsonTagsCollector.Builder()
-            // TODO add common expansion / redaction rules
+            // TODO add common redaction rules
             .parseRedactionRules(config.getCloudResponsePayloadTagging())
             //            .limitDeepness()
             //            .limitTags()

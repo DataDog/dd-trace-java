@@ -10,27 +10,20 @@ import okio.Okio;
 public class JsonStreamTraversal {
 
   public interface Visitor {
-    /**
-     * @param path
-     * @return - true to handle object, false to skip it
-     */
-    boolean beforeObject(JsonPath.Builder path);
+    /** @return - true to visit the object, false to skip it */
+    boolean visitObject(JsonPath.Builder path);
 
-    void afterObject(JsonPath.Builder path);
+    /** @return - true to visit the value, false to skip it */
+    boolean visitValue(JsonPath path);
 
-    /**
-     * @param path
-     * @return - true to skip value, true to visit it
-     */
-    boolean skipValue(JsonPath path);
+    void valueVisited(JsonPath path, Object value);
 
-    /**
-     * @param path
-     * @param value
-     */
-    void visitValue(JsonPath path, Object value);
-
+    /** @return - true to stop traversing, false to keep traversing */
     boolean keepTraversing();
+
+    boolean expandValue(JsonPath jsonPath, String raw);
+
+    void expandValueFailed(JsonPath jsonPath, String raw, Exception e);
   }
 
   public static void traverse(InputStream is, Visitor visitor) throws IOException {
@@ -58,9 +51,9 @@ public class JsonStreamTraversal {
           return;
 
         case BEGIN_ARRAY:
-          if (skipValue(reader, visitor, path)) {
+          if (!visitValue(reader, visitor, path)) {
             path.endValue();
-          } else if (visitor.beforeObject(path)) {
+          } else if (visitor.visitObject(path)) {
             reader.beginArray();
             path.beginArray();
           } else {
@@ -70,9 +63,9 @@ public class JsonStreamTraversal {
           break;
 
         case BEGIN_OBJECT:
-          if (skipValue(reader, visitor, path)) {
+          if (!visitValue(reader, visitor, path)) {
             path.endValue();
-          } else if (visitor.beforeObject(path)) {
+          } else if (visitor.visitObject(path)) {
             reader.beginObject();
           } else {
             path.endValue();
@@ -88,58 +81,50 @@ public class JsonStreamTraversal {
         case END_ARRAY:
           reader.endArray();
           path.endArray();
-          visitor.afterObject(path);
           path.endValue();
           break;
 
         case END_OBJECT:
           reader.endObject();
-          visitor.afterObject(path);
           path.endValue();
           break;
 
         case BOOLEAN:
-          if (!skipValue(reader, visitor, path)) {
-            visitor.visitValue(path.jsonPath(), reader.nextBoolean());
+          if (visitValue(reader, visitor, path)) {
+            visitor.valueVisited(path.jsonPath(), reader.nextBoolean());
           }
           path.endValue();
           break;
 
         case STRING:
-          if (!skipValue(reader, visitor, path)) {
+          if (visitValue(reader, visitor, path)) {
             String raw = reader.nextString();
-            // TODO add visitor beforeExpand, expandError, afterExpand
-            boolean looksLikeJson =
-                raw.startsWith("{") && raw.endsWith("}")
-                    || raw.startsWith("[") && raw.endsWith("]");
-            if (!looksLikeJson) {
-              visitor.visitValue(path.jsonPath(), raw);
-            } else if (visitor.beforeObject(path)) {
+            if (!visitor.expandValue(path.jsonPath(), raw)) {
+              visitor.valueVisited(path.jsonPath(), raw);
+            } else if (visitor.visitObject(path)) {
               try (InputStream is = new ByteArrayInputStream(raw.getBytes())) {
                 JsonPath.Builder innerPath = path.copy(); // make a copy to prevent its modification
                 traverse(is, visitor, innerPath);
               } catch (Exception e) {
-                // TODO maybe debug log?
-                visitor.visitValue(path.jsonPath(), raw);
+                visitor.expandValueFailed(path.jsonPath(), raw, e);
               }
-              visitor.afterObject(path);
             }
           }
           path.endValue();
           break;
 
         case NUMBER:
-          if (!skipValue(reader, visitor, path)) {
+          if (visitValue(reader, visitor, path)) {
             // convert number to a string to preserve exact format
-            visitor.visitValue(path.jsonPath(), reader.nextString());
+            visitor.valueVisited(path.jsonPath(), reader.nextString());
           }
           path.endValue();
           break;
 
         case NULL:
-          if (!skipValue(reader, visitor, path)) {
+          if (visitValue(reader, visitor, path)) {
             reader.nextNull();
-            visitor.visitValue(path.jsonPath(), null);
+            visitor.valueVisited(path.jsonPath(), null);
           }
           path.endValue();
           break;
@@ -147,12 +132,12 @@ public class JsonStreamTraversal {
     }
   }
 
-  private static boolean skipValue(JsonReader reader, Visitor visitor, JsonPath.Builder path)
+  private static boolean visitValue(JsonReader reader, Visitor visitor, JsonPath.Builder path)
       throws IOException {
-    if (visitor.skipValue(path.jsonPath())) {
-      reader.skipValue();
+    if (visitor.visitValue(path.jsonPath())) {
       return true;
     }
+    reader.skipValue();
     return false;
   }
 }

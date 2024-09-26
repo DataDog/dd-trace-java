@@ -16,14 +16,15 @@ public class JsonPathParser {
   }
 
   private static final char OPEN_BRACKET = '[';
-  private static final char CLOSE_SQUARE_BRACKET = ']';
-
+  private static final char CLOSE_BRACKET = ']';
+  private static final char OPEN_BRACE = '(';
   private static final char ASTERISK = '*';
   private static final char PERIOD = '.';
   private static final char SPACE = ' ';
   private static final char COMMA = ',';
   private static final char SINGLE_QUOTE = '\'';
   private static final char DOUBLE_QUOTE = '"';
+  private static final char ESC = '\\';
 
   public static JsonPath parse(String path) throws ParseError {
     Cursor cur = new Cursor(path);
@@ -84,7 +85,7 @@ public class JsonPathParser {
       } else if (c == PERIOD || c == OPEN_BRACKET) {
         end = i;
         break;
-      } else if (c == '(') {
+      } else if (c == OPEN_BRACE) {
         cur.failAt(i, "Expressions are not supported.");
       }
       i++;
@@ -101,15 +102,15 @@ public class JsonPathParser {
 
   private static boolean tryToParseWildcard(Cursor cur, JsonPath.Builder builder)
       throws ParseError {
-    if (!cur.matchNextCharSkipSpaces(cur.pos, ASTERISK)) {
+    if (!cur.nextIsIgnoreSpaces(cur.pos, ASTERISK)) {
       return false;
     }
     int asteriskPos = cur.findCharSkipSpaces(cur.pos, ASTERISK);
-    if (!cur.matchNextCharSkipSpaces(asteriskPos, CLOSE_SQUARE_BRACKET)) {
+    if (!cur.nextIsIgnoreSpaces(asteriskPos, CLOSE_BRACKET)) {
       int offset = asteriskPos + 1;
-      cur.failAt(offset, "Expected '" + CLOSE_SQUARE_BRACKET + "'");
+      cur.failAt(offset, "Expected '" + CLOSE_BRACKET + "'");
     }
-    int closedAt = cur.findCharSkipSpaces(asteriskPos, CLOSE_SQUARE_BRACKET);
+    int closedAt = cur.findCharSkipSpaces(asteriskPos, CLOSE_BRACKET);
     cur.setPos(closedAt + 1);
     builder.any();
     return true;
@@ -117,9 +118,9 @@ public class JsonPathParser {
 
   private static boolean tryToParseIndex(Cursor cur, JsonPath.Builder builder) throws ParseError {
     int start = cur.position() + 1;
-    int end = cur.indexOf(start, CLOSE_SQUARE_BRACKET);
+    int end = cur.indexOf(start, CLOSE_BRACKET);
 
-    if (end == -1) {
+    if (end < 0) {
       return false;
     }
 
@@ -161,12 +162,12 @@ public class JsonPathParser {
     while (cur.isWithinLimits(readPosition)) {
       char c = cur.charAt(readPosition);
 
-      if ('\\' == c) {
+      if (ESC == c) {
         cur.failAt(readPosition, "Escape character is not supported in property name.");
       } else if (c == COMMA) {
         if (inProperty) cur.failAt(readPosition, "Comma is not allowed in property name.");
         else cur.failAt(readPosition, "Multiple properties are not supported.");
-      } else if (c == CLOSE_SQUARE_BRACKET && !inProperty) {
+      } else if (c == CLOSE_BRACKET && !inProperty) {
         break;
       } else if (c == quote) {
         if (inProperty) {
@@ -185,9 +186,9 @@ public class JsonPathParser {
       cur.fail("Property has not been closed - missing closing " + quote);
     }
 
-    int endBracketIndex = cur.findCharSkipSpaces(endPosition, CLOSE_SQUARE_BRACKET);
-    if (endBracketIndex == -1) {
-      cur.fail("Property has not been closed - missing closing '" + CLOSE_SQUARE_BRACKET + "'");
+    int endBracketIndex = cur.findCharSkipSpaces(endPosition, CLOSE_BRACKET);
+    if (endBracketIndex < 0) {
+      cur.fail("Property has not been closed - missing closing '" + CLOSE_BRACKET + "'");
     }
     endBracketIndex++;
 
@@ -263,7 +264,7 @@ public class JsonPathParser {
       return -1;
     }
 
-    public boolean matchNextCharSkipSpaces(int start, char c) {
+    public boolean nextIsIgnoreSpaces(int start, char c) {
       int p = skipSpaces(start + 1);
       return isWithinLimits(p) && charAt(p) == c;
     }

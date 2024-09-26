@@ -36,7 +36,7 @@ public final class JsonTagsCollector {
           JsonPath jp = JsonPathParser.parse(rule);
           result.add(jp);
         } catch (Exception ex) {
-          log.debug("Skipping failed to parse JSON path rule: '{}'", rule, ex);
+          log.debug("Skipping failed to parse JSON path rule: '{}'. {}", rule, ex.getMessage());
         }
       }
       return result;
@@ -78,7 +78,7 @@ public final class JsonTagsCollector {
     try {
       JsonStreamTraversal.traverse(is, visitor);
     } catch (IOException e) {
-      log.debug("Failed to process JSON payload", e); // TODO add more details?
+      log.debug("Failed to process JSON payload. {}", e.getMessage());
       return Collections.emptyMap();
     }
 
@@ -91,7 +91,7 @@ public final class JsonTagsCollector {
     private final int depthLimit;
 
     private final Map<String, Object> collectedTags;
-    private boolean stop;
+    private boolean stopFlag;
 
     private JsonVisitorTagCollector(String tagPrefix, Map<String, Object> collectedTags) {
       this.depthLimit = JsonTagsCollector.this.depthLimit;
@@ -101,41 +101,55 @@ public final class JsonTagsCollector {
     }
 
     @Override
-    public boolean beforeObject(JsonPath.Builder path) {
+    public boolean visitObject(JsonPath.Builder path) {
       return path.length() < depthLimit;
     }
 
     @Override
-    public void afterObject(JsonPath.Builder path) {}
+    public boolean visitValue(JsonPath path) {
+      if (findMatchingRedactionRule(path) != null) {
+        collectedTags.put(path.dotted(tagPrefix), REDACTED);
+        return false;
+      }
+      return true;
+    }
 
-    @Override
-    public boolean skipValue(JsonPath path) {
+    private JsonPath findMatchingRedactionRule(JsonPath path) {
       for (JsonPath rule : redactionRules) {
         if (rule.matches(path)) {
-          collectedTags.put(path.dotted(tagPrefix), REDACTED);
-          return true;
+          return rule;
         }
       }
-      return false;
+      return null;
     }
 
     @Override
-    public void visitValue(JsonPath path, Object value) {
+    public void valueVisited(JsonPath path, Object value) {
       if (value == null) {
         // convert `null` to a string, otherwise it won't be set as a tag value
         value = "null";
       }
-      collectedTags.put(path.dotted(tagPrefix), value);
-      boolean continueTraversing = collectedTags.size() < tagsLimit;
-      if (!continueTraversing) {
+      if (collectedTags.size() < tagsLimit) {
+        collectedTags.put(path.dotted(tagPrefix), value);
+      } else {
         collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
-        stop = true;
+        stopFlag = true;
       }
     }
 
     @Override
     public boolean keepTraversing() {
-      return !stop;
+      return !stopFlag;
+    }
+
+    @Override
+    public boolean expandValue(JsonPath path, String raw) {
+      return raw.startsWith("{") && raw.endsWith("}") || raw.startsWith("[") && raw.endsWith("]");
+    }
+
+    @Override
+    public void expandValueFailed(JsonPath path, String raw, Exception e) {
+      valueVisited(path, raw);
     }
   }
 }

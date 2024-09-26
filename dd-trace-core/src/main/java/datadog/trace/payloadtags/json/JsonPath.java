@@ -20,6 +20,7 @@ public final class JsonPath {
       return builder;
     }
 
+    // TODO rename to prop
     public Builder key(String key) {
       // TODO check if there is already a key segment to reduce allocations
       jsonPath.push(new Segment.Key(key));
