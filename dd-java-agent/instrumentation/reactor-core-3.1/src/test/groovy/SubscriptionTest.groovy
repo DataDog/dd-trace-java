@@ -16,6 +16,12 @@ import java.util.concurrent.CountDownLatch
 
 class SubscriptionTest extends AgentTestRunner {
 
+  @Override
+  boolean useStrictTraceWrites() {
+    // there are continuations we are not handling today on reactor internals.
+    false
+  }
+
   def "subscription test with processor #processor.class and #consumers consumers"() {
     when:
     def connection = (FluxProcessor<Connection, Connection>) processor

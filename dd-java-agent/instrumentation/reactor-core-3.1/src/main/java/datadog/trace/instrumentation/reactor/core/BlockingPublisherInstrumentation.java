@@ -7,18 +7,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -33,7 +28,7 @@ import org.reactivestreams.Subscriber;
  */
 @AutoService(InstrumenterModule.class)
 public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, ExcludeFilterProvider {
+    implements Instrumenter.ForTypeHierarchy {
   public BlockingPublisherInstrumentation() {
     super("reactor-core");
   }
@@ -51,10 +46,8 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    final Map<String, String> ret = new HashMap<>();
-    ret.put("org.reactivestreams.Subscriber", PublisherState.class.getName());
-    ret.put("org.reactivestreams.Publisher", PublisherState.class.getName());
-    return ret;
+    return Collections.singletonMap(
+        "org.reactivestreams.Publisher", PublisherState.class.getName());
   }
 
   @Override
@@ -65,22 +58,6 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"));
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    // this will loop indefinitely and we do not want to create a continuation for this that will
-    // never be canceled
-    return Collections.singletonMap(
-        ExcludeFilter.ExcludeType.RUNNABLE,
-        Arrays.asList(
-            "reactor.core.publisher.EventLoopProcessor$RequestTask",
-            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner$1",
-            "reactor.core.publisher.WorkQueueProcessor$WorkQueueInner",
-            "reactor.core.publisher.EventLoopProcessor",
-            "reactor.core.publisher.WorkQueueProcessor",
-            "reactor.core.publisher.TopicProcessor$TopicInner$1",
-            "reactor.core.publisher.TopicProcessor$TopicInner"));
   }
 
   public static class BlockingAdvice {

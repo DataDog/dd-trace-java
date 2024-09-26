@@ -1,28 +1,40 @@
 package datadog.trace.instrumentation.springwebflux.client;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.DECORATE;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import reactor.core.CoreSubscriber;
+import reactor.util.context.Context;
 
 public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResponse> {
 
-  final Subscriber<? super ClientResponse> actual;
+  final CoreSubscriber<? super ClientResponse> actual;
+
+  final Context context;
 
   private final AgentSpan span;
+  private final AgentSpan parent;
 
   public TraceWebClientSubscriber(
-      final Subscriber<? super ClientResponse> actual, final AgentSpan span) {
+      final CoreSubscriber<? super ClientResponse> actual,
+      final AgentSpan span,
+      final AgentSpan parent) {
     this.actual = actual;
     this.span = span;
+    this.parent = parent != null ? parent : noopSpan();
+    context = actual.currentContext();
   }
 
   @Override
   public void onSubscribe(final Subscription subscription) {
-    actual.onSubscribe(subscription);
+    try (final AgentScope scope = activateSpan(parent)) {
+      actual.onSubscribe(subscription);
+    }
   }
 
   @Override
@@ -49,11 +61,17 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onComplete() {
+    System.err.println("ACTIVATING PARENT " + parent);
     actual.onComplete();
   }
 
   public void onCancel() {
     DECORATE.onCancel(span);
     span.finish();
+  }
+
+  @Override
+  public Context currentContext() {
+    return context;
   }
 }

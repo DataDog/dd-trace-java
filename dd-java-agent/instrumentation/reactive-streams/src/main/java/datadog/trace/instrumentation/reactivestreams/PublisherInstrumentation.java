@@ -95,19 +95,14 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
         publisherState = new PublisherState();
       }
       AgentSpan span = publisherState.getSubscriptionSpan();
-      AgentSpan active = activeSpan();
+      InstrumentationContext.get(Subscriber.class, PublisherState.class).put(s, publisherState);
 
-      if (span == null) {
-        span = active;
-      }
       if (span != null) {
         publisherState.withSubscriptionSpan(span);
+        if (span != activeSpan()) {
+          return activateSpan(span);
+        }
       }
-      InstrumentationContext.get(Subscriber.class, PublisherState.class).put(s, publisherState);
-      if (span != active) {
-        return activateSpan(span);
-      }
-
       return null;
     }
 

@@ -72,7 +72,7 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
       final PublisherState state =
           InstrumentationContext.get(Subscriber.class, PublisherState.class).get(self);
       final AgentSpan span = state != null ? state.getSubscriptionSpan() : null;
-      return span == null ? null : AgentTracer.activateSpan(span);
+      return span == null || span == activeSpan() ? null : AgentTracer.activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -100,7 +100,7 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
           partner.finish();
         }
       }
-      return span == null ? null : AgentTracer.activateSpan(span);
+      return span == null || span == activeSpan() ? null : AgentTracer.activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -126,7 +126,7 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
           partner.finish();
         }
       }
-      return span == null ? null : AgentTracer.activateSpan(span);
+      return span == null || span == activeSpan() ? null : AgentTracer.activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -156,7 +156,7 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
         state.withSubscriptionSpan(activeSpan());
         return null;
       }
-      if (activeSpan() == null) {
+      if (activeSpan() != state.getSubscriptionSpan()) {
         return activateSpan(state.getSubscriptionSpan());
       }
       return null;
