@@ -20,10 +20,9 @@ public final class JsonPath {
       return builder;
     }
 
-    // TODO rename to prop
-    public Builder key(String key) {
-      // TODO check if there is already a key segment to reduce allocations
-      jsonPath.push(new Segment.Key(key));
+    public Builder name(String name) {
+      // TODO check if there is already a name segment to reduce allocations
+      jsonPath.push(new Segment.Name(name));
       return this;
     }
 
@@ -65,7 +64,7 @@ public final class JsonPath {
 
     public void endValue() {
       Segment current = jsonPath.peek();
-      if (current instanceof Segment.Key) {
+      if (current instanceof Segment.Name) {
         // pop key when within an object
         jsonPath.size--;
       } else if (current instanceof Segment.Index) {
@@ -90,7 +89,7 @@ public final class JsonPath {
   private JsonPath(int capacity) {
     assert capacity > 0;
     segments = new Segment[capacity];
-    segments[0] = Segment.root();
+    segments[0] = Segment.Singleton.ROOT;
     size = 1;
   }
 
@@ -108,7 +107,7 @@ public final class JsonPath {
     while (i >= 0 && j >= 0 && this.get(i).matches(that.get(j))) {
       i--;
       j--;
-      if (this.get(i + 1).isSearch()) {
+      if (this.get(i + 1) == Segment.Singleton.DESCENDANT) {
         int prevSearchSegmentPos = findPrevSearchSegment(this, i);
         int blockSize = i - prevSearchSegmentPos;
         int offset2 = j - blockSize + 2;
@@ -155,7 +154,7 @@ public final class JsonPath {
   private int findPrevSearchSegment(JsonPath path, int from) {
     int i = from - 1;
     while (i > 0) {
-      if (path.get(i).isSearch()) {
+      if (path.get(i) == Segment.Singleton.DESCENDANT) {
         return i;
       }
       i--;
@@ -182,34 +181,11 @@ public final class JsonPath {
 
   private abstract static class Segment {
 
-    private static Segment root() {
-      return Singleton.ROOT;
+    protected boolean matches(Segment that) {
+      return this == that || this == Singleton.WILDCARD || this == Singleton.DESCENDANT;
     }
 
-    private boolean matches(Segment that) {
-      return this == that
-          || this == Singleton.WILDCARD
-          || this == Singleton.DESCENDANT
-          || this instanceof Key && that instanceof Key && ((Key) this).key.equals(((Key) that).key)
-          || this instanceof Index
-              && that instanceof Index
-              && ((Index) this).index == ((Index) that).index;
-    }
-
-    private boolean isSearch() {
-      return this == Singleton.DESCENDANT;
-    }
-
-    private Segment copy() {
-      if (this == Singleton.ROOT || this == Singleton.WILDCARD || this == Singleton.DESCENDANT) {
-        return this;
-      } else if (this instanceof Key) {
-        return new Key(((Key) this).key);
-      } else if (this instanceof Index) {
-        return new Index(((Index) this).index);
-      }
-      return null;
-    }
+    protected abstract Segment copy();
 
     private void printTo(StringBuilder sb) {
       if (this == Singleton.ROOT) {
@@ -218,8 +194,8 @@ public final class JsonPath {
       sb.append('.');
       if (this == Singleton.WILDCARD) {
         sb.append('*');
-      } else if (this instanceof Key) {
-        sb.append(((Key) this).key.replace(".", "\\."));
+      } else if (this instanceof Name) {
+        sb.append(((Name) this).name.replace(".", "\\."));
       } else if (this instanceof Index) {
         sb.append(((Index) this).index);
       }
@@ -238,22 +214,37 @@ public final class JsonPath {
       }
 
       @Override
+      protected Segment copy() {
+        return this;
+      }
+
+      @Override
       public String toString() {
         return repr;
       }
     }
 
-    private static final class Key extends Segment {
-      private final String key;
+    private static final class Name extends Segment {
+      private final String name;
 
-      public Key(String key) {
+      public Name(String name) {
         super();
-        this.key = key;
+        this.name = name;
+      }
+
+      @Override
+      protected boolean matches(Segment that) {
+        return that instanceof Name && ((Name) that).name.equals(name);
+      }
+
+      @Override
+      protected Segment copy() {
+        return new Name(name);
       }
 
       @Override
       public String toString() {
-        return "['" + key + "']";
+        return "['" + name + "']";
       }
     }
 
@@ -263,6 +254,16 @@ public final class JsonPath {
       public Index(int index) {
         super();
         this.index = index;
+      }
+
+      @Override
+      protected boolean matches(Segment that) {
+        return that instanceof Index && ((Index) that).index == index;
+      }
+
+      @Override
+      protected Segment copy() {
+        return new Index(index);
       }
 
       @Override

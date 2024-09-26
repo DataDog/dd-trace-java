@@ -75,7 +75,7 @@ public class JsonStreamTraversal {
 
         case NAME:
           String key = reader.nextName();
-          path.key(key);
+          path.name(key);
           break;
 
         case END_ARRAY:

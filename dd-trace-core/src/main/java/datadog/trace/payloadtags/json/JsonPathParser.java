@@ -97,7 +97,7 @@ public class JsonPathParser {
     cur.setPos(end);
 
     String property = cur.subSequence(start, end).toString();
-    builder.key(property);
+    builder.name(property);
   }
 
   private static boolean tryToParseWildcard(Cursor cur, JsonPath.Builder builder)
@@ -197,7 +197,7 @@ public class JsonPathParser {
 
     cur.setPos(endBracketIndex);
 
-    builder.key(property);
+    builder.name(property);
     return true;
   }
 
