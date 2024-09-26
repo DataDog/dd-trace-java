@@ -233,6 +233,7 @@ public final class JsonPath {
       private final String repr;
 
       public Singleton(String repr) {
+        super();
         this.repr = repr;
       }
 
@@ -246,6 +247,7 @@ public final class JsonPath {
       private final String key;
 
       public Key(String key) {
+        super();
         this.key = key;
       }
 
@@ -259,6 +261,7 @@ public final class JsonPath {
       private int index;
 
       public Index(int index) {
+        super();
         this.index = index;
       }
 

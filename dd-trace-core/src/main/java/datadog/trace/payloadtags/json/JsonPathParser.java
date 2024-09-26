@@ -165,8 +165,11 @@ public class JsonPathParser {
       if (ESC == c) {
         cur.failAt(readPosition, "Escape character is not supported in property name.");
       } else if (c == COMMA) {
-        if (inProperty) cur.failAt(readPosition, "Comma is not allowed in property name.");
-        else cur.failAt(readPosition, "Multiple properties are not supported.");
+        String message =
+            inProperty
+                ? "Comma is not allowed in property name."
+                : "Multiple properties are not supported.";
+        cur.failAt(readPosition, message);
       } else if (c == CLOSE_BRACKET && !inProperty) {
         break;
       } else if (c == quote) {
