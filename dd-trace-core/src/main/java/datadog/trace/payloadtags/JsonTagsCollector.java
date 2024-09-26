@@ -144,11 +144,13 @@ public final class JsonTagsCollector {
 
     @Override
     public boolean expandValue(JsonPath path, String raw) {
+      // try to expand JSON string value if it looks like a JSON object or array
       return raw.startsWith("{") && raw.endsWith("}") || raw.startsWith("[") && raw.endsWith("]");
     }
 
     @Override
     public void expandValueFailed(JsonPath path, String raw, Exception e) {
+      // keep the original string value if it's not a valid JSON object or array
       valueVisited(path, raw);
     }
   }

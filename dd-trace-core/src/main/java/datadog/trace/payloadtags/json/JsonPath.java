@@ -2,6 +2,7 @@ package datadog.trace.payloadtags.json;
 
 public final class JsonPath {
 
+  // TODO separate the Pattern Builder and the Path Builder
   public static class Builder {
     public static final int DEFAULT_CAPACITY_IN_SEGMENTS = 8;
     private JsonPath jsonPath;
@@ -32,12 +33,12 @@ public final class JsonPath {
       return this;
     }
 
-    public Builder search() {
+    public Builder anyDesc() {
       jsonPath.push(Segment.Singleton.DESCENDANT);
       return this;
     }
 
-    public Builder any() {
+    public Builder anyChild() {
       jsonPath.push(Segment.Singleton.WILDCARD);
       return this;
     }
@@ -108,7 +109,7 @@ public final class JsonPath {
       i--;
       j--;
       if (this.get(i + 1) == Segment.Singleton.DESCENDANT) {
-        int prevSearchSegmentPos = findPrevSearchSegment(this, i);
+        int prevSearchSegmentPos = findPrevDescendantSegment(this, i);
         int blockSize = i - prevSearchSegmentPos;
         int offset2 = j - blockSize + 2;
         while (offset2 > 0
@@ -151,7 +152,7 @@ public final class JsonPath {
     return true;
   }
 
-  private int findPrevSearchSegment(JsonPath path, int from) {
+  private int findPrevDescendantSegment(JsonPath path, int from) {
     int i = from - 1;
     while (i > 0) {
       if (path.get(i) == Segment.Singleton.DESCENDANT) {

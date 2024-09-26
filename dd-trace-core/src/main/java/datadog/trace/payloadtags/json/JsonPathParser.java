@@ -47,7 +47,7 @@ public class JsonPathParser {
         }
       } else if (cur.is(PERIOD)) {
         if (cur.nextIs(PERIOD)) {
-          builder.search();
+          builder.anyDesc();
           cur.incPos(1);
         } else if (cur.nextIs(OPEN_BRACKET)) {
           cur.fail("'" + PERIOD + "' can't go before '" + OPEN_BRACKET + "'");
@@ -65,7 +65,7 @@ public class JsonPathParser {
           cur.fail("More than one '" + ASTERISK + "' in a row");
         }
         cur.incPos(1);
-        builder.any();
+        builder.anyChild();
       } else {
         parseKey(cur, builder);
       }
@@ -112,7 +112,7 @@ public class JsonPathParser {
     }
     int closedAt = cur.findCharSkipSpaces(asteriskPos, CLOSE_BRACKET);
     cur.setPos(closedAt + 1);
-    builder.any();
+    builder.anyChild();
     return true;
   }
 
