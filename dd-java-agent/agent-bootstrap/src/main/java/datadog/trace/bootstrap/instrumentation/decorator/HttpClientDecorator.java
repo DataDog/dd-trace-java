@@ -72,10 +72,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         final URI url = url(request);
         if (url != null) {
           onURI(span, url);
-          System.out.println("Path: ");
-          System.out.println(url.getPath());
-          System.out.println("Query: ");
-          System.out.println(url.getQuery());
           span.setTag(
               Tags.HTTP_URL,
               URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
@@ -103,8 +99,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         }
       }
     }
-    System.out.println("PRINTING FINAL HTTP_URL");
-    System.out.println(span.getTag(Tags.HTTP_URL));
     return span;
   }
 
