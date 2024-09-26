@@ -194,10 +194,6 @@ public final class ConfigProvider {
       try {
         String sourceValue = source.get(key, aliases);
         T value = ConfigConverter.valueOf(sourceValue, type);
-        if(key == "trace.http.client.tag.query-string"){
-          System.out.println("VALUE");
-          System.out.println(value);
-        }
         if (value != null) {
           if (collectConfig) {
             ConfigCollector.get().put(key, sourceValue, source.origin());
@@ -467,8 +463,8 @@ public final class ConfigProvider {
   public abstract static class Source {
     public final String get(String key, String... aliases) {
       String value = get(key);
-      if(key == "trace.http.client.tag.query-string"){
-        System.out.println("internal get call: ");  
+      if (key == "trace.http.client.tag.query-string") {
+        System.out.println("internal get call: ");
         System.out.println(value);
       }
       if (value != null) {
