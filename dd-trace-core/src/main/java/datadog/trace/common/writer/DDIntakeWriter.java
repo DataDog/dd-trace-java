@@ -3,7 +3,7 @@ package datadog.trace.common.writer;
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
-import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
@@ -25,7 +25,7 @@ public class DDIntakeWriter extends RemoteWriter {
   }
 
   public static class DDIntakeWriterBuilder {
-    WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
+    CiVisibilityWellKnownTags wellKnownTags = Config.get().getCiVisibilityWellKnownTags();
     int traceBufferSize = BUFFER_SIZE;
     HealthMetrics healthMetrics = HealthMetrics.NO_OP;
     int flushIntervalMilliseconds = 1000;
@@ -75,7 +75,7 @@ public class DDIntakeWriter extends RemoteWriter {
       return this;
     }
 
-    public DDIntakeWriterBuilder wellKnownTags(final WellKnownTags wellKnownTags) {
+    public DDIntakeWriterBuilder wellKnownTags(final CiVisibilityWellKnownTags wellKnownTags) {
       this.wellKnownTags = wellKnownTags;
       return this;
     }

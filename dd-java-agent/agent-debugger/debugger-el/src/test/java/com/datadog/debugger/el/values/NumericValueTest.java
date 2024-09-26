@@ -23,8 +23,7 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertNotEquals(expected, instance.getValue());
-    assertEquals((long) expected, instance.getValue());
+    assertEquals(expected, instance.getValue());
     assertEquals("1", print(instance));
   }
 
@@ -34,8 +33,7 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertNotEquals(expected, instance.getValue());
-    assertEquals((long) expected, instance.getValue());
+    assertEquals(expected, instance.getValue());
     assertEquals("1", print(instance));
   }
 
@@ -45,8 +43,7 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertNotEquals(expected, instance.getValue());
-    assertEquals((long) expected, instance.getValue());
+    assertEquals(expected, instance.getValue());
     assertEquals("1", print(instance));
   }
 
@@ -66,7 +63,7 @@ class NumericValueTest {
     NumericValue instance = new NumericValue(expected);
     assertFalse(instance.isNull());
     assertFalse(instance.isUndefined());
-    assertEquals((double) expected, instance.getValue());
+    assertEquals(expected, instance.getValue());
     assertEquals("1.0", print(instance));
   }
 

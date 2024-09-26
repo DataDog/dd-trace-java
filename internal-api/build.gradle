@@ -45,8 +45,9 @@ excludedClassesCoverage += [
   "datadog.trace.api.EndpointCheckpointerHolder",
   "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.api.UserEventTrackingMode",
-  // This is almost fully abstract class so nothing to test
+  // These are almost fully abstract classes so nothing to test
   'datadog.trace.api.profiling.RecordingData',
+  'datadog.trace.api.appsec.AppSecEventTracker',
   // A plain enum
   'datadog.trace.api.profiling.RecordingType',
   "datadog.trace.bootstrap.ActiveSubsystems",
@@ -119,6 +120,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric",
   "datadog.trace.api.civisibility.telemetry.CiVisibilityMetricData",
   "datadog.trace.api.civisibility.telemetry.NoOpMetricCollector",
+  "datadog.trace.api.civisibility.CiVisibilityWellKnownTags",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.InstrumentationTestBridge",
   // POJO

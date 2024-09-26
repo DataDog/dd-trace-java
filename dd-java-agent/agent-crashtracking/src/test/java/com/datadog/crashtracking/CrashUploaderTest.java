@@ -1,28 +1,26 @@
 package com.datadog.crashtracking;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
+import com.datadog.crashtracking.dto.CrashLog;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.common.version.VersionInfo;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -35,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class CrashUploaderTest {
 
@@ -95,10 +94,8 @@ public class CrashUploaderTest {
 
     // When
     uploader = new CrashUploader(config);
-    List<String> filesContent = new ArrayList<>();
-    filesContent.add(CRASH);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    uploader.uploadToLogs(filesContent, new PrintStream(out));
+    uploader.uploadToLogs(CRASH, new PrintStream(out));
 
     // Then
     final ObjectMapper mapper = new ObjectMapper();
@@ -114,10 +111,9 @@ public class CrashUploaderTest {
   @Test
   public void testExtractStackTraceFromRealCrashFile() throws IOException {
     uploader = new CrashUploader(config);
-    List<String> filesContent = new ArrayList<>();
-    filesContent.add(readFileAsString("sample-crash.txt"));
+    String msg = readFileAsString("sample-crash-redacted.txt");
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    uploader.uploadToLogs(filesContent, new PrintStream(out));
+    uploader.uploadToLogs(msg, new PrintStream(out));
 
     // Then
     final ObjectMapper mapper = new ObjectMapper();
@@ -126,7 +122,7 @@ public class CrashUploaderTest {
     assertEquals("crashtracker", event.get("ddsource").asText());
     assertEquals(HOSTNAME, event.get("hostname").asText());
     assertEquals(SERVICE, event.get("service").asText());
-    assertEquals(filesContent.get(0), event.get("message").asText());
+    assertEquals(msg, event.get("message").asText());
     assertEquals(
         readFileAsString("sample-stacktrace.txt"), event.get("error").get("stack").asText());
     assertEquals("ERROR", event.get("level").asText());
@@ -141,16 +137,25 @@ public class CrashUploaderTest {
     }
   }
 
-  @Test
-  public void testTelemetryHappyPath() throws Exception {
+  private Path getResourcePath(String resourceName) throws Exception {
+    return Paths.get(getClass().getClassLoader().getResource(resourceName).toURI());
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "sample-crash-for-telemetry.txt",
+        "sample-crash-for-telemetry-2.txt",
+        "sample-crash-for-telemetry-3.txt"
+      })
+  public void testTelemetryHappyPath(String log) throws Exception {
     // Given
+    CrashLog expected = CrashLog.fromJson(readFileAsString("golden/" + log));
 
     // When
     uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
-    List<String> filesContent = new ArrayList<>();
-    filesContent.add(readFileAsString("sample-crash-for-telemetry.txt"));
-    uploader.uploadToTelemetry(filesContent);
+    uploader.uploadToTelemetry(getResourcePath(log));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
@@ -164,9 +169,14 @@ public class CrashUploaderTest {
     assertEquals("logs", event.get("request_type").asText());
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
-    assertEquals(
-        readFileAsString("redacted-stacktrace.txt"),
-        event.get("payload").get(0).get("message").asText());
+
+    // we need to sanitize the UIID which keeps on changing
+    String message = event.get("payload").get(0).get("message").asText();
+    CrashLog extracted = CrashLog.fromJson(message);
+
+    assertTrue(
+        expected.equalsForTest(extracted),
+        () -> "Expected: " + expected.toJson() + "\nbut got: " + extracted.toJson());
     assertEquals("severity:crash", event.get("payload").get(0).get("tags").asText());
     // application:
     assertEquals(ENV, event.get("application").get("env").asText());
@@ -183,15 +193,23 @@ public class CrashUploaderTest {
   }
 
   @Test
+  public void testTelemetryUnrecognizedFile() throws Exception {
+    // Given
+
+    // When
+    uploader = new CrashUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    assertFalse(uploader.uploadToTelemetry(getResourcePath("no-crash.txt")));
+  }
+
+  @Test
   public void testAgentlessRequest() throws Exception {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
 
     uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
-    List<InputStream> files = new ArrayList<>();
-    files.add(new ByteArrayInputStream(CRASH.getBytes()));
-    uploader.upload(files);
+    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
@@ -205,9 +223,7 @@ public class CrashUploaderTest {
 
     uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(404));
-    List<InputStream> files = new ArrayList<>();
-    files.add(new ByteArrayInputStream(CRASH.getBytes()));
-    uploader.upload(files);
+    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
@@ -223,9 +239,7 @@ public class CrashUploaderTest {
 
     uploader = new CrashUploader(config);
     server.enqueue(new MockResponse().setResponseCode(404));
-    List<InputStream> files = new ArrayList<>();
-    files.add(new ByteArrayInputStream(CRASH.getBytes()));
-    uploader.upload(files);
+    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);

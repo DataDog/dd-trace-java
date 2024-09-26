@@ -1,9 +1,0 @@
-apply from: "$rootDir/gradle/java.gradle"
-
-sourceCompatibility = JavaVersion.VERSION_1_6
-targetCompatibility = JavaVersion.VERSION_1_6
-
-dependencies {
-  api 'javax.servlet:servlet-api:2.4'
-  implementation group: 'com.google.guava', name: 'guava', version: '20.0'
-}
