@@ -17,7 +17,7 @@ public abstract class AppSecEventTracker extends EventTracker {
 
   public static void setEventTracker(final AppSecEventTracker tracker) {
     INSTANCE = tracker;
-    GlobalTracer.setEventTracker(tracker);
+    GlobalTracer.setEventTracker(tracker == null ? EventTracker.NO_EVENT_TRACKER : tracker);
   }
 
   @Override

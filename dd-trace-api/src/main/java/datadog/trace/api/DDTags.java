@@ -75,6 +75,7 @@ public class DDTags {
   public static final String PEER_SERVICE_REMAPPED_FROM = "_dd.peer.service.remapped_from";
   public static final String INTERNAL_GIT_REPOSITORY_URL = "_dd.git.repository_url";
   public static final String INTERNAL_GIT_COMMIT_SHA = "_dd.git.commit.sha";
+  public static final String HOST_VCPU_COUNT = "_dd.host.vcpu_count";
 
   public static final String PROFILING_ENABLED = "_dd.profiling.enabled";
   public static final String DSM_ENABLED = "_dd.dsm.enabled";

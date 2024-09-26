@@ -15,6 +15,7 @@ public class TestDecoratorImpl implements TestDecorator {
   private final String component;
   private final String sessionName;
   private final Map<String, String> ciTags;
+  private final int cpuCount;
 
   public TestDecoratorImpl(
       String component, String sessionName, String testCommand, Map<String, String> ciTags) {
@@ -27,6 +28,7 @@ public class TestDecoratorImpl implements TestDecorator {
       this.sessionName =
           Strings.isNotBlank(ciJobName) ? ciJobName + "-" + testCommand : testCommand;
     }
+    cpuCount = Runtime.getRuntime().availableProcessors();
   }
 
   protected String testType() {
@@ -46,6 +48,7 @@ public class TestDecoratorImpl implements TestDecorator {
   public AgentSpan afterStart(final AgentSpan span) {
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
     span.setTag(DDTags.ORIGIN_KEY, CIAPP_TEST_ORIGIN);
+    span.setTag(DDTags.HOST_VCPU_COUNT, cpuCount);
     span.setTag(Tags.TEST_TYPE, testType());
     span.setTag(Tags.COMPONENT, component());
     span.setTag(Tags.TEST_SESSION_NAME, sessionName);

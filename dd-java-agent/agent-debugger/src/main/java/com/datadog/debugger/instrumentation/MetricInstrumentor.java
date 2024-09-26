@@ -637,7 +637,7 @@ public class MetricInstrumentor extends Instrumentor {
 
     @Override
     public VisitorResult visit(NumericValue numericValue) {
-      Number number = numericValue.getValue();
+      Number number = numericValue.getWidenValue();
       InsnList insnList = new InsnList();
       if (number instanceof Long) {
         ldc(insnList, number.longValue());

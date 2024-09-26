@@ -7,6 +7,7 @@ import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.StringTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
@@ -14,10 +15,12 @@ import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.Snapshot;
+import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -29,11 +32,15 @@ import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -249,6 +256,7 @@ public class LogProbe extends ProbeDefinition {
   private final String template;
   private final List<Segment> segments;
   private final boolean captureSnapshot;
+  private transient List<ValueScript> watches;
 
   @Json(name = "when")
   private final ProbeCondition probeCondition;
@@ -320,6 +328,35 @@ public class LogProbe extends ProbeDefinition {
     this.sampling = sampling;
   }
 
+  private static List<ValueScript> parseWatchesFromTags(Tag[] tags) {
+    if (tags == null || tags.length == 0) {
+      return Collections.emptyList();
+    }
+    List<ValueScript> result = new ArrayList<>();
+    for (Tag tag : tags) {
+      if ("dd_watches_dsl".equals(tag.getKey())) {
+        String ddWatches = tag.getValue();
+        // this for POC only, parsing is not robust!
+        String[] splitWatches = ddWatches.split(",");
+        for (String watchDef : splitWatches) {
+          // remove curly braces
+          String refPath = watchDef.substring(1, watchDef.length() - 1);
+          result.add(new ValueScript(ValueScript.parseRefPath(refPath), refPath));
+        }
+      } else if ("dd_watches_json".equals(tag.getKey())) {
+        String json = tag.getValue();
+        try {
+          ParameterizedType type = Types.newParameterizedType(List.class, ValueScript.class);
+          result.addAll(
+              MoshiHelper.createMoshiWatches().<List<ValueScript>>adapter(type).fromJson(json));
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+    return result;
+  }
+
   public LogProbe copy() {
     return new LogProbe(
         language,
@@ -345,6 +382,10 @@ public class LogProbe extends ProbeDefinition {
 
   public boolean isCaptureSnapshot() {
     return captureSnapshot;
+  }
+
+  public List<ValueScript> getWatches() {
+    return watches;
   }
 
   public ProbeCondition getProbeCondition() {
@@ -390,16 +431,53 @@ public class LogProbe extends ProbeDefinition {
       // sample if probe has condition and condition is true or has error
       sample(logStatus, methodLocation);
     }
-    if (logStatus.isSampled() && logStatus.getCondition()) {
-      StringTemplateBuilder logMessageBuilder = new StringTemplateBuilder(segments, LIMITS);
-      String msg = logMessageBuilder.evaluate(context, logStatus);
-      if (msg != null && msg.length() > LOG_MSG_LIMIT) {
-        StringBuilder sb = new StringBuilder(LOG_MSG_LIMIT + 3);
-        sb.append(msg, 0, LOG_MSG_LIMIT);
-        sb.append("...");
-        msg = sb.toString();
+    processMsgTemplate(context, logStatus);
+    processWatches(context, logStatus);
+  }
+
+  private void processMsgTemplate(CapturedContext context, LogStatus logStatus) {
+    if (!logStatus.isSampled() || !logStatus.getCondition()) {
+      return;
+    }
+    StringTemplateBuilder logMessageBuilder = new StringTemplateBuilder(segments, LIMITS);
+    String msg = logMessageBuilder.evaluate(context, logStatus);
+    if (msg != null && msg.length() > LOG_MSG_LIMIT) {
+      StringBuilder sb = new StringBuilder(LOG_MSG_LIMIT + 3);
+      sb.append(msg, 0, LOG_MSG_LIMIT);
+      sb.append("...");
+      msg = sb.toString();
+    }
+    logStatus.setMessage(msg);
+  }
+
+  private void processWatches(CapturedContext context, LogStatus logStatus) {
+    if (watches == null) {
+      watches = parseWatchesFromTags(tags);
+    }
+    if (watches.isEmpty()) {
+      return;
+    }
+    if (!logStatus.isSampled()) {
+      return;
+    }
+    for (ValueScript watch : watches) {
+      try {
+        Value<?> result = watch.execute(context);
+        if (result.isUndefined()) {
+          throw new EvaluationException("UNDEFINED", watch.getDsl());
+        }
+        if (result.isNull()) {
+          context.addWatch(
+              CapturedContext.CapturedValue.of(watch.getDsl(), Object.class.getTypeName(), null));
+        } else {
+          context.addWatch(
+              CapturedContext.CapturedValue.of(
+                  watch.getDsl(), Object.class.getTypeName(), result.getValue()));
+        }
+      } catch (EvaluationException ex) {
+        logStatus.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+        logStatus.setLogTemplateErrors(true);
       }
-      logStatus.setMessage(msg);
     }
   }
 
@@ -495,22 +573,31 @@ public class LogProbe extends ProbeDefinition {
       shouldCommit = true;
     }
     if (entryStatus.shouldReportError()) {
-      if (entryContext.getCapturedThrowable() != null) {
-        // report also uncaught exception
-        snapshot.setEntry(entryContext);
-      }
-      snapshot.addEvaluationErrors(entryStatus.getErrors());
+      populateErrors(entryContext, snapshot, entryStatus, snapshot::setEntry);
       shouldCommit = true;
     }
     if (exitStatus.shouldReportError()) {
-      if (exitContext.getCapturedThrowable() != null) {
-        // report also uncaught exception
-        snapshot.setExit(exitContext);
-      }
-      snapshot.addEvaluationErrors(exitStatus.getErrors());
+      populateErrors(exitContext, snapshot, exitStatus, snapshot::setExit);
       shouldCommit = true;
     }
     return shouldCommit;
+  }
+
+  private static void populateErrors(
+      CapturedContext context,
+      Snapshot snapshot,
+      LogStatus status,
+      Consumer<CapturedContext> contextSetter) {
+    if (context.getCapturedThrowable() != null) {
+      // report also uncaught exception
+      contextSetter.accept(context);
+    }
+    snapshot.addEvaluationErrors(status.getErrors());
+    if (status.getMessage() != null) {
+      snapshot.setMessage(status.getMessage());
+    } else if (!status.getErrors().isEmpty()) {
+      snapshot.setMessage(status.getErrors().get(0).getMessage());
+    }
   }
 
   private LogStatus convertStatus(CapturedContext.Status status) {
@@ -620,7 +707,7 @@ public class LogProbe extends ProbeDefinition {
     }
 
     public boolean shouldReportError() {
-      return hasConditionErrors || hasLogTemplateErrors;
+      return sampled && (hasConditionErrors || hasLogTemplateErrors);
     }
 
     public boolean getCondition() {
@@ -759,6 +846,7 @@ public class LogProbe extends ProbeDefinition {
     private String template;
     private List<Segment> segments;
     private boolean captureSnapshot;
+    private List<ValueScript> watches;
     private ProbeCondition probeCondition;
     private Capture capture;
     private Sampling sampling;

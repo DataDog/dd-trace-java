@@ -377,7 +377,10 @@ public class DDSpan
     if (!Config.get().isDebuggerExceptionEnabled()) {
       return false;
     }
-    if (Config.get().isDebuggerExceptionOnlyLocalRoot() && !isLocalRootSpan()) {
+    boolean captureOnlyRootSpan =
+        (Config.get().isDebuggerExceptionOnlyLocalRoot()
+            || !Config.get().isDebuggerExceptionCaptureIntermediateSpansEnabled());
+    if (captureOnlyRootSpan && !isLocalRootSpan()) {
       return false;
     }
     return true;

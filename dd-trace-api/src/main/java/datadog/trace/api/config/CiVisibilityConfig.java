@@ -87,7 +87,7 @@ public final class CiVisibilityConfig {
       "civisibility.jacoco.plugin.version";
   public static final String CIVISIBILITY_GRADLE_SOURCE_SETS = "civisibility.gradle.sourcesets";
 
-  public static final String SESSION_NAME = "session.name";
+  public static final String TEST_SESSION_NAME = "test.session.name";
 
   private CiVisibilityConfig() {}
 }
