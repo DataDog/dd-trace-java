@@ -37,24 +37,24 @@ class LenExpressionTest {
   @Test
   void stringExpression() {
     LenExpression expression = new LenExpression(DSL.value("a"));
-    assertEquals(1L, expression.evaluate(resolver).getValue());
+    assertEquals(1, expression.evaluate(resolver).getValue());
     assertEquals("len(\"a\")", print(expression));
   }
 
   @Test
   void collectionExpression() {
     LenExpression expression = new LenExpression(DSL.value(Arrays.asList("a", "b")));
-    assertEquals(2L, expression.evaluate(resolver).getValue());
+    assertEquals(2, expression.evaluate(resolver).getValue());
     assertEquals("len(List)", print(expression));
     expression = new LenExpression(DSL.value(new HashSet<>(Arrays.asList("a", "b"))));
-    assertEquals(2L, expression.evaluate(resolver).getValue());
+    assertEquals(2, expression.evaluate(resolver).getValue());
     assertEquals("len(Set)", print(expression));
   }
 
   @Test
   void mapExpression() {
     LenExpression expression = new LenExpression(DSL.value(Collections.singletonMap("a", "b")));
-    assertEquals(1L, expression.evaluate(resolver).getValue());
+    assertEquals(1, expression.evaluate(resolver).getValue());
     assertEquals("len(Map)", print(expression));
   }
 }

@@ -296,10 +296,11 @@ public class MoshiConfigTestHelper {
     @Override
     public Void visit(NumericValue numericValue) {
       try {
-        if (numericValue.getValue() instanceof Long) {
-          jsonWriter.value(numericValue.getValue().longValue());
-        } else if (numericValue.getValue() instanceof Double) {
-          jsonWriter.value(numericValue.getValue().doubleValue());
+        Number widenValue = numericValue.getWidenValue();
+        if (widenValue instanceof Long) {
+          jsonWriter.value(widenValue.longValue());
+        } else if (widenValue instanceof Double) {
+          jsonWriter.value(widenValue.doubleValue());
         } else {
           throw new UnsupportedOperationException(
               "numeric value unsupported:" + numericValue.getValue().getClass());

@@ -7,6 +7,7 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT;
 
+import com.datadog.crashtracking.dto.CrashLog;
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
 import datadog.common.version.VersionInfo;
@@ -16,13 +17,12 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.PidHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.*;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -54,7 +54,7 @@ public final class CrashUploader {
   static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
   static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
   static final String HEADER_DD_TELEMETRY_API_VERSION = "DD-Telemetry-API-Version";
-  static final String TELEMETRY_API_VERSION = "v1";
+  static final String TELEMETRY_API_VERSION = "v2";
   static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
   static final String TELEMETRY_REQUEST_TYPE = "logs";
 
@@ -114,43 +114,44 @@ public final class CrashUploader {
         .collect(Collectors.joining(","));
   }
 
-  public void upload(@Nonnull List<InputStream> files) throws IOException {
-    List<String> filesContent = new ArrayList<>(files.size());
-    for (InputStream file : files) {
-      filesContent.add(readContent(file));
+  public void upload(@Nonnull List<Path> files) throws IOException {
+    for (Path file : files) {
+      uploadToLogs(file);
+      uploadToTelemetry(file);
     }
-    uploadToLogs(filesContent);
-    uploadToTelemetry(filesContent);
   }
 
-  void uploadToLogs(@Nonnull List<String> filesContent) throws IOException {
-    uploadToLogs(filesContent, System.out);
+  boolean uploadToLogs(@Nonnull Path file) {
+    try {
+      uploadToLogs(new String(Files.readAllBytes(file), StandardCharsets.UTF_8), System.out);
+    } catch (IOException e) {
+      log.error("Failed to upload crash file: {}", file, e);
+      return false;
+    }
+    return true;
   }
 
-  void uploadToLogs(@Nonnull List<String> filesContent, @Nonnull PrintStream out)
-      throws IOException {
+  void uploadToLogs(@Nonnull String message, @Nonnull PrintStream out) throws IOException {
     // print on the output, and the application/container/host log will pick it up
-    for (String message : filesContent) {
-      try (Buffer buf = new Buffer()) {
-        try (JsonWriter writer = JsonWriter.of(buf)) {
-          writer.beginObject();
-          writer.name("ddsource").value("crashtracker");
-          writer.name("ddtags").value(tags);
-          writer.name("hostname").value(config.getHostName());
-          writer.name("service").value(config.getServiceName());
-          writer.name("message").value(message);
-          writer.name("level").value("ERROR");
-          writer.name("error");
-          writer.beginObject();
-          writer.name("kind").value(extractErrorKind(message));
-          writer.name("message").value(extractErrorMessage(message));
-          writer.name("stack").value(extractErrorStackTrace(message, false));
-          writer.endObject();
-          writer.endObject();
-        }
-
-        out.println(buf.readByteString().utf8());
+    try (Buffer buf = new Buffer()) {
+      try (JsonWriter writer = JsonWriter.of(buf)) {
+        writer.beginObject();
+        writer.name("ddsource").value("crashtracker");
+        writer.name("ddtags").value(tags);
+        writer.name("hostname").value(config.getHostName());
+        writer.name("service").value(config.getServiceName());
+        writer.name("message").value(message);
+        writer.name("level").value("ERROR");
+        writer.name("error");
+        writer.beginObject();
+        writer.name("kind").value(extractErrorKind(message));
+        writer.name("message").value(extractErrorMessage(message));
+        writer.name("stack").value(extractErrorStackTrace(message, false));
+        writer.endObject();
+        writer.endObject();
       }
+
+      out.println(buf.readByteString().utf8());
     }
   }
 
@@ -235,16 +236,26 @@ public final class CrashUploader {
     return extractErrorStackTrace(fileContent, true);
   }
 
-  void uploadToTelemetry(@Nonnull List<String> filesContent) throws IOException {
-    handleCall(makeTelemetryRequest(filesContent));
+  boolean uploadToTelemetry(@Nonnull Path file) {
+    try {
+      String content = new String(Files.readAllBytes(file), Charset.defaultCharset());
+      handleCall(makeTelemetryRequest(content));
+    } catch (IOException e) {
+      log.error("Failed to upload crash file: {}", file, e);
+      return false;
+    }
+    return true;
   }
 
-  private Call makeTelemetryRequest(@Nonnull List<String> filesContent) throws IOException {
-    final RequestBody requestBody = makeTelemetryRequestBody(filesContent);
+  private Call makeTelemetryRequest(@Nonnull String content) throws IOException {
+    final RequestBody requestBody = makeTelemetryRequestBody(content);
 
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
-    headers.put("Content-Type", requestBody.contentType().toString());
+    MediaType contentType = requestBody.contentType();
+    if (contentType != null) {
+      headers.put("Content-Type", contentType.toString());
+    }
     headers.put("Content-Length", Long.toString(requestBody.contentLength()));
     headers.put("Transfer-Encoding", "chunked");
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
@@ -258,8 +269,11 @@ public final class CrashUploader {
             .build());
   }
 
-  private RequestBody makeTelemetryRequestBody(@Nonnull List<String> filesContent)
-      throws IOException {
+  private RequestBody makeTelemetryRequestBody(@Nonnull String content) throws IOException {
+    CrashLog crashLog = CrashLogParser.fromHotspotCrashLog(content);
+    if (crashLog == null) {
+      throw new IOException("Failed to parse crash log");
+    }
     try (Buffer buf = new Buffer()) {
       try (JsonWriter writer = JsonWriter.of(buf)) {
         writer.beginObject();
@@ -275,13 +289,11 @@ public final class CrashUploader {
         writer.name("debug").value(true);
         writer.name("payload");
         writer.beginArray();
-        for (String message : filesContent) {
-          writer.beginObject();
-          writer.name("message").value(extractErrorStackTrace(message));
-          writer.name("level").value("ERROR");
-          writer.name("tags").value("severity:crash");
-          writer.endObject();
-        }
+        writer.beginObject();
+        writer.name("message").value(crashLog.toJson());
+        writer.name("level").value("ERROR");
+        writer.name("tags").value("severity:crash");
+        writer.endObject();
         writer.endArray();
         writer.name("application");
         writer.beginObject();
