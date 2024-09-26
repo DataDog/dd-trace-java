@@ -783,7 +783,7 @@ public class Config {
 
     httpClientErrorStatuses =
         configProvider.getIntegerRange(
-            HTTP_CLIENT_ERROR_STATUSES, DEFAULT_HTTP_CLIENT_ERROR_STATUSES);
+            "trace." + HTTP_CLIENT_ERROR_STATUSES, DEFAULT_HTTP_CLIENT_ERROR_STATUSES, HTTP_CLIENT_ERROR_STATUSES);
 
     httpServerTagQueryString =
         configProvider.getBoolean(
