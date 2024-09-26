@@ -463,10 +463,6 @@ public final class ConfigProvider {
   public abstract static class Source {
     public final String get(String key, String... aliases) {
       String value = get(key);
-      if (key == "trace.http.client.tag.query-string") {
-        System.out.println("internal get call: ");
-        System.out.println(value);
-      }
       if (value != null) {
         return value;
       }
