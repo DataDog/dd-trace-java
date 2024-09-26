@@ -15,6 +15,7 @@ public class DBInfo {
   private final Integer port;
   private final String warehouse;
   private final String schema;
+  private String hikariPoolName;
 
   DBInfo(
       String type,
@@ -201,6 +202,10 @@ public class DBInfo {
     return schema;
   }
 
+  public String getHikariPoolName() {
+    return this.hikariPoolName;
+  }
+
   public Builder toBuilder() {
     return new Builder(
         type,
@@ -214,6 +219,10 @@ public class DBInfo {
         port,
         warehouse,
         schema);
+  }
+
+  public void setHikariPoolName(String poolName) {
+    this.hikariPoolName = poolName;
   }
 
   @Override

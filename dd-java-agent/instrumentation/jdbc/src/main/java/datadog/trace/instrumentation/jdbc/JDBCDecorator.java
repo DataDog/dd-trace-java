@@ -1,9 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -140,6 +138,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       setTagIfPresent(span, DB_WAREHOUSE, dbInfo.getWarehouse());
       setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
+      setTagIfPresent(span, HIKARI_POOL_NAME, dbInfo.getHikariPoolName());
     }
     return super.onConnection(span, dbInfo);
   }
