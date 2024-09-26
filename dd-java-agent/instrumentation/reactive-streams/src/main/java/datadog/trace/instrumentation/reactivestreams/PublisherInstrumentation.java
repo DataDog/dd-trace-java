@@ -96,6 +96,7 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
       }
       AgentSpan span = publisherState.getSubscriptionSpan();
       InstrumentationContext.get(Subscriber.class, PublisherState.class).put(s, publisherState);
+      System.err.println("PUBLISHER " + self + " SUBSCRIBED to " + s + " :" + span);
 
       if (span != null) {
         publisherState.withSubscriptionSpan(span);
