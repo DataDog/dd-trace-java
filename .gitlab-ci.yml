@@ -17,13 +17,6 @@ stages:
   - ci-visibility-tests
   - generate-signing-key
 
-workflow:
-  rules:
-    - if: $POPULATE_CACHE == "true"
-      variables:
-        SKIP_SHARED_PIPELINE: "true"
-    - when: always
-
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
