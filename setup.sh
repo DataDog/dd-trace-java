@@ -59,7 +59,7 @@ function look-for-hook() {
     elif [ -e "$HOOKS_PATH/$HOOK_NAME" ] && [ "$(get-file-hash $HOOKS_PATH/$HOOK_NAME)" == "$HOOK_CHECKSUM" ]; then
         echo "✅ $HOOK_NAME hook is installed in git hooks path."
     else
-        echo "🟨 $HOOK_NAME hook was not found (optional but recommanded)."
+        echo "🟨 $HOOK_NAME hook was not found (optional but recommended)."
     fi
 }
 
