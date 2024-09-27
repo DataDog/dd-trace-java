@@ -140,10 +140,19 @@ public class CiVisibilityServices {
     try (okhttp3.Response response =
         OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
 
-      Moshi moshi = new Moshi.Builder().build();
-      Type type = Types.newParameterizedType(Map.class, String.class, String.class);
-      JsonAdapter<Map<String, String>> adapter = moshi.adapter(type);
-      return adapter.fromJson(response.body().source());
+      if (response.isSuccessful()) {
+        Moshi moshi = new Moshi.Builder().build();
+        Type type = Types.newParameterizedType(Map.class, String.class, String.class);
+        JsonAdapter<Map<String, String>> adapter = moshi.adapter(type);
+        return adapter.fromJson(response.body().source());
+      } else {
+        logger.warn(
+            "Could not get remote CI environment (HTTP code "
+                + response.code()
+                + ")"
+                + (response.body() != null ? ": " + response.body().string() : ""));
+        return Collections.emptyMap();
+      }
 
     } catch (Exception e) {
       logger.warn("Could not get remote CI environment", e);
