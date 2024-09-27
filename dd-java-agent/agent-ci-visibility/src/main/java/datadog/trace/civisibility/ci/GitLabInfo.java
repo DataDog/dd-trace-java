@@ -10,6 +10,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitUtils;
 import datadog.trace.api.git.PersonInfo;
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 
 @SuppressForbidden
@@ -38,46 +39,52 @@ class GitLabInfo implements CIProviderInfo {
   public static final String GITLAB_CI_RUNNER_ID = "CI_RUNNER_ID";
   public static final String GITLAB_CI_RUNNER_TAGS = "CI_RUNNER_TAGS";
 
+  private final CiEnvironment environment;
+
+  GitLabInfo(CiEnvironment environment) {
+    this.environment = environment;
+  }
+
   @Override
   public GitInfo buildCIGitInfo() {
     return new GitInfo(
-        filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)),
-        normalizeBranch(System.getenv(GITLAB_GIT_BRANCH)),
-        normalizeTag(System.getenv(GITLAB_GIT_TAG)),
+        filterSensitiveInfo(environment.get(GITLAB_GIT_REPOSITORY_URL)),
+        normalizeBranch(environment.get(GITLAB_GIT_BRANCH)),
+        normalizeTag(environment.get(GITLAB_GIT_TAG)),
         new CommitInfo(
-            System.getenv(GITLAB_GIT_COMMIT),
+            environment.get(GITLAB_GIT_COMMIT),
             buildGitCommitAuthor(),
             PersonInfo.NOOP,
-            System.getenv(GITLAB_GIT_COMMIT_MESSAGE)));
+            environment.get(GITLAB_GIT_COMMIT_MESSAGE)));
   }
 
   @Override
   public CIInfo buildCIInfo() {
-    return CIInfo.builder()
+    return CIInfo.builder(environment)
         .ciProviderName(GITLAB_PROVIDER_NAME)
-        .ciPipelineId(System.getenv(GITLAB_PIPELINE_ID))
-        .ciPipelineName(System.getenv(GITLAB_PIPELINE_NAME))
-        .ciPipelineNumber(System.getenv(GITLAB_PIPELINE_NUMBER))
-        .ciPipelineUrl(System.getenv(GITLAB_PIPELINE_URL))
-        .ciStageName(System.getenv(GITLAB_STAGE_NAME))
-        .ciJobName(System.getenv(GITLAB_JOB_NAME))
-        .ciJobUrl(System.getenv(GITLAB_JOB_URL))
-        .ciWorkspace(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
-        .ciNodeName(System.getenv(GITLAB_CI_RUNNER_ID))
-        .ciNodeLabels(System.getenv(GITLAB_CI_RUNNER_TAGS))
+        .ciPipelineId(environment.get(GITLAB_PIPELINE_ID))
+        .ciPipelineName(environment.get(GITLAB_PIPELINE_NAME))
+        .ciPipelineNumber(environment.get(GITLAB_PIPELINE_NUMBER))
+        .ciPipelineUrl(environment.get(GITLAB_PIPELINE_URL))
+        .ciStageName(environment.get(GITLAB_STAGE_NAME))
+        .ciJobName(environment.get(GITLAB_JOB_NAME))
+        .ciJobUrl(environment.get(GITLAB_JOB_URL))
+        .ciWorkspace(expandTilde(environment.get(GITLAB_WORKSPACE_PATH)))
+        .ciNodeName(environment.get(GITLAB_CI_RUNNER_ID))
+        .ciNodeLabels(environment.get(GITLAB_CI_RUNNER_TAGS))
         .ciEnvVars(GITLAB_PROJECT_URL, GITLAB_PIPELINE_ID, GITLAB_JOB_ID)
         .build();
   }
 
   private PersonInfo buildGitCommitAuthor() {
-    final String gitAuthor = System.getenv(GITLAB_GIT_COMMIT_AUTHOR);
+    final String gitAuthor = environment.get(GITLAB_GIT_COMMIT_AUTHOR);
     if (gitAuthor == null || gitAuthor.isEmpty()) {
       return PersonInfo.NOOP;
     }
 
     final PersonInfo personInfo = GitUtils.splitAuthorAndEmail(gitAuthor);
     return new PersonInfo(
-        personInfo.getName(), personInfo.getEmail(), System.getenv(GITLAB_GIT_COMMIT_TIMESTAMP));
+        personInfo.getName(), personInfo.getEmail(), environment.get(GITLAB_GIT_COMMIT_TIMESTAMP));
   }
 
   @Override

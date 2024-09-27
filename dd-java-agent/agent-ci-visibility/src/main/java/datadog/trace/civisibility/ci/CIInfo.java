@@ -2,6 +2,7 @@ package datadog.trace.civisibility.ci;
 
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 
+import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.utils.FileUtils;
 import java.io.File;
 import java.util.HashMap;
@@ -11,11 +12,13 @@ import java.util.Objects;
 public class CIInfo {
   public static final CIInfo NOOP = new CIInfo();
 
-  public static Builder builder() {
-    return new Builder();
+  public static Builder builder(CiEnvironment environment) {
+    return new Builder(environment);
   }
 
   public static final class Builder {
+    private final CiEnvironment environment;
+
     private String ciProviderName;
     private String ciPipelineId;
     private String ciPipelineName;
@@ -29,6 +32,10 @@ public class CIInfo {
     private String ciNodeLabels;
     private Map<String, String> ciEnvVars;
     private Map<String, String> additionalTags;
+
+    public Builder(CiEnvironment environment) {
+      this.environment = environment;
+    }
 
     public Builder ciProviderName(String ciProviderName) {
       this.ciProviderName = ciProviderName;
@@ -92,7 +99,7 @@ public class CIInfo {
 
       ciEnvVars = new HashMap<>();
       for (String ciEnvVarKey : ciEnvVarKeysArray) {
-        final String envVarVal = filterSensitiveInfo(System.getenv(ciEnvVarKey));
+        final String envVarVal = filterSensitiveInfo(environment.get(ciEnvVarKey));
         if (envVarVal != null && !envVarVal.isEmpty()) {
           ciEnvVars.put(ciEnvVarKey, envVarVal);
         }

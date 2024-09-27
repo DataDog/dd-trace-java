@@ -974,7 +974,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan.Context notifyExtensionStart(Object event) {
-    return LambdaHandler.notifyStartInvocation(event, propagationTagsFactory);
+    return LambdaHandler.notifyStartInvocation(this, event);
   }
 
   @Override
