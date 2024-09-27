@@ -61,7 +61,6 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onComplete() {
-    System.err.println("ACTIVATING PARENT " + parent);
     actual.onComplete();
   }
 

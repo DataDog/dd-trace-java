@@ -1,8 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.reactive;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.HashSet;
 
 /**
  * Takes track of the span that was active at subscribe time and also to all the spans created as
@@ -10,7 +10,7 @@ import java.util.List;
  */
 public class PublisherState {
   private AgentSpan subscriptionSpan;
-  private final List<AgentSpan> partnerSpans = new ArrayList<>();
+  private final Collection<AgentSpan> partnerSpans = new HashSet<>();
 
   public PublisherState withSubscriptionSpan(final AgentSpan span) {
     this.subscriptionSpan = span;
@@ -26,7 +26,7 @@ public class PublisherState {
     return subscriptionSpan;
   }
 
-  public List<AgentSpan> getPartnerSpans() {
+  public Collection<AgentSpan> getPartnerSpans() {
     return partnerSpans;
   }
 }

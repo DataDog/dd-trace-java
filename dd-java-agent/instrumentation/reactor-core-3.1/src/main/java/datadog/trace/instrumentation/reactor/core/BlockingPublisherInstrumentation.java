@@ -75,14 +75,13 @@ public class BlockingPublisherInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
-        @Advice.This final Object self,
         @Advice.Enter final AgentScope scope,
         @Advice.Local("publisherState") final PublisherState state,
         @Advice.Thrown Throwable throwable) {
       if (scope != null) {
         scope.close();
       }
-      if (state == null || state.getPartnerSpans() == null) {
+      if (state == null || state.getPartnerSpans().isEmpty()) {
         return;
       }
       for (AgentSpan span : state.getPartnerSpans()) {

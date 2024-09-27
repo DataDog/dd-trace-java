@@ -90,16 +90,18 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope onSubscribe(
         @Advice.This final Publisher self, @Advice.Argument(value = 0) final Subscriber s) {
       PublisherState publisherState =
-          InstrumentationContext.get(Publisher.class, PublisherState.class).remove(self);
+          InstrumentationContext.get(Publisher.class, PublisherState.class).get(self);
       if (publisherState == null) {
         publisherState = new PublisherState();
       }
       AgentSpan span = publisherState.getSubscriptionSpan();
-      InstrumentationContext.get(Subscriber.class, PublisherState.class).put(s, publisherState);
-      System.err.println("PUBLISHER " + self + " SUBSCRIBED to " + s + " :" + span);
+      PublisherState subscriberState =
+          InstrumentationContext.get(Subscriber.class, PublisherState.class)
+              .putIfAbsent(s, PublisherState::new);
+      subscriberState.getPartnerSpans().addAll(publisherState.getPartnerSpans());
 
       if (span != null) {
-        publisherState.withSubscriptionSpan(span);
+        subscriberState.withSubscriptionSpan(span);
         if (span != activeSpan()) {
           return activateSpan(span);
         }

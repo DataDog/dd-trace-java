@@ -68,7 +68,9 @@ public class SubscriptionInstrumentation extends InstrumenterModule.Tracing
         return;
       }
       for (AgentSpan span : state.getPartnerSpans()) {
-        span.finish();
+        if (span.phasedFinish()) {
+          span.publish();
+        }
       }
       // to remove the risk to close them more than once
       state.getPartnerSpans().clear();

@@ -13,7 +13,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.reactive.PublisherState;
 import java.util.HashMap;
 import java.util.Map;
@@ -72,8 +71,7 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
       final PublisherState state =
           InstrumentationContext.get(Subscriber.class, PublisherState.class).get(self);
       final AgentSpan span = state != null ? state.getSubscriptionSpan() : null;
-      System.err.println(self + " ONNEXT " + span);
-      return span == null || span == activeSpan() ? null : AgentTracer.activateSpan(span);
+      return span == null || span == activeSpan() ? null : activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -95,13 +93,13 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
       final PublisherState state =
           InstrumentationContext.get(Subscriber.class, PublisherState.class).get(self);
       final AgentSpan span = state != null ? state.getSubscriptionSpan() : null;
-      if (state != null) {
+      if (state != null && !state.getPartnerSpans().isEmpty()) {
         for (final AgentSpan partner : state.getPartnerSpans()) {
           partner.addThrowable(t);
           partner.finish();
         }
       }
-      return span == null || span == activeSpan() ? null : AgentTracer.activateSpan(span);
+      return span == null || span == activeSpan() ? null : activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -122,13 +120,15 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
       final PublisherState state =
           InstrumentationContext.get(Subscriber.class, PublisherState.class).get(self);
       final AgentSpan span = state != null ? state.getSubscriptionSpan() : null;
-      if (state != null) {
+      if (state != null && !state.getPartnerSpans().isEmpty()) {
         for (final AgentSpan partner : state.getPartnerSpans()) {
-          partner.finish();
+          if (partner.phasedFinish()) {
+            partner.publish();
+          }
         }
+        state.getPartnerSpans().clear();
       }
-      System.err.println(self + " ONCOMPLETE " + span);
-      return span == null || span == activeSpan() ? null : AgentTracer.activateSpan(span);
+      return span == null || span == activeSpan() ? null : activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -156,11 +156,8 @@ public class SubscriberInstrumentation extends InstrumenterModule.Tracing
 
       if (state.getSubscriptionSpan() == null) {
         state.withSubscriptionSpan(activeSpan());
-        System.err.println("SUBSCRIBER " + self + " SUBSCRIBED (no state):" + activeSpan());
         return null;
       }
-      System.err.println(
-          "SUBSCRIBER " + self + " SUBSCRIBED (with state):" + state.getSubscriptionSpan());
       if (activeSpan() != state.getSubscriptionSpan()) {
         return activateSpan(state.getSubscriptionSpan());
       }

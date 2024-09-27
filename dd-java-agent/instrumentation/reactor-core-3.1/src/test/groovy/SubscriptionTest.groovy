@@ -3,7 +3,9 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import reactor.core.publisher.DirectProcessor
 import reactor.core.publisher.EmitterProcessor
 import reactor.core.publisher.Flux
@@ -178,6 +180,34 @@ class SubscriptionTest extends AgentTestRunner {
         basicSpan(it, "finally", span(0))
       }
     })
+  }
+
+  def "Optimized mono should finish attached spans"() {
+    when:
+    runUnderTrace("parent", {
+      optimizedTraced().block()
+    })
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
+          resourceName "SubscriptionTest.optimizedTraced"
+          operationName "trace.annotation"
+          tags {
+            defaultTags()
+            "$Tags.COMPONENT" "trace"
+          }
+        }
+      }
+    }
+  }
+
+  @Trace
+  static Mono<String> optimizedTraced() {
+    // MonoSource is optimized by not subscribing recursively
+    return Mono.from (Mono.just("test"))
   }
 
   static class Connection {
