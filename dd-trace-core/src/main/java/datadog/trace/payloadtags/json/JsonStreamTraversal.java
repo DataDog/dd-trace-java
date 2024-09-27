@@ -10,8 +10,8 @@ import okio.Okio;
 public class JsonStreamTraversal {
 
   public interface Visitor {
-    /** @return - true to visit an object or an array, false to skip it */
-    boolean visitInner(JsonPointer pointer);
+    /** @return - true to skip an inner object or array, otherwise false */
+    boolean skipInner(JsonPointer pointer);
 
     /** @return - true to visit the value, false to skip it */
     boolean visitValue(JsonPointer pointer);
@@ -53,25 +53,23 @@ public class JsonStreamTraversal {
           return;
 
         case BEGIN_ARRAY:
-          if (!visitValue(reader, visitor, pointer)) {
-            pointer.endValue();
-          } else if (visitor.visitInner(pointer)) {
-            reader.beginArray();
-            pointer.beginArray();
-          } else {
-            pointer.endValue();
+          if (visitor.skipInner(pointer) || !visitor.visitValue(pointer)) {
             reader.skipValue();
+            // an array can itself be a value in a parent array or object
+            pointer.bumpIndexOrDropLast();
+          } else {
+            reader.beginArray();
+            pointer.appendIndex();
           }
           break;
 
         case BEGIN_OBJECT:
-          if (!visitValue(reader, visitor, pointer)) {
-            pointer.endValue();
-          } else if (visitor.visitInner(pointer)) {
-            reader.beginObject();
-          } else {
-            pointer.endValue();
+          if (visitor.skipInner(pointer) || !visitor.visitValue(pointer)) {
             reader.skipValue();
+            // an object can itself be a value in a parent array or object
+            pointer.bumpIndexOrDropLast();
+          } else {
+            reader.beginObject();
           }
           break;
 
@@ -82,64 +80,67 @@ public class JsonStreamTraversal {
 
         case END_ARRAY:
           reader.endArray();
-          pointer.endArray();
-          pointer.endValue();
+          pointer.dropLast();
+          // an array can itself be a value in a parent array or object
+          pointer.bumpIndexOrDropLast();
           break;
 
         case END_OBJECT:
           reader.endObject();
-          pointer.endValue();
+          // an object can itself be a value in a parent array or object
+          pointer.bumpIndexOrDropLast();
           break;
 
         case BOOLEAN:
-          if (visitValue(reader, visitor, pointer)) {
-            visitor.valueVisited(pointer, reader.nextBoolean());
+          if (visitor.visitValue(pointer)) {
+            boolean value = reader.nextBoolean();
+            visitor.valueVisited(pointer, value);
+          } else {
+            reader.skipValue();
           }
-          pointer.endValue();
+          pointer.bumpIndexOrDropLast();
           break;
 
         case STRING:
-          if (visitValue(reader, visitor, pointer)) {
+          if (!visitor.visitValue(pointer)) {
+            reader.skipValue();
+          } else {
             String raw = reader.nextString();
             if (!visitor.expandValue(pointer, raw)) {
               visitor.valueVisited(pointer, raw);
-            } else if (visitor.visitInner(pointer)) {
+            } else {
               try (InputStream is = new ByteArrayInputStream(raw.getBytes())) {
-                JsonPointer innerPath = pointer.copy(); // make a copy to prevent its modification
+                // make a copy of the pointer to make sure it's in original position after
+                // traversing inner json
+                JsonPointer innerPath = pointer.copy();
                 traverse(is, visitor, innerPath);
               } catch (Exception e) {
                 visitor.expandValueFailed(pointer, raw, e);
               }
             }
           }
-          pointer.endValue();
+          pointer.bumpIndexOrDropLast();
           break;
 
         case NUMBER:
-          if (visitValue(reader, visitor, pointer)) {
-            // convert number to a string to preserve exact format
+          if (visitor.visitValue(pointer)) {
+            // read a number as a string to preserve exact format
             visitor.valueVisited(pointer, reader.nextString());
+          } else {
+            reader.skipValue();
           }
-          pointer.endValue();
+          pointer.bumpIndexOrDropLast();
           break;
 
         case NULL:
-          if (visitValue(reader, visitor, pointer)) {
-            reader.nextNull();
-            visitor.valueVisited(pointer, null);
+          if (visitor.visitValue(pointer)) {
+            visitor.valueVisited(pointer, reader.nextNull());
+          } else {
+            reader.skipValue();
           }
-          pointer.endValue();
+          pointer.bumpIndexOrDropLast();
           break;
       }
     }
-  }
-
-  private static boolean visitValue(JsonReader reader, Visitor visitor, JsonPointer pointer)
-      throws IOException {
-    if (visitor.visitValue(pointer)) {
-      return true;
-    }
-    reader.skipValue();
-    return false;
   }
 }

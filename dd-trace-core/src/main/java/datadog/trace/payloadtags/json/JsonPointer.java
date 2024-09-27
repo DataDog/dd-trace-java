@@ -32,17 +32,17 @@ public class JsonPointer {
     return this;
   }
 
-  public void beginArray() {
+  public void appendIndex() {
     index(0);
   }
 
-  public void endArray() {
+  public void dropLast() {
     if (size > 0) {
       size -= 1;
     }
   }
 
-  public void endValue() {
+  public void bumpIndexOrDropLast() {
     if (size > 0) {
       Object last = parts[size - 1];
       if (last instanceof Integer) {

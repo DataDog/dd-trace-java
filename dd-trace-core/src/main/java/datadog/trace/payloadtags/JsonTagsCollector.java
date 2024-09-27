@@ -102,8 +102,8 @@ public final class JsonTagsCollector {
     }
 
     @Override
-    public boolean visitInner(JsonPointer pointer) {
-      return pointer.length() <= depthLimit;
+    public boolean skipInner(JsonPointer pointer) {
+      return pointer.length() > depthLimit;
     }
 
     @Override

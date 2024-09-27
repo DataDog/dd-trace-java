@@ -26,43 +26,43 @@ class JsonPointerSpec extends Specification {
     def p = p()
 
     when:
-    p.beginArray()
+    p.appendIndex()
 
     then:
     p.dotted("") == ".0"
 
     when:
-    p.endValue()
+    p.bumpIndexOrDropLast()
 
     then:
     p.dotted("") == ".1"
 
     when:
-    p.endValue()
+    p.bumpIndexOrDropLast()
 
     then:
     p.dotted("") == ".2"
 
     when:
-    p.beginArray()
+    p.appendIndex()
 
     then:
     p.dotted("") == ".2.0"
 
     when:
-    p.endValue()
+    p.bumpIndexOrDropLast()
 
     then:
     p.dotted("") == ".2.1"
 
     when:
-    p.endArray()
+    p.dropLast()
 
     then:
     p.dotted("") == ".2"
 
     when:
-    p.endArray()
+    p.dropLast()
 
     then:
     p.dotted("") == ""
@@ -78,7 +78,7 @@ class JsonPointerSpec extends Specification {
     p.dotted("") == ".foo"
 
     when:
-    p.endValue()
+    p.bumpIndexOrDropLast()
 
     then:
     p.dotted("") == ""
@@ -96,13 +96,13 @@ class JsonPointerSpec extends Specification {
     p.dotted("") == ".bar.baz"
 
     when:
-    p.endValue()
+    p.bumpIndexOrDropLast()
 
     then:
     p.dotted("") == ".bar"
 
     when:
-    p.endValue()
+    p.bumpIndexOrDropLast()
 
     then:
     p.dotted("") == ""

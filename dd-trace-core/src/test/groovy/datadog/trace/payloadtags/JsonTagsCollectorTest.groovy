@@ -58,6 +58,35 @@ class JsonTagsCollectorTest extends Specification {
     ]
   }
 
+  def "redact all types of value"() {
+    JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
+      .parseRedactionRules(['$.*'])
+      .build()
+
+    def json = """{
+      "a": 1,
+      "b": 2.0,
+      "c": "string",
+      "d": true,
+      "e": false,
+      "f": null,
+      "g": [1, 2, 3],
+      "h": { "foo": "bar" }
+    }"""
+
+    expect:
+    collectTags(jsonTagsCollector, json, "") == [
+      ".a": "redacted",
+      ".b": "redacted",
+      ".c": "redacted",
+      ".d": "redacted",
+      ".e": "redacted",
+      ".f": "redacted",
+      ".g": "redacted",
+      ".h": "redacted"
+    ]
+  }
+
   def "traverse empty types"() {
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder().build()
 
