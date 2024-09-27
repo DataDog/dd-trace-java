@@ -69,6 +69,7 @@ public final class TracerConfig {
   @Deprecated public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
   public static final String TRACE_HTTP_SERVER_ERROR_STATUSES = "trace.http.server.error.statuses";
   public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
+  public static final String TRACE_HTTP_CLIENT_ERROR_STATUSES = "trace.http.client.error.statuses";
 
   public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
 
