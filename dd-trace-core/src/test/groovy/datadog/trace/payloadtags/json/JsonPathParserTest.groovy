@@ -4,7 +4,7 @@ import spock.lang.Specification
 
 class JsonPathParserTest extends Specification {
 
-  static p() {
+  static jp() {
     return JsonPath.Builder.start()
   }
 
@@ -14,28 +14,28 @@ class JsonPathParserTest extends Specification {
 
     where:
     path                            | expected
-    '$.a'                           | p().name("a").build()
-    '$.BarFoo'                      | p().name("BarFoo").build()
-    '$.*'                           | p().anyChild().build()
-    '$[*]'                          | p().anyChild().build()
-    '$[* ]'                         | p().anyChild().build()
-    '$[ *]'                         | p().anyChild().build()
-    '$..b'                          | p().anyDesc().name("b").build()
-    '$..*'                          | p().anyDesc().anyChild().build()
-    '$..fooBar'                     | p().anyDesc().name("fooBar").build()
-    '$..[*]'                        | p().anyDesc().anyChild().build()
-    '$..[0]'                        | p().anyDesc().index(0).build()
-    '$.phoneNumbers.*.number'       | p().name("phoneNumbers").anyChild().name("number").build()
-    '$.phoneNumbers[*].number'      | p().name("phoneNumbers").anyChild().name("number").build()
-    '$..number'                     | p().anyDesc().name("number").build()
-    '$.foo..bar..number'            | p().name("foo").anyDesc().name("bar").anyDesc().name("number").build()
-    '$["foo"]..["bar"]..["number"]' | p().name("foo").anyDesc().name("bar").anyDesc().name("number").build()
-    '$.phoneNumbers[3].number'      | p().name("phoneNumbers").index(3).name("number").build()
-    '$.phoneNumbers["3"].number'    | p().name("phoneNumbers").name("3").name("number").build()
-    '$.phoneNumbers[ "3" ].number'  | p().name("phoneNumbers").name("3").name("number").build()
-    '$.*.*'                         | p().anyChild().anyChild().build()
-    '$[" a"]'                       | p().name(" a").build()
-    '$["a "]'                       | p().name("a ").build()
+    '$.a'                           | jp().name("a").build()
+    '$.BarFoo'                      | jp().name("BarFoo").build()
+    '$.*'                           | jp().anyChild().build()
+    '$[*]'                          | jp().anyChild().build()
+    '$[* ]'                         | jp().anyChild().build()
+    '$[ *]'                         | jp().anyChild().build()
+    '$..b'                          | jp().anyDesc().name("b").build()
+    '$..*'                          | jp().anyDesc().anyChild().build()
+    '$..fooBar'                     | jp().anyDesc().name("fooBar").build()
+    '$..[*]'                        | jp().anyDesc().anyChild().build()
+    '$..[0]'                        | jp().anyDesc().index(0).build()
+    '$.phoneNumbers.*.number'       | jp().name("phoneNumbers").anyChild().name("number").build()
+    '$.phoneNumbers[*].number'      | jp().name("phoneNumbers").anyChild().name("number").build()
+    '$..number'                     | jp().anyDesc().name("number").build()
+    '$.foo..bar..number'            | jp().name("foo").anyDesc().name("bar").anyDesc().name("number").build()
+    '$["foo"]..["bar"]..["number"]' | jp().name("foo").anyDesc().name("bar").anyDesc().name("number").build()
+    '$.phoneNumbers[3].number'      | jp().name("phoneNumbers").index(3).name("number").build()
+    '$.phoneNumbers["3"].number'    | jp().name("phoneNumbers").name("3").name("number").build()
+    '$.phoneNumbers[ "3" ].number'  | jp().name("phoneNumbers").name("3").name("number").build()
+    '$.*.*'                         | jp().anyChild().anyChild().build()
+    '$[" a"]'                       | jp().name(" a").build()
+    '$["a "]'                       | jp().name("a ").build()
   }
 
   def "expected parse errors"() {

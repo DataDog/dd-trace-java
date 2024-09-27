@@ -2,6 +2,7 @@ package datadog.trace.payloadtags;
 
 import datadog.trace.payloadtags.json.JsonPath;
 import datadog.trace.payloadtags.json.JsonPathParser;
+import datadog.trace.payloadtags.json.JsonPointer;
 import datadog.trace.payloadtags.json.JsonStreamTraversal;
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,23 +71,23 @@ public final class JsonTagsCollector {
     this.depthLimit = depthLimit;
   }
 
-  public Map<String, Object> process(InputStream is, String tagPrefix) {
-    final Map<String, Object> collectedTags = new java.util.LinkedHashMap<>();
+  public Map<String, Object> collectTags(InputStream is, String tagPrefix) {
+    final Map<String, Object> tags = new java.util.LinkedHashMap<>();
 
-    JsonStreamTraversal.Visitor visitor = new JsonVisitorTagCollector(tagPrefix, collectedTags);
+    JsonStreamTraversal.Visitor visitor = new JsonVisitorTagCollector(tagPrefix, tags);
 
     try {
-      JsonStreamTraversal.traverse(is, visitor);
+      JsonStreamTraversal.traverse(is, visitor, depthLimit);
     } catch (IOException e) {
       log.debug("Failed to process JSON payload. {}", e.getMessage());
       return Collections.emptyMap();
     }
 
-    return collectedTags;
+    return tags;
   }
 
   private final class JsonVisitorTagCollector implements JsonStreamTraversal.Visitor {
-    private final StringBuilder tagPrefix;
+    private final String tagPrefix;
     private final int tagsLimit;
     private final int depthLimit;
 
@@ -94,29 +95,29 @@ public final class JsonTagsCollector {
     private boolean stopFlag;
 
     private JsonVisitorTagCollector(String tagPrefix, Map<String, Object> collectedTags) {
+      this.tagPrefix = tagPrefix;
       this.depthLimit = JsonTagsCollector.this.depthLimit;
       this.tagsLimit = JsonTagsCollector.this.tagsLimit;
-      this.tagPrefix = new StringBuilder(tagPrefix);
       this.collectedTags = collectedTags;
     }
 
     @Override
-    public boolean visitObject(JsonPath.Builder path) {
-      return path.length() < depthLimit;
+    public boolean visitObject(JsonPointer pointer) {
+      return pointer.length() <= depthLimit;
     }
 
     @Override
-    public boolean visitValue(JsonPath path) {
-      if (findMatchingRedactionRule(path) != null) {
-        collectedTags.put(path.dotted(tagPrefix), REDACTED);
+    public boolean visitValue(JsonPointer pointer) {
+      if (findMatchingRedactionRule(pointer) != null) {
+        collectedTags.put(pointer.dotted(tagPrefix), REDACTED);
         return false;
       }
       return true;
     }
 
-    private JsonPath findMatchingRedactionRule(JsonPath path) {
+    private JsonPath findMatchingRedactionRule(JsonPointer pointer) {
       for (JsonPath rule : redactionRules) {
-        if (rule.matches(path)) {
+        if (rule.matches(pointer)) {
           return rule;
         }
       }
@@ -124,13 +125,13 @@ public final class JsonTagsCollector {
     }
 
     @Override
-    public void valueVisited(JsonPath path, Object value) {
+    public void valueVisited(JsonPointer pointer, Object value) {
       if (value == null) {
         // convert `null` to a string, otherwise it won't be set as a tag value
         value = "null";
       }
       if (collectedTags.size() < tagsLimit) {
-        collectedTags.put(path.dotted(tagPrefix), value);
+        collectedTags.put(pointer.dotted(tagPrefix), value);
       } else {
         collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
         stopFlag = true;
@@ -143,15 +144,15 @@ public final class JsonTagsCollector {
     }
 
     @Override
-    public boolean expandValue(JsonPath path, String raw) {
+    public boolean expandValue(JsonPointer pointer, String raw) {
       // try to expand JSON string value if it looks like a JSON object or array
       return raw.startsWith("{") && raw.endsWith("}") || raw.startsWith("[") && raw.endsWith("]");
     }
 
     @Override
-    public void expandValueFailed(JsonPath path, String raw, Exception e) {
+    public void expandValueFailed(JsonPointer pointer, String raw, Exception e) {
       // keep the original string value if it's not a valid JSON object or array
-      valueVisited(path, raw);
+      valueVisited(pointer, raw);
     }
   }
 }

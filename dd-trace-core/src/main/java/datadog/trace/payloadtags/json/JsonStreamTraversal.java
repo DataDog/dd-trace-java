@@ -11,37 +11,39 @@ public class JsonStreamTraversal {
 
   public interface Visitor {
     /** @return - true to visit the object, false to skip it */
-    boolean visitObject(JsonPath.Builder path);
+    boolean visitObject(JsonPointer pointer);
 
     /** @return - true to visit the value, false to skip it */
-    boolean visitValue(JsonPath path);
+    boolean visitValue(JsonPointer pointer);
 
-    void valueVisited(JsonPath path, Object value);
+    void valueVisited(JsonPointer pointer, Object value);
 
     /** @return - true to stop traversing, false to keep traversing */
     boolean keepTraversing();
 
-    boolean expandValue(JsonPath jsonPath, String raw);
+    /** @return - true to expand the value, false to keep it as is */
+    boolean expandValue(JsonPointer jsonPath, String raw);
 
-    void expandValueFailed(JsonPath jsonPath, String raw, Exception e);
+    /** Called when parsing inner json failed */
+    void expandValueFailed(JsonPointer jsonPath, String raw, Exception e);
   }
 
-  public static void traverse(InputStream is, Visitor visitor) throws IOException {
-    JsonPath.Builder path = JsonPath.Builder.start();
-    traverse(is, visitor, path);
+  public static void traverse(InputStream is, Visitor visitor, int depthLimit) throws IOException {
+    JsonPointer pointer = new JsonPointer(depthLimit + 1);
+    traverse(is, visitor, pointer);
   }
 
-  private static void traverse(InputStream is, Visitor visitor, JsonPath.Builder path)
+  private static void traverse(InputStream is, Visitor visitor, JsonPointer pointer)
       throws IOException {
     try (BufferedSource source = Okio.buffer(Okio.source(is))) {
       try (JsonReader reader = JsonReader.of(source)) {
         reader.setLenient(true);
-        traverse(reader, visitor, path);
+        traverse(reader, visitor, pointer);
       }
     }
   }
 
-  private static void traverse(JsonReader reader, Visitor visitor, JsonPath.Builder path)
+  private static void traverse(JsonReader reader, Visitor visitor, JsonPointer pointer)
       throws IOException {
 
     while (visitor.keepTraversing()) {
@@ -51,90 +53,90 @@ public class JsonStreamTraversal {
           return;
 
         case BEGIN_ARRAY:
-          if (!visitValue(reader, visitor, path)) {
-            path.endValue();
-          } else if (visitor.visitObject(path)) {
+          if (!visitValue(reader, visitor, pointer)) {
+            pointer.endValue();
+          } else if (visitor.visitObject(pointer)) {
             reader.beginArray();
-            path.beginArray();
+            pointer.beginArray();
           } else {
-            path.endValue();
+            pointer.endValue();
             reader.skipValue();
           }
           break;
 
         case BEGIN_OBJECT:
-          if (!visitValue(reader, visitor, path)) {
-            path.endValue();
-          } else if (visitor.visitObject(path)) {
+          if (!visitValue(reader, visitor, pointer)) {
+            pointer.endValue();
+          } else if (visitor.visitObject(pointer)) {
             reader.beginObject();
           } else {
-            path.endValue();
+            pointer.endValue();
             reader.skipValue();
           }
           break;
 
         case NAME:
           String key = reader.nextName();
-          path.name(key);
+          pointer.name(key);
           break;
 
         case END_ARRAY:
           reader.endArray();
-          path.endArray();
-          path.endValue();
+          pointer.endArray();
+          pointer.endValue();
           break;
 
         case END_OBJECT:
           reader.endObject();
-          path.endValue();
+          pointer.endValue();
           break;
 
         case BOOLEAN:
-          if (visitValue(reader, visitor, path)) {
-            visitor.valueVisited(path.jsonPath(), reader.nextBoolean());
+          if (visitValue(reader, visitor, pointer)) {
+            visitor.valueVisited(pointer, reader.nextBoolean());
           }
-          path.endValue();
+          pointer.endValue();
           break;
 
         case STRING:
-          if (visitValue(reader, visitor, path)) {
+          if (visitValue(reader, visitor, pointer)) {
             String raw = reader.nextString();
-            if (!visitor.expandValue(path.jsonPath(), raw)) {
-              visitor.valueVisited(path.jsonPath(), raw);
-            } else if (visitor.visitObject(path)) {
+            if (!visitor.expandValue(pointer, raw)) {
+              visitor.valueVisited(pointer, raw);
+            } else if (visitor.visitObject(pointer)) {
               try (InputStream is = new ByteArrayInputStream(raw.getBytes())) {
-                JsonPath.Builder innerPath = path.copy(); // make a copy to prevent its modification
+                JsonPointer innerPath = pointer.copy(); // make a copy to prevent its modification
                 traverse(is, visitor, innerPath);
               } catch (Exception e) {
-                visitor.expandValueFailed(path.jsonPath(), raw, e);
+                visitor.expandValueFailed(pointer, raw, e);
               }
             }
           }
-          path.endValue();
+          pointer.endValue();
           break;
 
         case NUMBER:
-          if (visitValue(reader, visitor, path)) {
+          if (visitValue(reader, visitor, pointer)) {
             // convert number to a string to preserve exact format
-            visitor.valueVisited(path.jsonPath(), reader.nextString());
+            visitor.valueVisited(pointer, reader.nextString());
           }
-          path.endValue();
+          pointer.endValue();
           break;
 
         case NULL:
-          if (visitValue(reader, visitor, path)) {
+          if (visitValue(reader, visitor, pointer)) {
             reader.nextNull();
-            visitor.valueVisited(path.jsonPath(), null);
+            visitor.valueVisited(pointer, null);
           }
-          path.endValue();
+          pointer.endValue();
           break;
       }
     }
   }
 
-  private static boolean visitValue(JsonReader reader, Visitor visitor, JsonPath.Builder path)
+  private static boolean visitValue(JsonReader reader, Visitor visitor, JsonPointer pointer)
       throws IOException {
-    if (visitor.visitValue(path.jsonPath())) {
+    if (visitor.visitValue(pointer)) {
       return true;
     }
     reader.skipValue();

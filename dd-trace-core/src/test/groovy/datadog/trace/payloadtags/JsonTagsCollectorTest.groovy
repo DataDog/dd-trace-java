@@ -439,7 +439,7 @@ class JsonTagsCollectorTest extends Specification {
 
   Map<String, Object> collectTags(JsonTagsCollector jsonTagsCollector, String str, String tagPrefix) {
     try (InputStream is = new ByteArrayInputStream(str.getBytes())) {
-      return jsonTagsCollector.process(is, tagPrefix)
+      return jsonTagsCollector.collectTags(is, tagPrefix)
     }
   }
 }

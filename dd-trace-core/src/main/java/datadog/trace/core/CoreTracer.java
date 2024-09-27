@@ -1211,7 +1211,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void addTagsFromResponseBody(AgentSpan span, InputStream body, String tagPrefix) {
     if (responsePayloadTagExtractor != null) {
-      Map<String, Object> tags = responsePayloadTagExtractor.process(body, tagPrefix);
+      Map<String, Object> tags = responsePayloadTagExtractor.collectTags(body, tagPrefix);
       setTags(span, tags);
     }
   }
@@ -1219,7 +1219,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void addTagsFromRequestBody(AgentSpan span, InputStream body, String tagPrefix) {
     if (requestPayloadTagExtractor != null) {
-      Map<String, Object> tags = requestPayloadTagExtractor.process(body, tagPrefix);
+      Map<String, Object> tags = requestPayloadTagExtractor.collectTags(body, tagPrefix);
       setTags(span, tags);
     }
   }
