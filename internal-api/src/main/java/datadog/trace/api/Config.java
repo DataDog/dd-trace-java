@@ -1019,6 +1019,8 @@ public class Config {
 
   @Nullable private final List<String> cloudRequestPayloadTagging;
   @Nullable private final List<String> cloudResponsePayloadTagging;
+  private final int cloudPayloadTaggingMaxDepth;
+  private final int cloudPayloadTaggingMaxTags;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
@@ -2246,6 +2248,10 @@ public class Config {
         configProvider.getList(TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, null);
     this.cloudResponsePayloadTagging =
         configProvider.getList(TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, null);
+    this.cloudPayloadTaggingMaxDepth =
+        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH, 10);
+    this.cloudPayloadTaggingMaxTags =
+        configProvider.getInteger(TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS, 758);
 
     timelineEventsEnabled =
         configProvider.getBoolean(
@@ -4251,6 +4257,14 @@ public class Config {
 
   public boolean isCloudResponsePayloadTaggingEnabled() {
     return cloudResponsePayloadTagging != null;
+  }
+
+  public int getCloudPayloadTaggingMaxDepth() {
+    return cloudPayloadTaggingMaxDepth;
+  }
+
+  public int getCloudPayloadTaggingMaxTags() {
+    return cloudPayloadTaggingMaxTags;
   }
 
   private <T> Set<T> getSettingsSetFromEnvironment(

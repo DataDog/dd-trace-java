@@ -19,8 +19,8 @@ public final class JsonTagsCollector {
 
   public static final class Builder {
     private List<JsonPath> redactionRules = Collections.emptyList();
-    private int limitTags = 784;
-    private int limitDeepness = 10;
+    private int tagsLimit = 758;
+    private int depthLimit = 10;
 
     public Builder parseRedactionRules(List<String> rules) {
       this.redactionRules = parseRules(rules);
@@ -43,18 +43,18 @@ public final class JsonTagsCollector {
       return result;
     }
 
-    public Builder limitTags(int limitTags) {
-      this.limitTags = limitTags;
+    public Builder tagsLimit(int value) {
+      this.tagsLimit = value;
       return this;
     }
 
-    public Builder limitDeepness(int limitDeepness) {
-      this.limitDeepness = limitDeepness;
+    public Builder depthLimit(int value) {
+      this.depthLimit = value;
       return this;
     }
 
     public JsonTagsCollector build() {
-      return new JsonTagsCollector(redactionRules, limitTags, limitDeepness);
+      return new JsonTagsCollector(redactionRules, tagsLimit, depthLimit);
     }
   }
 
@@ -102,7 +102,7 @@ public final class JsonTagsCollector {
     }
 
     @Override
-    public boolean visitObject(JsonPointer pointer) {
+    public boolean visitInner(JsonPointer pointer) {
       return pointer.length() <= depthLimit;
     }
 

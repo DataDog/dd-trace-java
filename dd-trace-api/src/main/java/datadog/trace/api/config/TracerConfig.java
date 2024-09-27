@@ -139,6 +139,10 @@ public final class TracerConfig {
       "trace.cloud.request.payload.tagging";
   public static final String TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING =
       "trace.cloud.response.payload.tagging";
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH =
+      "trace.cloud.payload.tagging.max-depth";
+  public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS =
+      "trace.cloud.payload.tagging.max-tags";
 
   private TracerConfig() {}
 }

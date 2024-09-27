@@ -131,7 +131,7 @@ class JsonTagsCollectorTest extends Specification {
 
   def "limit number of tags including embedded json"() {
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
-      .limitTags(5)
+      .tagsLimit(5)
       .build()
 
     def json = """{
@@ -159,7 +159,7 @@ class JsonTagsCollectorTest extends Specification {
 
   def "limit depth of traversal"() {
     JsonTagsCollector jsonTagsCollector = new JsonTagsCollector.Builder()
-      .limitDeepness(3)
+      .depthLimit(3)
       .build()
 
     def json = """{

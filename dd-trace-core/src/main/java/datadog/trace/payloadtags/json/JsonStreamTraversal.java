@@ -10,8 +10,8 @@ import okio.Okio;
 public class JsonStreamTraversal {
 
   public interface Visitor {
-    /** @return - true to visit the object, false to skip it */
-    boolean visitObject(JsonPointer pointer);
+    /** @return - true to visit an object or an array, false to skip it */
+    boolean visitInner(JsonPointer pointer);
 
     /** @return - true to visit the value, false to skip it */
     boolean visitValue(JsonPointer pointer);
@@ -55,7 +55,7 @@ public class JsonStreamTraversal {
         case BEGIN_ARRAY:
           if (!visitValue(reader, visitor, pointer)) {
             pointer.endValue();
-          } else if (visitor.visitObject(pointer)) {
+          } else if (visitor.visitInner(pointer)) {
             reader.beginArray();
             pointer.beginArray();
           } else {
@@ -67,7 +67,7 @@ public class JsonStreamTraversal {
         case BEGIN_OBJECT:
           if (!visitValue(reader, visitor, pointer)) {
             pointer.endValue();
-          } else if (visitor.visitObject(pointer)) {
+          } else if (visitor.visitInner(pointer)) {
             reader.beginObject();
           } else {
             pointer.endValue();
@@ -103,7 +103,7 @@ public class JsonStreamTraversal {
             String raw = reader.nextString();
             if (!visitor.expandValue(pointer, raw)) {
               visitor.valueVisited(pointer, raw);
-            } else if (visitor.visitObject(pointer)) {
+            } else if (visitor.visitInner(pointer)) {
               try (InputStream is = new ByteArrayInputStream(raw.getBytes())) {
                 JsonPointer innerPath = pointer.copy(); // make a copy to prevent its modification
                 traverse(is, visitor, innerPath);
